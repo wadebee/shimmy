@@ -1,0 +1,28 @@
+name: Shim Tests
+
+on:
+  pull_request:
+    paths:
+      - "shims/**"
+      - "scripts/test-shims.sh"
+      - "Makefile"
+      - ".pre-commit-config.yaml"
+      - ".github/workflows/test.yml"
+  push:
+    paths:
+      - "shims/**"
+      - "scripts/test-shims.sh"
+      - "Makefile"
+      - ".pre-commit-config.yaml"
+      - ".github/workflows/test.yml"
+  workflow_dispatch:
+
+jobs:
+  shim-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run shim tests
+        run: ./scripts/test-shims.sh

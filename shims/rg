@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Podman-based ripgrep wrapper
+# Usage: shims/rg <rg-args>
+# Example: shims/rg --files
+
+RG_IMAGE=${RG_IMAGE:-docker.io/vszl/ripgrep:latest}
+RG_IMAGE_PULL=${RG_IMAGE_PULL:-}
+
+# Mount current working directory as /work
+MOUNTS=( -v "$PWD":/work -w /work )
+
+# Pull policy: respect RG_IMAGE_PULL=always
+PODMAN_OPTS=()
+if [ "${RG_IMAGE_PULL:-}" = "always" ]; then
+  PODMAN_OPTS+=( --pull=always )
+fi
+
+exec podman run --rm -i "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "$RG_IMAGE" "$@"

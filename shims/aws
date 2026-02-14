@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Podman-based AWS CLI wrapper
+# Usage: shims/aws <aws-args>
+# Example: shims/aws s3 ls
+
+AWS_IMAGE=${AWS_IMAGE:-amazon/aws-cli:2.15.0}
+
+# Mount current working directory as /work
+MOUNTS=( -v "$PWD":/work -w /work )
+
+# Mount AWS credentials/config
+if [ -d "$HOME/.aws" ]; then
+  MOUNTS+=( -v "$HOME/.aws":/root/.aws:ro )
+fi
+
+# Forward common AWS env vars
+ENV_VARS=( -e AWS_* )
+
+# Pull policy
+PODMAN_OPTS=()
+if [ "${AWS_IMAGE_PULL:-}" = "always" ]; then
+  PODMAN_OPTS+=( --pull=always )
+fi
+
+# Execute podman run
+exec podman run --rm -it "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "${ENV_VARS[@]}" "$AWS_IMAGE" "$@"

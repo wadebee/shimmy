@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Podman-based Terraform wrapper
+# Usage: shims/terraform <terraform-args>
+# Example: shims/terraform -chdir=examples/dev plan
+
+TF_IMAGE=${TF_IMAGE:-docker.io/hashicorp/terraform:1.5.6}
+
+# Mount current working directory as /work
+MOUNTS=( -v "$PWD":/work -w /work )
+
+# Mount AWS credentials if available
+if [ -d "$HOME/.aws" ]; then
+  MOUNTS+=( -v "$HOME/.aws":/root/.aws:ro )
+fi
+
+# Mount plugin cache if available
+if [ -d "$HOME/.terraform.d/plugin-cache" ]; then
+  MOUNTS+=( -v "$HOME/.terraform.d/plugin-cache":/root/.terraform.d/plugin-cache )
+fi
+
+# Forward common AWS environment variables
+ENV_VARS=( -e AWS_* -e TF_VARS_* )
+
+# Pull policy: try to use image already present; user can set TF_IMAGE_PULL=always to force pull
+PODMAN_OPTS=()
+if [ "${TF_IMAGE_PULL:-}" = "always" ]; then
+  PODMAN_OPTS+=( --pull=always )
+fi
+
+exec podman run --rm -it "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "${ENV_VARS[@]}" "$TF_IMAGE" "$@"

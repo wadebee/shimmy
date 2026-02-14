@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: shim-tests
+        name: shim-tests
+        entry: ./scripts/test-shims.sh
+        language: system
+        pass_filenames: false
+        files: ^shims/
