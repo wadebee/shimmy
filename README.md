@@ -14,7 +14,7 @@ Shimmy wraps popular CLI tools in lightweight Podman containers, providing:
 
 | Tool | Purpose | Default Image | Usage |
 |------|---------|----------------|-------|
-| **terraform** | Infrastructure as Code | `docker.io/hashicorp/terraform:1.5.6` | `terraform plan`, `terraform apply` |
+| **terraform** | Infrastructure as Code | `docker.io/hashicorp/terraform:latest` | `terraform plan`, `terraform apply` |
 | **aws** | AWS CLI | `amazon/aws-cli:2.15.0` | `aws s3 ls`, `aws sts get-caller-identity` |
 | **jq** | JSON processor | `docker.io/stedolan/jq:latest` | `jq .foo file.json` |
 | **rg** | Ripgrep search | `docker.io/vszl/ripgrep:latest` | `rg "pattern" .` |
@@ -23,10 +23,10 @@ Shimmy wraps popular CLI tools in lightweight Podman containers, providing:
 
 ### Option 1: System-wide installation
 
-Install shims to `~/.local/bin/shims` and update your shell configuration:
+Install shims to `~/` and update your shell configuration:
 
 ```bash
-./scripts/install-shims.sh
+./scripts/install-shimmy.sh
 ```
 
 After running this, restart your shell or source your `.bashrc`:
@@ -49,12 +49,12 @@ This automatically adds `shims/` to your PATH whenever you're in this directory.
 #### Installation options
 
 ```bash
-./scripts/install-shims.sh --help
+./scripts/install-shimmy.sh --help
 ```
 
-- `--install-dir <dir>` — Custom installation directory (default: `~/.local/bin/shims`)
-- `--symlink` — Install as symlinks to this repo (default)
-- `--copy` — Copy shim files instead of symlinking
+- `--install-dir <dir>` — Custom installation directory (default: `~/.local/bin/shimmy`)
+- `--symlink` — Symlink shims to the repo instead of copying them
+- `--copy` — Copy shims to the install directory (default)
 - `--no-update-bashrc` — Skip updating `~/.bashrc`
 
 ### Option 3: Session-only (temporary)
@@ -91,14 +91,16 @@ Each shim respects environment variables for customization:
 
 ### Terraform
 
-- `TF_IMAGE` — Container image (default: `docker.io/hashicorp/terraform:1.5.6`)
+- `TF_IMAGE` — Container image (default: `docker.io/hashicorp/terraform:latest`)
 - `TF_IMAGE_PULL` — Set to `always` to force pulling the latest image
 
 Example:
 
 ```bash
-TF_IMAGE=hashicorp/terraform:1.14.5 terraform version
-TF_IMAGE_PULL=always terraform plan
+TF_IMAGE=docker.io/hashicorp/terraform:latest
+TF_IMAGE_PULL=always 
+terraform version
+terraform plan
 ```
 
 **Mounts:**
@@ -150,7 +152,7 @@ JQ_IMAGE=ghcr.io/jqlang/jq:latest jq --version
 Example:
 
 ```bash
-RG_IMAGE=ghcr.io/burntsushi/ripgrep:14.1.1 rg --version
+RG_IMAGE=docker.io/vszl/ripgrep:latest rg --version
 ```
 
 **Mounts:**
@@ -158,20 +160,20 @@ RG_IMAGE=ghcr.io/burntsushi/ripgrep:14.1.1 rg --version
 
 ## Testing
 
-Run the test suite to validate that shims generate correct Podman arguments:
+Run the test suite to validate that shim containers run via Podman:
 
 ```bash
-make test-shims
+make test-shimmy
 # or
-./scripts/test-shims.sh
+./scripts/test-shimmy.sh
 ```
 
 Tests verify:
-- Default behavior for each shim
-- Mount generation (AWS credentials, Terraform plugin cache)
-- Image pull policy overrides
-- Custom image specifications
-- All environment variable forwarding
+- Each shim launches through Podman with a non-mutating command
+- Custom image overrides and `*_IMAGE_PULL=always` execution paths
+- Working-directory mounts for jq, ripgrep, and Terraform
+- AWS config mounting for the AWS CLI shim
+- Installer profile-copy behavior
 
 ## Requirements
 
@@ -187,10 +189,10 @@ shimmy/
 │   ├── rg
 │   └── terraform
 ├── scripts/
-│   ├── install-shims.sh      # Installation script
-│   └── test-shims.sh         # Test suite
-├── .envrc                    # direnv configuration
-├── .pre-commit-config.yaml   # Git https://github.com/pre-commit/pre-commit-hooks
+│   ├── install-shimmy.sh      # Installation script
+│   └── test-shimmy.sh         # Test suite
+├── .envrc                     # direnv configuration
+├── .pre-commit-config.yaml    # Git https://github.com/pre-commit/pre-commit-hooks
 ├── .github/
 │   └── workflows/
 │       └── test.yml          # CI/CD workflow
@@ -199,8 +201,7 @@ shimmy/
 ```
 
 ## AI Generation 
-This code was ![AI-developed](https://img.shields.io/badge/AI-Generated-blue) and human-reviewed/curated in concert with Codex GPT-5.3.
-
+This code was ![AI-developed](https://img.shields.io/badge/AI-Generated-blue) and human-reviewed/curated in concert with Codex GPT-5.4.
 
 ## License
 

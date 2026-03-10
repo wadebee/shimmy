@@ -5,7 +5,7 @@ set -euo pipefail
 # Usage: shims/terraform <terraform-args>
 # Example: shims/terraform -chdir=examples/dev plan
 
-TF_IMAGE=${TF_IMAGE:-docker.io/hashicorp/terraform:1.5.6}
+TF_IMAGE=${TF_IMAGE:-docker.io/hashicorp/terraform:latest}
 
 # Mount current working directory as /work
 MOUNTS=( -v "$PWD":/work -w /work )

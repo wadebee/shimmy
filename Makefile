@@ -1,7 +1,11 @@
-.PHONY: test-shims install-shims
+.PHONY: test-shimmy install-shimmy test-shims install-shims
 
-test-shims:
-	./scripts/test-shims.sh
+test-shimmy:
+	./scripts/test-shimmy.sh
 
-install-shims:
-	./scripts/install-shims.sh
+install-shimmy:
+	./scripts/install-shimmy.sh
+
+test-shims: test-shimmy
+
+install-shims: install-shimmy

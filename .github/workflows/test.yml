@@ -4,14 +4,16 @@ on:
   pull_request:
     paths:
       - "shims/**"
-      - "scripts/test-shims.sh"
+      - "scripts/install-shimmy.sh"
+      - "scripts/test-shimmy.sh"
       - "Makefile"
       - ".pre-commit-config.yaml"
       - ".github/workflows/test.yml"
   push:
     paths:
       - "shims/**"
-      - "scripts/test-shims.sh"
+      - "scripts/install-shimmy.sh"
+      - "scripts/test-shimmy.sh"
       - "Makefile"
       - ".pre-commit-config.yaml"
       - ".github/workflows/test.yml"
@@ -25,4 +27,4 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run shim tests
-        run: ./scripts/test-shims.sh
+        run: ./scripts/test-shimmy.sh

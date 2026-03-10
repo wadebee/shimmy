@@ -3,25 +3,31 @@ set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SHIM_SOURCE_DIR="$ROOT_DIR/shims"
-DEFAULT_INSTALL_DIR="$HOME/.local/bin/shims"
+DOCS_SOURCE_DIR="$ROOT_DIR/docs"
+SKILLS_SOURCE_DIR="$ROOT_DIR/.agents"
+REPO_AGENTS_SOURCE="$ROOT_DIR/AGENTS.md"
+DEFAULT_INSTALL_DIR="$HOME/.local/bin/shimmy"
 INSTALL_DIR="$DEFAULT_INSTALL_DIR"
 LEGACY_BIN_DIR="$HOME/.local/bin"
 BASHRC_FILE="$HOME/.bashrc"
-INSTALL_MODE="symlink"
+SHIMMY_PROFILE_DIR="${HOME}/.config/shimmy"
+INSTALL_MODE="copy"
 UPDATE_BASHRC=1
+PROFILE_CREATED_MESSAGES=()
+PROFILE_WARNING_MESSAGES=()
 
 usage() {
   cat <<'EOF'
 Install shimmy CLI shims into a user profile directory.
 
 Usage:
-  scripts/install-shims.sh [options]
+  scripts/install-shimmy.sh [options]
 
 Options:
   --install-dir <dir>    Destination directory for installed shims.
-                         Default: ~/.local/bin/shims
-  --symlink              Install shims as symlinks to this repo (default).
-  --copy                 Install shims by copying files.
+                         Default: ~/.local/bin/shimmy
+  --symlink              Install shims as symlinks to this repo.
+  --copy                 Install shims by copying files (default).
   --update-bashrc        Add managed PATH block to ~/.bashrc (default).
   --no-update-bashrc     Do not edit ~/.bashrc.
   --bashrc-file <file>   Bash rc file to update (default: ~/.bashrc).
@@ -32,6 +38,14 @@ EOF
 fail() {
   echo "Error: $*" >&2
   exit 1
+}
+
+record_profile_created() {
+  PROFILE_CREATED_MESSAGES+=("$1")
+}
+
+record_profile_warning() {
+  PROFILE_WARNING_MESSAGES+=("$1")
 }
 
 while [[ $# -gt 0 ]]; do
@@ -142,6 +156,45 @@ remove_legacy_local_bin_symlinks() {
   done
 }
 
+copy_profile_file_if_missing() {
+  local src="$1"
+  local dest="$2"
+  local label="$3"
+
+  if [[ -e "$dest" ]]; then
+    record_profile_warning "Warning: profile file already exists at $dest; leaving $label unchanged."
+    return
+  fi
+
+  mkdir -p "$(dirname "$dest")"
+  install -m 0644 "$src" "$dest"
+  record_profile_created "Created profile file: $dest"
+}
+
+install_repo_profile_files() {
+  local src rel dest
+
+  if [[ -f "$REPO_AGENTS_SOURCE" ]]; then
+    copy_profile_file_if_missing "$REPO_AGENTS_SOURCE" "$SHIMMY_PROFILE_DIR/AGENTS.md" "AGENTS.md"
+  fi
+
+  if [[ -d "$DOCS_SOURCE_DIR" ]]; then
+    while IFS= read -r src; do
+      rel="${src#$ROOT_DIR/}"
+      dest="$SHIMMY_PROFILE_DIR/$rel"
+      copy_profile_file_if_missing "$src" "$dest" "$rel"
+    done < <(find "$DOCS_SOURCE_DIR" -type f | sort)
+  fi
+
+  if [[ -d "$SKILLS_SOURCE_DIR" ]]; then
+    while IFS= read -r src; do
+      rel="${src#$ROOT_DIR/}"
+      dest="$SHIMMY_PROFILE_DIR/$rel"
+      copy_profile_file_if_missing "$src" "$dest" "$rel"
+    done < <(find "$SKILLS_SOURCE_DIR" -type f | sort)
+  fi
+}
+
 if [[ "$UPDATE_BASHRC" -eq 1 ]]; then
   touch "$BASHRC_FILE"
   remove_managed_bashrc_block
@@ -153,10 +206,20 @@ if [[ "$INSTALL_DIR" != "$LEGACY_BIN_DIR" ]]; then
   remove_legacy_local_bin_symlinks
 fi
 
+install_repo_profile_files
+
 echo "Installed shims into $INSTALL_DIR ($INSTALL_MODE)."
 if [[ "$UPDATE_BASHRC" -eq 1 ]]; then
   echo "Updated PATH block in $BASHRC_FILE."
   echo "Run: source \"$BASHRC_FILE\""
 else
   echo "Add this path manually if needed: $INSTALL_DIR"
+fi
+
+if [[ "${#PROFILE_CREATED_MESSAGES[@]}" -gt 0 ]]; then
+  printf '%s\n' "${PROFILE_CREATED_MESSAGES[@]}"
+fi
+
+if [[ "${#PROFILE_WARNING_MESSAGES[@]}" -gt 0 ]]; then
+  printf '%s\n' "${PROFILE_WARNING_MESSAGES[@]}"
 fi
