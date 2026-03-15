@@ -1,6 +1,6 @@
 ---
 name: shimmy-jq-shim
-description: Guidance for building or updating the jq shim in this repository. Use when changing shims/jq, its tests, or jq-specific image and stdin behavior.
+description: Guidance for using  the jq shim in this repository. Use when changing shims/jq, its tests, or jq-specific image and stdin behavior.
 ---
 
 # jq Shim

@@ -1,6 +1,6 @@
 ---
 name: shimmy-aws-shim
-description: Guidance for building or updating the AWS CLI shim in this repository. Use when changing shims/aws, its tests, or AWS-specific shim conventions such as credential mounts and AWS env forwarding.
+description: Guidance for using  the AWS CLI shim in this repository. Use when changing shims/aws, its tests, or AWS-specific shim conventions such as credential mounts and AWS env forwarding.
 ---
 
 # AWS Shim

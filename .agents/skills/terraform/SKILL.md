@@ -1,6 +1,6 @@
 ---
 name: shimmy-terraform-shim
-description: Guidance for building or updating the Terraform shim in this repository. Use when changing shims/terraform, its tests, or Terraform-specific mounts and env forwarding behavior.
+description: Guidance for using  the Terraform shim in this repository. Use when changing shims/terraform, its tests, or Terraform-specific mounts and env forwarding behavior.
 ---
 
 # Terraform Shim

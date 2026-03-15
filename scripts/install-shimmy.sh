@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SHIM_SOURCE_DIR="$ROOT_DIR/shims"
+RUNTIME_SOURCE_DIR="$ROOT_DIR/runtime"
 DOCS_SOURCE_DIR="$ROOT_DIR/docs"
 SKILLS_SOURCE_DIR="$ROOT_DIR/.agents"
 REPO_AGENTS_SOURCE="$ROOT_DIR/AGENTS.md"
@@ -88,10 +89,24 @@ done
 
 INSTALL_DIR="${INSTALL_DIR%/}"
 [[ -d "$SHIM_SOURCE_DIR" ]] || fail "shim source directory not found: $SHIM_SOURCE_DIR"
+[[ -d "$RUNTIME_SOURCE_DIR" ]] || fail "runtime source directory not found: $RUNTIME_SOURCE_DIR"
 
 mkdir -p "$INSTALL_DIR"
 
-for shim in aws jq terraform rg; do
+install_runtime_support() {
+  local runtime_dest="$INSTALL_DIR/.shimmy"
+
+  rm -rf "$runtime_dest"
+
+  if [[ "$INSTALL_MODE" == "copy" ]]; then
+    mkdir -p "$runtime_dest"
+    cp -a "$RUNTIME_SOURCE_DIR"/. "$runtime_dest"/
+  else
+    ln -s "$RUNTIME_SOURCE_DIR" "$runtime_dest"
+  fi
+}
+
+for shim in aws jq terraform rg tessl; do
   src="$SHIM_SOURCE_DIR/$shim"
   dest="$INSTALL_DIR/$shim"
   [[ -f "$src" ]] || fail "missing shim: $src"
@@ -102,6 +117,8 @@ for shim in aws jq terraform rg; do
     ln -sfn "$src" "$dest"
   fi
 done
+
+install_runtime_support
 
 remove_managed_bashrc_block() {
   local tmp
@@ -145,7 +162,7 @@ append_managed_bashrc_block() {
 
 remove_legacy_local_bin_symlinks() {
   local shim legacy target
-  for shim in aws jq terraform rg; do
+  for shim in aws jq terraform rg tessl; do
     legacy="$LEGACY_BIN_DIR/$shim"
     if [[ -L "$legacy" ]]; then
       target="$(readlink "$legacy" || true)"
@@ -162,7 +179,7 @@ copy_profile_file_if_missing() {
   local label="$3"
 
   if [[ -e "$dest" ]]; then
-    record_profile_warning "Warning: profile file already exists at $dest; leaving $label unchanged."
+    record_profile_warning "Warning: profile already exists at $dest; leaving unchanged."
     return
   fi
 

@@ -1,0 +1,18 @@
+# Hardened Image at dhi.io/node:25-dev 
+ARG TESSL_BASE_IMAGE=node:25 
+FROM ${TESSL_BASE_IMAGE}
+EXPOSE 8888
+RUN mkdir -p .npm-global \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates gzip \
+    && npm install -g @tessl/cli \
+    && curl -fsSL https://get.tessl.io | sh \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PATH=$PATH:$HOME/.npm-global/bin:$HOME/.local/bin
+ENV NPM_CONFIG_PREFIX=$HOME/.npm-global
+
+# Node User
+USER 1000 
+
+ENTRYPOINT ["tessl"]

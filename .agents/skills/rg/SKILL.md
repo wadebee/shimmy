@@ -1,6 +1,6 @@
 ---
 name: shimmy-rg-shim
-description: Guidance for building or updating the ripgrep shim in this repository. Use when changing shims/rg, its tests, or ripgrep-specific image and stdin behavior.
+description: Guidance for using  the ripgrep shim in this repository. Use when changing shims/rg, its tests, or ripgrep-specific image and stdin behavior.
 ---
 
 # ripgrep Shim

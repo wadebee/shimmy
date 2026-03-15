@@ -12,10 +12,13 @@ Constraints:
 - Use Bash with `#!/usr/bin/env bash`.
 - Read the default image from `<PREFIX>_IMAGE`.
 - Support `<PREFIX>_IMAGE_PULL=always` by adding `--pull=always` to `podman run`.
+- For tools that are not already published as container images, add `runtime/images/<tool>/Containerfile` and build a local Podman image on demand instead of embedding install steps in the runtime wrapper.
 - Mount `$PWD` to `/work` with `-v "$PWD":/work -w /work`.
 - Choose `-it` for interactive CLIs and `-i` for filter-style CLIs.
 - Add extra mounts only when the tool needs them, and guard them with existence checks.
 - Forward env vars with `-e PREFIX_*` patterns only when the tool needs them.
+- Use `Containerfile` naming for custom image build contexts.
+- Keep image-build logic in the shared runtime helper so custom-image shims rebuild only when the build context changes.
 - End with `exec podman run --rm ... "$IMAGE" "$@"`.
 - Update `scripts/install-shimmy.sh` because it enumerates shim names explicitly.
 - Update `scripts/test-shimmy.sh` with needed assertions against prerequisite `podman` installation.
@@ -25,14 +28,16 @@ Constraints:
 Deliverables:
 
 1. The runtime shim.
-2. Installer updates if the shim set changed.
-3. When creating container tests, use Podman and non-mutating cli calls (eg: version or --help) to validate container.  
-README updates.
-5. A short explanation of mounts, env forwarding, and pull policy.
+2. Any `runtime/images/<tool>/Containerfile` assets required for custom-built images.
+3. Installer updates if the shim set or runtime support assets changed.
+4. When creating container tests, use Podman and non-mutating cli calls (eg: version or --help) to validate container.
+5. README updates.
+6. A short explanation of mounts, env forwarding, pull policy, and local image build behavior when applicable.
 
 ## Repo Anatomy
 
 - `shims/` contains one Bash wrapper per tool.
+- `runtime/` contains reusable runtime helpers and `Containerfile` build contexts for shims that need locally built images.
 - `scripts/install-shimmy.sh` installs a fixed list of shim names by symlink or copy.
 - `scripts/test-shimmy.sh` creates a fake `podman` binary and asserts the exact argv each shim emits.
 - `.envrc` adds `shims/` to `PATH` for local direnv usage.
