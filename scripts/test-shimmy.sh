@@ -67,7 +67,15 @@ run_installer() {
     cd "$ROOT_DIR"
     env "HOME=$HOME_DIR" bash "$ROOT_DIR/scripts/install-shimmy.sh" \
       --install-dir "$HOME_DIR/.local/bin/shimmy" \
-      --no-update-bashrc \
+      "$@"
+  )
+}
+
+run_uninstaller() {
+  (
+    cd "$ROOT_DIR"
+    env "HOME=$HOME_DIR" bash "$ROOT_DIR/scripts/uninstall-shimmy.sh" \
+      --install-dir "$HOME_DIR/.local/bin/shimmy" \
       "$@"
   )
 }
@@ -97,6 +105,12 @@ assert_file_exists() {
   local path="$1"
 
   [[ -f "$path" ]] || fail_test "Expected file to exist: $path"
+}
+
+assert_path_not_exists() {
+  local path="$1"
+
+  [[ ! -e "$path" ]] || fail_test "Did not expect path to exist: $path"
 }
 
 assert_not_symlink() {
@@ -264,7 +278,7 @@ test_install_creates_repo_profile_files() {
   setup_scenario
 
   local output
-  output="$(run_installer)"
+  output="$(run_installer --no-update-bashrc)"
 
   local profile_dir="$HOME_DIR/.config/shimmy"
   local install_dir="$HOME_DIR/.local/bin/shimmy"
@@ -273,6 +287,7 @@ test_install_creates_repo_profile_files() {
   assert_file_exists "$profile_dir/docs/shimmy-project-prompt.md"
   assert_file_exists "$profile_dir/.agents/skills/aws/AGENTS.md"
   assert_file_exists "$profile_dir/.agents/skills/aws/SKILL.md"
+  assert_file_exists "$profile_dir/install-manifest.txt"
   assert_file_exists "$install_dir/aws"
   assert_file_exists "$install_dir/.shimmy/images/tessl/Containerfile"
   assert_file_exists "$install_dir/.shimmy/lib/custom-image.sh"
@@ -294,7 +309,7 @@ test_install_preserves_existing_repo_profile_files() {
   printf '%s\n' 'existing aws skill' > "$profile_dir/.agents/skills/aws/SKILL.md"
 
   local output
-  output="$(run_installer)"
+  output="$(run_installer --no-update-bashrc)"
 
   assert_file_contains_text "$profile_dir/AGENTS.md" "existing repo agents"
   assert_file_contains_text "$profile_dir/.agents/skills/aws/SKILL.md" "existing aws skill"
@@ -308,7 +323,7 @@ test_install_symlink_mode() {
   setup_scenario
 
   local output
-  output="$(run_installer --symlink)"
+  output="$(run_installer --symlink --no-update-bashrc)"
 
   local install_dir="$HOME_DIR/.local/bin/shimmy"
 
@@ -318,22 +333,103 @@ test_install_symlink_mode() {
   pass "install symlink override"
 }
 
+test_install_updates_bash_startup_files() {
+  setup_scenario
+
+  local output
+  output="$(run_installer)"
+
+  local install_dir="$HOME_DIR/.local/bin/shimmy"
+  local bashrc_file="$HOME_DIR/.bashrc"
+  local bash_profile_file="$HOME_DIR/.bash_profile"
+  local bash_shimmy_file="$HOME_DIR/.bashrc_shimmy"
+  local source_line='if [ -f ~/.bashrc_shimmy ]; then . ~/.bashrc_shimmy; fi'
+
+  assert_file_exists "$bashrc_file"
+  assert_file_exists "$bash_profile_file"
+  assert_file_exists "$bash_shimmy_file"
+  assert_file_contains_text "$bashrc_file" "$source_line"
+  assert_file_contains_text "$bash_profile_file" "$source_line"
+  assert_file_contains_text "$bash_shimmy_file" "if [ -d \"$install_dir\" ]; then"
+  assert_file_contains_text "$bash_shimmy_file" "*) export PATH=\"\$PATH:$install_dir\" ;;"
+  assert_output_contains "$output" "Updated Bash startup files: $bashrc_file, $bash_profile_file, $bash_shimmy_file."
+  pass "install updates bash startup files"
+}
+
+test_uninstall_removes_installed_artifacts() {
+  setup_scenario
+
+  run_installer >/dev/null
+
+  local install_dir="$HOME_DIR/.local/bin/shimmy"
+  local profile_dir="$HOME_DIR/.config/shimmy"
+  local bashrc_file="$HOME_DIR/.bashrc"
+  local bash_profile_file="$HOME_DIR/.bash_profile"
+  local bash_shimmy_file="$HOME_DIR/.bashrc_shimmy"
+  local manifest_file="$profile_dir/install-manifest.txt"
+  local output
+
+  output="$(run_uninstaller)"
+
+  assert_path_not_exists "$install_dir"
+  assert_path_not_exists "$profile_dir"
+  assert_path_not_exists "$bashrc_file"
+  assert_path_not_exists "$bash_profile_file"
+  assert_path_not_exists "$bash_shimmy_file"
+  assert_path_not_exists "$manifest_file"
+  assert_output_contains "$output" "Removed shimmy artifacts from $install_dir."
+  pass "uninstall removes installed artifacts"
+}
+
+test_uninstall_preserves_preexisting_profile_files() {
+  setup_scenario
+
+  local profile_dir="$HOME_DIR/.config/shimmy"
+  local existing_file="$profile_dir/AGENTS.md"
+  mkdir -p "$profile_dir"
+  printf '%s\n' 'preexisting profile file' > "$existing_file"
+
+  run_installer >/dev/null
+  run_uninstaller >/dev/null
+
+  assert_file_contains_text "$existing_file" "preexisting profile file"
+  assert_path_not_exists "$profile_dir/install-manifest.txt"
+  pass "uninstall preserves preexisting profile files"
+}
+
+test_uninstall_preserves_preexisting_shell_files() {
+  setup_scenario
+
+  local bashrc_file="$HOME_DIR/.bashrc"
+  : > "$bashrc_file"
+
+  run_installer >/dev/null
+  run_uninstaller >/dev/null
+
+  assert_file_exists "$bashrc_file"
+  pass "uninstall preserves preexisting shell files"
+}
+
 main() {
   require_podman
 
-  # test_aws_default
-  # test_aws_with_mount_and_pull
-  # test_jq_default
-  # test_jq_with_pull
-  # test_rg_default
-  # test_rg_with_pull
-  # test_terraform_default
-  # test_terraform_with_mounts_and_pull
+  test_aws_default
+  test_aws_with_mount_and_pull
+  test_jq_default
+  test_jq_with_pull
+  test_rg_default
+  test_rg_with_pull
+  test_terraform_default
+  test_terraform_with_mounts_and_pull
   test_tessl_default
   test_tessl_with_mounts_and_pull
-  # test_install_creates_repo_profile_files
-  # test_install_preserves_existing_repo_profile_files
-  # test_install_symlink_mode
+  test_install_creates_repo_profile_files
+  test_install_preserves_existing_repo_profile_files
+  test_install_symlink_mode
+  test_install_updates_bash_startup_files
+  test_uninstall_removes_installed_artifacts
+  test_uninstall_preserves_preexisting_profile_files
+  test_uninstall_preserves_preexisting_shell_files
 
   echo "All $TEST_COUNT shim tests passed."
 }

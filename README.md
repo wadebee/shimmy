@@ -32,11 +32,19 @@ Install shims to `~/` and update your shell configuration:
 ./scripts/install-shimmy.sh
 ```
 
-After running this, restart your shell or source your `.bashrc`:
+To remove the installed shims and Shimmy-managed shell/profile artifacts later:
 
 ```bash
-source ~/.bashrc
+./scripts/uninstall-shimmy.sh
 ```
+
+After running this, restart your shell or source the managed Shimmy file:
+
+```bash
+source ~/.bashrc_shimmy
+```
+
+The installer keeps the PATH block in `~/.bashrc_shimmy` and adds a sourcing line to both `~/.bashrc` and `~/.bash_profile` so Bash behaves consistently on Linux interactive shells and macOS login shells.
 
 ### Option 2: Use with direnv
 
@@ -58,7 +66,13 @@ This automatically adds `shims/` to your PATH whenever you're in this directory.
 - `--install-dir <dir>` — Custom installation directory (default: `~/.local/bin/shimmy`)
 - `--symlink` — Symlink shims to the repo instead of copying them
 - `--copy` — Copy shims to the install directory (default)
-- `--no-update-bashrc` — Skip updating `~/.bashrc`
+- `--no-update-bashrc` — Skip updating `~/.bashrc`, `~/.bash_profile`, and `~/.bashrc_shimmy`
+
+Uninstall options:
+
+```bash
+./scripts/uninstall-shimmy.sh --help
+```
 
 ### Option 3: Session-only (temporary)
 
