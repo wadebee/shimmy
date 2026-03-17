@@ -10,7 +10,7 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 ## Files
 
 - Skill file: `SKILL.md`
-- Shared repo prompt: `../../../docs/shimmy-project-prompt.md`
+- Shared repo prompt: `../../../docs/prompt-shimmy-project.md`
 - Runtime shims: `../../../shims/`
 - Tests: `../../../scripts/test-shimmy.sh`
 - Installer: `../../../scripts/install-shimmy.sh`
@@ -18,7 +18,7 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 
 ## Default Workflow
 
-1. Read `../../../docs/shimmy-project-prompt.md` before making changes.
+1. Read `../../../docs/prompt-shimmy-project.md` before making changes.
 2. Inspect `../../../shims/`, `../../../scripts/install-shimmy.sh`, and `../../../scripts/test-shimmy.sh` so the new shim matches existing conventions.
 3. Keep the skill-driven plan concise and actionable. Prefer a short default workflow over long narrative guidance.
 4. Update the runtime shim, installer, tests, and README together when behavior changes.

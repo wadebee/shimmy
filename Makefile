@@ -7,7 +7,7 @@ install-shimmy:
 	./scripts/install-shimmy.sh
 
 uninstall-shimmy:
-	./scripts/uninstall-shimmy.sh
+	./scripts/install-shimmy.sh --uninstall
 
 test-shims: test-shimmy
 

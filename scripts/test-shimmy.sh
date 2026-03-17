@@ -74,7 +74,8 @@ run_installer() {
 run_uninstaller() {
   (
     cd "$ROOT_DIR"
-    env "HOME=$HOME_DIR" bash "$ROOT_DIR/scripts/uninstall-shimmy.sh" \
+    env "HOME=$HOME_DIR" bash "$ROOT_DIR/scripts/install-shimmy.sh" \
+      --uninstall \
       --install-dir "$HOME_DIR/.local/bin/shimmy" \
       "$@"
   )
@@ -284,16 +285,16 @@ test_install_creates_repo_profile_files() {
   local install_dir="$HOME_DIR/.local/bin/shimmy"
 
   assert_file_exists "$profile_dir/AGENTS.md"
-  assert_file_exists "$profile_dir/docs/shimmy-project-prompt.md"
+  assert_file_exists "$profile_dir/docs/prompt-shimmy-project.md"
   assert_file_exists "$profile_dir/.agents/skills/aws/AGENTS.md"
   assert_file_exists "$profile_dir/.agents/skills/aws/SKILL.md"
   assert_file_exists "$profile_dir/install-manifest.txt"
   assert_file_exists "$install_dir/aws"
-  assert_file_exists "$install_dir/.shimmy/images/tessl/Containerfile"
-  assert_file_exists "$install_dir/.shimmy/lib/custom-image.sh"
+  assert_file_exists "$install_dir/images/tessl/Containerfile"
+  assert_file_exists "$install_dir/lib/custom-image.sh"
   assert_not_symlink "$install_dir/aws"
   assert_files_equal "$ROOT_DIR/AGENTS.md" "$profile_dir/AGENTS.md"
-  assert_files_equal "$ROOT_DIR/docs/shimmy-project-prompt.md" "$profile_dir/docs/shimmy-project-prompt.md"
+  assert_files_equal "$ROOT_DIR/docs/prompt-shimmy-project.md" "$profile_dir/docs/prompt-shimmy-project.md"
   assert_output_contains "$output" "Installed shims into $install_dir (copy)."
   assert_output_contains "$output" "Created profile file: $profile_dir/AGENTS.md"
   assert_output_contains "$output" "Created profile file: $profile_dir/.agents/skills/aws/SKILL.md"
@@ -328,7 +329,7 @@ test_install_symlink_mode() {
   local install_dir="$HOME_DIR/.local/bin/shimmy"
 
   assert_symlink_target "$install_dir/aws" "$ROOT_DIR/shims/aws"
-  assert_symlink_target "$install_dir/.shimmy" "$ROOT_DIR/runtime"
+  assert_symlink_target "$install_dir/links" "$ROOT_DIR/runtime"
   assert_output_contains "$output" "Installed shims into $install_dir (symlink)."
   pass "install symlink override"
 }
@@ -350,8 +351,8 @@ test_install_updates_bash_startup_files() {
   assert_file_exists "$bash_shimmy_file"
   assert_file_contains_text "$bashrc_file" "$source_line"
   assert_file_contains_text "$bash_profile_file" "$source_line"
-  assert_file_contains_text "$bash_shimmy_file" "if [ -d \"$install_dir\" ]; then"
-  assert_file_contains_text "$bash_shimmy_file" "*) export PATH=\"\$PATH:$install_dir\" ;;"
+  assert_file_contains_text "$bash_shimmy_file" "if [ -d \"$SHIMMY_SHIM_DIR\" ]; then"
+  assert_file_contains_text "$bash_shimmy_file" "*) export PATH=\"\$PATH:$SHIMMY_SHIM_DIR\" ;;"
   assert_output_contains "$output" "Updated Bash startup files: $bashrc_file, $bash_profile_file, $bash_shimmy_file."
   pass "install updates bash startup files"
 }

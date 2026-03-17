@@ -35,7 +35,7 @@ Install shims to `~/` and update your shell configuration:
 To remove the installed shims and Shimmy-managed shell/profile artifacts later:
 
 ```bash
-./scripts/uninstall-shimmy.sh
+./scripts/install-shimmy.sh --uninstall
 ```
 
 After running this, restart your shell or source the managed Shimmy file:
@@ -71,7 +71,7 @@ This automatically adds `shims/` to your PATH whenever you're in this directory.
 Uninstall options:
 
 ```bash
-./scripts/uninstall-shimmy.sh --help
+./scripts/install-shimmy.sh --help
 ```
 
 ### Option 3: Session-only (temporary)
@@ -79,7 +79,7 @@ Uninstall options:
 For a single shell session:
 
 ```bash
-export PATH="$PATH:/path/to/shimmy/shims"
+export PATH="$PATH:$SHIMMY_SHIM_DIR"
 ```
 
 ## Usage

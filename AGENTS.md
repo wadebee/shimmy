@@ -7,7 +7,7 @@ This repository packages common CLI tools as small Bash shims that call `podman 
 - Runtime shims live in `shims/`.
 - Installation logic lives in `scripts/install-shimmy.sh`.
 - Behavioral tests live in `scripts/test-shimmy.sh`.
-- The reusable project prompt lives in `docs/shimmy-project-prompt.md`.
+- The reusable project prompt lives in `docs/prompt-shimmy-project.md`.
 
 ## Available Shim Skills
 

@@ -9,7 +9,7 @@ RUN mkdir -p .npm-global \
     && curl -fsSL https://get.tessl.io | sh \
     && rm -rf /var/lib/apt/lists/*
 
-ENV PATH=$PATH:$HOME/.npm-global/bin:$HOME/.local/bin
+ENV PATH=$PATH:$HOME/.npm-global/bin:$HOME/.config/shimmy/templates
 ENV NPM_CONFIG_PREFIX=$HOME/.npm-global
 
 # Node User
