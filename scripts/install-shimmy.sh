@@ -1,32 +1,21 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-SOURCE_ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE_SHIMS_DIR="$SOURCE_ROOT_DIR/shims"
-SOURCE_IMAGES_DIR="$SOURCE_ROOT_DIR/images" 
-SOURCE_DOCS_DIR="$SOURCE_ROOT_DIR/docs"
-SOURCE_SKILLS_DIR="$SOURCE_ROOT_DIR/.agents"
-SOURCE_AGENTS="$SOURCE_ROOT_DIR/AGENTS.md"
-BASHRC_FILE="$HOME/.bashrc"
-BASH_PROFILE_FILE="$HOME/.bash_profile"
-SHIMMY_BASH_FILE="$HOME/.bashrc_shimmy"
-DEFAULT_INSTALL_DIR="$HOME/.config/shimmy"
-SHIMMY_INSTALL_DIR="$DEFAULT_INSTALL_DIR"; export SHIMMY_INSTALL_DIR
-SHIMMY_IMAGES_DIR="$SHIMMY_INSTALL_DIR/images"; export SHIMMY_IMAGES_DIR
-SHIMMY_SHIM_DIR="$SHIMMY_INSTALL_DIR/shims"; export SHIMMY_SHIM_DIR
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/shimmy-env.sh
+source "$SCRIPT_DIR/lib/shimmy-env.sh"
 
-INSTALL_MANIFEST_FILE="$SHIMMY_INSTALL_DIR/install-manifest.txt"
-INSTALL_MODE=''
+shimmy_init_repo_vars "$(shimmy_repo_root_from_script_path "${BASH_SOURCE[0]}")"
+shimmy_init_home_vars "$HOME"
+shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
+
+INSTALL_MODE='copy'
 UPDATE_BASHRC=1
 UNINSTALL=0
 PROFILE_CREATED_MESSAGES=()
 PROFILE_WARNING_MESSAGES=()
 PROFILE_CREATED_PATHS=()
 SHELL_FILES_CREATED_PATHS=()
-SHELL_INIT_BLOCK_START="# >>> shimmy shell init >>>"
-SHELL_INIT_BLOCK_END="# <<< shimmy shell init <<<"
-PATH_BLOCK_START="# >>> shimmy shims >>>"
-PATH_BLOCK_END="# <<< shimmy shims <<<"
 
 usage() {
   cat <<'EOF'
@@ -102,29 +91,14 @@ remove_managed_block() {
 
 append_shimmy_path_block() {
   log_debug "Appending Shimmy PATH block to $SHIMMY_BASH_FILE pointed at dir $SHIMMY_SHIM_DIR"
-  {
-    printf '\n'
-    printf '%s\n' "$PATH_BLOCK_START"
-    printf '%s\n' "if [ -d \"$SHIMMY_SHIM_DIR\" ]; then"
-    printf '%s\n' '  case ":$PATH:" in'
-    printf '%s\n' "    *\":$SHIMMY_SHIM_DIR:\"*) ;;"
-    printf '%s\n' "    *) export PATH=\"\$PATH:$SHIMMY_SHIM_DIR\" ;;"
-    printf '%s\n' '  esac'
-    printf '%s\n' 'fi'
-    printf '%s\n' "$PATH_BLOCK_END"
-  } >> "$SHIMMY_BASH_FILE"
+  shimmy_render_path_block "$SHIMMY_SHIM_DIR" >> "$SHIMMY_BASH_FILE"
 }
 
 append_shell_init_block() {
   local file="$1"
 
   log_debug "Appending shell init block to $file"
-  {
-    printf '\n'
-    printf '%s\n' "$SHELL_INIT_BLOCK_START"
-    printf '%s\n' "if [ -f $SHIMMY_BASH_FILE ]; then . $SHIMMY_BASH_FILE; fi"
-    printf '%s\n' "$SHELL_INIT_BLOCK_END"
-  } >> "$file"
+  shimmy_render_shell_init_block "$SHIMMY_BASH_FILE" >> "$file"
 }
 
 copy_file_if_missing() {
@@ -494,7 +468,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       usage
-      return 0
+      exit 0
       ;;
     *)
       fail "unknown argument: $1"
@@ -502,15 +476,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-SHIMMY_INSTALL_DIR="${SHIMMY_INSTALL_DIR%/}"
+shimmy_init_install_vars "$SHIMMY_INSTALL_DIR"
 
 if [[ "$UNINSTALL" -eq 1 ]]; then
   perform_uninstall
 else
-  if [[ -n "$INSTALL_MODE" ]]; then
-    perform_install
-  else
-    echo "Installation requires option --symlink or --copy"
-    usage
-  fi
+  perform_install
 fi

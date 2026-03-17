@@ -1,0 +1,4 @@
+install_dir=/tmp/tmp.40N1YJlwzd/scenario.Ug1IQn/home/.local/bin/shimmy
+bashrc_file=/tmp/tmp.40N1YJlwzd/scenario.Ug1IQn/home/.bashrc
+bash_profile_file=/tmp/tmp.40N1YJlwzd/scenario.Ug1IQn/home/.bash_profile
+bash_shimmy_file=/tmp/tmp.40N1YJlwzd/scenario.Ug1IQn/home/.bashrc_shimmy

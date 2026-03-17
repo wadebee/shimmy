@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
-ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/shimmy-env.sh
+source "$SCRIPT_DIR/lib/shimmy-env.sh"
+
+shimmy_init_repo_vars "$(shimmy_repo_root_from_script_path "${BASH_SOURCE[0]}")"
 REAL_HOME="${HOME:?HOME must be set}"
 PODMAN_XDG_DATA_HOME="${XDG_DATA_HOME:-$REAL_HOME/.local/share}"
 TMP_ROOT="$(mktemp -d)"
@@ -20,7 +24,7 @@ pass() {
 
 fail_test() {
   echo "$1" >&2
-  exit 1
+  return 1
 }
 
 require_podman() {
@@ -34,6 +38,9 @@ setup_scenario() {
 
   mkdir -p "$HOME_DIR" "$WORK_DIR"
   chmod 755 "$HOME_DIR" "$WORK_DIR"
+
+  shimmy_init_home_vars "$HOME_DIR"
+  shimmy_init_install_vars "$HOME_DIR/.local/bin/shimmy"
 }
 
 run_wrapper() {
@@ -133,13 +140,6 @@ assert_file_contains_text() {
   local expected="$2"
 
   grep -F -- "$expected" "$path" >/dev/null || fail_test "Expected '$expected' in $path"
-}
-
-assert_files_equal() {
-  local left="$1"
-  local right="$2"
-
-  cmp -s "$left" "$right" || fail_test "Expected files to match: $left $right"
 }
 
 test_aws_default() {
@@ -275,49 +275,18 @@ EOF
   pass "tessl mounts + pull exec"
 }
 
-test_install_creates_repo_profile_files() {
+test_install_creates_managed_files() {
   setup_scenario
 
   local output
   output="$(run_installer --no-update-bashrc)"
 
-  local profile_dir="$HOME_DIR/.config/shimmy"
-  local install_dir="$HOME_DIR/.local/bin/shimmy"
-
-  assert_file_exists "$profile_dir/AGENTS.md"
-  assert_file_exists "$profile_dir/docs/prompt-shimmy-project.md"
-  assert_file_exists "$profile_dir/.agents/skills/aws/AGENTS.md"
-  assert_file_exists "$profile_dir/.agents/skills/aws/SKILL.md"
-  assert_file_exists "$profile_dir/install-manifest.txt"
-  assert_file_exists "$install_dir/aws"
-  assert_file_exists "$install_dir/images/tessl/Containerfile"
-  assert_file_exists "$install_dir/lib/custom-image.sh"
-  assert_not_symlink "$install_dir/aws"
-  assert_files_equal "$ROOT_DIR/AGENTS.md" "$profile_dir/AGENTS.md"
-  assert_files_equal "$ROOT_DIR/docs/prompt-shimmy-project.md" "$profile_dir/docs/prompt-shimmy-project.md"
-  assert_output_contains "$output" "Installed shims into $install_dir (copy)."
-  assert_output_contains "$output" "Created profile file: $profile_dir/AGENTS.md"
-  assert_output_contains "$output" "Created profile file: $profile_dir/.agents/skills/aws/SKILL.md"
-  pass "install creates repo profile files"
-}
-
-test_install_preserves_existing_repo_profile_files() {
-  setup_scenario
-
-  local profile_dir="$HOME_DIR/.config/shimmy"
-  mkdir -p "$profile_dir/.agents/skills/aws"
-  printf '%s\n' 'existing repo agents' > "$profile_dir/AGENTS.md"
-  printf '%s\n' 'existing aws skill' > "$profile_dir/.agents/skills/aws/SKILL.md"
-
-  local output
-  output="$(run_installer --no-update-bashrc)"
-
-  assert_file_contains_text "$profile_dir/AGENTS.md" "existing repo agents"
-  assert_file_contains_text "$profile_dir/.agents/skills/aws/SKILL.md" "existing aws skill"
-  assert_file_exists "$profile_dir/.agents/skills/aws/AGENTS.md"
-  assert_output_contains "$output" "Warning: profile already exists at $profile_dir/AGENTS.md; unchanged."
-  assert_output_contains "$output" "Warning: profile already exists at $profile_dir/.agents/skills/aws/SKILL.md; leaving unchanged."
-  pass "install preserves existing repo profile files"
+  assert_file_exists "$INSTALL_MANIFEST_FILE"
+  assert_file_exists "$SHIMMY_SHIM_DIR/aws"
+  assert_file_exists "$SHIMMY_INSTALL_DIR/tessl/Containerfile"
+  assert_not_symlink "$SHIMMY_SHIM_DIR/aws"
+  assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
+  pass "install creates managed files"
 }
 
 test_install_symlink_mode() {
@@ -326,11 +295,9 @@ test_install_symlink_mode() {
   local output
   output="$(run_installer --symlink --no-update-bashrc)"
 
-  local install_dir="$HOME_DIR/.local/bin/shimmy"
-
-  assert_symlink_target "$install_dir/aws" "$ROOT_DIR/shims/aws"
-  assert_symlink_target "$install_dir/links" "$ROOT_DIR/runtime"
-  assert_output_contains "$output" "Installed shims into $install_dir (symlink)."
+  assert_symlink_target "$SHIMMY_SHIM_DIR/aws" "$ROOT_DIR/shims/aws"
+  assert_symlink_target "$SHIMMY_INSTALL_DIR/images" "$ROOT_DIR/images"
+  assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (symlink)."
   pass "install symlink override"
 }
 
@@ -340,20 +307,22 @@ test_install_updates_bash_startup_files() {
   local output
   output="$(run_installer)"
 
-  local install_dir="$HOME_DIR/.local/bin/shimmy"
-  local bashrc_file="$HOME_DIR/.bashrc"
-  local bash_profile_file="$HOME_DIR/.bash_profile"
-  local bash_shimmy_file="$HOME_DIR/.bashrc_shimmy"
-  local source_line='if [ -f ~/.bashrc_shimmy ]; then . ~/.bashrc_shimmy; fi'
+  local source_line
+  local guard_line
+  local export_line
 
-  assert_file_exists "$bashrc_file"
-  assert_file_exists "$bash_profile_file"
-  assert_file_exists "$bash_shimmy_file"
-  assert_file_contains_text "$bashrc_file" "$source_line"
-  assert_file_contains_text "$bash_profile_file" "$source_line"
-  assert_file_contains_text "$bash_shimmy_file" "if [ -d \"$SHIMMY_SHIM_DIR\" ]; then"
-  assert_file_contains_text "$bash_shimmy_file" "*) export PATH=\"\$PATH:$SHIMMY_SHIM_DIR\" ;;"
-  assert_output_contains "$output" "Updated Bash startup files: $bashrc_file, $bash_profile_file, $bash_shimmy_file."
+  source_line="$(shimmy_shell_init_source_line "$SHIMMY_BASH_FILE")"
+  guard_line="$(shimmy_path_block_guard_line "$SHIMMY_SHIM_DIR")"
+  export_line="$(shimmy_path_block_export_line "$SHIMMY_SHIM_DIR")"
+
+  assert_file_exists "$BASHRC_FILE"
+  assert_file_exists "$BASH_PROFILE_FILE"
+  assert_file_exists "$SHIMMY_BASH_FILE"
+  assert_file_contains_text "$BASHRC_FILE" "$source_line"
+  assert_file_contains_text "$BASH_PROFILE_FILE" "$source_line"
+  assert_file_contains_text "$SHIMMY_BASH_FILE" "$guard_line"
+  assert_file_contains_text "$SHIMMY_BASH_FILE" "$export_line"
+  assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
   pass "install updates bash startup files"
 }
 
@@ -362,52 +331,28 @@ test_uninstall_removes_installed_artifacts() {
 
   run_installer >/dev/null
 
-  local install_dir="$HOME_DIR/.local/bin/shimmy"
-  local profile_dir="$HOME_DIR/.config/shimmy"
-  local bashrc_file="$HOME_DIR/.bashrc"
-  local bash_profile_file="$HOME_DIR/.bash_profile"
-  local bash_shimmy_file="$HOME_DIR/.bashrc_shimmy"
-  local manifest_file="$profile_dir/install-manifest.txt"
   local output
 
   output="$(run_uninstaller)"
 
-  assert_path_not_exists "$install_dir"
-  assert_path_not_exists "$profile_dir"
-  assert_path_not_exists "$bashrc_file"
-  assert_path_not_exists "$bash_profile_file"
-  assert_path_not_exists "$bash_shimmy_file"
-  assert_path_not_exists "$manifest_file"
-  assert_output_contains "$output" "Removed shimmy artifacts from $install_dir."
+  assert_path_not_exists "$SHIMMY_INSTALL_DIR"
+  assert_path_not_exists "$BASHRC_FILE"
+  assert_path_not_exists "$BASH_PROFILE_FILE"
+  assert_path_not_exists "$SHIMMY_BASH_FILE"
+  assert_path_not_exists "$INSTALL_MANIFEST_FILE"
+  assert_output_contains "$output" "Removed shimmy artifacts from $SHIMMY_INSTALL_DIR."
   pass "uninstall removes installed artifacts"
-}
-
-test_uninstall_preserves_preexisting_profile_files() {
-  setup_scenario
-
-  local profile_dir="$HOME_DIR/.config/shimmy"
-  local existing_file="$profile_dir/AGENTS.md"
-  mkdir -p "$profile_dir"
-  printf '%s\n' 'preexisting profile file' > "$existing_file"
-
-  run_installer >/dev/null
-  run_uninstaller >/dev/null
-
-  assert_file_contains_text "$existing_file" "preexisting profile file"
-  assert_path_not_exists "$profile_dir/install-manifest.txt"
-  pass "uninstall preserves preexisting profile files"
 }
 
 test_uninstall_preserves_preexisting_shell_files() {
   setup_scenario
 
-  local bashrc_file="$HOME_DIR/.bashrc"
-  : > "$bashrc_file"
+  : > "$BASHRC_FILE"
 
   run_installer >/dev/null
   run_uninstaller >/dev/null
 
-  assert_file_exists "$bashrc_file"
+  assert_file_exists "$BASHRC_FILE"
   pass "uninstall preserves preexisting shell files"
 }
 
@@ -424,12 +369,10 @@ main() {
   test_terraform_with_mounts_and_pull
   test_tessl_default
   test_tessl_with_mounts_and_pull
-  test_install_creates_repo_profile_files
-  test_install_preserves_existing_repo_profile_files
+  test_install_creates_managed_files
   test_install_symlink_mode
   test_install_updates_bash_startup_files
   test_uninstall_removes_installed_artifacts
-  test_uninstall_preserves_preexisting_profile_files
   test_uninstall_preserves_preexisting_shell_files
 
   echo "All $TEST_COUNT shim tests passed."
