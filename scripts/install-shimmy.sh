@@ -316,19 +316,27 @@ remove_profile_dir_if_empty() {
   remove_empty_parent_dirs "$(dirname "$SHIMMY_INSTALL_DIR")" "$HOME"
 }
 
-install_image_support() {
+install_runtime_support() {
   local image_dest="$SHIMMY_IMAGES_DIR"
+  local runtime_dest="$SHIMMY_RUNTIME_DIR"
 
   log_debug "Refreshing local container image support in $image_dest using mode $INSTALL_MODE"
   rm -rf "$image_dest"
+  log_debug "Refreshing shared runtime support in $runtime_dest using mode $INSTALL_MODE"
+  rm -rf "$runtime_dest"
 
   if [[ "$INSTALL_MODE" == "copy" ]]; then
     log_debug "Copying local container image support from $SOURCE_IMAGES_DIR to $image_dest"
     mkdir -p "$image_dest"
     cp -a "$SOURCE_IMAGES_DIR"/. "$image_dest"/
+    log_debug "Copying shared runtime support from $SOURCE_RUNTIME_DIR to $runtime_dest"
+    mkdir -p "$runtime_dest"
+    cp -a "$SOURCE_RUNTIME_DIR"/. "$runtime_dest"/
   else
     log_debug "Symlinking local container image support from $SOURCE_IMAGES_DIR to $image_dest"
     ln -s "$SOURCE_IMAGES_DIR" "$image_dest"
+    log_debug "Symlinking shared runtime support from $SOURCE_RUNTIME_DIR to $runtime_dest"
+    ln -s "$SOURCE_RUNTIME_DIR" "$runtime_dest"
   fi
 }
 
@@ -338,6 +346,7 @@ perform_install() {
   log_info "Starting install into $SHIMMY_INSTALL_DIR with mode $INSTALL_MODE"
   [[ -d "$SOURCE_SHIMS_DIR" ]] || fail "shim source directory not found: $SOURCE_SHIMS_DIR"
   [[ -d "$SOURCE_IMAGES_DIR" ]] || fail "local container image source directory not found: $SOURCE_IMAGES_DIR"
+  [[ -d "$SOURCE_RUNTIME_DIR" ]] || fail "runtime support directory not found: $SOURCE_RUNTIME_DIR"
 
   mkdir -p "$SHIMMY_SHIM_DIR"
   while IFS= read -r src; do
@@ -354,7 +363,7 @@ perform_install() {
     fi
   done < <(find "$SOURCE_SHIMS_DIR" -type f | sort)
 
-  install_image_support
+  install_runtime_support
 
   if [[ "$UPDATE_BASHRC" == "1" ]]; then
     log_debug "Updating Bash startup files"

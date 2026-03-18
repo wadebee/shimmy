@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/shimmy-env.sh
@@ -74,7 +74,7 @@ run_installer() {
     cd "$ROOT_DIR"
     env "HOME=$HOME_DIR" bash "$ROOT_DIR/scripts/install-shimmy.sh" \
       --install-dir "$HOME_DIR/.local/bin/shimmy" \
-      "$@"
+      "$@" 2>&1
   )
 }
 
@@ -84,7 +84,7 @@ run_uninstaller() {
     env "HOME=$HOME_DIR" bash "$ROOT_DIR/scripts/install-shimmy.sh" \
       --uninstall \
       --install-dir "$HOME_DIR/.local/bin/shimmy" \
-      "$@"
+      "$@" 2>&1
   )
 }
 
@@ -275,6 +275,16 @@ EOF
   pass "tessl mounts + pull exec"
 }
 
+test_textual_default() {
+  setup_scenario
+
+  local output
+  output="$(run_wrapper "$ROOT_DIR/shims/textual" -- --help 2>&1)"
+
+  assert_output_contains "$output" "Usage:"
+  pass "textual default exec"
+}
+
 test_install_creates_managed_files() {
   setup_scenario
 
@@ -283,7 +293,9 @@ test_install_creates_managed_files() {
 
   assert_file_exists "$INSTALL_MANIFEST_FILE"
   assert_file_exists "$SHIMMY_SHIM_DIR/aws"
-  assert_file_exists "$SHIMMY_INSTALL_DIR/tessl/Containerfile"
+  assert_file_exists "$SHIMMY_IMAGES_DIR/tessl/Containerfile"
+  assert_file_exists "$SHIMMY_IMAGES_DIR/textual/Containerfile"
+  assert_file_exists "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh"
   assert_not_symlink "$SHIMMY_SHIM_DIR/aws"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
   pass "install creates managed files"
@@ -308,7 +320,7 @@ test_install_log_level_debug_emits_debug() {
   local output
   output="$(LOG_LEVEL=debug run_installer --no-update-bashrc 2>&1)"
 
-  assert_output_contains "$output" "DEBUG: Starting install into $SHIMMY_INSTALL_DIR with mode copy"
+  assert_output_contains "$output" "DEBUG: Refreshing shared runtime support in $SHIMMY_RUNTIME_DIR using mode copy"
   assert_output_contains "$output" "INFO: Installed shims into $SHIMMY_INSTALL_DIR (copy)."
   pass "install log level debug emits debug"
 }
@@ -321,6 +333,7 @@ test_install_symlink_mode() {
 
   assert_symlink_target "$SHIMMY_SHIM_DIR/aws" "$ROOT_DIR/shims/aws"
   assert_symlink_target "$SHIMMY_INSTALL_DIR/images" "$ROOT_DIR/images"
+  assert_symlink_target "$SHIMMY_INSTALL_DIR/runtime" "$ROOT_DIR/runtime"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (symlink)."
   pass "install symlink override"
 }
@@ -391,6 +404,7 @@ main() {
   test_rg_with_pull
   test_terraform_default
   test_terraform_with_mounts_and_pull
+  test_textual_default
   # test_tessl_default
   # test_tessl_with_mounts_and_pull
   test_install_creates_managed_files

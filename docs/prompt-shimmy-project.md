@@ -12,7 +12,7 @@ Constraints:
 - Use Bash with `#!/usr/bin/env bash`.
 - Read the default image from `<PREFIX>_IMAGE`.
 - Support `<PREFIX>_IMAGE_PULL=always` by adding `--pull=always` to `podman run`.
-- For tools that are not already published as container images, add `runtime/images/<tool>/Containerfile` and build a local Podman image on demand instead of embedding install steps in the runtime wrapper.
+- For tools that are not already published as container images, add `images/<tool>/Containerfile` and build a local Podman image on demand instead of embedding install steps in the runtime wrapper.
 - Mount `$PWD` to `/work` with `-v "$PWD":/work -w /work`.
 - Choose `-it` for interactive CLIs and `-i` for filter-style CLIs.
 - Add extra mounts only when the tool needs them, and guard them with existence checks.
@@ -28,7 +28,7 @@ Constraints:
 Deliverables:
 
 1. The runtime shim.
-2. Any `runtime/images/<tool>/Containerfile` assets required for custom-built images.
+2. Any `images/<tool>/Containerfile` assets required for custom-built images.
 3. Installer updates if the shim set or runtime support assets changed.
 4. When creating container tests, use Podman and non-mutating cli calls (eg: version or --help) to validate container.
 5. README updates.
@@ -37,9 +37,10 @@ Deliverables:
 ## Repo Anatomy
 
 - `shims/` contains one Bash wrapper per tool.
-- `runtime/` contains reusable runtime helpers and `Containerfile` build contexts for shims that need locally built images.
+- `images/` contains `Containerfile` build contexts for shims that need locally built images.
+- `runtime/` contains reusable runtime helper scripts.
 - `scripts/install-shimmy.sh` installs a fixed list of shim names by symlink or copy.
-- `scripts/test-shimmy.sh` creates a fake `podman` binary and asserts the exact argv each shim emits.
+- `scripts/test-shimmy.sh` runs Podman-backed smoke tests against non-mutating CLI commands.
 - `.envrc` adds `shims/` to `PATH` for local direnv usage.
 - `.github/workflows/test.yml` runs the shell test suite in CI.
 

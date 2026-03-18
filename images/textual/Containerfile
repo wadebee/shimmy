@@ -1,0 +1,12 @@
+ARG TEXTUAL_BASE_IMAGE=python:3.13-slim-bookworm
+FROM ${TEXTUAL_BASE_IMAGE}
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir textual textual-dev
+
+WORKDIR /work
+
+ENTRYPOINT ["textual"]

@@ -20,7 +20,8 @@ For tools that do not ship a usable upstream container image, Shimmy can build a
 | **aws** | AWS CLI | `amazon/aws-cli:2.15.0` | `aws s3 ls`, `aws sts get-caller-identity` |
 | **jq** | JSON processor | `docker.io/stedolan/jq:latest` | `jq .foo file.json` |
 | **rg** | Ripgrep search | `docker.io/vszl/ripgrep:latest` | `rg "pattern" .` |
-| **tessl** | Tessl CLI | local build from `runtime/images/tessl/Containerfile` | `tessl --help`, `tessl init` |
+| **textual** | Textual developer CLI | local build from `images/textual/Containerfile` | `textual --help`, `textual run app.py` |
+| **tessl** | Tessl CLI | local build from `images/tessl/Containerfile` | `tessl --help`, `tessl init` |
 
 ## Installation
 
@@ -101,6 +102,10 @@ echo '{"name": "shimmy"}' | jq .name
 
 # ripgrep
 rg "pattern" .
+
+# Textual CLI
+textual --help
+textual run app.py
 
 # Tessl CLI
 tessl --help
@@ -193,7 +198,7 @@ Example:
 TESSL_BASE_IMAGE=dhi.io/node:25-dev tessl --help
 ```
 
-The default Tessl image is built locally from `runtime/images/tessl/Containerfile`, which starts from `dhi.io/node:25-dev` and installs the CLI with `npm install -g @tessl/cli` per the Tessl installation docs. Shimmy tags the resulting image under `localhost/shimmy-tessl:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
+The default Tessl image is built locally from `images/tessl/Containerfile`, which starts from `node:25` and installs the CLI with `npm install -g @tessl/cli` per the Tessl installation docs. Shimmy tags the resulting image under `localhost/shimmy-tessl:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
 
 **Mounts:**
 - `$PWD` → `/work` (read-write)
@@ -201,6 +206,24 @@ The default Tessl image is built locally from `runtime/images/tessl/Containerfil
 
 **Environment variables forwarded:**
 - `TESSL_*`
+
+### Textual CLI
+
+- `TEXTUAL_IMAGE` — Override the runtime image entirely
+- `TEXTUAL_IMAGE_BUILD` — Set to `always` to rebuild the local Textual image even if it is already cached
+- `TEXTUAL_IMAGE_PULL` — Set to `always` to force pulling `TEXTUAL_IMAGE` when using an explicit remote override
+- `TEXTUAL_BASE_IMAGE` — Override the `Containerfile` base image (default build arg: `python:3.13-slim-bookworm`)
+
+Example:
+
+```bash
+TEXTUAL_BASE_IMAGE=python:3.13-slim-bookworm textual --help
+```
+
+The default Textual image is built locally from `images/textual/Containerfile`, which starts from `python:3.13-slim-bookworm` and installs `textual` plus `textual-dev`. This matches the official Textual docs, where the `textual` command comes from the developer tools package. Shimmy tags the resulting image under `localhost/shimmy-textual:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
+
+**Mounts:**
+- `$PWD` → `/work` (read-write)
 
 ## Testing
 
@@ -217,6 +240,7 @@ Tests verify:
 - Custom image overrides and `*_IMAGE_PULL=always` execution paths
 - Working-directory mounts for jq, ripgrep, and Terraform
 - AWS config mounting for the AWS CLI shim
+- Textual CLI local image build behavior
 - Tessl CLI local image build + cache behavior
 - Installer profile-copy behavior
 
@@ -232,10 +256,13 @@ shimmy/
 │   ├── aws
 │   ├── jq
 │   ├── rg
+│   ├── textual
 │   ├── tessl
 │   └── terraform
+├── images/                   # Custom shim image build contexts
+│   ├── tessl
+│   └── textual
 ├── runtime/
-│   ├── images/               # Custom shim image build contexts
 │   └── lib/                  # Shared runtime helper scripts
 ├── scripts/
 │   ├── install-shimmy.sh      # Installation script
