@@ -1,7 +1,46 @@
 #!/usr/bin/env bash
 
+shimmy_log_level_value() {
+  case "${1:-info}" in
+    debug) printf '10\n' ;;
+    info) printf '20\n' ;;
+    warn|warning) printf '30\n' ;;
+    error) printf '40\n' ;;
+    silent|quiet|none) printf '50\n' ;;
+    *) printf '20\n' ;;
+  esac
+}
+
+shimmy_log_normalize_level() {
+  case "${1:-info}" in
+    debug) printf 'debug\n' ;;
+    info) printf 'info\n' ;;
+    warn|warning) printf 'warn\n' ;;
+    error) printf 'error\n' ;;
+    silent|quiet|none) printf 'silent\n' ;;
+    *) printf 'info\n' ;;
+  esac
+}
+
+shimmy_should_log() {
+  local message_level="${1:?message level is required}"
+  local configured_level
+
+  configured_level="$(shimmy_log_normalize_level "${LOG_LEVEL:-info}")"
+  [[ "$(shimmy_log_level_value "$message_level")" -ge "$(shimmy_log_level_value "$configured_level")" ]]
+}
+
+shimmy_log() {
+  local level="${1:?log level is required}"
+  shift
+
+  shimmy_should_log "$level" || return 0
+
+  printf '%s: %s\n' "$(tr '[:lower:]' '[:upper:]' <<< "$level")" "$*" >&2
+}
+
 shimmy_fail() {
-  echo "Error: $*" >&2
+  shimmy_log error "$*"
   exit 1
 }
 
@@ -43,7 +82,7 @@ shimmy_ensure_local_image() {
   image_ref="${image_repo}:${context_hash}"
 
   if [[ "$build_mode" == "always" ]] || ! podman image exists "$image_ref" >/dev/null 2>&1; then
-    echo "Building local shim image: $image_ref" >&2
+    shimmy_log info "Building local shim image: $image_ref"
     podman build \
       --label "io.wadebee.shimmy.image-repo=${image_repo}" \
       --label "io.wadebee.shimmy.context-hash=${context_hash}" \

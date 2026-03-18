@@ -7,7 +7,7 @@ Commonly used CLI tools exposed through Podman shims for Bash, direnv, and other
 Shimmy wraps popular CLI tools in lightweight Podman containers, providing:
 - **No local installations required** — tools run in containers
 - **Consistent environments** across different machines and projects
-- **Easy customization** — override container images via environment variables
+- **Customizable** — override container images via environment variables
 - **Transparent usage** — add to PATH and use tools as if they were installed locally
 
 For tools that do not ship a usable upstream container image, Shimmy can build and cache a local image from a checked-in `Containerfile` context. The image tag is derived from the build-context hash, so Podman reuses the cached image until the `Containerfile` or its supporting files change.
@@ -67,6 +67,7 @@ This automatically adds `shims/` to your PATH whenever you're in this directory.
 - `--symlink` — Symlink shims to the repo instead of copying them
 - `--copy` — Copy shims to the install directory (default)
 - `--no-update-bashrc` — Skip updating `~/.bashrc`, `~/.bash_profile`, and `~/.bashrc_shimmy`
+- `LOG_LEVEL` — Global verbosity for installer and runtime-helper output: `debug`, `info`, `warn`, `error`, or `silent`
 
 Uninstall options:
 

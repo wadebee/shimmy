@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/shimmy-env.sh
 source "$SCRIPT_DIR/lib/shimmy-env.sh"
 
+shimmy_log_init
 shimmy_init_repo_vars "$(shimmy_repo_root_from_script_path "${BASH_SOURCE[0]}")"
 shimmy_init_home_vars "$HOME"
 shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
@@ -42,12 +43,20 @@ EOF
 }
 
 fail() {
-  echo "Error: $*" >&2
+  shimmy_log_error "$*"
   return 1
 }
 
 log_debug() {
-  echo "Debug: $*" >&2
+  shimmy_log_debug "$*"
+}
+
+log_info() {
+  shimmy_log_info "$*"
+}
+
+log_warn() {
+  shimmy_log_warn "$*"
 }
 
 record_profile_created() {
@@ -107,7 +116,8 @@ copy_file_if_missing() {
 
   if [[ -e "$dest" ]]; then
     log_debug "Leaving existing profile file unchanged: $dest"
-    record_profile_warning "Warning: profile already exists at $dest; leaving unchanged."
+    record_profile_warning "profile already exists at $dest; leaving unchanged."
+    log_warn "profile already exists at $dest; leaving unchanged."
     return
   fi
 
@@ -129,7 +139,7 @@ install_repo_profile_files() {
   fi
 
   if [[ -d "$SOURCE_SHIMS_DIR" ]]; then
-    log_debug "Installing shims from $SOURCE_SHIMS_DIR"
+    log_info "Installing shims from $SOURCE_SHIMS_DIR"
     while IFS= read -r src; do
       rel="${src#$SOURCE_SHIMS_DIR}"
       dest="$SHIMMY_INSTALL_DIR/$rel"
@@ -152,7 +162,7 @@ install_repo_profile_files() {
   fi
 
   if [[ -d "$SOURCE_SKILLS_DIR" ]]; then
-    log_debug "Installing AI skills from $SOURCE_SKILLS_DIR"
+    log_info "Installing AI skills from $SOURCE_SKILLS_DIR"
     while IFS= read -r src; do
       rel="${src#$SOURCE_SKILLS_DIR}"
       dest="$SHIMMY_INSTALL_DIR/$rel"
@@ -307,7 +317,7 @@ remove_profile_dir_if_empty() {
 }
 
 install_image_support() {
-  local image_dest="$SHIMMY_INSTALL_DIR"
+  local image_dest="$SHIMMY_IMAGES_DIR"
 
   log_debug "Refreshing local container image support in $image_dest using mode $INSTALL_MODE"
   rm -rf "$image_dest"
@@ -325,7 +335,7 @@ install_image_support() {
 perform_install() {
   local dest shim src
 
-  log_debug "Starting install into $SHIMMY_INSTALL_DIR with mode $INSTALL_MODE"
+  log_info "Starting install into $SHIMMY_INSTALL_DIR with mode $INSTALL_MODE"
   [[ -d "$SOURCE_SHIMS_DIR" ]] || fail "shim source directory not found: $SOURCE_SHIMS_DIR"
   [[ -d "$SOURCE_IMAGES_DIR" ]] || fail "local container image source directory not found: $SOURCE_IMAGES_DIR"
 
@@ -393,7 +403,7 @@ perform_install() {
   # install_repo_profile_files
   write_install_manifest
 
-  echo "Installed shims into $SHIMMY_INSTALL_DIR ($INSTALL_MODE)."
+  log_info "Installed shims into $SHIMMY_INSTALL_DIR ($INSTALL_MODE)."
   # if [[ "$UPDATE_BASHRC" -eq 1 ]]; then
   #   echo "Updated Bash startup files: $BASHRC_FILE, $BASH_PROFILE_FILE, $SHIMMY_BASH_FILE."
   #   echo "Run: source \"$SHIMMY_BASH_FILE\""
@@ -419,8 +429,8 @@ perform_uninstall() {
   remove_install_dir
   remove_profile_dir_if_empty
 
-  echo "Removed shimmy artifacts from $SHIMMY_INSTALL_DIR."
-  echo "Cleaned Bash startup files: $BASHRC_FILE, $BASH_PROFILE_FILE, $SHIMMY_BASH_FILE."
+  log_info "Removed shimmy artifacts from $SHIMMY_INSTALL_DIR."
+  log_info "Cleaned Bash startup files: $BASHRC_FILE, $BASH_PROFILE_FILE, $SHIMMY_BASH_FILE."
 }
 
 # Parse command line arguments into vars for conditional logic  

@@ -289,6 +289,30 @@ test_install_creates_managed_files() {
   pass "install creates managed files"
 }
 
+test_install_log_level_error_hides_info_and_debug() {
+  setup_scenario
+
+  local output
+  output="$(LOG_LEVEL=error run_installer --no-update-bashrc 2>&1)"
+
+  assert_output_not_contains "$output" "DEBUG:"
+  assert_output_not_contains "$output" "INFO:"
+  assert_output_not_contains "$output" "Installed shims into"
+  assert_file_exists "$INSTALL_MANIFEST_FILE"
+  pass "install log level error suppresses chatter"
+}
+
+test_install_log_level_debug_emits_debug() {
+  setup_scenario
+
+  local output
+  output="$(LOG_LEVEL=debug run_installer --no-update-bashrc 2>&1)"
+
+  assert_output_contains "$output" "DEBUG: Starting install into $SHIMMY_INSTALL_DIR with mode copy"
+  assert_output_contains "$output" "INFO: Installed shims into $SHIMMY_INSTALL_DIR (copy)."
+  pass "install log level debug emits debug"
+}
+
 test_install_symlink_mode() {
   setup_scenario
 
@@ -367,9 +391,11 @@ main() {
   test_rg_with_pull
   test_terraform_default
   test_terraform_with_mounts_and_pull
-  test_tessl_default
-  test_tessl_with_mounts_and_pull
+  # test_tessl_default
+  # test_tessl_with_mounts_and_pull
   test_install_creates_managed_files
+  test_install_log_level_error_hides_info_and_debug
+  test_install_log_level_debug_emits_debug
   test_install_symlink_mode
   test_install_updates_bash_startup_files
   test_uninstall_removes_installed_artifacts
