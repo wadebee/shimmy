@@ -88,6 +88,23 @@ run_uninstaller() {
   )
 }
 
+run_bootstrap() {
+  (
+    cd "$ROOT_DIR"
+    env \
+      "HOME=$HOME_DIR" \
+      "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
+      bash -lc '. "$0"' "$ROOT_DIR/bootstrap" 2>&1
+  )
+}
+
+run_status() {
+  (
+    cd "$ROOT_DIR"
+    env "HOME=$HOME_DIR" bash "$ROOT_DIR/scripts/status-shimmy.sh" 2>&1
+  )
+}
+
 run_podman() {
   env \
     "HOME=$HOME_DIR" \
@@ -366,7 +383,8 @@ test_install_symlink_mode() {
   output="$(run_installer --symlink --no-update-bashrc)"
 
   assert_symlink_target "$SHIMMY_SHIM_DIR/aws" "$ROOT_DIR/shims/aws"
-  assert_symlink_target "$SHIMMY_INSTALL_DIR/images" "$ROOT_DIR/images"
+  assert_symlink_target "$SHIMMY_IMAGES_DIR/task" "$ROOT_DIR/images/task"
+  assert_symlink_target "$SHIMMY_IMAGES_DIR/textual" "$ROOT_DIR/images/textual"
   assert_symlink_target "$SHIMMY_INSTALL_DIR/runtime" "$ROOT_DIR/runtime"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (symlink)."
   pass "install symlink override"
@@ -427,6 +445,42 @@ test_uninstall_preserves_preexisting_shell_files() {
   pass "uninstall preserves preexisting shell files"
 }
 
+test_bootstrap_install_default_task() {
+  setup_scenario
+  shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
+
+  local output
+  output="$(run_bootstrap)"
+
+  assert_file_exists "$INSTALL_MANIFEST_FILE"
+  assert_file_exists "$SHIMMY_SHIM_DIR/task"
+  assert_path_not_exists "$SHIMMY_SHIM_DIR/aws"
+  assert_path_not_exists "$SHIMMY_SHIM_DIR/terraform"
+  assert_file_exists "$SHIMMY_IMAGES_DIR/task/Containerfile"
+  assert_path_not_exists "$SHIMMY_IMAGES_DIR/netcat"
+  assert_file_exists "$SHIMMY_RUNTIME_DIR/lib/task-shim.sh"
+  assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
+  pass "bootstrap installs task shim only"
+}
+
+test_status_reports_install_state() {
+  setup_scenario
+
+  local output
+  output="$(run_status)"
+  assert_output_contains "$output" "installed: no"
+  assert_output_contains "$output" "install_dir: $SHIMMY_INSTALL_DIR"
+
+  run_installer --no-update-bashrc >/dev/null
+
+  output="$(run_status)"
+  assert_output_contains "$output" "installed: yes"
+  assert_output_contains "$output" "path_active: no"
+  assert_output_contains "$output" "- aws: docker.io/amazon/aws-cli:2.15.0"
+  assert_output_contains "$output" "- task: local build repo=localhost/shimmy-task"
+  pass "status reports install state"
+}
+
 main() {
   require_podman
 
@@ -451,6 +505,8 @@ main() {
   test_install_updates_bash_startup_files
   test_uninstall_removes_installed_artifacts
   test_uninstall_preserves_preexisting_shell_files
+  test_bootstrap_install_default_task
+  test_status_reports_install_state
 
   echo "All $TEST_COUNT shim tests passed."
 }

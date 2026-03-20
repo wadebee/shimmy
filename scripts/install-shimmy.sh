@@ -13,6 +13,7 @@ shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
 INSTALL_MODE='copy'
 UPDATE_BASHRC=1
 UNINSTALL=0
+REQUESTED_SHIMS=()
 PROFILE_CREATED_MESSAGES=()
 PROFILE_WARNING_MESSAGES=()
 PROFILE_CREATED_PATHS=()
@@ -31,6 +32,7 @@ Options:
   --symlink              Install shims as symlinks to this repo.
   --copy                 Install shims by copying files (default).
   --uninstall            Remove shimmy artifacts instead of installing them.
+  --shim <name>          Install only the named shim. Repeatable.
   --update-bashrc        Update ~/.bashrc, ~/.bash_profile, and ~/.bashrc_shimmy (default).
   --no-update-bashrc     Do not edit Bash startup files.
   --bashrc-file <file>   Bash rc file to update (default: ~/.bashrc).
@@ -316,9 +318,27 @@ remove_profile_dir_if_empty() {
   remove_empty_parent_dirs "$(dirname "$SHIMMY_INSTALL_DIR")" "$HOME"
 }
 
+shim_is_requested() {
+  local shim_name="$1"
+  local requested
+
+  if [[ "${#REQUESTED_SHIMS[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  for requested in "${REQUESTED_SHIMS[@]}"; do
+    if [[ "$requested" == "$shim_name" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 install_runtime_support() {
   local image_dest="$SHIMMY_IMAGES_DIR"
   local runtime_dest="$SHIMMY_RUNTIME_DIR"
+  local image_src image_name
 
   log_debug "Refreshing local container image support in $image_dest using mode $INSTALL_MODE"
   rm -rf "$image_dest"
@@ -326,15 +346,26 @@ install_runtime_support() {
   rm -rf "$runtime_dest"
 
   if [[ "$INSTALL_MODE" == "copy" ]]; then
-    log_debug "Copying local container image support from $SOURCE_IMAGES_DIR to $image_dest"
     mkdir -p "$image_dest"
-    cp -a "$SOURCE_IMAGES_DIR"/. "$image_dest"/
+    while IFS= read -r image_src; do
+      image_name="$(basename "$image_src")"
+      if shim_is_requested "$image_name"; then
+        log_debug "Copying local container image support from $image_src to $image_dest/$image_name"
+        cp -a "$image_src" "$image_dest/$image_name"
+      fi
+    done < <(find "$SOURCE_IMAGES_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
     log_debug "Copying shared runtime support from $SOURCE_RUNTIME_DIR to $runtime_dest"
     mkdir -p "$runtime_dest"
     cp -a "$SOURCE_RUNTIME_DIR"/. "$runtime_dest"/
   else
-    log_debug "Symlinking local container image support from $SOURCE_IMAGES_DIR to $image_dest"
-    ln -s "$SOURCE_IMAGES_DIR" "$image_dest"
+    mkdir -p "$image_dest"
+    while IFS= read -r image_src; do
+      image_name="$(basename "$image_src")"
+      if shim_is_requested "$image_name"; then
+        log_debug "Symlinking local container image support from $image_src to $image_dest/$image_name"
+        ln -s "$image_src" "$image_dest/$image_name"
+      fi
+    done < <(find "$SOURCE_IMAGES_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
     log_debug "Symlinking shared runtime support from $SOURCE_RUNTIME_DIR to $runtime_dest"
     ln -s "$SOURCE_RUNTIME_DIR" "$runtime_dest"
   fi
@@ -351,6 +382,10 @@ perform_install() {
   mkdir -p "$SHIMMY_SHIM_DIR"
   while IFS= read -r src; do
     shim="$(basename "$src")"
+    if ! shim_is_requested "$shim"; then
+      log_debug "Skipping unrequested shim: $shim"
+      continue
+    fi
     dest="$SHIMMY_SHIM_DIR/$shim"
     [[ -f "$src" ]] || fail "missing shim: $src"
 
@@ -461,6 +496,11 @@ while [[ $# -gt 0 ]]; do
     --uninstall)
       UNINSTALL=1
       shift
+      ;;
+    --shim)
+      [[ $# -ge 2 ]] || fail "missing value for --shim"
+      REQUESTED_SHIMS+=("$2")
+      shift 2
       ;;
     --update-bashrc)
       UPDATE_BASHRC=1

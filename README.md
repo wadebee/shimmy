@@ -43,27 +43,24 @@ When only a single id is present run this command to correct.
 ## Installation
 
 
-### Option 1: System-wide installation
+### Option 1: Bootstrap the global Task shim
 
-Install shims to `~/` and update your shell configuration:
-
-```bash
-./scripts/install-shimmy.sh
-```
-
-To remove the installed shims and Shimmy-managed shell/profile artifacts later:
+Install only the Shimmy `task` shim into your profile without requiring a host `task` binary:
 
 ```bash
-./scripts/install-shimmy.sh --uninstall
+source bootstrap
 ```
 
-After running this, restart your shell or source the managed Shimmy file:
+Then, from the repo root, use the installed `task` shim to drive the full workflow:
 
 ```bash
-source ~/.bashrc_shimmy
+task install
+task uninstall
+task status
+task test
 ```
 
-The installer keeps the PATH block in `~/.bashrc_shimmy` and adds a sourcing line to both `~/.bashrc` and `~/.bash_profile` so Bash behaves consistently on Linux interactive shells and macOS login shells.
+The bootstrap launcher only installs the `task` shim plus its runtime support. Full install, uninstall, and test actions then run through [`Taskfile.yml`](/home/wade/repos/github.com/wadebee/shimmy/Taskfile.yml). The installer keeps the PATH block in `~/.bashrc_shimmy` and adds a sourcing line to both `~/.bashrc` and `~/.bash_profile` so Bash behaves consistently on Linux interactive shells and macOS login shells.
 
 ### Option 2: Use with direnv
 
@@ -76,22 +73,13 @@ direnv allow
 
 This automatically adds `shims/` to your PATH whenever you're in this directory.
 
-#### Installation options
+Once the task shim is bootstrapped, use Task from the repo root for the repo workflows:
 
 ```bash
-./scripts/install-shimmy.sh --help
-```
-
-- `--install-dir <dir>` — Custom installation directory (default: `~/.local/bin/shimmy`)
-- `--symlink` — Symlink shims to the repo instead of copying them
-- `--copy` — Copy shims to the install directory (default)
-- `--no-update-bashrc` — Skip updating `~/.bashrc`, `~/.bash_profile`, and `~/.bashrc_shimmy`
-- `LOG_LEVEL` — Global verbosity for installer and runtime-helper output: `debug`, `info`, `warn`, `error`, or `silent`
-
-Uninstall options:
-
-```bash
-./scripts/install-shimmy.sh --help
+task install -- --help
+task uninstall -- --help
+task status
+task test
 ```
 
 ### Option 3: Session-only (temporary)
@@ -153,7 +141,12 @@ terraform plan
 ```
 
 **Mounts:**
-- `$PWD` → `/work` (read-write)
+- `$PWD` → `$PWD` (read-write)
+- `$PWD` → `/work` (read-write compatibility alias)
+- `$HOME` → `$HOME` (read-write, if it exists)
+- `/tmp` → `/tmp` (read-write)
+
+When `CONTAINER_HOST` points at a unix-domain Podman socket, the task shim also forwards that socket into the container so Task-driven automation can launch other shims.
 - `~/.aws` → `/root/.aws` (read-only, if exists)
 - `~/.terraform.d/plugin-cache` → `/root/.terraform.d/plugin-cache` (if exists)
 
@@ -289,6 +282,8 @@ The default Textual image is built locally from `images/textual/Containerfile`, 
 Run the test suite to validate that shim containers run via Podman:
 
 ```bash
+task test
+# or
 make test-shimmy
 # or
 ./scripts/test-shimmy.sh

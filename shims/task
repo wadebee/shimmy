@@ -4,39 +4,24 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SHIMMY_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
-if [[ -f "$SHIMMY_ROOT/runtime/lib/custom-image.sh" ]]; then
-  # shellcheck source=runtime/lib/custom-image.sh
-  source "$SHIMMY_ROOT/runtime/lib/custom-image.sh"
+if [[ -f "$SHIMMY_ROOT/runtime/lib/task-shim.sh" ]]; then
+  # shellcheck source=runtime/lib/task-shim.sh
+  source "$SHIMMY_ROOT/runtime/lib/task-shim.sh"
 else
-  printf 'ERROR: missing custom image helper: %s\n' "$SHIMMY_ROOT/runtime/lib/custom-image.sh" >&2
+  printf 'ERROR: missing task shim helper: %s\n' "$SHIMMY_ROOT/runtime/lib/task-shim.sh" >&2
   exit 1
 fi
 
-if [[ -n "${TASK_IMAGE:-}" ]]; then
-  TASK_RUN_IMAGE="$TASK_IMAGE"
-else
-  BUILD_ARGS=()
-  if [[ -n "${TASK_BASE_IMAGE:-}" ]]; then
-    BUILD_ARGS+=( --build-arg "TASK_BASE_IMAGE=$TASK_BASE_IMAGE" )
-  fi
-  if [[ -n "${TASK_VERSION:-}" ]]; then
-    BUILD_ARGS+=( --build-arg "TASK_VERSION=$TASK_VERSION" )
-  fi
-
-  TASK_RUN_IMAGE="$(
-    shimmy_ensure_local_image \
-      "localhost/shimmy-task" \
-      "$SHIMMY_ROOT/images/task" \
-      "${TASK_IMAGE_BUILD:-auto}" \
-      "${BUILD_ARGS[@]}"
-  )"
-fi
-
-MOUNTS=( -v "$PWD":/work:rw -w /work )
-
+TASK_RUN_IMAGE="$(shimmy_task_resolve_image "$SHIMMY_ROOT")"
 PODMAN_OPTS=()
 if [[ -n "${TASK_IMAGE:-}" && "${TASK_IMAGE_PULL:-}" = "always" ]]; then
   PODMAN_OPTS+=( --pull=always )
 fi
+shimmy_task_append_default_run_opts PODMAN_OPTS
 
-exec podman run --rm -it "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "$TASK_RUN_IMAGE" "$@"
+TTY_OPTS=()
+if shimmy_task_should_use_tty; then
+  TTY_OPTS+=( -it )
+fi
+
+exec podman run --rm "${TTY_OPTS[@]}" "${PODMAN_OPTS[@]}" "$TASK_RUN_IMAGE" "$@"

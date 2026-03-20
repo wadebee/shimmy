@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$SCRIPT_DIR"
+SHIMMY_BASH_FILE="${HOME}/.bashrc_shimmy"
+
+bootstrap_finish() {
+  local status="${1:-0}"
+
+  if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+    return "$status"
+  fi
+
+  exit "$status"
+}
+
+main() {
+  if [[ $# -ne 0 ]]; then
+    printf 'ERROR: bootstrap does not accept arguments; run: source bootstrap\n' >&2
+    return 1
+  fi
+
+  (
+    cd "$ROOT_DIR"
+    bash "$ROOT_DIR/scripts/install-shimmy.sh" --shim task
+  ) || return 1
+
+  if [[ -f "$SHIMMY_BASH_FILE" ]]; then
+    # Load the task shim into the current shell immediately.
+    # shellcheck disable=SC1090
+    . "$SHIMMY_BASH_FILE"
+  fi
+}
+
+main "$@"
+bootstrap_finish "$?"

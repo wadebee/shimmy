@@ -3,7 +3,7 @@ FROM ${TASK_BASE_IMAGE}
 
 ARG TASK_VERSION=v3.45.5
 
-RUN apk add --no-cache ca-certificates curl tar \
+RUN apk add --no-cache bash ca-certificates curl podman-remote tar \
     && case "$(uname -m)" in \
          x86_64) task_arch='amd64' ;; \
          aarch64) task_arch='arm64' ;; \

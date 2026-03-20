@@ -1,0 +1,22 @@
+version: "3"
+
+tasks:
+  install:
+    desc: Install shimmy into the current user's profile.
+    cmds:
+      - bash ./scripts/install-shimmy.sh {{.CLI_ARGS}}
+
+  uninstall:
+    desc: Remove shimmy from the current user's profile.
+    cmds:
+      - bash ./scripts/install-shimmy.sh --uninstall {{.CLI_ARGS}}
+
+  test:
+    desc: Run shim smoke tests through the existing test script.
+    cmds:
+      - bash ./scripts/test-shimmy.sh {{.CLI_ARGS}}
+
+  status:
+    desc: Show shimmy install paths, PATH state, installed shims, and image info.
+    cmds:
+      - bash ./scripts/status-shimmy.sh {{.CLI_ARGS}}
