@@ -11,6 +11,11 @@ tasks:
     cmds:
       - bash ./scripts/install-shimmy.sh --uninstall {{.CLI_ARGS}}
 
+  update:
+    desc: Refresh an existing shimmy install, optionally pulling or rebuilding images.
+    cmds:
+      - bash ./scripts/update-shimmy.sh {{.CLI_ARGS}}
+
   test:
     desc: Run shim smoke tests through the existing test script.
     cmds:

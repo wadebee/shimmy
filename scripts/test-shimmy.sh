@@ -105,6 +105,13 @@ run_status() {
   )
 }
 
+run_update() {
+  (
+    cd "$ROOT_DIR"
+    env "HOME=$HOME_DIR" bash "$ROOT_DIR/scripts/update-shimmy.sh" "$@" 2>&1
+  )
+}
+
 run_podman() {
   env \
     "HOME=$HOME_DIR" \
@@ -477,8 +484,22 @@ test_status_reports_install_state() {
   assert_output_contains "$output" "installed: yes"
   assert_output_contains "$output" "path_active: no"
   assert_output_contains "$output" "- aws: docker.io/amazon/aws-cli:2.15.0"
-  assert_output_contains "$output" "- task: local build repo=localhost/shimmy-task"
+  assert_output_contains "$output" "- task: image=localhost/shimmy-task"
   pass "status reports install state"
+}
+
+test_update_restores_missing_shim() {
+  setup_scenario
+
+  run_installer --no-update-bashrc >/dev/null
+  rm -f "$SHIMMY_SHIM_DIR/aws"
+
+  local output
+  output="$(run_update)"
+
+  assert_file_exists "$SHIMMY_SHIM_DIR/aws"
+  assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
+  pass "update restores missing shim"
 }
 
 main() {
@@ -507,6 +528,7 @@ main() {
   test_uninstall_preserves_preexisting_shell_files
   test_bootstrap_install_default_task
   test_status_reports_install_state
+  test_update_restores_missing_shim
 
   echo "All $TEST_COUNT shim tests passed."
 }

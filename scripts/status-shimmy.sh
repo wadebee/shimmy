@@ -6,7 +6,22 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/shimmy-env.sh"
 
 shimmy_init_home_vars "$HOME"
-shimmy_init_install_vars "${SHIMMY_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
+
+detect_shimmy_install_dir() {
+  local path_entry
+
+  IFS=':' read -r -a path_entries <<< "${PATH:-}"
+  for path_entry in "${path_entries[@]}"; do
+    if [[ "$path_entry" == */shims && -e "$path_entry/task" ]]; then
+      dirname "$path_entry"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+shimmy_init_install_vars "${SHIMMY_INSTALL_DIR:-$(detect_shimmy_install_dir || printf '%s\n' "$DEFAULT_INSTALL_DIR")}"
 
 path_contains() {
   local needle="$1"
@@ -44,18 +59,18 @@ describe_shim_image() {
       printf '%s\n' "${TF_IMAGE:-docker.io/hashicorp/terraform:latest}"
       ;;
     netcat)
-      printf 'local build repo=localhost/shimmy-netcat context=%s\n' "$SHIMMY_IMAGES_DIR/netcat/Containerfile"
+      printf 'image=localhost/shimmy-netcat context=%s\n' "$SHIMMY_IMAGES_DIR/netcat/Containerfile"
       ;;
     task)
-      printf 'local build repo=localhost/shimmy-task context=%s version=%s\n' \
+      printf 'image=localhost/shimmy-task context=%s version=%s\n' \
         "$SHIMMY_IMAGES_DIR/task/Containerfile" \
         "$(extract_container_arg "$SHIMMY_IMAGES_DIR/task/Containerfile" TASK_VERSION)"
       ;;
     tessl)
-      printf 'local build repo=localhost/shimmy-tessl context=%s\n' "$SHIMMY_IMAGES_DIR/tessl/Containerfile"
+      printf 'image=localhost/shimmy-tessl context=%s\n' "$SHIMMY_IMAGES_DIR/tessl/Containerfile"
       ;;
     textual)
-      printf 'local build repo=localhost/shimmy-textual context=%s\n' "$SHIMMY_IMAGES_DIR/textual/Containerfile"
+      printf 'image=localhost/shimmy-textual context=%s\n' "$SHIMMY_IMAGES_DIR/textual/Containerfile"
       ;;
     *)
       printf 'unknown\n'

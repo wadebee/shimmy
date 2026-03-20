@@ -181,9 +181,14 @@ write_install_manifest() {
 
   {
     printf 'install_dir=%s\n' "$SHIMMY_INSTALL_DIR"
+    printf 'install_mode=%s\n' "$INSTALL_MODE"
+    printf 'update_bashrc=%s\n' "$UPDATE_BASHRC"
     printf 'bashrc_file=%s\n' "$BASHRC_FILE"
     printf 'bash_profile_file=%s\n' "$BASH_PROFILE_FILE"
     printf 'bash_shimmy_file=%s\n' "$SHIMMY_BASH_FILE"
+    for shim in "${REQUESTED_SHIMS[@]}"; do
+      printf 'requested_shim=%s\n' "$shim"
+    done
     for path in "${SHELL_FILES_CREATED_PATHS[@]}"; do
       printf 'created_shell_file=%s\n' "$path"
     done

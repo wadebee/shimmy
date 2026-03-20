@@ -55,6 +55,7 @@ Then, from the repo root, use the installed `task` shim to drive the full workfl
 
 ```bash
 task install
+task update
 task uninstall
 task status
 task test
@@ -77,6 +78,8 @@ Once the task shim is bootstrapped, use Task from the repo root for the repo wor
 
 ```bash
 task install -- --help
+task update
+task update -- --pull --build
 task uninstall -- --help
 task status
 task test
