@@ -193,6 +193,16 @@ EOF
   pass "jq pull exec"
 }
 
+test_netcat_default() {
+  setup_scenario
+
+  local output
+  output="1000 1000 1001 665357 20 24 25 27 29 44 46 100 106run_wrapper "/shims/netcat" -- --help 2>&1)"
+
+  assert_output_contains "" "Ncat"
+  pass "netcat default exec"
+}
+
 test_rg_default() {
   setup_scenario
 
@@ -293,6 +303,8 @@ test_install_creates_managed_files() {
 
   assert_file_exists "$INSTALL_MANIFEST_FILE"
   assert_file_exists "$SHIMMY_SHIM_DIR/aws"
+  assert_file_exists "$SHIMMY_SHIM_DIR/netcat"
+  assert_file_exists "$SHIMMY_IMAGES_DIR/netcat/Containerfile"
   assert_file_exists "$SHIMMY_IMAGES_DIR/tessl/Containerfile"
   assert_file_exists "$SHIMMY_IMAGES_DIR/textual/Containerfile"
   assert_file_exists "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh"
@@ -400,6 +412,7 @@ main() {
   test_aws_with_mount_and_pull
   test_jq_default
   test_jq_with_pull
+  test_netcat_default
   test_rg_default
   test_rg_with_pull
   test_terraform_default

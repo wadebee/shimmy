@@ -18,6 +18,7 @@ For tools that do not ship a usable upstream container image, Shimmy can build a
 |------|---------|----------------|-------|
 | **aws** | AWS CLI | `docker.io/amazon/aws-cli:2.15.0` | `aws s3 ls`, `aws sts get-caller-identity` |
 | **jq** | JSON processor | `docker.io/stedolan/jq:latest` | `jq .foo file.json` |
+| **netcat** | TCP/UDP debugging client | local build from `images/netcat/Containerfile` | `netcat --help`, `netcat example.com 443` |
 | **rg** | Ripgrep search | `docker.io/vszl/ripgrep:latest` | `rg "pattern" .` |
 | **terraform** | Infrastructure as Code | `docker.io/hashicorp/terraform:latest` | `terraform plan`, `terraform apply` |
 | **textual** | Textual developer CLI | local build from `images/textual/Containerfile` | `textual --help`, `textual run app.py` |
@@ -187,6 +188,24 @@ JQ_IMAGE=ghcr.io/jqlang/jq:latest jq --version
 **Mounts:**
 - `$PWD` → `/work` (read-write)
 
+### Netcat
+
+- `NETCAT_IMAGE` — Override the runtime image entirely
+- `NETCAT_IMAGE_BUILD` — Set to `always` to rebuild the local Netcat image even if it is already cached
+- `NETCAT_IMAGE_PULL` — Set to `always` to force pulling `NETCAT_IMAGE` when using an explicit remote override
+- `NETCAT_BASE_IMAGE` — Override the `Containerfile` base image (default build arg: `registry.access.redhat.com/ubi9/ubi-minimal:latest`)
+
+Example:
+
+```bash
+NETCAT_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest netcat --help
+```
+
+The default Netcat image is built locally from `images/netcat/Containerfile`, which starts from UBI 9 minimal and installs the `nmap-ncat` package. This keeps the base image small while still using a practical Red Hat-supported package manager for the install. Shimmy tags the resulting image under `localhost/shimmy-netcat:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
+
+**Mounts:**
+- `$PWD` → `/work` (read-write)
+
 ### ripgrep
 
 - `RG_IMAGE` — Container image (default: `docker.io/vszl/ripgrep:latest`)
@@ -254,6 +273,7 @@ make test-shimmy
 Tests verify:
 - Each shim launches through Podman with a non-mutating command
 - Custom image overrides and `*_IMAGE_PULL=always` execution paths
+- Netcat local image build behavior on UBI 9 minimal
 - Working-directory mounts for jq, ripgrep, and Terraform
 - AWS config mounting for the AWS CLI shim
 - Textual CLI local image build behavior
@@ -271,11 +291,13 @@ shimmy/
 ├── shims/                    # OCI wrapper scripts
 │   ├── aws
 │   ├── jq
+│   ├── netcat
 │   ├── rg
 │   ├── textual
 │   ├── tessl
 │   └── terraform
 ├── images/                   # Custom shim image build contexts
+│   ├── netcat
 │   ├── tessl
 │   └── textual
 ├── runtime/

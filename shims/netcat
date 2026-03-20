@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+SHIMMY_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+if [[ -f "$SHIMMY_ROOT/runtime/lib/custom-image.sh" ]]; then
+  # shellcheck source=runtime/lib/custom-image.sh
+  source "$SHIMMY_ROOT/runtime/lib/custom-image.sh"
+else
+  printf 'ERROR: missing custom image helper: %s\n' "$SHIMMY_ROOT/runtime/lib/custom-image.sh" >&2
+  exit 1
+fi
+
+if [[ -n "${NETCAT_IMAGE:-}" ]]; then
+  NETCAT_RUN_IMAGE="$NETCAT_IMAGE"
+else
+  BUILD_ARGS=()
+  if [[ -n "${NETCAT_BASE_IMAGE:-}" ]]; then
+    BUILD_ARGS+=( --build-arg "NETCAT_BASE_IMAGE=$NETCAT_BASE_IMAGE" )
+  fi
+
+  NETCAT_RUN_IMAGE="$(
+    shimmy_ensure_local_image \
+      "localhost/shimmy-netcat" \
+      "$SHIMMY_ROOT/images/netcat" \
+      "${NETCAT_IMAGE_BUILD:-auto}" \
+      "${BUILD_ARGS[@]}"
+  )"
+fi
+
+MOUNTS=( -v "$PWD":/work:rw -w /work )
+
+PODMAN_OPTS=()
+if [[ -n "${NETCAT_IMAGE:-}" && "${NETCAT_IMAGE_PULL:-}" = "always" ]]; then
+  PODMAN_OPTS+=( --pull=always )
+fi
+
+exec podman run --rm -i "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "$NETCAT_RUN_IMAGE" "$@"
