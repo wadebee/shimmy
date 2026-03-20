@@ -197,9 +197,9 @@ test_netcat_default() {
   setup_scenario
 
   local output
-  output="1000 1000 1001 665357 20 24 25 27 29 44 46 100 106run_wrapper "/shims/netcat" -- --help 2>&1)"
+  output="$(run_wrapper "$ROOT_DIR/shims/netcat" -- --help 2>&1)"
 
-  assert_output_contains "" "Ncat"
+  assert_output_contains "$output" "Ncat"
   pass "netcat default exec"
 }
 
@@ -226,6 +226,26 @@ EOF
 
   assert_output_contains "$output" "needle"
   pass "rg pull exec"
+}
+
+test_task_default() {
+  setup_scenario
+
+  local output
+  output="$(run_wrapper "$ROOT_DIR/shims/task" -- --version 2>&1)"
+
+  assert_output_contains "$output" "3.45.5"
+  pass "task default exec"
+}
+
+test_task_with_build_arg_override() {
+  setup_scenario
+
+  local output
+  output="$(run_wrapper "$ROOT_DIR/shims/task" "TASK_BASE_IMAGE=alpine:3.22" "TASK_VERSION=v3.45.5" -- --version 2>&1)"
+
+  assert_output_contains "$output" "3.45.5"
+  pass "task build arg override exec"
 }
 
 test_terraform_default() {
@@ -304,7 +324,9 @@ test_install_creates_managed_files() {
   assert_file_exists "$INSTALL_MANIFEST_FILE"
   assert_file_exists "$SHIMMY_SHIM_DIR/aws"
   assert_file_exists "$SHIMMY_SHIM_DIR/netcat"
+  assert_file_exists "$SHIMMY_SHIM_DIR/task"
   assert_file_exists "$SHIMMY_IMAGES_DIR/netcat/Containerfile"
+  assert_file_exists "$SHIMMY_IMAGES_DIR/task/Containerfile"
   assert_file_exists "$SHIMMY_IMAGES_DIR/tessl/Containerfile"
   assert_file_exists "$SHIMMY_IMAGES_DIR/textual/Containerfile"
   assert_file_exists "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh"
@@ -415,6 +437,8 @@ main() {
   test_netcat_default
   test_rg_default
   test_rg_with_pull
+  test_task_default
+  test_task_with_build_arg_override
   test_terraform_default
   test_terraform_with_mounts_and_pull
   test_textual_default

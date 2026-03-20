@@ -1,0 +1,18 @@
+ARG TASK_BASE_IMAGE=alpine:3.22
+FROM ${TASK_BASE_IMAGE}
+
+ARG TASK_VERSION=v3.45.5
+
+RUN apk add --no-cache ca-certificates curl tar \
+    && case "$(uname -m)" in \
+         x86_64) task_arch='amd64' ;; \
+         aarch64) task_arch='arm64' ;; \
+         *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;; \
+       esac \
+    && curl -fsSL "https://github.com/go-task/task/releases/download/${TASK_VERSION}/task_linux_${task_arch}.tar.gz" \
+       | tar -xz -C /usr/local/bin task \
+    && chmod +x /usr/local/bin/task
+
+WORKDIR /work
+
+ENTRYPOINT ["task"]

@@ -20,6 +20,7 @@ For tools that do not ship a usable upstream container image, Shimmy can build a
 | **jq** | JSON processor | `docker.io/stedolan/jq:latest` | `jq .foo file.json` |
 | **netcat** | TCP/UDP debugging client | local build from `images/netcat/Containerfile` | `netcat --help`, `netcat example.com 443` |
 | **rg** | Ripgrep search | `docker.io/vszl/ripgrep:latest` | `rg "pattern" .` |
+| **task** | Taskfile task runner | local build from `images/task/Containerfile` | `task --version`, `task build` |
 | **terraform** | Infrastructure as Code | `docker.io/hashicorp/terraform:latest` | `terraform plan`, `terraform apply` |
 | **textual** | Textual developer CLI | local build from `images/textual/Containerfile` | `textual --help`, `textual run app.py` |
 | **tessl** | Tessl CLI | local build from `images/tessl/Containerfile` | `tessl --help`, `tessl init` |
@@ -119,6 +120,10 @@ echo '{"name": "shimmy"}' | jq .name
 
 # ripgrep
 rg "pattern" .
+
+# Task
+task --version
+task build
 
 # Textual CLI
 textual --help
@@ -220,6 +225,25 @@ RG_IMAGE=docker.io/vszl/ripgrep:latest rg --version
 **Mounts:**
 - `$PWD` → `/work` (read-write)
 
+### Task
+
+- `TASK_IMAGE` — Override the runtime image entirely
+- `TASK_IMAGE_BUILD` — Set to `always` to rebuild the local Task image even if it is already cached
+- `TASK_IMAGE_PULL` — Set to `always` to force pulling `TASK_IMAGE` when using an explicit remote override
+- `TASK_BASE_IMAGE` — Override the `Containerfile` base image (default build arg: `alpine:3.22`)
+- `TASK_VERSION` — Override the Task release version installed into the local image (default build arg: `v3.45.5`)
+
+Example:
+
+```bash
+TASK_VERSION=v3.45.5 task --version
+```
+
+The default Task image is built locally from `images/task/Containerfile`, which starts from Alpine and installs the official Task release binary from GitHub Releases. Shimmy tags the resulting image under `localhost/shimmy-task:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
+
+**Mounts:**
+- `$PWD` → `/work` (read-write)
+
 ### Tessl CLI
 
 - `TESSL_IMAGE` — Override the runtime image entirely
@@ -275,6 +299,7 @@ Tests verify:
 - Custom image overrides and `*_IMAGE_PULL=always` execution paths
 - Netcat local image build behavior on UBI 9 minimal
 - Working-directory mounts for jq, ripgrep, and Terraform
+- Task local image build behavior and build-arg overrides
 - AWS config mounting for the AWS CLI shim
 - Textual CLI local image build behavior
 - Tessl CLI local image build + cache behavior
@@ -293,11 +318,13 @@ shimmy/
 │   ├── jq
 │   ├── netcat
 │   ├── rg
-│   ├── textual
+│   ├── task
 │   ├── tessl
+│   ├── textual
 │   └── terraform
 ├── images/                   # Custom shim image build contexts
 │   ├── netcat
+│   ├── task
 │   ├── tessl
 │   └── textual
 ├── runtime/
