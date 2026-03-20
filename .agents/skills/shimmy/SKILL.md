@@ -22,6 +22,7 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 2. Inspect `../../../shims/`, `../../../scripts/install-shimmy.sh`, and `../../../scripts/test-shimmy.sh` so the new shim matches existing conventions.
 3. Keep the skill-driven plan concise and actionable. Prefer a short default workflow over long narrative guidance.
 4. Update the runtime shim, installer, tests, and README together when behavior changes.
+5. When adding a shim to the `Included Shims` table in `README.md`, keep the table sorted alphabetically by Tool name.
 
 ## Required Checkpoints
 
@@ -53,3 +54,4 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 - Update `../../../scripts/test-shimmy.sh` with non-mutating assertions and options for the new shim behavior.
 - Use Podman and non-mutating commands such as `--help` or `version` when validating container execution.
 - Update `../../../README.md` so image defaults, env vars, mounts, and examples stay aligned with the implementation.
+- Keep the `Included Shims` table in `../../../README.md` alphabetized by Tool name after README updates.

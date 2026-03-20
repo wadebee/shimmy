@@ -16,14 +16,30 @@ For tools that do not ship a usable upstream container image, Shimmy can build a
 
 | Tool | Purpose | Default Image | Usage |
 |------|---------|----------------|-------|
-| **terraform** | Infrastructure as Code | `docker.io/hashicorp/terraform:latest` | `terraform plan`, `terraform apply` |
-| **aws** | AWS CLI | `amazon/aws-cli:2.15.0` | `aws s3 ls`, `aws sts get-caller-identity` |
+| **aws** | AWS CLI | `docker.io/amazon/aws-cli:2.15.0` | `aws s3 ls`, `aws sts get-caller-identity` |
 | **jq** | JSON processor | `docker.io/stedolan/jq:latest` | `jq .foo file.json` |
 | **rg** | Ripgrep search | `docker.io/vszl/ripgrep:latest` | `rg "pattern" .` |
+| **terraform** | Infrastructure as Code | `docker.io/hashicorp/terraform:latest` | `terraform plan`, `terraform apply` |
 | **textual** | Textual developer CLI | local build from `images/textual/Containerfile` | `textual --help`, `textual run app.py` |
 | **tessl** | Tessl CLI | local build from `images/tessl/Containerfile` | `tessl --help`, `tessl init` |
 
+## Podman rootless requirement
+
+Shimmy expects a working rootless Podman setup. On some minimal Linux environments, including Chromebook's Crostini, rootless requirements for subordinate id ranges do not exist. In this scenario Podman will warn "no subuid ranges found" and fall back to a single UID/GID mapping.
+
+Check your configuration (should output a range of id values, eg: 10000:65536):
+```
+grep "^$(whoami):" /etc/subuid /etc/subgid
+```
+
+When only a single id is present run this command to correct.
+```
+- sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 $(whoami)
+- podman system migrate
+```
+
 ## Installation
+
 
 ### Option 1: System-wide installation
 
@@ -141,7 +157,7 @@ terraform plan
 
 ### AWS CLI
 
-- `AWS_IMAGE` — Container image (default: `amazon/aws-cli:2.15.0`)
+- `AWS_IMAGE` — Container image (default: `docker.io/amazon/aws-cli:2.15.0`)
 - `AWS_IMAGE_PULL` — Set to `always` to force pulling the latest image
 
 Example:

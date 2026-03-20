@@ -23,6 +23,7 @@ Constraints:
 - Update `scripts/install-shimmy.sh` because it enumerates shim names explicitly.
 - Update `scripts/test-shimmy.sh` with needed assertions against prerequisite `podman` installation.
 - Update `README.md` so the default image, env vars, mounts, and examples stay accurate.
+- Keep the `Included Shims` table in `README.md` sorted alphabetically by Tool name whenever you add or rename entries.
 - Keep runnable shell files executable.
 
 Deliverables:
