@@ -21,7 +21,8 @@ detect_shimmy_install_dir() {
   return 1
 }
 
-shimmy_init_install_vars "${SHIMMY_INSTALL_DIR:-$(detect_shimmy_install_dir || printf '%s\n' "$DEFAULT_INSTALL_DIR")}"
+shimmy_init_install_vars "${SHIMMY_INSTALL_DIR:-$(detect_shimmy_install_dir || true)}"
+shimmy_apply_install_layout_from_manifest "$INSTALL_MANIFEST_FILE" || true
 
 if [[ -f "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh" ]]; then
   # shellcheck source=runtime/lib/custom-image.sh

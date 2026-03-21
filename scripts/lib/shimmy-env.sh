@@ -90,16 +90,128 @@ shimmy_init_home_vars() {
   DEFAULT_INSTALL_DIR="$home_dir/.config/shimmy"
 }
 
-shimmy_init_install_vars() {
-  local install_dir="${1:-$DEFAULT_INSTALL_DIR}"
+shimmy_trim_trailing_slash() {
+  local path="${1:-}"
 
-  SHIMMY_INSTALL_DIR="${install_dir%/}"
-  SHIMMY_IMAGES_DIR="$SHIMMY_INSTALL_DIR/images"
-  SHIMMY_SHIM_DIR="$SHIMMY_INSTALL_DIR/shims"
-  SHIMMY_RUNTIME_DIR="$SHIMMY_INSTALL_DIR/runtime"
+  if [[ -z "$path" || "$path" == "/" ]]; then
+    printf '%s\n' "$path"
+    return 0
+  fi
+
+  printf '%s\n' "${path%/}"
+}
+
+shimmy_infer_install_dir_from_layout_dir() {
+  local path="${1:-}"
+  local expected_basename="${2:?expected basename is required}"
+
+  path="$(shimmy_trim_trailing_slash "$path")"
+  [[ -n "$path" ]] || return 1
+  [[ "$(basename "$path")" == "$expected_basename" ]] || return 1
+
+  dirname "$path"
+}
+
+shimmy_layout_dir_from_install_dir() {
+  local install_dir="${1:?install dir is required}"
+  local subdir_name="${2:?subdir name is required}"
+
+  printf '%s/%s\n' "$(shimmy_trim_trailing_slash "$install_dir")" "$subdir_name"
+}
+
+shimmy_resolve_layout_dir() {
+  local current_value="${1:-}"
+  local previous_install_dir="${2:-}"
+  local subdir_name="${3:?subdir name is required}"
+  local fallback_value="${4:?fallback value is required}"
+
+  if [[ -z "$current_value" ]]; then
+    printf '%s\n' "$fallback_value"
+    return 0
+  fi
+
+  current_value="$(shimmy_trim_trailing_slash "$current_value")"
+
+  if [[ -n "$previous_install_dir" ]] && [[ "$current_value" == "$(shimmy_layout_dir_from_install_dir "$previous_install_dir" "$subdir_name")" ]]; then
+    printf '%s\n' "$fallback_value"
+    return 0
+  fi
+
+  printf '%s\n' "$current_value"
+}
+
+shimmy_init_install_vars() {
+  local requested_install_dir="${1:-}"
+  local previous_install_dir="${SHIMMY_INSTALL_DIR:-}"
+  local install_dir
+  local default_images_dir
+  local default_shim_dir
+  local default_runtime_dir
+
+  if [[ -n "$requested_install_dir" ]]; then
+    install_dir="$(shimmy_trim_trailing_slash "$requested_install_dir")"
+  elif [[ -n "${SHIMMY_INSTALL_DIR:-}" ]]; then
+    install_dir="$(shimmy_trim_trailing_slash "$SHIMMY_INSTALL_DIR")"
+  elif install_dir="$(shimmy_infer_install_dir_from_layout_dir "${SHIMMY_SHIM_DIR:-}" "shims")"; then
+    :
+  elif install_dir="$(shimmy_infer_install_dir_from_layout_dir "${SHIMMY_IMAGES_DIR:-}" "images")"; then
+    :
+  elif install_dir="$(shimmy_infer_install_dir_from_layout_dir "${SHIMMY_RUNTIME_DIR:-}" "runtime")"; then
+    :
+  else
+    install_dir="$(shimmy_trim_trailing_slash "$DEFAULT_INSTALL_DIR")"
+  fi
+
+  default_images_dir="$install_dir/images"
+  default_shim_dir="$install_dir/shims"
+  default_runtime_dir="$install_dir/runtime"
+
+  SHIMMY_INSTALL_DIR="$install_dir"
+  SHIMMY_IMAGES_DIR="$(shimmy_resolve_layout_dir "${SHIMMY_IMAGES_DIR:-}" "$previous_install_dir" "images" "$default_images_dir")"
+  SHIMMY_SHIM_DIR="$(shimmy_resolve_layout_dir "${SHIMMY_SHIM_DIR:-}" "$previous_install_dir" "shims" "$default_shim_dir")"
+  SHIMMY_RUNTIME_DIR="$(shimmy_resolve_layout_dir "${SHIMMY_RUNTIME_DIR:-}" "$previous_install_dir" "runtime" "$default_runtime_dir")"
   INSTALL_MANIFEST_FILE="$SHIMMY_INSTALL_DIR/install-manifest.txt"
 
   export SHIMMY_INSTALL_DIR SHIMMY_IMAGES_DIR SHIMMY_SHIM_DIR SHIMMY_RUNTIME_DIR
+}
+
+shimmy_manifest_value() {
+  local manifest_file="${1:?manifest file is required}"
+  local key="${2:?manifest key is required}"
+
+  [[ -f "$manifest_file" ]] || return 1
+
+  sed -n "s/^${key}=//p" "$manifest_file" | head -n 1
+}
+
+shimmy_apply_install_layout_from_manifest() {
+  local manifest_file="${1:-$INSTALL_MANIFEST_FILE}"
+  local install_dir
+  local shim_dir
+  local images_dir
+  local runtime_dir
+
+  [[ -f "$manifest_file" ]] || return 1
+
+  install_dir="$(shimmy_manifest_value "$manifest_file" install_dir || true)"
+  shim_dir="$(shimmy_manifest_value "$manifest_file" shim_dir || true)"
+  images_dir="$(shimmy_manifest_value "$manifest_file" images_dir || true)"
+  runtime_dir="$(shimmy_manifest_value "$manifest_file" runtime_dir || true)"
+
+  [[ -n "$install_dir" ]] || return 1
+
+  SHIMMY_INSTALL_DIR="$install_dir"
+  if [[ -n "$shim_dir" ]]; then
+    SHIMMY_SHIM_DIR="$shim_dir"
+  fi
+  if [[ -n "$images_dir" ]]; then
+    SHIMMY_IMAGES_DIR="$images_dir"
+  fi
+  if [[ -n "$runtime_dir" ]]; then
+    SHIMMY_RUNTIME_DIR="$runtime_dir"
+  fi
+
+  shimmy_init_install_vars "$SHIMMY_INSTALL_DIR"
 }
 
 SHELL_INIT_BLOCK_START="# >>> shimmy shell init >>>"

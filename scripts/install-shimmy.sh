@@ -8,11 +8,12 @@ source "$SCRIPT_DIR/lib/shimmy-env.sh"
 shimmy_log_init
 shimmy_init_repo_vars "$(shimmy_repo_root_from_script_path "${BASH_SOURCE[0]}")"
 shimmy_init_home_vars "$HOME"
-shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
+shimmy_init_install_vars "${SHIMMY_INSTALL_DIR:-}"
 
 INSTALL_MODE='copy'
 UPDATE_BASHRC=1
 UNINSTALL=0
+REQUESTED_INSTALL_DIR="${SHIMMY_INSTALL_DIR:-}"
 REQUESTED_SHIMS=()
 PROFILE_CREATED_MESSAGES=()
 PROFILE_WARNING_MESSAGES=()
@@ -185,6 +186,9 @@ write_install_manifest() {
 
   {
     printf 'install_dir=%s\n' "$SHIMMY_INSTALL_DIR"
+    printf 'shim_dir=%s\n' "$SHIMMY_SHIM_DIR"
+    printf 'images_dir=%s\n' "$SHIMMY_IMAGES_DIR"
+    printf 'runtime_dir=%s\n' "$SHIMMY_RUNTIME_DIR"
     printf 'install_mode=%s\n' "$INSTALL_MODE"
     printf 'update_bashrc=%s\n' "$UPDATE_BASHRC"
     printf 'bashrc_file=%s\n' "$BASHRC_FILE"
@@ -276,6 +280,30 @@ remove_manifest_profile_files() {
         ;;
     esac
   done < "$INSTALL_MANIFEST_FILE"
+}
+
+path_is_within() {
+  local parent="${1:?parent path is required}"
+  local child="${2:?child path is required}"
+
+  parent="${parent%/}"
+  child="${child%/}"
+
+  [[ "$child" == "$parent" || "$child" == "$parent"/* ]]
+}
+
+remove_managed_layout_dir() {
+  local dir="$1"
+  local description="$2"
+
+  if [[ ! -e "$dir" ]]; then
+    log_debug "$description directory not present; nothing to remove: $dir"
+    return 0
+  fi
+
+  log_debug "Removing $description directory: $dir"
+  rm -rf "$dir"
+  remove_empty_parent_dirs "$(dirname "$dir")" "$HOME"
 }
 
 remove_install_dir() {
@@ -476,6 +504,15 @@ perform_uninstall() {
   remove_shell_artifacts
   log_debug "Removing install manifest file: $INSTALL_MANIFEST_FILE"
   rm -f "$INSTALL_MANIFEST_FILE"
+  if ! path_is_within "$SHIMMY_INSTALL_DIR" "$SHIMMY_SHIM_DIR"; then
+    remove_managed_layout_dir "$SHIMMY_SHIM_DIR" "shim"
+  fi
+  if ! path_is_within "$SHIMMY_INSTALL_DIR" "$SHIMMY_IMAGES_DIR"; then
+    remove_managed_layout_dir "$SHIMMY_IMAGES_DIR" "image"
+  fi
+  if ! path_is_within "$SHIMMY_INSTALL_DIR" "$SHIMMY_RUNTIME_DIR"; then
+    remove_managed_layout_dir "$SHIMMY_RUNTIME_DIR" "runtime"
+  fi
   remove_install_dir
   remove_profile_dir_if_empty
 
@@ -488,7 +525,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --install-dir)
       [[ $# -ge 2 ]] || fail "missing value for --install-dir"
-      SHIMMY_INSTALL_DIR="$2"
+      REQUESTED_INSTALL_DIR="$2"
       shift 2
       ;;
     --symlink)
@@ -541,9 +578,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-shimmy_init_install_vars "$SHIMMY_INSTALL_DIR"
+shimmy_init_install_vars "$REQUESTED_INSTALL_DIR"
 
 if [[ "$UNINSTALL" -eq 1 ]]; then
+  shimmy_apply_install_layout_from_manifest "$INSTALL_MANIFEST_FILE" || true
   perform_uninstall
 else
   perform_install

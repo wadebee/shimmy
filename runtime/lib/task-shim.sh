@@ -5,7 +5,7 @@ TASK_SHIM_LIB_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$TASK_SHIM_LIB_DIR/custom-image.sh"
 
 shimmy_task_resolve_image() {
-  local shimmy_root="${1:?shimmy root is required}"
+  local images_dir="${1:?shimmy images dir is required}"
   local -a build_args=()
 
   if [[ -n "${TASK_IMAGE:-}" ]]; then
@@ -22,7 +22,7 @@ shimmy_task_resolve_image() {
 
   shimmy_ensure_local_image \
     "localhost/shimmy-task" \
-    "$shimmy_root/images/task" \
+    "$images_dir/task" \
     "${TASK_IMAGE_BUILD:-auto}" \
     "${build_args[@]}"
 }

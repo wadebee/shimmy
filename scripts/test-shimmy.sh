@@ -56,11 +56,29 @@ setup_scenario() {
   HOME_DIR="$SCENARIO_DIR/home"
   WORK_DIR="$SCENARIO_DIR/work"
 
+  unset SHIMMY_INSTALL_DIR SHIMMY_SHIM_DIR SHIMMY_IMAGES_DIR SHIMMY_RUNTIME_DIR
   mkdir -p "$HOME_DIR" "$WORK_DIR"
   chmod 755 "$HOME_DIR" "$WORK_DIR"
 
   shimmy_init_home_vars "$HOME_DIR"
   shimmy_init_install_vars "$HOME_DIR/.local/bin/shimmy"
+}
+
+set_install_layout() {
+  SHIMMY_INSTALL_DIR="${1%/}"
+  SHIMMY_SHIM_DIR="${2%/}"
+  SHIMMY_IMAGES_DIR="${3%/}"
+  SHIMMY_RUNTIME_DIR="${4%/}"
+  INSTALL_MANIFEST_FILE="$SHIMMY_INSTALL_DIR/install-manifest.txt"
+}
+
+setup_split_layout_scenario() {
+  setup_scenario
+  set_install_layout \
+    "$HOME_DIR/.local/state/shimmy" \
+    "$HOME_DIR/.local/bin/shims" \
+    "$HOME_DIR/.local/share/shimmy-images" \
+    "$HOME_DIR/.local/lib/shimmy-runtime"
 }
 
 run_wrapper() {
@@ -82,6 +100,10 @@ run_wrapper() {
   (
     cd "$WORK_DIR"
     env \
+      -u SHIMMY_INSTALL_DIR \
+      -u SHIMMY_SHIM_DIR \
+      -u SHIMMY_IMAGES_DIR \
+      -u SHIMMY_RUNTIME_DIR \
       "HOME=$HOME_DIR" \
       "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
       "${env_vars[@]}" \
@@ -93,7 +115,22 @@ run_installer() {
   (
     cd "$ROOT_DIR"
     env "HOME=$HOME_DIR" bash "$ROOT_DIR/scripts/install-shimmy.sh" \
-      --install-dir "$HOME_DIR/.local/bin/shimmy" \
+      --install-dir "$SHIMMY_INSTALL_DIR" \
+      "$@" 2>&1
+  )
+}
+
+run_installer_with_layout_env() {
+  (
+    cd "$ROOT_DIR"
+    env \
+      "HOME=$HOME_DIR" \
+      "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR" \
+      "SHIMMY_SHIM_DIR=$SHIMMY_SHIM_DIR" \
+      "SHIMMY_IMAGES_DIR=$SHIMMY_IMAGES_DIR" \
+      "SHIMMY_RUNTIME_DIR=$SHIMMY_RUNTIME_DIR" \
+      bash "$ROOT_DIR/scripts/install-shimmy.sh" \
+      --install-dir "$SHIMMY_INSTALL_DIR" \
       "$@" 2>&1
   )
 }
@@ -103,7 +140,20 @@ run_uninstaller() {
     cd "$ROOT_DIR"
     env "HOME=$HOME_DIR" bash "$ROOT_DIR/scripts/install-shimmy.sh" \
       --uninstall \
-      --install-dir "$HOME_DIR/.local/bin/shimmy" \
+      --install-dir "$SHIMMY_INSTALL_DIR" \
+      "$@" 2>&1
+  )
+}
+
+run_uninstaller_with_install_env_only() {
+  (
+    cd "$ROOT_DIR"
+    env \
+      "HOME=$HOME_DIR" \
+      "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR" \
+      bash "$ROOT_DIR/scripts/install-shimmy.sh" \
+      --uninstall \
+      --install-dir "$SHIMMY_INSTALL_DIR" \
       "$@" 2>&1
   )
 }
@@ -125,6 +175,16 @@ run_status() {
   )
 }
 
+run_status_with_install_env_only() {
+  (
+    cd "$ROOT_DIR"
+    env \
+      "HOME=$HOME_DIR" \
+      "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR" \
+      bash "$ROOT_DIR/scripts/status-shimmy.sh" 2>&1
+  )
+}
+
 run_sourced_shimmy_env() {
   env "HOME=$HOME_DIR" bash -lc '. "$1" && env | grep "^SHIMMY_" | sort' _ "$SHIMMY_BASH_FILE" 2>&1
 }
@@ -135,6 +195,17 @@ run_update() {
     env \
       "HOME=$HOME_DIR" \
       "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
+      bash "$ROOT_DIR/scripts/update-shimmy.sh" "$@" 2>&1
+  )
+}
+
+run_update_with_install_env_only() {
+  (
+    cd "$ROOT_DIR"
+    env \
+      "HOME=$HOME_DIR" \
+      "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
+      "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR" \
       bash "$ROOT_DIR/scripts/update-shimmy.sh" "$@" 2>&1
   )
 }
@@ -386,6 +457,26 @@ test_install_creates_managed_files() {
   pass "install creates managed files"
 }
 
+test_install_honors_split_layout_globals() {
+  setup_split_layout_scenario
+
+  local output
+  output="$(run_installer_with_layout_env --no-update-bashrc --shim task)"
+
+  assert_file_exists "$INSTALL_MANIFEST_FILE"
+  assert_file_exists "$SHIMMY_SHIM_DIR/task"
+  assert_file_exists "$SHIMMY_IMAGES_DIR/task/Containerfile"
+  assert_file_exists "$SHIMMY_RUNTIME_DIR/lib/task-shim.sh"
+  assert_path_not_exists "$SHIMMY_INSTALL_DIR/shims"
+  assert_path_not_exists "$SHIMMY_INSTALL_DIR/images"
+  assert_path_not_exists "$SHIMMY_INSTALL_DIR/runtime"
+  assert_file_contains_text "$INSTALL_MANIFEST_FILE" "shim_dir=$SHIMMY_SHIM_DIR"
+  assert_file_contains_text "$INSTALL_MANIFEST_FILE" "images_dir=$SHIMMY_IMAGES_DIR"
+  assert_file_contains_text "$INSTALL_MANIFEST_FILE" "runtime_dir=$SHIMMY_RUNTIME_DIR"
+  assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
+  pass "install honors split layout globals"
+}
+
 test_install_log_level_error_hides_info_and_debug() {
   setup_scenario
 
@@ -419,7 +510,7 @@ test_install_symlink_mode() {
   assert_symlink_target "$SHIMMY_SHIM_DIR/aws" "$ROOT_DIR/shims/aws"
   assert_symlink_target "$SHIMMY_IMAGES_DIR/task" "$ROOT_DIR/images/task"
   assert_symlink_target "$SHIMMY_IMAGES_DIR/textual" "$ROOT_DIR/images/textual"
-  assert_symlink_target "$SHIMMY_INSTALL_DIR/runtime" "$ROOT_DIR/runtime"
+  assert_symlink_target "$SHIMMY_RUNTIME_DIR" "$ROOT_DIR/runtime"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (symlink)."
   pass "install symlink override"
 }
@@ -554,6 +645,22 @@ test_status_reports_install_state() {
   pass "status reports install state"
 }
 
+test_status_uses_manifest_layout_dirs() {
+  setup_split_layout_scenario
+
+  run_installer_with_layout_env --no-update-bashrc --shim task >/dev/null
+
+  local output
+  output="$(run_status_with_install_env_only)"
+
+  assert_output_contains "$output" "install_dir: $SHIMMY_INSTALL_DIR"
+  assert_output_contains "$output" "shim_dir: $SHIMMY_SHIM_DIR"
+  assert_output_contains "$output" "images_dir: $SHIMMY_IMAGES_DIR"
+  assert_output_contains "$output" "runtime_dir: $SHIMMY_RUNTIME_DIR"
+  assert_output_contains "$output" "- task: localhost/shimmy-task:"
+  pass "status uses manifest layout dirs"
+}
+
 test_update_restores_missing_shim() {
   setup_scenario
 
@@ -566,6 +673,57 @@ test_update_restores_missing_shim() {
   assert_file_exists "$SHIMMY_SHIM_DIR/aws"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
   pass "update restores missing shim"
+}
+
+test_installed_task_shim_uses_split_layout_globals() {
+  setup_split_layout_scenario
+
+  run_installer_with_layout_env --no-update-bashrc --shim task >/dev/null
+
+  local output
+  output="$(
+    run_wrapper \
+      "$SHIMMY_SHIM_DIR/task" \
+      "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR" \
+      "SHIMMY_SHIM_DIR=$SHIMMY_SHIM_DIR" \
+      "SHIMMY_IMAGES_DIR=$SHIMMY_IMAGES_DIR" \
+      "SHIMMY_RUNTIME_DIR=$SHIMMY_RUNTIME_DIR" \
+      -- --version 2>&1
+  )"
+
+  assert_output_contains "$output" "3.45.5"
+  pass "installed task shim uses split layout globals"
+}
+
+test_update_uses_manifest_layout_dirs() {
+  setup_split_layout_scenario
+
+  run_installer_with_layout_env --no-update-bashrc >/dev/null
+  rm -f "$SHIMMY_SHIM_DIR/aws"
+
+  local output
+  output="$(run_update_with_install_env_only)"
+
+  assert_file_exists "$SHIMMY_SHIM_DIR/aws"
+  assert_path_not_exists "$SHIMMY_INSTALL_DIR/shims/aws"
+  assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
+  pass "update uses manifest layout dirs"
+}
+
+test_uninstall_uses_manifest_layout_dirs() {
+  setup_split_layout_scenario
+
+  run_installer_with_layout_env --no-update-bashrc --shim task >/dev/null
+
+  local output
+  output="$(run_uninstaller_with_install_env_only)"
+
+  assert_path_not_exists "$SHIMMY_INSTALL_DIR"
+  assert_path_not_exists "$SHIMMY_SHIM_DIR"
+  assert_path_not_exists "$SHIMMY_IMAGES_DIR"
+  assert_path_not_exists "$SHIMMY_RUNTIME_DIR"
+  assert_output_contains "$output" "Removed shimmy artifacts from $SHIMMY_INSTALL_DIR."
+  pass "uninstall uses manifest layout dirs"
 }
 
 test_update_build_prunes_stale_local_tags() {
@@ -613,6 +771,7 @@ main() {
   # test_tessl_default
   # test_tessl_with_mounts_and_pull
   test_install_creates_managed_files
+  test_install_honors_split_layout_globals
   test_install_log_level_error_hides_info_and_debug
   test_install_log_level_debug_emits_debug
   test_install_symlink_mode
@@ -623,8 +782,12 @@ main() {
   test_uninstall_removes_empty_preexisting_shimmy_shell_file
   test_bootstrap_install_default_task
   test_status_reports_install_state
+  test_status_uses_manifest_layout_dirs
   test_update_restores_missing_shim
+  test_installed_task_shim_uses_split_layout_globals
+  test_update_uses_manifest_layout_dirs
   test_update_build_prunes_stale_local_tags
+  test_uninstall_uses_manifest_layout_dirs
 
   echo "All $TEST_COUNT shim tests passed."
 }

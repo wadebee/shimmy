@@ -22,7 +22,8 @@ detect_shimmy_install_dir() {
   return 1
 }
 
-shimmy_init_install_vars "${SHIMMY_INSTALL_DIR:-$(detect_shimmy_install_dir || printf '%s\n' "$DEFAULT_INSTALL_DIR")}"
+shimmy_init_install_vars "${SHIMMY_INSTALL_DIR:-$(detect_shimmy_install_dir || true)}"
+shimmy_apply_install_layout_from_manifest "$INSTALL_MANIFEST_FILE" || true
 
 if [[ -f "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh" ]]; then
   # shellcheck source=runtime/lib/custom-image.sh
@@ -32,6 +33,7 @@ fi
 PULL_IMAGES=0
 BUILD_IMAGES=0
 UPDATE_ARGS=()
+UPDATE_ENV_VARS=()
 
 usage() {
   cat <<'EOF'
@@ -50,11 +52,7 @@ EOF
 manifest_value() {
   local key="$1"
 
-  if [[ ! -f "$INSTALL_MANIFEST_FILE" ]]; then
-    return 1
-  fi
-
-  sed -n "s/^${key}=//p" "$INSTALL_MANIFEST_FILE" | head -n 1
+  shimmy_manifest_value "$INSTALL_MANIFEST_FILE" "$key"
 }
 
 manifest_values() {
@@ -68,9 +66,21 @@ manifest_values() {
 }
 
 load_update_args_from_manifest() {
-  local install_dir install_mode update_bashrc bashrc_file bash_profile_file bash_shimmy_file shim_name
+  local install_dir
+  local shim_dir
+  local images_dir
+  local runtime_dir
+  local install_mode
+  local update_bashrc
+  local bashrc_file
+  local bash_profile_file
+  local bash_shimmy_file
+  local shim_name
 
   install_dir="$(manifest_value install_dir)" || return 1
+  shim_dir="$(manifest_value shim_dir || true)"
+  images_dir="$(manifest_value images_dir || true)"
+  runtime_dir="$(manifest_value runtime_dir || true)"
   install_mode="$(manifest_value install_mode || true)"
   update_bashrc="$(manifest_value update_bashrc || true)"
   bashrc_file="$(manifest_value bashrc_file || true)"
@@ -78,6 +88,17 @@ load_update_args_from_manifest() {
   bash_shimmy_file="$(manifest_value bash_shimmy_file || true)"
 
   UPDATE_ARGS=( --install-dir "$install_dir" )
+  UPDATE_ENV_VARS=( "SHIMMY_INSTALL_DIR=$install_dir" )
+
+  if [[ -n "$shim_dir" ]]; then
+    UPDATE_ENV_VARS+=( "SHIMMY_SHIM_DIR=$shim_dir" )
+  fi
+  if [[ -n "$images_dir" ]]; then
+    UPDATE_ENV_VARS+=( "SHIMMY_IMAGES_DIR=$images_dir" )
+  fi
+  if [[ -n "$runtime_dir" ]]; then
+    UPDATE_ENV_VARS+=( "SHIMMY_RUNTIME_DIR=$runtime_dir" )
+  fi
 
   case "$install_mode" in
     symlink) UPDATE_ARGS+=( --symlink ) ;;
@@ -106,49 +127,47 @@ load_update_args_from_manifest() {
 }
 
 run_pull_refresh() {
-  local shim_dir shim_name
+  local shim_name
   local -a shim_names
 
-  shim_dir="$(manifest_value install_dir)/shims"
-  [[ -d "$shim_dir" ]] || return 0
+  [[ -d "$SHIMMY_SHIM_DIR" ]] || return 0
 
-  mapfile -t shim_names < <(find "$shim_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) -printf '%f\n' | sort)
+  mapfile -t shim_names < <(find "$SHIMMY_SHIM_DIR" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) -printf '%f\n' | sort)
 
   for shim_name in "${shim_names[@]}"; do
     case "$shim_name" in
-      aws) AWS_IMAGE_PULL=always "$shim_dir/aws" --version >/dev/null </dev/null ;;
-      jq) JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null </dev/null ;;
-      rg) RG_IMAGE_PULL=always "$shim_dir/rg" --version >/dev/null </dev/null ;;
-      terraform) TF_IMAGE_PULL=always "$shim_dir/terraform" version >/dev/null </dev/null ;;
+      aws) AWS_IMAGE_PULL=always "$SHIMMY_SHIM_DIR/aws" --version >/dev/null </dev/null ;;
+      jq) JQ_IMAGE_PULL=always "$SHIMMY_SHIM_DIR/jq" --version >/dev/null </dev/null ;;
+      rg) RG_IMAGE_PULL=always "$SHIMMY_SHIM_DIR/rg" --version >/dev/null </dev/null ;;
+      terraform) TF_IMAGE_PULL=always "$SHIMMY_SHIM_DIR/terraform" version >/dev/null </dev/null ;;
     esac
   done
 }
 
 run_build_refresh() {
-  local shim_dir shim_name
+  local shim_name
   local -a shim_names
 
-  shim_dir="$(manifest_value install_dir)/shims"
-  [[ -d "$shim_dir" ]] || return 0
+  [[ -d "$SHIMMY_SHIM_DIR" ]] || return 0
 
-  mapfile -t shim_names < <(find "$shim_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) -printf '%f\n' | sort)
+  mapfile -t shim_names < <(find "$SHIMMY_SHIM_DIR" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) -printf '%f\n' | sort)
 
   for shim_name in "${shim_names[@]}"; do
     case "$shim_name" in
       netcat)
-        NETCAT_IMAGE_BUILD=always "$shim_dir/netcat" --help >/dev/null </dev/null
+        NETCAT_IMAGE_BUILD=always "$SHIMMY_SHIM_DIR/netcat" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name"
         ;;
       task)
-        TASK_IMAGE_BUILD=always "$shim_dir/task" --version >/dev/null </dev/null
+        TASK_IMAGE_BUILD=always "$SHIMMY_SHIM_DIR/task" --version >/dev/null </dev/null
         cleanup_old_local_images "$shim_name"
         ;;
       tessl)
-        TESSL_IMAGE_BUILD=always "$shim_dir/tessl" --help >/dev/null </dev/null
+        TESSL_IMAGE_BUILD=always "$SHIMMY_SHIM_DIR/tessl" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name"
         ;;
       textual)
-        TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual" --help >/dev/null </dev/null
+        TEXTUAL_IMAGE_BUILD=always "$SHIMMY_SHIM_DIR/textual" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name"
         ;;
     esac
@@ -230,7 +249,8 @@ main() {
   fi
 
   load_update_args_from_manifest
-  bash "$SCRIPT_DIR/install-shimmy.sh" "${UPDATE_ARGS[@]}"
+  env "${UPDATE_ENV_VARS[@]}" bash "$SCRIPT_DIR/install-shimmy.sh" "${UPDATE_ARGS[@]}"
+  shimmy_apply_install_layout_from_manifest "$INSTALL_MANIFEST_FILE" || true
 
   if [[ "$PULL_IMAGES" -eq 1 ]]; then
     run_pull_refresh

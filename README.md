@@ -63,6 +63,8 @@ task test
 
 The bootstrap launcher only installs the `task` shim plus its runtime support. Full install, uninstall, and test actions then run through [`Taskfile.yml`](/home/wade/repos/github.com/wadebee/shimmy/Taskfile.yml). The installer keeps a managed block in `~/.bashrc_shimmy` that exports the `SHIMMY_*` install paths and adds the shim directory to `PATH`, and it adds a sourcing line to both `~/.bashrc` and `~/.bash_profile` so Bash behaves consistently on Linux interactive shells and macOS login shells. Uninstall removes the managed block and deletes `~/.bashrc_shimmy` when it ends up empty.
 
+Shimmy treats `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_RUNTIME_DIR` as the authoritative layout when they are exported, so installs can keep metadata, shims, local image contexts, and shared runtime files in separate locations without assuming they all live under one hard-coded root.
+
 ### Option 2: Use with direnv
 
 If you have [direnv](https://direnv.net/) installed:
