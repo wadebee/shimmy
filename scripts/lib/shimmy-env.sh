@@ -125,6 +125,30 @@ shimmy_path_block_export_line() {
   printf '    *) export PATH="$PATH:%s" ;;\n' "$shim_dir"
 }
 
+shimmy_install_dir_export_line() {
+  local install_dir="${1:?install dir is required}"
+
+  printf 'export SHIMMY_INSTALL_DIR="%s"\n' "$install_dir"
+}
+
+shimmy_shim_dir_export_line() {
+  local shim_dir="${1:?shim dir is required}"
+
+  printf 'export SHIMMY_SHIM_DIR="%s"\n' "$shim_dir"
+}
+
+shimmy_images_dir_export_line() {
+  local images_dir="${1:?images dir is required}"
+
+  printf 'export SHIMMY_IMAGES_DIR="%s"\n' "$images_dir"
+}
+
+shimmy_runtime_dir_export_line() {
+  local runtime_dir="${1:?runtime dir is required}"
+
+  printf 'export SHIMMY_RUNTIME_DIR="%s"\n' "$runtime_dir"
+}
+
 shimmy_render_shell_init_block() {
   local shimmy_bash_file="${1:?shimmy bash file is required}"
 
@@ -136,9 +160,16 @@ shimmy_render_shell_init_block() {
 
 shimmy_render_path_block() {
   local shim_dir="${1:?shim dir is required}"
+  local install_dir="${2:?install dir is required}"
+  local images_dir="${3:?images dir is required}"
+  local runtime_dir="${4:?runtime dir is required}"
 
   printf '\n'
   printf '%s\n' "$PATH_BLOCK_START"
+  shimmy_install_dir_export_line "$install_dir"
+  shimmy_shim_dir_export_line "$shim_dir"
+  shimmy_images_dir_export_line "$images_dir"
+  shimmy_runtime_dir_export_line "$runtime_dir"
   shimmy_path_block_guard_line "$shim_dir"
   printf '%s\n' '  case ":$PATH:" in'
   printf '%s\n' "    *\":$shim_dir:\"*) ;;"

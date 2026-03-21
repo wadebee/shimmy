@@ -125,6 +125,10 @@ run_status() {
   )
 }
 
+run_sourced_shimmy_env() {
+  env "HOME=$HOME_DIR" bash -lc '. "$1" && env | grep "^SHIMMY_" | sort' _ "$SHIMMY_BASH_FILE" 2>&1
+}
+
 run_update() {
   (
     cd "$ROOT_DIR"
@@ -427,10 +431,18 @@ test_install_updates_bash_startup_files() {
   output="$(run_installer)"
 
   local source_line
+  local install_export_line
+  local shim_export_line
+  local images_export_line
+  local runtime_export_line
   local guard_line
   local export_line
 
   source_line="$(shimmy_shell_init_source_line "$SHIMMY_BASH_FILE")"
+  install_export_line="$(shimmy_install_dir_export_line "$SHIMMY_INSTALL_DIR")"
+  shim_export_line="$(shimmy_shim_dir_export_line "$SHIMMY_SHIM_DIR")"
+  images_export_line="$(shimmy_images_dir_export_line "$SHIMMY_IMAGES_DIR")"
+  runtime_export_line="$(shimmy_runtime_dir_export_line "$SHIMMY_RUNTIME_DIR")"
   guard_line="$(shimmy_path_block_guard_line "$SHIMMY_SHIM_DIR")"
   export_line="$(shimmy_path_block_export_line "$SHIMMY_SHIM_DIR")"
 
@@ -439,10 +451,29 @@ test_install_updates_bash_startup_files() {
   assert_file_exists "$SHIMMY_BASH_FILE"
   assert_file_contains_text "$BASHRC_FILE" "$source_line"
   assert_file_contains_text "$BASH_PROFILE_FILE" "$source_line"
+  assert_file_contains_text "$SHIMMY_BASH_FILE" "$install_export_line"
+  assert_file_contains_text "$SHIMMY_BASH_FILE" "$shim_export_line"
+  assert_file_contains_text "$SHIMMY_BASH_FILE" "$images_export_line"
+  assert_file_contains_text "$SHIMMY_BASH_FILE" "$runtime_export_line"
   assert_file_contains_text "$SHIMMY_BASH_FILE" "$guard_line"
   assert_file_contains_text "$SHIMMY_BASH_FILE" "$export_line"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
   pass "install updates bash startup files"
+}
+
+test_shimmy_shell_file_exports_install_env() {
+  setup_scenario
+
+  run_installer >/dev/null
+
+  local output
+  output="$(run_sourced_shimmy_env)"
+
+  assert_output_contains "$output" "SHIMMY_IMAGES_DIR=$SHIMMY_IMAGES_DIR"
+  assert_output_contains "$output" "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR"
+  assert_output_contains "$output" "SHIMMY_RUNTIME_DIR=$SHIMMY_RUNTIME_DIR"
+  assert_output_contains "$output" "SHIMMY_SHIM_DIR=$SHIMMY_SHIM_DIR"
+  pass "shimmy shell file exports install env"
 }
 
 test_uninstall_removes_installed_artifacts() {
@@ -473,6 +504,18 @@ test_uninstall_preserves_preexisting_shell_files() {
 
   assert_file_exists "$BASHRC_FILE"
   pass "uninstall preserves preexisting shell files"
+}
+
+test_uninstall_removes_empty_preexisting_shimmy_shell_file() {
+  setup_scenario
+
+  : > "$SHIMMY_BASH_FILE"
+
+  run_installer >/dev/null
+  run_uninstaller >/dev/null
+
+  assert_path_not_exists "$SHIMMY_BASH_FILE"
+  pass "uninstall removes empty preexisting shimmy shell file"
 }
 
 test_bootstrap_install_default_task() {
@@ -574,8 +617,10 @@ main() {
   test_install_log_level_debug_emits_debug
   test_install_symlink_mode
   test_install_updates_bash_startup_files
+  test_shimmy_shell_file_exports_install_env
   test_uninstall_removes_installed_artifacts
   test_uninstall_preserves_preexisting_shell_files
+  test_uninstall_removes_empty_preexisting_shimmy_shell_file
   test_bootstrap_install_default_task
   test_status_reports_install_state
   test_update_restores_missing_shim

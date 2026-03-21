@@ -61,7 +61,7 @@ task status
 task test
 ```
 
-The bootstrap launcher only installs the `task` shim plus its runtime support. Full install, uninstall, and test actions then run through [`Taskfile.yml`](/home/wade/repos/github.com/wadebee/shimmy/Taskfile.yml). The installer keeps the PATH block in `~/.bashrc_shimmy` and adds a sourcing line to both `~/.bashrc` and `~/.bash_profile` so Bash behaves consistently on Linux interactive shells and macOS login shells.
+The bootstrap launcher only installs the `task` shim plus its runtime support. Full install, uninstall, and test actions then run through [`Taskfile.yml`](/home/wade/repos/github.com/wadebee/shimmy/Taskfile.yml). The installer keeps a managed block in `~/.bashrc_shimmy` that exports the `SHIMMY_*` install paths and adds the shim directory to `PATH`, and it adds a sourcing line to both `~/.bashrc` and `~/.bash_profile` so Bash behaves consistently on Linux interactive shells and macOS login shells. Uninstall removes the managed block and deletes `~/.bashrc_shimmy` when it ends up empty.
 
 ### Option 2: Use with direnv
 

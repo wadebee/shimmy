@@ -102,7 +102,11 @@ remove_managed_block() {
 
 append_shimmy_path_block() {
   log_debug "Appending Shimmy PATH block to $SHIMMY_BASH_FILE pointed at dir $SHIMMY_SHIM_DIR"
-  shimmy_render_path_block "$SHIMMY_SHIM_DIR" >> "$SHIMMY_BASH_FILE"
+  shimmy_render_path_block \
+    "$SHIMMY_SHIM_DIR" \
+    "$SHIMMY_INSTALL_DIR" \
+    "$SHIMMY_IMAGES_DIR" \
+    "$SHIMMY_RUNTIME_DIR" >> "$SHIMMY_BASH_FILE"
 }
 
 append_shell_init_block() {
@@ -302,12 +306,9 @@ remove_shell_artifacts() {
   else
     log_debug "Shell file was not recorded as created; leaving file in place: $BASH_PROFILE_FILE"
   fi
-  if manifest_lists_path "created_shell_file" "$SHIMMY_BASH_FILE"; then
-    log_debug "Cleaning up shell file recorded as created: $SHIMMY_BASH_FILE"
-    remove_file_if_empty "$SHIMMY_BASH_FILE"
-  else
-    log_debug "Shell file was not recorded as created; leaving file in place: $SHIMMY_BASH_FILE"
-  fi
+  # This file is shimmy-managed; remove it whenever uninstall leaves it empty,
+  # even if it existed before install.
+  remove_file_if_empty "$SHIMMY_BASH_FILE"
 }
 
 remove_profile_dir_if_empty() {
