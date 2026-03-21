@@ -85,6 +85,8 @@ task status
 task test
 ```
 
+`task update -- --build` rebuilds the current local-build images and prunes older Shimmy-managed tags for the same local image repo when they are no longer in use.
+
 ### Option 3: Session-only (temporary)
 
 For a single shell session:

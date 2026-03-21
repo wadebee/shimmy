@@ -4,7 +4,7 @@ tasks:
   install:
     desc: Install shimmy into the current user's profile.
     cmds:
-      - bash ./scripts/install-shimmy.sh {{.CLI_ARGS}}
+      - bash ./scripodmtesspts/install-shimmy.sh {{.CLI_ARGS}}
 
   uninstall:
     desc: Remove shimmy from the current user's profile.

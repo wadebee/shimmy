@@ -23,6 +23,11 @@ detect_shimmy_install_dir() {
 
 shimmy_init_install_vars "${SHIMMY_INSTALL_DIR:-$(detect_shimmy_install_dir || printf '%s\n' "$DEFAULT_INSTALL_DIR")}"
 
+if [[ -f "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh" ]]; then
+  # shellcheck source=runtime/lib/custom-image.sh
+  source "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh"
+fi
+
 path_contains() {
   local needle="$1"
   case ":${PATH:-}:" in
@@ -31,15 +36,16 @@ path_contains() {
   esac
 }
 
-extract_container_arg() {
-  local containerfile="$1"
-  local arg_name="$2"
+local_image_ref() {
+  local image_repo="$1"
+  local context_dir="$2"
 
-  if [[ ! -f "$containerfile" ]]; then
+  if [[ ! -d "$context_dir" || ! -f "$context_dir/Containerfile" ]]; then
+    printf '%s\n' "$image_repo"
     return 0
   fi
 
-  sed -n "s/^ARG ${arg_name}=//p" "$containerfile" | head -n 1
+  printf '%s:%s\n' "$image_repo" "$(shimmy_compute_context_hash "$context_dir")"
 }
 
 describe_shim_image() {
@@ -59,18 +65,16 @@ describe_shim_image() {
       printf '%s\n' "${TF_IMAGE:-docker.io/hashicorp/terraform:latest}"
       ;;
     netcat)
-      printf 'image=localhost/shimmy-netcat context=%s\n' "$SHIMMY_IMAGES_DIR/netcat/Containerfile"
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-netcat" "$SHIMMY_IMAGES_DIR/netcat")"
       ;;
     task)
-      printf 'image=localhost/shimmy-task context=%s version=%s\n' \
-        "$SHIMMY_IMAGES_DIR/task/Containerfile" \
-        "$(extract_container_arg "$SHIMMY_IMAGES_DIR/task/Containerfile" TASK_VERSION)"
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-task" "$SHIMMY_IMAGES_DIR/task")"
       ;;
     tessl)
-      printf 'image=localhost/shimmy-tessl context=%s\n' "$SHIMMY_IMAGES_DIR/tessl/Containerfile"
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-tessl" "$SHIMMY_IMAGES_DIR/tessl")"
       ;;
     textual)
-      printf 'image=localhost/shimmy-textual context=%s\n' "$SHIMMY_IMAGES_DIR/textual/Containerfile"
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-textual" "$SHIMMY_IMAGES_DIR/textual")"
       ;;
     *)
       printf 'unknown\n'

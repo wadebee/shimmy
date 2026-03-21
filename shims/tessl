@@ -42,4 +42,9 @@ if [[ -n "${TESSL_IMAGE:-}" && "${TESSL_IMAGE_PULL:-}" = "always" ]]; then
   PODMAN_OPTS+=( --pull=always )
 fi
 
-exec podman run --rm -it -m "300M" --memory-swap "1G" "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "${ENV_VARS[@]}" "$TESSL_RUN_IMAGE" "$@"
+TTY_OPTS=()
+if [[ -t 0 && -t 1 ]]; then
+  TTY_OPTS+=( -it )
+fi
+
+exec podman run --rm "${TTY_OPTS[@]}" -m "300M" --memory-swap "1G" "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "${ENV_VARS[@]}" "$TESSL_RUN_IMAGE" "$@"

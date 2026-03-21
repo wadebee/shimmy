@@ -24,6 +24,11 @@ detect_shimmy_install_dir() {
 
 shimmy_init_install_vars "${SHIMMY_INSTALL_DIR:-$(detect_shimmy_install_dir || printf '%s\n' "$DEFAULT_INSTALL_DIR")}"
 
+if [[ -f "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh" ]]; then
+  # shellcheck source=runtime/lib/custom-image.sh
+  source "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh"
+fi
+
 PULL_IMAGES=0
 BUILD_IMAGES=0
 UPDATE_ARGS=()
@@ -102,34 +107,99 @@ load_update_args_from_manifest() {
 
 run_pull_refresh() {
   local shim_dir shim_name
+  local -a shim_names
 
   shim_dir="$(manifest_value install_dir)/shims"
   [[ -d "$shim_dir" ]] || return 0
 
-  while IFS= read -r shim_name; do
+  mapfile -t shim_names < <(find "$shim_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) -printf '%f\n' | sort)
+
+  for shim_name in "${shim_names[@]}"; do
     case "$shim_name" in
-      aws) AWS_IMAGE_PULL=always "$shim_dir/aws" --version >/dev/null ;;
-      jq) JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null ;;
-      rg) RG_IMAGE_PULL=always "$shim_dir/rg" --version >/dev/null ;;
-      terraform) TF_IMAGE_PULL=always "$shim_dir/terraform" version >/dev/null ;;
+      aws) AWS_IMAGE_PULL=always "$shim_dir/aws" --version >/dev/null </dev/null ;;
+      jq) JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null </dev/null ;;
+      rg) RG_IMAGE_PULL=always "$shim_dir/rg" --version >/dev/null </dev/null ;;
+      terraform) TF_IMAGE_PULL=always "$shim_dir/terraform" version >/dev/null </dev/null ;;
     esac
-  done < <(find "$shim_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) -printf '%f\n' | sort)
+  done
 }
 
 run_build_refresh() {
   local shim_dir shim_name
+  local -a shim_names
 
   shim_dir="$(manifest_value install_dir)/shims"
   [[ -d "$shim_dir" ]] || return 0
 
-  while IFS= read -r shim_name; do
+  mapfile -t shim_names < <(find "$shim_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) -printf '%f\n' | sort)
+
+  for shim_name in "${shim_names[@]}"; do
     case "$shim_name" in
-      netcat) NETCAT_IMAGE_BUILD=always "$shim_dir/netcat" --help >/dev/null ;;
-      task) TASK_IMAGE_BUILD=always "$shim_dir/task" --version >/dev/null ;;
-      tessl) TESSL_IMAGE_BUILD=always "$shim_dir/tessl" --help >/dev/null ;;
-      textual) TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual" --help >/dev/null ;;
+      netcat)
+        NETCAT_IMAGE_BUILD=always "$shim_dir/netcat" --help >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name"
+        ;;
+      task)
+        TASK_IMAGE_BUILD=always "$shim_dir/task" --version >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name"
+        ;;
+      tessl)
+        TESSL_IMAGE_BUILD=always "$shim_dir/tessl" --help >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name"
+        ;;
+      textual)
+        TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual" --help >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name"
+        ;;
     esac
-  done < <(find "$shim_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) -printf '%f\n' | sort)
+  done
+}
+
+local_build_repo_for_shim() {
+  case "$1" in
+    netcat) printf 'localhost/shimmy-netcat\n' ;;
+    task) printf 'localhost/shimmy-task\n' ;;
+    tessl) printf 'localhost/shimmy-tessl\n' ;;
+    textual) printf 'localhost/shimmy-textual\n' ;;
+    *) return 1 ;;
+  esac
+}
+
+local_build_context_for_shim() {
+  printf '%s/%s\n' "$SHIMMY_IMAGES_DIR" "$1"
+}
+
+cleanup_old_local_images() {
+  local shim_name="$1"
+  local image_repo context_dir current_ref image_ref
+
+  image_repo="$(local_build_repo_for_shim "$shim_name")" || return 0
+  context_dir="$(local_build_context_for_shim "$shim_name")"
+  [[ -d "$context_dir" ]] || return 0
+
+  current_ref="${image_repo}:$(shimmy_compute_context_hash "$context_dir")"
+
+  while IFS= read -r image_ref; do
+    [[ -n "$image_ref" ]] || continue
+    if [[ "$image_ref" == "<none>:<none>" || "$image_ref" == "<none>:"* || "$image_ref" == *":<none>" ]]; then
+      continue
+    fi
+    if [[ "$image_ref" == "$current_ref" ]]; then
+      continue
+    fi
+
+    if podman image rm "$image_ref" >/dev/null 2>&1; then
+      shimmy_log warn "Removed stale shim image: $image_ref"
+    else
+      shimmy_log warn "Unable to remove stale shim image (possibly in use): $image_ref"
+    fi
+  done < <(
+    podman images \
+      --filter "label=io.wadebee.shimmy.image-repo=${image_repo}" \
+      --format '{{.Repository}}:{{.Tag}}' | sort -u
+  )
+
+  return 0
 }
 
 main() {

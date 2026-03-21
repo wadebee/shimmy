@@ -12,6 +12,7 @@ TMP_ROOT="$(mktemp -d)"
 TEST_COUNT=0
 
 cleanup() {
+  cleanup_test_podman_tags
   rm -rf "$TMP_ROOT"
 }
 trap cleanup EXIT
@@ -29,6 +30,25 @@ fail_test() {
 
 require_podman() {
   command -v podman >/dev/null 2>&1 || fail_test "podman is required to run scripts/test-shimmy.sh"
+}
+
+cleanup_test_podman_tags() {
+  local image_ref
+
+  command -v podman >/dev/null 2>&1 || return 0
+
+  while IFS= read -r image_ref; do
+    [[ -n "$image_ref" ]] || continue
+    env \
+      "HOME=$REAL_HOME" \
+      "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
+      podman image rm "$image_ref" >/dev/null 2>&1 || true
+  done < <(
+    env \
+      "HOME=$REAL_HOME" \
+      "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
+      podman images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep '^localhost/shimmy-task:shimmy-test-' || true
+  )
 }
 
 setup_scenario() {
@@ -108,7 +128,10 @@ run_status() {
 run_update() {
   (
     cd "$ROOT_DIR"
-    env "HOME=$HOME_DIR" bash "$ROOT_DIR/scripts/update-shimmy.sh" "$@" 2>&1
+    env \
+      "HOME=$HOME_DIR" \
+      "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
+      bash "$ROOT_DIR/scripts/update-shimmy.sh" "$@" 2>&1
   )
 }
 
@@ -484,7 +507,7 @@ test_status_reports_install_state() {
   assert_output_contains "$output" "installed: yes"
   assert_output_contains "$output" "path_active: no"
   assert_output_contains "$output" "- aws: docker.io/amazon/aws-cli:2.15.0"
-  assert_output_contains "$output" "- task: image=localhost/shimmy-task"
+  assert_output_contains "$output" "- task: localhost/shimmy-task:"
   pass "status reports install state"
 }
 
@@ -500,6 +523,33 @@ test_update_restores_missing_shim() {
   assert_file_exists "$SHIMMY_SHIM_DIR/aws"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
   pass "update restores missing shim"
+}
+
+test_update_build_prunes_stale_local_tags() {
+  setup_scenario
+
+  run_installer --no-update-bashrc --shim task >/dev/null
+  run_wrapper "$SHIMMY_SHIM_DIR/task" -- --version >/dev/null 2>&1
+
+  # shellcheck source=runtime/lib/custom-image.sh
+  source "$ROOT_DIR/runtime/lib/custom-image.sh"
+
+  local current_ref old_ref output
+  current_ref="localhost/shimmy-task:$(shimmy_compute_context_hash "$SHIMMY_IMAGES_DIR/task")"
+  old_ref="localhost/shimmy-task:shimmy-test-$RANDOM"
+
+  run_podman tag "$current_ref" "$old_ref"
+  if ! output="$(run_update --build)"; then
+    fail_test "Expected update --build to succeed"
+  fi
+
+  if run_podman image exists "$old_ref"; then
+    fail_test "Expected stale image tag to be pruned: $old_ref"
+  fi
+
+  assert_output_contains "$output" "WARN: Removed stale shim image: $old_ref"
+  run_podman image exists "$current_ref" >/dev/null 2>&1 || fail_test "Expected current task image to remain: $current_ref"
+  pass "update build prunes stale local tags"
 }
 
 main() {
@@ -529,6 +579,7 @@ main() {
   test_bootstrap_install_default_task
   test_status_reports_install_state
   test_update_restores_missing_shim
+  test_update_build_prunes_stale_local_tags
 
   echo "All $TEST_COUNT shim tests passed."
 }

@@ -89,7 +89,7 @@ shimmy_ensure_local_image() {
       -f "$context_dir/Containerfile" \
       -t "$image_ref" \
       "$@" \
-      "$context_dir"
+      "$context_dir" >&2
   fi
 
   printf '%s\n' "$image_ref"
