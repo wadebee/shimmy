@@ -14,7 +14,7 @@ Use this skill when the task makes use of the jq cli.
 - Installer: `../../../scripts/install-shimmy.sh`
 - Docs: `../../../README.md`
 - Contributor guidance: `../../../CONTRIBUTING.md`
-- Shared prompt: `../../references/docs/prompt-shimmy-project.md-prompt.md`
+- Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Current Behavior
 

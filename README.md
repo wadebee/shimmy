@@ -176,7 +176,7 @@ When `CONTAINER_HOST` points at a unix-domain Podman socket, the task shim also 
 
 **Environment variables forwarded:**
 - `AWS_*`
-- `TF_VARS_*`
+- `TF_VAR_*`
 
 ### AWS CLI
 

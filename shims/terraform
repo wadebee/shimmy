@@ -21,7 +21,7 @@ if [ -d "$HOME/.terraform.d/plugin-cache" ]; then
 fi
 
 # Forward common AWS environment variables
-ENV_VARS=( -e AWS_* -e TF_VARS_* )
+ENV_VARS=( -e AWS_* -e TF_VAR_* )
 
 # Pull policy: try to use image already present; user can set TF_IMAGE_PULL=always to force pull
 PODMAN_OPTS=()

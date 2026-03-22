@@ -6,7 +6,7 @@ This directory contains authoring guidance for the Shimmy AWS CLI shim.
 
 - Read `SKILL.md` here before editing the runtime shim.
 - Read `../../../CONTRIBUTING.md` for repo-wide contributor guidance.
-- Shared repo rules live in `../../references/docs/prompt-shimmy-project.md-prompt.md`.
+- Shared repo rules live in `../../../docs/prompt-shimmy-project.md`.
 - The runtime file is `../../../shims/aws`.
 - Preserve `AWS_IMAGE`, `AWS_IMAGE_PULL`, the `$PWD` mount, the optional `~/.aws` read-only mount, and `AWS_*` forwarding unless the task changes those behaviors on purpose.
 - Update `../../../scripts/test-shimmy.sh` and `../../../README.md` with any runtime change.

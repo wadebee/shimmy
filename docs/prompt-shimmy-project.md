@@ -43,6 +43,7 @@ Deliverables:
 - `images/` contains `Containerfile` build contexts for shims that need locally built images.
 - `lib/shims/` contains reusable installed helper scripts that shims source at runtime.
 - `lib/repo/` contains sourced helpers for repo-level wrapper and lifecycle scripts.
+- `.agents/skills/` contains shim-specific AI contributor guidance.
 - `scripts/install-shimmy.sh` installs a fixed list of shim names by symlink or copy.
 - `scripts/test-shimmy.sh` runs Podman-backed smoke tests against non-mutating CLI commands.
 - `.envrc` adds `shims/` to `PATH` for local direnv usage.
@@ -50,5 +51,5 @@ Deliverables:
 
 ## Known Findings From The Scan
 
-- The repo currently tracks shell scripts without executable bits, so direct execution fails unless the mode is corrected.
-- The Terraform shim currently forwards `TF_VARS_*`, not the more common `TF_VAR_*`. Treat that as an explicit compatibility decision unless you are intentionally changing it.
+- Runnable shell files in `shims/` and `scripts/` are already executable; preserve those modes when adding or updating them.
+- The Terraform shim forwards `TF_VAR_*` alongside `AWS_*`. Keep tests and docs aligned if you change Terraform env forwarding.

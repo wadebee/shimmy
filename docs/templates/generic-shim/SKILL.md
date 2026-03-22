@@ -18,9 +18,9 @@ Use this as the starting point for a new shim skill or as a checklist for a one-
 
 ## Read First
 
-1. Read `../../../CONTRIBUTING.md` and `../../references/docs/prompt-shimmy-project.md-prompt.md`.
+1. Read `../../../CONTRIBUTING.md` and `../../../docs/prompt-shimmy-project.md`.
 2. Inspect the closest existing runtime shim under `../../../shims/`.
-3. Inspect the closest existing shim skill under `../../shims/` when a tool already has authoring guidance.
+3. Inspect the closest existing shim skill under `../../../.agents/skills/` when a tool already has authoring guidance.
 4. Reuse existing conventions instead of inventing a new wrapper shape.
 
 ## Required Outputs
@@ -65,4 +65,4 @@ exec podman run --rm <interactive-flag> "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "${EN
 2. Add exact argv tests in `scripts/test-shimmy.sh`.
 3. Document the tool in `README.md`.
 4. Keep executable bits on runnable shell files.
-5. If the tool differs materially from existing shims, add a shim-specific skill folder under `../../shims/`.
+5. If the tool differs materially from existing shims, add a shim-specific skill folder under `../../../.agents/skills/`.

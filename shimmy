@@ -16,7 +16,7 @@ source "$ROOT_DIR/lib/repo/shimmy-env.sh"
 
 usage() {
   cat <<'EOF'
-Manage a local shimmy checkout through a single repo-root command.
+Manage shimmy from a single repo-root launcher.
 
 Usage:
   shimmy <command> [options]

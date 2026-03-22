@@ -465,6 +465,29 @@ EOF
   pass "terraform mounts + pull exec"
 }
 
+test_terraform_forwards_tf_var_env() {
+  setup_scenario
+  mkdir -p "$WORK_DIR/bin"
+  cat > "$WORK_DIR/bin/podman" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@"
+EOF
+  chmod 755 "$WORK_DIR/bin/podman"
+
+  local output
+  output="$(
+    run_wrapper \
+      "$ROOT_DIR/shims/terraform" \
+      "PATH=$WORK_DIR/bin:${PATH:-}" \
+      "TF_VAR_region=us-east-1" \
+      -- version 2>&1
+  )"
+
+  assert_output_contains "$output" "TF_VAR_*"
+  assert_output_not_contains "$output" "TF_VARS_*"
+  pass "terraform forwards tf_var env"
+}
+
 test_tessl_default() {
   setup_scenario
 
@@ -927,6 +950,7 @@ main() {
   test_task_with_build_arg_override
   test_terraform_default
   test_terraform_with_mounts_and_pull
+  test_terraform_forwards_tf_var_env
   test_textual_default
   # test_tessl_default
   # test_tessl_with_mounts_and_pull

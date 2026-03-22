@@ -14,7 +14,7 @@ Use this skill when the task makes use of the Terraform cli.
 - Installer: `../../../scripts/install-shimmy.sh`
 - Docs: `../../../README.md`
 - Contributor guidance: `../../../CONTRIBUTING.md`
-- Shared prompt: `../../references/docs/prompt-shimmy-project.md-prompt.md`
+- Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Current Behavior
 
@@ -24,12 +24,12 @@ Use this skill when the task makes use of the Terraform cli.
 - Mounts `$PWD` to `/work`
 - Mounts `$HOME/.aws` to `/root/.aws:ro` when present
 - Mounts `$HOME/.terraform.d/plugin-cache` to `/root/.terraform.d/plugin-cache` when present
-- Forwards `AWS_*` and `TF_VARS_*`
+- Forwards `AWS_*` and `TF_VAR_*`
 
 ## Change Rules
 
 1. Preserve both optional home-directory mounts unless the task explicitly changes credential or cache handling.
-2. Treat `TF_VARS_*` as the current contract; if you change it, update tests and docs deliberately.
+2. Treat `TF_VAR_*` as the current contract; if you change it, update tests and docs deliberately.
 3. Keep exact argument tests in sync with runtime behavior.
 4. Update README examples and env var documentation whenever defaults or mounts change.
 5. Keep the shim executable.
