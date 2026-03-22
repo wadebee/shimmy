@@ -175,6 +175,12 @@ shimmy_init_install_vars() {
   export SHIMMY_INSTALL_DIR SHIMMY_IMAGES_DIR SHIMMY_SHIM_DIR SHIMMY_RUNTIME_DIR
 }
 
+shimmy_manifest_file_for_install_dir() {
+  local install_dir="${1:?install dir is required}"
+
+  printf '%s/install-manifest.txt\n' "$(shimmy_trim_trailing_slash "$install_dir")"
+}
+
 shimmy_manifest_value() {
   local manifest_file="${1:?manifest file is required}"
   local key="${2:?manifest key is required}"
@@ -212,6 +218,56 @@ shimmy_apply_install_layout_from_manifest() {
   fi
 
   shimmy_init_install_vars "$SHIMMY_INSTALL_DIR"
+}
+
+shimmy_find_install_manifest() {
+  local -a install_dirs=()
+  local candidate_install_dir
+  local manifest_file
+
+  if [[ -n "${INSTALL_MANIFEST_FILE:-}" && -f "${INSTALL_MANIFEST_FILE:-}" ]]; then
+    printf '%s\n' "$INSTALL_MANIFEST_FILE"
+    return 0
+  fi
+
+  if [[ -n "${SHIMMY_INSTALL_DIR:-}" ]]; then
+    install_dirs+=("$(shimmy_trim_trailing_slash "$SHIMMY_INSTALL_DIR")")
+  fi
+  if candidate_install_dir="$(shimmy_infer_install_dir_from_layout_dir "${SHIMMY_SHIM_DIR:-}" "shims")"; then
+    install_dirs+=("$candidate_install_dir")
+  fi
+  if candidate_install_dir="$(shimmy_infer_install_dir_from_layout_dir "${SHIMMY_IMAGES_DIR:-}" "images")"; then
+    install_dirs+=("$candidate_install_dir")
+  fi
+  if candidate_install_dir="$(shimmy_infer_install_dir_from_layout_dir "${SHIMMY_RUNTIME_DIR:-}" "runtime")"; then
+    install_dirs+=("$candidate_install_dir")
+  fi
+  if [[ -n "${DEFAULT_INSTALL_DIR:-}" ]]; then
+    install_dirs+=("$(shimmy_trim_trailing_slash "$DEFAULT_INSTALL_DIR")")
+  fi
+
+  for candidate_install_dir in "${install_dirs[@]}"; do
+    [[ -n "$candidate_install_dir" ]] || continue
+    manifest_file="$(shimmy_manifest_file_for_install_dir "$candidate_install_dir")"
+    if [[ -f "$manifest_file" ]]; then
+      printf '%s\n' "$manifest_file"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+shimmy_discover_install_layout() {
+  local requested_install_dir="${1:-}"
+  local manifest_file
+
+  shimmy_init_install_vars "$requested_install_dir"
+
+  manifest_file="$(shimmy_find_install_manifest || true)"
+  if [[ -n "$manifest_file" ]]; then
+    shimmy_apply_install_layout_from_manifest "$manifest_file"
+  fi
 }
 
 SHELL_INIT_BLOCK_START="# >>> shimmy shell init >>>"

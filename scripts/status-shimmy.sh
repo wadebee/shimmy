@@ -6,23 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/shimmy-env.sh"
 
 shimmy_init_home_vars "$HOME"
-
-detect_shimmy_install_dir() {
-  local path_entry
-
-  IFS=':' read -r -a path_entries <<< "${PATH:-}"
-  for path_entry in "${path_entries[@]}"; do
-    if [[ "$path_entry" == */shims && -e "$path_entry/task" ]]; then
-      dirname "$path_entry"
-      return 0
-    fi
-  done
-
-  return 1
-}
-
-shimmy_init_install_vars "${SHIMMY_INSTALL_DIR:-$(detect_shimmy_install_dir || true)}"
-shimmy_apply_install_layout_from_manifest "$INSTALL_MANIFEST_FILE" || true
+shimmy_discover_install_layout "${SHIMMY_INSTALL_DIR:-}"
 
 if [[ -f "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh" ]]; then
   # shellcheck source=runtime/lib/custom-image.sh

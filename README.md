@@ -20,12 +20,17 @@ For tools that do not ship a usable upstream container image, Shimmy can build a
 | **jq** | JSON processor | `docker.io/stedolan/jq:latest` | `jq .foo file.json` |
 | **netcat** | TCP/UDP debugging client | local build from `images/netcat/Containerfile` | `netcat --help`, `netcat example.com 443` |
 | **rg** | Ripgrep search | `docker.io/vszl/ripgrep:latest` | `rg "pattern" .` |
-| **task** | Taskfile task runner | local build from `images/task/Containerfile` | `task --version`, `task build` |
+| **task** | Taskfile task runner | local build from `images/task/Containerfile` | `task --version`, `task --list` |
 | **terraform** | Infrastructure as Code | `docker.io/hashicorp/terraform:latest` | `terraform plan`, `terraform apply` |
 | **textual** | Textual developer CLI | local build from `images/textual/Containerfile` | `textual --help`, `textual run app.py` |
 | **tessl** | Tessl CLI | local build from `images/tessl/Containerfile` | `tessl --help`, `tessl init` |
 
-## Podman rootless requirement
+## Requirements
+
+- **Bash** — Version 4.0+
+- **Podman** — Install via your package manager (or Docker as a fallback)
+
+### Podman rootless requirement
 
 Shimmy expects a working rootless Podman setup. On some minimal Linux environments, including Chromebook's Crostini, rootless requirements for subordinate id ranges do not exist. In this scenario Podman will warn "no subuid ranges found" and fall back to a single UID/GID mapping.
 
@@ -42,30 +47,33 @@ When only a single id is present run this command to correct.
 
 ## Installation
 
+### Option 1: Direct script workflow
 
-### Option 1: Bootstrap the global Task shim
+Use the repository scripts directly from the repo root:
 
-Install only the Shimmy `task` shim into your profile without requiring a host `task` binary:
+```bash
+bash ./scripts/install-shimmy.sh
+bash ./scripts/status-shimmy.sh
+bash ./scripts/update-shimmy.sh --pull --build
+bash ./scripts/test-shimmy.sh
+bash ./scripts/install-shimmy.sh --uninstall
+```
+
+The installer keeps a managed block in `~/.bashrc_shimmy` that exports the `SHIMMY_*` install paths and adds the shim directory to `PATH`, and it adds a sourcing line to both `~/.bashrc` and `~/.bash_profile` so Bash behaves consistently on Linux interactive shells and macOS login shells. Uninstall removes the managed block and deletes `~/.bashrc_shimmy` when it ends up empty.
+
+Shimmy treats `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_RUNTIME_DIR` as the authoritative layout when they are exported, so installs can keep metadata, shims, local image contexts, and shared runtime files in separate locations without assuming they all live under one hard-coded root.
+
+### Option 2: Bootstrap the current shell
+
+Install Shimmy and load its managed shell environment into the current shell immediately:
 
 ```bash
 source bootstrap
 ```
 
-Then, from the repo root, use the installed `task` shim to drive the full workflow:
+This now runs the same install flow as `bash ./scripts/install-shimmy.sh`, then sources `~/.bashrc_shimmy` so the shims are usable right away.
 
-```bash
-task install
-task update
-task uninstall
-task status
-task test
-```
-
-The bootstrap launcher only installs the `task` shim plus its runtime support. Full install, uninstall, and test actions then run through [`Taskfile.yml`](/home/wade/repos/github.com/wadebee/shimmy/Taskfile.yml). The installer keeps a managed block in `~/.bashrc_shimmy` that exports the `SHIMMY_*` install paths and adds the shim directory to `PATH`, and it adds a sourcing line to both `~/.bashrc` and `~/.bash_profile` so Bash behaves consistently on Linux interactive shells and macOS login shells. Uninstall removes the managed block and deletes `~/.bashrc_shimmy` when it ends up empty.
-
-Shimmy treats `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_RUNTIME_DIR` as the authoritative layout when they are exported, so installs can keep metadata, shims, local image contexts, and shared runtime files in separate locations without assuming they all live under one hard-coded root.
-
-### Option 2: Use with direnv
+### Option 3: Use with direnv
 
 If you have [direnv](https://direnv.net/) installed:
 
@@ -76,20 +84,7 @@ direnv allow
 
 This automatically adds `shims/` to your PATH whenever you're in this directory.
 
-Once the task shim is bootstrapped, use Task from the repo root for the repo workflows:
-
-```bash
-task install -- --help
-task update
-task update -- --pull --build
-task uninstall -- --help
-task status
-task test
-```
-
-`task update -- --build` rebuilds the current local-build images and prunes older Shimmy-managed tags for the same local image repo when they are no longer in use.
-
-### Option 3: Session-only (temporary)
+### Option 4: Session-only (temporary)
 
 For a single shell session:
 
@@ -118,7 +113,7 @@ rg "pattern" .
 
 # Task
 task --version
-task build
+task --list
 
 # Textual CLI
 textual --help
@@ -289,11 +284,9 @@ The default Textual image is built locally from `images/textual/Containerfile`, 
 Run the test suite to validate that shim containers run via Podman:
 
 ```bash
-task test
+bash ./scripts/test-shimmy.sh
 # or
 make test-shimmy
-# or
-./scripts/test-shimmy.sh
 ```
 
 Tests verify:
@@ -306,11 +299,6 @@ Tests verify:
 - Textual CLI local image build behavior
 - Tessl CLI local image build + cache behavior
 - Installer profile-copy behavior
-
-## Requirements
-
-- **Podman** — Install via your package manager (or Docker as a fallback)
-- **Bash** — Version 4.0+
 
 ## Directory Structure
 ```

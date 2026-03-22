@@ -175,6 +175,19 @@ run_status() {
   )
 }
 
+run_status_without_install_env() {
+  (
+    cd "$ROOT_DIR"
+    env \
+      -u SHIMMY_INSTALL_DIR \
+      -u SHIMMY_SHIM_DIR \
+      -u SHIMMY_IMAGES_DIR \
+      -u SHIMMY_RUNTIME_DIR \
+      "HOME=$HOME_DIR" \
+      bash "$ROOT_DIR/scripts/status-shimmy.sh" 2>&1
+  )
+}
+
 run_status_with_host_path() {
   (
     cd "$ROOT_DIR"
@@ -203,6 +216,20 @@ run_update() {
   (
     cd "$ROOT_DIR"
     env \
+      "HOME=$HOME_DIR" \
+      "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
+      bash "$ROOT_DIR/scripts/update-shimmy.sh" "$@" 2>&1
+  )
+}
+
+run_update_without_install_env() {
+  (
+    cd "$ROOT_DIR"
+    env \
+      -u SHIMMY_INSTALL_DIR \
+      -u SHIMMY_SHIM_DIR \
+      -u SHIMMY_IMAGES_DIR \
+      -u SHIMMY_RUNTIME_DIR \
       "HOME=$HOME_DIR" \
       "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
       bash "$ROOT_DIR/scripts/update-shimmy.sh" "$@" 2>&1
@@ -619,7 +646,7 @@ test_uninstall_removes_empty_preexisting_shimmy_shell_file() {
   pass "uninstall removes empty preexisting shimmy shell file"
 }
 
-test_bootstrap_install_default_task() {
+test_bootstrap_installs_default_shimmy_layout() {
   setup_scenario
   shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
 
@@ -627,14 +654,44 @@ test_bootstrap_install_default_task() {
   output="$(run_bootstrap)"
 
   assert_file_exists "$INSTALL_MANIFEST_FILE"
+  assert_file_exists "$SHIMMY_SHIM_DIR/aws"
   assert_file_exists "$SHIMMY_SHIM_DIR/task"
-  assert_path_not_exists "$SHIMMY_SHIM_DIR/aws"
-  assert_path_not_exists "$SHIMMY_SHIM_DIR/terraform"
+  assert_file_exists "$SHIMMY_SHIM_DIR/terraform"
   assert_file_exists "$SHIMMY_IMAGES_DIR/task/Containerfile"
-  assert_path_not_exists "$SHIMMY_IMAGES_DIR/netcat"
+  assert_file_exists "$SHIMMY_IMAGES_DIR/netcat/Containerfile"
   assert_file_exists "$SHIMMY_RUNTIME_DIR/lib/task-shim.sh"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
-  pass "bootstrap installs task shim only"
+  pass "bootstrap installs default shimmy layout"
+}
+
+test_status_discovers_default_install_from_manifest() {
+  setup_scenario
+  shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
+
+  run_bootstrap >/dev/null
+
+  local output
+  output="$(run_status_without_install_env)"
+
+  assert_output_contains "$output" "installed: yes"
+  assert_output_contains "$output" "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR"
+  assert_output_contains "$output" "- task: localhost/shimmy-task:"
+  pass "status discovers default install from manifest"
+}
+
+test_update_discovers_default_install_from_manifest() {
+  setup_scenario
+  shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
+
+  run_bootstrap >/dev/null
+  rm -f "$SHIMMY_SHIM_DIR/aws"
+
+  local output
+  output="$(run_update_without_install_env)"
+
+  assert_file_exists "$SHIMMY_SHIM_DIR/aws"
+  assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
+  pass "update discovers default install from manifest"
 }
 
 test_status_reports_install_state() {
@@ -802,7 +859,9 @@ main() {
   test_uninstall_removes_installed_artifacts
   test_uninstall_preserves_preexisting_shell_files
   test_uninstall_removes_empty_preexisting_shimmy_shell_file
-  test_bootstrap_install_default_task
+  test_bootstrap_installs_default_shimmy_layout
+  test_status_discovers_default_install_from_manifest
+  test_update_discovers_default_install_from_manifest
   test_status_reports_install_state
   test_status_reports_host_path_activity
   test_status_uses_manifest_layout_dirs
