@@ -234,6 +234,14 @@ run_source_process_shimmy_shellenv() {
   env "HOME=$HOME_DIR" bash -lc 'source <("$1" shellenv) && { env | grep "^SHIMMY_" | sort; printf "PATH=%s\n" "$PATH"; }' _ "$ROOT_DIR/shimmy" 2>&1
 }
 
+run_sourced_shimmy_status() {
+  env "HOME=$HOME_DIR" bash -lc '. "$1" status; shimmy_status=$?; printf "shimmy_status=%s\n" "$shimmy_status"; printf "shell_continued=yes\n"' _ "$ROOT_DIR/shimmy" 2>&1
+}
+
+run_sourced_shimmy_unknown_command() {
+  env "HOME=$HOME_DIR" bash -lc '. "$1" not-a-command; shimmy_status=$?; printf "shimmy_status=%s\n" "$shimmy_status"; printf "shell_continued=yes\n"' _ "$ROOT_DIR/shimmy" 2>&1
+}
+
 run_update() {
   (
     cd "$ROOT_DIR"
@@ -726,6 +734,32 @@ test_shimmy_status_discovers_default_install_from_manifest() {
   pass "shimmy status discovers default install from manifest"
 }
 
+test_sourced_shimmy_status_returns_without_exiting_shell() {
+  setup_scenario
+
+  run_installer --no-update-bashrc >/dev/null
+
+  local output
+  output="$(run_sourced_shimmy_status)"
+
+  assert_output_contains "$output" "shimmy_status=0"
+  assert_output_contains "$output" "shell_continued=yes"
+  assert_output_contains "$output" "installed: yes"
+  pass "sourced shimmy status returns without exiting shell"
+}
+
+test_sourced_shimmy_failure_returns_non_zero_without_exiting_shell() {
+  setup_scenario
+
+  local output
+  output="$(run_sourced_shimmy_unknown_command)"
+
+  assert_output_contains "$output" "ERROR: unknown command: not-a-command"
+  assert_output_contains "$output" "shimmy_status=1"
+  assert_output_contains "$output" "shell_continued=yes"
+  pass "sourced shimmy failure returns non-zero without exiting shell"
+}
+
 test_shimmy_update_discovers_default_install_from_manifest() {
   setup_scenario
   shimmy::init_install_vars "$DEFAULT_INSTALL_DIR"
@@ -909,6 +943,8 @@ main() {
   test_shimmy_install_installs_default_shimmy_paths
   test_shimmy_shellenv_activates_installed_paths
   test_shimmy_status_discovers_default_install_from_manifest
+  test_sourced_shimmy_status_returns_without_exiting_shell
+  test_sourced_shimmy_failure_returns_non_zero_without_exiting_shell
   test_shimmy_update_discovers_default_install_from_manifest
   test_status_reports_install_state
   test_status_reports_host_path_activity
