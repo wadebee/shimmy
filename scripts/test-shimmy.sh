@@ -158,13 +158,27 @@ run_uninstaller_with_install_env_only() {
   )
 }
 
-run_bootstrap() {
+run_shimmy() {
   (
     cd "$ROOT_DIR"
     env \
       "HOME=$HOME_DIR" \
       "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
-      bash -lc '. "$0"' "$ROOT_DIR/bootstrap" 2>&1
+      bash "$ROOT_DIR/shimmy" "$@" 2>&1
+  )
+}
+
+run_shimmy_without_install_env() {
+  (
+    cd "$ROOT_DIR"
+    env \
+      -u SHIMMY_INSTALL_DIR \
+      -u SHIMMY_SHIM_DIR \
+      -u SHIMMY_IMAGES_DIR \
+      -u SHIMMY_RUNTIME_DIR \
+      "HOME=$HOME_DIR" \
+      "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
+      bash "$ROOT_DIR/shimmy" "$@" 2>&1
   )
 }
 
@@ -210,6 +224,14 @@ run_status_with_install_env_only() {
 
 run_sourced_shimmy_env() {
   env "HOME=$HOME_DIR" bash -lc '. "$1" && env | grep "^SHIMMY_" | sort' _ "$SHIMMY_BASH_FILE" 2>&1
+}
+
+run_eval_shimmy_shellenv() {
+  env "HOME=$HOME_DIR" bash -lc 'eval "$("$1" shellenv)" && { env | grep "^SHIMMY_" | sort; printf "PATH=%s\n" "$PATH"; }' _ "$ROOT_DIR/shimmy" 2>&1
+}
+
+run_source_process_shimmy_shellenv() {
+  env "HOME=$HOME_DIR" bash -lc 'source <("$1" shellenv) && { env | grep "^SHIMMY_" | sort; printf "PATH=%s\n" "$PATH"; }' _ "$ROOT_DIR/shimmy" 2>&1
 }
 
 run_update() {
@@ -604,14 +626,14 @@ test_shimmy_shell_file_exports_install_env() {
   pass "shimmy shell file exports install env"
 }
 
-test_uninstall_removes_installed_artifacts() {
+test_shimmy_uninstall_removes_installed_artifacts() {
   setup_scenario
 
   run_installer >/dev/null
 
   local output
 
-  output="$(run_uninstaller)"
+  output="$(run_shimmy uninstall --install-dir "$SHIMMY_INSTALL_DIR")"
 
   assert_path_not_exists "$SHIMMY_INSTALL_DIR"
   assert_path_not_exists "$BASHRC_FILE"
@@ -619,7 +641,7 @@ test_uninstall_removes_installed_artifacts() {
   assert_path_not_exists "$SHIMMY_BASH_FILE"
   assert_path_not_exists "$INSTALL_MANIFEST_FILE"
   assert_output_contains "$output" "Removed shimmy artifacts from $SHIMMY_INSTALL_DIR."
-  pass "uninstall removes installed artifacts"
+  pass "shimmy uninstall removes installed artifacts"
 }
 
 test_uninstall_preserves_preexisting_shell_files() {
@@ -646,12 +668,12 @@ test_uninstall_removes_empty_preexisting_shimmy_shell_file() {
   pass "uninstall removes empty preexisting shimmy shell file"
 }
 
-test_bootstrap_installs_default_shimmy_layout() {
+test_shimmy_install_installs_default_shimmy_layout() {
   setup_scenario
   shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
 
   local output
-  output="$(run_bootstrap)"
+  output="$(run_shimmy install)"
 
   assert_file_exists "$INSTALL_MANIFEST_FILE"
   assert_file_exists "$SHIMMY_SHIM_DIR/aws"
@@ -661,37 +683,58 @@ test_bootstrap_installs_default_shimmy_layout() {
   assert_file_exists "$SHIMMY_IMAGES_DIR/netcat/Containerfile"
   assert_file_exists "$SHIMMY_RUNTIME_DIR/lib/task-shim.sh"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
-  pass "bootstrap installs default shimmy layout"
+  pass "shimmy install installs default shimmy layout"
 }
 
-test_status_discovers_default_install_from_manifest() {
+test_shimmy_shellenv_activates_installed_layout() {
   setup_scenario
   shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
 
-  run_bootstrap >/dev/null
+  run_shimmy install --no-update-bashrc >/dev/null
+
+  local eval_output
+  local source_output
+  eval_output="$(run_eval_shimmy_shellenv)"
+  source_output="$(run_source_process_shimmy_shellenv)"
+
+  assert_output_contains "$eval_output" "SHIMMY_IMAGES_DIR=$SHIMMY_IMAGES_DIR"
+  assert_output_contains "$eval_output" "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR"
+  assert_output_contains "$eval_output" "SHIMMY_RUNTIME_DIR=$SHIMMY_RUNTIME_DIR"
+  assert_output_contains "$eval_output" "SHIMMY_SHIM_DIR=$SHIMMY_SHIM_DIR"
+  assert_output_contains "$eval_output" ":$SHIMMY_SHIM_DIR"
+  assert_output_contains "$source_output" "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR"
+  assert_output_contains "$source_output" ":$SHIMMY_SHIM_DIR"
+  pass "shimmy shellenv activates installed layout"
+}
+
+test_shimmy_status_discovers_default_install_from_manifest() {
+  setup_scenario
+  shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
+
+  run_shimmy install >/dev/null
 
   local output
-  output="$(run_status_without_install_env)"
+  output="$(run_shimmy_without_install_env status)"
 
   assert_output_contains "$output" "installed: yes"
   assert_output_contains "$output" "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR"
   assert_output_contains "$output" "- task: localhost/shimmy-task:"
-  pass "status discovers default install from manifest"
+  pass "shimmy status discovers default install from manifest"
 }
 
-test_update_discovers_default_install_from_manifest() {
+test_shimmy_update_discovers_default_install_from_manifest() {
   setup_scenario
   shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
 
-  run_bootstrap >/dev/null
+  run_shimmy install >/dev/null
   rm -f "$SHIMMY_SHIM_DIR/aws"
 
   local output
-  output="$(run_update_without_install_env)"
+  output="$(run_shimmy_without_install_env update)"
 
   assert_file_exists "$SHIMMY_SHIM_DIR/aws"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
-  pass "update discovers default install from manifest"
+  pass "shimmy update discovers default install from manifest"
 }
 
 test_status_reports_install_state() {
@@ -856,12 +899,13 @@ main() {
   test_install_symlink_mode
   test_install_updates_bash_startup_files
   test_shimmy_shell_file_exports_install_env
-  test_uninstall_removes_installed_artifacts
+  test_shimmy_uninstall_removes_installed_artifacts
   test_uninstall_preserves_preexisting_shell_files
   test_uninstall_removes_empty_preexisting_shimmy_shell_file
-  test_bootstrap_installs_default_shimmy_layout
-  test_status_discovers_default_install_from_manifest
-  test_update_discovers_default_install_from_manifest
+  test_shimmy_install_installs_default_shimmy_layout
+  test_shimmy_shellenv_activates_installed_layout
+  test_shimmy_status_discovers_default_install_from_manifest
+  test_shimmy_update_discovers_default_install_from_manifest
   test_status_reports_install_state
   test_status_reports_host_path_activity
   test_status_uses_manifest_layout_dirs

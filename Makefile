@@ -1,13 +1,13 @@
 .PHONY: test-shimmy install-shimmy uninstall-shimmy test-shims install-shims
 
 test-shimmy:
-	./scripts/test-shimmy.sh
+	./shimmy test
 
 install-shimmy:
-	./scripts/install-shimmy.sh
+	./shimmy install
 
 uninstall-shimmy:
-	./scripts/install-shimmy.sh --uninstall
+	./shimmy uninstall
 
 test-shims: test-shimmy
 

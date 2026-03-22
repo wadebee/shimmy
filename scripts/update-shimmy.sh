@@ -228,7 +228,7 @@ main() {
   done
 
   if [[ ! -f "$INSTALL_MANIFEST_FILE" ]]; then
-    printf 'ERROR: no shimmy install manifest found at %s; run bash ./scripts/install-shimmy.sh first\n' "$INSTALL_MANIFEST_FILE" >&2
+    printf 'ERROR: no shimmy install manifest found at %s; run ./shimmy install first\n' "$INSTALL_MANIFEST_FILE" >&2
     return 1
   fi
 

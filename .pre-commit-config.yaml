@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: shim-tests
         name: shim-tests
-        entry: ./scripts/test-shimmy.sh
+        entry: ./shimmy test
         language: system
         pass_filenames: false
         files: ^shims/

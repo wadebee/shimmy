@@ -47,9 +47,45 @@ When only a single id is present run this command to correct.
 
 ## Installation
 
-### Option 1: Direct script workflow
+### Option 1: Shimmy wrapper workflow
 
-Use the repository scripts directly from the repo root:
+Use the repo-root `shimmy` wrapper as the primary control surface:
+
+```bash
+./shimmy install
+./shimmy status
+./shimmy update --pull --build
+./shimmy test
+./shimmy uninstall
+```
+
+The wrapper delegates to script-based interfaces in `scripts/`.
+
+After `./shimmy install`, activate the installed Shimmy layout in the current shell immediately with:
+
+```bash
+eval "$(./shimmy shellenv)"
+# or
+source <(./shimmy shellenv)
+```
+
+The installer keeps a managed block in `~/.bashrc_shimmy` that exports the `SHIMMY_*` install paths and adds the shim directory to `PATH`. It adds a sourcing line to both `~/.bashrc` and `~/.bash_profile` so Bash behaves consistently on Linux interactive shells and macOS login shells. 
+
+Uninstall removes the managed block and deletes `~/.bashrc_shimmy`.
+
+Shimmy treats `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_RUNTIME_DIR` as the authoritative layout when they are exported, so installs can keep metadata, shims, local image contexts, and shared runtime files in separate locations without assuming they all live under one hard-coded root.
+
+Common install arguments still pass through to the installer:
+
+```bash
+./shimmy install --symlink
+./shimmy install --install-dir "$HOME/.local/share/shimmy"
+./shimmy install --shim aws --shim terraform
+```
+
+### Option 2: Direct script workflow
+
+Use the underlying scripts directly when you want the lower-level interfaces explicitly:
 
 ```bash
 bash ./scripts/install-shimmy.sh
@@ -59,19 +95,7 @@ bash ./scripts/test-shimmy.sh
 bash ./scripts/install-shimmy.sh --uninstall
 ```
 
-The installer keeps a managed block in `~/.bashrc_shimmy` that exports the `SHIMMY_*` install paths and adds the shim directory to `PATH`, and it adds a sourcing line to both `~/.bashrc` and `~/.bash_profile` so Bash behaves consistently on Linux interactive shells and macOS login shells. Uninstall removes the managed block and deletes `~/.bashrc_shimmy` when it ends up empty.
-
-Shimmy treats `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_RUNTIME_DIR` as the authoritative layout when they are exported, so installs can keep metadata, shims, local image contexts, and shared runtime files in separate locations without assuming they all live under one hard-coded root.
-
-### Option 2: Bootstrap the current shell
-
-Install Shimmy and load its managed shell environment into the current shell immediately:
-
-```bash
-source bootstrap
-```
-
-This now runs the same install flow as `bash ./scripts/install-shimmy.sh`, then sources `~/.bashrc_shimmy` so the shims are usable right away.
+This is the same functionality the wrapper exposes, without the repo-root dispatcher.
 
 ### Option 3: Use with direnv
 
@@ -83,14 +107,6 @@ direnv allow
 ```
 
 This automatically adds `shims/` to your PATH whenever you're in this directory.
-
-### Option 4: Session-only (temporary)
-
-For a single shell session:
-
-```bash
-export PATH="$PATH:$SHIMMY_SHIM_DIR"
-```
 
 ## Usage
 
@@ -284,9 +300,11 @@ The default Textual image is built locally from `images/textual/Containerfile`, 
 Run the test suite to validate that shim containers run via Podman:
 
 ```bash
-bash ./scripts/test-shimmy.sh
+./shimmy test
 # or
 make test-shimmy
+# or
+bash ./scripts/test-shimmy.sh
 ```
 
 Tests verify:
@@ -303,6 +321,7 @@ Tests verify:
 ## Directory Structure
 ```
 shimmy/
+├── shimmy                    # Repo-root wrapper command
 ├── shims/                    # OCI wrapper scripts
 │   ├── aws
 │   ├── jq
@@ -320,8 +339,10 @@ shimmy/
 ├── runtime/
 │   └── lib/                  # Shared runtime helper scripts
 ├── scripts/
-│   ├── install-shimmy.sh      # Installation script
-│   └── test-shimmy.sh         # Test suite
+│   ├── install-shimmy.sh     # Installation script
+│   ├── status-shimmy.sh      # Status script
+│   ├── test-shimmy.sh        # Test suite
+│   └── update-shimmy.sh      # Update script
 ├── .envrc                     # direnv configuration
 ├── .pre-commit-config.yaml    # Git https://github.com/pre-commit/pre-commit-hooks
 ├── .github/

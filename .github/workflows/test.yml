@@ -5,9 +5,12 @@ on:
     paths:
       - "shims/**"
       - "scripts/install-shimmy.sh"
+      - "scripts/status-shimmy.sh"
       - "scripts/test-shimmy.sh"
+      - "scripts/update-shimmy.sh"
+      - "scripts/lib/**"
       - "Taskfile.yml"
-      - "bootstrap"
+      - "shimmy"
       - "images/task/**"
       - "runtime/**"
       - "Makefile"
@@ -17,9 +20,12 @@ on:
     paths:
       - "shims/**"
       - "scripts/install-shimmy.sh"
+      - "scripts/status-shimmy.sh"
       - "scripts/test-shimmy.sh"
+      - "scripts/update-shimmy.sh"
+      - "scripts/lib/**"
       - "Taskfile.yml"
-      - "bootstrap"
+      - "shimmy"
       - "images/task/**"
       - "runtime/**"
       - "Makefile"
@@ -35,4 +41,4 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run shim tests
-        run: ./scripts/test-shimmy.sh
+        run: ./shimmy test
