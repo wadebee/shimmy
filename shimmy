@@ -4,8 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$SCRIPT_DIR"
 
-# shellcheck source=scripts/lib/shimmy-env.sh
-source "$ROOT_DIR/scripts/lib/shimmy-env.sh"
+# shellcheck source=lib/repo/shimmy-env.sh
+source "$ROOT_DIR/lib/repo/shimmy-env.sh"
 
 usage() {
   cat <<'EOF'
@@ -53,7 +53,7 @@ print_shellenv() {
     "$SHIMMY_SHIM_DIR" \
     "$SHIMMY_INSTALL_DIR" \
     "$SHIMMY_IMAGES_DIR" \
-    "$SHIMMY_RUNTIME_DIR"
+    "$SHIMMY_SHIM_LIB_DIR"
 }
 
 main() {

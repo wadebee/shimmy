@@ -2,16 +2,16 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=scripts/lib/shimmy-env.sh
-source "$SCRIPT_DIR/lib/shimmy-env.sh"
+# shellcheck source=lib/repo/shimmy-env.sh
+source "$SCRIPT_DIR/../lib/repo/shimmy-env.sh"
 
 shimmy_log_init
 shimmy_init_home_vars "$HOME"
 shimmy_discover_install_layout "${SHIMMY_INSTALL_DIR:-}"
 
-if [[ -f "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh" ]]; then
-  # shellcheck source=runtime/lib/custom-image.sh
-  source "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh"
+if [[ -f "$SHIMMY_SHIM_LIB_DIR/custom-image.sh" ]]; then
+  # shellcheck source=lib/shims/custom-image.sh
+  source "$SHIMMY_SHIM_LIB_DIR/custom-image.sh"
 fi
 
 PULL_IMAGES=0
@@ -53,7 +53,7 @@ load_update_args_from_manifest() {
   local install_dir
   local shim_dir
   local images_dir
-  local runtime_dir
+  local shim_lib_dir
   local install_mode
   local update_bashrc
   local bashrc_file
@@ -64,7 +64,7 @@ load_update_args_from_manifest() {
   install_dir="$(manifest_value install_dir)" || return 1
   shim_dir="$(manifest_value shim_dir || true)"
   images_dir="$(manifest_value images_dir || true)"
-  runtime_dir="$(manifest_value runtime_dir || true)"
+  shim_lib_dir="$(manifest_value shim_lib_dir || true)"
   install_mode="$(manifest_value install_mode || true)"
   update_bashrc="$(manifest_value update_bashrc || true)"
   bashrc_file="$(manifest_value bashrc_file || true)"
@@ -80,8 +80,8 @@ load_update_args_from_manifest() {
   if [[ -n "$images_dir" ]]; then
     UPDATE_ENV_VARS+=( "SHIMMY_IMAGES_DIR=$images_dir" )
   fi
-  if [[ -n "$runtime_dir" ]]; then
-    UPDATE_ENV_VARS+=( "SHIMMY_RUNTIME_DIR=$runtime_dir" )
+  if [[ -n "$shim_lib_dir" ]]; then
+    UPDATE_ENV_VARS+=( "SHIMMY_SHIM_LIB_DIR=$shim_lib_dir" )
   fi
 
   case "$install_mode" in

@@ -73,7 +73,7 @@ The installer keeps a managed block in `~/.bashrc_shimmy` that exports the `SHIM
 
 Uninstall removes the managed block and deletes `~/.bashrc_shimmy`.
 
-Shimmy treats `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_RUNTIME_DIR` as the authoritative layout when they are exported, so installs can keep metadata, shims, local image contexts, and shared runtime files in separate locations without assuming they all live under one hard-coded root.
+Shimmy treats `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_SHIM_LIB_DIR` as the authoritative layout when they are exported, so installs can keep metadata, shims, local image contexts, and shared shim helper libraries in separate locations without assuming they all live under one hard-coded root.
 
 Common install arguments still pass through to the installer:
 
@@ -334,8 +334,9 @@ shimmy/
 │   ├── task
 │   ├── tessl
 │   └── textual
-├── runtime/
-│   └── lib/                  # Shared runtime helper scripts
+├── lib/
+│   ├── repo/                 # Repo-only sourced helpers for wrapper/scripts
+│   └── shims/                # Installed shared helper scripts for shims
 ├── scripts/
 │   ├── install-shimmy.sh     # Installation script
 │   ├── status-shimmy.sh      # Status script

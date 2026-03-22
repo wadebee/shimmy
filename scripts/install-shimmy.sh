@@ -2,8 +2,8 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=scripts/lib/shimmy-env.sh
-source "$SCRIPT_DIR/lib/shimmy-env.sh"
+# shellcheck source=lib/repo/shimmy-env.sh
+source "$SCRIPT_DIR/../lib/repo/shimmy-env.sh"
 
 shimmy_log_init
 shimmy_init_repo_vars "$(shimmy_repo_root_from_script_path "${BASH_SOURCE[0]}")"
@@ -107,7 +107,7 @@ append_shimmy_path_block() {
     "$SHIMMY_SHIM_DIR" \
     "$SHIMMY_INSTALL_DIR" \
     "$SHIMMY_IMAGES_DIR" \
-    "$SHIMMY_RUNTIME_DIR" >> "$SHIMMY_BASH_FILE"
+    "$SHIMMY_SHIM_LIB_DIR" >> "$SHIMMY_BASH_FILE"
 }
 
 append_shell_init_block() {
@@ -188,7 +188,7 @@ write_install_manifest() {
     printf 'install_dir=%s\n' "$SHIMMY_INSTALL_DIR"
     printf 'shim_dir=%s\n' "$SHIMMY_SHIM_DIR"
     printf 'images_dir=%s\n' "$SHIMMY_IMAGES_DIR"
-    printf 'runtime_dir=%s\n' "$SHIMMY_RUNTIME_DIR"
+    printf 'shim_lib_dir=%s\n' "$SHIMMY_SHIM_LIB_DIR"
     printf 'install_mode=%s\n' "$INSTALL_MODE"
     printf 'update_bashrc=%s\n' "$UPDATE_BASHRC"
     printf 'bashrc_file=%s\n' "$BASHRC_FILE"
@@ -369,15 +369,15 @@ shim_is_requested() {
   return 1
 }
 
-install_runtime_support() {
+install_shim_helper_support() {
   local image_dest="$SHIMMY_IMAGES_DIR"
-  local runtime_dest="$SHIMMY_RUNTIME_DIR"
+  local shim_lib_dest="$SHIMMY_SHIM_LIB_DIR"
   local image_src image_name
 
   log_debug "Refreshing local container image support in $image_dest using mode $INSTALL_MODE"
   rm -rf "$image_dest"
-  log_debug "Refreshing shared runtime support in $runtime_dest using mode $INSTALL_MODE"
-  rm -rf "$runtime_dest"
+  log_debug "Refreshing shared shim helper support in $shim_lib_dest using mode $INSTALL_MODE"
+  rm -rf "$shim_lib_dest"
 
   if [[ "$INSTALL_MODE" == "copy" ]]; then
     mkdir -p "$image_dest"
@@ -388,9 +388,9 @@ install_runtime_support() {
         cp -a "$image_src" "$image_dest/$image_name"
       fi
     done < <(find "$SOURCE_IMAGES_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
-    log_debug "Copying shared runtime support from $SOURCE_RUNTIME_DIR to $runtime_dest"
-    mkdir -p "$runtime_dest"
-    cp -a "$SOURCE_RUNTIME_DIR"/. "$runtime_dest"/
+    log_debug "Copying shared shim helper support from $SOURCE_SHIM_LIB_DIR to $shim_lib_dest"
+    mkdir -p "$shim_lib_dest"
+    cp -a "$SOURCE_SHIM_LIB_DIR"/. "$shim_lib_dest"/
   else
     mkdir -p "$image_dest"
     while IFS= read -r image_src; do
@@ -400,8 +400,9 @@ install_runtime_support() {
         ln -s "$image_src" "$image_dest/$image_name"
       fi
     done < <(find "$SOURCE_IMAGES_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
-    log_debug "Symlinking shared runtime support from $SOURCE_RUNTIME_DIR to $runtime_dest"
-    ln -s "$SOURCE_RUNTIME_DIR" "$runtime_dest"
+    log_debug "Symlinking shared shim helper support from $SOURCE_SHIM_LIB_DIR to $shim_lib_dest"
+    mkdir -p "$(dirname "$shim_lib_dest")"
+    ln -s "$SOURCE_SHIM_LIB_DIR" "$shim_lib_dest"
   fi
 }
 
@@ -411,7 +412,7 @@ perform_install() {
   log_info "Starting install into $SHIMMY_INSTALL_DIR with mode $INSTALL_MODE"
   [[ -d "$SOURCE_SHIMS_DIR" ]] || fail "shim source directory not found: $SOURCE_SHIMS_DIR"
   [[ -d "$SOURCE_IMAGES_DIR" ]] || fail "local container image source directory not found: $SOURCE_IMAGES_DIR"
-  [[ -d "$SOURCE_RUNTIME_DIR" ]] || fail "runtime support directory not found: $SOURCE_RUNTIME_DIR"
+  [[ -d "$SOURCE_SHIM_LIB_DIR" ]] || fail "shim helper library directory not found: $SOURCE_SHIM_LIB_DIR"
 
   mkdir -p "$SHIMMY_SHIM_DIR"
   while IFS= read -r src; do
@@ -432,7 +433,7 @@ perform_install() {
     fi
   done < <(find "$SOURCE_SHIMS_DIR" -type f | sort)
 
-  install_runtime_support
+  install_shim_helper_support
 
   if [[ "$UPDATE_BASHRC" == "1" ]]; then
     log_debug "Updating Bash startup files"
@@ -510,8 +511,8 @@ perform_uninstall() {
   if ! path_is_within "$SHIMMY_INSTALL_DIR" "$SHIMMY_IMAGES_DIR"; then
     remove_managed_layout_dir "$SHIMMY_IMAGES_DIR" "image"
   fi
-  if ! path_is_within "$SHIMMY_INSTALL_DIR" "$SHIMMY_RUNTIME_DIR"; then
-    remove_managed_layout_dir "$SHIMMY_RUNTIME_DIR" "runtime"
+  if ! path_is_within "$SHIMMY_INSTALL_DIR" "$SHIMMY_SHIM_LIB_DIR"; then
+    remove_managed_layout_dir "$SHIMMY_SHIM_LIB_DIR" "shim helper library"
   fi
   remove_install_dir
   remove_profile_dir_if_empty

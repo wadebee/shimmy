@@ -2,15 +2,15 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=scripts/lib/shimmy-env.sh
-source "$SCRIPT_DIR/lib/shimmy-env.sh"
+# shellcheck source=lib/repo/shimmy-env.sh
+source "$SCRIPT_DIR/../lib/repo/shimmy-env.sh"
 
 shimmy_init_home_vars "$HOME"
 shimmy_discover_install_layout "${SHIMMY_INSTALL_DIR:-}"
 
-if [[ -f "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh" ]]; then
-  # shellcheck source=runtime/lib/custom-image.sh
-  source "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh"
+if [[ -f "$SHIMMY_SHIM_LIB_DIR/custom-image.sh" ]]; then
+  # shellcheck source=lib/shims/custom-image.sh
+  source "$SHIMMY_SHIM_LIB_DIR/custom-image.sh"
 fi
 
 path_contains() {
@@ -73,7 +73,7 @@ print_paths() {
   printf 'SHIMMY_INSTALL_DIR=%s\n' "$SHIMMY_INSTALL_DIR"
   printf 'SHIMMY_SHIM_DIR=%s\n' "$SHIMMY_SHIM_DIR"
   printf 'SHIMMY_IMAGES_DIR=%s\n' "$SHIMMY_IMAGES_DIR"
-  printf 'SHIMMY_RUNTIME_DIR=%s\n' "$SHIMMY_RUNTIME_DIR"
+  printf 'SHIMMY_SHIM_LIB_DIR=%s\n' "$SHIMMY_SHIM_LIB_DIR"
   printf 'Shimmy Startup Profile: %s\n' "$SHIMMY_BASH_FILE"
   if path_contains "$SHIMMY_SHIM_DIR"; then
     printf 'path_active: yes\n'

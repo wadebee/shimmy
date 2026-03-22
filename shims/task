@@ -4,11 +4,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SHIMMY_INSTALL_DIR="${SHIMMY_INSTALL_DIR:-$(cd -- "$SCRIPT_DIR/.." && pwd)}"
 SHIMMY_IMAGES_DIR="${SHIMMY_IMAGES_DIR:-$SHIMMY_INSTALL_DIR/images}"
-SHIMMY_RUNTIME_DIR="${SHIMMY_RUNTIME_DIR:-$SHIMMY_INSTALL_DIR/runtime}"
-TASK_SHIM_HELPER="$SHIMMY_RUNTIME_DIR/lib/task-shim.sh"
+SHIMMY_SHIM_LIB_DIR="${SHIMMY_SHIM_LIB_DIR:-$SHIMMY_INSTALL_DIR/lib/shims}"
+TASK_SHIM_HELPER="$SHIMMY_SHIM_LIB_DIR/task-shim.sh"
 
 if [[ -f "$TASK_SHIM_HELPER" ]]; then
-  # shellcheck source=runtime/lib/task-shim.sh
+  # shellcheck source=lib/shims/task-shim.sh
   source "$TASK_SHIM_HELPER"
 else
   printf 'ERROR: missing task shim helper: %s\n' "$TASK_SHIM_HELPER" >&2

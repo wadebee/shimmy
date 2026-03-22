@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 TASK_SHIM_LIB_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=runtime/lib/custom-image.sh
+# shellcheck source=lib/shims/custom-image.sh
 source "$TASK_SHIM_LIB_DIR/custom-image.sh"
 
 shimmy_task_resolve_image() {

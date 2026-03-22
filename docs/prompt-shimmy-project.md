@@ -18,7 +18,7 @@ Constraints:
 - Add extra mounts only when the tool needs them, and guard them with existence checks.
 - Forward env vars with `-e PREFIX_*` patterns only when the tool needs them.
 - Use `Containerfile` naming for custom image build contexts.
-- Keep image-build logic in the shared runtime helper so custom-image shims rebuild only when the build context changes.
+- Keep image-build logic in the shared shim helper library so custom-image shims rebuild only when the build context changes.
 - End with `exec podman run --rm ... "$IMAGE" "$@"`.
 - Update `scripts/install-shimmy.sh` because it enumerates shim names explicitly.
 - Update `scripts/test-shimmy.sh` with needed assertions against prerequisite `podman` installation.
@@ -30,7 +30,7 @@ Deliverables:
 
 1. The runtime shim.
 2. Any `images/<tool>/Containerfile` assets required for custom-built images.
-3. Installer updates if the shim set or runtime support assets changed.
+3. Installer updates if the shim set or shared shim helper assets changed.
 4. When creating container tests, use Podman and non-mutating cli calls (eg: version or --help) to validate container.
 5. README updates.
 6. A short explanation of mounts, env forwarding, pull policy, and local image build behavior when applicable.
@@ -39,7 +39,8 @@ Deliverables:
 
 - `shims/` contains one Bash wrapper per tool.
 - `images/` contains `Containerfile` build contexts for shims that need locally built images.
-- `runtime/` contains reusable runtime helper scripts.
+- `lib/shims/` contains reusable installed helper scripts that shims source at runtime.
+- `lib/repo/` contains sourced helpers for repo-level wrapper and lifecycle scripts.
 - `scripts/install-shimmy.sh` installs a fixed list of shim names by symlink or copy.
 - `scripts/test-shimmy.sh` runs Podman-backed smoke tests against non-mutating CLI commands.
 - `.envrc` adds `shims/` to `PATH` for local direnv usage.

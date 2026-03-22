@@ -2,8 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=scripts/lib/shimmy-env.sh
-source "$SCRIPT_DIR/lib/shimmy-env.sh"
+# shellcheck source=lib/repo/shimmy-env.sh
+source "$SCRIPT_DIR/../lib/repo/shimmy-env.sh"
 
 shimmy_init_repo_vars "$(shimmy_repo_root_from_script_path "${BASH_SOURCE[0]}")"
 REAL_HOME="${HOME:?HOME must be set}"
@@ -56,7 +56,7 @@ setup_scenario() {
   HOME_DIR="$SCENARIO_DIR/home"
   WORK_DIR="$SCENARIO_DIR/work"
 
-  unset SHIMMY_INSTALL_DIR SHIMMY_SHIM_DIR SHIMMY_IMAGES_DIR SHIMMY_RUNTIME_DIR
+  unset SHIMMY_INSTALL_DIR SHIMMY_SHIM_DIR SHIMMY_IMAGES_DIR SHIMMY_SHIM_LIB_DIR
   mkdir -p "$HOME_DIR" "$WORK_DIR"
   chmod 755 "$HOME_DIR" "$WORK_DIR"
 
@@ -68,7 +68,7 @@ set_install_layout() {
   SHIMMY_INSTALL_DIR="${1%/}"
   SHIMMY_SHIM_DIR="${2%/}"
   SHIMMY_IMAGES_DIR="${3%/}"
-  SHIMMY_RUNTIME_DIR="${4%/}"
+  SHIMMY_SHIM_LIB_DIR="${4%/}"
   INSTALL_MANIFEST_FILE="$SHIMMY_INSTALL_DIR/install-manifest.txt"
 }
 
@@ -78,7 +78,7 @@ setup_split_layout_scenario() {
     "$HOME_DIR/.local/state/shimmy" \
     "$HOME_DIR/.local/bin/shims" \
     "$HOME_DIR/.local/share/shimmy-images" \
-    "$HOME_DIR/.local/lib/shimmy-runtime"
+    "$HOME_DIR/.local/lib/shimmy-shims"
 }
 
 run_wrapper() {
@@ -103,7 +103,7 @@ run_wrapper() {
       -u SHIMMY_INSTALL_DIR \
       -u SHIMMY_SHIM_DIR \
       -u SHIMMY_IMAGES_DIR \
-      -u SHIMMY_RUNTIME_DIR \
+      -u SHIMMY_SHIM_LIB_DIR \
       "HOME=$HOME_DIR" \
       "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
       "${env_vars[@]}" \
@@ -128,7 +128,7 @@ run_installer_with_layout_env() {
       "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR" \
       "SHIMMY_SHIM_DIR=$SHIMMY_SHIM_DIR" \
       "SHIMMY_IMAGES_DIR=$SHIMMY_IMAGES_DIR" \
-      "SHIMMY_RUNTIME_DIR=$SHIMMY_RUNTIME_DIR" \
+      "SHIMMY_SHIM_LIB_DIR=$SHIMMY_SHIM_LIB_DIR" \
       bash "$ROOT_DIR/scripts/install-shimmy.sh" \
       --install-dir "$SHIMMY_INSTALL_DIR" \
       "$@" 2>&1
@@ -175,7 +175,7 @@ run_shimmy_without_install_env() {
       -u SHIMMY_INSTALL_DIR \
       -u SHIMMY_SHIM_DIR \
       -u SHIMMY_IMAGES_DIR \
-      -u SHIMMY_RUNTIME_DIR \
+      -u SHIMMY_SHIM_LIB_DIR \
       "HOME=$HOME_DIR" \
       "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
       bash "$ROOT_DIR/shimmy" "$@" 2>&1
@@ -196,7 +196,7 @@ run_status_without_install_env() {
       -u SHIMMY_INSTALL_DIR \
       -u SHIMMY_SHIM_DIR \
       -u SHIMMY_IMAGES_DIR \
-      -u SHIMMY_RUNTIME_DIR \
+      -u SHIMMY_SHIM_LIB_DIR \
       "HOME=$HOME_DIR" \
       bash "$ROOT_DIR/scripts/status-shimmy.sh" 2>&1
   )
@@ -251,7 +251,7 @@ run_update_without_install_env() {
       -u SHIMMY_INSTALL_DIR \
       -u SHIMMY_SHIM_DIR \
       -u SHIMMY_IMAGES_DIR \
-      -u SHIMMY_RUNTIME_DIR \
+      -u SHIMMY_SHIM_LIB_DIR \
       "HOME=$HOME_DIR" \
       "XDG_DATA_HOME=$PODMAN_XDG_DATA_HOME" \
       bash "$ROOT_DIR/scripts/update-shimmy.sh" "$@" 2>&1
@@ -510,7 +510,7 @@ test_install_creates_managed_files() {
   assert_file_exists "$SHIMMY_IMAGES_DIR/task/Containerfile"
   assert_file_exists "$SHIMMY_IMAGES_DIR/tessl/Containerfile"
   assert_file_exists "$SHIMMY_IMAGES_DIR/textual/Containerfile"
-  assert_file_exists "$SHIMMY_RUNTIME_DIR/lib/custom-image.sh"
+  assert_file_exists "$SHIMMY_SHIM_LIB_DIR/custom-image.sh"
   assert_not_symlink "$SHIMMY_SHIM_DIR/aws"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
   pass "install creates managed files"
@@ -525,13 +525,13 @@ test_install_honors_split_layout_globals() {
   assert_file_exists "$INSTALL_MANIFEST_FILE"
   assert_file_exists "$SHIMMY_SHIM_DIR/task"
   assert_file_exists "$SHIMMY_IMAGES_DIR/task/Containerfile"
-  assert_file_exists "$SHIMMY_RUNTIME_DIR/lib/task-shim.sh"
+  assert_file_exists "$SHIMMY_SHIM_LIB_DIR/task-shim.sh"
   assert_path_not_exists "$SHIMMY_INSTALL_DIR/shims"
   assert_path_not_exists "$SHIMMY_INSTALL_DIR/images"
-  assert_path_not_exists "$SHIMMY_INSTALL_DIR/runtime"
+  assert_path_not_exists "$SHIMMY_INSTALL_DIR/lib/shims"
   assert_file_contains_text "$INSTALL_MANIFEST_FILE" "shim_dir=$SHIMMY_SHIM_DIR"
   assert_file_contains_text "$INSTALL_MANIFEST_FILE" "images_dir=$SHIMMY_IMAGES_DIR"
-  assert_file_contains_text "$INSTALL_MANIFEST_FILE" "runtime_dir=$SHIMMY_RUNTIME_DIR"
+  assert_file_contains_text "$INSTALL_MANIFEST_FILE" "shim_lib_dir=$SHIMMY_SHIM_LIB_DIR"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
   pass "install honors split layout globals"
 }
@@ -555,7 +555,7 @@ test_install_log_level_debug_emits_debug() {
   local output
   output="$(LOG_LEVEL=debug run_installer --no-update-bashrc 2>&1)"
 
-  assert_output_contains "$output" "DEBUG: Refreshing shared runtime support in $SHIMMY_RUNTIME_DIR using mode copy"
+  assert_output_contains "$output" "DEBUG: Refreshing shared shim helper support in $SHIMMY_SHIM_LIB_DIR using mode copy"
   assert_output_contains "$output" "INFO: Installed shims into $SHIMMY_INSTALL_DIR (copy)."
   pass "install log level debug emits debug"
 }
@@ -569,7 +569,7 @@ test_install_symlink_mode() {
   assert_symlink_target "$SHIMMY_SHIM_DIR/aws" "$ROOT_DIR/shims/aws"
   assert_symlink_target "$SHIMMY_IMAGES_DIR/task" "$ROOT_DIR/images/task"
   assert_symlink_target "$SHIMMY_IMAGES_DIR/textual" "$ROOT_DIR/images/textual"
-  assert_symlink_target "$SHIMMY_RUNTIME_DIR" "$ROOT_DIR/runtime"
+  assert_symlink_target "$SHIMMY_SHIM_LIB_DIR" "$ROOT_DIR/lib/shims"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (symlink)."
   pass "install symlink override"
 }
@@ -584,7 +584,7 @@ test_install_updates_bash_startup_files() {
   local install_export_line
   local shim_export_line
   local images_export_line
-  local runtime_export_line
+  local shim_lib_export_line
   local guard_line
   local export_line
 
@@ -592,7 +592,7 @@ test_install_updates_bash_startup_files() {
   install_export_line="$(shimmy_install_dir_export_line "$SHIMMY_INSTALL_DIR")"
   shim_export_line="$(shimmy_shim_dir_export_line "$SHIMMY_SHIM_DIR")"
   images_export_line="$(shimmy_images_dir_export_line "$SHIMMY_IMAGES_DIR")"
-  runtime_export_line="$(shimmy_runtime_dir_export_line "$SHIMMY_RUNTIME_DIR")"
+  shim_lib_export_line="$(shimmy_shim_lib_dir_export_line "$SHIMMY_SHIM_LIB_DIR")"
   guard_line="$(shimmy_path_block_guard_line "$SHIMMY_SHIM_DIR")"
   export_line="$(shimmy_path_block_export_line "$SHIMMY_SHIM_DIR")"
 
@@ -604,7 +604,7 @@ test_install_updates_bash_startup_files() {
   assert_file_contains_text "$SHIMMY_BASH_FILE" "$install_export_line"
   assert_file_contains_text "$SHIMMY_BASH_FILE" "$shim_export_line"
   assert_file_contains_text "$SHIMMY_BASH_FILE" "$images_export_line"
-  assert_file_contains_text "$SHIMMY_BASH_FILE" "$runtime_export_line"
+  assert_file_contains_text "$SHIMMY_BASH_FILE" "$shim_lib_export_line"
   assert_file_contains_text "$SHIMMY_BASH_FILE" "$guard_line"
   assert_file_contains_text "$SHIMMY_BASH_FILE" "$export_line"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
@@ -621,7 +621,7 @@ test_shimmy_shell_file_exports_install_env() {
 
   assert_output_contains "$output" "SHIMMY_IMAGES_DIR=$SHIMMY_IMAGES_DIR"
   assert_output_contains "$output" "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR"
-  assert_output_contains "$output" "SHIMMY_RUNTIME_DIR=$SHIMMY_RUNTIME_DIR"
+  assert_output_contains "$output" "SHIMMY_SHIM_LIB_DIR=$SHIMMY_SHIM_LIB_DIR"
   assert_output_contains "$output" "SHIMMY_SHIM_DIR=$SHIMMY_SHIM_DIR"
   pass "shimmy shell file exports install env"
 }
@@ -681,7 +681,7 @@ test_shimmy_install_installs_default_shimmy_layout() {
   assert_file_exists "$SHIMMY_SHIM_DIR/terraform"
   assert_file_exists "$SHIMMY_IMAGES_DIR/task/Containerfile"
   assert_file_exists "$SHIMMY_IMAGES_DIR/netcat/Containerfile"
-  assert_file_exists "$SHIMMY_RUNTIME_DIR/lib/task-shim.sh"
+  assert_file_exists "$SHIMMY_SHIM_LIB_DIR/task-shim.sh"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
   pass "shimmy install installs default shimmy layout"
 }
@@ -699,7 +699,7 @@ test_shimmy_shellenv_activates_installed_layout() {
 
   assert_output_contains "$eval_output" "SHIMMY_IMAGES_DIR=$SHIMMY_IMAGES_DIR"
   assert_output_contains "$eval_output" "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR"
-  assert_output_contains "$eval_output" "SHIMMY_RUNTIME_DIR=$SHIMMY_RUNTIME_DIR"
+  assert_output_contains "$eval_output" "SHIMMY_SHIM_LIB_DIR=$SHIMMY_SHIM_LIB_DIR"
   assert_output_contains "$eval_output" "SHIMMY_SHIM_DIR=$SHIMMY_SHIM_DIR"
   assert_output_contains "$eval_output" ":$SHIMMY_SHIM_DIR"
   assert_output_contains "$source_output" "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR"
@@ -778,7 +778,7 @@ test_status_uses_manifest_layout_dirs() {
   assert_output_contains "$output" "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR"
   assert_output_contains "$output" "SHIMMY_SHIM_DIR=$SHIMMY_SHIM_DIR"
   assert_output_contains "$output" "SHIMMY_IMAGES_DIR=$SHIMMY_IMAGES_DIR"
-  assert_output_contains "$output" "SHIMMY_RUNTIME_DIR=$SHIMMY_RUNTIME_DIR"
+  assert_output_contains "$output" "SHIMMY_SHIM_LIB_DIR=$SHIMMY_SHIM_LIB_DIR"
   assert_output_contains "$output" "- task: localhost/shimmy-task:"
   pass "status uses manifest layout dirs"
 }
@@ -809,7 +809,7 @@ test_installed_task_shim_uses_split_layout_globals() {
       "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR" \
       "SHIMMY_SHIM_DIR=$SHIMMY_SHIM_DIR" \
       "SHIMMY_IMAGES_DIR=$SHIMMY_IMAGES_DIR" \
-      "SHIMMY_RUNTIME_DIR=$SHIMMY_RUNTIME_DIR" \
+      "SHIMMY_SHIM_LIB_DIR=$SHIMMY_SHIM_LIB_DIR" \
       -- --version 2>&1
   )"
 
@@ -843,7 +843,7 @@ test_uninstall_uses_manifest_layout_dirs() {
   assert_path_not_exists "$SHIMMY_INSTALL_DIR"
   assert_path_not_exists "$SHIMMY_SHIM_DIR"
   assert_path_not_exists "$SHIMMY_IMAGES_DIR"
-  assert_path_not_exists "$SHIMMY_RUNTIME_DIR"
+  assert_path_not_exists "$SHIMMY_SHIM_LIB_DIR"
   assert_output_contains "$output" "Removed shimmy artifacts from $SHIMMY_INSTALL_DIR."
   pass "uninstall uses manifest layout dirs"
 }
@@ -854,8 +854,8 @@ test_update_build_prunes_stale_local_tags() {
   run_installer --no-update-bashrc --shim task >/dev/null
   run_wrapper "$SHIMMY_SHIM_DIR/task" -- --version >/dev/null 2>&1
 
-  # shellcheck source=runtime/lib/custom-image.sh
-  source "$ROOT_DIR/runtime/lib/custom-image.sh"
+  # shellcheck source=lib/shims/custom-image.sh
+  source "$ROOT_DIR/lib/shims/custom-image.sh"
 
   local current_ref old_ref output
   current_ref="localhost/shimmy-task:$(shimmy_compute_context_hash "$SHIMMY_IMAGES_DIR/task")"
