@@ -299,7 +299,7 @@ path_is_within() {
   [[ "$child" == "$parent" || "$child" == "$parent"/* ]]
 }
 
-remove_managed_layout_dir() {
+remove_managed_path_dir() {
   local dir="$1"
   local description="$2"
 
@@ -513,13 +513,13 @@ perform_uninstall() {
   log_debug "Removing install manifest file: $INSTALL_MANIFEST_FILE"
   rm -f "$INSTALL_MANIFEST_FILE"
   if ! path_is_within "$SHIMMY_INSTALL_DIR" "$SHIMMY_SHIM_DIR"; then
-    remove_managed_layout_dir "$SHIMMY_SHIM_DIR" "shim"
+    remove_managed_path_dir "$SHIMMY_SHIM_DIR" "shim"
   fi
   if ! path_is_within "$SHIMMY_INSTALL_DIR" "$SHIMMY_IMAGES_DIR"; then
-    remove_managed_layout_dir "$SHIMMY_IMAGES_DIR" "image"
+    remove_managed_path_dir "$SHIMMY_IMAGES_DIR" "image"
   fi
   if ! path_is_within "$SHIMMY_INSTALL_DIR" "$SHIMMY_SHIM_LIB_DIR"; then
-    remove_managed_layout_dir "$SHIMMY_SHIM_LIB_DIR" "shim helper library"
+    remove_managed_path_dir "$SHIMMY_SHIM_LIB_DIR" "shim helper library"
   fi
   remove_install_dir
   remove_profile_dir_if_empty
@@ -589,7 +589,7 @@ done
 shimmy::init_install_vars "$REQUESTED_INSTALL_DIR"
 
 if [[ "$UNINSTALL" -eq 1 ]]; then
-  shimmy::apply_install_layout_from_manifest "$INSTALL_MANIFEST_FILE" || true
+  shimmy::apply_install_paths_from_manifest "$INSTALL_MANIFEST_FILE" || true
   perform_uninstall
 else
   perform_install

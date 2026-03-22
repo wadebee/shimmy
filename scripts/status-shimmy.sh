@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/repo/shimmy-env.sh"
 
 shimmy::init_home_vars "$HOME"
-shimmy::discover_install_layout "${SHIMMY_INSTALL_DIR:-}"
+shimmy::discover_install_paths "${SHIMMY_INSTALL_DIR:-}"
 
 if [[ -f "$SHIMMY_SHIM_LIB_DIR/custom-image.sh" ]]; then
   # shellcheck source=lib/shims/custom-image.sh

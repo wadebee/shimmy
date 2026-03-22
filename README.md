@@ -67,7 +67,7 @@ Use the repo-root `shimmy` wrapper as the primary control surface:
 
 The wrapper delegates to script-based interfaces in `scripts/`.
 
-After `./shimmy install`, activate the installed Shimmy layout in the current shell immediately with:
+After `./shimmy install`, activate the installed Shimmy paths in the current shell immediately with:
 
 ```bash
 eval "$(./shimmy shellenv)"
@@ -79,7 +79,7 @@ The installer keeps a managed block in `~/.bashrc_shimmy` that exports the `SHIM
 
 Uninstall removes the managed block and deletes `~/.bashrc_shimmy`.
 
-Shimmy treats `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_SHIM_LIB_DIR` as the authoritative layout when they are exported, so installs can keep metadata, shims, local image contexts, and shared shim helper libraries in separate locations without assuming they all live under one hard-coded root.
+Shimmy treats `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_SHIM_LIB_DIR` as the authoritative install paths when they are exported, so installs can keep metadata, shims, local image contexts, and shared shim helper libraries in separate locations without assuming they all live under one hard-coded root.
 
 Common install arguments still pass through to the installer:
 

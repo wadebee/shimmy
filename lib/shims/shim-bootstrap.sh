@@ -14,7 +14,7 @@ shimmy::shim_helper_source() {
   source "$helper_file_path"
 }
 
-shimmy::shim_layout_init() {
+shimmy::shim_paths_init() {
   local script_path="${1:?script path is required}"
   local shim_install_dir
   local shim_script_dir

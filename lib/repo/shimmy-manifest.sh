@@ -13,13 +13,13 @@ shimmy::_find_install_manifest() {
   if [[ -n "${SHIMMY_INSTALL_DIR:-}" ]]; then
     install_dirs+=("$(shimmy::_trim_trailing_slash "$SHIMMY_INSTALL_DIR")")
   fi
-  if candidate_install_dir="$(shimmy::_infer_install_dir_from_layout_dir "${SHIMMY_SHIM_DIR:-}" "shims")"; then
+  if candidate_install_dir="$(shimmy::_infer_install_dir_from_dir_basename "${SHIMMY_SHIM_DIR:-}" "shims")"; then
     install_dirs+=("$candidate_install_dir")
   fi
-  if candidate_install_dir="$(shimmy::_infer_install_dir_from_layout_dir "${SHIMMY_IMAGES_DIR:-}" "images")"; then
+  if candidate_install_dir="$(shimmy::_infer_install_dir_from_dir_basename "${SHIMMY_IMAGES_DIR:-}" "images")"; then
     install_dirs+=("$candidate_install_dir")
   fi
-  if candidate_install_dir="$(shimmy::_infer_install_dir_from_layout_suffix "${SHIMMY_SHIM_LIB_DIR:-}" "lib/shims")"; then
+  if candidate_install_dir="$(shimmy::_infer_install_dir_from_path_suffix "${SHIMMY_SHIM_LIB_DIR:-}" "lib/shims")"; then
     install_dirs+=("$candidate_install_dir")
   fi
   if [[ -n "${DEFAULT_INSTALL_DIR:-}" ]]; then
@@ -44,7 +44,7 @@ shimmy::_manifest_file_for_install_dir() {
   printf '%s/install-manifest.txt\n' "$(shimmy::_trim_trailing_slash "$install_dir")"
 }
 
-shimmy::apply_install_layout_from_manifest() {
+shimmy::apply_install_paths_from_manifest() {
   local manifest_file="${1:-$INSTALL_MANIFEST_FILE}"
   local images_dir
   local install_dir
@@ -74,7 +74,7 @@ shimmy::apply_install_layout_from_manifest() {
   shimmy::init_install_vars "$SHIMMY_INSTALL_DIR"
 }
 
-shimmy::discover_install_layout() {
+shimmy::discover_install_paths() {
   local requested_install_dir="${1:-}"
   local manifest_file
 
@@ -82,7 +82,7 @@ shimmy::discover_install_layout() {
 
   manifest_file="$(shimmy::_find_install_manifest || true)"
   if [[ -n "$manifest_file" ]]; then
-    shimmy::apply_install_layout_from_manifest "$manifest_file"
+    shimmy::apply_install_paths_from_manifest "$manifest_file"
   fi
 }
 

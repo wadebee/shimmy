@@ -7,7 +7,7 @@ source "$SCRIPT_DIR/../lib/repo/shimmy-env.sh"
 
 shimmy::log_init
 shimmy::init_home_vars "$HOME"
-shimmy::discover_install_layout "${SHIMMY_INSTALL_DIR:-}"
+shimmy::discover_install_paths "${SHIMMY_INSTALL_DIR:-}"
 
 if [[ -f "$SHIMMY_SHIM_LIB_DIR/custom-image.sh" ]]; then
   # shellcheck source=lib/shims/custom-image.sh
@@ -234,7 +234,7 @@ main() {
 
   load_update_args_from_manifest
   env "${UPDATE_ENV_VARS[@]}" bash "$SCRIPT_DIR/install-shimmy.sh" "${UPDATE_ARGS[@]}"
-  shimmy::apply_install_layout_from_manifest "$INSTALL_MANIFEST_FILE" || true
+  shimmy::apply_install_paths_from_manifest "$INSTALL_MANIFEST_FILE" || true
 
   if [[ "$PULL_IMAGES" -eq 1 ]]; then
     run_pull_refresh

@@ -64,7 +64,7 @@ setup_scenario() {
   shimmy::init_install_vars "$HOME_DIR/.local/bin/shimmy"
 }
 
-set_install_layout() {
+set_install_paths() {
   SHIMMY_INSTALL_DIR="${1%/}"
   SHIMMY_SHIM_DIR="${2%/}"
   SHIMMY_IMAGES_DIR="${3%/}"
@@ -72,9 +72,9 @@ set_install_layout() {
   INSTALL_MANIFEST_FILE="$SHIMMY_INSTALL_DIR/install-manifest.txt"
 }
 
-setup_split_layout_scenario() {
+setup_split_paths_scenario() {
   setup_scenario
-  set_install_layout \
+  set_install_paths \
     "$HOME_DIR/.local/state/shimmy" \
     "$HOME_DIR/.local/bin/shims" \
     "$HOME_DIR/.local/share/shimmy-images" \
@@ -120,7 +120,7 @@ run_installer() {
   )
 }
 
-run_installer_with_layout_env() {
+run_installer_with_paths_env() {
   (
     cd "$ROOT_DIR"
     env \
@@ -518,11 +518,11 @@ test_install_creates_managed_files() {
   pass "install creates managed files"
 }
 
-test_install_honors_split_layout_globals() {
-  setup_split_layout_scenario
+test_install_honors_split_paths_globals() {
+  setup_split_paths_scenario
 
   local output
-  output="$(run_installer_with_layout_env --no-update-bashrc --shim task)"
+  output="$(run_installer_with_paths_env --no-update-bashrc --shim task)"
 
   assert_file_exists "$INSTALL_MANIFEST_FILE"
   assert_file_exists "$SHIMMY_SHIM_DIR/task"
@@ -537,7 +537,7 @@ test_install_honors_split_layout_globals() {
   assert_file_contains_text "$INSTALL_MANIFEST_FILE" "images_dir=$SHIMMY_IMAGES_DIR"
   assert_file_contains_text "$INSTALL_MANIFEST_FILE" "shim_lib_dir=$SHIMMY_SHIM_LIB_DIR"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
-  pass "install honors split layout globals"
+  pass "install honors split paths globals"
 }
 
 test_install_log_level_error_hides_info_and_debug() {
@@ -672,7 +672,7 @@ test_uninstall_removes_empty_preexisting_shimmy_shell_file() {
   pass "uninstall removes empty preexisting shimmy shell file"
 }
 
-test_shimmy_install_installs_default_shimmy_layout() {
+test_shimmy_install_installs_default_shimmy_paths() {
   setup_scenario
   shimmy::init_install_vars "$DEFAULT_INSTALL_DIR"
 
@@ -687,10 +687,10 @@ test_shimmy_install_installs_default_shimmy_layout() {
   assert_file_exists "$SHIMMY_IMAGES_DIR/netcat/Containerfile"
   assert_file_exists "$SHIMMY_SHIM_LIB_DIR/task-shim.sh"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
-  pass "shimmy install installs default shimmy layout"
+  pass "shimmy install installs default shimmy paths"
 }
 
-test_shimmy_shellenv_activates_installed_layout() {
+test_shimmy_shellenv_activates_installed_paths() {
   setup_scenario
   shimmy::init_install_vars "$DEFAULT_INSTALL_DIR"
 
@@ -708,7 +708,7 @@ test_shimmy_shellenv_activates_installed_layout() {
   assert_output_contains "$eval_output" ":$SHIMMY_SHIM_DIR"
   assert_output_contains "$source_output" "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR"
   assert_output_contains "$source_output" ":$SHIMMY_SHIM_DIR"
-  pass "shimmy shellenv activates installed layout"
+  pass "shimmy shellenv activates installed paths"
 }
 
 test_shimmy_status_discovers_default_install_from_manifest() {
@@ -771,10 +771,10 @@ test_status_reports_host_path_activity() {
   pass "status reports host path activity"
 }
 
-test_status_uses_manifest_layout_dirs() {
-  setup_split_layout_scenario
+test_status_uses_manifest_paths() {
+  setup_split_paths_scenario
 
-  run_installer_with_layout_env --no-update-bashrc --shim task >/dev/null
+  run_installer_with_paths_env --no-update-bashrc --shim task >/dev/null
 
   local output
   output="$(run_status_with_install_env_only)"
@@ -784,7 +784,7 @@ test_status_uses_manifest_layout_dirs() {
   assert_output_contains "$output" "SHIMMY_IMAGES_DIR=$SHIMMY_IMAGES_DIR"
   assert_output_contains "$output" "SHIMMY_SHIM_LIB_DIR=$SHIMMY_SHIM_LIB_DIR"
   assert_output_contains "$output" "- task: localhost/shimmy-task:"
-  pass "status uses manifest layout dirs"
+  pass "status uses manifest paths"
 }
 
 test_update_restores_missing_shim() {
@@ -801,10 +801,10 @@ test_update_restores_missing_shim() {
   pass "update restores missing shim"
 }
 
-test_installed_task_shim_uses_split_layout_globals() {
-  setup_split_layout_scenario
+test_installed_task_shim_uses_split_paths_globals() {
+  setup_split_paths_scenario
 
-  run_installer_with_layout_env --no-update-bashrc --shim task >/dev/null
+  run_installer_with_paths_env --no-update-bashrc --shim task >/dev/null
 
   local output
   output="$(
@@ -818,13 +818,13 @@ test_installed_task_shim_uses_split_layout_globals() {
   )"
 
   assert_output_contains "$output" "3.45.5"
-  pass "installed task shim uses split layout globals"
+  pass "installed task shim uses split paths globals"
 }
 
-test_update_uses_manifest_layout_dirs() {
-  setup_split_layout_scenario
+test_update_uses_manifest_paths() {
+  setup_split_paths_scenario
 
-  run_installer_with_layout_env --no-update-bashrc >/dev/null
+  run_installer_with_paths_env --no-update-bashrc >/dev/null
   rm -f "$SHIMMY_SHIM_DIR/aws"
 
   local output
@@ -833,13 +833,13 @@ test_update_uses_manifest_layout_dirs() {
   assert_file_exists "$SHIMMY_SHIM_DIR/aws"
   assert_path_not_exists "$SHIMMY_INSTALL_DIR/shims/aws"
   assert_output_contains "$output" "Installed shims into $SHIMMY_INSTALL_DIR (copy)."
-  pass "update uses manifest layout dirs"
+  pass "update uses manifest paths"
 }
 
-test_uninstall_uses_manifest_layout_dirs() {
-  setup_split_layout_scenario
+test_uninstall_uses_manifest_paths() {
+  setup_split_paths_scenario
 
-  run_installer_with_layout_env --no-update-bashrc --shim task >/dev/null
+  run_installer_with_paths_env --no-update-bashrc --shim task >/dev/null
 
   local output
   output="$(run_uninstaller_with_install_env_only)"
@@ -849,7 +849,7 @@ test_uninstall_uses_manifest_layout_dirs() {
   assert_path_not_exists "$SHIMMY_IMAGES_DIR"
   assert_path_not_exists "$SHIMMY_SHIM_LIB_DIR"
   assert_output_contains "$output" "Removed shimmy artifacts from $SHIMMY_INSTALL_DIR."
-  pass "uninstall uses manifest layout dirs"
+  pass "uninstall uses manifest paths"
 }
 
 test_update_build_prunes_stale_local_tags() {
@@ -897,7 +897,7 @@ main() {
   # test_tessl_default
   # test_tessl_with_mounts_and_pull
   test_install_creates_managed_files
-  test_install_honors_split_layout_globals
+  test_install_honors_split_paths_globals
   test_install_log_level_error_hides_info_and_debug
   test_install_log_level_debug_emits_debug
   test_install_symlink_mode
@@ -906,18 +906,18 @@ main() {
   test_shimmy_uninstall_removes_installed_artifacts
   test_uninstall_preserves_preexisting_shell_files
   test_uninstall_removes_empty_preexisting_shimmy_shell_file
-  test_shimmy_install_installs_default_shimmy_layout
-  test_shimmy_shellenv_activates_installed_layout
+  test_shimmy_install_installs_default_shimmy_paths
+  test_shimmy_shellenv_activates_installed_paths
   test_shimmy_status_discovers_default_install_from_manifest
   test_shimmy_update_discovers_default_install_from_manifest
   test_status_reports_install_state
   test_status_reports_host_path_activity
-  test_status_uses_manifest_layout_dirs
+  test_status_uses_manifest_paths
   test_update_restores_missing_shim
-  test_installed_task_shim_uses_split_layout_globals
-  test_update_uses_manifest_layout_dirs
+  test_installed_task_shim_uses_split_paths_globals
+  test_update_uses_manifest_paths
   test_update_build_prunes_stale_local_tags
-  test_uninstall_uses_manifest_layout_dirs
+  test_uninstall_uses_manifest_paths
 
   echo "All $TEST_COUNT shim tests passed."
 }

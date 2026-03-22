@@ -14,7 +14,7 @@ SHIMMY_BOOTSTRAP_FILE="$SHIMMY_BOOTSTRAP_DIR/shim-bootstrap.sh"
 # shellcheck source=lib/shims/shim-bootstrap.sh
 source "$SHIMMY_BOOTSTRAP_FILE"
 
-shimmy::shim_layout_init "${BASH_SOURCE[0]}"
+shimmy::shim_paths_init "${BASH_SOURCE[0]}"
 shimmy::shim_helper_source "custom-image.sh"
 
 if [[ -n "${TEXTUAL_IMAGE:-}" ]]; then
