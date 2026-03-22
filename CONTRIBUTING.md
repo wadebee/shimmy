@@ -113,6 +113,7 @@ Choose variable names using the same general-to-specific token flow.
 
 - Local shell variables should use lowercase snake_case.
 - Exported environment variables and shared constants should use uppercase snake_case.
+- Global environment variables should use uppercase snake_case and start with the `SHIMMY_` prefix.
 - Use resource-first ordering where possible.
 - Reuse established env var prefixes for tool shims.
 
@@ -128,6 +129,7 @@ Examples:
 - `shim_name_requested`
 - `AWS_IMAGE`
 - `SHIMMY_INSTALL_DIR`
+- `SHIMMY_SHIM_DIR`
 
 Avoid:
 
