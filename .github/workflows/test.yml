@@ -9,11 +9,9 @@ on:
       - "scripts/test-shimmy.sh"
       - "scripts/update-shimmy.sh"
       - "scripts/lib/**"
-      - "Taskfile.yml"
       - "shimmy"
       - "images/task/**"
       - "runtime/**"
-      - "Makefile"
       - ".pre-commit-config.yaml"
       - ".github/workflows/test.yml"
   push:
@@ -24,11 +22,9 @@ on:
       - "scripts/test-shimmy.sh"
       - "scripts/update-shimmy.sh"
       - "scripts/lib/**"
-      - "Taskfile.yml"
       - "shimmy"
       - "images/task/**"
       - "runtime/**"
-      - "Makefile"
       - ".pre-commit-config.yaml"
       - ".github/workflows/test.yml"
   workflow_dispatch:

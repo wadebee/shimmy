@@ -1,6 +1,6 @@
 ## Scope
 
-This repository packages common CLI tools as small Bash shims that call `podman run`.
+This repository packages and makes common CLI tools available to your shell as small Bash shims that call `podman run`.
 
 ## Project Map
 

@@ -302,8 +302,6 @@ Run the test suite to validate that shim containers run via Podman:
 ```bash
 ./shimmy test
 # or
-make test-shimmy
-# or
 bash ./scripts/test-shimmy.sh
 ```
 
@@ -348,7 +346,6 @@ shimmy/
 ├── .github/
 │   └── workflows/
 │       └── test.yml          # CI/CD workflow
-├── Makefile                  # Build targets
 └── README.md                 # This file
 ```
 
