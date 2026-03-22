@@ -9,6 +9,7 @@ This repository packages and makes common CLI tools available to your shell as s
 - Installed shim helper libraries live in `lib/shims/`.
 - Installation logic lives in `scripts/install-shimmy.sh`.
 - Behavioral tests live in `scripts/test-shimmy.sh`.
+- Contributor guidance lives in `CONTRIBUTING.md`.
 - The reusable project prompt lives in `docs/prompt-shimmy-project.md`.
 
 ## Available Shim Skills
@@ -21,6 +22,8 @@ This repository packages and makes common CLI tools available to your shell as s
 
 ## Working Rules
 
+- Read `CONTRIBUTING.md` before making repo changes.
+- Follow the naming conventions in `CONTRIBUTING.md` for files, functions, and variables.
 - Keep runtime shims as small Bash wrappers with `set -euo pipefail`.
 - Mount `$PWD` to `/work` unless the shim has a documented reason not to.
 - Use `<PREFIX>_IMAGE` for image override and `<PREFIX>_IMAGE_PULL=always` for pull policy.

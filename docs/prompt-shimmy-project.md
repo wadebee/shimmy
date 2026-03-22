@@ -8,6 +8,8 @@ Create or update a shim in the `shimmy` repository. This project exposes common 
 
 Constraints:
 
+- Read `CONTRIBUTING.md` before making repo changes.
+- Follow the naming conventions in `CONTRIBUTING.md` for files, functions, and variables.
 - Put the runtime wrapper in `shims/<tool>`.
 - Use Bash with `#!/usr/bin/env bash`.
 - Read the default image from `<PREFIX>_IMAGE`.

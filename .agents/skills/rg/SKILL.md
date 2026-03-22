@@ -13,6 +13,7 @@ Use this skill when the task makes use of the ripgrep cli.
 - Tests: `../../../scripts/test-shimmy.sh`
 - Installer: `../../../scripts/install-shimmy.sh`
 - Docs: `../../../README.md`
+- Contributor guidance: `../../../CONTRIBUTING.md`
 - Shared prompt: `../../references/docs/prompt-shimmy-project.md-prompt.md`
 
 ## Current Behavior

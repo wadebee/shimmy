@@ -12,6 +12,12 @@ Shimmy wraps popular CLI tools in lightweight Podman containers, providing:
 
 For tools that do not ship a usable upstream container image, Shimmy can build and cache a local image from a checked-in `Containerfile` context. The image tag is derived from the build-context hash, so Podman reuses the cached image until the `Containerfile` or its supporting files change.
 
+## Contributor Guidance
+
+Contributor guidance lives in `CONTRIBUTING.md`.
+
+That document is the contributor source of truth, including naming conventions for files, functions, and variables. It is also referenced from `AGENTS.md` and the shared project prompt so future AI contributors pick it up automatically.
+
 ## Included Shims
 
 | Tool | Purpose | Default Image | Usage |

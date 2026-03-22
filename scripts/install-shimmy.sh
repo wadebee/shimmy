@@ -138,6 +138,13 @@ copy_file_if_missing() {
 install_repo_profile_files() {
   local src rel dest
 
+  if [[ -f "$SOURCE_CONTRIBUTING" ]]; then
+    log_debug "Installing repository CONTRIBUTING.md into profile directory"
+    copy_file_if_missing "$SOURCE_CONTRIBUTING" "$SHIMMY_INSTALL_DIR/CONTRIBUTING.md"
+  else
+    log_debug "Repository CONTRIBUTING.md not found; skipping profile install"
+  fi
+
   if [[ -f "$SOURCE_AGENTS" ]]; then
     log_debug "Installing repository AGENTS.md into profile directory"
     copy_file_if_missing "$SOURCE_AGENTS" "$SHIMMY_INSTALL_DIR/AGENTS.md"

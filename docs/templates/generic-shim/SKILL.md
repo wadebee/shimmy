@@ -18,7 +18,7 @@ Use this as the starting point for a new shim skill or as a checklist for a one-
 
 ## Read First
 
-1. Read `../../references/docs/prompt-shimmy-project.md-prompt.md`.
+1. Read `../../../CONTRIBUTING.md` and `../../references/docs/prompt-shimmy-project.md-prompt.md`.
 2. Inspect the closest existing runtime shim under `../../../shims/`.
 3. Inspect the closest existing shim skill under `../../shims/` when a tool already has authoring guidance.
 4. Reuse existing conventions instead of inventing a new wrapper shape.
