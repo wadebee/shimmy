@@ -5,9 +5,9 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/repo/shimmy-env.sh
 source "$SCRIPT_DIR/../lib/repo/shimmy-env.sh"
 
-shimmy_log_init
-shimmy_init_home_vars "$HOME"
-shimmy_discover_install_layout "${SHIMMY_INSTALL_DIR:-}"
+shimmy::log_init
+shimmy::init_home_vars "$HOME"
+shimmy::discover_install_layout "${SHIMMY_INSTALL_DIR:-}"
 
 if [[ -f "$SHIMMY_SHIM_LIB_DIR/custom-image.sh" ]]; then
   # shellcheck source=lib/shims/custom-image.sh
@@ -36,7 +36,7 @@ EOF
 manifest_value() {
   local key="$1"
 
-  shimmy_manifest_value "$INSTALL_MANIFEST_FILE" "$key"
+  shimmy::manifest_value "$INSTALL_MANIFEST_FILE" "$key"
 }
 
 manifest_values() {
@@ -180,7 +180,7 @@ cleanup_old_local_images() {
   context_dir="$(local_build_context_for_shim "$shim_name")"
   [[ -d "$context_dir" ]] || return 0
 
-  current_ref="${image_repo}:$(shimmy_compute_context_hash "$context_dir")"
+  current_ref="${image_repo}:$(shimmy::compute_context_hash "$context_dir")"
 
   while IFS= read -r image_ref; do
     [[ -n "$image_ref" ]] || continue
@@ -192,9 +192,9 @@ cleanup_old_local_images() {
     fi
 
     if podman image rm "$image_ref" >/dev/null 2>&1; then
-      shimmy_log warn "Removed stale shim image: $image_ref"
+      shimmy::log warn "Removed stale shim image: $image_ref"
     else
-      shimmy_log warn "Unable to remove stale shim image (possibly in use): $image_ref"
+      shimmy::log warn "Unable to remove stale shim image (possibly in use): $image_ref"
     fi
   done < <(
     podman images \
@@ -234,7 +234,7 @@ main() {
 
   load_update_args_from_manifest
   env "${UPDATE_ENV_VARS[@]}" bash "$SCRIPT_DIR/install-shimmy.sh" "${UPDATE_ARGS[@]}"
-  shimmy_apply_install_layout_from_manifest "$INSTALL_MANIFEST_FILE" || true
+  shimmy::apply_install_layout_from_manifest "$INSTALL_MANIFEST_FILE" || true
 
   if [[ "$PULL_IMAGES" -eq 1 ]]; then
     run_pull_refresh

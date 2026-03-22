@@ -24,7 +24,7 @@ else
   fi
 
   TEXTUAL_RUN_IMAGE="$(
-    shimmy_ensure_local_image \
+    shimmy::ensure_local_image \
       "localhost/shimmy-textual" \
       "$SHIMMY_IMAGES_DIR/textual" \
       "${TEXTUAL_IMAGE_BUILD:-auto}" \

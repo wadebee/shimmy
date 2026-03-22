@@ -24,7 +24,7 @@ else
   fi
 
   NETCAT_RUN_IMAGE="$(
-    shimmy_ensure_local_image \
+    shimmy::ensure_local_image \
       "localhost/shimmy-netcat" \
       "$SHIMMY_IMAGES_DIR/netcat" \
       "${NETCAT_IMAGE_BUILD:-auto}" \

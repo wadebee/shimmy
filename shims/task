@@ -15,15 +15,15 @@ else
   exit 1
 fi
 
-TASK_RUN_IMAGE="$(shimmy_task_resolve_image "$SHIMMY_IMAGES_DIR")"
+TASK_RUN_IMAGE="$(shimmy::task_resolve_image "$SHIMMY_IMAGES_DIR")"
 PODMAN_OPTS=()
 if [[ -n "${TASK_IMAGE:-}" && "${TASK_IMAGE_PULL:-}" = "always" ]]; then
   PODMAN_OPTS+=( --pull=always )
 fi
-shimmy_task_append_default_run_opts PODMAN_OPTS
+shimmy::task_append_default_run_opts PODMAN_OPTS
 
 TTY_OPTS=()
-if shimmy_task_should_use_tty; then
+if shimmy::is_task_tty_enabled; then
   TTY_OPTS+=( -it )
 fi
 

@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/repo/shimmy-env.sh
 source "$SCRIPT_DIR/../lib/repo/shimmy-env.sh"
 
-shimmy_init_repo_vars "$(shimmy_repo_root_from_script_path "${BASH_SOURCE[0]}")"
+shimmy::init_repo_vars "$(shimmy::repo_root_from_script_path "${BASH_SOURCE[0]}")"
 REAL_HOME="${HOME:?HOME must be set}"
 PODMAN_XDG_DATA_HOME="${XDG_DATA_HOME:-$REAL_HOME/.local/share}"
 TMP_ROOT="$(mktemp -d)"
@@ -60,8 +60,8 @@ setup_scenario() {
   mkdir -p "$HOME_DIR" "$WORK_DIR"
   chmod 755 "$HOME_DIR" "$WORK_DIR"
 
-  shimmy_init_home_vars "$HOME_DIR"
-  shimmy_init_install_vars "$HOME_DIR/.local/bin/shimmy"
+  shimmy::init_home_vars "$HOME_DIR"
+  shimmy::init_install_vars "$HOME_DIR/.local/bin/shimmy"
 }
 
 set_install_layout() {
@@ -588,13 +588,13 @@ test_install_updates_bash_startup_files() {
   local guard_line
   local export_line
 
-  source_line="$(shimmy_shell_init_source_line "$SHIMMY_BASH_FILE")"
-  install_export_line="$(shimmy_install_dir_export_line "$SHIMMY_INSTALL_DIR")"
-  shim_export_line="$(shimmy_shim_dir_export_line "$SHIMMY_SHIM_DIR")"
-  images_export_line="$(shimmy_images_dir_export_line "$SHIMMY_IMAGES_DIR")"
-  shim_lib_export_line="$(shimmy_shim_lib_dir_export_line "$SHIMMY_SHIM_LIB_DIR")"
-  guard_line="$(shimmy_path_block_guard_line "$SHIMMY_SHIM_DIR")"
-  export_line="$(shimmy_path_block_export_line "$SHIMMY_SHIM_DIR")"
+  source_line="$(shimmy::shell_init_source_line "$SHIMMY_BASH_FILE")"
+  install_export_line="$(shimmy::install_dir_export_line "$SHIMMY_INSTALL_DIR")"
+  shim_export_line="$(shimmy::shim_dir_export_line "$SHIMMY_SHIM_DIR")"
+  images_export_line="$(shimmy::images_dir_export_line "$SHIMMY_IMAGES_DIR")"
+  shim_lib_export_line="$(shimmy::shim_lib_dir_export_line "$SHIMMY_SHIM_LIB_DIR")"
+  guard_line="$(shimmy::path_block_guard_line "$SHIMMY_SHIM_DIR")"
+  export_line="$(shimmy::path_block_export_line "$SHIMMY_SHIM_DIR")"
 
   assert_file_exists "$BASHRC_FILE"
   assert_file_exists "$BASH_PROFILE_FILE"
@@ -670,7 +670,7 @@ test_uninstall_removes_empty_preexisting_shimmy_shell_file() {
 
 test_shimmy_install_installs_default_shimmy_layout() {
   setup_scenario
-  shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
+  shimmy::init_install_vars "$DEFAULT_INSTALL_DIR"
 
   local output
   output="$(run_shimmy install)"
@@ -688,7 +688,7 @@ test_shimmy_install_installs_default_shimmy_layout() {
 
 test_shimmy_shellenv_activates_installed_layout() {
   setup_scenario
-  shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
+  shimmy::init_install_vars "$DEFAULT_INSTALL_DIR"
 
   run_shimmy install --no-update-bashrc >/dev/null
 
@@ -709,7 +709,7 @@ test_shimmy_shellenv_activates_installed_layout() {
 
 test_shimmy_status_discovers_default_install_from_manifest() {
   setup_scenario
-  shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
+  shimmy::init_install_vars "$DEFAULT_INSTALL_DIR"
 
   run_shimmy install >/dev/null
 
@@ -724,7 +724,7 @@ test_shimmy_status_discovers_default_install_from_manifest() {
 
 test_shimmy_update_discovers_default_install_from_manifest() {
   setup_scenario
-  shimmy_init_install_vars "$DEFAULT_INSTALL_DIR"
+  shimmy::init_install_vars "$DEFAULT_INSTALL_DIR"
 
   run_shimmy install >/dev/null
   rm -f "$SHIMMY_SHIM_DIR/aws"
@@ -858,7 +858,7 @@ test_update_build_prunes_stale_local_tags() {
   source "$ROOT_DIR/lib/shims/custom-image.sh"
 
   local current_ref old_ref output
-  current_ref="localhost/shimmy-task:$(shimmy_compute_context_hash "$SHIMMY_IMAGES_DIR/task")"
+  current_ref="localhost/shimmy-task:$(shimmy::compute_context_hash "$SHIMMY_IMAGES_DIR/task")"
   old_ref="localhost/shimmy-task:shimmy-test-$RANDOM"
 
   run_podman tag "$current_ref" "$old_ref"

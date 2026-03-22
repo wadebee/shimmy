@@ -4,7 +4,7 @@ TASK_SHIM_LIB_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/shims/custom-image.sh
 source "$TASK_SHIM_LIB_DIR/custom-image.sh"
 
-shimmy_task_resolve_image() {
+shimmy::task_resolve_image() {
   local images_dir="${1:?shimmy images dir is required}"
   local -a build_args=()
 
@@ -20,18 +20,18 @@ shimmy_task_resolve_image() {
     build_args+=( --build-arg "TASK_VERSION=$TASK_VERSION" )
   fi
 
-  shimmy_ensure_local_image \
+  shimmy::ensure_local_image \
     "localhost/shimmy-task" \
     "$images_dir/task" \
     "${TASK_IMAGE_BUILD:-auto}" \
     "${build_args[@]}"
 }
 
-shimmy_task_should_use_tty() {
+shimmy::is_task_tty_enabled() {
   [[ -t 0 && -t 1 ]]
 }
 
-shimmy_task_append_default_run_opts() {
+shimmy::task_append_default_run_opts() {
   local -n podman_opts_ref="$1"
 
   podman_opts_ref+=( -v "$PWD":"$PWD":rw )

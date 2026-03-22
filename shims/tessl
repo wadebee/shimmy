@@ -24,7 +24,7 @@ else
   fi
 
   TESSL_RUN_IMAGE="$(
-    shimmy_ensure_local_image \
+    shimmy::ensure_local_image \
       "localhost/shimmy-tessl" \
       "$SHIMMY_IMAGES_DIR/tessl" \
       "${TESSL_IMAGE_BUILD:-auto}" \

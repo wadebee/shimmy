@@ -5,10 +5,10 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/repo/shimmy-env.sh
 source "$SCRIPT_DIR/../lib/repo/shimmy-env.sh"
 
-shimmy_log_init
-shimmy_init_repo_vars "$(shimmy_repo_root_from_script_path "${BASH_SOURCE[0]}")"
-shimmy_init_home_vars "$HOME"
-shimmy_init_install_vars "${SHIMMY_INSTALL_DIR:-}"
+shimmy::log_init
+shimmy::init_repo_vars "$(shimmy::repo_root_from_script_path "${BASH_SOURCE[0]}")"
+shimmy::init_home_vars "$HOME"
+shimmy::init_install_vars "${SHIMMY_INSTALL_DIR:-}"
 
 INSTALL_MODE='copy'
 UPDATE_BASHRC=1
@@ -46,20 +46,20 @@ EOF
 }
 
 fail() {
-  shimmy_log_error "$*"
+  shimmy::log_error "$*"
   return 1
 }
 
 log_debug() {
-  shimmy_log_debug "$*"
+  shimmy::log_debug "$*"
 }
 
 log_info() {
-  shimmy_log_info "$*"
+  shimmy::log_info "$*"
 }
 
 log_warn() {
-  shimmy_log_warn "$*"
+  shimmy::log_warn "$*"
 }
 
 record_profile_created() {
@@ -103,7 +103,7 @@ remove_managed_block() {
 
 append_shimmy_path_block() {
   log_debug "Appending Shimmy PATH block to $SHIMMY_BASH_FILE pointed at dir $SHIMMY_SHIM_DIR"
-  shimmy_render_path_block \
+  shimmy::render_path_block \
     "$SHIMMY_SHIM_DIR" \
     "$SHIMMY_INSTALL_DIR" \
     "$SHIMMY_IMAGES_DIR" \
@@ -114,7 +114,7 @@ append_shell_init_block() {
   local file="$1"
 
   log_debug "Appending shell init block to $file"
-  shimmy_render_shell_init_block "$SHIMMY_BASH_FILE" >> "$file"
+  shimmy::render_shell_init_block "$SHIMMY_BASH_FILE" >> "$file"
 }
 
 copy_file_if_missing() {
@@ -586,10 +586,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-shimmy_init_install_vars "$REQUESTED_INSTALL_DIR"
+shimmy::init_install_vars "$REQUESTED_INSTALL_DIR"
 
 if [[ "$UNINSTALL" -eq 1 ]]; then
-  shimmy_apply_install_layout_from_manifest "$INSTALL_MANIFEST_FILE" || true
+  shimmy::apply_install_layout_from_manifest "$INSTALL_MANIFEST_FILE" || true
   perform_uninstall
 else
   perform_install

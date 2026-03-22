@@ -5,8 +5,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/repo/shimmy-env.sh
 source "$SCRIPT_DIR/../lib/repo/shimmy-env.sh"
 
-shimmy_init_home_vars "$HOME"
-shimmy_discover_install_layout "${SHIMMY_INSTALL_DIR:-}"
+shimmy::init_home_vars "$HOME"
+shimmy::discover_install_layout "${SHIMMY_INSTALL_DIR:-}"
 
 if [[ -f "$SHIMMY_SHIM_LIB_DIR/custom-image.sh" ]]; then
   # shellcheck source=lib/shims/custom-image.sh
@@ -32,7 +32,7 @@ local_image_ref() {
     return 0
   fi
 
-  printf '%s:%s\n' "$image_repo" "$(shimmy_compute_context_hash "$context_dir")"
+  printf '%s:%s\n' "$image_repo" "$(shimmy::compute_context_hash "$context_dir")"
 }
 
 describe_shim_image() {
