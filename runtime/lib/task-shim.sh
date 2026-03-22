@@ -43,6 +43,10 @@ shimmy_task_append_default_run_opts() {
     podman_opts_ref+=( -v "$HOME":"$HOME":rw )
   fi
 
+  if [[ -n "${PATH:-}" ]]; then
+    podman_opts_ref+=( -e "SHIMMY_HOST_PATH=$PATH" )
+  fi
+
   if [[ -d /tmp ]]; then
     podman_opts_ref+=( -v /tmp:/tmp:rw )
   fi

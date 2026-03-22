@@ -31,7 +31,9 @@ fi
 
 path_contains() {
   local needle="$1"
-  case ":${PATH:-}:" in
+  local path_value="${SHIMMY_HOST_PATH:-${PATH:-}}"
+
+  case ":$path_value:" in
     *":$needle:"*) return 0 ;;
     *) return 1 ;;
   esac
@@ -84,11 +86,11 @@ describe_shim_image() {
 }
 
 print_paths() {
-  printf 'install_dir: %s\n' "$SHIMMY_INSTALL_DIR"
-  printf 'shim_dir: %s\n' "$SHIMMY_SHIM_DIR"
-  printf 'images_dir: %s\n' "$SHIMMY_IMAGES_DIR"
-  printf 'runtime_dir: %s\n' "$SHIMMY_RUNTIME_DIR"
-  printf 'shell_file: %s\n' "$SHIMMY_BASH_FILE"
+  printf 'SHIMMY_INSTALL_DIR=%s\n' "$SHIMMY_INSTALL_DIR"
+  printf 'SHIMMY_SHIM_DIR=%s\n' "$SHIMMY_SHIM_DIR"
+  printf 'SHIMMY_IMAGES_DIR=%s\n' "$SHIMMY_IMAGES_DIR"
+  printf 'SHIMMY_RUNTIME_DIR=%s\n' "$SHIMMY_RUNTIME_DIR"
+  printf 'Shimmy Startup Profile: %s\n' "$SHIMMY_BASH_FILE"
   if path_contains "$SHIMMY_SHIM_DIR"; then
     printf 'path_active: yes\n'
   else

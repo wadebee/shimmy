@@ -175,6 +175,16 @@ run_status() {
   )
 }
 
+run_status_with_host_path() {
+  (
+    cd "$ROOT_DIR"
+    env \
+      "HOME=$HOME_DIR" \
+      "SHIMMY_HOST_PATH=$SHIMMY_SHIM_DIR:${PATH:-}" \
+      bash "$ROOT_DIR/scripts/status-shimmy.sh" 2>&1
+  )
+}
+
 run_status_with_install_env_only() {
   (
     cd "$ROOT_DIR"
@@ -633,7 +643,7 @@ test_status_reports_install_state() {
   local output
   output="$(run_status)"
   assert_output_contains "$output" "installed: no"
-  assert_output_contains "$output" "install_dir: $SHIMMY_INSTALL_DIR"
+  assert_output_contains "$output" "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR"
 
   run_installer --no-update-bashrc >/dev/null
 
@@ -645,6 +655,18 @@ test_status_reports_install_state() {
   pass "status reports install state"
 }
 
+test_status_reports_host_path_activity() {
+  setup_scenario
+
+  run_installer --no-update-bashrc >/dev/null
+
+  local output
+  output="$(run_status_with_host_path)"
+
+  assert_output_contains "$output" "path_active: yes"
+  pass "status reports host path activity"
+}
+
 test_status_uses_manifest_layout_dirs() {
   setup_split_layout_scenario
 
@@ -653,10 +675,10 @@ test_status_uses_manifest_layout_dirs() {
   local output
   output="$(run_status_with_install_env_only)"
 
-  assert_output_contains "$output" "install_dir: $SHIMMY_INSTALL_DIR"
-  assert_output_contains "$output" "shim_dir: $SHIMMY_SHIM_DIR"
-  assert_output_contains "$output" "images_dir: $SHIMMY_IMAGES_DIR"
-  assert_output_contains "$output" "runtime_dir: $SHIMMY_RUNTIME_DIR"
+  assert_output_contains "$output" "SHIMMY_INSTALL_DIR=$SHIMMY_INSTALL_DIR"
+  assert_output_contains "$output" "SHIMMY_SHIM_DIR=$SHIMMY_SHIM_DIR"
+  assert_output_contains "$output" "SHIMMY_IMAGES_DIR=$SHIMMY_IMAGES_DIR"
+  assert_output_contains "$output" "SHIMMY_RUNTIME_DIR=$SHIMMY_RUNTIME_DIR"
   assert_output_contains "$output" "- task: localhost/shimmy-task:"
   pass "status uses manifest layout dirs"
 }
@@ -782,6 +804,7 @@ main() {
   test_uninstall_removes_empty_preexisting_shimmy_shell_file
   test_bootstrap_install_default_task
   test_status_reports_install_state
+  test_status_reports_host_path_activity
   test_status_uses_manifest_layout_dirs
   test_update_restores_missing_shim
   test_installed_task_shim_uses_split_layout_globals
