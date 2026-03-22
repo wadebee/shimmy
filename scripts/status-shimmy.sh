@@ -80,6 +80,7 @@ print_paths() {
   else
     printf 'path_active: no\n'
   fi
+  printf ' -- Reminder to reopen your shell to pick up recent PATH changes)\n'
 }
 
 print_installed_shims() {

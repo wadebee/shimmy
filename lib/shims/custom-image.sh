@@ -1,43 +1,9 @@
 #!/usr/bin/env bash
 
-shimmy::_log_level_value() {
-  case "${1:-info}" in
-    debug) printf '10\n' ;;
-    info) printf '20\n' ;;
-    warn|warning) printf '30\n' ;;
-    error) printf '40\n' ;;
-    silent|quiet|none) printf '50\n' ;;
-    *) printf '20\n' ;;
-  esac
-}
+CUSTOM_IMAGE_LIB_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-shimmy::_log_normalize_level() {
-  case "${1:-info}" in
-    debug) printf 'debug\n' ;;
-    info) printf 'info\n' ;;
-    warn|warning) printf 'warn\n' ;;
-    error) printf 'error\n' ;;
-    silent|quiet|none) printf 'silent\n' ;;
-    *) printf 'info\n' ;;
-  esac
-}
-
-shimmy::_is_log_level_enabled() {
-  local message_level="${1:?message level is required}"
-  local configured_level
-
-  configured_level="$(shimmy::_log_normalize_level "${LOG_LEVEL:-info}")"
-  [[ "$(shimmy::_log_level_value "$message_level")" -ge "$(shimmy::_log_level_value "$configured_level")" ]]
-}
-
-shimmy::log() {
-  local level="${1:?log level is required}"
-  shift
-
-  shimmy::_is_log_level_enabled "$level" || return 0
-
-  printf '%s: %s\n' "$(tr '[:lower:]' '[:upper:]' <<< "$level")" "$*" >&2
-}
+# shellcheck source=lib/shims/shimmy-log.sh
+source "$CUSTOM_IMAGE_LIB_DIR/shimmy-log.sh"
 
 shimmy::_fail() {
   shimmy::log error "$*"

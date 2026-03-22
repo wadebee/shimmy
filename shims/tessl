@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-SHIMMY_INSTALL_DIR="${SHIMMY_INSTALL_DIR:-$(cd -- "$SCRIPT_DIR/.." && pwd)}"
-SHIMMY_IMAGES_DIR="${SHIMMY_IMAGES_DIR:-$SHIMMY_INSTALL_DIR/images}"
-SHIMMY_SHIM_LIB_DIR="${SHIMMY_SHIM_LIB_DIR:-$SHIMMY_INSTALL_DIR/lib/shims}"
-CUSTOM_IMAGE_HELPER="$SHIMMY_SHIM_LIB_DIR/custom-image.sh"
-
-if [[ -f "$CUSTOM_IMAGE_HELPER" ]]; then
-  # shellcheck source=lib/shims/custom-image.sh
-  source "$CUSTOM_IMAGE_HELPER"
-else
-  printf 'ERROR: missing custom image helper: %s\n' "$CUSTOM_IMAGE_HELPER" >&2
-  exit 1
+SHIMMY_BOOTSTRAP_DIR="${SHIMMY_SHIM_LIB_DIR:-}"
+if [[ -z "$SHIMMY_BOOTSTRAP_DIR" && -n "${SHIMMY_INSTALL_DIR:-}" ]]; then
+  SHIMMY_BOOTSTRAP_DIR="${SHIMMY_INSTALL_DIR%/}/lib/shims"
 fi
+if [[ -z "$SHIMMY_BOOTSTRAP_DIR" ]]; then
+  SHIMMY_BOOTSTRAP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../lib/shims" && pwd)"
+fi
+
+SHIMMY_BOOTSTRAP_FILE="$SHIMMY_BOOTSTRAP_DIR/shim-bootstrap.sh"
+
+# shellcheck source=lib/shims/shim-bootstrap.sh
+source "$SHIMMY_BOOTSTRAP_FILE"
+
+shimmy::shim_layout_init "${BASH_SOURCE[0]}"
+shimmy::shim_helper_source "custom-image.sh"
 
 if [[ -n "${TESSL_IMAGE:-}" ]]; then
   TESSL_RUN_IMAGE="$TESSL_IMAGE"
