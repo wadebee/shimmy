@@ -337,7 +337,7 @@ test_aws_default() {
   local output
   output="$(run_wrapper "$ROOT_DIR/shims/aws" -- --version 2>&1)"
 
-  assert_output_contains "$output" "aws-cli/2.15.0"
+  assert_output_contains "$output" "aws-cli/2.31.21"
   pass "aws default exec"
 }
 
@@ -811,7 +811,7 @@ test_status_reports_install_state() {
   output="$(run_status)"
   assert_output_contains "$output" "installed: yes"
   assert_output_contains "$output" "path_active: no"
-  assert_output_contains "$output" "- aws: docker.io/amazon/aws-cli:2.15.0"
+  assert_output_contains "$output" "- aws: public.ecr.aws/aws-cli/aws-cli:2.31.21"
   assert_output_contains "$output" "- task: localhost/shimmy-task:"
   pass "status reports install state"
 }

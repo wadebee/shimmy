@@ -40,7 +40,7 @@ describe_shim_image() {
 
   case "$shim_name" in
     aws)
-      printf '%s\n' "${AWS_IMAGE:-docker.io/amazon/aws-cli:2.15.0}"
+      printf '%s\n' "${AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}"
       ;;
     jq)
       printf '%s\n' "${JQ_IMAGE:-docker.io/stedolan/jq:latest}"

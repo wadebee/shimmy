@@ -22,7 +22,7 @@ That document is the contributor source of truth, including naming conventions f
 
 | Tool | Purpose | Default Image | Usage |
 |------|---------|----------------|-------|
-| **aws** | AWS CLI | `docker.io/amazon/aws-cli:2.15.0` | `aws s3 ls`, `aws sts get-caller-identity` |
+| **aws** | AWS CLI | `public.ecr.aws/aws-cli/aws-cli:2.31.21` | `aws s3 ls`, `aws sts get-caller-identity` |
 | **jq** | JSON processor | `docker.io/stedolan/jq:latest` | `jq .foo file.json` |
 | **netcat** | TCP/UDP debugging client | local build from `images/netcat/Containerfile` | `netcat --help`, `netcat example.com 443` |
 | **rg** | Ripgrep search | `docker.io/vszl/ripgrep:latest` | `rg "pattern" .` |
@@ -180,7 +180,7 @@ When `CONTAINER_HOST` points at a unix-domain Podman socket, the task shim also 
 
 ### AWS CLI
 
-- `AWS_IMAGE` — Container image (default: `docker.io/amazon/aws-cli:2.15.0`)
+- `AWS_IMAGE` — Container image (default: `public.ecr.aws/aws-cli/aws-cli:2.31.21`)
 - `AWS_IMAGE_PULL` — Set to `always` to force pulling the latest image
 
 Example:

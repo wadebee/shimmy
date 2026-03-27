@@ -18,7 +18,7 @@ Use this skill when the task makes use of the AWS CLI .
 
 ## Current Behavior
 
-- Default image: `docker.io/amazon/aws-cli:2.15.0`
+- Default image: `public.ecr.aws/aws-cli/aws-cli:2.31.21`
 - Pull override: `AWS_IMAGE_PULL=always`
 - Runtime mode: interactive via `podman run --rm -it`
 - Mounts `$PWD` to `/work`

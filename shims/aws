@@ -4,8 +4,7 @@ set -euo pipefail
 # Podman-based AWS CLI wrapper
 # Usage: shims/aws <aws-args>
 # Example: shims/aws s3 ls
-
-AWS_IMAGE=${AWS_IMAGE:-docker.io/amazon/aws-cli:2.15.0}
+AWS_IMAGE=${AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}
 
 # Mount current working directory as /work
 MOUNTS=( -v "$PWD":/work -w /work )
