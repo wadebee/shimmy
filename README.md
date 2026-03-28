@@ -37,7 +37,7 @@ That document is the contributor source of truth, including naming conventions f
 - **Podman CLI** — Explicit required dependency. Podman *Desktop* is not required. 
 For macOS run `podman machine init` and `podman machine start` after installation.
 Install and configure for rootless operation separately before using Shimmy. Official install guide: <https://podman.io/docs/installation>
-If Podman is installed from the macOS pkg installer, the binary may live at `/opt/podman/bin/podman`. The current proof-of-concept rewrite accounts for that path, but it is still best to make `/opt/podman/bin` available on `PATH` for shells and automation.
+If Podman is installed from the macOS pkg installer, the binary may live at `/opt/podman/bin/podman`. `shimmy activate` accounts for that path for interactive shell activation, and it is still best to make `/opt/podman/bin` available on `PATH` for shells and automation.
 
 ### Podman rootless requirement
 
@@ -73,17 +73,16 @@ The wrapper delegates to script-based interfaces in `scripts/`.
 After `./shimmy install`, activate the installed Shimmy paths in the current shell immediately with:
 
 ```sh
-eval "$(./shimmy shellenv)"
+eval "$(./shimmy activate)"
 ```
 
-The current POSIX proof-of-concept installer does not edit shell rc files. Use `eval "$(./shimmy shellenv)"` for immediate activation, and add that line to your preferred shell config manually if you want persistent activation.
+The current POSIX proof-of-concept installer does not edit shell rc files. Use `eval "$(./shimmy activate)"` for immediate activation, and add that line to your preferred shell config manually if you want persistent activation.
 
-Shimmy treats `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_SHIM_LIB_DIR` as the authoritative install paths when they are exported, so installs can keep metadata, shims, local image contexts, and shared shim helper libraries in separate locations without assuming they all live under one hard-coded root.
+The active install layout is always derived from one install root, which defaults to `~/.config/shimmy` and can be overridden with `--install-dir`.
 
 Common install arguments still pass through to the installer:
 
 ```sh
-./shimmy install --symlink
 ./shimmy install --install-dir "$HOME/.local/share/shimmy"
 ./shimmy install --shim aws --shim terraform
 ```
@@ -302,7 +301,7 @@ sh ./scripts/test-shimmy.sh
 Tests verify:
 - `/bin/sh` parser compatibility for the proof-of-concept shell entrypoints
 - install and uninstall behavior
-- `shellenv` activation and PATH idempotence
+- `activate` activation and PATH idempotence
 - live Podman execution for the proof-of-concept `jq` shim
 
 ## Directory Structure

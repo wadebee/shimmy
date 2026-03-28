@@ -46,7 +46,7 @@ Deliverables:
 - `lib/shims/` contains reusable installed helper scripts that shims source at runtime.
 - `lib/repo/` contains sourced helpers for repo-level wrapper and lifecycle scripts.
 - `.agents/skills/` contains shim-specific AI contributor guidance.
-- `scripts/install-shimmy.sh` installs a fixed list of shim names by symlink or copy.
+- `scripts/install-shimmy.sh` installs a fixed list of shim names into a default XDG-style install root.
 - `scripts/test-shimmy.sh` runs live Podman-backed smoke tests against non-mutating CLI commands. Hard dependency on availability of Podman installation (outside Shimmy project)
 - `.github/workflows/test.yml` runs the shell test suite in CI.
 

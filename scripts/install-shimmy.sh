@@ -15,7 +15,6 @@ SOURCE_SHIM_LIB_DIR=$ROOT_DIR/lib/shims
 DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
 SUPPORTED_SHIMS='aws jq netcat rg task terraform textual'
 
-INSTALL_MODE=copy
 REQUESTED_INSTALL_DIR=
 REQUESTED_SHIMS=
 UNINSTALL=0
@@ -36,6 +35,13 @@ trim_trailing_slash() {
       printf '%s\n' "$path_value"
       ;;
   esac
+}
+
+install_path_render() {
+  install_dir=$1
+  path_suffix=$2
+
+  printf '%s/%s\n' "$(trim_trailing_slash "$install_dir")" "$path_suffix"
 }
 
 log_level_value() {
@@ -90,8 +96,6 @@ Usage:
 
 Options:
   --install-dir <dir>    Base install directory. Default: ~/.config/shimmy
-  --copy                 Copy install assets (default)
-  --symlink              Symlink install assets from the repo
   --shim <name>          Install only the named shim. Repeatable.
   --uninstall            Remove the current install instead of creating it
   -h, --help             Show help
@@ -129,24 +133,13 @@ validate_requested_shims() {
   done
 }
 
-resolve_install_paths() {
-  install_dir_candidate=
-
+resolve_install_root() {
   if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    install_dir_candidate=$REQUESTED_INSTALL_DIR
-  elif [ -n "${SHIMMY_INSTALL_DIR:-}" ]; then
-    install_dir_candidate=$SHIMMY_INSTALL_DIR
-  else
-    install_dir_candidate=$DEFAULT_INSTALL_DIR
+    printf '%s\n' "$(trim_trailing_slash "$REQUESTED_INSTALL_DIR")"
+    return 0
   fi
 
-  SHIMMY_INSTALL_DIR=$(trim_trailing_slash "$install_dir_candidate")
-  SHIMMY_SHIM_DIR=$(trim_trailing_slash "${SHIMMY_SHIM_DIR:-$SHIMMY_INSTALL_DIR/shims}")
-  SHIMMY_IMAGES_DIR=$(trim_trailing_slash "${SHIMMY_IMAGES_DIR:-$SHIMMY_INSTALL_DIR/images}")
-  SHIMMY_SHIM_LIB_DIR=$(trim_trailing_slash "${SHIMMY_SHIM_LIB_DIR:-$SHIMMY_INSTALL_DIR/lib/shims}")
-  INSTALL_MANIFEST_FILE=$SHIMMY_INSTALL_DIR/install-manifest.txt
-
-  export SHIMMY_INSTALL_DIR SHIMMY_SHIM_DIR SHIMMY_IMAGES_DIR SHIMMY_SHIM_LIB_DIR
+  printf '%s\n' "$(trim_trailing_slash "$DEFAULT_INSTALL_DIR")"
 }
 
 manifest_value() {
@@ -160,17 +153,29 @@ manifest_value() {
   sed -n "s/^${key}=//p" "$manifest_file" | sed -n '1p'
 }
 
-load_paths_from_manifest() {
+resolve_install_paths() {
+  SHIMMY_INSTALL_DIR=$(resolve_install_root)
+  SHIMMY_SHIM_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" shims)
+  SHIMMY_IMAGES_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" images)
+  SHIMMY_SHIM_LIB_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" lib/shims)
+  INSTALL_MANIFEST_FILE=$(install_path_render "$SHIMMY_INSTALL_DIR" install-manifest.txt)
+}
+
+load_install_root_from_manifest() {
   if [ ! -f "$INSTALL_MANIFEST_FILE" ]; then
     return 1
   fi
 
-  SHIMMY_INSTALL_DIR=$(manifest_value "$INSTALL_MANIFEST_FILE" install_dir || printf '%s\n' "$SHIMMY_INSTALL_DIR")
-  SHIMMY_SHIM_DIR=$(manifest_value "$INSTALL_MANIFEST_FILE" shim_dir || printf '%s\n' "$SHIMMY_SHIM_DIR")
-  SHIMMY_IMAGES_DIR=$(manifest_value "$INSTALL_MANIFEST_FILE" images_dir || printf '%s\n' "$SHIMMY_IMAGES_DIR")
-  SHIMMY_SHIM_LIB_DIR=$(manifest_value "$INSTALL_MANIFEST_FILE" shim_lib_dir || printf '%s\n' "$SHIMMY_SHIM_LIB_DIR")
+  manifest_install_dir=$(manifest_value "$INSTALL_MANIFEST_FILE" install_dir || true)
+  if [ -z "$manifest_install_dir" ]; then
+    return 1
+  fi
 
-  export SHIMMY_INSTALL_DIR SHIMMY_SHIM_DIR SHIMMY_IMAGES_DIR SHIMMY_SHIM_LIB_DIR
+  SHIMMY_INSTALL_DIR=$(trim_trailing_slash "$manifest_install_dir")
+  SHIMMY_SHIM_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" shims)
+  SHIMMY_IMAGES_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" images)
+  SHIMMY_SHIM_LIB_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" lib/shims)
+  INSTALL_MANIFEST_FILE=$(install_path_render "$SHIMMY_INSTALL_DIR" install-manifest.txt)
 }
 
 ensure_safe_remove_path() {
@@ -200,23 +205,11 @@ install_directory_copy() {
   cp -R "$source_path" "$target_path"
 }
 
-install_symlink() {
-  source_path=$1
-  target_path=$2
-
-  rm -rf "$target_path"
-  ln -s "$source_path" "$target_path"
-}
-
 write_manifest() {
   mkdir -p "$SHIMMY_INSTALL_DIR"
 
   {
     printf 'install_dir=%s\n' "$SHIMMY_INSTALL_DIR"
-    printf 'shim_dir=%s\n' "$SHIMMY_SHIM_DIR"
-    printf 'images_dir=%s\n' "$SHIMMY_IMAGES_DIR"
-    printf 'shim_lib_dir=%s\n' "$SHIMMY_SHIM_LIB_DIR"
-    printf 'install_mode=%s\n' "$INSTALL_MODE"
     for shim_name in $(selected_shim_list); do
       printf 'shim=%s\n' "$shim_name"
     done
@@ -229,61 +222,36 @@ perform_install() {
   [ -d "$SOURCE_SHIMS_DIR" ] || fail "missing source shim directory: $SOURCE_SHIMS_DIR"
   [ -d "$SOURCE_SHIM_LIB_DIR" ] || fail "missing source shim helper directory: $SOURCE_SHIM_LIB_DIR"
 
-  log_info "Installing shimmy into $SHIMMY_INSTALL_DIR using mode $INSTALL_MODE"
+  log_info "Installing shimmy into $SHIMMY_INSTALL_DIR"
 
   mkdir -p "$SHIMMY_INSTALL_DIR"
-  mkdir -p "$(dirname "$SHIMMY_SHIM_DIR")" "$(dirname "$SHIMMY_IMAGES_DIR")" "$(dirname "$SHIMMY_SHIM_LIB_DIR")"
+  rm -rf "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$SHIMMY_SHIM_LIB_DIR"
+  mkdir -p "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")"
 
-  if [ "$INSTALL_MODE" = "copy" ]; then
-    mkdir -p "$SHIMMY_SHIM_DIR"
-    for shim_name in $(selected_shim_list); do
-      source_path=$SOURCE_SHIMS_DIR/$shim_name
-      target_path=$SHIMMY_SHIM_DIR/$shim_name
-      [ -f "$source_path" ] || fail "missing shim source: $source_path"
-      log_debug "Copying shim $shim_name to $target_path"
-      install_file "$source_path" "$target_path"
-    done
+  for shim_name in $(selected_shim_list); do
+    source_path=$SOURCE_SHIMS_DIR/$shim_name
+    target_path=$SHIMMY_SHIM_DIR/$shim_name
+    [ -f "$source_path" ] || fail "missing shim source: $source_path"
+    log_debug "Copying shim $shim_name to $target_path"
+    install_file "$source_path" "$target_path"
+  done
 
-    mkdir -p "$SHIMMY_IMAGES_DIR"
-    for shim_name in $(selected_shim_list); do
-      source_path=$SOURCE_IMAGES_DIR/$shim_name
-      target_path=$SHIMMY_IMAGES_DIR/$shim_name
-      if [ -d "$source_path" ]; then
-        log_debug "Copying image support for $shim_name to $target_path"
-        install_directory_copy "$source_path" "$target_path"
-      fi
-    done
+  for shim_name in $(selected_shim_list); do
+    source_path=$SOURCE_IMAGES_DIR/$shim_name
+    target_path=$SHIMMY_IMAGES_DIR/$shim_name
+    if [ -d "$source_path" ]; then
+      log_debug "Copying image support for $shim_name to $target_path"
+      install_directory_copy "$source_path" "$target_path"
+    fi
+  done
 
-    log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
-    install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_SHIM_LIB_DIR"
-  else
-    rm -rf "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$SHIMMY_SHIM_LIB_DIR"
-    mkdir -p "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")"
-    for shim_name in $(selected_shim_list); do
-      source_path=$SOURCE_SHIMS_DIR/$shim_name
-      target_path=$SHIMMY_SHIM_DIR/$shim_name
-      [ -f "$source_path" ] || fail "missing shim source: $source_path"
-      log_debug "Symlinking shim $shim_name to $target_path"
-      install_symlink "$source_path" "$target_path"
-    done
-
-    for shim_name in $(selected_shim_list); do
-      source_path=$SOURCE_IMAGES_DIR/$shim_name
-      target_path=$SHIMMY_IMAGES_DIR/$shim_name
-      if [ -d "$source_path" ]; then
-        log_debug "Symlinking image support for $shim_name to $target_path"
-        install_symlink "$source_path" "$target_path"
-      fi
-    done
-
-    log_debug "Symlinking shim helper directory to $SHIMMY_SHIM_LIB_DIR"
-    install_symlink "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_SHIM_LIB_DIR"
-  fi
+  log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
+  install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_SHIM_LIB_DIR"
 
   write_manifest
 
   log_info "Installed shimmy assets into $SHIMMY_INSTALL_DIR"
-  log_info "Activate this install with: eval \"\$(./shimmy shellenv --install-dir $SHIMMY_INSTALL_DIR)\""
+  log_info "Activate this install with: eval \"\$(./shimmy activate --install-dir '$SHIMMY_INSTALL_DIR')\""
 }
 
 remove_path_if_present() {
@@ -302,7 +270,7 @@ remove_path_if_present() {
 perform_uninstall() {
   log_info "Removing shimmy install rooted at $SHIMMY_INSTALL_DIR"
 
-  load_paths_from_manifest || true
+  load_install_root_from_manifest || true
 
   remove_path_if_present "$SHIMMY_SHIM_DIR" "shim"
   remove_path_if_present "$SHIMMY_IMAGES_DIR" "image"
@@ -338,12 +306,10 @@ main() {
         shift 2
         ;;
       --copy)
-        INSTALL_MODE=copy
         shift
         ;;
       --symlink)
-        INSTALL_MODE=symlink
-        shift
+        fail "symlink install mode has been removed on the posix-rewrite branch"
         ;;
       --shim)
         [ "$#" -ge 2 ] || fail "missing value for --shim"

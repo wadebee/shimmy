@@ -1,213 +1,240 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/repo/shimmy-env.sh
-source "$SCRIPT_DIR/../lib/repo/shimmy-env.sh"
-
-shimmy::log_init
-shimmy::init_home_vars "$HOME"
-shimmy::discover_install_paths "${SHIMMY_INSTALL_DIR:-}"
-
-if [[ -f "$SHIMMY_SHIM_LIB_DIR/custom-image.sh" ]]; then
-  # shellcheck source=lib/shims/custom-image.sh
-  source "$SHIMMY_SHIM_LIB_DIR/custom-image.sh"
-fi
-
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
+REQUESTED_INSTALL_DIR=
 PULL_IMAGES=0
 BUILD_IMAGES=0
-UPDATE_ARGS=()
-UPDATE_ENV_VARS=()
 
-usage() {
-  cat <<'EOF'
-Refresh an existing shimmy installation from the current repository.
+fail() {
+  printf 'ERROR: %s\n' "$*" >&2
+  exit 1
+}
 
-Usage:
-  scripts/update-shimmy.sh [--pull] [--build]
+trim_trailing_slash() {
+  path_value=${1:-}
 
-Options:
-  --pull   Pull newer remote images for installed remote-image shims.
-  --build  Rebuild local images for installed local-build shims.
-  -h, --help
-EOF
+  case "$path_value" in
+    ''|/)
+      printf '%s\n' "$path_value"
+      ;;
+    */)
+      printf '%s\n' "${path_value%/}"
+      ;;
+    *)
+      printf '%s\n' "$path_value"
+      ;;
+  esac
+}
+
+install_dir_resolve() {
+  if [ -n "$REQUESTED_INSTALL_DIR" ]; then
+    printf '%s\n' "$(trim_trailing_slash "$REQUESTED_INSTALL_DIR")"
+    return 0
+  fi
+
+  printf '%s\n' "$(trim_trailing_slash "$DEFAULT_INSTALL_DIR")"
 }
 
 manifest_value() {
-  local key="$1"
+  manifest_file=$1
+  key=$2
 
-  shimmy::manifest_value "$INSTALL_MANIFEST_FILE" "$key"
-}
-
-manifest_values() {
-  local key="$1"
-
-  if [[ ! -f "$INSTALL_MANIFEST_FILE" ]]; then
+  if [ ! -f "$manifest_file" ]; then
     return 1
   fi
 
-  sed -n "s/^${key}=//p" "$INSTALL_MANIFEST_FILE"
+  sed -n "s/^${key}=//p" "$manifest_file" | sed -n '1p'
 }
 
-load_update_args_from_manifest() {
-  local install_dir
-  local shim_dir
-  local images_dir
-  local shim_lib_dir
-  local install_mode
-  local update_bashrc
-  local bashrc_file
-  local bash_profile_file
-  local bash_shimmy_file
-  local shim_name
+manifest_shim_list() {
+  manifest_file=$1
 
-  install_dir="$(manifest_value install_dir)" || return 1
-  shim_dir="$(manifest_value shim_dir || true)"
-  images_dir="$(manifest_value images_dir || true)"
-  shim_lib_dir="$(manifest_value shim_lib_dir || true)"
-  install_mode="$(manifest_value install_mode || true)"
-  update_bashrc="$(manifest_value update_bashrc || true)"
-  bashrc_file="$(manifest_value bashrc_file || true)"
-  bash_profile_file="$(manifest_value bash_profile_file || true)"
-  bash_shimmy_file="$(manifest_value bash_shimmy_file || true)"
-
-  UPDATE_ARGS=( --install-dir "$install_dir" )
-  UPDATE_ENV_VARS=( "SHIMMY_INSTALL_DIR=$install_dir" )
-
-  if [[ -n "$shim_dir" ]]; then
-    UPDATE_ENV_VARS+=( "SHIMMY_SHIM_DIR=$shim_dir" )
-  fi
-  if [[ -n "$images_dir" ]]; then
-    UPDATE_ENV_VARS+=( "SHIMMY_IMAGES_DIR=$images_dir" )
-  fi
-  if [[ -n "$shim_lib_dir" ]]; then
-    UPDATE_ENV_VARS+=( "SHIMMY_SHIM_LIB_DIR=$shim_lib_dir" )
+  if [ ! -f "$manifest_file" ]; then
+    return 1
   fi
 
-  case "$install_mode" in
-    symlink) UPDATE_ARGS+=( --symlink ) ;;
-    ""|copy) UPDATE_ARGS+=( --copy ) ;;
-  esac
-
-  case "$update_bashrc" in
-    0) UPDATE_ARGS+=( --no-update-bashrc ) ;;
-    ""|1) UPDATE_ARGS+=( --update-bashrc ) ;;
-  esac
-
-  if [[ -n "$bashrc_file" ]]; then
-    UPDATE_ARGS+=( --bashrc-file "$bashrc_file" )
-  fi
-  if [[ -n "$bash_profile_file" ]]; then
-    UPDATE_ARGS+=( --bash-profile-file "$bash_profile_file" )
-  fi
-  if [[ -n "$bash_shimmy_file" ]]; then
-    UPDATE_ARGS+=( --bash-shimmy-file "$bash_shimmy_file" )
-  fi
-
-  while IFS= read -r shim_name; do
-    [[ -n "$shim_name" ]] || continue
-    UPDATE_ARGS+=( --shim "$shim_name" )
-  done < <(manifest_values requested_shim || true)
+  sed -n 's/^shim=//p' "$manifest_file"
 }
 
-run_pull_refresh() {
-  local shim_name
-  local -a shim_names
+context_hash() {
+  context_dir=$1
 
-  [[ -d "$SHIMMY_SHIM_DIR" ]] || return 0
+  [ -d "$context_dir" ] || return 1
+  [ -f "$context_dir/Containerfile" ] || return 1
 
-  mapfile -t shim_names < <(find "$SHIMMY_SHIM_DIR" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) -printf '%f\n' | sort)
+  if command -v sha256sum >/dev/null 2>&1; then
+    tar \
+      -C "$context_dir" \
+      --sort=name \
+      --mtime='UTC 1970-01-01' \
+      --owner=0 \
+      --group=0 \
+      --numeric-owner \
+      -cf - \
+      . 2>/dev/null | sha256sum | awk '{print substr($1, 1, 12)}'
+    return 0
+  fi
 
-  for shim_name in "${shim_names[@]}"; do
-    case "$shim_name" in
-      aws) AWS_IMAGE_PULL=always "$SHIMMY_SHIM_DIR/aws" --version >/dev/null </dev/null ;;
-      jq) JQ_IMAGE_PULL=always "$SHIMMY_SHIM_DIR/jq" --version >/dev/null </dev/null ;;
-      rg) RG_IMAGE_PULL=always "$SHIMMY_SHIM_DIR/rg" --version >/dev/null </dev/null ;;
-      terraform) TF_IMAGE_PULL=always "$SHIMMY_SHIM_DIR/terraform" version >/dev/null </dev/null ;;
-    esac
-  done
+  if command -v shasum >/dev/null 2>&1; then
+    tar \
+      -C "$context_dir" \
+      --sort=name \
+      --mtime='UTC 1970-01-01' \
+      --owner=0 \
+      --group=0 \
+      --numeric-owner \
+      -cf - \
+      . 2>/dev/null | shasum -a 256 | awk '{print substr($1, 1, 12)}'
+    return 0
+  fi
+
+  return 1
 }
 
-run_build_refresh() {
-  local shim_name
-  local -a shim_names
+ensure_podman_path() {
+  if command -v podman >/dev/null 2>&1; then
+    return 0
+  fi
 
-  [[ -d "$SHIMMY_SHIM_DIR" ]] || return 0
+  if [ -x /opt/podman/bin/podman ]; then
+    PATH=${PATH:+$PATH:}/opt/podman/bin
+    export PATH
+    return 0
+  fi
 
-  mapfile -t shim_names < <(find "$SHIMMY_SHIM_DIR" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) -printf '%f\n' | sort)
-
-  for shim_name in "${shim_names[@]}"; do
-    case "$shim_name" in
-      netcat)
-        NETCAT_IMAGE_BUILD=always "$SHIMMY_SHIM_DIR/netcat" --help >/dev/null </dev/null
-        cleanup_old_local_images "$shim_name"
-        ;;
-      task)
-        TASK_IMAGE_BUILD=always "$SHIMMY_SHIM_DIR/task" --version >/dev/null </dev/null
-        cleanup_old_local_images "$shim_name"
-        ;;
-      tessl)
-        TESSL_IMAGE_BUILD=always "$SHIMMY_SHIM_DIR/tessl" --help >/dev/null </dev/null
-        cleanup_old_local_images "$shim_name"
-        ;;
-      textual)
-        TEXTUAL_IMAGE_BUILD=always "$SHIMMY_SHIM_DIR/textual" --help >/dev/null </dev/null
-        cleanup_old_local_images "$shim_name"
-        ;;
-    esac
-  done
+  return 1
 }
 
 local_build_repo_for_shim() {
   case "$1" in
     netcat) printf 'localhost/shimmy-netcat\n' ;;
     task) printf 'localhost/shimmy-task\n' ;;
-    tessl) printf 'localhost/shimmy-tessl\n' ;;
     textual) printf 'localhost/shimmy-textual\n' ;;
+    tessl) printf 'localhost/shimmy-tessl\n' ;;
     *) return 1 ;;
   esac
 }
 
-local_build_context_for_shim() {
-  printf '%s/%s\n' "$SHIMMY_IMAGES_DIR" "$1"
+cleanup_old_local_images() {
+  shim_name=$1
+  images_dir=$2
+  image_repo=$(local_build_repo_for_shim "$shim_name" || true)
+
+  [ -n "$image_repo" ] || return 0
+
+  context_dir=$images_dir/$shim_name
+  current_hash=$(context_hash "$context_dir" || true)
+  [ -n "$current_hash" ] || return 0
+
+  current_ref=${image_repo}:$current_hash
+
+  podman images \
+    --filter "label=io.wadebee.shimmy.image-repo=${image_repo}" \
+    --format '{{.Repository}}:{{.Tag}}' | sort -u | while IFS= read -r image_ref; do
+      [ -n "$image_ref" ] || continue
+      case "$image_ref" in
+        "<none>:<none>"|"<none>:"*|*":<none>")
+          continue
+          ;;
+      esac
+      if [ "$image_ref" = "$current_ref" ]; then
+        continue
+      fi
+
+      if podman image rm "$image_ref" >/dev/null 2>&1; then
+        printf 'WARN: Removed stale shim image: %s\n' "$image_ref" >&2
+      else
+        printf 'WARN: Unable to remove stale shim image (possibly in use): %s\n' "$image_ref" >&2
+      fi
+    done
 }
 
-cleanup_old_local_images() {
-  local shim_name="$1"
-  local image_repo context_dir current_ref image_ref
+run_pull_refresh() {
+  shim_dir=$1
+  manifest_file=$2
 
-  image_repo="$(local_build_repo_for_shim "$shim_name")" || return 0
-  context_dir="$(local_build_context_for_shim "$shim_name")"
-  [[ -d "$context_dir" ]] || return 0
+  ensure_podman_path || fail "podman is required for shimmy update --pull"
 
-  current_ref="${image_repo}:$(shimmy::compute_context_hash "$context_dir")"
+  while IFS= read -r shim_name; do
+    [ -n "$shim_name" ] || continue
+    case "$shim_name" in
+      aws)
+        AWS_IMAGE_PULL=always "$shim_dir/aws" --version >/dev/null </dev/null
+        ;;
+      jq)
+        JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null </dev/null
+        ;;
+      rg)
+        RG_IMAGE_PULL=always "$shim_dir/rg" --version >/dev/null </dev/null
+        ;;
+      terraform)
+        TF_IMAGE_PULL=always "$shim_dir/terraform" version >/dev/null </dev/null
+        ;;
+    esac
+  done <<EOF
+$(manifest_shim_list "$manifest_file")
+EOF
+}
 
-  while IFS= read -r image_ref; do
-    [[ -n "$image_ref" ]] || continue
-    if [[ "$image_ref" == "<none>:<none>" || "$image_ref" == "<none>:"* || "$image_ref" == *":<none>" ]]; then
-      continue
-    fi
-    if [[ "$image_ref" == "$current_ref" ]]; then
-      continue
-    fi
+run_build_refresh() {
+  shim_dir=$1
+  images_dir=$2
+  manifest_file=$3
 
-    if podman image rm "$image_ref" >/dev/null 2>&1; then
-      shimmy::log warn "Removed stale shim image: $image_ref"
-    else
-      shimmy::log warn "Unable to remove stale shim image (possibly in use): $image_ref"
-    fi
-  done < <(
-    podman images \
-      --filter "label=io.wadebee.shimmy.image-repo=${image_repo}" \
-      --format '{{.Repository}}:{{.Tag}}' | sort -u
-  )
+  ensure_podman_path || fail "podman is required for shimmy update --build"
 
-  return 0
+  while IFS= read -r shim_name; do
+    [ -n "$shim_name" ] || continue
+    case "$shim_name" in
+      netcat)
+        NETCAT_IMAGE_BUILD=always "$shim_dir/netcat" --help >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name" "$images_dir"
+        ;;
+      task)
+        TASK_IMAGE_BUILD=always "$shim_dir/task" --version >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name" "$images_dir"
+        ;;
+      textual)
+        TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual" --help >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name" "$images_dir"
+        ;;
+      tessl)
+        TESSL_IMAGE_BUILD=always "$shim_dir/tessl" --help >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name" "$images_dir"
+        ;;
+    esac
+  done <<EOF
+$(manifest_shim_list "$manifest_file")
+EOF
+}
+
+usage() {
+  cat <<'EOF'
+Refresh an existing shimmy installation from the current repository.
+
+Usage:
+  scripts/update-shimmy.sh [--install-dir <dir>] [--pull] [--build]
+
+Options:
+  --install-dir <dir>  Base install directory. Default: ~/.config/shimmy
+  --pull               Pull newer remote images for installed remote-image shims.
+  --build              Rebuild local images for installed local-build shims.
+  -h, --help
+EOF
 }
 
 main() {
-  while [[ $# -gt 0 ]]; do
+  while [ "$#" -gt 0 ]; do
     case "$1" in
+      --install-dir)
+        [ "$#" -ge 2 ] || fail "missing value for --install-dir"
+        REQUESTED_INSTALL_DIR=$2
+        shift 2
+        ;;
       --pull)
         PULL_IMAGES=1
         shift
@@ -218,29 +245,45 @@ main() {
         ;;
       -h|--help)
         usage
-        return 0
+        exit 0
         ;;
       *)
-        printf 'ERROR: unknown argument: %s\n' "$1" >&2
-        return 1
+        fail "unknown argument: $1"
         ;;
     esac
   done
 
-  if [[ ! -f "$INSTALL_MANIFEST_FILE" ]]; then
-    printf 'ERROR: no shimmy install manifest found at %s; run ./shimmy install first\n' "$INSTALL_MANIFEST_FILE" >&2
-    return 1
+  install_dir=$(install_dir_resolve)
+  manifest_file=$install_dir/install-manifest.txt
+
+  if [ ! -f "$manifest_file" ]; then
+    fail "no shimmy install manifest found at $manifest_file; run ./shimmy install first"
   fi
 
-  load_update_args_from_manifest
-  env "${UPDATE_ENV_VARS[@]}" bash "$SCRIPT_DIR/install-shimmy.sh" "${UPDATE_ARGS[@]}"
-  shimmy::apply_install_paths_from_manifest "$INSTALL_MANIFEST_FILE" || true
-
-  if [[ "$PULL_IMAGES" -eq 1 ]]; then
-    run_pull_refresh
+  manifest_install_dir=$(manifest_value "$manifest_file" install_dir || true)
+  if [ -n "$manifest_install_dir" ]; then
+    install_dir=$(trim_trailing_slash "$manifest_install_dir")
+    manifest_file=$install_dir/install-manifest.txt
   fi
-  if [[ "$BUILD_IMAGES" -eq 1 ]]; then
-    run_build_refresh
+
+  set -- "$SCRIPT_DIR/install-shimmy.sh" --install-dir "$install_dir"
+  while IFS= read -r shim_name; do
+    [ -n "$shim_name" ] || continue
+    set -- "$@" --shim "$shim_name"
+  done <<EOF
+$(manifest_shim_list "$manifest_file")
+EOF
+  "$@"
+
+  shim_dir=$install_dir/shims
+  images_dir=$install_dir/images
+
+  if [ "$PULL_IMAGES" -eq 1 ]; then
+    run_pull_refresh "$shim_dir" "$manifest_file"
+  fi
+
+  if [ "$BUILD_IMAGES" -eq 1 ]; then
+    run_build_refresh "$shim_dir" "$images_dir" "$manifest_file"
   fi
 }
 
