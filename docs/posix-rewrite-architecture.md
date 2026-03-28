@@ -1,30 +1,28 @@
 ## Compact Restart Brief
+Follow the bullets below in order.
+- Read this entire document and parse it as your "initial context".
+- Your first action is to read the `Approved Decisions` section below and then determine a plan for implementing them 
+- Modify the `Current checklist status` section below to include the implementation plan for the `Approved decisions` section 
+- When integrating the implementation plan, attempt to reuse existing checklist items when it makes sense. 
+- Order the checklist items based of the priority you recommend for optimal implementation
+- When adding to the `Approved decisions` checklist keep description as compact as possible without losing clarity on goals.
+- When rebuilding the `Approved decisions` checklist refresh the status of each item which has current status of approved to see if it has been implemented.   
+- Iterate over checklist items to determine, plan and implement the next 'to-do' item in the list. 
+- Create a checkpoint after you have planned the next action. 
+- Document any optional decisions you planned in the `Approved decisions` section and a status of pending.
+- Throughout your changes to the `Approved decisions` section, limit the status options to one of the following: `to-do`, `done`, or `pending`
+- Confirm with me your planned approach and optional decisions
+- Once approved, update the status of the decision to `approved`
+- Once you have completed the checklist item and the approved decision has been implemented, change the decision status to `done`
+- Commit the code changes with a compact commit message
+- Show user the updated "Current Checklist" in your response along with feedback from the last action and helpful thoughts on "next steps".
 
-Read this entire document as a "restart context" for the `posix-rewrite`.
-
-The following user approved decisions have not yet been captured in the 'Current checklist status:'   
-- Remove symlink install mode from the target design.
-- Use a single fixed install layout under one install root.
-- Default the install root to `~/.config/shimmy`.
-- Keep install root configurable through `--install-dir`.
-- Remove exported `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_SHIM_LIB_DIR` from the target runtime model.
-- Rename the activation command from `shellenv` to `activate`.
-- Make `activate` primarily responsible for PATH activation.
-- Treat Podman as an explicit dependency. Shimmy must not install it.
-- Final macOS usage must not require users to prepend `/opt/podman/bin` manually.
-- If Shimmy ever exports user-shell variables again, they must use the `SHIMMY_` prefix.
-
-Implementation note:
-- Your first action should update the `Current checklist status` list below to integrate the new decisions above.
-- Then update the status of each checklist item to see if they require rework
-- Prioritize the checklist to maximize chances of a successful conversion by you in a later session.
-- A prior proof of concept already exists on this branch using `shellenv`, explicit `SHIMMY_*` exports, and copy/symlink installer support.
-- That proof of concept successfully validated the POSIX direction and live Podman tests for the jq shim so doesn't need to be reimplemented. Simply validate.
-- The next implementation phase should adapt that proof of concept to the newly approved `activate` and single-root design rather than treating the earlier POC interface as final.
-- Lets iterate over checklist items. Create a checkpoint at each item and confirm with me your approach and any optional decisions you would like clarity on. Once we are in agreement, update this rewrite doc as appropriate to create a decision log.
+### Design Decisions
+- `approved` Keep install root configurable through `--install-dir`.
+- `approved` Final macOS usage must not require users to prepend `/opt/podman/bin` manually.
+- `approved` If Shimmy ever exports user-shell variables again, they must use the `SHIMMY_` prefix.
 
 ### Current checklist status:
-
 - `done` Create and switch to `posix-rewrite`
   `thinking: medium`
 - `done` Inventory current capabilities
