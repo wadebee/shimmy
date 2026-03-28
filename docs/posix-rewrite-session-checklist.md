@@ -9,11 +9,10 @@ This document defines an AI session workflow for coding within the `posix-rewrit
 - Trigger a Session Checklist completion checkpoint after you have planned the next action and then present your planned approach and initiate a `Checkpoint Questions` interaction
 
 ## Checkpoint Questions
-Before expanding beyond the proof of concept, confirm:
-- new conventions are acceptable
-- implementation formats are simple enough
-- `eval "$(shimmy activate)"` or other simple onboarding path has been implemented without exporting Shimmy-managed path variables
-- the proof-of-concept shim shape is good enough to replicate
+Before committing completed item changes, confirm:
+- code changes are acceptable
+- design decisions and implementation ramifications have been presented for approval 
+- report any findings during implementation that may require follow-on modifications 
 
 ## Session Checklist Purpose and Workflow Processing Instructions
 - A mutable workflow queue, progress indicator and log of actions completed.
