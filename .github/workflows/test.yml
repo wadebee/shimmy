@@ -36,5 +36,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check Podman Dependency
+        run: podman --version
+
       - name: Run shim tests
         run: ./shimmy test

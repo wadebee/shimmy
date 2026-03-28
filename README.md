@@ -34,11 +34,14 @@ That document is the contributor source of truth, including naming conventions f
 ## Requirements
 
 - **Bash** — Version 4.0+
-- **Podman** — Install via your package manager (or Docker as a fallback)
+- **Podman CLI** — Explicit required dependency. Podman *Desktop* is not required. 
+For MacOS run `podman machine init` and `podman machine start` after installation.
+Install and configure for rootless operation separately before using Shimmy. Official install guide: <https://podman.io/docs/installation>
+If Podman is installed from the macOS pkg installer, the binary may live at `/opt/podman/bin/podman`. Ensure `/opt/podman/bin` is on `PATH` for shells and automation that run Shimmy.
 
 ### Podman rootless requirement
 
-Shimmy expects a working rootless Podman setup. On some minimal Linux environments, including Chromebook's Crostini, rootless requirements for subordinate id ranges do not exist. In this scenario Podman will warn "no subuid ranges found" and fall back to a single UID/GID mapping.
+Shimmy expects a working rootless Podman engine setup. On some minimal Linux environments, including Chromebook's Crostini, rootless requirements for subordinate id ranges do not exist. In this scenario Podman will warn "no subuid ranges found" and fall back to a single UID/GID mapping.
 
 Check your configuration (should output a range of id values, eg: 10000:65536):
 ```

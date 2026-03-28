@@ -23,7 +23,9 @@ Constraints:
 - Keep image-build logic in the shared shim helper library so custom-image shims rebuild only when the build context changes.
 - End with `exec podman run --rm ... "$IMAGE" "$@"`.
 - Update `scripts/install-shimmy.sh` because it enumerates shim names explicitly.
-- Update `scripts/test-shimmy.sh` with needed assertions against prerequisite `podman` installation.
+- Treat Podman as an explicit dependency. Do not add install or provisioning steps for it in Shimmy code, tests, or CI.
+- On macOS, account for the official Podman pkg installer path `/opt/podman/bin/podman` when documenting or validating the dependency.
+- Update `scripts/test-shimmy.sh` with live Podman-based assertions against prerequisite `podman` installation.
 - Update `README.md` so the default image, env vars, mounts, and examples stay accurate.
 - Keep the `Included Shims` table in `README.md` sorted alphabetically by Tool name whenever you add or rename entries.
 - Keep runnable shell files executable.
@@ -33,7 +35,7 @@ Deliverables:
 1. The runtime shim.
 2. Any `images/<tool>/Containerfile` assets required for custom-built images.
 3. Installer updates if the shim set or shared shim helper assets changed.
-4. When creating container tests, use Podman and non-mutating cli calls (eg: version or --help) to validate container.
+4. When creating container tests, use live Podman and non-mutating cli calls (eg: version or --help) to validate container.
 5. README updates.
 6. A short explanation of mounts, env forwarding, pull policy, and local image build behavior when applicable.
 

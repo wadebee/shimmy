@@ -58,6 +58,7 @@ exec podman run --rm <interactive-flag> "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "${EN
 - Prefer wildcard env forwarding such as `-e AWS_*` when the underlying CLI already depends on a family of env vars.
 - Preserve transparent CLI behavior by passing `"$@"` unchanged.
 - Choose a pinned image unless there is a strong reason to use `latest`.
+- Treat Podman as an explicit dependency. On macOS, remember the official pkg installer may place it at `/opt/podman/bin/podman`.
 
 ## Change Checklist
 
