@@ -1,6 +1,6 @@
 ## Scope
 
-This repository packages and makes common CLI tools available to your shell as small Bash shims that call `podman run`.
+This repository packages and makes common CLI tools available to your shell as small wrappers that call `podman run`.
 
 ## Project Map
 
@@ -24,9 +24,10 @@ This repository packages and makes common CLI tools available to your shell as s
 
 - Read `CONTRIBUTING.md` before making repo changes.
 - Follow the naming conventions in `CONTRIBUTING.md` for files, functions, and variables.
-- Keep runtime shims as small Bash wrappers with `set -euo pipefail`.
+- Keep runtime shims as small POSIX shell wrappers with `#!/bin/sh` and `set -eu`.
 - Mount `$PWD` to `/work` unless the shim has a documented reason not to.
 - Use `<PREFIX>_IMAGE` for image override and `<PREFIX>_IMAGE_PULL=always` for pull policy.
+- Any Shimmy-defined variable exported into the user's shell must use the `SHIMMY_` prefix.
 - Update shim helper code, install script, tests, and README together when behavior changes.
 - Treat Podman as an explicit dependency. Do not add Shimmy-side installation or provisioning steps for it.
 - On macOS, remember the official Podman pkg installer may place the binary at `/opt/podman/bin/podman`. If automation cannot find `podman`, check that `/opt/podman/bin` is on `PATH`.

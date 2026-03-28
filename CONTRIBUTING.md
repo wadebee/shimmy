@@ -17,7 +17,7 @@ Use it as the source of truth for repository contribution guidance that should b
 
 Use these naming conventions for files, functions, and variables unless a stronger repo-specific rule already exists.
 
-Default to common Bash best practices when choosing names. Apply the overrides in this section when they are more specific.
+Default to POSIX shell best practices when choosing names. Apply the overrides in this section when they are more specific.
 
 ### Naming Priorities
 
@@ -78,35 +78,36 @@ Use function names that are explicit, source-safe, and easy to scan.
 
 - Do not use the `function` keyword.
 - Keep functions in a file sorted alphabetically unless a different order materially improves readability.
-- For library functions, use the common `shimmy::` prefix to avoid collisions with other libraries or built-in commands.
-- Internal library functions that are not intended for direct sourcing by an external user should start with a single leading underscore after the namespace.
-- Use lowercase snake_case after the namespace.
+- For shell functions, use the POSIX-safe `shimmy_` prefix to avoid collisions with other libraries or built-in commands.
+- Internal helper functions that are not intended for external use should start with `shimmy__`.
+- Use lowercase snake_case after the prefix.
 - Keep token flow general to specific.
 - Flag functions that return `0/1` or `true/false` intent should be prefixed with `is_`.
 - Name flag functions so the predicate is obvious from the call site.
 
 Patterns:
 
-- public library function: `shimmy::<resource>_<action>_<instance>`
-- internal library function: `shimmy::_<resource>_<action>_<instance>`
-- public flag function: `shimmy::is_<resource>_<state>`
-- internal flag function: `shimmy::_is_<resource>_<state>`
+- public function: `shimmy_<resource>_<action>_<instance>`
+- internal function: `shimmy__<resource>_<action>_<instance>`
+- public flag function: `shimmy_is_<resource>_<state>`
+- internal flag function: `shimmy__is_<resource>_<state>`
 
 Examples:
 
-- `shimmy::image_build_context_hash`
-- `shimmy::is_shimmy_in_path`
-- `shimmy::is_dir_in_path`
-- `shimmy::_is_token_in_manifest`
-- `shimmy::install_path_render`
-- `shimmy::_log_level_normalize`
-- `shimmy::_shim_list_read`
+- `shimmy_image_build_context_hash`
+- `shimmy_is_shimmy_in_path`
+- `shimmy_is_dir_in_path`
+- `shimmy__is_token_in_manifest`
+- `shimmy_install_path_render`
+- `shimmy__log_level_normalize`
+- `shimmy__shim_list_read`
 
 Avoid:
 
 - `function shimmy_install()`
 - `shimmyInstall`
 - `_shimmy_install`
+- `shimmy::install_path_render`
 - `install_shimmy_thing`
 
 ### Variable Naming
@@ -116,6 +117,7 @@ Choose variable names using the same general-to-specific token flow.
 - Local shell variables should use lowercase snake_case.
 - Exported environment variables and shared constants should use uppercase snake_case.
 - Global environment variables should use uppercase snake_case and start with the `SHIMMY_` prefix.
+- Any variable that Shimmy exports into the user's shell environment must use the `SHIMMY_` prefix.
 - Use resource-first ordering where possible.
 - Reuse established env var prefixes for tool shims.
 

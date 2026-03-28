@@ -4,14 +4,14 @@ Use the prompt below when generating a new shim or revising an existing shim in 
 
 ## Copyable Prompt
 
-Create or update a shim in the `shimmy` repository. This project exposes common CLI tools through small Bash wrappers that execute `podman run`, so users can call containerized tools as if they were locally installed.
+Create or update a shim in the `shimmy` repository. This project exposes common CLI tools through small POSIX shell wrappers that execute `podman run`, so users can call containerized tools as if they were locally installed.
 
 Constraints:
 
 - Read `CONTRIBUTING.md` before making repo changes.
 - Follow the naming conventions in `CONTRIBUTING.md` for files, functions, and variables.
 - Put the runtime wrapper in `shims/<tool>`.
-- Use Bash with `#!/usr/bin/env bash`.
+- Use POSIX shell with `#!/bin/sh` and `set -eu`.
 - Read the default image from `<PREFIX>_IMAGE`.
 - Support `<PREFIX>_IMAGE_PULL=always` by adding `--pull=always` to `podman run`.
 - For tools that are not already published as container images, add `images/<tool>/Containerfile` and build a local Podman image on demand instead of embedding install steps in the runtime wrapper.
@@ -41,14 +41,13 @@ Deliverables:
 
 ## Repo Anatomy
 
-- `shims/` contains one Bash wrapper per tool.
+- `shims/` contains one wrapper per tool.
 - `images/` contains `Containerfile` build contexts for shims that need locally built images.
 - `lib/shims/` contains reusable installed helper scripts that shims source at runtime.
 - `lib/repo/` contains sourced helpers for repo-level wrapper and lifecycle scripts.
 - `.agents/skills/` contains shim-specific AI contributor guidance.
 - `scripts/install-shimmy.sh` installs a fixed list of shim names by symlink or copy.
-- `scripts/test-shimmy.sh` runs Podman-backed smoke tests against non-mutating CLI commands.
-- `.envrc` adds `shims/` to `PATH` for local direnv usage.
+- `scripts/test-shimmy.sh` runs live Podman-backed smoke tests against non-mutating CLI commands. Hard dependency on availability of Podman installation (outside Shimmy project)
 - `.github/workflows/test.yml` runs the shell test suite in CI.
 
 ## Known Findings From The Scan
