@@ -15,9 +15,9 @@ It is the checkpoint document for the first rewrite iteration and should guide a
 ## In Scope
 
 - Repo control surface via `shimmy`
-- `install`, `uninstall`, `status`, `update`, `test`, and `shellenv`
+- `install`, `uninstall`, `status`, `update`, `test`, and `activate`
 - Install manifests and install-path tracking
-- `eval "$(shimmy shellenv)"` activation
+- `eval "$(shimmy activate)"` activation
 - Remote-image shims
 - Local-build shims except `tessl`
 - Podman-backed smoke tests
@@ -35,10 +35,11 @@ It is the checkpoint document for the first rewrite iteration and should guide a
 The rewrite should reproduce these capabilities in a new POSIX-friendly design:
 
 - Install shimmy-managed assets into user-scoped locations
-- Support copy and symlink install modes
+- Default to a single fixed install layout rooted at `~/.config/shimmy`
+- Support explicit install roots via `--install-dir`
 - Track the active install using a manifest file
-- Support explicit install paths via `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_SHIM_LIB_DIR`
-- Print activation code with `shimmy shellenv`
+- Avoid exporting Shimmy-managed path variables into the user shell by default
+- Print activation code with `shimmy activate`
 - Report install state and installed shim image references
 - Refresh an existing install from repo state
 - Run smoke tests against Podman-backed shims
@@ -61,8 +62,10 @@ The rewrite should reproduce these capabilities in a new POSIX-friendly design:
 - Prefer one-directional control flow over source-time side effects.
 - Keep install-time behavior idempotent.
 - Avoid editing user rc files in the initial foundation.
-- Add onboarding helpers only after `shellenv` is stable.
+- Separate installer and admin configuration from runtime shell activation.
+- Add onboarding helpers only after `activate` is stable.
 - Treat Podman as an explicit dependency. Shimmy should fail clearly when it is missing, not try to install it.
+- Final macOS usage should not require users to manually prepend `/opt/podman/bin`.
 
 ## POSIX Coding Rules
 
@@ -96,7 +99,7 @@ The rewrite should reproduce these capabilities in a new POSIX-friendly design:
 
 - Thin POSIX entrypoint
 - Dispatches subcommands to scripts in `scripts/`
-- Provides `shellenv`
+- Provides `activate`
 - Does not support sourced-script detection as a core feature
 
 ### `scripts/`
@@ -128,8 +131,10 @@ Helper libraries should expose only POSIX-safe function names and avoid dynamic 
 The primary onboarding path is:
 
 ```sh
-eval "$(shimmy shellenv)"
+eval "$(shimmy activate)"
 ```
+
+`activate` should primarily be a PATH activator. Its default output should make installed shims discoverable without exporting Shimmy-managed internal path variables into the user shell.
 
 ### Persistent setup
 
@@ -156,7 +161,7 @@ The first implementation checkpoint should include:
 
 - new POSIX-safe helper naming conventions
 - a POSIX `shimmy` entrypoint
-- a POSIX `shellenv` implementation
+- a POSIX `activate` implementation
 - a minimal POSIX install flow
 - one simple remote-image shim, expected to be `jq`
 - minimal `/bin/sh` validation and one Podman smoke test
@@ -167,6 +172,70 @@ Before expanding beyond the proof of concept, confirm:
 
 - the new helper naming convention is acceptable
 - the manifest format is simple enough
-- `eval "$(shimmy shellenv)"` is the preferred onboarding path
+- `eval "$(shimmy activate)"` is the preferred onboarding path
 - rc-file editing remains deferred
 - the proof-of-concept shim shape is good enough to replicate
+
+## Compact Restart Brief
+
+Use this document as the restart context for the next session on `posix-rewrite`.
+
+Approved decisions:
+
+- Remove symlink install mode from the target design.
+- Use a single fixed install layout under one install root.
+- Default the install root to `~/.config/shimmy`.
+- Keep install root configurable through `--install-dir`.
+- Remove exported `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_SHIM_LIB_DIR` from the target runtime model.
+- Rename the activation command from `shellenv` to `activate`.
+- Make `activate` primarily responsible for PATH activation.
+- Treat Podman as an explicit dependency. Shimmy must not install it.
+- Final macOS usage must not require users to prepend `/opt/podman/bin` manually.
+- If Shimmy ever exports user-shell variables again, they must use the `SHIMMY_` prefix.
+
+Implementation note:
+
+- A prior proof of concept already exists on this branch using `shellenv`, explicit `SHIMMY_*` exports, and copy/symlink installer support.
+- That proof of concept successfully validated the POSIX direction and live Podman tests.
+- The next implementation phase should adapt that proof of concept to the newly approved `activate` and single-root design rather than treating the earlier POC interface as final.
+
+Current checklist status:
+
+- `done` Create and switch to `posix-rewrite`
+  `thinking: medium`
+- `done` Inventory current capabilities
+  `thinking: medium`
+- `done` Define out-of-scope items
+  `thinking: medium`
+- `done` Establish the new POSIX architecture and coding rules
+  `thinking: high`
+- `done` Build proof-of-concept `shimmy` entrypoint in POSIX shell
+  `thinking: medium`
+- `done` Build proof-of-concept `shellenv` flow using `eval "$(shimmy shellenv)"`
+  `thinking: medium`
+- `done` Build proof-of-concept install flow
+  `thinking: high`
+- `to-do` Add onboarding-helper checklist item for common POSIX shell environments
+  `thinking: medium`
+- `done` Port one simple remote-image shim as the reference implementation
+  `thinking: medium`
+- `done` Add minimal `/bin/sh` validation and smoke tests for the proof of concept
+  `thinking: medium`
+- `done` Checkpoint and confirm approach before expanding the pattern
+  `thinking: high`
+- `done` Update contributor and project docs to match the approved proof-of-concept pattern
+  `thinking: medium`
+- `to-do` Expand the rewrite to the remaining in-scope shims and lifecycle commands
+  `thinking: high`
+- `to-do` Add secondary onboarding features, including optional rc-file helpers
+  `thinking: medium`
+
+Next-session priority adjustments:
+
+- Current git-branch is posix-rewrite
+- continue with medium thinking unless otherwise requested
+- Replace `shellenv` with `activate`.
+- Remove symlink mode from installer and tests.
+- Collapse the install model to a single-root layout with derived subdirectories.
+- Rework activation so user-shell setup is PATH-first and does not export Shimmy-managed path variables.
+- Then continue broad shim and lifecycle refactoring on top of that cleaner foundation.

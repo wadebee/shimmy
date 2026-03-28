@@ -32,23 +32,18 @@ Use this as the starting point for a new shim skill or as a checklist for a one-
 
 ## Runtime Pattern
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
+```sh
+#!/bin/sh
+set -eu
 
 <PREFIX>_IMAGE=${<PREFIX>_IMAGE:-<default-image>}
+<PREFIX>_IMAGE_PULL=${<PREFIX>_IMAGE_PULL:-}
 
-MOUNTS=( -v "$PWD":/work -w /work )
-ENV_VARS=()
-PODMAN_OPTS=()
-
-# Add tool-specific mounts here.
-
-if [ "${<PREFIX>_IMAGE_PULL:-}" = "always" ]; then
-  PODMAN_OPTS+=( --pull=always )
+if [ "$<PREFIX>_IMAGE_PULL" = "always" ]; then
+  exec podman run --rm <interactive-flag> --pull=always -v "$PWD:/work" -w /work "$<PREFIX>_IMAGE" "$@"
 fi
 
-exec podman run --rm <interactive-flag> "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "${ENV_VARS[@]}" "$<PREFIX>_IMAGE" "$@"
+exec podman run --rm <interactive-flag> -v "$PWD:/work" -w /work "$<PREFIX>_IMAGE" "$@"
 ```
 
 ## Design Rules
@@ -63,7 +58,7 @@ exec podman run --rm <interactive-flag> "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "${EN
 ## Change Checklist
 
 1. Add the shim to the fixed install list in `scripts/install-shimmy.sh`.
-2. Add exact argv tests in `scripts/test-shimmy.sh`.
+2. Add live Podman-backed tests in `scripts/test-shimmy.sh`.
 3. Document the tool in `README.md`.
 4. Keep executable bits on runnable shell files.
 5. If the tool differs materially from existing shims, add a shim-specific skill folder under `../../../.agents/skills/`.
