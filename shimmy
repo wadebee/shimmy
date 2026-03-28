@@ -1,18 +1,10 @@
-#!/usr/bin/env bash
+#!/bin/sh
+set -eu
 
-is_sourced() {
-  [[ "${BASH_SOURCE[0]}" != "$0" ]]
-}
-
-if ! is_sourced; then
-  set -euo pipefail
-fi
-
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$SCRIPT_DIR"
-
-# shellcheck source=lib/repo/shimmy-env.sh
-source "$ROOT_DIR/lib/repo/shimmy-env.sh"
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+ROOT_DIR=$SCRIPT_DIR
 
 usage() {
   cat <<'EOF'
@@ -37,51 +29,29 @@ Examples:
   ./shimmy update --pull --build
   ./shimmy test
   eval "$(./shimmy shellenv)"
-  source <(./shimmy shellenv)
 EOF
 }
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
-  if is_sourced; then
-    return 1
-  fi
   exit 1
 }
 
 run_repo_script() {
-  local script_path="${1:?script path is required}"
+  script_path=${1:?script path is required}
   shift
 
-  if is_sourced; then
-    bash "$script_path" "$@"
-    return $?
+  if [ ! -x "$script_path" ]; then
+    fail "missing executable script: $script_path"
   fi
 
-  exec bash "$script_path" "$@"
-}
-
-print_shellenv() {
-  local requested_install_dir="${1:-}"
-
-  shimmy::init_home_vars "$HOME"
-  shimmy::discover_install_paths "$requested_install_dir"
-
-  if [[ ! -f "$INSTALL_MANIFEST_FILE" ]]; then
-    fail "no shimmy install manifest found at $INSTALL_MANIFEST_FILE; run ./shimmy install first"
-  fi
-
-  shimmy::render_path_block \
-    "$SHIMMY_SHIM_DIR" \
-    "$SHIMMY_INSTALL_DIR" \
-    "$SHIMMY_IMAGES_DIR" \
-    "$SHIMMY_SHIM_LIB_DIR"
+  exec "$script_path" "$@"
 }
 
 main() {
-  local command="${1:-help}"
+  command_name=${1:-help}
 
-  case "$command" in
+  case "$command_name" in
     help|-h|--help)
       usage
       ;;
@@ -107,13 +77,10 @@ main() {
       ;;
     shellenv)
       shift
-      if [[ $# -gt 0 ]]; then
-        fail "shellenv does not accept arguments"
-      fi
-      print_shellenv
+      run_repo_script "$ROOT_DIR/scripts/shellenv-shimmy.sh" "$@"
       ;;
     *)
-      fail "unknown command: $command"
+      fail "unknown command: $command_name"
       ;;
   esac
 }

@@ -1,22 +1,31 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-# Podman-based jq wrapper
-# Usage: shims/jq <jq-args>
-# Example: shims/jq .foo
-
-# Use the official stedolan/jq image from docker.io by default (latest tag)
 JQ_IMAGE=${JQ_IMAGE:-docker.io/stedolan/jq:latest}
 JQ_IMAGE_PULL=${JQ_IMAGE_PULL:-}
 
-# Mount current working directory as /work
-MOUNTS=( -v "$PWD":/work -w /work )
+resolve_podman() {
+  if command -v podman >/dev/null 2>&1; then
+    command -v podman
+    return 0
+  fi
 
-# Pull policy: respect JQ_IMAGE_PULL=always
-PODMAN_OPTS=()
-if [ "${JQ_IMAGE_PULL:-}" = "always" ]; then
-  PODMAN_OPTS+=( --pull=always )
+  if [ -x /opt/podman/bin/podman ]; then
+    printf '%s\n' '/opt/podman/bin/podman'
+    return 0
+  fi
+
+  return 1
+}
+
+PODMAN_BIN=$(resolve_podman || true)
+if [ -z "$PODMAN_BIN" ]; then
+  printf '%s\n' 'ERROR: podman is required to run the jq shim. If Podman is installed via the macOS pkg installer, ensure /opt/podman/bin is on PATH.' >&2
+  exit 1
 fi
 
-# Run the selected image; assume it contains jq executable at PATH
-exec podman run --rm -i "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "$JQ_IMAGE" "$@"
+if [ "$JQ_IMAGE_PULL" = "always" ]; then
+  exec "$PODMAN_BIN" run --rm -i --pull=always -v "$PWD:/work" -w /work "$JQ_IMAGE" "$@"
+fi
+
+exec "$PODMAN_BIN" run --rm -i -v "$PWD:/work" -w /work "$JQ_IMAGE" "$@"

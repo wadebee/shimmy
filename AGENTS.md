@@ -28,5 +28,7 @@ This repository packages and makes common CLI tools available to your shell as s
 - Mount `$PWD` to `/work` unless the shim has a documented reason not to.
 - Use `<PREFIX>_IMAGE` for image override and `<PREFIX>_IMAGE_PULL=always` for pull policy.
 - Update shim helper code, install script, tests, and README together when behavior changes.
-- When testing containers, use Podman and non-mutating cli calls (eg: version or --help) to validate execution  
+- Treat Podman as an explicit dependency. Do not add Shimmy-side installation or provisioning steps for it.
+- On macOS, remember the official Podman pkg installer may place the binary at `/opt/podman/bin/podman`. If automation cannot find `podman`, check that `/opt/podman/bin` is on `PATH`.
+- When testing containers, use live Podman and non-mutating cli calls (eg: version or --help) to validate execution  
 - Ensure runnable shell files keep executable bits.

@@ -10,6 +10,8 @@ Use it as the source of truth for repository contribution guidance that should b
 - Update related implementation, tests, installer behavior, and user-facing docs together when behavior changes.
 - Reuse established repo patterns before introducing new structure or naming.
 - Keep runnable shell files executable.
+- Treat Podman as an explicit Shimmy dependency. Do not install or provision it from Shimmy code, tests, or CI helpers.
+- Use live Podman execution for shim tests. Do not replace `podman` with fake binaries or argv-only mocks when validating shim behavior.
 
 ## Naming Conventions
 
