@@ -16,19 +16,19 @@ Usage:
 Commands:
   install [args...]     Run scripts/install-shimmy.sh
   uninstall [args...]   Run scripts/install-shimmy.sh --uninstall
+  activate [args...]    Print shell code that activates the installed shim paths now
   status [args...]      Run scripts/status-shimmy.sh
   update [args...]      Run scripts/update-shimmy.sh
   test [args...]        Run scripts/test-shimmy.sh
-  shellenv              Print shell code to activate the installed shim paths now
   help                  Show this help (default action if no command is given)
 
 Examples:
   ./shimmy install
+  eval "$(./shimmy activate)"
   ./shimmy uninstall
   ./shimmy status
   ./shimmy update --pull --build
   ./shimmy test
-  eval "$(./shimmy shellenv)"
 EOF
 }
 
@@ -63,6 +63,10 @@ main() {
       shift
       run_repo_script "$ROOT_DIR/scripts/install-shimmy.sh" --uninstall "$@"
       ;;
+    activate)
+      shift
+      run_repo_script "$ROOT_DIR/scripts/activate-shimmy.sh" "$@"
+      ;;
     status)
       shift
       run_repo_script "$ROOT_DIR/scripts/status-shimmy.sh" "$@"
@@ -74,10 +78,6 @@ main() {
     test)
       shift
       run_repo_script "$ROOT_DIR/scripts/test-shimmy.sh" "$@"
-      ;;
-    shellenv)
-      shift
-      run_repo_script "$ROOT_DIR/scripts/shellenv-shimmy.sh" "$@"
       ;;
     *)
       fail "unknown command: $command_name"
