@@ -36,8 +36,6 @@ Before expanding beyond the proof of concept, confirm:
   `thinking: medium`
 - `done` Rework the proof-of-concept install flow for the approved single-root layout
   `thinking: high`
-- `to-do` Add onboarding-helper checklist item for common POSIX shell environments
-  `thinking: medium`
 - `done` Port one simple remote-image shim as the reference implementation
   `thinking: medium`
 - `done` Add minimal `/bin/sh` validation and smoke tests for the proof of concept
@@ -46,8 +44,13 @@ Before expanding beyond the proof of concept, confirm:
   `thinking: high`
 - `done` Update contributor and project docs to match the approved `activate` plus single-root pattern
   `thinking: medium`
+- `to-do` Add a shared Podman preflight helper for all shims and lifecycle commands
+  `thinking: high`
+  `plan: resolve the Podman binary consistently, verify engine connectivity with a lightweight preflight such as podman info, and standardize actionable failure guidance for missing binaries, unreachable engines, macOS podman machine startup, connection selection, and CONTAINER_HOST overrides`
 - `to-do` Expand the rewrite to the remaining in-scope shims and lifecycle commands
   `thinking: high`
+- `to-do` Add onboarding-helper checklist item for common POSIX shell environments
+  `thinking: medium`
 - `to-do` Add secondary onboarding features, including optional rc-file helpers
   `thinking: medium`
 
