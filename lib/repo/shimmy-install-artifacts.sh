@@ -61,6 +61,29 @@ shimmy::install_manifest_profile_files_delete() {
   done < "$manifest_file"
 }
 
+shimmy::manifest_entries_write_from_array() {
+  local manifest_key="${1:?manifest key is required}"
+  local array_name="${2:?array name is required}"
+  local item_count
+  local item
+
+  if [[ ! "$array_name" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+    printf 'shimmy: invalid array name for manifest write: %s\n' "$array_name" >&2
+    return 1
+  fi
+
+  eval 'item_count=${#'"$array_name"'[@]}'
+  if [[ "$item_count" -eq 0 ]]; then
+    return 0
+  fi
+
+  eval '
+    for item in "${'"$array_name"'[@]}"; do
+      printf '"'"'%s=%s\n'"'"' "$manifest_key" "$item"
+    done
+  '
+}
+
 shimmy::install_manifest_write() {
   local manifest_file="${1:?manifest file is required}"
   local install_dir="${2:?install dir is required}"
@@ -74,10 +97,6 @@ shimmy::install_manifest_write() {
   local bash_shimmy_file="${10:?bash shimmy file is required}"
   local requested_shims_name="${11:?requested shims name is required}"
   local created_shell_files_name="${12:?created shell files name is required}"
-  local shim
-  local path
-  local -n requested_shims_ref="$requested_shims_name"
-  local -n created_shell_files_ref="$created_shell_files_name"
 
   shimmy::log_debug "Writing install manifest to $manifest_file"
   mkdir -p "$install_dir"
@@ -92,12 +111,8 @@ shimmy::install_manifest_write() {
     printf 'bashrc_file=%s\n' "$bashrc_file"
     printf 'bash_profile_file=%s\n' "$bash_profile_file"
     printf 'bash_shimmy_file=%s\n' "$bash_shimmy_file"
-    for shim in "${requested_shims_ref[@]}"; do
-      printf 'requested_shim=%s\n' "$shim"
-    done
-    for path in "${created_shell_files_ref[@]}"; do
-      printf 'created_shell_file=%s\n' "$path"
-    done
+    shimmy::manifest_entries_write_from_array 'requested_shim' "$requested_shims_name"
+    shimmy::manifest_entries_write_from_array 'created_shell_file' "$created_shell_files_name"
   } > "$manifest_file"
 }
 

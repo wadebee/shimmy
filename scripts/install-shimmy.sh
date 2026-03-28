@@ -266,6 +266,7 @@ perform_install() {
     "SHELL_FILES_CREATED_PATHS"
 
   log_info "Installed shims into $SHIMMY_INSTALL_DIR ($INSTALL_MODE)."
+  log_warn "You must exit and restart your bash shell to pick up changes."
 }
 
 perform_uninstall() {
