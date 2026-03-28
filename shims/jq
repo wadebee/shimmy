@@ -1,31 +1,26 @@
 #!/bin/sh
 set -eu
 
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+
 JQ_IMAGE=${JQ_IMAGE:-docker.io/stedolan/jq:latest}
 JQ_IMAGE_PULL=${JQ_IMAGE_PULL:-}
 
-resolve_podman() {
-  if command -v podman >/dev/null 2>&1; then
-    command -v podman
-    return 0
-  fi
-
-  if [ -x /opt/podman/bin/podman ]; then
-    printf '%s\n' '/opt/podman/bin/podman'
-    return 0
-  fi
-
-  return 1
-}
-
-PODMAN_BIN=$(resolve_podman || true)
-if [ -z "$PODMAN_BIN" ]; then
-  printf '%s\n' 'ERROR: podman is required to run the jq shim. If Podman is installed via the macOS pkg installer, ensure /opt/podman/bin is on PATH.' >&2
+if [ ! -f "$PODMAN_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
   exit 1
 fi
 
+# shellcheck source=lib/shims/shimmy-podman.sh
+. "$PODMAN_HELPER_FILE"
+
+shimmy_podman_preflight_require "the jq shim"
+
 if [ "$JQ_IMAGE_PULL" = "always" ]; then
-  exec "$PODMAN_BIN" run --rm -i --pull=always -v "$PWD:/work" -w /work "$JQ_IMAGE" "$@"
+  exec "$SHIMMY_PODMAN_BIN" run --rm -i --pull=always -v "$PWD:/work" -w /work "$JQ_IMAGE" "$@"
 fi
 
-exec "$PODMAN_BIN" run --rm -i -v "$PWD:/work" -w /work "$JQ_IMAGE" "$@"
+exec "$SHIMMY_PODMAN_BIN" run --rm -i -v "$PWD:/work" -w /work "$JQ_IMAGE" "$@"

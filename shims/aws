@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(
+  cd -- "$(dirname -- "$0")" && pwd
+)"
+PODMAN_HELPER_FILE="$SCRIPT_DIR/../lib/shims/shimmy-podman.sh"
+
+if [ ! -f "$PODMAN_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
+  exit 1
+fi
+
+# shellcheck source=lib/shims/shimmy-podman.sh
+. "$PODMAN_HELPER_FILE"
+
+shimmy_podman_preflight_require "the aws shim"
+
 # Podman-based AWS CLI wrapper
 # Usage: shims/aws <aws-args>
 # Example: shims/aws s3 ls
@@ -24,4 +39,4 @@ if [ "${AWS_IMAGE_PULL:-}" = "always" ]; then
 fi
 
 # Execute podman run
-exec podman run --rm -it "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "${ENV_VARS[@]}" "$AWS_IMAGE" "$@"
+exec "$SHIMMY_PODMAN_BIN" run --rm -it "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "${ENV_VARS[@]}" "$AWS_IMAGE" "$@"

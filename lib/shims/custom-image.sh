@@ -4,6 +4,8 @@ CUSTOM_IMAGE_LIB_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=lib/shims/shimmy-log.sh
 source "$CUSTOM_IMAGE_LIB_DIR/shimmy-log.sh"
+# shellcheck source=lib/shims/shimmy-podman.sh
+source "$CUSTOM_IMAGE_LIB_DIR/shimmy-podman.sh"
 
 shimmy::_fail() {
   shimmy::log error "$*"
@@ -47,9 +49,13 @@ shimmy::ensure_local_image() {
   context_hash="$(shimmy::compute_context_hash "$context_dir")"
   image_ref="${image_repo}:${context_hash}"
 
-  if [[ "$build_mode" == "always" ]] || ! podman image exists "$image_ref" >/dev/null 2>&1; then
+  if [[ -z "${SHIMMY_PODMAN_BIN:-}" ]]; then
+    shimmy_podman_bin_require "local shim image builds"
+  fi
+
+  if [[ "$build_mode" == "always" ]] || ! "$SHIMMY_PODMAN_BIN" image exists "$image_ref" >/dev/null 2>&1; then
     shimmy::log info "Building local shim image: $image_ref"
-    podman build \
+    "$SHIMMY_PODMAN_BIN" build \
       --label "io.wadebee.shimmy.image-repo=${image_repo}" \
       --label "io.wadebee.shimmy.context-hash=${context_hash}" \
       -f "$context_dir/Containerfile" \
