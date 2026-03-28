@@ -15,7 +15,10 @@ SHIMMY_BOOTSTRAP_FILE="$SHIMMY_BOOTSTRAP_DIR/shim-bootstrap.sh"
 source "$SHIMMY_BOOTSTRAP_FILE"
 
 shimmy::shim_paths_init "${BASH_SOURCE[0]}"
+shimmy::shim_helper_source "shimmy-podman.sh"
 shimmy::shim_helper_source "task-shim.sh"
+
+shimmy_podman_preflight_require "the task shim"
 
 TASK_RUN_IMAGE="$(shimmy::task_resolve_image "$SHIMMY_IMAGES_DIR")"
 PODMAN_OPTS=()
@@ -29,4 +32,4 @@ if shimmy::is_task_tty_enabled; then
   TTY_OPTS+=( -it )
 fi
 
-exec podman run --rm "${TTY_OPTS[@]}" "${PODMAN_OPTS[@]}" "$TASK_RUN_IMAGE" "$@"
+exec "$SHIMMY_PODMAN_BIN" run --rm "${TTY_OPTS[@]}" "${PODMAN_OPTS[@]}" "$TASK_RUN_IMAGE" "$@"

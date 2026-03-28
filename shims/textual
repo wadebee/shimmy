@@ -15,7 +15,10 @@ SHIMMY_BOOTSTRAP_FILE="$SHIMMY_BOOTSTRAP_DIR/shim-bootstrap.sh"
 source "$SHIMMY_BOOTSTRAP_FILE"
 
 shimmy::shim_paths_init "${BASH_SOURCE[0]}"
+shimmy::shim_helper_source "shimmy-podman.sh"
 shimmy::shim_helper_source "custom-image.sh"
+
+shimmy_podman_preflight_require "the textual shim"
 
 if [[ -n "${TEXTUAL_IMAGE:-}" ]]; then
   TEXTUAL_RUN_IMAGE="$TEXTUAL_IMAGE"
@@ -41,4 +44,4 @@ if [[ -n "${TEXTUAL_IMAGE:-}" && "${TEXTUAL_IMAGE_PULL:-}" = "always" ]]; then
   PODMAN_OPTS+=( --pull=always )
 fi
 
-exec podman run --rm -it "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "$TEXTUAL_RUN_IMAGE" "$@"
+exec "$SHIMMY_PODMAN_BIN" run --rm -it "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "$TEXTUAL_RUN_IMAGE" "$@"

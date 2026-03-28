@@ -19,7 +19,9 @@ Before expanding beyond the proof of concept, confirm:
 - A mutable workflow queue, progress indicator and log of actions completed.
 - Serves as a prioritized queue for eventual AI planning and implementation
 - Where it makes sense, prefer reuse of existing checklist items rather than unnecessarily creating new items.
-- If items have been added, reestablish the order so an "optimal sequence of operations" is maintained. 
+- If items have been added:
+  - Calculate a recommended thinking level that reduces token count without compromising needed inference for the expected complexity 
+  - Reestablish the worktree order so an "optimal sequence of operations" is maintained. 
 
 ### Session Checklist
 - `done` Create and switch branch to `posix-rewrite`
@@ -44,11 +46,12 @@ Before expanding beyond the proof of concept, confirm:
   `thinking: high`
 - `done` Update contributor and project docs to match the approved `activate` plus single-root pattern
   `thinking: medium`
-- `to-do` Add a shared Podman preflight helper for all shims and lifecycle commands
+- `done` Add a shared Podman preflight helper for all shims and lifecycle commands
   `thinking: high`
-  `plan: resolve the Podman binary consistently, verify engine connectivity with a lightweight preflight such as podman info, and standardize actionable failure guidance for missing binaries, unreachable engines, macOS podman machine startup, connection selection, and CONTAINER_HOST overrides`
+  `plan: add one POSIX helper under lib/shims so both repo scripts and installed shims can source it, centralize podman binary resolution including /opt/podman/bin/podman on macOS, expose a lightweight podman info preflight for lifecycle commands and smoke tests, and standardize actionable failure guidance for missing binaries, unreachable engines, macOS podman machine startup, connection selection, and CONTAINER_HOST overrides`
 - `to-do` Expand the rewrite to the remaining in-scope shims and lifecycle commands
   `thinking: high`
+  `plan: port the remaining in-scope remote-image shims to small POSIX /bin/sh wrappers on top of the shared Podman helper, then replace the local-build shim bootstrap and helper path assumptions so netcat, task, and textual no longer depend on Bash-era helpers or exported Shimmy-managed path variables`
 - `to-do` Add onboarding-helper checklist item for common POSIX shell environments
   `thinking: medium`
 - `to-do` Add secondary onboarding features, including optional rc-file helpers
@@ -67,7 +70,7 @@ Before expanding beyond the proof of concept, confirm:
 - Show user the updated "Session Checklist" in your response along with feedback from the last action and helpful thoughts on "next steps".
 
 ### Design Decision Records
-- `pending` Add a shared Podman preflight helper used by all shims which checks both “can I find podman?” and “can podman info talk to the engine?”
+- `done` Add a shared Podman preflight helper used by all shims which checks both “can I find podman?” and “can podman info talk to the engine?”
 - `approved` Keep install root configurable through `--install-dir`.
 - `approved` Final macOS usage must not require users to prepend `/opt/podman/bin` manually.
 - `approved` If Shimmy ever exports user-shell variables again, they must use the `SHIMMY_` prefix.

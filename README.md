@@ -37,7 +37,8 @@ That document is the contributor source of truth, including naming conventions f
 - **Podman CLI** — Explicit required dependency. Podman *Desktop* is not required. 
 For macOS run `podman machine init` and `podman machine start` after installation.
 Install and configure for rootless operation separately before using Shimmy. Official install guide: <https://podman.io/docs/installation>
-If Podman is installed from the macOS pkg installer, the binary may live at `/opt/podman/bin/podman`. `shimmy activate` accounts for that path for interactive shell activation, and it is still best to make `/opt/podman/bin` available on `PATH` for shells and automation.
+If Podman is installed from the macOS pkg installer, the binary may live at `/opt/podman/bin/podman`. `shimmy activate` accounts for that path for interactive shell activation, and Shimmy's shared Podman preflight also checks it directly for runtime shims plus Podman-backed lifecycle commands such as `shimmy update --pull`, `shimmy update --build`, and `shimmy test`.
+When Podman is installed but unreachable, Shimmy now fails with shared guidance that points to `podman info`, `podman machine start`, `podman system connection list`, and `CONTAINER_HOST` verification.
 
 ### Podman rootless requirement
 

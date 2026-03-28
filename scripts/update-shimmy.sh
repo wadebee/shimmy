@@ -4,6 +4,10 @@ set -eu
 SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
+ROOT_DIR=$(
+  cd -- "$SCRIPT_DIR/.." && pwd
+)
+PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
 DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
 REQUESTED_INSTALL_DIR=
 PULL_IMAGES=0
@@ -13,6 +17,13 @@ fail() {
   printf 'ERROR: %s\n' "$*" >&2
   exit 1
 }
+
+if [ ! -f "$PODMAN_HELPER_FILE" ]; then
+  fail "missing Podman helper: $PODMAN_HELPER_FILE"
+fi
+
+# shellcheck source=lib/shims/shimmy-podman.sh
+. "$PODMAN_HELPER_FILE"
 
 trim_trailing_slash() {
   path_value=${1:-}
@@ -95,20 +106,6 @@ context_hash() {
   return 1
 }
 
-ensure_podman_path() {
-  if command -v podman >/dev/null 2>&1; then
-    return 0
-  fi
-
-  if [ -x /opt/podman/bin/podman ]; then
-    PATH=${PATH:+$PATH:}/opt/podman/bin
-    export PATH
-    return 0
-  fi
-
-  return 1
-}
-
 local_build_repo_for_shim() {
   case "$1" in
     netcat) printf 'localhost/shimmy-netcat\n' ;;
@@ -132,7 +129,7 @@ cleanup_old_local_images() {
 
   current_ref=${image_repo}:$current_hash
 
-  podman images \
+  "$SHIMMY_PODMAN_BIN" images \
     --filter "label=io.wadebee.shimmy.image-repo=${image_repo}" \
     --format '{{.Repository}}:{{.Tag}}' | sort -u | while IFS= read -r image_ref; do
       [ -n "$image_ref" ] || continue
@@ -145,7 +142,7 @@ cleanup_old_local_images() {
         continue
       fi
 
-      if podman image rm "$image_ref" >/dev/null 2>&1; then
+      if "$SHIMMY_PODMAN_BIN" image rm "$image_ref" >/dev/null 2>&1; then
         printf 'WARN: Removed stale shim image: %s\n' "$image_ref" >&2
       else
         printf 'WARN: Unable to remove stale shim image (possibly in use): %s\n' "$image_ref" >&2
@@ -157,7 +154,7 @@ run_pull_refresh() {
   shim_dir=$1
   manifest_file=$2
 
-  ensure_podman_path || fail "podman is required for shimmy update --pull"
+  shimmy_podman_preflight_require "shimmy update --pull"
 
   while IFS= read -r shim_name; do
     [ -n "$shim_name" ] || continue
@@ -185,7 +182,7 @@ run_build_refresh() {
   images_dir=$2
   manifest_file=$3
 
-  ensure_podman_path || fail "podman is required for shimmy update --build"
+  shimmy_podman_preflight_require "shimmy update --build"
 
   while IFS= read -r shim_name; do
     [ -n "$shim_name" ] || continue

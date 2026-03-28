@@ -7,6 +7,7 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
+PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
 TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/shimmy-test.XXXXXX")
 TEST_COUNT=0
 
@@ -25,6 +26,13 @@ fail_test() {
   printf 'FAIL: %s\n' "$1" >&2
   exit 1
 }
+
+if [ ! -f "$PODMAN_HELPER_FILE" ]; then
+  fail_test "missing Podman helper: $PODMAN_HELPER_FILE"
+fi
+
+# shellcheck source=lib/shims/shimmy-podman.sh
+. "$PODMAN_HELPER_FILE"
 
 assert_contains() {
   haystack=$1
@@ -78,23 +86,9 @@ setup_scenario() {
   mkdir -p "$HOME_DIR" "$WORK_DIR"
 }
 
-resolve_podman() {
-  if command -v podman >/dev/null 2>&1; then
-    command -v podman
-    return 0
-  fi
-
-  if [ -x /opt/podman/bin/podman ]; then
-    printf '%s\n' '/opt/podman/bin/podman'
-    return 0
-  fi
-
-  return 1
-}
-
 require_podman() {
-  PODMAN_BIN=$(resolve_podman || true)
-  [ -n "$PODMAN_BIN" ] || fail_test "podman is an explicit Shimmy dependency and is required for live shim tests"
+  shimmy_podman_preflight_require "shimmy test"
+  PODMAN_BIN=$SHIMMY_PODMAN_BIN
 }
 
 run_in_repo() {
@@ -113,6 +107,7 @@ test_dash_parse() {
   dash -n "$ROOT_DIR/scripts/status-shimmy.sh"
   dash -n "$ROOT_DIR/scripts/test-shimmy.sh"
   dash -n "$ROOT_DIR/scripts/update-shimmy.sh"
+  dash -n "$ROOT_DIR/lib/shims/shimmy-podman.sh"
   dash -n "$ROOT_DIR/shims/jq"
 
   pass "dash parse checks"
