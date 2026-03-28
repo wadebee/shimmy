@@ -1,30 +1,29 @@
-## Compact Restart Brief
-Follow the bullets below in order.
-- Read this entire document and parse it as your "initial context".
-- Your first action is to read the `Approved Decisions` section below and then determine a plan for implementing them 
-- Modify the `Current checklist status` section below to include the implementation plan for the `Approved decisions` section 
-- When integrating the implementation plan, attempt to reuse existing checklist items when it makes sense. 
-- Order the checklist items based of the priority you recommend for optimal implementation
-- When adding to the `Approved decisions` checklist keep description as compact as possible without losing clarity on goals.
-- When rebuilding the `Approved decisions` checklist refresh the status of each item which has current status of approved to see if it has been implemented.   
-- Iterate over checklist items to determine, plan and implement the next 'to-do' item in the list. 
-- Create a checkpoint after you have planned the next action. 
-- Document any optional decisions you planned in the `Approved decisions` section and a status of pending.
-- Throughout your changes to the `Approved decisions` section, limit the status options to one of the following: `to-do`, `done`, or `pending`
-- Confirm with me your planned approach and optional decisions
-- Once approved, update the status of the decision to `approved`
-- Once you have completed the checklist item and the approved decision has been implemented, change the decision status to `done`
-- Commit the code changes with a compact commit message
-- Show user the updated "Current Checklist" in your response along with feedback from the last action and helpful thoughts on "next steps".
+This document defines an AI session workflow for coding within the `posix-rewrite` git branch of this repo.
 
-### Design Decisions
-- `approved` Keep install root configurable through `--install-dir`.
-- `approved` Final macOS usage must not require users to prepend `/opt/podman/bin` manually.
-- `approved` If Shimmy ever exports user-shell variables again, they must use the `SHIMMY_` prefix.
+# AI Session Workflow
+- Empty your current session context window, process this entire document as your initial session context.
+- Your first action is to iterate the `Design Decisions` section and...
+  - Plan an implementation for any `Design Decisions` that are in the `pending` state
+  - Integrate that implementation plan into the `Session Checklist` section
+- Iterate over Session Checklist items to determine, plan and implement the next `to-do` item in the list. 
+- Trigger a Session Checklist completion checkpoint after you have planned the next action and then present your planned approach and initiate a `Checkpoint Questions` interaction
 
-### Current checklist status:
-- `done` Create and switch to `posix-rewrite`
-  `thinking: medium`
+## Checkpoint Questions
+Before expanding beyond the proof of concept, confirm:
+- new conventions are acceptable
+- implementation formats are simple enough
+- `eval "$(shimmy activate)"` or other simple onboarding path has been implemented without exporting Shimmy-managed path variables
+- the proof-of-concept shim shape is good enough to replicate
+
+## Session Checklist Purpose and Workflow Processing Instructions
+- A mutable workflow queue, progress indicator and log of actions completed.
+- Serves as a prioritized queue for eventual AI planning and implementation
+- Where it makes sense, prefer reuse of existing checklist items rather than unnecessarily creating new items.
+- If items have been added, reestablish the order so an "optimal sequence of operations" is maintained. 
+
+### Session Checklist
+- `done` Create and switch branch to `posix-rewrite`
+  `thinking: low`
 - `done` Inventory current capabilities
   `thinking: medium`
 - `done` Define out-of-scope items
@@ -52,8 +51,25 @@ Follow the bullets below in order.
 - `to-do` Add secondary onboarding features, including optional rc-file helpers
   `thinking: medium`
 
-### Restart checkpoint decision log
+## Design Decision Records and Workflow Processing Instructions
+- A simple mutable `Architectural Design Record` with associated approval status to be used as a conditional check before workflow can implement it.
+- Additions to the `Design Decisions` section are triggered during a Session Checklist completion checkpoint 
+  - When adding decisions - keep description as compact as possible (without losing approval fidelity) and set its initial status to `pending`.
+- When rebuilding the `Design Decisions` checklist check the current codebase to refresh the status of each item with current status of `approved`
+- Throughout your changes to the `Design Decisions` section, limit the status options to one of the following: `approved`, `done`, or `pending`
+- After all checklist completion checkpoints, update the state of the decision record:
+  - If the user approved the change, update the status to `approved`
+  - If you implemented the change, update the decision status to `done`
+- Stage code changes, generate a compact commit message, then git commit the code 
+- Show user the updated "Session Checklist" in your response along with feedback from the last action and helpful thoughts on "next steps".
 
+### Design Decision Records
+- `pending` Add a shared Podman preflight helper used by all shims which checks both “can I find podman?” and “can podman info talk to the engine?”
+- `approved` Keep install root configurable through `--install-dir`.
+- `approved` Final macOS usage must not require users to prepend `/opt/podman/bin` manually.
+- `approved` If Shimmy ever exports user-shell variables again, they must use the `SHIMMY_` prefix.
+
+### Restart checkpoint decision log
 - The branch already validated the core POSIX direction with a repo-root `shimmy` launcher, a live `jq` reference shim, and live Podman smoke tests.
 - That proof of concept is not the final interface because it still reflects the superseded `shellenv`, exported `SHIMMY_*` path variables, and copy-or-symlink installer design.
 - The current restart work first replaced `shellenv` with `activate`, collapsed installs to a single root-derived layout, and removed the exported Shimmy path variables from activation output.
@@ -64,29 +80,24 @@ Follow the bullets below in order.
 
 Next-session priority adjustments:
 
-- Current git-branch is posix-rewrite
 - continue with medium thinking unless otherwise requested
 - Use the new `activate` and single-root model as the baseline for the remaining shim ports.
 - Port the remaining in-scope runtime shims off Bash-era helpers and conventions.
 - Update shared shim helper libraries as needed so local-build shims no longer depend on exported Shimmy path variables.
 - Keep validating with `/bin/sh` parser checks and live Podman smoke tests as each shim group moves over.
 
-# POSIX Rewrite Architecture
+## Constraints
+- This section (to the end of document) contains the goals, scope and principle this workflow must incrementally build through AI planning, User approval and AI implementation 
+- All commits should be to git-branch `posix-rewrite`
 
-This document defines the target architecture and coding rules for the `posix-rewrite` branch.
-
-It is the checkpoint document for the first rewrite iteration and should guide all proof-of-concept work that follows.
-
-## Goals
-
+### Goals
 - Rebuild Shimmy as a POSIX-shell-first codebase.
 - Preserve the user-facing capabilities that remain in scope.
 - Prefer simpler designs over mechanism parity with the Bash implementation.
 - Optimize for first-time installation and easy onboarding.
 - Keep runtime shims small and readable yet flexible with option handling and shell-agnostic integration and conventions.
 
-## In Scope
-
+### In Scope
 - Repo control surface via `shimmy`
 - `install`, `uninstall`, `status`, `update`, `test`, and `activate` commands
 - Install manifests and install-path tracking
@@ -95,15 +106,13 @@ It is the checkpoint document for the first rewrite iteration and should guide a
 - Live Podman-backed smoke tests (no fakes)
 - Simple installation and activation helpers for common POSIX-oriented shell environments
 
-## Out Of Scope
-
+### Out Of Scope
 - `.envrc` and direnv compatibility
 - `tessl` shim and its container image support
 - Backward compatibility with Bash-specific implementation details
 - Preserving current code logic if a better POSIX design exists
 
-## Capability Targets
-
+### Existing Capability Targets
 The rewrite should reproduce these capabilities in a new POSIX-friendly design:
 
 - Default to a single fixed install layout rooted at `~/.config/shimmy`
@@ -123,8 +132,7 @@ The rewrite should reproduce these capabilities in a new POSIX-friendly design:
 - Forward required environment variables
 - Honor `LOG_LEVEL`
 
-## Design Principles
-
+### Design Principles
 - Target `/bin/sh` compatibility first.
 - Treat `dash -n` as the first parser gate.
 - Avoid Bash-only syntax entirely.
@@ -138,8 +146,7 @@ The rewrite should reproduce these capabilities in a new POSIX-friendly design:
 - Treat Podman as an explicit dependency. Shimmy should fail clearly when it is missing, not try to install it.
 - Final macOS usage should not require users to manually prepend `/opt/podman/bin`.
 
-## POSIX Coding Rules
-
+### POSIX Coding Rules
 - Use `#!/bin/sh` for runnable shell files unless a file is intentionally not executable.
 - Use `set -eu` by default.
 - Do not use `pipefail`.
@@ -156,25 +163,23 @@ The rewrite should reproduce these capabilities in a new POSIX-friendly design:
 - Quote all variable expansions unless unquoted expansion is explicitly required.
 - Use `printf` instead of `echo` for non-trivial output.
 
-## Utility Portability Rules
-
+### Utility Portability Rules
 - Avoid GNU-only command flags when a portable alternative is reasonable.
 - Prefer `cp -R` over `cp -a` when metadata preservation is not essential.
 - Avoid `find -printf`.
 - Avoid relying on `readlink` for core behavior.
 - Treat content hashing helpers as implementation details that may use available system tools, but keep fallback behavior explicit.
 
-## Proposed Runtime Shape
+### Proposed File/Folder and Runtime Shape
 
-### `shimmy`
+#### `shimmy`
 
 - Thin POSIX entrypoint
 - Dispatches subcommands to scripts in `scripts/`
 - Provides `activate`
 - Does not support sourced-script detection as a core feature
 
-### `scripts/`
-
+#### `scripts/`
 - `install-shimmy.sh`
 - `status-shimmy.sh`
 - `update-shimmy.sh`
@@ -182,22 +187,22 @@ The rewrite should reproduce these capabilities in a new POSIX-friendly design:
 
 These remain the repo lifecycle entrypoints, but are reimplemented as POSIX shell scripts.
 
-### `lib/`
+#### `lib/`
 
 - `lib/repo/` remains the home for repo-lifecycle helpers
 - `lib/shims/` remains the home for installed runtime shim helpers
 
 Helper libraries should expose only POSIX-safe function names and avoid dynamic shell tricks.
 
-### `shims/`
+#### `shims/`
 
 - One executable per tool
 - Remote-image shims stay very small
 - Local-build shims may source a minimal helper library for image resolution
 
-## Activation Model
+### Activation Model
 
-### Primary path
+#### Primary path
 
 The primary onboarding path is:
 
@@ -207,13 +212,13 @@ eval "$(shimmy install)"
 
 `activate` should primarily be a PATH activator. Its default output should make installed shims discoverable without exporting Shimmy-managed internal path variables into the user shell.
 
-### Persistent setup
+#### Persistent setup
 
 Persistent shell setup is not part of the initial foundation.
 
 Instead, the documentation will show users how to add a single activation line to their preferred shell config. After the core rewrite is stable, helper functions and onboarding guidance can be added for the most common POSIX-oriented environments.
 
-## Manifest Model
+### Manifest Model
 
 The manifest is the source of truth for the current install.
 
@@ -226,7 +231,7 @@ The rewrite should keep it simple:
 
 The implementation should avoid array-name indirection or `eval`-driven serialization.
 
-## Proof Of Concept Scope
+### Proof Of Concept Scope
 
 The first implementation checkpoint should include:
 
@@ -236,12 +241,3 @@ The first implementation checkpoint should include:
 - a minimal POSIX install flow
 - one simple remote-image shim, expected to be `jq`
 - minimal `/bin/sh` validation and one Podman smoke test
-
-## Checkpoint Questions
-
-Before expanding beyond the proof of concept, confirm:
-
-- new conventions are acceptable
-- implementation formats are simple enough
-- `eval "$(shimmy activate)"` or other simple onboarding path has been implemented without exporting Shimmy-managed path variables
-- the proof-of-concept shim shape is good enough to replicate
