@@ -1,6 +1,6 @@
 # shimmy
 
-Commonly used CLI tools exposed through Podman shims for Bash, direnv, and other shells.
+Commonly used CLI tools exposed through Podman shims for POSIX-oriented shells.
 
 ## Overview
 
@@ -29,16 +29,19 @@ That document is the contributor source of truth, including naming conventions f
 | **task** | Taskfile task runner | local build from `images/task/Containerfile` | `task --version`, `task --list` |
 | **terraform** | Infrastructure as Code | `docker.io/hashicorp/terraform:latest` | `terraform plan`, `terraform apply` |
 | **textual** | Textual developer CLI | local build from `images/textual/Containerfile` | `textual --help`, `textual run app.py` |
-| **tessl** | Tessl CLI | local build from `images/tessl/Containerfile` | `tessl --help`, `tessl init` |
 
 ## Requirements
 
-- **Bash** — Version 4.0+
-- **Podman** — Install via your package manager (or Docker as a fallback)
+- **POSIX shell** — `/bin/sh` or another POSIX-compatible shell for the current proof-of-concept rewrite
+- **Podman CLI** — Explicit required dependency. Podman *Desktop* is not required. 
+For macOS run `podman machine init` and `podman machine start` after installation.
+Install and configure for rootless operation separately before using Shimmy. Official install guide: <https://podman.io/docs/installation>
+If Podman is installed from the macOS pkg installer, the binary may live at `/opt/podman/bin/podman`. `shimmy activate` accounts for that path for interactive shell activation, and Shimmy's shared Podman preflight also checks it directly for runtime shims plus Podman-backed lifecycle commands such as `shimmy update --pull`, `shimmy update --build`, and `shimmy test`.
+When Podman is installed but unreachable, Shimmy now fails with shared guidance that points to `podman info`, `podman machine start`, `podman system connection list`, and `CONTAINER_HOST` verification.
 
 ### Podman rootless requirement
 
-Shimmy expects a working rootless Podman setup. On some minimal Linux environments, including Chromebook's Crostini, rootless requirements for subordinate id ranges do not exist. In this scenario Podman will warn "no subuid ranges found" and fall back to a single UID/GID mapping.
+Shimmy expects a working rootless Podman engine setup. On some minimal Linux environments, including Chromebook's Crostini, rootless requirements for subordinate id ranges do not exist. In this scenario Podman will warn "no subuid ranges found" and fall back to a single UID/GID mapping.
 
 Check your configuration (should output a range of id values, eg: 10000:65536):
 ```
@@ -57,7 +60,7 @@ When only a single id is present run this command to correct.
 
 Use the repo-root `shimmy` wrapper as the primary control surface:
 
-```bash
+```sh
 ./shimmy install
 ./shimmy status
 ./shimmy update --pull --build
@@ -69,22 +72,49 @@ The wrapper delegates to script-based interfaces in `scripts/`.
 
 After `./shimmy install`, activate the installed Shimmy paths in the current shell immediately with:
 
-```bash
-eval "$(./shimmy shellenv)"
-# or
-source <(./shimmy shellenv)
+```sh
+eval "$(./shimmy activate)"
 ```
 
-The installer keeps a managed block in `~/.bashrc_shimmy` that exports the `SHIMMY_*` install paths and adds the shim directory to `PATH`. It adds a sourcing line to both `~/.bashrc` and `~/.bash_profile` so Bash behaves consistently on Linux interactive shells and macOS login shells. 
+`./shimmy install` updates your shell startup file by default so shells can find the installed shims automatically. It cannot change your current shell session, so use `eval "$(./shimmy activate)"` to make the install available immediately.
 
-Uninstall removes the managed block and deletes `~/.bashrc_shimmy`.
+By default, `install` chooses the startup file from your shell:
+- `bash` -> `~/.bashrc`
+- `zsh` -> `~/.zshrc`
+- `sh`, `ksh`, and `mksh` -> `~/.profile`
 
-Shimmy treats `SHIMMY_INSTALL_DIR`, `SHIMMY_SHIM_DIR`, `SHIMMY_IMAGES_DIR`, and `SHIMMY_SHIM_LIB_DIR` as the authoritative install paths when they are exported, so installs can keep metadata, shims, local image contexts, and shared shim helper libraries in separate locations without assuming they all live under one hard-coded root.
+You can override or skip that behavior:
+
+```sh
+./shimmy install --shell zsh
+./shimmy install --startup-file "$HOME/.config/shimmy/profile"
+./shimmy install --no-startup
+```
+
+Shimmy writes one managed startup block, so rerunning install refreshes that block idempotently instead of appending duplicates.
+
+If you prefer not to modify your startup files, use `--no-startup` and add activation logic manually.
+
+```sh
+./shimmy install --no-startup
+eval "$(./shimmy activate)"
+```
+
+If your startup file ever needs to be rewritten or repaired later, use update:
+
+```sh
+./shimmy update --repair-startup
+./shimmy update --repair-startup --shell zsh
+./shimmy update --repair-startup --startup-file "$HOME/.config/shimmy/profile"
+```
+
+Without `--repair-startup`, `update` refreshes installed assets only and leaves startup files alone.
+
+The active install layout is always derived from one install root, which defaults to `~/.config/shimmy` and can be overridden with `--install-dir`.
 
 Common install arguments still pass through to the installer:
 
-```bash
-./shimmy install --symlink
+```sh
 ./shimmy install --install-dir "$HOME/.local/share/shimmy"
 ./shimmy install --shim aws --shim terraform
 ```
@@ -93,32 +123,21 @@ Common install arguments still pass through to the installer:
 
 Use the underlying scripts directly when you want the lower-level interfaces explicitly:
 
-```bash
-bash ./scripts/install-shimmy.sh
-bash ./scripts/status-shimmy.sh
-bash ./scripts/update-shimmy.sh --pull --build
-bash ./scripts/test-shimmy.sh
-bash ./scripts/install-shimmy.sh --uninstall
+```sh
+sh ./scripts/install-shimmy.sh
+sh ./scripts/status-shimmy.sh
+sh ./scripts/update-shimmy.sh --pull --build
+sh ./scripts/test-shimmy.sh
+sh ./scripts/install-shimmy.sh --uninstall
 ```
 
 This is the same functionality the wrapper exposes, without the repo-root dispatcher.
-
-### Option 3: Use with direnv
-
-If you have [direnv](https://direnv.net/) installed:
-
-```bash
-cd /path/to/shimmy
-direnv allow
-```
-
-This automatically adds `shims/` to your PATH whenever you're in this directory.
 
 ## Usage
 
 Once shims are in your PATH, use tools naturally:
 
-```bash
+```sh
 # Terraform
 terraform version
 terraform -chdir=examples/dev plan
@@ -140,43 +159,11 @@ task --list
 # Textual CLI
 textual --help
 textual run app.py
-
-# Tessl CLI
-tessl --help
-tessl init --agent codex
 ```
 
 ## Configuration
 
-Each shim respects environment variables for customization:
-
-### Terraform
-
-- `TF_IMAGE` — Container image (default: `docker.io/hashicorp/terraform:latest`)
-- `TF_IMAGE_PULL` — Set to `always` to force pulling the latest image
-
-Example:
-
-```bash
-TF_IMAGE=docker.io/hashicorp/terraform:latest
-TF_IMAGE_PULL=always 
-terraform version
-terraform plan
-```
-
-**Mounts:**
-- `$PWD` → `$PWD` (read-write)
-- `$PWD` → `/work` (read-write compatibility alias)
-- `$HOME` → `$HOME` (read-write, if it exists)
-- `/tmp` → `/tmp` (read-write)
-
-When `CONTAINER_HOST` points at a unix-domain Podman socket, the task shim also forwards that socket into the container so Task-driven automation can launch other shims.
-- `~/.aws` → `/root/.aws` (read-only, if exists)
-- `~/.terraform.d/plugin-cache` → `/root/.terraform.d/plugin-cache` (if exists)
-
-**Environment variables forwarded:**
-- `AWS_*`
-- `TF_VAR_*`
+Each shim respects environment variables for customization.
 
 ### AWS CLI
 
@@ -185,7 +172,7 @@ When `CONTAINER_HOST` points at a unix-domain Podman socket, the task shim also 
 
 Example:
 
-```bash
+```sh
 AWS_IMAGE=public.ecr.aws/aws-cli/aws-cli:2.31.21 aws --version
 ```
 
@@ -203,7 +190,7 @@ AWS_IMAGE=public.ecr.aws/aws-cli/aws-cli:2.31.21 aws --version
 
 Example:
 
-```bash
+```sh
 JQ_IMAGE=ghcr.io/jqlang/jq:latest jq --version
 ```
 
@@ -219,7 +206,7 @@ JQ_IMAGE=ghcr.io/jqlang/jq:latest jq --version
 
 Example:
 
-```bash
+```sh
 NETCAT_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest netcat --help
 ```
 
@@ -235,7 +222,7 @@ The default Netcat image is built locally from `images/netcat/Containerfile`, wh
 
 Example:
 
-```bash
+```sh
 RG_IMAGE=docker.io/vszl/ripgrep:latest rg --version
 ```
 
@@ -252,36 +239,47 @@ RG_IMAGE=docker.io/vszl/ripgrep:latest rg --version
 
 Example:
 
-```bash
+```sh
 TASK_VERSION=v3.45.5 task --version
 ```
 
 The default Task image is built locally from `images/task/Containerfile`, which starts from Alpine and installs the official Task release binary from GitHub Releases. Shimmy tags the resulting image under `localhost/shimmy-task:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
 
 **Mounts:**
+- `$PWD` → `$PWD` (read-write)
 - `$PWD` → `/work` (read-write)
+- `$HOME` → `$HOME` (read-write, if it exists)
+- `/tmp` → `/tmp` (read-write, if it exists)
 
-### Tessl CLI
+When `CONTAINER_HOST` points at a unix-domain Podman socket, the task shim also forwards that socket into the container so Task-driven automation can launch other shims.
 
-- `TESSL_IMAGE` — Override the runtime image entirely
-- `TESSL_IMAGE_BUILD` — Set to `always` to rebuild the local Tessl image even if it is already cached
-- `TESSL_IMAGE_PULL` — Set to `always` to force pulling `TESSL_IMAGE` when using an explicit remote override
-- `TESSL_BASE_IMAGE` — Override the `Containerfile` base image (default build arg: `dhi.io/node:25-dev`)
+**Environment variables forwarded:**
+- `CONTAINER_HOST` when explicitly set
+- `SHIMMY_HOST_PATH`
+- `HOME` when the home directory mount is enabled
+
+### Terraform
+
+- `TF_IMAGE` — Container image (default: `docker.io/hashicorp/terraform:latest`)
+- `TF_IMAGE_PULL` — Set to `always` to force pulling the latest image
 
 Example:
 
-```bash
-TESSL_BASE_IMAGE=dhi.io/node:25-dev tessl --help
+```sh
+TF_IMAGE=docker.io/hashicorp/terraform:latest
+TF_IMAGE_PULL=always
+terraform version
+terraform plan
 ```
-
-The default Tessl image is built locally from `images/tessl/Containerfile`, which starts from `node:25` and installs the CLI with `npm install -g @tessl/cli` per the Tessl installation docs. Shimmy tags the resulting image under `localhost/shimmy-tessl:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
 
 **Mounts:**
 - `$PWD` → `/work` (read-write)
-- `~/.tessl` → `/root/.tessl` (read-write, if exists)
+- `~/.aws` → `/root/.aws` (read-only, if exists)
+- `~/.terraform.d/plugin-cache` → `/root/.terraform.d/plugin-cache` (if exists)
 
 **Environment variables forwarded:**
-- `TESSL_*`
+- `AWS_*`
+- `TF_VAR_*`
 
 ### Textual CLI
 
@@ -292,7 +290,7 @@ The default Tessl image is built locally from `images/tessl/Containerfile`, whic
 
 Example:
 
-```bash
+```sh
 TEXTUAL_BASE_IMAGE=python:3.13-slim-bookworm textual --help
 ```
 
@@ -301,26 +299,22 @@ The default Textual image is built locally from `images/textual/Containerfile`, 
 **Mounts:**
 - `$PWD` → `/work` (read-write)
 
+The interactive shims (`aws`, `task`, `terraform`, and `textual`) request `-it` only when both stdin and stdout are attached to a terminal, so version and help commands still work cleanly in scripts and smoke tests.
+
 ## Testing
 
 Run the test suite to validate that shim containers run via Podman:
 
-```bash
+```sh
 ./shimmy test
 # or
-bash ./scripts/test-shimmy.sh
+sh ./scripts/test-shimmy.sh
 ```
 
 Tests verify:
-- Each shim launches through Podman with a non-mutating command
-- Custom image overrides and `*_IMAGE_PULL=always` execution paths
-- Netcat local image build behavior on UBI 9 minimal
-- Working-directory mounts for jq, ripgrep, and Terraform
-- Task local image build behavior and build-arg overrides
-- AWS config mounting for the AWS CLI shim
-- Textual CLI local image build behavior
-- Tessl CLI local image build + cache behavior
-- Installer profile-copy behavior
+- `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
+- install, activate, status, update, startup-file repair, and uninstall behavior for the single-root manifest layout
+- live Podman execution for the supported shim set: `aws`, `jq`, `netcat`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
 ```
@@ -332,13 +326,11 @@ shimmy/
 │   ├── netcat
 │   ├── rg
 │   ├── task
-│   ├── tessl
 │   ├── textual
 │   └── terraform
 ├── images/                   # Custom shim image build contexts
 │   ├── netcat
 │   ├── task
-│   ├── tessl
 │   └── textual
 ├── lib/
 │   ├── repo/                 # Repo-only sourced helpers for wrapper/scripts
@@ -348,8 +340,7 @@ shimmy/
 │   ├── status-shimmy.sh      # Status script
 │   ├── test-shimmy.sh        # Test suite
 │   └── update-shimmy.sh      # Update script
-├── .envrc                     # direnv configuration
-├── .pre-commit-config.yaml    # Git https://github.com/pre-commit/pre-commit-hooks
+├── .pre-commit-config.yaml   # Git https://github.com/pre-commit/pre-commit-hooks
 ├── .github/
 │   └── workflows/
 │       └── test.yml          # CI/CD workflow

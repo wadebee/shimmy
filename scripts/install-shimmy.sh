@@ -1,134 +1,150 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/repo/shimmy-env.sh
-source "$SCRIPT_DIR/../lib/repo/shimmy-env.sh"
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+ROOT_DIR=$(
+  cd -- "$SCRIPT_DIR/.." && pwd
+)
 
-shimmy::log_init
-shimmy::init_repo_vars "$(shimmy::repo_root_from_script_path "${BASH_SOURCE[0]}")"
-shimmy::init_home_vars "$HOME"
-shimmy::init_install_vars "${SHIMMY_INSTALL_DIR:-}"
+ACTIVATE_SCRIPT=$SCRIPT_DIR/activate-shimmy.sh
+SOURCE_SHIMS_DIR=$ROOT_DIR/shims
+SOURCE_IMAGES_DIR=$ROOT_DIR/images
+SOURCE_REPO_LIB_DIR=$ROOT_DIR/lib/repo
+SOURCE_SHIM_LIB_DIR=$ROOT_DIR/lib/shims
+STARTUP_HELPER_FILE=$SOURCE_REPO_LIB_DIR/shimmy-startup.sh
 
-INSTALL_MODE='copy'
-UPDATE_BASHRC=1
+DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
+SUPPORTED_SHIMS='aws jq netcat rg task terraform textual'
+
+REQUESTED_INSTALL_DIR=
+REQUESTED_SHIMS=
+REQUESTED_SHELL=
+REQUESTED_STARTUP_FILE=
+SKIP_STARTUP=0
+STARTUP_FILE_LABEL=
+STARTUP_FILE_PATH=
+STARTUP_SHELL=
+PRESERVED_STARTUP_FILE_PATH=
+PRESERVED_STARTUP_SHELL=
 UNINSTALL=0
-REQUESTED_INSTALL_DIR="${SHIMMY_INSTALL_DIR:-}"
-REQUESTED_SHIMS=()
-SHELL_FILES_CREATED_PATHS=()
+
+LOG_LEVEL=${LOG_LEVEL:-info}
+
+trim_trailing_slash() {
+  path_value=${1:-}
+
+  case "$path_value" in
+    ''|/)
+      printf '%s\n' "$path_value"
+      ;;
+    */)
+      printf '%s\n' "${path_value%/}"
+      ;;
+    *)
+      printf '%s\n' "$path_value"
+      ;;
+  esac
+}
+
+install_path_render() {
+  install_dir=$1
+  path_suffix=$2
+
+  printf '%s/%s\n' "$(trim_trailing_slash "$install_dir")" "$path_suffix"
+}
+
+log_level_value() {
+  case ${1:-info} in
+    debug) printf '10\n' ;;
+    info) printf '20\n' ;;
+    warn|warning) printf '30\n' ;;
+    error) printf '40\n' ;;
+    silent|quiet|none) printf '50\n' ;;
+    *) printf '20\n' ;;
+  esac
+}
+
+log_level_enabled() {
+  message_value=$(log_level_value "$1")
+  configured_value=$(log_level_value "$LOG_LEVEL")
+  [ "$message_value" -ge "$configured_value" ]
+}
+
+log_message() {
+  level=$1
+  shift
+
+  log_level_enabled "$level" || return 0
+  upper_level=$(printf '%s' "$level" | tr '[:lower:]' '[:upper:]')
+  printf '%s: %s\n' "$upper_level" "$*" >&2
+}
+
+log_debug() {
+  log_message debug "$@"
+}
+
+log_info() {
+  log_message info "$@"
+}
+
+log_warn() {
+  log_message warn "$@"
+}
+
+fail() {
+  log_message error "$*"
+  exit 1
+}
+
+if [ ! -f "$STARTUP_HELPER_FILE" ]; then
+  fail "missing startup helper: $STARTUP_HELPER_FILE"
+fi
+
+if [ ! -x "$ACTIVATE_SCRIPT" ]; then
+  fail "missing activate helper: $ACTIVATE_SCRIPT"
+fi
+
+# shellcheck source=lib/repo/shimmy-startup.sh
+. "$STARTUP_HELPER_FILE"
 
 usage() {
   cat <<'EOF'
-Install shimmy CLI shims into a user profile directory.
+Install or uninstall Shimmy assets in a user-scoped location.
 
 Usage:
   scripts/install-shimmy.sh [options]
 
 Options:
-  --install-dir <dir>    Destination directory for installed shims.
-                         Default: ~/.config/shimmy
-  --symlink              Install shims as symlinks to this repo.
-  --copy                 Install shims by copying files (default).
-  --uninstall            Remove shimmy artifacts instead of installing them.
+  --install-dir <dir>    Base install directory. Default: ~/.config/shimmy
   --shim <name>          Install only the named shim. Repeatable.
-  --update-bashrc        Update ~/.bashrc, ~/.bash_profile, and ~/.bashrc_shimmy (default).
-  --no-update-bashrc     Do not edit Bash startup files.
-  --bashrc-file <file>   Bash rc file to update (default: ~/.bashrc).
-  --bash-profile-file <file>
-                         Bash profile file to update (default: ~/.bash_profile).
-  --bash-shimmy-file <file>
-                         Managed shim PATH file (default: ~/.bashrc_shimmy).
-  -h, --help             Show help.
+  --shell <name>         Override shell detection for startup-file updates
+  --startup-file <path>  Override the startup file Shimmy updates during install
+  --no-startup           Skip persistent startup-file updates during install
+  --uninstall            Remove the current install instead of creating it
+  -h, --help             Show help
 EOF
 }
 
-fail() {
-  shimmy::log_error "$*"
-  return 1
+supported_shim_list() {
+  printf '%s\n' "$SUPPORTED_SHIMS"
 }
 
-log_debug() {
-  shimmy::log_debug "$*"
-}
-
-log_info() {
-  shimmy::log_info "$*"
-}
-
-record_shell_file_created_path() {
-  SHELL_FILES_CREATED_PATHS+=("$1")
-}
-
-remove_managed_path_dir() {
-  local dir="$1"
-  local description="$2"
-
-  if [[ ! -e "$dir" ]]; then
-    log_debug "$description directory not present; nothing to remove: $dir"
+selected_shim_list() {
+  if [ -n "$REQUESTED_SHIMS" ]; then
+    printf '%s\n' "$REQUESTED_SHIMS"
     return 0
   fi
 
-  log_debug "Removing $description directory: $dir"
-  rm -rf "$dir"
-  shimmy::dir_parent_empty_remove "$(dirname "$dir")" "$HOME"
+  supported_shim_list
 }
 
-remove_install_dir() {
-  if [[ ! -e "$SHIMMY_INSTALL_DIR" ]]; then
-    log_debug "Install directory not present; nothing to remove: $SHIMMY_INSTALL_DIR"
-    return 0
-  fi
-  log_debug "Removing install directory: $SHIMMY_INSTALL_DIR"
-  rm -rf "$SHIMMY_INSTALL_DIR"
-  shimmy::dir_parent_empty_remove "$(dirname "$SHIMMY_INSTALL_DIR")" "$HOME"
-}
+is_supported_shim() {
+  requested_shim=$1
 
-remove_shell_artifacts() {
-  log_debug "Removing managed shell artifacts from Bash startup files"
-  shimmy::managed_block_remove "$BASHRC_FILE" "$SHELL_INIT_BLOCK_START" "$SHELL_INIT_BLOCK_END"
-  shimmy::managed_block_remove "$BASH_PROFILE_FILE" "$SHELL_INIT_BLOCK_START" "$SHELL_INIT_BLOCK_END"
-  shimmy::managed_block_remove "$SHIMMY_BASH_FILE" "$PATH_BLOCK_START" "$PATH_BLOCK_END"
-
-  if shimmy::is_install_manifest_path_listed "$INSTALL_MANIFEST_FILE" "created_shell_file" "$BASHRC_FILE"; then
-    log_debug "Cleaning up shell file recorded as created: $BASHRC_FILE"
-    shimmy::file_delete_if_empty "$BASHRC_FILE"
-  else
-    log_debug "Shell file was not recorded as created; leaving file in place: $BASHRC_FILE"
-  fi
-  if shimmy::is_install_manifest_path_listed "$INSTALL_MANIFEST_FILE" "created_shell_file" "$BASH_PROFILE_FILE"; then
-    log_debug "Cleaning up shell file recorded as created: $BASH_PROFILE_FILE"
-    shimmy::file_delete_if_empty "$BASH_PROFILE_FILE"
-  else
-    log_debug "Shell file was not recorded as created; leaving file in place: $BASH_PROFILE_FILE"
-  fi
-  # This file is shimmy-managed; remove it whenever uninstall leaves it empty,
-  # even if it existed before install.
-  shimmy::file_delete_if_empty "$SHIMMY_BASH_FILE"
-}
-
-remove_profile_dir_if_empty() {
-  if [[ ! -d "$SHIMMY_INSTALL_DIR" ]]; then
-    log_debug "Profile directory not present; nothing to remove: $SHIMMY_INSTALL_DIR"
-    return 0
-  fi
-  if rmdir "$SHIMMY_INSTALL_DIR" 2>/dev/null; then
-    log_debug "Removed empty profile directory: $SHIMMY_INSTALL_DIR"
-  else
-    log_debug "Profile directory not empty; leaving in place: $SHIMMY_INSTALL_DIR"
-  fi
-  shimmy::dir_parent_empty_remove "$(dirname "$SHIMMY_INSTALL_DIR")" "$HOME"
-}
-
-shim_is_requested() {
-  local shim_name="$1"
-  local requested
-
-  if [[ "${#REQUESTED_SHIMS[@]}" -eq 0 ]]; then
-    return 0
-  fi
-
-  for requested in "${REQUESTED_SHIMS[@]}"; do
-    if [[ "$requested" == "$shim_name" ]]; then
+  for supported_shim in $SUPPORTED_SHIMS; do
+    if [ "$supported_shim" = "$requested_shim" ]; then
       return 0
     fi
   done
@@ -136,223 +152,277 @@ shim_is_requested() {
   return 1
 }
 
-install_shim_helper_support() {
-  local image_dest="$SHIMMY_IMAGES_DIR"
-  local shim_lib_dest="$SHIMMY_SHIM_LIB_DIR"
-  local image_src image_name
+validate_requested_shims() {
+  for requested_shim in $(selected_shim_list); do
+    is_supported_shim "$requested_shim" || fail "unsupported shim on posix-rewrite branch: $requested_shim"
+  done
+}
 
-  log_debug "Refreshing local container image support in $image_dest using mode $INSTALL_MODE"
-  rm -rf "$image_dest"
-  log_debug "Refreshing shared shim helper support in $shim_lib_dest using mode $INSTALL_MODE"
-  rm -rf "$shim_lib_dest"
-
-  if [[ "$INSTALL_MODE" == "copy" ]]; then
-    mkdir -p "$image_dest"
-    while IFS= read -r image_src; do
-      image_name="$(basename "$image_src")"
-      if shim_is_requested "$image_name"; then
-        log_debug "Copying local container image support from $image_src to $image_dest/$image_name"
-        cp -a "$image_src" "$image_dest/$image_name"
-      fi
-    done < <(find "$SOURCE_IMAGES_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
-    log_debug "Copying shared shim helper support from $SOURCE_SHIM_LIB_DIR to $shim_lib_dest"
-    mkdir -p "$shim_lib_dest"
-    cp -a "$SOURCE_SHIM_LIB_DIR"/. "$shim_lib_dest"/
-  else
-    mkdir -p "$image_dest"
-    while IFS= read -r image_src; do
-      image_name="$(basename "$image_src")"
-      if shim_is_requested "$image_name"; then
-        log_debug "Symlinking local container image support from $image_src to $image_dest/$image_name"
-        ln -s "$image_src" "$image_dest/$image_name"
-      fi
-    done < <(find "$SOURCE_IMAGES_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
-    log_debug "Symlinking shared shim helper support from $SOURCE_SHIM_LIB_DIR to $shim_lib_dest"
-    mkdir -p "$(dirname "$shim_lib_dest")"
-    ln -s "$SOURCE_SHIM_LIB_DIR" "$shim_lib_dest"
+resolve_install_root() {
+  if [ -n "$REQUESTED_INSTALL_DIR" ]; then
+    printf '%s\n' "$(trim_trailing_slash "$REQUESTED_INSTALL_DIR")"
+    return 0
   fi
+
+  printf '%s\n' "$(trim_trailing_slash "$DEFAULT_INSTALL_DIR")"
+}
+
+manifest_value() {
+  manifest_file=$1
+  key=$2
+
+  if [ ! -f "$manifest_file" ]; then
+    return 1
+  fi
+
+  sed -n "s/^${key}=//p" "$manifest_file" | sed -n '1p'
+}
+
+resolve_install_paths() {
+  SHIMMY_INSTALL_DIR=$(resolve_install_root)
+  SHIMMY_SHIM_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" shims)
+  SHIMMY_IMAGES_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" images)
+  SHIMMY_SHIM_LIB_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" lib/shims)
+  INSTALL_MANIFEST_FILE=$(install_path_render "$SHIMMY_INSTALL_DIR" install-manifest.txt)
+}
+
+load_install_root_from_manifest() {
+  if [ ! -f "$INSTALL_MANIFEST_FILE" ]; then
+    return 1
+  fi
+
+  manifest_install_dir=$(manifest_value "$INSTALL_MANIFEST_FILE" install_dir || true)
+  if [ -z "$manifest_install_dir" ]; then
+    return 1
+  fi
+
+  SHIMMY_INSTALL_DIR=$(trim_trailing_slash "$manifest_install_dir")
+  SHIMMY_SHIM_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" shims)
+  SHIMMY_IMAGES_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" images)
+  SHIMMY_SHIM_LIB_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" lib/shims)
+  INSTALL_MANIFEST_FILE=$(install_path_render "$SHIMMY_INSTALL_DIR" install-manifest.txt)
+}
+
+ensure_safe_remove_path() {
+  path_value=$1
+
+  case "$path_value" in
+    ''|/)
+      fail "refusing to remove unsafe path: $path_value"
+      ;;
+  esac
+}
+
+install_file() {
+  source_path=$1
+  target_path=$2
+
+  rm -f "$target_path"
+  cp "$source_path" "$target_path"
+  chmod 755 "$target_path"
+}
+
+install_directory_copy() {
+  source_path=$1
+  target_path=$2
+
+  rm -rf "$target_path"
+  cp -R "$source_path" "$target_path"
+}
+
+write_manifest() {
+  mkdir -p "$SHIMMY_INSTALL_DIR"
+
+  {
+    printf 'install_dir=%s\n' "$SHIMMY_INSTALL_DIR"
+    if [ -n "$STARTUP_SHELL" ]; then
+      printf 'startup_shell=%s\n' "$STARTUP_SHELL"
+    fi
+    if [ -n "$STARTUP_FILE_PATH" ]; then
+      printf 'startup_file=%s\n' "$STARTUP_FILE_PATH"
+    fi
+    for shim_name in $(selected_shim_list); do
+      printf 'shim=%s\n' "$shim_name"
+    done
+  } > "$INSTALL_MANIFEST_FILE"
+}
+
+resolve_startup_settings() {
+  if [ "$SKIP_STARTUP" -eq 1 ]; then
+    if [ -n "$PRESERVED_STARTUP_FILE_PATH" ]; then
+      STARTUP_SHELL=$PRESERVED_STARTUP_SHELL
+      STARTUP_FILE_PATH=$PRESERVED_STARTUP_FILE_PATH
+      STARTUP_FILE_LABEL=$PRESERVED_STARTUP_FILE_PATH
+    else
+      STARTUP_SHELL=
+      STARTUP_FILE_PATH=
+      STARTUP_FILE_LABEL=
+    fi
+    return 0
+  fi
+
+  STARTUP_SHELL=$(shimmy_shell_name_normalize "$REQUESTED_SHELL") || fail "unable to resolve startup shell"
+  STARTUP_FILE_PATH=$(shimmy_startup_file_path_resolve "$STARTUP_SHELL" "$REQUESTED_STARTUP_FILE" "$HOME") || fail "unable to resolve startup file path"
+  STARTUP_FILE_LABEL=$(shimmy_startup_file_label_render "$STARTUP_SHELL" "$REQUESTED_STARTUP_FILE") || fail "unable to resolve startup file label"
 }
 
 perform_install() {
-  local dest shim src
+  validate_requested_shims
+  if [ -f "$INSTALL_MANIFEST_FILE" ]; then
+    PRESERVED_STARTUP_SHELL=$(manifest_value "$INSTALL_MANIFEST_FILE" startup_shell || true)
+    PRESERVED_STARTUP_FILE_PATH=$(manifest_value "$INSTALL_MANIFEST_FILE" startup_file || true)
+  fi
+  resolve_startup_settings
 
-  log_info "Starting install into $SHIMMY_INSTALL_DIR with mode $INSTALL_MODE"
-  [[ -d "$SOURCE_SHIMS_DIR" ]] || fail "shim source directory not found: $SOURCE_SHIMS_DIR"
-  [[ -d "$SOURCE_IMAGES_DIR" ]] || fail "local container image source directory not found: $SOURCE_IMAGES_DIR"
-  [[ -d "$SOURCE_SHIM_LIB_DIR" ]] || fail "shim helper library directory not found: $SOURCE_SHIM_LIB_DIR"
+  [ -d "$SOURCE_SHIMS_DIR" ] || fail "missing source shim directory: $SOURCE_SHIMS_DIR"
+  [ -d "$SOURCE_SHIM_LIB_DIR" ] || fail "missing source shim helper directory: $SOURCE_SHIM_LIB_DIR"
 
-  mkdir -p "$SHIMMY_SHIM_DIR"
-  while IFS= read -r src; do
-    shim="$(basename "$src")"
-    if ! shim_is_requested "$shim"; then
-      log_debug "Skipping unrequested shim: $shim"
-      continue
+  log_info "Installing shimmy into $SHIMMY_INSTALL_DIR"
+
+  mkdir -p "$SHIMMY_INSTALL_DIR"
+  rm -rf "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$SHIMMY_SHIM_LIB_DIR"
+  mkdir -p "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")"
+
+  for shim_name in $(selected_shim_list); do
+    source_path=$SOURCE_SHIMS_DIR/$shim_name
+    target_path=$SHIMMY_SHIM_DIR/$shim_name
+    [ -f "$source_path" ] || fail "missing shim source: $source_path"
+    log_debug "Copying shim $shim_name to $target_path"
+    install_file "$source_path" "$target_path"
+  done
+
+  for shim_name in $(selected_shim_list); do
+    source_path=$SOURCE_IMAGES_DIR/$shim_name
+    target_path=$SHIMMY_IMAGES_DIR/$shim_name
+    if [ -d "$source_path" ]; then
+      log_debug "Copying image support for $shim_name to $target_path"
+      install_directory_copy "$source_path" "$target_path"
     fi
-    dest="$SHIMMY_SHIM_DIR/$shim"
-    [[ -f "$src" ]] || fail "missing shim: $src"
+  done
 
-    if [[ "$INSTALL_MODE" == "copy" ]]; then
-      log_debug "Copying shim $shim from $src to $dest"
-      install -m 0755 "$src" "$dest"
-    else
-      log_debug "Symlinking shim $shim from $src to $dest"
-      ln -sfn "$src" "$dest"
-    fi
-  done < <(find "$SOURCE_SHIMS_DIR" -type f | sort)
+  log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
+  install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_SHIM_LIB_DIR"
 
-  install_shim_helper_support
-
-  if [[ "$UPDATE_BASHRC" == "1" ]]; then
-    log_debug "Updating Bash startup files"
-    mkdir -p "$(dirname "$BASHRC_FILE")" "$(dirname "$BASH_PROFILE_FILE")" "$(dirname "$SHIMMY_BASH_FILE")"
-    if [[ -e "$BASHRC_FILE" ]]; then
-      log_debug "Using existing bashrc file: $BASHRC_FILE"
-    else
-      log_debug "Recording new bashrc file for cleanup tracking: $BASHRC_FILE"
-      record_shell_file_created_path "$BASHRC_FILE"
-    fi
-    if [[ -e "$BASH_PROFILE_FILE" ]]; then
-      log_debug "Using existing bash profile file: $BASH_PROFILE_FILE"
-    else
-      log_debug "Recording new bash profile file for cleanup tracking: $BASH_PROFILE_FILE"
-      record_shell_file_created_path "$BASH_PROFILE_FILE"
-    fi
-    if [[ -e "$SHIMMY_BASH_FILE" ]]; then
-      log_debug "Using existing shimmy shell file: $SHIMMY_BASH_FILE"
-    else
-      log_debug "Recording new shimmy shell file for cleanup tracking: $SHIMMY_BASH_FILE"
-      record_shell_file_created_path "$SHIMMY_BASH_FILE"
-    fi
-    touch "$BASHRC_FILE"
-    touch "$BASH_PROFILE_FILE"
-    touch "$SHIMMY_BASH_FILE"
-
-    shimmy::managed_block_remove "$BASHRC_FILE" "$SHELL_INIT_BLOCK_START" "$SHELL_INIT_BLOCK_END"
-    shimmy::managed_block_remove "$BASH_PROFILE_FILE" "$SHELL_INIT_BLOCK_START" "$SHELL_INIT_BLOCK_END"
-    shimmy::managed_block_remove "$SHIMMY_BASH_FILE" "$PATH_BLOCK_START" "$PATH_BLOCK_END"
-    shimmy::managed_block_remove "$BASHRC_FILE" "$PATH_BLOCK_START" "$PATH_BLOCK_END"
-    shimmy::managed_block_remove "$BASH_PROFILE_FILE" "$PATH_BLOCK_START" "$PATH_BLOCK_END"
-
-    shimmy::shell_init_block_append "$BASHRC_FILE" "$SHIMMY_BASH_FILE"
-    shimmy::shell_init_block_append "$BASH_PROFILE_FILE" "$SHIMMY_BASH_FILE"
-    shimmy::path_block_append \
-      "$SHIMMY_BASH_FILE" \
-      "$SHIMMY_SHIM_DIR" \
-      "$SHIMMY_INSTALL_DIR" \
-      "$SHIMMY_IMAGES_DIR" \
-      "$SHIMMY_SHIM_LIB_DIR"
-  else
-    log_debug "Skipping Bash startup file updates because Bash profile management was not requested"
-    if [[ -d "$SHIMMY_SHIM_DIR" ]]; then
-      case ":$PATH:" in
-        *":$SHIMMY_SHIM_DIR:"*) ;;
-        *) export PATH="$PATH:$SHIMMY_SHIM_DIR" ;;
-      esac
-    fi
+  if [ -n "$STARTUP_FILE_PATH" ]; then
+    activate_block=$(shimmy_activate_block_read "$ACTIVATE_SCRIPT" "$SHIMMY_INSTALL_DIR") || fail "unable to render activate block for startup file"
+    shimmy_startup_file_update "$STARTUP_FILE_PATH" "$activate_block"
+    log_info "Updated startup file: $STARTUP_FILE_LABEL"
   fi
 
-  shimmy::install_manifest_write \
-    "$INSTALL_MANIFEST_FILE" \
-    "$SHIMMY_INSTALL_DIR" \
-    "$SHIMMY_SHIM_DIR" \
-    "$SHIMMY_IMAGES_DIR" \
-    "$SHIMMY_SHIM_LIB_DIR" \
-    "$INSTALL_MODE" \
-    "$UPDATE_BASHRC" \
-    "$BASHRC_FILE" \
-    "$BASH_PROFILE_FILE" \
-    "$SHIMMY_BASH_FILE" \
-    "REQUESTED_SHIMS" \
-    "SHELL_FILES_CREATED_PATHS"
+  write_manifest
 
-  log_info "Installed shims into $SHIMMY_INSTALL_DIR ($INSTALL_MODE)."
+  log_info "Installed shimmy assets into $SHIMMY_INSTALL_DIR"
+  log_info "Future shells will load Shimmy from: ${STARTUP_FILE_LABEL:-manual activation only}"
+  log_info "Activate this install with: eval \"\$(./shimmy activate --install-dir '$SHIMMY_INSTALL_DIR')\""
+}
+
+remove_path_if_present() {
+  path_value=$1
+  description=$2
+
+  if [ ! -e "$path_value" ]; then
+    return 0
+  fi
+
+  ensure_safe_remove_path "$path_value"
+  log_debug "Removing $description path: $path_value"
+  rm -rf "$path_value"
 }
 
 perform_uninstall() {
-  log_debug "Starting uninstall for install dir $SHIMMY_INSTALL_DIR"
-  shimmy::install_manifest_profile_files_delete "$INSTALL_MANIFEST_FILE" "$SHIMMY_INSTALL_DIR"
-  remove_shell_artifacts
-  log_debug "Removing install manifest file: $INSTALL_MANIFEST_FILE"
-  rm -f "$INSTALL_MANIFEST_FILE"
-  if ! shimmy::is_path_within "$SHIMMY_INSTALL_DIR" "$SHIMMY_SHIM_DIR"; then
-    remove_managed_path_dir "$SHIMMY_SHIM_DIR" "shim"
-  fi
-  if ! shimmy::is_path_within "$SHIMMY_INSTALL_DIR" "$SHIMMY_IMAGES_DIR"; then
-    remove_managed_path_dir "$SHIMMY_IMAGES_DIR" "image"
-  fi
-  if ! shimmy::is_path_within "$SHIMMY_INSTALL_DIR" "$SHIMMY_SHIM_LIB_DIR"; then
-    remove_managed_path_dir "$SHIMMY_SHIM_LIB_DIR" "shim helper library"
-  fi
-  remove_install_dir
-  remove_profile_dir_if_empty
+  log_info "Removing shimmy install rooted at $SHIMMY_INSTALL_DIR"
 
-  log_info "Removed shimmy artifacts from $SHIMMY_INSTALL_DIR."
-  log_info "Cleaned Bash startup files: $BASHRC_FILE, $BASH_PROFILE_FILE, $SHIMMY_BASH_FILE."
+  load_install_root_from_manifest || true
+  startup_file_to_remove=$(manifest_value "$INSTALL_MANIFEST_FILE" startup_file || true)
+
+  if [ -n "$startup_file_to_remove" ]; then
+    shimmy_startup_block_remove "$startup_file_to_remove"
+    log_info "Removed managed Shimmy startup block from: $startup_file_to_remove"
+  fi
+
+  remove_path_if_present "$SHIMMY_SHIM_DIR" "shim"
+  remove_path_if_present "$SHIMMY_IMAGES_DIR" "image"
+  remove_path_if_present "$SHIMMY_SHIM_LIB_DIR" "shim helper"
+  remove_path_if_present "$INSTALL_MANIFEST_FILE" "manifest"
+
+  if [ -d "$SHIMMY_INSTALL_DIR/lib" ]; then
+    rmdir "$SHIMMY_INSTALL_DIR/lib" 2>/dev/null || true
+  fi
+  if [ -d "$SHIMMY_INSTALL_DIR/images" ]; then
+    rmdir "$SHIMMY_INSTALL_DIR/images" 2>/dev/null || true
+  fi
+  if [ -d "$SHIMMY_INSTALL_DIR/shims" ]; then
+    rmdir "$SHIMMY_INSTALL_DIR/shims" 2>/dev/null || true
+  fi
+
+  if [ -d "$SHIMMY_INSTALL_DIR" ]; then
+    ensure_safe_remove_path "$SHIMMY_INSTALL_DIR"
+    if rmdir "$SHIMMY_INSTALL_DIR" 2>/dev/null; then
+      log_debug "Removed empty install directory: $SHIMMY_INSTALL_DIR"
+    fi
+  fi
+
+  log_info "Removed shimmy assets from $SHIMMY_INSTALL_DIR"
 }
 
-# Parse command line arguments into vars for conditional logic  
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --install-dir)
-      [[ $# -ge 2 ]] || fail "missing value for --install-dir"
-      REQUESTED_INSTALL_DIR="$2"
-      shift 2
-      ;;
-    --symlink)
-      INSTALL_MODE="symlink"
-      shift
-      ;;
-    --copy)
-      INSTALL_MODE="copy"
-      shift
-      ;;
-    --uninstall)
-      UNINSTALL=1
-      shift
-      ;;
-    --shim)
-      [[ $# -ge 2 ]] || fail "missing value for --shim"
-      REQUESTED_SHIMS+=("$2")
-      shift 2
-      ;;
-    --update-bashrc)
-      UPDATE_BASHRC=1
-      shift
-      ;;
-    --no-update-bashrc)
-      UPDATE_BASHRC=0
-      shift
-      ;;
-    --bashrc-file)
-      [[ $# -ge 2 ]] || fail "missing value for --bashrc-file"
-      BASHRC_FILE="$2"
-      shift 2
-      ;;
-    --bash-profile-file)
-      [[ $# -ge 2 ]] || fail "missing value for --bash-profile-file"
-      BASH_PROFILE_FILE="$2"
-      shift 2
-      ;;
-    --bash-shimmy-file)
-      [[ $# -ge 2 ]] || fail "missing value for --bash-shimmy-file"
-      SHIMMY_BASH_FILE="$2"
-      shift 2
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      fail "unknown argument: $1"
-      ;;
-  esac
-done
+main() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --install-dir)
+        [ "$#" -ge 2 ] || fail "missing value for --install-dir"
+        REQUESTED_INSTALL_DIR=$2
+        shift 2
+        ;;
+      --copy)
+        shift
+        ;;
+      --symlink)
+        fail "symlink install mode has been removed on the posix-rewrite branch"
+        ;;
+      --shim)
+        [ "$#" -ge 2 ] || fail "missing value for --shim"
+        if [ -n "$REQUESTED_SHIMS" ]; then
+          REQUESTED_SHIMS="$REQUESTED_SHIMS $2"
+        else
+          REQUESTED_SHIMS=$2
+        fi
+        shift 2
+        ;;
+      --shell)
+        [ "$#" -ge 2 ] || fail "missing value for --shell"
+        REQUESTED_SHELL=$2
+        shift 2
+        ;;
+      --startup-file)
+        [ "$#" -ge 2 ] || fail "missing value for --startup-file"
+        REQUESTED_STARTUP_FILE=$2
+        shift 2
+        ;;
+      --no-startup)
+        SKIP_STARTUP=1
+        shift
+        ;;
+      --uninstall)
+        UNINSTALL=1
+        shift
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        fail "unknown argument: $1"
+        ;;
+    esac
+  done
 
-shimmy::init_install_vars "$REQUESTED_INSTALL_DIR"
+  resolve_install_paths
 
-if [[ "$UNINSTALL" -eq 1 ]]; then
-  shimmy::apply_install_paths_from_manifest "$INSTALL_MANIFEST_FILE" || true
-  perform_uninstall
-else
-  perform_install
-fi
+  if [ "$UNINSTALL" -eq 1 ]; then
+    perform_uninstall
+  else
+    perform_install
+  fi
+}
+
+main "$@"
