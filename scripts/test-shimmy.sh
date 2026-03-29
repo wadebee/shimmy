@@ -110,6 +110,7 @@ test_dash_parse() {
   dash -n "$ROOT_DIR/shimmy"
   dash -n "$ROOT_DIR/scripts/activate-shimmy.sh"
   dash -n "$ROOT_DIR/scripts/install-shimmy.sh"
+  dash -n "$ROOT_DIR/scripts/onboard-shimmy.sh"
   dash -n "$ROOT_DIR/scripts/status-shimmy.sh"
   dash -n "$ROOT_DIR/scripts/test-shimmy.sh"
   dash -n "$ROOT_DIR/scripts/update-shimmy.sh"
@@ -180,6 +181,41 @@ test_activate_is_idempotent() {
   assert_contains "$output" "PATH=$INSTALL_DIR/shims:/usr/bin"
 
   pass "activate path activation is idempotent"
+}
+
+test_onboard_bash_guidance() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+
+  output=$(
+    HOME="$HOME_DIR" run_in_repo ./shimmy onboard --install-dir "$INSTALL_DIR" --shell bash 2>&1
+  )
+
+  assert_contains "$output" "Shell: bash"
+  assert_contains "$output" "Recommended shell startup file: ~/.bashrc"
+  assert_contains "$output" "Add the following block to ~/.bashrc:"
+  assert_contains "$output" "$INSTALL_DIR/shims"
+  assert_contains "$output" "/opt/podman/bin"
+  assert_not_contains "$output" "SHIMMY_INSTALL_DIR"
+
+  pass "onboard prints bash guidance"
+}
+
+test_onboard_shell_detect() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+
+  output=$(
+    cd "$ROOT_DIR"
+    HOME="$HOME_DIR" SHELL=/bin/zsh ./shimmy onboard --install-dir "$INSTALL_DIR" 2>&1
+  )
+
+  assert_contains "$output" "Shell: zsh"
+  assert_contains "$output" "Recommended shell startup file: ~/.zshrc"
+
+  pass "onboard detects shell from SHELL"
 }
 
 test_status_reports_install() {
@@ -386,6 +422,8 @@ main() {
   test_install_manifest
   test_activate_eval
   test_activate_is_idempotent
+  test_onboard_bash_guidance
+  test_onboard_shell_detect
   test_status_reports_install
   test_update_reinstalls_selected_shims
   test_aws_shim_direct
