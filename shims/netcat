@@ -1,47 +1,52 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-SHIMMY_BOOTSTRAP_DIR="${SHIMMY_SHIM_LIB_DIR:-}"
-if [[ -z "$SHIMMY_BOOTSTRAP_DIR" && -n "${SHIMMY_INSTALL_DIR:-}" ]]; then
-  SHIMMY_BOOTSTRAP_DIR="${SHIMMY_INSTALL_DIR%/}/lib/shims"
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+CUSTOM_IMAGE_HELPER_FILE=$SCRIPT_DIR/../lib/shims/custom-image.sh
+
+NETCAT_IMAGES_DIR=$SCRIPT_DIR/../images/netcat
+NETCAT_PULL_ARG=
+
+if [ ! -f "$CUSTOM_IMAGE_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$CUSTOM_IMAGE_HELPER_FILE" >&2
+  exit 1
 fi
-if [[ -z "$SHIMMY_BOOTSTRAP_DIR" ]]; then
-  SHIMMY_BOOTSTRAP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../lib/shims" && pwd)"
-fi
 
-SHIMMY_BOOTSTRAP_FILE="$SHIMMY_BOOTSTRAP_DIR/shim-bootstrap.sh"
-
-# shellcheck source=lib/shims/shim-bootstrap.sh
-source "$SHIMMY_BOOTSTRAP_FILE"
-
-shimmy::shim_paths_init "${BASH_SOURCE[0]}"
-shimmy::shim_helper_source "shimmy-podman.sh"
-shimmy::shim_helper_source "custom-image.sh"
+# shellcheck source=lib/shims/custom-image.sh
+. "$CUSTOM_IMAGE_HELPER_FILE"
 
 shimmy_podman_preflight_require "the netcat shim"
 
-if [[ -n "${NETCAT_IMAGE:-}" ]]; then
-  NETCAT_RUN_IMAGE="$NETCAT_IMAGE"
+if [ -n "${NETCAT_IMAGE:-}" ]; then
+  NETCAT_RUN_IMAGE=$NETCAT_IMAGE
 else
-  BUILD_ARGS=()
-  if [[ -n "${NETCAT_BASE_IMAGE:-}" ]]; then
-    BUILD_ARGS+=( --build-arg "NETCAT_BASE_IMAGE=$NETCAT_BASE_IMAGE" )
+  if [ -n "${NETCAT_BASE_IMAGE:-}" ]; then
+    NETCAT_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-netcat" \
+        "$NETCAT_IMAGES_DIR" \
+        "${NETCAT_IMAGE_BUILD:-auto}" \
+        --build-arg "NETCAT_BASE_IMAGE=$NETCAT_BASE_IMAGE"
+    )
+  else
+    NETCAT_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-netcat" \
+        "$NETCAT_IMAGES_DIR" \
+        "${NETCAT_IMAGE_BUILD:-auto}"
+    )
   fi
-
-  NETCAT_RUN_IMAGE="$(
-    shimmy::ensure_local_image \
-      "localhost/shimmy-netcat" \
-      "$SHIMMY_IMAGES_DIR/netcat" \
-      "${NETCAT_IMAGE_BUILD:-auto}" \
-      "${BUILD_ARGS[@]}"
-  )"
 fi
 
-MOUNTS=( -v "$PWD":/work:rw -w /work )
-
-PODMAN_OPTS=()
-if [[ -n "${NETCAT_IMAGE:-}" && "${NETCAT_IMAGE_PULL:-}" = "always" ]]; then
-  PODMAN_OPTS+=( --pull=always )
+if [ -n "${NETCAT_IMAGE:-}" ] && [ "${NETCAT_IMAGE_PULL:-}" = "always" ]; then
+  NETCAT_PULL_ARG=--pull=always
 fi
 
-exec "$SHIMMY_PODMAN_BIN" run --rm -i "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "$NETCAT_RUN_IMAGE" "$@"
+exec "$SHIMMY_PODMAN_BIN" run --rm -i \
+  ${NETCAT_PULL_ARG:+"$NETCAT_PULL_ARG"} \
+  -v "$PWD:/work:rw" \
+  -w /work \
+  "$NETCAT_RUN_IMAGE" \
+  "$@"

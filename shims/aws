@@ -1,10 +1,16 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-SCRIPT_DIR="$(
+SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
-)"
-PODMAN_HELPER_FILE="$SCRIPT_DIR/../lib/shims/shimmy-podman.sh"
+)
+PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+
+AWS_IMAGE=${AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}
+AWS_IMAGE_PULL=${AWS_IMAGE_PULL:-}
+AWS_CONFIG_DIR=
+AWS_PULL_ARG=
+AWS_TTY_ARG=
 
 if [ ! -f "$PODMAN_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
@@ -16,27 +22,25 @@ fi
 
 shimmy_podman_preflight_require "the aws shim"
 
-# Podman-based AWS CLI wrapper
-# Usage: shims/aws <aws-args>
-# Example: shims/aws s3 ls
-AWS_IMAGE=${AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}
-
-# Mount current working directory as /work
-MOUNTS=( -v "$PWD":/work -w /work )
-
-# Mount AWS credentials/config
-if [ -d "$HOME/.aws" ]; then
-  MOUNTS+=( -v "$HOME/.aws":/root/.aws:ro )
+if [ -n "${HOME:-}" ] && [ -d "$HOME/.aws" ]; then
+  AWS_CONFIG_DIR=$HOME/.aws
 fi
 
-# Forward common AWS env vars
-ENV_VARS=( -e AWS_* )
-
-# Pull policy
-PODMAN_OPTS=()
-if [ "${AWS_IMAGE_PULL:-}" = "always" ]; then
-  PODMAN_OPTS+=( --pull=always )
+if [ "$AWS_IMAGE_PULL" = "always" ]; then
+  AWS_PULL_ARG=--pull=always
 fi
 
-# Execute podman run
-exec "$SHIMMY_PODMAN_BIN" run --rm -it "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "${ENV_VARS[@]}" "$AWS_IMAGE" "$@"
+if [ -t 0 ] && [ -t 1 ]; then
+  AWS_TTY_ARG=-it
+fi
+
+exec "$SHIMMY_PODMAN_BIN" run --rm \
+  ${AWS_PULL_ARG:+"$AWS_PULL_ARG"} \
+  ${AWS_TTY_ARG:+"$AWS_TTY_ARG"} \
+  -v "$PWD:/work" \
+  -w /work \
+  ${AWS_CONFIG_DIR:+"-v"} \
+  ${AWS_CONFIG_DIR:+"$AWS_CONFIG_DIR:/root/.aws:ro"} \
+  -e AWS_* \
+  "$AWS_IMAGE" \
+  "$@"

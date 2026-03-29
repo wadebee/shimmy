@@ -1,47 +1,58 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-SHIMMY_BOOTSTRAP_DIR="${SHIMMY_SHIM_LIB_DIR:-}"
-if [[ -z "$SHIMMY_BOOTSTRAP_DIR" && -n "${SHIMMY_INSTALL_DIR:-}" ]]; then
-  SHIMMY_BOOTSTRAP_DIR="${SHIMMY_INSTALL_DIR%/}/lib/shims"
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+CUSTOM_IMAGE_HELPER_FILE=$SCRIPT_DIR/../lib/shims/custom-image.sh
+
+TEXTUAL_IMAGES_DIR=$SCRIPT_DIR/../images/textual
+TEXTUAL_PULL_ARG=
+TEXTUAL_TTY_ARG=
+
+if [ ! -f "$CUSTOM_IMAGE_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$CUSTOM_IMAGE_HELPER_FILE" >&2
+  exit 1
 fi
-if [[ -z "$SHIMMY_BOOTSTRAP_DIR" ]]; then
-  SHIMMY_BOOTSTRAP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../lib/shims" && pwd)"
-fi
 
-SHIMMY_BOOTSTRAP_FILE="$SHIMMY_BOOTSTRAP_DIR/shim-bootstrap.sh"
-
-# shellcheck source=lib/shims/shim-bootstrap.sh
-source "$SHIMMY_BOOTSTRAP_FILE"
-
-shimmy::shim_paths_init "${BASH_SOURCE[0]}"
-shimmy::shim_helper_source "shimmy-podman.sh"
-shimmy::shim_helper_source "custom-image.sh"
+# shellcheck source=lib/shims/custom-image.sh
+. "$CUSTOM_IMAGE_HELPER_FILE"
 
 shimmy_podman_preflight_require "the textual shim"
 
-if [[ -n "${TEXTUAL_IMAGE:-}" ]]; then
-  TEXTUAL_RUN_IMAGE="$TEXTUAL_IMAGE"
+if [ -n "${TEXTUAL_IMAGE:-}" ]; then
+  TEXTUAL_RUN_IMAGE=$TEXTUAL_IMAGE
 else
-  BUILD_ARGS=()
-  if [[ -n "${TEXTUAL_BASE_IMAGE:-}" ]]; then
-    BUILD_ARGS+=( --build-arg "TEXTUAL_BASE_IMAGE=$TEXTUAL_BASE_IMAGE" )
+  if [ -n "${TEXTUAL_BASE_IMAGE:-}" ]; then
+    TEXTUAL_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-textual" \
+        "$TEXTUAL_IMAGES_DIR" \
+        "${TEXTUAL_IMAGE_BUILD:-auto}" \
+        --build-arg "TEXTUAL_BASE_IMAGE=$TEXTUAL_BASE_IMAGE"
+    )
+  else
+    TEXTUAL_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-textual" \
+        "$TEXTUAL_IMAGES_DIR" \
+        "${TEXTUAL_IMAGE_BUILD:-auto}"
+    )
   fi
-
-  TEXTUAL_RUN_IMAGE="$(
-    shimmy::ensure_local_image \
-      "localhost/shimmy-textual" \
-      "$SHIMMY_IMAGES_DIR/textual" \
-      "${TEXTUAL_IMAGE_BUILD:-auto}" \
-      "${BUILD_ARGS[@]}"
-  )"
 fi
 
-MOUNTS=( -v "$PWD":/work:rw -w /work )
-
-PODMAN_OPTS=()
-if [[ -n "${TEXTUAL_IMAGE:-}" && "${TEXTUAL_IMAGE_PULL:-}" = "always" ]]; then
-  PODMAN_OPTS+=( --pull=always )
+if [ -n "${TEXTUAL_IMAGE:-}" ] && [ "${TEXTUAL_IMAGE_PULL:-}" = "always" ]; then
+  TEXTUAL_PULL_ARG=--pull=always
 fi
 
-exec "$SHIMMY_PODMAN_BIN" run --rm -it "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "$TEXTUAL_RUN_IMAGE" "$@"
+if [ -t 0 ] && [ -t 1 ]; then
+  TEXTUAL_TTY_ARG=-it
+fi
+
+exec "$SHIMMY_PODMAN_BIN" run --rm \
+  ${TEXTUAL_TTY_ARG:+"$TEXTUAL_TTY_ARG"} \
+  ${TEXTUAL_PULL_ARG:+"$TEXTUAL_PULL_ARG"} \
+  -v "$PWD:/work:rw" \
+  -w /work \
+  "$TEXTUAL_RUN_IMAGE" \
+  "$@"

@@ -48,9 +48,9 @@ Before committing completed item changes, confirm:
 - `done` Add a shared Podman preflight helper for all shims and lifecycle commands
   `thinking: high`
   `plan: add one POSIX helper under lib/shims so both repo scripts and installed shims can source it, centralize podman binary resolution including /opt/podman/bin/podman on macOS, expose a lightweight podman info preflight for lifecycle commands and smoke tests, and standardize actionable failure guidance for missing binaries, unreachable engines, macOS podman machine startup, connection selection, and CONTAINER_HOST overrides`
-- `to-do` Expand the rewrite to the remaining in-scope shims and lifecycle commands
+- `done` Expand the rewrite to the remaining in-scope shims and lifecycle commands
   `thinking: high`
-  `plan: port the remaining in-scope remote-image shims to small POSIX /bin/sh wrappers on top of the shared Podman helper, then replace the local-build shim bootstrap and helper path assumptions so netcat, task, and textual no longer depend on Bash-era helpers or exported Shimmy-managed path variables`
+  `plan: port the remaining in-scope remote-image shims to small POSIX /bin/sh wrappers on top of the shared Podman helper, replace the local-build shim bootstrap and helper path assumptions so netcat, task, and textual no longer depend on Bash-era helpers or exported Shimmy-managed path variables, and align status/update smoke coverage plus docs with the finished in-scope shim set`
 - `to-do` Add onboarding-helper checklist item for common POSIX shell environments
   `thinking: medium`
 - `to-do` Add secondary onboarding features, including optional rc-file helpers
@@ -81,15 +81,14 @@ Before committing completed item changes, confirm:
 - The fixed install root remains `~/.config/shimmy`, with `--install-dir` retained as the explicit override.
 - `activate` should own PATH activation for installed shims and should also cover the macOS pkg-installed Podman path when needed so users do not have to prepend `/opt/podman/bin` manually.
 - The foundation now includes POSIX `install`, `activate`, `status`, `update`, and `test` flows built around the single-root manifest model.
-- The next priority is the remaining runtime shim expansion work, especially the in-scope remote-image and local-build shims that still rely on older Bash-era helpers.
+- The remaining in-scope runtime shims now resolve shared helpers and image contexts from the install-root-relative layout instead of exported Shimmy path variables, and the smoke suite covers both remote-image and local-build execution paths.
 
 Next-session priority adjustments:
 
 - continue with medium thinking unless otherwise requested
-- Use the new `activate` and single-root model as the baseline for the remaining shim ports.
-- Port the remaining in-scope runtime shims off Bash-era helpers and conventions.
-- Update shared shim helper libraries as needed so local-build shims no longer depend on exported Shimmy path variables.
-- Keep validating with `/bin/sh` parser checks and live Podman smoke tests as each shim group moves over.
+- Use the finished `activate` plus single-root model as the baseline for onboarding helpers.
+- Add the common POSIX shell onboarding-helper checklist item next.
+- After that, layer in optional rc-file helpers and secondary onboarding features.
 
 ## Constraints
 - This section (to the end of document) contains the goals, scope and principle this workflow must incrementally build through AI planning, User approval and AI implementation 

@@ -60,6 +60,12 @@ assert_not_contains() {
   esac
 }
 
+assert_not_empty() {
+  if [ -z "${1:-}" ]; then
+    fail_test "expected output to be non-empty"
+  fi
+}
+
 assert_file_exists() {
   if [ ! -f "$1" ]; then
     fail_test "expected file to exist: $1"
@@ -107,8 +113,16 @@ test_dash_parse() {
   dash -n "$ROOT_DIR/scripts/status-shimmy.sh"
   dash -n "$ROOT_DIR/scripts/test-shimmy.sh"
   dash -n "$ROOT_DIR/scripts/update-shimmy.sh"
+  dash -n "$ROOT_DIR/lib/shims/custom-image.sh"
+  dash -n "$ROOT_DIR/lib/shims/shimmy-log.sh"
   dash -n "$ROOT_DIR/lib/shims/shimmy-podman.sh"
+  dash -n "$ROOT_DIR/shims/aws"
   dash -n "$ROOT_DIR/shims/jq"
+  dash -n "$ROOT_DIR/shims/netcat"
+  dash -n "$ROOT_DIR/shims/rg"
+  dash -n "$ROOT_DIR/shims/task"
+  dash -n "$ROOT_DIR/shims/terraform"
+  dash -n "$ROOT_DIR/shims/textual"
 
   pass "dash parse checks"
 }
@@ -171,7 +185,7 @@ test_activate_is_idempotent() {
 test_status_reports_install() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task >/dev/null
 
   output=$(
     HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" 2>&1
@@ -181,6 +195,7 @@ test_status_reports_install() {
   assert_contains "$output" "install_dir=$INSTALL_DIR"
   assert_contains "$output" "shim_dir=$INSTALL_DIR/shims"
   assert_contains "$output" "- jq: docker.io/stedolan/jq:latest"
+  assert_contains "$output" "- task: localhost/shimmy-task:"
 
   pass "status reports installed shim details"
 }
@@ -188,14 +203,30 @@ test_status_reports_install() {
 test_update_reinstalls_selected_shims() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task >/dev/null
   rm -f "$INSTALL_DIR/shims/jq"
+  rm -f "$INSTALL_DIR/shims/task"
 
   HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" >/dev/null
 
   assert_file_exists "$INSTALL_DIR/shims/jq"
+  assert_file_exists "$INSTALL_DIR/shims/task"
 
   pass "update reinstalls manifest-selected shims"
+}
+
+test_aws_shim_direct() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/aws" --version 2>&1
+  )
+
+  assert_contains "$output" "aws-cli/"
+
+  pass "aws direct shim execution"
 }
 
 test_jq_shim_direct() {
@@ -246,6 +277,99 @@ test_installed_jq_shim() {
   pass "installed jq shim execution"
 }
 
+test_netcat_shim_direct() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/netcat" --help 2>&1
+  )
+
+  assert_contains "$output" "Ncat"
+
+  pass "netcat direct shim execution"
+}
+
+test_rg_shim_direct() {
+  setup_scenario
+  require_podman
+
+  cat > "$WORK_DIR/example.txt" <<'EOF'
+needle
+EOF
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/rg" needle example.txt 2>&1
+  )
+
+  assert_contains "$output" "needle"
+
+  pass "rg direct shim execution"
+}
+
+test_task_shim_direct() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/task" --version 2>&1
+  )
+
+  assert_not_empty "$output"
+  assert_not_contains "$output" "ERROR:"
+
+  pass "task direct shim execution"
+}
+
+test_terraform_shim_direct() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/terraform" version 2>&1
+  )
+
+  assert_contains "$output" "Terraform v"
+
+  pass "terraform direct shim execution"
+}
+
+test_textual_shim_direct() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/textual" --help 2>&1
+  )
+
+  assert_contains "$output" "Usage:"
+  assert_contains "$output" "textual"
+
+  pass "textual direct shim execution"
+}
+
+test_installed_task_shim() {
+  setup_scenario
+  require_podman
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim task >/dev/null
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$INSTALL_DIR/shims/task" --version 2>&1
+  )
+
+  assert_not_empty "$output"
+  assert_not_contains "$output" "ERROR:"
+
+  pass "installed task shim execution"
+}
+
 test_uninstall_cleanup() {
   setup_scenario
 
@@ -264,9 +388,16 @@ main() {
   test_activate_is_idempotent
   test_status_reports_install
   test_update_reinstalls_selected_shims
+  test_aws_shim_direct
   test_jq_shim_direct
   test_jq_shim_pull_override
   test_installed_jq_shim
+  test_netcat_shim_direct
+  test_rg_shim_direct
+  test_task_shim_direct
+  test_terraform_shim_direct
+  test_textual_shim_direct
+  test_installed_task_shim
   test_uninstall_cleanup
 
   printf 'All %s shim tests passed.\n' "$TEST_COUNT"

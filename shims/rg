@@ -1,10 +1,14 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-SCRIPT_DIR="$(
+SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
-)"
-PODMAN_HELPER_FILE="$SCRIPT_DIR/../lib/shims/shimmy-podman.sh"
+)
+PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+
+RG_IMAGE=${RG_IMAGE:-docker.io/vszl/ripgrep:latest}
+RG_IMAGE_PULL=${RG_IMAGE_PULL:-}
+RG_PULL_ARG=
 
 if [ ! -f "$PODMAN_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
@@ -16,20 +20,13 @@ fi
 
 shimmy_podman_preflight_require "the rg shim"
 
-# Podman-based ripgrep wrapper
-# Usage: shims/rg <rg-args>
-# Example: shims/rg --files
-
-RG_IMAGE=${RG_IMAGE:-docker.io/vszl/ripgrep:latest}
-RG_IMAGE_PULL=${RG_IMAGE_PULL:-}
-
-# Mount current working directory as /work
-MOUNTS=( -v "$PWD":/work -w /work )
-
-# Pull policy: respect RG_IMAGE_PULL=always
-PODMAN_OPTS=()
-if [ "${RG_IMAGE_PULL:-}" = "always" ]; then
-  PODMAN_OPTS+=( --pull=always )
+if [ "$RG_IMAGE_PULL" = "always" ]; then
+  RG_PULL_ARG=--pull=always
 fi
 
-exec "$SHIMMY_PODMAN_BIN" run --rm -i "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "$RG_IMAGE" "$@"
+exec "$SHIMMY_PODMAN_BIN" run --rm -i \
+  ${RG_PULL_ARG:+"$RG_PULL_ARG"} \
+  -v "$PWD:/work" \
+  -w /work \
+  "$RG_IMAGE" \
+  "$@"

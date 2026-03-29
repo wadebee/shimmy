@@ -1,35 +1,114 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-SHIMMY_BOOTSTRAP_DIR="${SHIMMY_SHIM_LIB_DIR:-}"
-if [[ -z "$SHIMMY_BOOTSTRAP_DIR" && -n "${SHIMMY_INSTALL_DIR:-}" ]]; then
-  SHIMMY_BOOTSTRAP_DIR="${SHIMMY_INSTALL_DIR%/}/lib/shims"
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+CUSTOM_IMAGE_HELPER_FILE=$SCRIPT_DIR/../lib/shims/custom-image.sh
+
+TASK_CONTAINER_HOST_SOCKET=
+TASK_CONTAINER_HOST_VALUE=
+TASK_HOME_DIR=
+TASK_IMAGES_DIR=$SCRIPT_DIR/../images/task
+TASK_PULL_ARG=
+TASK_TMP_DIR=
+TASK_TTY_ARG=
+
+if [ ! -f "$CUSTOM_IMAGE_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$CUSTOM_IMAGE_HELPER_FILE" >&2
+  exit 1
 fi
-if [[ -z "$SHIMMY_BOOTSTRAP_DIR" ]]; then
-  SHIMMY_BOOTSTRAP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../lib/shims" && pwd)"
-fi
 
-SHIMMY_BOOTSTRAP_FILE="$SHIMMY_BOOTSTRAP_DIR/shim-bootstrap.sh"
-
-# shellcheck source=lib/shims/shim-bootstrap.sh
-source "$SHIMMY_BOOTSTRAP_FILE"
-
-shimmy::shim_paths_init "${BASH_SOURCE[0]}"
-shimmy::shim_helper_source "shimmy-podman.sh"
-shimmy::shim_helper_source "task-shim.sh"
+# shellcheck source=lib/shims/custom-image.sh
+. "$CUSTOM_IMAGE_HELPER_FILE"
 
 shimmy_podman_preflight_require "the task shim"
 
-TASK_RUN_IMAGE="$(shimmy::task_resolve_image "$SHIMMY_IMAGES_DIR")"
-PODMAN_OPTS=()
-if [[ -n "${TASK_IMAGE:-}" && "${TASK_IMAGE_PULL:-}" = "always" ]]; then
-  PODMAN_OPTS+=( --pull=always )
+if [ -n "${TASK_IMAGE:-}" ]; then
+  TASK_RUN_IMAGE=$TASK_IMAGE
+else
+  if [ -n "${TASK_BASE_IMAGE:-}" ] && [ -n "${TASK_VERSION:-}" ]; then
+    TASK_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-task" \
+        "$TASK_IMAGES_DIR" \
+        "${TASK_IMAGE_BUILD:-auto}" \
+        --build-arg "TASK_BASE_IMAGE=$TASK_BASE_IMAGE" \
+        --build-arg "TASK_VERSION=$TASK_VERSION"
+    )
+  elif [ -n "${TASK_BASE_IMAGE:-}" ]; then
+    TASK_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-task" \
+        "$TASK_IMAGES_DIR" \
+        "${TASK_IMAGE_BUILD:-auto}" \
+        --build-arg "TASK_BASE_IMAGE=$TASK_BASE_IMAGE"
+    )
+  elif [ -n "${TASK_VERSION:-}" ]; then
+    TASK_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-task" \
+        "$TASK_IMAGES_DIR" \
+        "${TASK_IMAGE_BUILD:-auto}" \
+        --build-arg "TASK_VERSION=$TASK_VERSION"
+    )
+  else
+    TASK_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-task" \
+        "$TASK_IMAGES_DIR" \
+        "${TASK_IMAGE_BUILD:-auto}"
+    )
+  fi
 fi
-shimmy::task_append_default_run_opts PODMAN_OPTS
 
-TTY_OPTS=()
-if shimmy::is_task_tty_enabled; then
-  TTY_OPTS+=( -it )
+if [ -n "${TASK_IMAGE:-}" ] && [ "${TASK_IMAGE_PULL:-}" = "always" ]; then
+  TASK_PULL_ARG=--pull=always
 fi
 
-exec "$SHIMMY_PODMAN_BIN" run --rm "${TTY_OPTS[@]}" "${PODMAN_OPTS[@]}" "$TASK_RUN_IMAGE" "$@"
+if [ -n "${HOME:-}" ] && [ -d "$HOME" ]; then
+  TASK_HOME_DIR=$HOME
+fi
+
+if [ -n "${CONTAINER_HOST:-}" ]; then
+  case "$CONTAINER_HOST" in
+    unix://*)
+      if [ -S "${CONTAINER_HOST#unix://}" ]; then
+        TASK_CONTAINER_HOST_VALUE=$CONTAINER_HOST
+        TASK_CONTAINER_HOST_SOCKET=${CONTAINER_HOST#unix://}
+      fi
+      ;;
+    *)
+      TASK_CONTAINER_HOST_VALUE=$CONTAINER_HOST
+      ;;
+  esac
+fi
+
+if [ -t 0 ] && [ -t 1 ]; then
+  TASK_TTY_ARG=-it
+fi
+
+if [ -d /tmp ]; then
+  TASK_TMP_DIR=/tmp
+fi
+
+exec "$SHIMMY_PODMAN_BIN" run --rm \
+  ${TASK_TTY_ARG:+"$TASK_TTY_ARG"} \
+  ${TASK_PULL_ARG:+"$TASK_PULL_ARG"} \
+  -v "$PWD:$PWD:rw" \
+  -v "$PWD:/work:rw" \
+  -w "$PWD" \
+  ${TASK_HOME_DIR:+"-e"} \
+  ${TASK_HOME_DIR:+"HOME=$HOME"} \
+  ${TASK_HOME_DIR:+"-v"} \
+  ${TASK_HOME_DIR:+"$HOME:$HOME:rw"} \
+  ${PATH:+"-e"} \
+  ${PATH:+"SHIMMY_HOST_PATH=$PATH"} \
+  ${TASK_CONTAINER_HOST_VALUE:+"-e"} \
+  ${TASK_CONTAINER_HOST_VALUE:+"CONTAINER_HOST=$TASK_CONTAINER_HOST_VALUE"} \
+  ${TASK_CONTAINER_HOST_SOCKET:+"-v"} \
+  ${TASK_CONTAINER_HOST_SOCKET:+"$TASK_CONTAINER_HOST_SOCKET:$TASK_CONTAINER_HOST_SOCKET"} \
+  ${TASK_TMP_DIR:+"-v"} \
+  ${TASK_TMP_DIR:+"$TASK_TMP_DIR:$TASK_TMP_DIR:rw"} \
+  "$TASK_RUN_IMAGE" \
+  "$@"
