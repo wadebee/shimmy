@@ -29,7 +29,6 @@ That document is the contributor source of truth, including naming conventions f
 | **task** | Taskfile task runner | local build from `images/task/Containerfile` | `task --version`, `task --list` |
 | **terraform** | Infrastructure as Code | `docker.io/hashicorp/terraform:latest` | `terraform plan`, `terraform apply` |
 | **textual** | Textual developer CLI | local build from `images/textual/Containerfile` | `textual --help`, `textual run app.py` |
-| **tessl** | Tessl CLI | local build from `images/tessl/Containerfile` | `tessl --help`, `tessl init` |
 
 ## Requirements
 
@@ -128,43 +127,11 @@ task --list
 # Textual CLI
 textual --help
 textual run app.py
-
-# Tessl CLI
-tessl --help
-tessl init --agent codex
 ```
 
 ## Configuration
 
-Each shim respects environment variables for customization:
-
-### Terraform
-
-- `TF_IMAGE` — Container image (default: `docker.io/hashicorp/terraform:latest`)
-- `TF_IMAGE_PULL` — Set to `always` to force pulling the latest image
-
-Example:
-
-```sh
-TF_IMAGE=docker.io/hashicorp/terraform:latest
-TF_IMAGE_PULL=always 
-terraform version
-terraform plan
-```
-
-**Mounts:**
-- `$PWD` → `$PWD` (read-write)
-- `$PWD` → `/work` (read-write compatibility alias)
-- `$HOME` → `$HOME` (read-write, if it exists)
-- `/tmp` → `/tmp` (read-write)
-
-When `CONTAINER_HOST` points at a unix-domain Podman socket, the task shim also forwards that socket into the container so Task-driven automation can launch other shims.
-- `~/.aws` → `/root/.aws` (read-only, if exists)
-- `~/.terraform.d/plugin-cache` → `/root/.terraform.d/plugin-cache` (if exists)
-
-**Environment variables forwarded:**
-- `AWS_*`
-- `TF_VAR_*`
+Each shim respects environment variables for customization.
 
 ### AWS CLI
 
@@ -247,29 +214,40 @@ TASK_VERSION=v3.45.5 task --version
 The default Task image is built locally from `images/task/Containerfile`, which starts from Alpine and installs the official Task release binary from GitHub Releases. Shimmy tags the resulting image under `localhost/shimmy-task:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
 
 **Mounts:**
+- `$PWD` → `$PWD` (read-write)
 - `$PWD` → `/work` (read-write)
+- `$HOME` → `$HOME` (read-write, if it exists)
+- `/tmp` → `/tmp` (read-write, if it exists)
 
-### Tessl CLI
+When `CONTAINER_HOST` points at a unix-domain Podman socket, the task shim also forwards that socket into the container so Task-driven automation can launch other shims.
 
-- `TESSL_IMAGE` — Override the runtime image entirely
-- `TESSL_IMAGE_BUILD` — Set to `always` to rebuild the local Tessl image even if it is already cached
-- `TESSL_IMAGE_PULL` — Set to `always` to force pulling `TESSL_IMAGE` when using an explicit remote override
-- `TESSL_BASE_IMAGE` — Override the `Containerfile` base image (default build arg: `dhi.io/node:25-dev`)
+**Environment variables forwarded:**
+- `CONTAINER_HOST` when explicitly set
+- `SHIMMY_HOST_PATH`
+- `HOME` when the home directory mount is enabled
+
+### Terraform
+
+- `TF_IMAGE` — Container image (default: `docker.io/hashicorp/terraform:latest`)
+- `TF_IMAGE_PULL` — Set to `always` to force pulling the latest image
 
 Example:
 
 ```sh
-TESSL_BASE_IMAGE=dhi.io/node:25-dev tessl --help
+TF_IMAGE=docker.io/hashicorp/terraform:latest
+TF_IMAGE_PULL=always
+terraform version
+terraform plan
 ```
-
-The default Tessl image is built locally from `images/tessl/Containerfile`, which starts from `node:25` and installs the CLI with `npm install -g @tessl/cli` per the Tessl installation docs. Shimmy tags the resulting image under `localhost/shimmy-tessl:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
 
 **Mounts:**
 - `$PWD` → `/work` (read-write)
-- `~/.tessl` → `/root/.tessl` (read-write, if exists)
+- `~/.aws` → `/root/.aws` (read-only, if exists)
+- `~/.terraform.d/plugin-cache` → `/root/.terraform.d/plugin-cache` (if exists)
 
 **Environment variables forwarded:**
-- `TESSL_*`
+- `AWS_*`
+- `TF_VAR_*`
 
 ### Textual CLI
 
@@ -289,6 +267,8 @@ The default Textual image is built locally from `images/textual/Containerfile`, 
 **Mounts:**
 - `$PWD` → `/work` (read-write)
 
+The interactive shims (`aws`, `task`, `terraform`, and `textual`) request `-it` only when both stdin and stdout are attached to a terminal, so version and help commands still work cleanly in scripts and smoke tests.
+
 ## Testing
 
 Run the test suite to validate that shim containers run via Podman:
@@ -300,10 +280,9 @@ sh ./scripts/test-shimmy.sh
 ```
 
 Tests verify:
-- `/bin/sh` parser compatibility for the proof-of-concept shell entrypoints
-- install and uninstall behavior
-- `activate` activation and PATH idempotence
-- live Podman execution for the proof-of-concept `jq` shim
+- `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
+- install, activate, status, update, and uninstall behavior for the single-root manifest layout
+- live Podman execution for the supported shim set: `aws`, `jq`, `netcat`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
 ```
@@ -315,13 +294,11 @@ shimmy/
 │   ├── netcat
 │   ├── rg
 │   ├── task
-│   ├── tessl
 │   ├── textual
 │   └── terraform
 ├── images/                   # Custom shim image build contexts
 │   ├── netcat
 │   ├── task
-│   ├── tessl
 │   └── textual
 ├── lib/
 │   ├── repo/                 # Repo-only sourced helpers for wrapper/scripts
@@ -331,7 +308,7 @@ shimmy/
 │   ├── status-shimmy.sh      # Status script
 │   ├── test-shimmy.sh        # Test suite
 │   └── update-shimmy.sh      # Update script
-├── .pre-commit-config.yaml    # Git https://github.com/pre-commit/pre-commit-hooks
+├── .pre-commit-config.yaml   # Git https://github.com/pre-commit/pre-commit-hooks
 ├── .github/
 │   └── workflows/
 │       └── test.yml          # CI/CD workflow

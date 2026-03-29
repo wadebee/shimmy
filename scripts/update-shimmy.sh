@@ -7,6 +7,7 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
+CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
 PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
 DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
 REQUESTED_INSTALL_DIR=
@@ -18,10 +19,16 @@ fail() {
   exit 1
 }
 
+if [ ! -f "$CUSTOM_IMAGE_HELPER_FILE" ]; then
+  fail "missing custom image helper: $CUSTOM_IMAGE_HELPER_FILE"
+fi
+
 if [ ! -f "$PODMAN_HELPER_FILE" ]; then
   fail "missing Podman helper: $PODMAN_HELPER_FILE"
 fi
 
+# shellcheck source=lib/shims/custom-image.sh
+. "$CUSTOM_IMAGE_HELPER_FILE"
 # shellcheck source=lib/shims/shimmy-podman.sh
 . "$PODMAN_HELPER_FILE"
 
@@ -71,47 +78,11 @@ manifest_shim_list() {
   sed -n 's/^shim=//p' "$manifest_file"
 }
 
-context_hash() {
-  context_dir=$1
-
-  [ -d "$context_dir" ] || return 1
-  [ -f "$context_dir/Containerfile" ] || return 1
-
-  if command -v sha256sum >/dev/null 2>&1; then
-    tar \
-      -C "$context_dir" \
-      --sort=name \
-      --mtime='UTC 1970-01-01' \
-      --owner=0 \
-      --group=0 \
-      --numeric-owner \
-      -cf - \
-      . 2>/dev/null | sha256sum | awk '{print substr($1, 1, 12)}'
-    return 0
-  fi
-
-  if command -v shasum >/dev/null 2>&1; then
-    tar \
-      -C "$context_dir" \
-      --sort=name \
-      --mtime='UTC 1970-01-01' \
-      --owner=0 \
-      --group=0 \
-      --numeric-owner \
-      -cf - \
-      . 2>/dev/null | shasum -a 256 | awk '{print substr($1, 1, 12)}'
-    return 0
-  fi
-
-  return 1
-}
-
 local_build_repo_for_shim() {
   case "$1" in
     netcat) printf 'localhost/shimmy-netcat\n' ;;
     task) printf 'localhost/shimmy-task\n' ;;
     textual) printf 'localhost/shimmy-textual\n' ;;
-    tessl) printf 'localhost/shimmy-tessl\n' ;;
     *) return 1 ;;
   esac
 }
@@ -124,7 +95,7 @@ cleanup_old_local_images() {
   [ -n "$image_repo" ] || return 0
 
   context_dir=$images_dir/$shim_name
-  current_hash=$(context_hash "$context_dir" || true)
+  current_hash=$(shimmy_context_hash_render "$context_dir" 2>/dev/null || true)
   [ -n "$current_hash" ] || return 0
 
   current_ref=${image_repo}:$current_hash
@@ -197,10 +168,6 @@ run_build_refresh() {
         ;;
       textual)
         TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual" --help >/dev/null </dev/null
-        cleanup_old_local_images "$shim_name" "$images_dir"
-        ;;
-      tessl)
-        TESSL_IMAGE_BUILD=always "$shim_dir/tessl" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
     esac

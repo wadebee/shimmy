@@ -1,6 +1,13 @@
 #!/bin/sh
 set -eu
 
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+ROOT_DIR=$(
+  cd -- "$SCRIPT_DIR/.." && pwd
+)
+CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
 DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
 REQUESTED_INSTALL_DIR=
 
@@ -8,6 +15,13 @@ fail() {
   printf 'ERROR: %s\n' "$*" >&2
   exit 1
 }
+
+if [ ! -f "$CUSTOM_IMAGE_HELPER_FILE" ]; then
+  fail "missing custom image helper: $CUSTOM_IMAGE_HELPER_FILE"
+fi
+
+# shellcheck source=lib/shims/custom-image.sh
+. "$CUSTOM_IMAGE_HELPER_FILE"
 
 trim_trailing_slash() {
   path_value=${1:-}
@@ -69,45 +83,10 @@ path_contains() {
   esac
 }
 
-context_hash() {
-  context_dir=$1
-
-  [ -d "$context_dir" ] || return 1
-  [ -f "$context_dir/Containerfile" ] || return 1
-
-  if command -v sha256sum >/dev/null 2>&1; then
-    tar \
-      -C "$context_dir" \
-      --sort=name \
-      --mtime='UTC 1970-01-01' \
-      --owner=0 \
-      --group=0 \
-      --numeric-owner \
-      -cf - \
-      . 2>/dev/null | sha256sum | awk '{print substr($1, 1, 12)}'
-    return 0
-  fi
-
-  if command -v shasum >/dev/null 2>&1; then
-    tar \
-      -C "$context_dir" \
-      --sort=name \
-      --mtime='UTC 1970-01-01' \
-      --owner=0 \
-      --group=0 \
-      --numeric-owner \
-      -cf - \
-      . 2>/dev/null | shasum -a 256 | awk '{print substr($1, 1, 12)}'
-    return 0
-  fi
-
-  return 1
-}
-
 local_image_ref() {
   image_repo=$1
   context_dir=$2
-  image_hash=$(context_hash "$context_dir" || true)
+  image_hash=$(shimmy_context_hash_render "$context_dir" 2>/dev/null || true)
 
   if [ -n "$image_hash" ]; then
     printf '%s:%s\n' "$image_repo" "$image_hash"
@@ -142,9 +121,6 @@ describe_shim_image() {
       ;;
     textual)
       printf '%s\n' "$(local_image_ref "localhost/shimmy-textual" "$images_dir/textual")"
-      ;;
-    tessl)
-      printf '%s\n' "$(local_image_ref "localhost/shimmy-tessl" "$images_dir/tessl")"
       ;;
     *)
       printf 'unknown\n'
