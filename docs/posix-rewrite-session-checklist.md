@@ -54,9 +54,10 @@ Before committing completed item changes, confirm:
   `plan: port the remaining in-scope remote-image shims to small POSIX /bin/sh wrappers on top of the shared Podman helper, replace the local-build shim bootstrap and helper path assumptions so netcat, task, and textual no longer depend on Bash-era helpers or exported Shimmy-managed path variables, and align status/update smoke coverage plus docs with the finished in-scope shim set`
 - `done` Add onboarding-helper checklist item for common POSIX shell environments
   `thinking: medium`
-  `plan: add a non-destructive onboarding helper command that reuses the stable activate output, maps common POSIX-oriented shells to their usual startup files, and prints shell-specific manual setup guidance without editing rc files`
-- `to-do` Add secondary onboarding features, including optional rc-file helpers
+  `plan: integrate common POSIX shell startup-file setup into install, map shells to their usual startup files, and keep activate as the immediate current-shell path`
+- `done` Add secondary onboarding features, including optional rc-file helpers
   `thinking: medium`
+  `plan: let install manage startup files by default, store the chosen startup target in the manifest, let update repair that managed block on demand, and let uninstall remove the managed block cleanly`
 
 ## Design Decision Records and Workflow Processing Instructions
 - A simple mutable `Architectural Design Record` with associated approval status to be used as a conditional check before workflow can implement it.

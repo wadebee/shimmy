@@ -66,6 +66,15 @@ assert_not_empty() {
   fi
 }
 
+assert_file_contains() {
+  file_path=$1
+  needle=$2
+
+  [ -f "$file_path" ] || fail_test "expected file to exist: $file_path"
+  file_contents=$(cat "$file_path")
+  assert_contains "$file_contents" "$needle"
+}
+
 assert_file_exists() {
   if [ ! -f "$1" ]; then
     fail_test "expected file to exist: $1"
@@ -110,13 +119,13 @@ test_dash_parse() {
   dash -n "$ROOT_DIR/shimmy"
   dash -n "$ROOT_DIR/scripts/activate-shimmy.sh"
   dash -n "$ROOT_DIR/scripts/install-shimmy.sh"
-  dash -n "$ROOT_DIR/scripts/onboard-shimmy.sh"
   dash -n "$ROOT_DIR/scripts/status-shimmy.sh"
   dash -n "$ROOT_DIR/scripts/test-shimmy.sh"
   dash -n "$ROOT_DIR/scripts/update-shimmy.sh"
   dash -n "$ROOT_DIR/lib/shims/custom-image.sh"
   dash -n "$ROOT_DIR/lib/shims/shimmy-log.sh"
   dash -n "$ROOT_DIR/lib/shims/shimmy-podman.sh"
+  dash -n "$ROOT_DIR/lib/repo/shimmy-startup.sh"
   dash -n "$ROOT_DIR/shims/aws"
   dash -n "$ROOT_DIR/shims/jq"
   dash -n "$ROOT_DIR/shims/netcat"
@@ -132,22 +141,29 @@ test_install_manifest() {
   setup_scenario
 
   output=$(
-    HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq 2>&1
+    HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq 2>&1
   )
 
   assert_contains "$output" "Installed shimmy assets into $INSTALL_DIR"
+  assert_contains "$output" "Updated startup file: ~/.bashrc"
+  assert_contains "$output" "Activate this install with: eval"
   assert_file_exists "$INSTALL_DIR/install-manifest.txt"
   assert_file_exists "$INSTALL_DIR/shims/jq"
   assert_dir_exists "$INSTALL_DIR/lib/shims"
+  assert_file_exists "$HOME_DIR/.bashrc"
 
   manifest_contents=$(cat "$INSTALL_DIR/install-manifest.txt")
   assert_contains "$manifest_contents" "install_dir=$INSTALL_DIR"
+  assert_contains "$manifest_contents" "startup_shell=bash"
+  assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.bashrc"
   assert_contains "$manifest_contents" "shim=jq"
   assert_not_contains "$manifest_contents" "shim_dir="
   assert_not_contains "$manifest_contents" "images_dir="
   assert_not_contains "$manifest_contents" "shim_lib_dir="
+  assert_file_contains "$HOME_DIR/.bashrc" "# >>> shimmy onboarding >>>"
+  assert_file_contains "$HOME_DIR/.bashrc" "$INSTALL_DIR/shims"
 
-  pass "install writes single-root manifest"
+  pass "install writes manifest and startup file"
 }
 
 test_activate_eval() {
@@ -183,39 +199,42 @@ test_activate_is_idempotent() {
   pass "activate path activation is idempotent"
 }
 
-test_onboard_bash_guidance() {
+test_install_no_startup() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
-
   output=$(
-    HOME="$HOME_DIR" run_in_repo ./shimmy onboard --install-dir "$INSTALL_DIR" --shell bash 2>&1
+    HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup 2>&1
   )
 
-  assert_contains "$output" "Shell: bash"
-  assert_contains "$output" "Recommended shell startup file: ~/.bashrc"
-  assert_contains "$output" "Add the following block to ~/.bashrc:"
-  assert_contains "$output" "$INSTALL_DIR/shims"
-  assert_contains "$output" "/opt/podman/bin"
-  assert_not_contains "$output" "SHIMMY_INSTALL_DIR"
+  assert_contains "$output" "Future shells will load Shimmy from: manual activation only"
+  assert_not_contains "$output" "Updated startup file:"
+  assert_path_not_exists "$HOME_DIR/.bashrc"
 
-  pass "onboard prints bash guidance"
+  pass "install can skip startup file updates"
 }
 
-test_onboard_shell_detect() {
+test_update_repair_startup() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+  startup_file=$HOME_DIR/.zshrc
+
+  HOME="$HOME_DIR" SHELL=/bin/zsh run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+  assert_file_contains "$startup_file" "# >>> shimmy onboarding >>>"
+  rm -f "$startup_file"
 
   output=$(
-    cd "$ROOT_DIR"
-    HOME="$HOME_DIR" SHELL=/bin/zsh ./shimmy onboard --install-dir "$INSTALL_DIR" 2>&1
+    HOME="$HOME_DIR" SHELL=/bin/zsh run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --repair-startup 2>&1
   )
 
-  assert_contains "$output" "Shell: zsh"
-  assert_contains "$output" "Recommended shell startup file: ~/.zshrc"
+  assert_contains "$output" "Updated startup file: $startup_file"
+  assert_file_contains "$startup_file" "# >>> shimmy onboarding >>>"
+  assert_file_contains "$startup_file" "$INSTALL_DIR/shims"
 
-  pass "onboard detects shell from SHELL"
+  HOME="$HOME_DIR" SHELL=/bin/zsh run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --repair-startup >/dev/null
+  marker_count=$(grep -c '^# >>> shimmy onboarding >>>$' "$startup_file")
+  [ "$marker_count" -eq 1 ] || fail_test "expected one onboarding block marker, found $marker_count"
+
+  pass "update can repair startup file idempotently"
 }
 
 test_status_reports_install() {
@@ -409,12 +428,19 @@ test_installed_task_shim() {
 test_uninstall_cleanup() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+  startup_file=$HOME_DIR/.bashrc
+  printf '# existing shell config\n' > "$startup_file"
+
+  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
   HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" >/dev/null
 
   assert_path_not_exists "$INSTALL_DIR"
+  assert_file_contains "$startup_file" "# existing shell config"
+  startup_contents=$(cat "$startup_file")
+  assert_not_contains "$startup_contents" "# >>> shimmy onboarding >>>"
+  assert_not_contains "$startup_contents" "$INSTALL_DIR/shims"
 
-  pass "uninstall removes install root"
+  pass "uninstall removes install root and startup block"
 }
 
 main() {
@@ -422,8 +448,8 @@ main() {
   test_install_manifest
   test_activate_eval
   test_activate_is_idempotent
-  test_onboard_bash_guidance
-  test_onboard_shell_detect
+  test_install_no_startup
+  test_update_repair_startup
   test_status_reports_install
   test_update_reinstalls_selected_shims
   test_aws_shim_direct
