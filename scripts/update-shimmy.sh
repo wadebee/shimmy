@@ -7,12 +7,16 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
+STARTUP_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-startup.sh
 CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
 PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
 DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
 REQUESTED_INSTALL_DIR=
+REQUESTED_SHELL=
+REQUESTED_STARTUP_FILE=
 PULL_IMAGES=0
 BUILD_IMAGES=0
+REPAIR_STARTUP=0
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -23,10 +27,16 @@ if [ ! -f "$CUSTOM_IMAGE_HELPER_FILE" ]; then
   fail "missing custom image helper: $CUSTOM_IMAGE_HELPER_FILE"
 fi
 
+if [ ! -f "$STARTUP_HELPER_FILE" ]; then
+  fail "missing startup helper: $STARTUP_HELPER_FILE"
+fi
+
 if [ ! -f "$PODMAN_HELPER_FILE" ]; then
   fail "missing Podman helper: $PODMAN_HELPER_FILE"
 fi
 
+# shellcheck source=lib/repo/shimmy-startup.sh
+. "$STARTUP_HELPER_FILE"
 # shellcheck source=lib/shims/custom-image.sh
 . "$CUSTOM_IMAGE_HELPER_FILE"
 # shellcheck source=lib/shims/shimmy-podman.sh
@@ -181,12 +191,15 @@ usage() {
 Refresh an existing shimmy installation from the current repository.
 
 Usage:
-  scripts/update-shimmy.sh [--install-dir <dir>] [--pull] [--build]
+  scripts/update-shimmy.sh [--install-dir <dir>] [--pull] [--build] [--repair-startup]
 
 Options:
-  --install-dir <dir>  Base install directory. Default: ~/.config/shimmy
-  --pull               Pull newer remote images for installed remote-image shims.
-  --build              Rebuild local images for installed local-build shims.
+  --install-dir <dir>   Base install directory. Default: ~/.config/shimmy
+  --pull                Pull newer remote images for installed remote-image shims.
+  --build               Rebuild local images for installed local-build shims.
+  --repair-startup      Rewrite the managed Shimmy startup block after reinstalling
+  --shell <name>        Override shell detection for startup-file repair
+  --startup-file <path> Override the startup file used during repair
   -h, --help
 EOF
 }
@@ -206,6 +219,20 @@ main() {
       --build)
         BUILD_IMAGES=1
         shift
+        ;;
+      --repair-startup)
+        REPAIR_STARTUP=1
+        shift
+        ;;
+      --shell)
+        [ "$#" -ge 2 ] || fail "missing value for --shell"
+        REQUESTED_SHELL=$2
+        shift 2
+        ;;
+      --startup-file)
+        [ "$#" -ge 2 ] || fail "missing value for --startup-file"
+        REQUESTED_STARTUP_FILE=$2
+        shift 2
         ;;
       -h|--help)
         usage
@@ -231,6 +258,26 @@ main() {
   fi
 
   set -- "$SCRIPT_DIR/install-shimmy.sh" --install-dir "$install_dir"
+  if [ "$REPAIR_STARTUP" -eq 0 ]; then
+    set -- "$@" --no-startup
+  else
+    startup_shell=$REQUESTED_SHELL
+    startup_file=$REQUESTED_STARTUP_FILE
+
+    if [ -z "$startup_shell" ]; then
+      startup_shell=$(manifest_value "$manifest_file" startup_shell || true)
+    fi
+    if [ -z "$startup_file" ]; then
+      startup_file=$(manifest_value "$manifest_file" startup_file || true)
+    fi
+
+    if [ -n "$startup_shell" ]; then
+      set -- "$@" --shell "$startup_shell"
+    fi
+    if [ -n "$startup_file" ]; then
+      set -- "$@" --startup-file "$startup_file"
+    fi
+  fi
   while IFS= read -r shim_name; do
     [ -n "$shim_name" ] || continue
     set -- "$@" --shim "$shim_name"

@@ -76,17 +76,39 @@ After `./shimmy install`, activate the installed Shimmy paths in the current she
 eval "$(./shimmy activate)"
 ```
 
-The current POSIX proof-of-concept installer does not edit shell rc files. Use `eval "$(./shimmy activate)"` for immediate activation, and add that line to your preferred shell config manually if you want persistent activation.
+`./shimmy install` now updates your shell startup file by default so future shells can find the installed shims automatically. It still cannot change the current parent shell session, so use `eval "$(./shimmy activate)"` when you want the install available immediately in the shell you are already using.
 
-For shell-specific persistent setup guidance without editing files automatically, use the onboarding helper:
+By default, `install` chooses the startup file from your shell:
+- `bash` -> `~/.bashrc`
+- `zsh` -> `~/.zshrc`
+- `sh`, `ksh`, and `mksh` -> `~/.profile`
+
+You can override or skip that behavior:
 
 ```sh
-./shimmy onboard
-./shimmy onboard --shell bash
-./shimmy onboard --shell zsh
+./shimmy install --shell zsh
+./shimmy install --startup-file "$HOME/.config/shimmy/profile"
+./shimmy install --no-startup
 ```
 
-The onboarding helper prints the recommended startup file for common POSIX-oriented shells and a block you can paste into that file manually.
+Shimmy writes one managed startup block, so rerunning install refreshes that block idempotently instead of appending duplicates.
+
+If you prefer the manual path, use `--no-startup` and add the activation block yourself:
+
+```sh
+./shimmy install --no-startup
+eval "$(./shimmy activate)"
+```
+
+If your startup file ever needs to be rewritten or repaired later, use update:
+
+```sh
+./shimmy update --repair-startup
+./shimmy update --repair-startup --shell zsh
+./shimmy update --repair-startup --startup-file "$HOME/.config/shimmy/profile"
+```
+
+Without `--repair-startup`, `update` refreshes installed assets only and leaves startup files alone.
 
 The active install layout is always derived from one install root, which defaults to `~/.config/shimmy` and can be overridden with `--install-dir`.
 
@@ -291,7 +313,7 @@ sh ./scripts/test-shimmy.sh
 
 Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
-- install, activate, status, update, and uninstall behavior for the single-root manifest layout
+- install, activate, status, update, startup-file repair, and uninstall behavior for the single-root manifest layout
 - live Podman execution for the supported shim set: `aws`, `jq`, `netcat`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure

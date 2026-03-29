@@ -17,7 +17,6 @@ Commands:
   install [args...]     Run scripts/install-shimmy.sh
   uninstall [args...]   Run scripts/install-shimmy.sh --uninstall
   activate [args...]    Print shell code that activates the installed shim paths now
-  onboard [args...]     Print shell-specific persistent setup guidance
   status [args...]      Run scripts/status-shimmy.sh
   update [args...]      Run scripts/update-shimmy.sh
   test [args...]        Run scripts/test-shimmy.sh
@@ -26,10 +25,9 @@ Commands:
 Examples:
   ./shimmy install
   eval "$(./shimmy activate)"
-  ./shimmy onboard --shell zsh
   ./shimmy uninstall
   ./shimmy status
-  ./shimmy update --pull --build
+  ./shimmy update --pull --build --repair-startup
   ./shimmy test
 EOF
 }
@@ -68,10 +66,6 @@ main() {
     activate)
       shift
       run_repo_script "$ROOT_DIR/scripts/activate-shimmy.sh" "$@"
-      ;;
-    onboard)
-      shift
-      run_repo_script "$ROOT_DIR/scripts/onboard-shimmy.sh" "$@"
       ;;
     status)
       shift

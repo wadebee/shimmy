@@ -8,15 +8,26 @@ ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
 
+ACTIVATE_SCRIPT=$SCRIPT_DIR/activate-shimmy.sh
 SOURCE_SHIMS_DIR=$ROOT_DIR/shims
 SOURCE_IMAGES_DIR=$ROOT_DIR/images
+SOURCE_REPO_LIB_DIR=$ROOT_DIR/lib/repo
 SOURCE_SHIM_LIB_DIR=$ROOT_DIR/lib/shims
+STARTUP_HELPER_FILE=$SOURCE_REPO_LIB_DIR/shimmy-startup.sh
 
 DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
 SUPPORTED_SHIMS='aws jq netcat rg task terraform textual'
 
 REQUESTED_INSTALL_DIR=
 REQUESTED_SHIMS=
+REQUESTED_SHELL=
+REQUESTED_STARTUP_FILE=
+SKIP_STARTUP=0
+STARTUP_FILE_LABEL=
+STARTUP_FILE_PATH=
+STARTUP_SHELL=
+PRESERVED_STARTUP_FILE_PATH=
+PRESERVED_STARTUP_SHELL=
 UNINSTALL=0
 
 LOG_LEVEL=${LOG_LEVEL:-info}
@@ -87,6 +98,17 @@ fail() {
   exit 1
 }
 
+if [ ! -f "$STARTUP_HELPER_FILE" ]; then
+  fail "missing startup helper: $STARTUP_HELPER_FILE"
+fi
+
+if [ ! -x "$ACTIVATE_SCRIPT" ]; then
+  fail "missing activate helper: $ACTIVATE_SCRIPT"
+fi
+
+# shellcheck source=lib/repo/shimmy-startup.sh
+. "$STARTUP_HELPER_FILE"
+
 usage() {
   cat <<'EOF'
 Install or uninstall Shimmy assets in a user-scoped location.
@@ -97,6 +119,9 @@ Usage:
 Options:
   --install-dir <dir>    Base install directory. Default: ~/.config/shimmy
   --shim <name>          Install only the named shim. Repeatable.
+  --shell <name>         Override shell detection for startup-file updates
+  --startup-file <path>  Override the startup file Shimmy updates during install
+  --no-startup           Skip persistent startup-file updates during install
   --uninstall            Remove the current install instead of creating it
   -h, --help             Show help
 EOF
@@ -210,14 +235,44 @@ write_manifest() {
 
   {
     printf 'install_dir=%s\n' "$SHIMMY_INSTALL_DIR"
+    if [ -n "$STARTUP_SHELL" ]; then
+      printf 'startup_shell=%s\n' "$STARTUP_SHELL"
+    fi
+    if [ -n "$STARTUP_FILE_PATH" ]; then
+      printf 'startup_file=%s\n' "$STARTUP_FILE_PATH"
+    fi
     for shim_name in $(selected_shim_list); do
       printf 'shim=%s\n' "$shim_name"
     done
   } > "$INSTALL_MANIFEST_FILE"
 }
 
+resolve_startup_settings() {
+  if [ "$SKIP_STARTUP" -eq 1 ]; then
+    if [ -n "$PRESERVED_STARTUP_FILE_PATH" ]; then
+      STARTUP_SHELL=$PRESERVED_STARTUP_SHELL
+      STARTUP_FILE_PATH=$PRESERVED_STARTUP_FILE_PATH
+      STARTUP_FILE_LABEL=$PRESERVED_STARTUP_FILE_PATH
+    else
+      STARTUP_SHELL=
+      STARTUP_FILE_PATH=
+      STARTUP_FILE_LABEL=
+    fi
+    return 0
+  fi
+
+  STARTUP_SHELL=$(shimmy_shell_name_normalize "$REQUESTED_SHELL") || fail "unable to resolve startup shell"
+  STARTUP_FILE_PATH=$(shimmy_startup_file_path_resolve "$STARTUP_SHELL" "$REQUESTED_STARTUP_FILE" "$HOME") || fail "unable to resolve startup file path"
+  STARTUP_FILE_LABEL=$(shimmy_startup_file_label_render "$STARTUP_SHELL" "$REQUESTED_STARTUP_FILE") || fail "unable to resolve startup file label"
+}
+
 perform_install() {
   validate_requested_shims
+  if [ -f "$INSTALL_MANIFEST_FILE" ]; then
+    PRESERVED_STARTUP_SHELL=$(manifest_value "$INSTALL_MANIFEST_FILE" startup_shell || true)
+    PRESERVED_STARTUP_FILE_PATH=$(manifest_value "$INSTALL_MANIFEST_FILE" startup_file || true)
+  fi
+  resolve_startup_settings
 
   [ -d "$SOURCE_SHIMS_DIR" ] || fail "missing source shim directory: $SOURCE_SHIMS_DIR"
   [ -d "$SOURCE_SHIM_LIB_DIR" ] || fail "missing source shim helper directory: $SOURCE_SHIM_LIB_DIR"
@@ -248,9 +303,16 @@ perform_install() {
   log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
   install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_SHIM_LIB_DIR"
 
+  if [ -n "$STARTUP_FILE_PATH" ]; then
+    activate_block=$(shimmy_activate_block_read "$ACTIVATE_SCRIPT" "$SHIMMY_INSTALL_DIR") || fail "unable to render activate block for startup file"
+    shimmy_startup_file_update "$STARTUP_FILE_PATH" "$activate_block"
+    log_info "Updated startup file: $STARTUP_FILE_LABEL"
+  fi
+
   write_manifest
 
   log_info "Installed shimmy assets into $SHIMMY_INSTALL_DIR"
+  log_info "Future shells will load Shimmy from: ${STARTUP_FILE_LABEL:-manual activation only}"
   log_info "Activate this install with: eval \"\$(./shimmy activate --install-dir '$SHIMMY_INSTALL_DIR')\""
 }
 
@@ -271,6 +333,12 @@ perform_uninstall() {
   log_info "Removing shimmy install rooted at $SHIMMY_INSTALL_DIR"
 
   load_install_root_from_manifest || true
+  startup_file_to_remove=$(manifest_value "$INSTALL_MANIFEST_FILE" startup_file || true)
+
+  if [ -n "$startup_file_to_remove" ]; then
+    shimmy_startup_block_remove "$startup_file_to_remove"
+    log_info "Removed managed Shimmy startup block from: $startup_file_to_remove"
+  fi
 
   remove_path_if_present "$SHIMMY_SHIM_DIR" "shim"
   remove_path_if_present "$SHIMMY_IMAGES_DIR" "image"
@@ -319,6 +387,20 @@ main() {
           REQUESTED_SHIMS=$2
         fi
         shift 2
+        ;;
+      --shell)
+        [ "$#" -ge 2 ] || fail "missing value for --shell"
+        REQUESTED_SHELL=$2
+        shift 2
+        ;;
+      --startup-file)
+        [ "$#" -ge 2 ] || fail "missing value for --startup-file"
+        REQUESTED_STARTUP_FILE=$2
+        shift 2
+        ;;
+      --no-startup)
+        SKIP_STARTUP=1
+        shift
         ;;
       --uninstall)
         UNINSTALL=1
