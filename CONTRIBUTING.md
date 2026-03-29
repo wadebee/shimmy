@@ -69,7 +69,7 @@ Examples:
 
 - `shims/aws`
 - `scripts/install-shimmy.sh`
-- `lib/repo/shimmy-env.sh`
+- `lib/repo/shimmy-startup.sh`
 - `docs/prompt-shimmy-project.md`
 
 ### Function Naming

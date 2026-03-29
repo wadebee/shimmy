@@ -113,26 +113,30 @@ run_in_repo() {
   )
 }
 
+tracked_shell_file_list() {
+  git -C "$ROOT_DIR" ls-files | while IFS= read -r tracked_path; do
+    case "$tracked_path" in
+      shimmy|scripts/*.sh|lib/*/*.sh|shims/*)
+        [ -f "$ROOT_DIR/$tracked_path" ] || continue
+        printf '%s\n' "$ROOT_DIR/$tracked_path"
+        ;;
+    esac
+  done
+}
+
 test_dash_parse() {
   command -v dash >/dev/null 2>&1 || fail_test "dash is required for parser checks"
 
-  dash -n "$ROOT_DIR/shimmy"
-  dash -n "$ROOT_DIR/scripts/activate-shimmy.sh"
-  dash -n "$ROOT_DIR/scripts/install-shimmy.sh"
-  dash -n "$ROOT_DIR/scripts/status-shimmy.sh"
-  dash -n "$ROOT_DIR/scripts/test-shimmy.sh"
-  dash -n "$ROOT_DIR/scripts/update-shimmy.sh"
-  dash -n "$ROOT_DIR/lib/shims/custom-image.sh"
-  dash -n "$ROOT_DIR/lib/shims/shimmy-log.sh"
-  dash -n "$ROOT_DIR/lib/shims/shimmy-podman.sh"
-  dash -n "$ROOT_DIR/lib/repo/shimmy-startup.sh"
-  dash -n "$ROOT_DIR/shims/aws"
-  dash -n "$ROOT_DIR/shims/jq"
-  dash -n "$ROOT_DIR/shims/netcat"
-  dash -n "$ROOT_DIR/shims/rg"
-  dash -n "$ROOT_DIR/shims/task"
-  dash -n "$ROOT_DIR/shims/terraform"
-  dash -n "$ROOT_DIR/shims/textual"
+  parsed_file_count=0
+  while IFS= read -r parse_file; do
+    [ -n "$parse_file" ] || continue
+    dash -n "$parse_file"
+    parsed_file_count=$((parsed_file_count + 1))
+  done <<EOF
+$(tracked_shell_file_list)
+EOF
+
+  [ "$parsed_file_count" -gt 0 ] || fail_test "expected tracked shell files for parser checks"
 
   pass "dash parse checks"
 }
