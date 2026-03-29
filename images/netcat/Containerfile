@@ -1,0 +1,9 @@
+ARG NETCAT_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest
+FROM ${NETCAT_BASE_IMAGE}
+
+RUN microdnf install -y --setopt=install_weak_deps=0 nmap-ncat \
+    && microdnf clean all
+
+WORKDIR /work
+
+ENTRYPOINT ["/usr/bin/ncat"]

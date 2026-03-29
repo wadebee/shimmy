@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SHIMMY_BOOTSTRAP_DIR="${SHIMMY_SHIM_LIB_DIR:-}"
+if [[ -z "$SHIMMY_BOOTSTRAP_DIR" && -n "${SHIMMY_INSTALL_DIR:-}" ]]; then
+  SHIMMY_BOOTSTRAP_DIR="${SHIMMY_INSTALL_DIR%/}/lib/shims"
+fi
+if [[ -z "$SHIMMY_BOOTSTRAP_DIR" ]]; then
+  SHIMMY_BOOTSTRAP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../lib/shims" && pwd)"
+fi
+
+SHIMMY_BOOTSTRAP_FILE="$SHIMMY_BOOTSTRAP_DIR/shim-bootstrap.sh"
+
+# shellcheck source=lib/shims/shim-bootstrap.sh
+source "$SHIMMY_BOOTSTRAP_FILE"
+
+shimmy::shim_paths_init "${BASH_SOURCE[0]}"
+shimmy::shim_helper_source "custom-image.sh"
+
+if [[ -n "${TEXTUAL_IMAGE:-}" ]]; then
+  TEXTUAL_RUN_IMAGE="$TEXTUAL_IMAGE"
+else
+  BUILD_ARGS=()
+  if [[ -n "${TEXTUAL_BASE_IMAGE:-}" ]]; then
+    BUILD_ARGS+=( --build-arg "TEXTUAL_BASE_IMAGE=$TEXTUAL_BASE_IMAGE" )
+  fi
+
+  TEXTUAL_RUN_IMAGE="$(
+    shimmy::ensure_local_image \
+      "localhost/shimmy-textual" \
+      "$SHIMMY_IMAGES_DIR/textual" \
+      "${TEXTUAL_IMAGE_BUILD:-auto}" \
+      "${BUILD_ARGS[@]}"
+  )"
+fi
+
+MOUNTS=( -v "$PWD":/work:rw -w /work )
+
+PODMAN_OPTS=()
+if [[ -n "${TEXTUAL_IMAGE:-}" && "${TEXTUAL_IMAGE_PULL:-}" = "always" ]]; then
+  PODMAN_OPTS+=( --pull=always )
+fi
+
+exec podman run --rm -it "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "$TEXTUAL_RUN_IMAGE" "$@"

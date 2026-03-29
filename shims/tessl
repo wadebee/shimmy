@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SHIMMY_BOOTSTRAP_DIR="${SHIMMY_SHIM_LIB_DIR:-}"
+if [[ -z "$SHIMMY_BOOTSTRAP_DIR" && -n "${SHIMMY_INSTALL_DIR:-}" ]]; then
+  SHIMMY_BOOTSTRAP_DIR="${SHIMMY_INSTALL_DIR%/}/lib/shims"
+fi
+if [[ -z "$SHIMMY_BOOTSTRAP_DIR" ]]; then
+  SHIMMY_BOOTSTRAP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../lib/shims" && pwd)"
+fi
+
+SHIMMY_BOOTSTRAP_FILE="$SHIMMY_BOOTSTRAP_DIR/shim-bootstrap.sh"
+
+# shellcheck source=lib/shims/shim-bootstrap.sh
+source "$SHIMMY_BOOTSTRAP_FILE"
+
+shimmy::shim_paths_init "${BASH_SOURCE[0]}"
+shimmy::shim_helper_source "custom-image.sh"
+
+if [[ -n "${TESSL_IMAGE:-}" ]]; then
+  TESSL_RUN_IMAGE="$TESSL_IMAGE"
+else
+  BUILD_ARGS=()
+  if [[ -n "${TESSL_BASE_IMAGE:-}" ]]; then
+    BUILD_ARGS+=( --build-arg "TESSL_BASE_IMAGE=$TESSL_BASE_IMAGE" )
+  fi
+
+  TESSL_RUN_IMAGE="$(
+    shimmy::ensure_local_image \
+      "localhost/shimmy-tessl" \
+      "$SHIMMY_IMAGES_DIR/tessl" \
+      "${TESSL_IMAGE_BUILD:-auto}" \
+      "${BUILD_ARGS[@]}"
+  )"
+fi
+
+MOUNTS=( -v "$PWD":/work:rw )
+
+if [ -d "$HOME/.tessl" ]; then
+  MOUNTS+=( -v "$HOME/.tessl":/root/.tessl )
+fi
+
+ENV_VARS=( -e TESSL_* )
+
+PODMAN_OPTS=()
+if [[ -n "${TESSL_IMAGE:-}" && "${TESSL_IMAGE_PULL:-}" = "always" ]]; then
+  PODMAN_OPTS+=( --pull=always )
+fi
+
+TTY_OPTS=()
+if [[ -t 0 && -t 1 ]]; then
+  TTY_OPTS+=( -it )
+fi
+
+exec podman run --rm "${TTY_OPTS[@]}" -m "300M" --memory-swap "1G" "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "${ENV_VARS[@]}" "$TESSL_RUN_IMAGE" "$@"

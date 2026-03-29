@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Podman-based jq wrapper
+# Usage: shims/jq <jq-args>
+# Example: shims/jq .foo
+
+# Use the official stedolan/jq image from docker.io by default (latest tag)
+JQ_IMAGE=${JQ_IMAGE:-docker.io/stedolan/jq:latest}
+JQ_IMAGE_PULL=${JQ_IMAGE_PULL:-}
+
+# Mount current working directory as /work
+MOUNTS=( -v "$PWD":/work -w /work )
+
+# Pull policy: respect JQ_IMAGE_PULL=always
+PODMAN_OPTS=()
+if [ "${JQ_IMAGE_PULL:-}" = "always" ]; then
+  PODMAN_OPTS+=( --pull=always )
+fi
+
+# Run the selected image; assume it contains jq executable at PATH
+exec podman run --rm -i "${PODMAN_OPTS[@]}" "${MOUNTS[@]}" "$JQ_IMAGE" "$@"

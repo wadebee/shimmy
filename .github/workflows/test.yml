@@ -1,0 +1,40 @@
+name: Shim Tests
+
+on:
+  pull_request:
+    paths:
+      - "shims/**"
+      - "scripts/install-shimmy.sh"
+      - "scripts/status-shimmy.sh"
+      - "scripts/test-shimmy.sh"
+      - "scripts/update-shimmy.sh"
+      - "lib/repo/**"
+      - "shimmy"
+      - "images/task/**"
+      - "lib/shims/**"
+      - ".pre-commit-config.yaml"
+      - ".github/workflows/test.yml"
+  push:
+    paths:
+      - "shims/**"
+      - "scripts/install-shimmy.sh"
+      - "scripts/status-shimmy.sh"
+      - "scripts/test-shimmy.sh"
+      - "scripts/update-shimmy.sh"
+      - "lib/repo/**"
+      - "shimmy"
+      - "images/task/**"
+      - "lib/shims/**"
+      - ".pre-commit-config.yaml"
+      - ".github/workflows/test.yml"
+  workflow_dispatch:
+
+jobs:
+  shim-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run shim tests
+        run: ./shimmy test

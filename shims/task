@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SHIMMY_BOOTSTRAP_DIR="${SHIMMY_SHIM_LIB_DIR:-}"
+if [[ -z "$SHIMMY_BOOTSTRAP_DIR" && -n "${SHIMMY_INSTALL_DIR:-}" ]]; then
+  SHIMMY_BOOTSTRAP_DIR="${SHIMMY_INSTALL_DIR%/}/lib/shims"
+fi
+if [[ -z "$SHIMMY_BOOTSTRAP_DIR" ]]; then
+  SHIMMY_BOOTSTRAP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../lib/shims" && pwd)"
+fi
+
+SHIMMY_BOOTSTRAP_FILE="$SHIMMY_BOOTSTRAP_DIR/shim-bootstrap.sh"
+
+# shellcheck source=lib/shims/shim-bootstrap.sh
+source "$SHIMMY_BOOTSTRAP_FILE"
+
+shimmy::shim_paths_init "${BASH_SOURCE[0]}"
+shimmy::shim_helper_source "task-shim.sh"
+
+TASK_RUN_IMAGE="$(shimmy::task_resolve_image "$SHIMMY_IMAGES_DIR")"
+PODMAN_OPTS=()
+if [[ -n "${TASK_IMAGE:-}" && "${TASK_IMAGE_PULL:-}" = "always" ]]; then
+  PODMAN_OPTS+=( --pull=always )
+fi
+shimmy::task_append_default_run_opts PODMAN_OPTS
+
+TTY_OPTS=()
+if shimmy::is_task_tty_enabled; then
+  TTY_OPTS+=( -it )
+fi
+
+exec podman run --rm "${TTY_OPTS[@]}" "${PODMAN_OPTS[@]}" "$TASK_RUN_IMAGE" "$@"
