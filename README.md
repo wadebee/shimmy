@@ -78,6 +78,16 @@ eval "$(./shimmy activate)"
 
 The current POSIX proof-of-concept installer does not edit shell rc files. Use `eval "$(./shimmy activate)"` for immediate activation, and add that line to your preferred shell config manually if you want persistent activation.
 
+For shell-specific persistent setup guidance without editing files automatically, use the onboarding helper:
+
+```sh
+./shimmy onboard
+./shimmy onboard --shell bash
+./shimmy onboard --shell zsh
+```
+
+The onboarding helper prints the recommended startup file for common POSIX-oriented shells and a block you can paste into that file manually.
+
 The active install layout is always derived from one install root, which defaults to `~/.config/shimmy` and can be overridden with `--install-dir`.
 
 Common install arguments still pass through to the installer:

@@ -4,8 +4,9 @@ This document defines an AI session workflow for coding within the `posix-rewrit
 - Empty your current session context window, process this entire document as your initial session context.
 - Your first action is to iterate the `Design Decisions` section and...
   - Plan an implementation for any `Design Decisions` that are in the `pending` state
-  - Integrate that implementation plan into the `Session Checklist` section
+  - Integrate the new implementation plan into the `Session Checklist` section
 - Iterate over Session Checklist items to determine, plan and implement the next `to-do` item in the list. 
+- Only implement one checklist item per iteration and completion checkpoint
 - Trigger a Session Checklist completion checkpoint after you have planned the next action and then present your planned approach and initiate a `Checkpoint Questions` interaction
 
 ## Checkpoint Questions
@@ -51,8 +52,9 @@ Before committing completed item changes, confirm:
 - `done` Expand the rewrite to the remaining in-scope shims and lifecycle commands
   `thinking: high`
   `plan: port the remaining in-scope remote-image shims to small POSIX /bin/sh wrappers on top of the shared Podman helper, replace the local-build shim bootstrap and helper path assumptions so netcat, task, and textual no longer depend on Bash-era helpers or exported Shimmy-managed path variables, and align status/update smoke coverage plus docs with the finished in-scope shim set`
-- `to-do` Add onboarding-helper checklist item for common POSIX shell environments
+- `done` Add onboarding-helper checklist item for common POSIX shell environments
   `thinking: medium`
+  `plan: add a non-destructive onboarding helper command that reuses the stable activate output, maps common POSIX-oriented shells to their usual startup files, and prints shell-specific manual setup guidance without editing rc files`
 - `to-do` Add secondary onboarding features, including optional rc-file helpers
   `thinking: medium`
 
