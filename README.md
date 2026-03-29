@@ -76,7 +76,7 @@ After `./shimmy install`, activate the installed Shimmy paths in the current she
 eval "$(./shimmy activate)"
 ```
 
-`./shimmy install` now updates your shell startup file by default so future shells can find the installed shims automatically. It still cannot change the current parent shell session, so use `eval "$(./shimmy activate)"` when you want the install available immediately in the shell you are already using.
+`./shimmy install` updates your shell startup file by default so shells can find the installed shims automatically. It cannot change your current shell session, so use `eval "$(./shimmy activate)"` to make the install available immediately.
 
 By default, `install` chooses the startup file from your shell:
 - `bash` -> `~/.bashrc`
@@ -93,7 +93,7 @@ You can override or skip that behavior:
 
 Shimmy writes one managed startup block, so rerunning install refreshes that block idempotently instead of appending duplicates.
 
-If you prefer the manual path, use `--no-startup` and add the activation block yourself:
+If you prefer not to modify your startup files, use `--no-startup` and add activation logic manually.
 
 ```sh
 ./shimmy install --no-startup

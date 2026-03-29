@@ -58,6 +58,9 @@ Before committing completed item changes, confirm:
 - `done` Add secondary onboarding features, including optional rc-file helpers
   `thinking: medium`
   `plan: let install manage startup files by default, store the chosen startup target in the manifest, let update repair that managed block on demand, and let uninstall remove the managed block cleanly`
+- `done` Remove the superseded Bash-era repo helper layer that still ships on `posix-rewrite`
+  `thinking: medium`
+  `plan: delete or port the tracked Bash-only helpers under lib/repo (shimmy-env.sh, shimmy-install-artifacts.sh, shimmy-log.sh, shimmy-manifest.sh, shimmy-paths.sh, and shimmy-shell-blocks.sh) so the branch no longer carries /usr/bin/env bash shebangs, [[ ... ]], local, arrays, source, or BASH_SOURCE artifacts, then extend parser coverage so every tracked in-scope shell source is checked with dash -n`
 
 ## Design Decision Records and Workflow Processing Instructions
 - A simple mutable `Architectural Design Record` with associated approval status to be used as a conditional check before workflow can implement it.
@@ -73,8 +76,8 @@ Before committing completed item changes, confirm:
 
 ### Design Decision Records
 - `done` Add a shared Podman preflight helper used by all shims which checks both “can I find podman?” and “can podman info talk to the engine?”
-- `approved` Keep install root configurable through `--install-dir`.
-- `approved` Final macOS usage must not require users to prepend `/opt/podman/bin` manually.
+- `done` Keep install root configurable through `--install-dir`.
+- `done` Final macOS usage must not require users to prepend `/opt/podman/bin` manually.
 - `approved` If Shimmy ever exports user-shell variables again, they must use the `SHIMMY_` prefix.
 
 ### Restart checkpoint decision log
@@ -89,9 +92,9 @@ Before committing completed item changes, confirm:
 Next-session priority adjustments:
 
 - continue with medium thinking unless otherwise requested
-- Use the finished `activate` plus single-root model as the baseline for onboarding helpers.
-- Add the common POSIX shell onboarding-helper checklist item next.
-- After that, layer in optional rc-file helpers and secondary onboarding features.
+- Treat the finished `activate` plus single-root model as the baseline.
+- Keep `lib/repo/` limited to active POSIX helpers such as `shimmy-startup.sh`.
+- Keep parser coverage aligned with the tracked shell surface whenever new shell files are added.
 
 ## Constraints
 - This section (to the end of document) contains the goals, scope and principle this workflow must incrementally build through AI planning, User approval and AI implementation 
