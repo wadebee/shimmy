@@ -20,7 +20,7 @@ That document is the contributor source of truth, including naming conventions f
 
 ## Included Shims
 
-| Tool | Purpose | Default Image | Usage |
+| Tool | Purpose | Image Source | Usage |
 |------|---------|----------------|-------|
 | **aws** | AWS CLI | `public.ecr.aws/aws-cli/aws-cli:2.31.21` | `aws s3 ls`, `aws sts get-caller-identity` |
 | **go** | Go toolchain CLI | `docker.io/library/golang:latest` | `go version`, `go test ./...` |
