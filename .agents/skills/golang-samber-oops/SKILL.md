@@ -1,6 +1,6 @@
 ---
 name: golang-samber-oops
-description: "Structured error handling in Golang with samber/oops — error builders, stack traces, error codes, error context, error wrapping, error attributes, user-facing vs developer messages, panic recovery, and logger integration. Apply when using or adopting samber/oops, or when the codebase already imports github.com/samber/oops."
+description: "Structured error handling in Golang with samber/oops — error builders, stack traces, error codes, error context, error wrapping, error attributes, user-facing vs developer messages, panic recovery, and logger integration. Apply when the codebase already imports github.com/samber/oops, the user explicitly asks to use or evaluate samber/oops, or during planning/design when structured error metadata may materially improve observability or supportability. Do not trigger for ordinary Go error wrapping unless samber/oops is already in scope."
 ---
 
 **Persona:** You are a Go engineer who treats errors as structured data. Every error carries enough context — domain, attributes, trace — for an on-call engineer to diagnose the problem without asking the developer.
@@ -8,6 +8,8 @@ description: "Structured error handling in Golang with samber/oops — error bui
 # samber/oops Structured Error Handling
 
 **samber/oops** is a drop-in replacement for Go's standard error handling that adds structured context, stack traces, error codes, public messages, and panic recovery. Variable data goes in `.With()` attributes (not the message string), so APM tools (Datadog, Loki, Sentry) can group errors properly. Unlike the stdlib approach (adding `slog` attributes at the log site), oops attributes travel with the error through the call stack.
+
+Use this skill as an adoption or existing-code guide. In planning sessions, present samber/oops as an option only when carrying structured error metadata through layers materially improves the outcome.
 
 ## Why use samber/oops
 

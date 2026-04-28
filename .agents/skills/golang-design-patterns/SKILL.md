@@ -18,7 +18,7 @@ Idiomatic Go patterns for production-ready code. For error handling details see 
 
 ## Best Practices Summary
 
-1. Constructors SHOULD use **functional options** — they scale better as APIs evolve (one function per option, no breaking changes)
+1. Constructors SHOULD stay simple by default — use positional parameters or config structs for simple/internal types, and functional options for public APIs, optional configuration, growing constructor surfaces, or service/CLI wiring where they improve clarity
 2. Functional options MUST **return an error** if validation can fail — catch bad config at construction, not at runtime
 3. **Avoid `init()`** — runs implicitly, cannot return errors, makes testing unpredictable. Use explicit constructors
 4. Enums SHOULD **start at 1** (or Unknown sentinel at 0) — Go's zero value silently passes as the first enum member
@@ -42,7 +42,7 @@ Idiomatic Go patterns for production-ready code. For error handling details see 
 
 ## Constructor Patterns: Functional Options vs Builder
 
-### Functional Options (Preferred)
+### Functional Options (For Extensible APIs)
 
 ```go
 type Server struct {
@@ -87,7 +87,7 @@ srv := NewServer(":8080",
 )
 ```
 
-Constructors SHOULD use **functional options** — they scale better with API evolution and require less code. Use builder pattern only if you need complex validation between configuration steps.
+Use **functional options** when an API has optional settings, is exported for external callers, is likely to grow, or needs readable wiring at a composition root. For simple internal types, prefer a plain constructor or a small config struct. Use builder pattern only if you need complex validation between configuration steps.
 
 ## Constructors & Initialization
 

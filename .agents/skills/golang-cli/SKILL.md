@@ -13,11 +13,11 @@ description: "Golang CLI application development. Use when building, modifying, 
 
 # Go CLI Best Practices
 
-Use Cobra + Viper as the default stack for Go CLI applications. Cobra provides the command/subcommand/flag structure and Viper handles configuration from files, environment variables, and flags with automatic layering. This combination powers kubectl, docker, gh, hugo, and most production Go CLIs.
+Use Cobra + Viper as the preferred stack for non-trivial CLIs that need subcommands, shell completion, layered configuration, environment variables, or long-term growth. Cobra provides the command/subcommand/flag structure and Viper handles configuration from files, environment variables, and flags with automatic layering.
+
+Choose stdlib `flag` only for trivial single-purpose tools with no subcommands and few flags, or existing projects whose local conventions clearly favor it.
 
 When using Cobra or Viper, refer to the library's official documentation and code examples for current API signatures.
-
-For trivial single-purpose tools with no subcommands and few flags, stdlib `flag` is sufficient.
 
 ## Quick Reference
 

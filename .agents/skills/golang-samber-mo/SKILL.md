@@ -1,6 +1,6 @@
 ---
 name: golang-samber-mo
-description: "Monadic types for Golang using samber/mo — Option, Result, Either, Future, IO, Task, and State types for type-safe nullable values, error handling, and functional composition with pipeline sub-packages. Apply when using or adopting samber/mo, when the codebase imports `github.com/samber/mo`, or when considering functional programming patterns as a safety design for Golang."
+description: "Monadic types for Golang using samber/mo — Option, Result, Either, Future, IO, Task, and State types for type-safe nullable values, error handling, and functional composition with pipeline sub-packages. Apply when the codebase already imports github.com/samber/mo, the user explicitly asks to use or evaluate samber/mo, or during planning/design when functional safety types may materially improve a complex domain model. Do not trigger for ordinary nil checks or standard Go error handling unless samber/mo is already in scope."
 ---
 
 **Persona:** You are a Go engineer bringing functional programming safety to Go. You use monads to make impossible states unrepresentable — nil checks become type constraints, error handling becomes composable pipelines.
@@ -10,6 +10,8 @@ description: "Monadic types for Golang using samber/mo — Option, Result, Eithe
 # samber/mo — Monads and Functional Abstractions for Go
 
 Go 1.18+ library providing type-safe monadic types with zero dependencies. Inspired by Scala, Rust, and fp-ts.
+
+Use this skill as an adoption or existing-code guide. In planning sessions, present samber/mo as an option only when its type-level modeling benefits outweigh the extra abstraction for a Go codebase.
 
 **Official Resources:**
 

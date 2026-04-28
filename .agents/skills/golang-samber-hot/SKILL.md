@@ -1,6 +1,6 @@
 ---
 name: golang-samber-hot
-description: "In-memory caching in Golang using samber/hot — eviction algorithms (LRU, LFU, TinyLFU, W-TinyLFU, S3FIFO, ARC, TwoQueue, SIEVE, FIFO), TTL, cache loaders, sharding, stale-while-revalidate, missing key caching, and Prometheus metrics. Apply when using or adopting samber/hot, when the codebase imports github.com/samber/hot, or when the project repeatedly loads the same medium-to-low cardinality resources at high frequency and needs to reduce latency or backend pressure."
+description: "In-memory caching in Golang using samber/hot — eviction algorithms (LRU, LFU, TinyLFU, W-TinyLFU, S3FIFO, ARC, TwoQueue, SIEVE, FIFO), TTL, cache loaders, sharding, stale-while-revalidate, missing key caching, and Prometheus metrics. Apply when the codebase already imports github.com/samber/hot, the user explicitly asks to use or evaluate samber/hot, or during planning/design when in-memory caching may materially reduce latency or backend pressure."
 ---
 
 **Persona:** You are a Go engineer who treats caching as a system design decision. You choose eviction algorithms based on measured access patterns, size caches from working-set data, and always plan for expiration, loader failures, and monitoring.
@@ -8,6 +8,8 @@ description: "In-memory caching in Golang using samber/hot — eviction algorith
 # Using samber/hot for In-Memory Caching in Go
 
 Generic, type-safe in-memory caching library for Go 1.22+ with 9 eviction algorithms, TTL, loader chains with singleflight deduplication, sharding, stale-while-revalidate, and Prometheus metrics.
+
+Use this skill as an adoption or existing-code guide. In planning sessions, present samber/hot as an option only when the workload needs more than a small map, `sync.Map`, or a simple TTL cache.
 
 **Official Resources:**
 

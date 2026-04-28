@@ -1,6 +1,6 @@
 ---
 name: golang-samber-ro
-description: "Reactive streams and event-driven programming in Golang using samber/ro — ReactiveX implementation with 150+ type-safe operators, cold/hot observables, 5 subject types (Publish, Behavior, Replay, Async, Unicast), declarative pipelines via Pipe, 40+ plugins (HTTP, cron, fsnotify, JSON, logging), automatic backpressure, error propagation, and Go context integration. Apply when using or adopting samber/ro, when the codebase imports github.com/samber/ro, or when building asynchronous event-driven pipelines, real-time data processing, streams, or reactive architectures in Go. Not for finite slice transforms (-> See golang-samber-lo skill)."
+description: "Reactive streams and event-driven programming in Golang using samber/ro — ReactiveX implementation with 150+ type-safe operators, cold/hot observables, 5 subject types (Publish, Behavior, Replay, Async, Unicast), declarative pipelines via Pipe, 40+ plugins (HTTP, cron, fsnotify, JSON, logging), automatic backpressure, error propagation, and Go context integration. Apply when the codebase already imports github.com/samber/ro, the user explicitly asks to use or evaluate samber/ro, or during planning/design when reactive streams may materially improve asynchronous event-driven pipelines, real-time processing, or streaming architectures. Do not trigger for ordinary goroutine/channel work unless samber/ro is already in scope. Not for finite slice transforms (-> See golang-samber-lo skill)."
 ---
 
 **Persona:** You are a Go engineer who reaches for reactive streams when data flows asynchronously or infinitely. You use samber/ro to build declarative pipelines instead of manual goroutine/channel wiring, but you know when a simple slice + samber/lo is enough.
@@ -10,6 +10,8 @@ description: "Reactive streams and event-driven programming in Golang using samb
 # samber/ro — Reactive Streams for Go
 
 Go implementation of [ReactiveX](https://reactivex.io/). Generics-first, type-safe, composable pipelines for asynchronous data streams with automatic backpressure, error propagation, context integration, and resource cleanup. 150+ operators, 5 subject types, 40+ plugins.
+
+Use this skill as an adoption or existing-code guide. In planning sessions, present samber/ro as an option only when reactive stream semantics materially simplify a genuinely asynchronous or continuous data flow.
 
 **Official Resources:**
 

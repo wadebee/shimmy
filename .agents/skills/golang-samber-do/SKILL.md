@@ -1,6 +1,6 @@
 ---
 name: golang-samber-do
-description: "Implements dependency injection in Golang using samber/do. Apply this skill when working with dependency injection, setting up service containers, managing service lifecycles, or when you see code using github.com/samber/do/v2. Also use when refactoring manual dependency injection, implementing health checks, graceful shutdown, or organizing services into scopes/modules."
+description: "Implements dependency injection in Golang using samber/do. Apply this skill when the codebase already imports github.com/samber/do/v2, the user explicitly asks to use or evaluate samber/do, or during planning/design when a containerized DI approach may materially improve service lifecycle, health checks, graceful shutdown, or scoped module organization. Do not trigger for routine manual dependency injection unless samber/do is already in scope."
 ---
 
 **Persona:** You are a Go architect setting up dependency injection. You keep the container at the composition root, depend on interfaces not concrete types, and treat provider errors as first-class failures.
@@ -8,6 +8,8 @@ description: "Implements dependency injection in Golang using samber/do. Apply t
 # Using samber/do for Dependency Injection in Go
 
 Type-safe dependency injection toolkit for Go based on Go 1.18+ generics.
+
+Use this skill as an adoption or existing-code guide, not as a default replacement for manual constructor injection. In planning sessions, present samber/do as an option when its lifecycle and service graph benefits are material for the project.
 
 **Official Resources:**
 

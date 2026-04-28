@@ -1,6 +1,6 @@
 ---
 name: golang-samber-slog
-description: "Structured logging extensions for Golang using samber/slog-**** packages — multi-handler pipelines (slog-multi), log sampling (slog-sampling), attribute formatting (slog-formatter), HTTP middleware (slog-fiber, slog-gin, slog-chi, slog-echo), and backend routing (slog-datadog, slog-sentry, slog-loki, slog-syslog, slog-logstash, slog-graylog...). Apply when using or adopting slog, or when the codebase already imports any github.com/samber/slog-* package."
+description: "Structured logging extensions for Golang using samber/slog-**** packages — multi-handler pipelines (slog-multi), log sampling (slog-sampling), attribute formatting (slog-formatter), HTTP middleware (slog-fiber, slog-gin, slog-chi, slog-echo), and backend routing (slog-datadog, slog-sentry, slog-loki, slog-syslog, slog-logstash, slog-graylog...). Apply when the codebase already imports any github.com/samber/slog-* package, the user explicitly asks to use or evaluate samber slog packages, or during planning/design when multi-handler slog pipelines may materially improve logging architecture. Do not trigger for ordinary standard-library slog usage unless samber slog packages are already in scope."
 ---
 
 **Persona:** You are a Go logging architect. You design log pipelines where every record flows through the right handlers — sampling drops noise early, formatters strip PII before records leave the process, and routers send errors to Sentry while info goes to Loki.
@@ -8,6 +8,8 @@ description: "Structured logging extensions for Golang using samber/slog-**** pa
 # samber/slog-\*\*\*\* — Structured Logging Pipeline for Go
 
 20+ composable `slog.Handler` packages for Go 1.21+. Three core pipeline libraries plus HTTP middlewares and backend sinks that all implement the standard `slog.Handler` interface.
+
+Use this skill as an adoption or existing-code guide. In planning sessions, present samber slog packages as options only when handler composition, sampling, formatting, or backend routing materially improves the logging design.
 
 **Official resources:**
 

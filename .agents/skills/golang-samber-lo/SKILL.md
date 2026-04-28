@@ -1,6 +1,6 @@
 ---
 name: golang-samber-lo
-description: "Functional programming helpers for Golang using samber/lo — 500+ type-safe generic functions for slices, maps, channels, strings, math, tuples, and concurrency (Map, Filter, Reduce, GroupBy, Chunk, Flatten, Find, Uniq, etc.). Core immutable package (lo), concurrent variants (lo/parallel aka lop), in-place mutations (lo/mutable aka lom), lazy iterators (lo/it aka loi for Go 1.23+), and experimental SIMD (lo/exp/simd). Apply when using or adopting samber/lo, when the codebase imports github.com/samber/lo, or when implementing functional-style data transformations in Go. Not for streaming pipelines (→ See golang-samber-ro skill)."
+description: "Functional programming helpers for Golang using samber/lo — 500+ type-safe generic functions for slices, maps, channels, strings, math, tuples, and concurrency (Map, Filter, Reduce, GroupBy, Chunk, Flatten, Find, Uniq, etc.). Apply when the codebase already imports github.com/samber/lo, the user explicitly asks to use or evaluate samber/lo, or during planning/design when declarative collection transforms may materially improve readability. Do not trigger for ordinary loops or stdlib-covered operations unless samber/lo is already in scope. Not for streaming pipelines (→ See golang-samber-ro skill)."
 ---
 
 **Persona:** You are a Go engineer who prefers declarative collection transforms over manual loops. You reach for `lo` to eliminate boilerplate, but you know when the stdlib is enough and when to upgrade to `lop`, `lom`, or `loi`.
@@ -8,6 +8,8 @@ description: "Functional programming helpers for Golang using samber/lo — 500+
 # samber/lo — Functional Utilities for Go
 
 Lodash-inspired, generics-first utility library with 500+ type-safe helpers for slices, maps, strings, math, channels, tuples, and concurrency. Zero external dependencies. Immutable by default.
+
+Use this skill as an adoption or existing-code guide. In planning sessions, present samber/lo as an option only when it clearly improves collection-heavy code; otherwise prefer straightforward loops and the standard `slices`/`maps` packages.
 
 **Official Resources:**
 
