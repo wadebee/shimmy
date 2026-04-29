@@ -1,0 +1,2 @@
+# Investigate how to fix this:
+The container downloads the YAML module on each run because its module cache is ephemeral in this shim setup, so the test command is taking a little longer than a local Go install would.

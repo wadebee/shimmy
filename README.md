@@ -202,6 +202,9 @@ GO_IMAGE=docker.io/library/golang:latest go version
 **Mounts:**
 - `$PWD` → `/work` (read-write)
 
+**Container I/O:**
+- Keeps stdin open without allocating a container TTY, which avoids Podman terminal resize signal warnings for short-lived commands such as `go help test`.
+
 ### jq
 
 - `JQ_IMAGE` — Container image (default: `docker.io/stedolan/jq:latest`)

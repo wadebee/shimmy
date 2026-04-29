@@ -302,6 +302,22 @@ test_go_shim_direct() {
   pass "go direct shim execution"
 }
 
+test_go_shim_help_test() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/go" help test 2>&1
+  )
+
+  assert_contains "$output" "usage: go test"
+  assert_not_contains "$output" "forwarding signal"
+  assert_not_contains "$output" "container has already been removed"
+
+  pass "go help test shim execution"
+}
+
 test_jq_shim_direct() {
   setup_scenario
   require_podman
@@ -488,6 +504,7 @@ main() {
   test_update_reinstalls_selected_shims
   test_aws_shim_direct
   test_go_shim_direct
+  test_go_shim_help_test
   test_jq_shim_direct
   test_jq_shim_pull_override
   test_installed_go_shim
