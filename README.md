@@ -77,12 +77,25 @@ After `./shimmy install`, activate the installed Shimmy paths in the current she
 eval "$(./shimmy activate)"
 ```
 
-`./shimmy install` updates your shell startup file by default so shells can find the installed shims automatically. It cannot change your current shell session, so use `eval "$(./shimmy activate)"` to make the install available immediately.
+`./shimmy install` writes one activation file under the install root and updates your shell startup file by default so future shells can source it. It cannot change your current shell session, so use `eval "$(./shimmy activate)"` to make the install available immediately.
 
-By default, `install` chooses the startup file from your shell:
-- `bash` -> `~/.bashrc`
-- `zsh` -> `~/.zshrc`
-- `sh`, `ksh`, and `mksh` -> `~/.profile`
+The installed activation file is:
+
+```sh
+~/.config/shimmy/activate.sh
+```
+
+Startup files contain only a small managed block that sources that activation file. This keeps the PATH logic in one place even when multiple startup files need to load Shimmy.
+
+Supported startup shells:
+
+| Shell | Startup files updated by default |
+| --- | --- |
+| `bash` | `~/.bashrc` and the first existing login file from `~/.bash_profile`, `~/.bash_login`, or `~/.profile`; creates `~/.bash_profile` if none exist |
+| `zsh` | `~/.zshrc` |
+| `sh` | `~/.profile` |
+| `ksh` | `~/.profile` |
+| `mksh` | `~/.profile` |
 
 You can override or skip that behavior:
 
@@ -92,7 +105,7 @@ You can override or skip that behavior:
 ./shimmy install --no-startup
 ```
 
-Shimmy writes one managed startup block, so rerunning install refreshes that block idempotently instead of appending duplicates.
+You can repeat `--startup-file` when more than one startup file should source Shimmy. Shimmy writes one managed startup block per startup file, so rerunning install refreshes those blocks idempotently instead of appending duplicates.
 
 If you prefer not to modify your startup files, use `--no-startup` and add activation logic manually.
 

@@ -23,9 +23,9 @@ const (
 )
 
 var (
-	ErrConfigNotFound = errors.New("host config not found")
-	ErrContextMissing = errors.New("host context missing")
-	ErrInvalidSlug    = errors.New("invalid slug")
+	ErrMissingConfig 	= errors.New("missing configuration")
+	ErrMissingTuple 	= errors.New("missing slot tuple")
+	ErrInvalidSlug    	= errors.New("invalid slug")
 
 	slugPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
 )
@@ -222,7 +222,7 @@ func FindRepoConfigDir(startDir string) (string, error) {
 
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", ErrConfigNotFound
+			return "", ErrMissingConfig
 		}
 		dir = parent
 	}
@@ -304,7 +304,7 @@ func SlotConfigFileName(system string, stage string, slot string) string {
 
 func ValidateRenderTuple(tuple Tuple) error {
 	if tuple.System == "" || tuple.Stage == "" || tuple.Slot == "" {
-		return ErrContextMissing
+		return ErrMissingTuple
 	}
 
 	return ValidateTuple(tuple)
@@ -326,10 +326,10 @@ func ValidateSlug(kind string, slug string, maxLength int) error {
 
 func ValidateTuple(tuple Tuple) error {
 	if tuple.System == "" {
-		return ErrContextMissing
+		return ErrMissingTuple
 	}
 	if tuple.Slot != "" && tuple.Stage == "" {
-		return ErrContextMissing
+		return ErrMissingTuple
 	}
 	if err := ValidateSlug("system", tuple.System, SystemSlugMaxLength); err != nil {
 		return err

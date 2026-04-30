@@ -149,25 +149,76 @@ test_install_manifest() {
   )
 
   assert_contains "$output" "Installed shimmy assets into $INSTALL_DIR"
-  assert_contains "$output" "Updated startup file: ~/.bashrc"
+  assert_contains "$output" "Updated startup file: $HOME_DIR/.bashrc"
+  assert_contains "$output" "Updated startup file: $HOME_DIR/.bash_profile"
   assert_contains "$output" "Activate this install with: eval"
   assert_file_exists "$INSTALL_DIR/install-manifest.txt"
+  assert_file_exists "$INSTALL_DIR/activate.sh"
   assert_file_exists "$INSTALL_DIR/shims/jq"
   assert_dir_exists "$INSTALL_DIR/lib/shims"
   assert_file_exists "$HOME_DIR/.bashrc"
+  assert_file_exists "$HOME_DIR/.bash_profile"
 
   manifest_contents=$(cat "$INSTALL_DIR/install-manifest.txt")
   assert_contains "$manifest_contents" "install_dir=$INSTALL_DIR"
+  assert_contains "$manifest_contents" "activate_file=$INSTALL_DIR/activate.sh"
   assert_contains "$manifest_contents" "startup_shell=bash"
   assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.bashrc"
+  assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.bash_profile"
   assert_contains "$manifest_contents" "shim=jq"
   assert_not_contains "$manifest_contents" "shim_dir="
   assert_not_contains "$manifest_contents" "images_dir="
   assert_not_contains "$manifest_contents" "shim_lib_dir="
   assert_file_contains "$HOME_DIR/.bashrc" "# >>> shimmy onboarding >>>"
-  assert_file_contains "$HOME_DIR/.bashrc" "$INSTALL_DIR/shims"
+  assert_file_contains "$HOME_DIR/.bashrc" "$INSTALL_DIR/activate.sh"
+  assert_file_contains "$HOME_DIR/.bash_profile" "# >>> shimmy onboarding >>>"
+  assert_file_contains "$HOME_DIR/.bash_profile" "$INSTALL_DIR/activate.sh"
+  assert_file_contains "$INSTALL_DIR/activate.sh" "$INSTALL_DIR/shims"
 
   pass "install writes manifest and startup file"
+}
+
+test_install_removes_legacy_shell_init_block() {
+  setup_scenario
+
+  startup_file=$HOME_DIR/.bash_profile
+  {
+    printf '# existing shell config\n'
+    printf '# >>> shimmy shell init >>>\n'
+    printf 'if [ -f "%s/.bashrc_shimmy" ]; then . "%s/.bashrc_shimmy"; fi\n' "$HOME_DIR" "$HOME_DIR"
+    printf '# <<< shimmy shell init <<<\n'
+  } > "$startup_file"
+
+  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+
+  startup_contents=$(cat "$startup_file")
+  assert_contains "$startup_contents" "# existing shell config"
+  assert_contains "$startup_contents" "# >>> shimmy onboarding >>>"
+  assert_contains "$startup_contents" "$INSTALL_DIR/activate.sh"
+  assert_not_contains "$startup_contents" "# >>> shimmy shell init >>>"
+  assert_not_contains "$startup_contents" ".bashrc_shimmy"
+
+  pass "install removes legacy shell init block"
+}
+
+test_install_bash_uses_existing_profile_login_file() {
+  setup_scenario
+
+  printf '# existing profile config\n' > "$HOME_DIR/.profile"
+
+  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+
+  assert_file_contains "$HOME_DIR/.bashrc" "$INSTALL_DIR/activate.sh"
+  assert_file_contains "$HOME_DIR/.profile" "# existing profile config"
+  assert_file_contains "$HOME_DIR/.profile" "$INSTALL_DIR/activate.sh"
+  assert_path_not_exists "$HOME_DIR/.bash_profile"
+
+  manifest_contents=$(cat "$INSTALL_DIR/install-manifest.txt")
+  assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.bashrc"
+  assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.profile"
+  assert_not_contains "$manifest_contents" "startup_file=$HOME_DIR/.bash_profile"
+
+  pass "bash install uses existing profile login file"
 }
 
 test_activate_eval() {
@@ -212,7 +263,9 @@ test_install_no_startup() {
 
   assert_contains "$output" "Future shells will load Shimmy from: manual activation only"
   assert_not_contains "$output" "Updated startup file:"
+  assert_file_exists "$INSTALL_DIR/activate.sh"
   assert_path_not_exists "$HOME_DIR/.bashrc"
+  assert_path_not_exists "$HOME_DIR/.bash_profile"
 
   pass "install can skip startup file updates"
 }
@@ -232,7 +285,8 @@ test_update_repair_startup() {
 
   assert_contains "$output" "Updated startup file: $startup_file"
   assert_file_contains "$startup_file" "# >>> shimmy onboarding >>>"
-  assert_file_contains "$startup_file" "$INSTALL_DIR/shims"
+  assert_file_contains "$startup_file" "$INSTALL_DIR/activate.sh"
+  assert_file_contains "$INSTALL_DIR/activate.sh" "$INSTALL_DIR/shims"
 
   HOME="$HOME_DIR" SHELL=/bin/zsh run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --repair-startup >/dev/null
   marker_count=$(grep -c '^# >>> shimmy onboarding >>>$' "$startup_file")
@@ -479,16 +533,22 @@ test_uninstall_cleanup() {
   setup_scenario
 
   startup_file=$HOME_DIR/.bashrc
+  bash_profile_file=$HOME_DIR/.bash_profile
   printf '# existing shell config\n' > "$startup_file"
+  printf '# existing profile config\n' > "$bash_profile_file"
 
   HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
   HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" >/dev/null
 
   assert_path_not_exists "$INSTALL_DIR"
   assert_file_contains "$startup_file" "# existing shell config"
+  assert_file_contains "$bash_profile_file" "# existing profile config"
   startup_contents=$(cat "$startup_file")
+  bash_profile_contents=$(cat "$bash_profile_file")
   assert_not_contains "$startup_contents" "# >>> shimmy onboarding >>>"
-  assert_not_contains "$startup_contents" "$INSTALL_DIR/shims"
+  assert_not_contains "$startup_contents" "$INSTALL_DIR/activate.sh"
+  assert_not_contains "$bash_profile_contents" "# >>> shimmy onboarding >>>"
+  assert_not_contains "$bash_profile_contents" "$INSTALL_DIR/activate.sh"
 
   pass "uninstall removes install root and startup block"
 }
@@ -496,6 +556,8 @@ test_uninstall_cleanup() {
 main() {
   test_dash_parse
   test_install_manifest
+  test_install_removes_legacy_shell_init_block
+  test_install_bash_uses_existing_profile_login_file
   test_activate_eval
   test_activate_is_idempotent
   test_install_no_startup

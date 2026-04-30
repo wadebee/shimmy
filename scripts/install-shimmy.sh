@@ -21,12 +21,11 @@ SUPPORTED_SHIMS='aws go jq netcat rg task terraform textual'
 REQUESTED_INSTALL_DIR=
 REQUESTED_SHIMS=
 REQUESTED_SHELL=
-REQUESTED_STARTUP_FILE=
+REQUESTED_STARTUP_FILES=
 SKIP_STARTUP=0
-STARTUP_FILE_LABEL=
-STARTUP_FILE_PATH=
+STARTUP_FILE_PATHS=
 STARTUP_SHELL=
-PRESERVED_STARTUP_FILE_PATH=
+PRESERVED_STARTUP_FILE_PATHS=
 PRESERVED_STARTUP_SHELL=
 UNINSTALL=0
 
@@ -93,6 +92,17 @@ log_warn() {
   log_message warn "$@"
 }
 
+line_list_append() {
+  list_value=${1:-}
+  line_value=$2
+
+  if [ -n "$list_value" ]; then
+    printf '%s\n%s\n' "$list_value" "$line_value"
+  else
+    printf '%s\n' "$line_value"
+  fi
+}
+
 fail() {
   log_message error "$*"
   exit 1
@@ -120,7 +130,7 @@ Options:
   --install-dir <dir>    Base install directory. Default: ~/.config/shimmy
   --shim <name>          Install only the named shim. Repeatable.
   --shell <name>         Override shell detection for startup-file updates
-  --startup-file <path>  Override the startup file Shimmy updates during install
+  --startup-file <path>  Override startup file updates. Repeatable.
   --no-startup           Skip persistent startup-file updates during install
   --uninstall            Remove the current install instead of creating it
   -h, --help             Show help
@@ -178,11 +188,23 @@ manifest_value() {
   sed -n "s/^${key}=//p" "$manifest_file" | sed -n '1p'
 }
 
+manifest_values() {
+  manifest_file=$1
+  key=$2
+
+  if [ ! -f "$manifest_file" ]; then
+    return 1
+  fi
+
+  sed -n "s/^${key}=//p" "$manifest_file"
+}
+
 resolve_install_paths() {
   SHIMMY_INSTALL_DIR=$(resolve_install_root)
   SHIMMY_SHIM_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" shims)
   SHIMMY_IMAGES_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" images)
   SHIMMY_SHIM_LIB_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" lib/shims)
+  SHIMMY_ACTIVATE_FILE=$(install_path_render "$SHIMMY_INSTALL_DIR" activate.sh)
   INSTALL_MANIFEST_FILE=$(install_path_render "$SHIMMY_INSTALL_DIR" install-manifest.txt)
 }
 
@@ -200,6 +222,7 @@ load_install_root_from_manifest() {
   SHIMMY_SHIM_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" shims)
   SHIMMY_IMAGES_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" images)
   SHIMMY_SHIM_LIB_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" lib/shims)
+  SHIMMY_ACTIVATE_FILE=$(install_path_render "$SHIMMY_INSTALL_DIR" activate.sh)
   INSTALL_MANIFEST_FILE=$(install_path_render "$SHIMMY_INSTALL_DIR" install-manifest.txt)
 }
 
@@ -230,17 +253,45 @@ install_directory_copy() {
   cp -R "$source_path" "$target_path"
 }
 
+startup_file_summary_render() {
+  startup_file_paths=${1:-}
+
+  if [ -z "$startup_file_paths" ]; then
+    printf 'manual activation only\n'
+    return 0
+  fi
+
+  separator=
+  while IFS= read -r startup_file_path; do
+    [ -n "$startup_file_path" ] || continue
+    printf '%s%s' "$separator" "$startup_file_path"
+    separator=', '
+  done <<EOF
+$startup_file_paths
+EOF
+  printf '\n'
+}
+
+write_activate_file() {
+  "$ACTIVATE_SCRIPT" --install-dir "$SHIMMY_INSTALL_DIR" > "$SHIMMY_ACTIVATE_FILE"
+  chmod 644 "$SHIMMY_ACTIVATE_FILE"
+}
+
 write_manifest() {
   mkdir -p "$SHIMMY_INSTALL_DIR"
 
   {
     printf 'install_dir=%s\n' "$SHIMMY_INSTALL_DIR"
+    printf 'activate_file=%s\n' "$SHIMMY_ACTIVATE_FILE"
     if [ -n "$STARTUP_SHELL" ]; then
       printf 'startup_shell=%s\n' "$STARTUP_SHELL"
     fi
-    if [ -n "$STARTUP_FILE_PATH" ]; then
-      printf 'startup_file=%s\n' "$STARTUP_FILE_PATH"
-    fi
+    while IFS= read -r startup_file_path; do
+      [ -n "$startup_file_path" ] || continue
+      printf 'startup_file=%s\n' "$startup_file_path"
+    done <<EOF
+$STARTUP_FILE_PATHS
+EOF
     for shim_name in $(selected_shim_list); do
       printf 'shim=%s\n' "$shim_name"
     done
@@ -249,28 +300,29 @@ write_manifest() {
 
 resolve_startup_settings() {
   if [ "$SKIP_STARTUP" -eq 1 ]; then
-    if [ -n "$PRESERVED_STARTUP_FILE_PATH" ]; then
+    if [ -n "$PRESERVED_STARTUP_FILE_PATHS" ]; then
       STARTUP_SHELL=$PRESERVED_STARTUP_SHELL
-      STARTUP_FILE_PATH=$PRESERVED_STARTUP_FILE_PATH
-      STARTUP_FILE_LABEL=$PRESERVED_STARTUP_FILE_PATH
+      STARTUP_FILE_PATHS=$PRESERVED_STARTUP_FILE_PATHS
     else
       STARTUP_SHELL=
-      STARTUP_FILE_PATH=
-      STARTUP_FILE_LABEL=
+      STARTUP_FILE_PATHS=
     fi
     return 0
   fi
 
   STARTUP_SHELL=$(shimmy_shell_name_normalize "$REQUESTED_SHELL") || fail "unable to resolve startup shell"
-  STARTUP_FILE_PATH=$(shimmy_startup_file_path_resolve "$STARTUP_SHELL" "$REQUESTED_STARTUP_FILE" "$HOME") || fail "unable to resolve startup file path"
-  STARTUP_FILE_LABEL=$(shimmy_startup_file_label_render "$STARTUP_SHELL" "$REQUESTED_STARTUP_FILE") || fail "unable to resolve startup file label"
+  if [ -n "$REQUESTED_STARTUP_FILES" ]; then
+    STARTUP_FILE_PATHS=$REQUESTED_STARTUP_FILES
+  else
+    STARTUP_FILE_PATHS=$(shimmy_startup_file_path_list_resolve "$STARTUP_SHELL" "$HOME") || fail "unable to resolve startup file path"
+  fi
 }
 
 perform_install() {
   validate_requested_shims
   if [ -f "$INSTALL_MANIFEST_FILE" ]; then
     PRESERVED_STARTUP_SHELL=$(manifest_value "$INSTALL_MANIFEST_FILE" startup_shell || true)
-    PRESERVED_STARTUP_FILE_PATH=$(manifest_value "$INSTALL_MANIFEST_FILE" startup_file || true)
+    PRESERVED_STARTUP_FILE_PATHS=$(manifest_values "$INSTALL_MANIFEST_FILE" startup_file || true)
   fi
   resolve_startup_settings
 
@@ -303,16 +355,23 @@ perform_install() {
   log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
   install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_SHIM_LIB_DIR"
 
-  if [ -n "$STARTUP_FILE_PATH" ]; then
-    activate_block=$(shimmy_activate_block_read "$ACTIVATE_SCRIPT" "$SHIMMY_INSTALL_DIR") || fail "unable to render activate block for startup file"
-    shimmy_startup_file_update "$STARTUP_FILE_PATH" "$activate_block"
-    log_info "Updated startup file: $STARTUP_FILE_LABEL"
+  write_activate_file
+
+  if [ -n "$STARTUP_FILE_PATHS" ]; then
+    activate_block=$(shimmy_activate_source_block_render "$SHIMMY_ACTIVATE_FILE") || fail "unable to render activate block for startup file"
+    while IFS= read -r startup_file_path; do
+      [ -n "$startup_file_path" ] || continue
+      shimmy_startup_file_update "$startup_file_path" "$activate_block"
+      log_info "Updated startup file: $startup_file_path"
+    done <<EOF
+$STARTUP_FILE_PATHS
+EOF
   fi
 
   write_manifest
 
   log_info "Installed shimmy assets into $SHIMMY_INSTALL_DIR"
-  log_info "Future shells will load Shimmy from: ${STARTUP_FILE_LABEL:-manual activation only}"
+  log_info "Future shells will load Shimmy from: $(startup_file_summary_render "$STARTUP_FILE_PATHS")"
   log_info "Activate this install with: eval \"\$(./shimmy activate --install-dir '$SHIMMY_INSTALL_DIR')\""
 }
 
@@ -333,16 +392,22 @@ perform_uninstall() {
   log_info "Removing shimmy install rooted at $SHIMMY_INSTALL_DIR"
 
   load_install_root_from_manifest || true
-  startup_file_to_remove=$(manifest_value "$INSTALL_MANIFEST_FILE" startup_file || true)
+  startup_files_to_remove=$(manifest_values "$INSTALL_MANIFEST_FILE" startup_file || true)
 
-  if [ -n "$startup_file_to_remove" ]; then
-    shimmy_startup_block_remove "$startup_file_to_remove"
-    log_info "Removed managed Shimmy startup block from: $startup_file_to_remove"
+  if [ -n "$startup_files_to_remove" ]; then
+    while IFS= read -r startup_file_to_remove; do
+      [ -n "$startup_file_to_remove" ] || continue
+      shimmy_startup_block_remove "$startup_file_to_remove"
+      log_info "Removed managed Shimmy startup block from: $startup_file_to_remove"
+    done <<EOF
+$startup_files_to_remove
+EOF
   fi
 
   remove_path_if_present "$SHIMMY_SHIM_DIR" "shim"
   remove_path_if_present "$SHIMMY_IMAGES_DIR" "image"
   remove_path_if_present "$SHIMMY_SHIM_LIB_DIR" "shim helper"
+  remove_path_if_present "$SHIMMY_ACTIVATE_FILE" "activation"
   remove_path_if_present "$INSTALL_MANIFEST_FILE" "manifest"
 
   if [ -d "$SHIMMY_INSTALL_DIR/lib" ]; then
@@ -395,7 +460,7 @@ main() {
         ;;
       --startup-file)
         [ "$#" -ge 2 ] || fail "missing value for --startup-file"
-        REQUESTED_STARTUP_FILE=$2
+        REQUESTED_STARTUP_FILES=$(line_list_append "$REQUESTED_STARTUP_FILES" "$2")
         shift 2
         ;;
       --no-startup)

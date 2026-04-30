@@ -3,13 +3,13 @@ package hostcli
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"github.com/wadebee/shimmy/samples/host/internal/hostconfig"
 )
 
@@ -41,43 +41,23 @@ type Plan struct {
 }
 
 func Execute(ctx context.Context, args []string, opts Options) error {
-	if len(args) == 0 {
-		return errors.New("missing command")
+	root := newRootCommand(ctx, opts)
+	root.SetArgs(args)
+
+	command, err := root.ExecuteC()
+	if err == nil {
+		return nil
 	}
 
-	if args[0] == "config" {
-		return executeConfig(args[1:], opts)
-	}
-
-	effective, err := loadEffectiveBundle(args[1:], opts)
-	if err != nil {
-		return err
-	}
-
-	var plan Plan
-	switch args[0] {
-	case "login":
-		plan, err = PlanLogin(effective)
-	case "whoami":
-		plan, err = PlanWhoami(effective)
-	default:
-		err = fmt.Errorf("unknown command %q", args[0])
-	}
-	if err != nil {
-		return err
-	}
-
-	runner := opts.Runner
-	if runner == nil {
-		runner = StubRunner{Writer: stdout(opts)}
-	}
-
-	for _, invocation := range plan.Invocations {
-		if err := runner.Run(ctx, invocation); err != nil {
-			return err
+	if isUsageError(err) {
+		command.SetOut(stderr(opts))
+		usageErr := command.Usage()
+		if usageErr != nil {
+			return errors.Join(err, usageErr)
 		}
 	}
-	return nil
+
+	return err
 }
 
 func PlanLogin(effective hostconfig.EffectiveBundle) (Plan, error) {
@@ -167,27 +147,147 @@ func enterpriseConfigFile(opts Options) string {
 	return opts.EnterpriseConfigFile
 }
 
-func executeConfig(args []string, opts Options) error {
-	if len(args) == 0 {
-		return errors.New("missing config command")
-	}
-
-	switch args[0] {
-	case "init":
-		return executeConfigInit(args[1:], opts)
-	case "render":
-		return executeConfigRender(args[1:], opts)
-	default:
-		return fmt.Errorf("unknown config command %q", args[0])
-	}
+type usageError struct {
+	err error
 }
 
-func executeConfigInit(args []string, opts Options) error {
-	tuple, err := parseTupleFlags("host config init", args, opts)
-	if err != nil {
-		return err
-	}
+func (err usageError) Error() string {
+	return err.err.Error()
+}
 
+func (err usageError) Unwrap() error {
+	return err.err
+}
+
+func newRootCommand(ctx context.Context, opts Options) *cobra.Command {
+	root := &cobra.Command{
+		Use:               "host",
+		Short:             "Run host workflows through Shimmy shims",
+		SilenceErrors:     true,
+		SilenceUsage:      true,
+		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return usageError{err: errors.New("missing command")}
+		},
+	}
+	configureCommand(root, opts)
+
+	root.AddCommand(
+		newConfigCommand(opts),
+		newPlanCommand(ctx, opts, "login", "Configure cloud credentials from the rendered host config", PlanLogin),
+		newPlanCommand(ctx, opts, "whoami", "Show the active cloud identity from the rendered host config", PlanWhoami),
+	)
+
+	return root
+}
+
+func newConfigCommand(opts Options) *cobra.Command {
+	config := &cobra.Command{
+		Use:           "config",
+		Short:         "Manage host configuration",
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return usageError{err: errors.New("missing config command")}
+		},
+	}
+	configureCommand(config, opts)
+	config.AddCommand(
+		newConfigInitCommand(opts),
+		newConfigRenderCommand(opts),
+	)
+	return config
+}
+
+func newConfigInitCommand(opts Options) *cobra.Command {
+	tuple := hostconfig.Tuple{}
+	command := &cobra.Command{
+		Use:           "init",
+		Short:         "Create host configuration files",
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		Args:          noArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if tuple.System == "" {
+				return usageError{err: hostconfig.ErrMissingTuple}
+			}
+			return executeConfigInit(tuple, opts)
+		},
+	}
+	configureCommand(command, opts)
+	addTupleFlags(command, &tuple)
+	return command
+}
+
+func newConfigRenderCommand(opts Options) *cobra.Command {
+	tuple := hostconfig.Tuple{}
+	command := &cobra.Command{
+		Use:           "render",
+		Short:         "Render the effective host configuration",
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		Args:          noArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if tuple.System == "" || tuple.Stage == "" || tuple.Slot == "" {
+				return usageError{err: hostconfig.ErrMissingTuple}
+			}
+			return executeConfigRender(tuple, opts)
+		},
+	}
+	configureCommand(command, opts)
+	addTupleFlags(command, &tuple)
+	return command
+}
+
+func newPlanCommand(ctx context.Context, opts Options, name string, short string, planner func(hostconfig.EffectiveBundle) (Plan, error)) *cobra.Command {
+	tuple := hostconfig.Tuple{}
+	command := &cobra.Command{
+		Use:           name,
+		Short:         short,
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		Args:          noArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if tuple.System == "" || tuple.Stage == "" || tuple.Slot == "" {
+				return usageError{err: hostconfig.ErrMissingTuple}
+			}
+			effective, err := loadEffectiveBundle(tuple, opts)
+			if err != nil {
+				return err
+			}
+
+			plan, err := planner(effective)
+			if err != nil {
+				return err
+			}
+
+			runner := opts.Runner
+			if runner == nil {
+				runner = StubRunner{Writer: stdout(opts)}
+			}
+
+			for _, invocation := range plan.Invocations {
+				if err := runner.Run(ctx, invocation); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
+	configureCommand(command, opts)
+	addTupleFlags(command, &tuple)
+	return command
+}
+
+func configureCommand(command *cobra.Command, opts Options) {
+	command.SetOut(stdout(opts))
+	command.SetErr(stderr(opts))
+	command.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		return usageError{err: err}
+	})
+}
+
+func executeConfigInit(tuple hostconfig.Tuple, opts Options) error {
 	result, err := hostconfig.InitConfig(hostconfig.InitOptions{
 		EnterpriseFile: enterpriseConfigFile(opts),
 		HomeDir:        opts.HomeDir,
@@ -217,15 +317,7 @@ func executeConfigInit(args []string, opts Options) error {
 	return nil
 }
 
-func executeConfigRender(args []string, opts Options) error {
-	tuple, err := parseTupleFlags("host config render", args, opts)
-	if err != nil {
-		return err
-	}
-	if tuple.Stage == "" || tuple.Slot == "" {
-		return hostconfig.ErrContextMissing
-	}
-
+func executeConfigRender(tuple hostconfig.Tuple, opts Options) error {
 	content, err := hostconfig.RenderBundleYAML(hostconfig.RenderOptions{
 		EnterpriseFile: enterpriseConfigFile(opts),
 		HomeDir:        opts.HomeDir,
@@ -240,15 +332,7 @@ func executeConfigRender(args []string, opts Options) error {
 	return err
 }
 
-func loadEffectiveBundle(args []string, opts Options) (hostconfig.EffectiveBundle, error) {
-	tuple, err := parseTupleFlags("host", args, opts)
-	if err != nil {
-		return hostconfig.EffectiveBundle{}, err
-	}
-	if tuple.Stage == "" || tuple.Slot == "" {
-		return hostconfig.EffectiveBundle{}, hostconfig.ErrContextMissing
-	}
-
+func loadEffectiveBundle(tuple hostconfig.Tuple, opts Options) (hostconfig.EffectiveBundle, error) {
 	return hostconfig.RenderBundle(hostconfig.RenderOptions{
 		EnterpriseFile: enterpriseConfigFile(opts),
 		HomeDir:        opts.HomeDir,
@@ -257,23 +341,17 @@ func loadEffectiveBundle(args []string, opts Options) (hostconfig.EffectiveBundl
 	})
 }
 
-func parseTupleFlags(name string, args []string, opts Options) (hostconfig.Tuple, error) {
-	flags := flag.NewFlagSet(name, flag.ContinueOnError)
-	flags.SetOutput(stderr(opts))
+func addTupleFlags(command *cobra.Command, tuple *hostconfig.Tuple) {
+	command.Flags().StringVar(&tuple.System, "system", "", "system slug")
+	command.Flags().StringVar(&tuple.Stage, "stage", "", "stage slug")
+	command.Flags().StringVar(&tuple.Slot, "slot", "", "slot slug")
+}
 
-	tuple := hostconfig.Tuple{}
-	flags.StringVar(&tuple.System, "system", "", "system slug")
-	flags.StringVar(&tuple.Stage, "stage", "", "stage slug")
-	flags.StringVar(&tuple.Slot, "slot", "", "slot slug")
-
-	if err := flags.Parse(args); err != nil {
-		return hostconfig.Tuple{}, err
+func noArgs(_ *cobra.Command, args []string) error {
+	if len(args) != 0 {
+		return usageError{err: fmt.Errorf("unexpected argument %q", args[0])}
 	}
-	if flags.NArg() != 0 {
-		return hostconfig.Tuple{}, fmt.Errorf("unexpected argument %q", flags.Arg(0))
-	}
-
-	return tuple, nil
+	return nil
 }
 
 func displayPath(path string, opts Options) string {
@@ -297,4 +375,9 @@ func stderr(opts Options) io.Writer {
 		return opts.Stderr
 	}
 	return os.Stderr
+}
+
+func isUsageError(err error) bool {
+	var target usageError
+	return errors.As(err, &target)
 }

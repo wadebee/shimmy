@@ -7,11 +7,93 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/wadebee/shimmy/samples/host/internal/hostcli"
 	"github.com/wadebee/shimmy/samples/host/internal/hostconfig"
 )
+
+func TestExecuteRoot_MissingCommandPrintsUsage(t *testing.T) {
+	t.Parallel()
+
+	var stderr bytes.Buffer
+	err := hostcli.Execute(context.Background(), nil, hostcli.Options{Stderr: &stderr})
+	if err == nil {
+		t.Fatal("Execute() error = nil, want error")
+	}
+	if got := err.Error(); got != "missing command" {
+		t.Fatalf("Execute() error = %q, want missing command", got)
+	}
+
+	output := stderr.String()
+	assertContains(t, output, "Usage:")
+	assertContains(t, output, "host [flags]")
+	assertContains(t, output, "Available Commands:")
+}
+
+func TestExecuteConfig_MissingCommandPrintsUsage(t *testing.T) {
+	t.Parallel()
+
+	var stderr bytes.Buffer
+	err := hostcli.Execute(context.Background(), []string{"config"}, hostcli.Options{Stderr: &stderr})
+	if err == nil {
+		t.Fatal("Execute() error = nil, want error")
+	}
+	if got := err.Error(); got != "missing config command" {
+		t.Fatalf("Execute() error = %q, want missing config command", got)
+	}
+
+	output := stderr.String()
+	assertContains(t, output, "Usage:")
+	assertContains(t, output, "host config [flags]")
+	assertContains(t, output, "Available Commands:")
+	assertContains(t, output, "init")
+	assertContains(t, output, "render")
+}
+
+func TestExecuteConfigRender_MissingParameterPrintsUsage(t *testing.T) {
+	t.Parallel()
+
+	var stderr bytes.Buffer
+	err := hostcli.Execute(context.Background(), []string{
+		"config",
+		"render",
+		"--system", "aws",
+	}, hostcli.Options{Stderr: &stderr})
+	if !errors.Is(err, hostconfig.ErrMissingTuple) {
+		t.Fatalf("Execute() error = %v, want %v", err, hostconfig.ErrMissingTuple)
+	}
+
+	output := stderr.String()
+	assertContains(t, output, "Usage:")
+	assertContains(t, output, "host config render [flags]")
+	assertContains(t, output, "--stage")
+	assertContains(t, output, "--slot")
+}
+
+func TestExecuteConfigRender_RuntimeErrorDoesNotPrintUsage(t *testing.T) {
+	t.Parallel()
+
+	var stderr bytes.Buffer
+	err := hostcli.Execute(context.Background(), []string{
+		"config",
+		"render",
+		"--system", "aws",
+		"--stage", "dev",
+		"--slot", "1",
+	}, hostcli.Options{
+		HomeDir:    t.TempDir(),
+		WorkingDir: t.TempDir(),
+		Stderr:     &stderr,
+	})
+	if !errors.Is(err, hostconfig.ErrMissingConfig) {
+		t.Fatalf("Execute() error = %v, want %v", err, hostconfig.ErrMissingConfig)
+	}
+	if strings.Contains(stderr.String(), "Usage:") {
+		t.Fatalf("unexpected usage output for runtime error:\n%s", stderr.String())
+	}
+}
 
 func TestExecuteConfigInit_FullyQualifiedCreatesParents(t *testing.T) {
 	t.Parallel()

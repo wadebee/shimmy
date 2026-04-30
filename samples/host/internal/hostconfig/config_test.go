@@ -192,8 +192,8 @@ func TestFindRepoConfigDir_NotFound(t *testing.T) {
 	t.Parallel()
 
 	_, err := hostconfig.FindRepoConfigDir(t.TempDir())
-	if !errors.Is(err, hostconfig.ErrConfigNotFound) {
-		t.Fatalf("FindRepoConfigDir() error = %v, want %v", err, hostconfig.ErrConfigNotFound)
+	if !errors.Is(err, hostconfig.ErrMissingConfig) {
+		t.Fatalf("FindRepoConfigDir() error = %v, want %v", err, hostconfig.ErrMissingConfig)
 	}
 }
 
@@ -308,8 +308,8 @@ func TestRenderBundle_RequiresYAMLConfig(t *testing.T) {
 		Tuple:      hostconfig.Tuple{System: "payments", Stage: "prod", Slot: "blue"},
 		WorkingDir: workDir,
 	})
-	if !errors.Is(err, hostconfig.ErrConfigNotFound) {
-		t.Fatalf("RenderBundle() error = %v, want %v", err, hostconfig.ErrConfigNotFound)
+	if !errors.Is(err, hostconfig.ErrMissingConfig) {
+		t.Fatalf("RenderBundle() error = %v, want %v", err, hostconfig.ErrMissingConfig)
 	}
 }
 

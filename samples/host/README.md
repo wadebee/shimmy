@@ -10,16 +10,16 @@ The current sample focuses on configuration as code. Cloud actions such as
 
 Host configuration is keyed by a deterministic `system/stage/slot` tuple:
 
-- `system` is the logical grouping, such as an app, service, platform slice, or regulated system.
-- `stage` is lifecycle intent, such as `dev`, `stage`, `prod`, or `dr`.
+- `system` is the logical grouping, such as an app, platform, service, or tenant.
+- `stage` is lifecycle intent, such as `dev`, `stage`, or `prod`.
 - `slot` is the concrete instance identity, such as `1`, `blue`, `green`, or `canary`.
 
-Each fully qualified tuple identifies a self-contained configuration bundle that
+Each fully qualified tuple represents a self-contained configuration bundle that
 can be cloned, promoted, versioned, rendered, and audited independently.
 
 ## File Naming
 
-Repository config lives flat under `.config/host`:
+Repository config lives under `.config/host`:
 
 ```text
 .config/host/config-sys-{system}.yaml
@@ -43,7 +43,7 @@ Enterprise policy is optional and lives at:
 template at `.config/host/config-enterprise.example.yaml` and prints install
 instructions.
 
-Slug constraints:
+Tuple Segment constraints:
 
 - `system`: max 24 characters
 - `stage`: max 12 characters
@@ -76,7 +76,7 @@ Run these commands from the sample directory:
 
 ```sh
 cd samples/host
-../../shims/go run . config init --system aws --stage dev --slot 1
+go run . config init --system aws --stage dev --slot 1
 ```
 
 A fully qualified first run creates missing parent configs and reports each
@@ -87,6 +87,14 @@ Render the effective bundle:
 
 ```sh
 ../../shims/go run . config render --system aws --stage dev --slot 1
+```
+
+Commands that require a subcommand or tuple parameters print usage when those
+inputs are missing:
+
+```sh
+go run . config
+go run . config render --system aws
 ```
 
 Install the enterprise policy template only when you want machine-wide

@@ -13,7 +13,7 @@ PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
 DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
 REQUESTED_INSTALL_DIR=
 REQUESTED_SHELL=
-REQUESTED_STARTUP_FILE=
+REQUESTED_STARTUP_FILES=
 PULL_IMAGES=0
 BUILD_IMAGES=0
 REPAIR_STARTUP=0
@@ -78,6 +78,17 @@ manifest_value() {
   sed -n "s/^${key}=//p" "$manifest_file" | sed -n '1p'
 }
 
+manifest_values() {
+  manifest_file=$1
+  key=$2
+
+  if [ ! -f "$manifest_file" ]; then
+    return 1
+  fi
+
+  sed -n "s/^${key}=//p" "$manifest_file"
+}
+
 manifest_shim_list() {
   manifest_file=$1
 
@@ -86,6 +97,17 @@ manifest_shim_list() {
   fi
 
   sed -n 's/^shim=//p' "$manifest_file"
+}
+
+line_list_append() {
+  list_value=${1:-}
+  line_value=$2
+
+  if [ -n "$list_value" ]; then
+    printf '%s\n%s\n' "$list_value" "$line_value"
+  else
+    printf '%s\n' "$line_value"
+  fi
 }
 
 local_build_repo_for_shim() {
@@ -202,7 +224,7 @@ Options:
   --build               Rebuild local images for installed local-build shims.
   --repair-startup      Rewrite the managed Shimmy startup block after reinstalling
   --shell <name>        Override shell detection for startup-file repair
-  --startup-file <path> Override the startup file used during repair
+  --startup-file <path> Override startup files used during repair. Repeatable.
   -h, --help
 EOF
 }
@@ -234,7 +256,7 @@ main() {
         ;;
       --startup-file)
         [ "$#" -ge 2 ] || fail "missing value for --startup-file"
-        REQUESTED_STARTUP_FILE=$2
+        REQUESTED_STARTUP_FILES=$(line_list_append "$REQUESTED_STARTUP_FILES" "$2")
         shift 2
         ;;
       -h|--help)
@@ -265,20 +287,25 @@ main() {
     set -- "$@" --no-startup
   else
     startup_shell=$REQUESTED_SHELL
-    startup_file=$REQUESTED_STARTUP_FILE
+    startup_files=$REQUESTED_STARTUP_FILES
 
     if [ -z "$startup_shell" ]; then
       startup_shell=$(manifest_value "$manifest_file" startup_shell || true)
     fi
-    if [ -z "$startup_file" ]; then
-      startup_file=$(manifest_value "$manifest_file" startup_file || true)
+    if [ -z "$startup_files" ]; then
+      startup_files=$(manifest_values "$manifest_file" startup_file || true)
     fi
 
     if [ -n "$startup_shell" ]; then
       set -- "$@" --shell "$startup_shell"
     fi
-    if [ -n "$startup_file" ]; then
-      set -- "$@" --startup-file "$startup_file"
+    if [ -n "$startup_files" ]; then
+      while IFS= read -r startup_file; do
+        [ -n "$startup_file" ] || continue
+        set -- "$@" --startup-file "$startup_file"
+      done <<EOF
+$startup_files
+EOF
     fi
   fi
   while IFS= read -r shim_name; do
