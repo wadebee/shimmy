@@ -40,6 +40,7 @@ Use this skill when:
    - If it succeeds, retry the original Shimmy command when appropriate.
 4. If `podman info` fails on macOS:
    - Run `podman machine list` with escalation if the sandbox blocks socket or machine access.
+   - Treat `podman machine start` returning `already running` as confirmation that the machine state is not the blocker, then verify `podman info`.
    - If an existing machine is stopped or Podman reports a refused/stale socket, stop and tell the user to run `podman machine start` in a normal shell outside Codex.
    - After the user reports that startup succeeded, run `podman info` again with escalation if needed.
 5. If no Podman machine exists:
@@ -47,6 +48,10 @@ Use this skill when:
    - Do not provision Podman implicitly.
 6. If `podman info` succeeds but the Shimmy wrapper still fails:
    - Use the tool-specific Shimmy skill when available.
+   - Check `command -v <tool>`; if it resolves under `$HOME/.config/shimmy/shims` or another Shimmy install, Codex may need approval for the outer wrapper command even though direct `podman info` works.
+   - Run a harmless wrapper smoke check with exact-command escalation, such as `rg --version` with prefix rule `["rg"]`.
+   - Remember that Codex permissions are evaluated on the outer command (`rg`, `jq`, `terraform`, etc.), not only on the nested `podman` process that the wrapper starts.
+   - If later non-escalated wrapper calls still fail in the same session, keep using exact wrapper escalation or ask the user to persist the exact prefix approval.
    - Report whether the failure is from image pull/network, credentials, wrapper behavior, or the underlying tool.
 
 ## Escalation Commands
@@ -73,6 +78,7 @@ Summarize:
 - Podman path and whether `podman info` succeeded.
 - Podman machine state when inspected.
 - Any escalation prefix rules requested.
+- Whether direct Podman access succeeded but the outer wrapper still needed its own exact-command approval.
 - Whether the original Shimmy command succeeded after initialization.
 
 ## Safety

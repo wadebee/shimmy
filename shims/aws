@@ -35,6 +35,7 @@ if [ -t 0 ] && [ -t 1 ]; then
 fi
 
 exec "$SHIMMY_PODMAN_BIN" run --rm \
+  --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${AWS_PULL_ARG:+"$AWS_PULL_ARG"} \
   ${AWS_TTY_ARG:+"$AWS_TTY_ARG"} \
   -v "$PWD:/work" \

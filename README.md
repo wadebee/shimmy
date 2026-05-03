@@ -10,7 +10,9 @@ Shimmy wraps popular CLI tools in lightweight Podman containers, providing:
 - **Customizable** — override container images via environment variables
 - **Transparent usage** — add to PATH and use tools as if they were installed locally
 
-For tools that do not ship a usable upstream container image, Shimmy can build and cache a local image from a checked-in `Containerfile` context. The image tag is derived from the build-context hash, so Podman reuses the cached image until the `Containerfile` or its supporting files change.
+For tools that do not ship a usable upstream container image, Shimmy can build and cache a local image from a checked-in `Containerfile` context. The image tag is derived from the build-context hash and resolved platform, so Podman reuses the cached image until the `Containerfile`, supporting files, or host platform changes.
+
+Shimmy also resolves the container platform at runtime without changing the command a user runs. Linux hosts run containers as `linux/amd64`, while macOS hosts run containers as `linux/arm64`. Explicit `<PREFIX>_IMAGE` overrides still select the image reference, and Shimmy applies the platform selection underneath.
 
 ## Contributor Guidance
 
@@ -201,6 +203,10 @@ AWS_IMAGE=public.ecr.aws/aws-cli/aws-cli:2.31.21 aws --version
 **Environment variables forwarded:**
 - `AWS_*`
 
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
+
 ### Go CLI
 
 - `GO_IMAGE` — Container image (default: `docker.io/library/golang:latest`)
@@ -218,6 +224,10 @@ GO_IMAGE=docker.io/library/golang:latest go version
 **Container I/O:**
 - Keeps stdin open without allocating a container TTY, which avoids Podman terminal resize signal warnings for short-lived commands such as `go help test`.
 
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
+
 ### jq
 
 - `JQ_IMAGE` — Container image (default: `docker.io/stedolan/jq:latest`)
@@ -232,6 +242,10 @@ JQ_IMAGE=ghcr.io/jqlang/jq:latest jq --version
 **Mounts:**
 - `$PWD` → `/work` (read-write)
 
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
+
 ### Netcat
 
 - `NETCAT_IMAGE` — Override the runtime image entirely
@@ -245,10 +259,14 @@ Example:
 NETCAT_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest netcat --help
 ```
 
-The default Netcat image is built locally from `images/netcat/Containerfile`, which starts from UBI 9 minimal and installs the `nmap-ncat` package. This keeps the base image small while still using a practical Red Hat-supported package manager for the install. Shimmy tags the resulting image under `localhost/shimmy-netcat:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
+The default Netcat image is built locally from `images/netcat/Containerfile`, which starts from UBI 9 minimal and installs the `nmap-ncat` package. This keeps the base image small while still using a practical Red Hat-supported package manager for the install. Shimmy tags the resulting image under `localhost/shimmy-netcat:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
 
 **Mounts:**
 - `$PWD` → `/work` (read-write)
+
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
 
 ### ripgrep
 
@@ -264,6 +282,10 @@ RG_IMAGE=docker.io/vszl/ripgrep:latest rg --version
 **Mounts:**
 - `$PWD` → `/work` (read-write)
 
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
+
 ### Task
 
 - `TASK_IMAGE` — Override the runtime image entirely
@@ -278,7 +300,7 @@ Example:
 TASK_VERSION=v3.45.5 task --version
 ```
 
-The default Task image is built locally from `images/task/Containerfile`, which starts from Alpine and installs the official Task release binary from GitHub Releases. Shimmy tags the resulting image under `localhost/shimmy-task:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
+The default Task image is built locally from `images/task/Containerfile`, which starts from Alpine and installs the official Task release binary from GitHub Releases. Shimmy tags the resulting image under `localhost/shimmy-task:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
 
 **Mounts:**
 - `$PWD` → `$PWD` (read-write)
@@ -292,6 +314,10 @@ When `CONTAINER_HOST` points at a unix-domain Podman socket, the task shim also 
 - `CONTAINER_HOST` when explicitly set
 - `SHIMMY_HOST_PATH`
 - `HOME` when the home directory mount is enabled
+
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
 
 ### Terraform
 
@@ -316,6 +342,10 @@ terraform plan
 - `AWS_*`
 - `TF_VAR_*`
 
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
+
 ### Textual CLI
 
 - `TEXTUAL_IMAGE` — Override the runtime image entirely
@@ -329,10 +359,14 @@ Example:
 TEXTUAL_BASE_IMAGE=python:3.13-slim-bookworm textual --help
 ```
 
-The default Textual image is built locally from `images/textual/Containerfile`, which starts from `python:3.13-slim-bookworm` and installs `textual` plus `textual-dev`. This matches the official Textual docs, where the `textual` command comes from the developer tools package. Shimmy tags the resulting image under `localhost/shimmy-textual:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
+The default Textual image is built locally from `images/textual/Containerfile`, which starts from `python:3.13-slim-bookworm` and installs `textual` plus `textual-dev`. This matches the official Textual docs, where the `textual` command comes from the developer tools package. Shimmy tags the resulting image under `localhost/shimmy-textual:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
 
 **Mounts:**
 - `$PWD` → `/work` (read-write)
+
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
 
 The interactive shims (`aws`, `task`, `terraform`, and `textual`) request `-it` only when both stdin and stdout are attached to a terminal, so version and help commands still work cleanly in scripts and smoke tests.
 

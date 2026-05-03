@@ -87,6 +87,15 @@ assert_dir_exists() {
   fi
 }
 
+assert_equals() {
+  actual=$1
+  expected=$2
+
+  if [ "$actual" != "$expected" ]; then
+    fail_test "expected '$expected', got '$actual'"
+  fi
+}
+
 assert_path_not_exists() {
   if [ -e "$1" ]; then
     fail_test "expected path to be absent: $1"
@@ -104,6 +113,30 @@ setup_scenario() {
 require_podman() {
   shimmy_podman_preflight_require "shimmy test"
   PODMAN_BIN=$SHIMMY_PODMAN_BIN
+}
+
+test_podman_platform_resolves_host_os() {
+  linux_platform=$(
+    SHIMMY_TEST_OS=Linux /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$PODMAN_HELPER_FILE"
+  )
+  darwin_platform=$(
+    SHIMMY_TEST_OS=Darwin /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$PODMAN_HELPER_FILE"
+  )
+
+  assert_equals "$linux_platform" "linux/amd64"
+  assert_equals "$darwin_platform" "linux/arm64"
+
+  pass "Podman platform resolves from host OS"
+}
+
+test_podman_platform_tag_render() {
+  platform_tag=$(
+    /bin/sh -c '. "$1"; shimmy_podman_platform_tag_render linux/arm64' sh "$PODMAN_HELPER_FILE"
+  )
+
+  assert_equals "$platform_tag" "linux-arm64"
+
+  pass "Podman platform tag rendering"
 }
 
 run_in_repo() {
@@ -314,7 +347,7 @@ test_status_reports_install() {
   HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task >/dev/null
 
   output=$(
-    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" 2>&1
+    HOME="$HOME_DIR" SHIMMY_TEST_OS=Darwin run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" 2>&1
   )
 
   assert_contains "$output" "installed: yes"
@@ -322,6 +355,7 @@ test_status_reports_install() {
   assert_contains "$output" "shim_dir=$INSTALL_DIR/shims"
   assert_contains "$output" "- jq: docker.io/stedolan/jq:latest"
   assert_contains "$output" "- task: localhost/shimmy-task:"
+  assert_contains "$output" "-linux-arm64"
 
   pass "status reports installed shim details"
 }
@@ -383,6 +417,32 @@ test_go_shim_help_test() {
   assert_not_contains "$output" "container has already been removed"
 
   pass "go help test shim execution"
+}
+
+test_go_shim_platform_execution() {
+  setup_scenario
+  require_podman
+
+  case "$(uname -s 2>/dev/null || printf unknown)" in
+    Darwin)
+      expected_goarch=arm64
+      ;;
+    Linux)
+      expected_goarch=amd64
+      ;;
+    *)
+      expected_goarch=amd64
+      ;;
+  esac
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/go" env GOARCH 2>&1
+  )
+
+  assert_contains "$output" "$expected_goarch"
+
+  pass "go shim platform selection"
 }
 
 test_jq_shim_direct() {
@@ -567,6 +627,8 @@ test_uninstall_cleanup() {
 }
 
 main() {
+  test_podman_platform_resolves_host_os
+  test_podman_platform_tag_render
   test_dash_parse
   test_install_manifest
   test_install_removes_legacy_shell_init_block
@@ -581,6 +643,7 @@ main() {
   test_aws_shim_direct
   test_go_shim_direct
   test_go_shim_help_test
+  test_go_shim_platform_execution
   test_jq_shim_direct
   test_jq_shim_pull_override
   test_installed_go_shim

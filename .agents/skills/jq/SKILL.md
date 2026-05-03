@@ -20,6 +20,7 @@ Use this skill when the task makes use of the jq cli.
 
 - Default image: `docker.io/stedolan/jq:latest`
 - Pull override: `JQ_IMAGE_PULL=always`
+- Runtime platform: resolved by shared Podman helper as `linux/amd64` on Linux and `linux/arm64` on macOS
 - Runtime mode: stdin-friendly via `podman run --rm -i`
 - Mounts `$PWD` to `/work`
 - Does not add extra mounts

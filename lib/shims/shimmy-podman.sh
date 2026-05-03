@@ -65,10 +65,33 @@ shimmy_podman_path_activate() {
   esac
 }
 
+shimmy_podman_platform_resolve() {
+  os_name=${SHIMMY_TEST_OS:-$(uname -s 2>/dev/null || printf unknown)}
+
+  case "$os_name" in
+    Darwin)
+      SHIMMY_PODMAN_PLATFORM=linux/arm64
+      ;;
+    Linux)
+      SHIMMY_PODMAN_PLATFORM=linux/amd64
+      ;;
+    *)
+      SHIMMY_PODMAN_PLATFORM=linux/amd64
+      ;;
+  esac
+}
+
+shimmy_podman_platform_tag_render() {
+  platform_value=${1:?platform value is required}
+
+  printf '%s\n' "$platform_value" | sed 's#[/:]#-#g'
+}
+
 shimmy_podman_preflight_require() {
   context_label=${1:-shimmy}
 
   shimmy_podman_bin_require "$context_label" || return 1
+  shimmy_podman_platform_resolve
 
   if ! "$SHIMMY_PODMAN_BIN" info >/dev/null 2>&1; then
     shimmy_podman_failure_print_unreachable "$context_label" "$SHIMMY_PODMAN_BIN"

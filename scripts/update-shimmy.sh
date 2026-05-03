@@ -130,7 +130,9 @@ cleanup_old_local_images() {
   current_hash=$(shimmy_context_hash_render "$context_dir" 2>/dev/null || true)
   [ -n "$current_hash" ] || return 0
 
-  current_ref=${image_repo}:$current_hash
+  shimmy_podman_platform_resolve
+  platform_tag=$(shimmy_podman_platform_tag_render "$SHIMMY_PODMAN_PLATFORM")
+  current_ref=${image_repo}:${current_hash}-${platform_tag}
 
   "$SHIMMY_PODMAN_BIN" images \
     --filter "label=io.wadebee.shimmy.image-repo=${image_repo}" \

@@ -89,7 +89,9 @@ local_image_ref() {
   image_hash=$(shimmy_context_hash_render "$context_dir" 2>/dev/null || true)
 
   if [ -n "$image_hash" ]; then
-    printf '%s:%s\n' "$image_repo" "$image_hash"
+    shimmy_podman_platform_resolve
+    platform_tag=$(shimmy_podman_platform_tag_render "$SHIMMY_PODMAN_PLATFORM")
+    printf '%s:%s-%s\n' "$image_repo" "$image_hash" "$platform_tag"
     return 0
   fi
 

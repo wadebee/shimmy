@@ -55,6 +55,7 @@ if [ -t 0 ] && [ -t 1 ]; then
 fi
 
 exec "$SHIMMY_PODMAN_BIN" run --rm \
+  --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${TESSL_TTY_ARG:+"$TESSL_TTY_ARG"} \
   -m 300M \
   --memory-swap 1G \

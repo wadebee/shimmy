@@ -36,14 +36,29 @@ Use this as the starting point for a new shim skill or as a checklist for a one-
 #!/bin/sh
 set -eu
 
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+
 <PREFIX>_IMAGE=${<PREFIX>_IMAGE:-<default-image>}
 <PREFIX>_IMAGE_PULL=${<PREFIX>_IMAGE_PULL:-}
 
-if [ "$<PREFIX>_IMAGE_PULL" = "always" ]; then
-  exec podman run --rm <interactive-flag> --pull=always -v "$PWD:/work" -w /work "$<PREFIX>_IMAGE" "$@"
+if [ ! -f "$PODMAN_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
+  exit 1
 fi
 
-exec podman run --rm <interactive-flag> -v "$PWD:/work" -w /work "$<PREFIX>_IMAGE" "$@"
+# shellcheck source=lib/shims/shimmy-podman.sh
+. "$PODMAN_HELPER_FILE"
+
+shimmy_podman_preflight_require "the <shim-name> shim"
+
+if [ "$<PREFIX>_IMAGE_PULL" = "always" ]; then
+  exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" <interactive-flag> --pull=always -v "$PWD:/work" -w /work "$<PREFIX>_IMAGE" "$@"
+fi
+
+exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" <interactive-flag> -v "$PWD:/work" -w /work "$<PREFIX>_IMAGE" "$@"
 ```
 
 ## Design Rules
@@ -54,6 +69,7 @@ exec podman run --rm <interactive-flag> -v "$PWD:/work" -w /work "$<PREFIX>_IMAG
 - Preserve transparent CLI behavior by passing `"$@"` unchanged.
 - Choose a pinned image unless there is a strong reason to use `latest`.
 - Treat Podman as an explicit dependency. On macOS, remember the official pkg installer may place it at `/opt/podman/bin/podman`.
+- Use the shared Podman helper's platform resolver; do not hardcode per-shim platform logic.
 
 ## Change Checklist
 

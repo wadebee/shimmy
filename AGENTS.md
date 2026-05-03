@@ -27,6 +27,7 @@ This repository packages and makes common CLI tools available to your shell as s
 - Keep runtime shims as small POSIX shell wrappers with `#!/bin/sh` and `set -eu`.
 - Mount `$PWD` to `/work` unless the shim has a documented reason not to.
 - Use `<PREFIX>_IMAGE` for image override and `<PREFIX>_IMAGE_PULL=always` for pull policy.
+- Use Shimmy's shared Podman helper for runtime platform selection instead of hardcoding per-shim OS or architecture checks.
 - Any Shimmy-defined variable exported into the user's shell must use the `SHIMMY_` prefix.
 - Update shim helper code, install script, tests, and README together when behavior changes.
 - Treat Podman as an explicit dependency. Do not add Shimmy-side installation or provisioning steps for it.
