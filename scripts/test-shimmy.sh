@@ -270,6 +270,19 @@ test_install_no_startup() {
   pass "install can skip startup file updates"
 }
 
+test_install_macos_podman_guidance() {
+  setup_scenario
+
+  output=$(
+    SHIMMY_TEST_OS=Darwin HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup 2>&1
+  )
+
+  assert_contains "$output" "macOS Podman check: run 'podman info' in a normal shell before using Shimmy."
+  assert_contains "$output" "If Podman is unreachable, run 'podman machine start' in that shell, then retry Shimmy."
+
+  pass "install prints macOS Podman guidance"
+}
+
 test_update_repair_startup() {
   setup_scenario
 
@@ -561,6 +574,7 @@ main() {
   test_activate_eval
   test_activate_is_idempotent
   test_install_no_startup
+  test_install_macos_podman_guidance
   test_update_repair_startup
   test_status_reports_install
   test_update_reinstalls_selected_shims

@@ -92,6 +92,11 @@ log_warn() {
   log_message warn "$@"
 }
 
+is_macos() {
+  os_name=${SHIMMY_TEST_OS:-$(uname -s 2>/dev/null || printf unknown)}
+  [ "$os_name" = Darwin ]
+}
+
 line_list_append() {
   list_value=${1:-}
   line_value=$2
@@ -272,6 +277,13 @@ EOF
   printf '\n'
 }
 
+podman_macos_guidance_log() {
+  is_macos || return 0
+
+  log_info "macOS Podman check: run 'podman info' in a normal shell before using Shimmy."
+  log_info "If Podman is unreachable, run 'podman machine start' in that shell, then retry Shimmy."
+}
+
 write_activate_file() {
   "$ACTIVATE_SCRIPT" --install-dir "$SHIMMY_INSTALL_DIR" > "$SHIMMY_ACTIVATE_FILE"
   chmod 644 "$SHIMMY_ACTIVATE_FILE"
@@ -373,6 +385,7 @@ EOF
   log_info "Installed shimmy assets into $SHIMMY_INSTALL_DIR"
   log_info "Future shells will load Shimmy from: $(startup_file_summary_render "$STARTUP_FILE_PATHS")"
   log_info "Activate this install with: eval \"\$(./shimmy activate --install-dir '$SHIMMY_INSTALL_DIR')\""
+  podman_macos_guidance_log
 }
 
 remove_path_if_present() {

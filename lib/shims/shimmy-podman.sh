@@ -41,7 +41,7 @@ shimmy_podman_failure_print_unreachable() {
 
   printf 'ERROR: podman was found at %s but could not talk to the engine for %s.\n' "$podman_bin" "$context_label" >&2
   printf '%s\n' 'Verify that `podman info` succeeds in your shell.' >&2
-  printf '%s\n' 'On macOS, start the engine with: podman machine start' >&2
+  printf '%s\n' 'On macOS, start the engine from a normal user shell with: podman machine start' >&2
   printf '%s\n' 'If you use a non-default connection, review: podman system connection list' >&2
   if [ -n "${CONTAINER_HOST:-}" ]; then
     printf 'Current CONTAINER_HOST=%s\n' "$CONTAINER_HOST" >&2

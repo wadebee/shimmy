@@ -1,11 +1,11 @@
 ---
-name: shimmy
+name: shimmy-create
 description: Guidance for building a new shim in this repository. Use when asked to create a shim or "shimmy" a CLI tool that is not already covered by a tool-specific skill.
 ---
 
 # Shimmy Skill
 
-Use this skill when the user wants a new shim for a CLI tool that does not already have a dedicated skill in this repo.
+Use this skill when the user wants a new shim for a CLI tool that does not already exist in this repo.
 
 ## Files
 

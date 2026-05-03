@@ -12,3 +12,4 @@ Always operate in PLAN → REVIEW → ACT mode:
 - If I explicitly say to implement, fix, run, or proceed, that counts as plan approval so you may ACT however you may NEVER modify files immediately.
 - Before acting, read AGENTS.md and follow its execution model.
 - After approval, proceed through implementation, verification, and summary.
+- It is important that you use Shimmy tools when available. This requires Podman to be running. If anything prevents you from running a preferred tool that has Shimmy backing, pause execution and prompt the user for a Podman remediation plan.  
