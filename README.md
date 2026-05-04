@@ -149,6 +149,33 @@ sh ./scripts/install-shimmy.sh --uninstall
 
 This is the same functionality the wrapper exposes, without the repo-root dispatcher.
 
+### Install manifest and lifecycle state
+
+Shimmy stores install state in one POSIX-readable manifest under the install root:
+
+```sh
+~/.config/shimmy/install-manifest.txt
+```
+
+The manifest is the source of truth for activation, status, update, startup-file repair, and uninstall. It uses one `key=value` entry per line and repeated keys for lists.
+
+Core fields include:
+- `install_dir` — active install root
+- `activate_file` — generated activation script
+- `startup_shell` — shell used for managed startup-file selection
+- `startup_file` — managed startup file; repeated when more than one file is updated
+- `shim` — installed shim name; repeated for each installed tool
+
+Shimmy also reserves `shimmy_*` fields for lifecycle metadata such as the installed source URL/ref, update policy, last update check, previous ref, and validation status. Install and update preserve unknown `shimmy_*` fields so agent-driven lifecycle metadata is not lost during normal refreshes.
+
+For machine-readable inspection, use:
+
+```sh
+./shimmy status --format manifest
+```
+
+The current implementation can reinstall from the checked-out source, refresh remote images with `--pull`, rebuild local images with `--build`, repair startup files, and preserve lifecycle metadata. Full latest-version resolution, semver enforcement such as `>=0.10.0`, and rollback to release versions require a release/tag/version convention for Shimmy itself.
+
 ## Usage
 
 Once shims are in your PATH, use tools naturally:
@@ -382,7 +409,7 @@ sh ./scripts/test-shimmy.sh
 
 Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
-- install, activate, status, update, startup-file repair, and uninstall behavior for the single-root manifest layout
+- install, activate, status, machine-readable manifest output, update, startup-file repair, and uninstall behavior for the single-root manifest layout
 - live Podman execution for the supported shim set: `aws`, `jq`, `netcat`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
@@ -417,7 +444,7 @@ shimmy/
 ```
 
 ## AI Generation 
-This code was ![AI-developed](https://img.shields.io/badge/AI-Generated-blue) and human-reviewed/curated in concert with Codex GPT-5.4.
+This code was ![AI-developed](https://img.shields.io/badge/AI-Generated-blue) and human-reviewed/curated in concert with Codex GPT-5.5.
 
 ## License
 

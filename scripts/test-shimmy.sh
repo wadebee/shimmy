@@ -199,6 +199,9 @@ test_install_manifest() {
   assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.bashrc"
   assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.bash_profile"
   assert_contains "$manifest_contents" "shim=jq"
+  assert_contains "$manifest_contents" "shimmy_manifest_version=1"
+  assert_contains "$manifest_contents" "shimmy_source_url="
+  assert_contains "$manifest_contents" "shimmy_source_ref="
   assert_not_contains "$manifest_contents" "shim_dir="
   assert_not_contains "$manifest_contents" "images_dir="
   assert_not_contains "$manifest_contents" "shim_lib_dir="
@@ -360,6 +363,28 @@ test_status_reports_install() {
   pass "status reports installed shim details"
 }
 
+test_status_manifest_format() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+
+  output=$(
+    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --format manifest 2>&1
+  )
+
+  assert_contains "$output" "installed=yes"
+  assert_contains "$output" "install_dir=$INSTALL_DIR"
+  assert_contains "$output" "shim_dir=$INSTALL_DIR/shims"
+  assert_contains "$output" "path_active=no"
+  assert_contains "$output" "activate_file=$INSTALL_DIR/activate.sh"
+  assert_contains "$output" "shim=jq"
+  assert_contains "$output" "shimmy_manifest_version=1"
+  assert_not_contains "$output" "Shimmy Status"
+  assert_not_contains "$output" "installed_shims:"
+
+  pass "status manifest format is machine-readable"
+}
+
 test_update_reinstalls_selected_shims() {
   setup_scenario
 
@@ -373,6 +398,32 @@ test_update_reinstalls_selected_shims() {
   assert_file_exists "$INSTALL_DIR/shims/task"
 
   pass "update reinstalls manifest-selected shims"
+}
+
+test_update_preserves_shimmy_manifest_fields() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+  manifest_file=$INSTALL_DIR/install-manifest.txt
+  original_source_ref=$(sed -n 's/^shimmy_source_ref=//p' "$manifest_file" | sed -n '1p')
+
+  {
+    printf 'shimmy_update_policy=on-use\n'
+    printf 'shimmy_update_interval_hours=12\n'
+    printf 'shimmy_last_checked=2026-05-04T00:00:00Z\n'
+  } >> "$manifest_file"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" >/dev/null
+
+  manifest_contents=$(cat "$manifest_file")
+  assert_contains "$manifest_contents" "shimmy_update_policy=on-use"
+  assert_contains "$manifest_contents" "shimmy_update_interval_hours=12"
+  assert_contains "$manifest_contents" "shimmy_last_checked=2026-05-04T00:00:00Z"
+  if [ -n "$original_source_ref" ]; then
+    assert_contains "$manifest_contents" "shimmy_previous_source_ref=$original_source_ref"
+  fi
+
+  pass "update preserves shimmy manifest lifecycle fields"
 }
 
 test_aws_shim_direct() {
@@ -639,7 +690,9 @@ main() {
   test_install_macos_podman_guidance
   test_update_repair_startup
   test_status_reports_install
+  test_status_manifest_format
   test_update_reinstalls_selected_shims
+  test_update_preserves_shimmy_manifest_fields
   test_aws_shim_direct
   test_go_shim_direct
   test_go_shim_help_test

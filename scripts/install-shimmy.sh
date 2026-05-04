@@ -27,6 +27,7 @@ STARTUP_FILE_PATHS=
 STARTUP_SHELL=
 PRESERVED_STARTUP_FILE_PATHS=
 PRESERVED_STARTUP_SHELL=
+PRESERVED_SHIMMY_MANIFEST_LINES=
 UNINSTALL=0
 
 LOG_LEVEL=${LOG_LEVEL:-info}
@@ -204,6 +205,41 @@ manifest_values() {
   sed -n "s/^${key}=//p" "$manifest_file"
 }
 
+manifest_shimmy_lines_preserve() {
+  manifest_file=$1
+
+  if [ ! -f "$manifest_file" ]; then
+    return 0
+  fi
+
+  while IFS= read -r manifest_line; do
+    case "$manifest_line" in
+      shimmy_*=*)
+        manifest_key=${manifest_line%%=*}
+        case "$manifest_key" in
+          shimmy_manifest_version|shimmy_source_url|shimmy_source_ref|shimmy_previous_source_ref)
+            ;;
+          *)
+            printf '%s\n' "$manifest_line"
+            ;;
+        esac
+        ;;
+    esac
+  done < "$manifest_file"
+}
+
+source_ref_resolve() {
+  command -v git >/dev/null 2>&1 || return 0
+
+  git -C "$ROOT_DIR" rev-parse --verify HEAD 2>/dev/null || true
+}
+
+source_url_resolve() {
+  command -v git >/dev/null 2>&1 || return 0
+
+  git -C "$ROOT_DIR" config --get remote.origin.url 2>/dev/null || true
+}
+
 resolve_install_paths() {
   SHIMMY_INSTALL_DIR=$(resolve_install_root)
   SHIMMY_SHIM_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" shims)
@@ -292,6 +328,13 @@ write_activate_file() {
 write_manifest() {
   mkdir -p "$SHIMMY_INSTALL_DIR"
 
+  shimmy_source_ref=$(source_ref_resolve)
+  shimmy_source_url=$(source_url_resolve)
+  shimmy_previous_source_ref=${SHIMMY_PREVIOUS_SOURCE_REF:-}
+  if [ -z "$shimmy_previous_source_ref" ]; then
+    shimmy_previous_source_ref=$(manifest_value "$INSTALL_MANIFEST_FILE" shimmy_previous_source_ref || true)
+  fi
+
   {
     printf 'install_dir=%s\n' "$SHIMMY_INSTALL_DIR"
     printf 'activate_file=%s\n' "$SHIMMY_ACTIVATE_FILE"
@@ -307,6 +350,19 @@ EOF
     for shim_name in $(selected_shim_list); do
       printf 'shim=%s\n' "$shim_name"
     done
+    printf 'shimmy_manifest_version=1\n'
+    if [ -n "$shimmy_source_url" ]; then
+      printf 'shimmy_source_url=%s\n' "$shimmy_source_url"
+    fi
+    if [ -n "$shimmy_source_ref" ]; then
+      printf 'shimmy_source_ref=%s\n' "$shimmy_source_ref"
+    fi
+    if [ -n "$shimmy_previous_source_ref" ]; then
+      printf 'shimmy_previous_source_ref=%s\n' "$shimmy_previous_source_ref"
+    fi
+    if [ -n "$PRESERVED_SHIMMY_MANIFEST_LINES" ]; then
+      printf '%s\n' "$PRESERVED_SHIMMY_MANIFEST_LINES"
+    fi
   } > "$INSTALL_MANIFEST_FILE"
 }
 
@@ -335,6 +391,7 @@ perform_install() {
   if [ -f "$INSTALL_MANIFEST_FILE" ]; then
     PRESERVED_STARTUP_SHELL=$(manifest_value "$INSTALL_MANIFEST_FILE" startup_shell || true)
     PRESERVED_STARTUP_FILE_PATHS=$(manifest_values "$INSTALL_MANIFEST_FILE" startup_file || true)
+    PRESERVED_SHIMMY_MANIFEST_LINES=$(manifest_shimmy_lines_preserve "$INSTALL_MANIFEST_FILE")
   fi
   resolve_startup_settings
 

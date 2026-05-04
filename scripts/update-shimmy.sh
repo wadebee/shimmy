@@ -17,6 +17,7 @@ REQUESTED_STARTUP_FILES=
 PULL_IMAGES=0
 BUILD_IMAGES=0
 REPAIR_STARTUP=0
+PREVIOUS_SOURCE_REF=
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -284,6 +285,8 @@ main() {
     manifest_file=$install_dir/install-manifest.txt
   fi
 
+  PREVIOUS_SOURCE_REF=$(manifest_value "$manifest_file" shimmy_source_ref || true)
+
   set -- "$SCRIPT_DIR/install-shimmy.sh" --install-dir "$install_dir"
   if [ "$REPAIR_STARTUP" -eq 0 ]; then
     set -- "$@" --no-startup
@@ -316,7 +319,11 @@ EOF
   done <<EOF
 $(manifest_shim_list "$manifest_file")
 EOF
-  "$@"
+  if [ -n "$PREVIOUS_SOURCE_REF" ]; then
+    SHIMMY_PREVIOUS_SOURCE_REF=$PREVIOUS_SOURCE_REF "$@"
+  else
+    "$@"
+  fi
 
   shim_dir=$install_dir/shims
   images_dir=$install_dir/images
