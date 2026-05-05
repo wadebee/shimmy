@@ -143,6 +143,9 @@ run_pull_refresh() {
       aws)
         AWS_IMAGE_PULL=always "$shim_dir/aws" --version >/dev/null </dev/null
         ;;
+      go)
+        GO_IMAGE_PULL=always "$shim_dir/go" version >/dev/null </dev/null
+        ;;
       jq)
         JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null </dev/null
         ;;

@@ -288,6 +288,20 @@ test_aws_shim_direct() {
   pass "aws direct shim execution"
 }
 
+test_go_shim_direct() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/go" version 2>&1
+  )
+
+  assert_contains "$output" "go version go"
+
+  pass "go direct shim execution"
+}
+
 test_jq_shim_direct() {
   setup_scenario
   require_podman
@@ -334,6 +348,22 @@ test_installed_jq_shim() {
   assert_contains "$output" "jq-"
 
   pass "installed jq shim execution"
+}
+
+test_installed_go_shim() {
+  setup_scenario
+  require_podman
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim go >/dev/null
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$INSTALL_DIR/shims/go" version 2>&1
+  )
+
+  assert_contains "$output" "go version go"
+
+  pass "installed go shim execution"
 }
 
 test_netcat_shim_direct() {
@@ -457,8 +487,10 @@ main() {
   test_status_reports_install
   test_update_reinstalls_selected_shims
   test_aws_shim_direct
+  test_go_shim_direct
   test_jq_shim_direct
   test_jq_shim_pull_override
+  test_installed_go_shim
   test_installed_jq_shim
   test_netcat_shim_direct
   test_rg_shim_direct

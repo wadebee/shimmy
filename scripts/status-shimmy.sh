@@ -104,6 +104,9 @@ describe_shim_image() {
     aws)
       printf '%s\n' "${AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}"
       ;;
+    go)
+      printf '%s\n' "${GO_IMAGE:-docker.io/library/golang:latest}"
+      ;;
     jq)
       printf '%s\n' "${JQ_IMAGE:-docker.io/stedolan/jq:latest}"
       ;;
