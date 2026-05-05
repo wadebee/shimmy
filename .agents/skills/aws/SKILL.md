@@ -20,6 +20,7 @@ Use this skill when the task makes use of the AWS CLI .
 
 - Default image: `public.ecr.aws/aws-cli/aws-cli:2.31.21`
 - Pull override: `AWS_IMAGE_PULL=always`
+- Runtime platform: resolved by shared Podman helper as `linux/amd64` on Linux and `linux/arm64` on macOS
 - Runtime mode: interactive via `podman run --rm -it`
 - Mounts `$PWD` to `/work`
 - Mounts `$HOME/.aws` to `/root/.aws:ro` when present

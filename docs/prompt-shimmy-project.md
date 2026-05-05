@@ -15,13 +15,14 @@ Constraints:
 - Read the default image from `<PREFIX>_IMAGE`.
 - Support `<PREFIX>_IMAGE_PULL=always` by adding `--pull=always` to `podman run`.
 - For tools that are not already published as container images, add `images/<tool>/Containerfile` and build a local Podman image on demand instead of embedding install steps in the runtime wrapper.
+- Source the shared Podman helper and pass `--platform "$SHIMMY_PODMAN_PLATFORM"` to `podman run`. The helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS.
 - Mount `$PWD` to `/work` with `-v "$PWD":/work -w /work`.
 - Choose `-it` for interactive CLIs and `-i` for filter-style CLIs.
 - Add extra mounts only when the tool needs them, and guard them with existence checks.
 - Forward env vars with `-e PREFIX_*` patterns only when the tool needs them.
 - Use `Containerfile` naming for custom image build contexts.
 - Keep image-build logic in the shared shim helper library so custom-image shims rebuild only when the build context changes.
-- End with `exec podman run --rm ... "$IMAGE" "$@"`.
+- End with `exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" ... "$IMAGE" "$@"`.
 - Update `scripts/install-shimmy.sh` because it enumerates shim names explicitly.
 - Treat Podman as an explicit dependency. Do not add install or provisioning steps for it in Shimmy code, tests, or CI.
 - On macOS, account for the official Podman pkg installer path `/opt/podman/bin/podman` when documenting or validating the dependency.

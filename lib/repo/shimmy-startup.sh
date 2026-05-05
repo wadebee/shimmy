@@ -1,5 +1,7 @@
 #!/bin/sh
 
+SHIMMY_LEGACY_STARTUP_BLOCK_END='# <<< shimmy shell init <<<'
+SHIMMY_LEGACY_STARTUP_BLOCK_START='# >>> shimmy shell init >>>'
 SHIMMY_STARTUP_BLOCK_END='# <<< shimmy onboarding <<<'
 SHIMMY_STARTUP_BLOCK_START='# >>> shimmy onboarding >>>'
 
@@ -13,6 +15,21 @@ shimmy_activate_block_read() {
   fi
 
   "$@"
+}
+
+shimmy_activate_source_block_render() {
+  activate_file=${1:?activate file path is required}
+  quoted_activate_file=$(shimmy_shell_quote "$activate_file")
+
+  printf 'shimmy_activate_file=%s\n' "$quoted_activate_file"
+  printf 'if [ -r "$shimmy_activate_file" ]; then\n'
+  printf '  . "$shimmy_activate_file"\n'
+  printf 'fi\n'
+  printf 'unset shimmy_activate_file\n'
+}
+
+shimmy_shell_quote() {
+  printf "%s" "$1" | sed "s/'/'\\\\''/g; 1s/^/'/; \$s/\$/'/"
 }
 
 shimmy_shell_name_normalize() {
@@ -34,40 +51,29 @@ shimmy_shell_name_normalize() {
   esac
 }
 
-shimmy_startup_file_label_render() {
+shimmy_startup_file_path_list_resolve() {
   shell_name=${1:?shell name is required}
-  requested_startup_file=${2:-}
-
-  if [ -n "$requested_startup_file" ]; then
-    printf '%s\n' "$requested_startup_file"
-    return 0
-  fi
+  home_dir=${2:-$HOME}
 
   case "$shell_name" in
-    bash) printf '~/.bashrc\n' ;;
-    zsh) printf '~/.zshrc\n' ;;
-    sh|ksh|mksh) printf '~/.profile\n' ;;
-    *)
-      printf 'ERROR: unsupported shell for startup file label: %s\n' "$shell_name" >&2
-      return 1
+    bash)
+      printf '%s\n' "$home_dir/.bashrc"
+      if [ -f "$home_dir/.bash_profile" ]; then
+        printf '%s\n' "$home_dir/.bash_profile"
+      elif [ -f "$home_dir/.bash_login" ]; then
+        printf '%s\n' "$home_dir/.bash_login"
+      elif [ -f "$home_dir/.profile" ]; then
+        printf '%s\n' "$home_dir/.profile"
+      else
+        printf '%s\n' "$home_dir/.bash_profile"
+      fi
       ;;
-  esac
-}
-
-shimmy_startup_file_path_resolve() {
-  shell_name=${1:?shell name is required}
-  requested_startup_file=${2:-}
-  home_dir=${3:-$HOME}
-
-  if [ -n "$requested_startup_file" ]; then
-    printf '%s\n' "$requested_startup_file"
-    return 0
-  fi
-
-  case "$shell_name" in
-    bash) printf '%s\n' "$home_dir/.bashrc" ;;
-    zsh) printf '%s\n' "$home_dir/.zshrc" ;;
-    sh|ksh|mksh) printf '%s\n' "$home_dir/.profile" ;;
+    zsh)
+      printf '%s\n' "$home_dir/.zshrc"
+      ;;
+    sh|ksh|mksh)
+      printf '%s\n' "$home_dir/.profile"
+      ;;
     *)
       printf 'ERROR: unsupported shell for startup file path: %s\n' "$shell_name" >&2
       return 1
@@ -78,6 +84,15 @@ shimmy_startup_file_path_resolve() {
 shimmy_startup_block_remove() {
   startup_file=${1:?startup file path is required}
 
+  shimmy_startup_marked_block_remove "$startup_file" "$SHIMMY_STARTUP_BLOCK_START" "$SHIMMY_STARTUP_BLOCK_END"
+  shimmy_startup_marked_block_remove "$startup_file" "$SHIMMY_LEGACY_STARTUP_BLOCK_START" "$SHIMMY_LEGACY_STARTUP_BLOCK_END"
+}
+
+shimmy_startup_marked_block_remove() {
+  startup_file=${1:?startup file path is required}
+  start_marker=${2:?start marker is required}
+  end_marker=${3:?end marker is required}
+
   [ -f "$startup_file" ] || return 0
 
   tmp_file=$(mktemp "${TMPDIR:-/tmp}/shimmy-startup.XXXXXX")
@@ -87,7 +102,7 @@ shimmy_startup_block_remove() {
     $0 == end_marker { skip=0; next }
     skip { next }
     { print }
-  ' start_marker="$SHIMMY_STARTUP_BLOCK_START" end_marker="$SHIMMY_STARTUP_BLOCK_END" "$startup_file" > "$tmp_file"
+  ' start_marker="$start_marker" end_marker="$end_marker" "$startup_file" > "$tmp_file"
   mv "$tmp_file" "$startup_file"
 }
 

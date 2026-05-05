@@ -9,7 +9,6 @@ PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
 GO_IMAGE=${GO_IMAGE:-docker.io/library/golang:latest}
 GO_IMAGE_PULL=${GO_IMAGE_PULL:-}
 GO_PULL_ARG=
-GO_TTY_ARG=
 
 if [ ! -f "$PODMAN_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
@@ -25,13 +24,10 @@ if [ "$GO_IMAGE_PULL" = "always" ]; then
   GO_PULL_ARG=--pull=always
 fi
 
-if [ -t 0 ] && [ -t 1 ]; then
-  GO_TTY_ARG=-it
-fi
-
 exec "$SHIMMY_PODMAN_BIN" run --rm \
+  --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${GO_PULL_ARG:+"$GO_PULL_ARG"} \
-  ${GO_TTY_ARG:+"$GO_TTY_ARG"} \
+  -i \
   -v "$PWD:/work" \
   -w /work \
   --entrypoint go \

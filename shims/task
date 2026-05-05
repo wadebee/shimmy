@@ -93,6 +93,7 @@ if [ -d /tmp ]; then
 fi
 
 exec "$SHIMMY_PODMAN_BIN" run --rm \
+  --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${TASK_TTY_ARG:+"$TASK_TTY_ARG"} \
   ${TASK_PULL_ARG:+"$TASK_PULL_ARG"} \
   -v "$PWD:$PWD:rw" \

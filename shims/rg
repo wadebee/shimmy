@@ -25,6 +25,7 @@ if [ "$RG_IMAGE_PULL" = "always" ]; then
 fi
 
 exec "$SHIMMY_PODMAN_BIN" run --rm -i \
+  --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${RG_PULL_ARG:+"$RG_PULL_ARG"} \
   -v "$PWD:/work" \
   -w /work \

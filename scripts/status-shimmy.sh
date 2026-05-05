@@ -10,6 +10,7 @@ ROOT_DIR=$(
 CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
 DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
 REQUESTED_INSTALL_DIR=
+OUTPUT_FORMAT=human
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -89,7 +90,9 @@ local_image_ref() {
   image_hash=$(shimmy_context_hash_render "$context_dir" 2>/dev/null || true)
 
   if [ -n "$image_hash" ]; then
-    printf '%s:%s\n' "$image_repo" "$image_hash"
+    shimmy_podman_platform_resolve
+    platform_tag=$(shimmy_podman_platform_tag_render "$SHIMMY_PODMAN_PLATFORM")
+    printf '%s:%s-%s\n' "$image_repo" "$image_hash" "$platform_tag"
     return 0
   fi
 
@@ -163,12 +166,54 @@ EOF
   fi
 }
 
+print_manifest_status() {
+  manifest_file=$1
+  install_dir=$2
+  shim_dir=$3
+  images_dir=$4
+  shim_lib_dir=$5
+
+  if [ -f "$manifest_file" ] || [ -d "$shim_dir" ]; then
+    printf 'installed=yes\n'
+  else
+    printf 'installed=no\n'
+  fi
+  printf 'install_dir=%s\n' "$install_dir"
+  printf 'shim_dir=%s\n' "$shim_dir"
+  printf 'images_dir=%s\n' "$images_dir"
+  printf 'shim_lib_dir=%s\n' "$shim_lib_dir"
+  if path_contains "$shim_dir"; then
+    printf 'path_active=yes\n'
+  else
+    printf 'path_active=no\n'
+  fi
+
+  if [ -f "$manifest_file" ]; then
+    while IFS= read -r manifest_line; do
+      case "$manifest_line" in
+        install_dir=*|shim_dir=*|images_dir=*|shim_lib_dir=*)
+          ;;
+        *)
+          printf '%s\n' "$manifest_line"
+          ;;
+      esac
+    done < "$manifest_file"
+  elif [ -d "$shim_dir" ]; then
+    while IFS= read -r shim_path; do
+      [ -n "$shim_path" ] || continue
+      printf 'shim=%s\n' "$(basename "$shim_path")"
+    done <<EOF
+$(find "$shim_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) | sort)
+EOF
+  fi
+}
+
 usage() {
   cat <<'EOF'
 Print the current Shimmy install status.
 
 Usage:
-  scripts/status-shimmy.sh [--install-dir <dir>]
+  scripts/status-shimmy.sh [--install-dir <dir>] [--format human|manifest]
 EOF
 }
 
@@ -178,6 +223,18 @@ main() {
       --install-dir)
         [ "$#" -ge 2 ] || fail "missing value for --install-dir"
         REQUESTED_INSTALL_DIR=$2
+        shift 2
+        ;;
+      --format)
+        [ "$#" -ge 2 ] || fail "missing value for --format"
+        case "$2" in
+          human|manifest)
+            OUTPUT_FORMAT=$2
+            ;;
+          *)
+            fail "unsupported status format: $2"
+            ;;
+        esac
         shift 2
         ;;
       -h|--help)
@@ -204,6 +261,11 @@ main() {
   shim_dir=$install_dir/shims
   images_dir=$install_dir/images
   shim_lib_dir=$install_dir/lib/shims
+
+  if [ "$OUTPUT_FORMAT" = manifest ]; then
+    print_manifest_status "$manifest_file" "$install_dir" "$shim_dir" "$images_dir" "$shim_lib_dir"
+    return 0
+  fi
 
   printf 'Shimmy Status\n'
   if [ -f "$manifest_file" ] || [ -d "$shim_dir" ]; then

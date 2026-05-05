@@ -10,7 +10,9 @@ Shimmy wraps popular CLI tools in lightweight Podman containers, providing:
 - **Customizable** — override container images via environment variables
 - **Transparent usage** — add to PATH and use tools as if they were installed locally
 
-For tools that do not ship a usable upstream container image, Shimmy can build and cache a local image from a checked-in `Containerfile` context. The image tag is derived from the build-context hash, so Podman reuses the cached image until the `Containerfile` or its supporting files change.
+For tools that do not ship a usable upstream container image, Shimmy can build and cache a local image from a checked-in `Containerfile` context. The image tag is derived from the build-context hash and resolved platform, so Podman reuses the cached image until the `Containerfile`, supporting files, or host platform changes.
+
+Shimmy also resolves the container platform at runtime without changing the command a user runs. Linux hosts run containers as `linux/amd64`, while macOS hosts run containers as `linux/arm64`. Explicit `<PREFIX>_IMAGE` overrides still select the image reference, and Shimmy applies the platform selection underneath.
 
 ## Contributor Guidance
 
@@ -20,7 +22,7 @@ That document is the contributor source of truth, including naming conventions f
 
 ## Included Shims
 
-| Tool | Purpose | Default Image | Usage |
+| Tool | Purpose | Image Source | Usage |
 |------|---------|----------------|-------|
 | **aws** | AWS CLI | `public.ecr.aws/aws-cli/aws-cli:2.31.21` | `aws s3 ls`, `aws sts get-caller-identity` |
 | **go** | Go toolchain CLI | `docker.io/library/golang:latest` | `go version`, `go test ./...` |
@@ -35,10 +37,10 @@ That document is the contributor source of truth, including naming conventions f
 
 - **POSIX shell** — `/bin/sh` or another POSIX-compatible shell for the current proof-of-concept rewrite
 - **Podman CLI** — Explicit required dependency. Podman *Desktop* is not required. 
-For macOS run `podman machine init` and `podman machine start` after installation.
+For macOS run `podman machine init` if needed, then run `podman machine start` from a normal user shell after installation.
 Install and configure for rootless operation separately before using Shimmy. Official install guide: <https://podman.io/docs/installation>
 If Podman is installed from the macOS pkg installer, the binary may live at `/opt/podman/bin/podman`. `shimmy activate` accounts for that path for interactive shell activation, and Shimmy's shared Podman preflight also checks it directly for runtime shims plus Podman-backed lifecycle commands such as `shimmy update --pull`, `shimmy update --build`, and `shimmy test`.
-When Podman is installed but unreachable, Shimmy now fails with shared guidance that points to `podman info`, `podman machine start`, `podman system connection list`, and `CONTAINER_HOST` verification.
+When Podman is installed but unreachable, Shimmy now fails with shared guidance that points to `podman info`, user-shell `podman machine start`, `podman system connection list`, and `CONTAINER_HOST` verification.
 
 ### Podman rootless requirement
 
@@ -77,12 +79,25 @@ After `./shimmy install`, activate the installed Shimmy paths in the current she
 eval "$(./shimmy activate)"
 ```
 
-`./shimmy install` updates your shell startup file by default so shells can find the installed shims automatically. It cannot change your current shell session, so use `eval "$(./shimmy activate)"` to make the install available immediately.
+`./shimmy install` writes one activation file under the install root and updates your shell startup file by default so future shells can source it. It cannot change your current shell session, so use `eval "$(./shimmy activate)"` to make the install available immediately.
 
-By default, `install` chooses the startup file from your shell:
-- `bash` -> `~/.bashrc`
-- `zsh` -> `~/.zshrc`
-- `sh`, `ksh`, and `mksh` -> `~/.profile`
+The installed activation file is:
+
+```sh
+~/.config/shimmy/activate.sh
+```
+
+Startup files contain only a small managed block that sources that activation file. This keeps the PATH logic in one place even when multiple startup files need to load Shimmy.
+
+Supported startup shells:
+
+| Shell | Startup files updated by default |
+| --- | --- |
+| `bash` | `~/.bashrc` and the first existing login file from `~/.bash_profile`, `~/.bash_login`, or `~/.profile`; creates `~/.bash_profile` if none exist |
+| `zsh` | `~/.zshrc` |
+| `sh` | `~/.profile` |
+| `ksh` | `~/.profile` |
+| `mksh` | `~/.profile` |
 
 You can override or skip that behavior:
 
@@ -92,7 +107,7 @@ You can override or skip that behavior:
 ./shimmy install --no-startup
 ```
 
-Shimmy writes one managed startup block, so rerunning install refreshes that block idempotently instead of appending duplicates.
+You can repeat `--startup-file` when more than one startup file should source Shimmy. Shimmy writes one managed startup block per startup file, so rerunning install refreshes those blocks idempotently instead of appending duplicates.
 
 If you prefer not to modify your startup files, use `--no-startup` and add activation logic manually.
 
@@ -133,6 +148,33 @@ sh ./scripts/install-shimmy.sh --uninstall
 ```
 
 This is the same functionality the wrapper exposes, without the repo-root dispatcher.
+
+### Install manifest and lifecycle state
+
+Shimmy stores install state in one POSIX-readable manifest under the install root:
+
+```sh
+~/.config/shimmy/install-manifest.txt
+```
+
+The manifest is the source of truth for activation, status, update, startup-file repair, and uninstall. It uses one `key=value` entry per line and repeated keys for lists.
+
+Core fields include:
+- `install_dir` — active install root
+- `activate_file` — generated activation script
+- `startup_shell` — shell used for managed startup-file selection
+- `startup_file` — managed startup file; repeated when more than one file is updated
+- `shim` — installed shim name; repeated for each installed tool
+
+Shimmy also reserves `shimmy_*` fields for lifecycle metadata such as the installed source URL/ref, update policy, last update check, previous ref, and validation status. Install and update preserve unknown `shimmy_*` fields so agent-driven lifecycle metadata is not lost during normal refreshes.
+
+For machine-readable inspection, use:
+
+```sh
+./shimmy status --format manifest
+```
+
+The current implementation can reinstall from the checked-out source, refresh remote images with `--pull`, rebuild local images with `--build`, repair startup files, and preserve lifecycle metadata. Full latest-version resolution, semver enforcement such as `>=0.10.0`, and rollback to release versions require a release/tag/version convention for Shimmy itself.
 
 ## Usage
 
@@ -188,6 +230,10 @@ AWS_IMAGE=public.ecr.aws/aws-cli/aws-cli:2.31.21 aws --version
 **Environment variables forwarded:**
 - `AWS_*`
 
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
+
 ### Go CLI
 
 - `GO_IMAGE` — Container image (default: `docker.io/library/golang:latest`)
@@ -201,6 +247,13 @@ GO_IMAGE=docker.io/library/golang:latest go version
 
 **Mounts:**
 - `$PWD` → `/work` (read-write)
+
+**Container I/O:**
+- Keeps stdin open without allocating a container TTY, which avoids Podman terminal resize signal warnings for short-lived commands such as `go help test`.
+
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
 
 ### jq
 
@@ -216,6 +269,10 @@ JQ_IMAGE=ghcr.io/jqlang/jq:latest jq --version
 **Mounts:**
 - `$PWD` → `/work` (read-write)
 
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
+
 ### Netcat
 
 - `NETCAT_IMAGE` — Override the runtime image entirely
@@ -229,10 +286,14 @@ Example:
 NETCAT_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest netcat --help
 ```
 
-The default Netcat image is built locally from `images/netcat/Containerfile`, which starts from UBI 9 minimal and installs the `nmap-ncat` package. This keeps the base image small while still using a practical Red Hat-supported package manager for the install. Shimmy tags the resulting image under `localhost/shimmy-netcat:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
+The default Netcat image is built locally from `images/netcat/Containerfile`, which starts from UBI 9 minimal and installs the `nmap-ncat` package. This keeps the base image small while still using a practical Red Hat-supported package manager for the install. Shimmy tags the resulting image under `localhost/shimmy-netcat:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
 
 **Mounts:**
 - `$PWD` → `/work` (read-write)
+
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
 
 ### ripgrep
 
@@ -248,6 +309,10 @@ RG_IMAGE=docker.io/vszl/ripgrep:latest rg --version
 **Mounts:**
 - `$PWD` → `/work` (read-write)
 
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
+
 ### Task
 
 - `TASK_IMAGE` — Override the runtime image entirely
@@ -262,7 +327,7 @@ Example:
 TASK_VERSION=v3.45.5 task --version
 ```
 
-The default Task image is built locally from `images/task/Containerfile`, which starts from Alpine and installs the official Task release binary from GitHub Releases. Shimmy tags the resulting image under `localhost/shimmy-task:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
+The default Task image is built locally from `images/task/Containerfile`, which starts from Alpine and installs the official Task release binary from GitHub Releases. Shimmy tags the resulting image under `localhost/shimmy-task:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
 
 **Mounts:**
 - `$PWD` → `$PWD` (read-write)
@@ -276,6 +341,10 @@ When `CONTAINER_HOST` points at a unix-domain Podman socket, the task shim also 
 - `CONTAINER_HOST` when explicitly set
 - `SHIMMY_HOST_PATH`
 - `HOME` when the home directory mount is enabled
+
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
 
 ### Terraform
 
@@ -300,6 +369,10 @@ terraform plan
 - `AWS_*`
 - `TF_VAR_*`
 
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
+
 ### Textual CLI
 
 - `TEXTUAL_IMAGE` — Override the runtime image entirely
@@ -313,10 +386,14 @@ Example:
 TEXTUAL_BASE_IMAGE=python:3.13-slim-bookworm textual --help
 ```
 
-The default Textual image is built locally from `images/textual/Containerfile`, which starts from `python:3.13-slim-bookworm` and installs `textual` plus `textual-dev`. This matches the official Textual docs, where the `textual` command comes from the developer tools package. Shimmy tags the resulting image under `localhost/shimmy-textual:<context-hash>` so Podman keeps a reusable local cache and automatically rebuilds when the build context changes.
+The default Textual image is built locally from `images/textual/Containerfile`, which starts from `python:3.13-slim-bookworm` and installs `textual` plus `textual-dev`. This matches the official Textual docs, where the `textual` command comes from the developer tools package. Shimmy tags the resulting image under `localhost/shimmy-textual:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
 
 **Mounts:**
 - `$PWD` → `/work` (read-write)
+
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
 
 The interactive shims (`aws`, `task`, `terraform`, and `textual`) request `-it` only when both stdin and stdout are attached to a terminal, so version and help commands still work cleanly in scripts and smoke tests.
 
@@ -332,7 +409,7 @@ sh ./scripts/test-shimmy.sh
 
 Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
-- install, activate, status, update, startup-file repair, and uninstall behavior for the single-root manifest layout
+- install, activate, status, machine-readable manifest output, update, startup-file repair, and uninstall behavior for the single-root manifest layout
 - live Podman execution for the supported shim set: `aws`, `jq`, `netcat`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
@@ -367,7 +444,7 @@ shimmy/
 ```
 
 ## AI Generation 
-This code was ![AI-developed](https://img.shields.io/badge/AI-Generated-blue) and human-reviewed/curated in concert with Codex GPT-5.4.
+This code was ![AI-developed](https://img.shields.io/badge/AI-Generated-blue) and human-reviewed/curated in concert with Codex GPT-5.5.
 
 ## License
 

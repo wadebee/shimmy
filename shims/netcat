@@ -45,6 +45,7 @@ if [ -n "${NETCAT_IMAGE:-}" ] && [ "${NETCAT_IMAGE_PULL:-}" = "always" ]; then
 fi
 
 exec "$SHIMMY_PODMAN_BIN" run --rm -i \
+  --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${NETCAT_PULL_ARG:+"$NETCAT_PULL_ARG"} \
   -v "$PWD:/work:rw" \
   -w /work \

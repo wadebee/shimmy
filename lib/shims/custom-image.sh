@@ -64,15 +64,19 @@ shimmy_local_image_ensure() {
   esac
 
   context_hash=$(shimmy_context_hash_render "$context_dir")
-  image_ref=${image_repo}:$context_hash
+  shimmy_podman_platform_resolve
+  platform_tag=$(shimmy_podman_platform_tag_render "$SHIMMY_PODMAN_PLATFORM")
+  image_ref=${image_repo}:${context_hash}-${platform_tag}
 
   shimmy_podman_preflight_require "local shim image builds" || return 1
 
   if [ "$build_mode" = "always" ] || ! "$SHIMMY_PODMAN_BIN" image exists "$image_ref" >/dev/null 2>&1; then
     shimmy_log_info "Building local shim image: $image_ref"
     "$SHIMMY_PODMAN_BIN" build \
+      --platform "$SHIMMY_PODMAN_PLATFORM" \
       --label "io.wadebee.shimmy.image-repo=${image_repo}" \
       --label "io.wadebee.shimmy.context-hash=${context_hash}" \
+      --label "io.wadebee.shimmy.platform=${SHIMMY_PODMAN_PLATFORM}" \
       -f "$context_dir/Containerfile" \
       -t "$image_ref" \
       "$@" \

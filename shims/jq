@@ -8,6 +8,7 @@ PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
 
 JQ_IMAGE=${JQ_IMAGE:-docker.io/stedolan/jq:latest}
 JQ_IMAGE_PULL=${JQ_IMAGE_PULL:-}
+JQ_PULL_ARG=
 
 if [ ! -f "$PODMAN_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
@@ -20,7 +21,13 @@ fi
 shimmy_podman_preflight_require "the jq shim"
 
 if [ "$JQ_IMAGE_PULL" = "always" ]; then
-  exec "$SHIMMY_PODMAN_BIN" run --rm -i --pull=always -v "$PWD:/work" -w /work "$JQ_IMAGE" "$@"
+  JQ_PULL_ARG=--pull=always
 fi
 
-exec "$SHIMMY_PODMAN_BIN" run --rm -i -v "$PWD:/work" -w /work "$JQ_IMAGE" "$@"
+exec "$SHIMMY_PODMAN_BIN" run --rm -i \
+  --platform "$SHIMMY_PODMAN_PLATFORM" \
+  ${JQ_PULL_ARG:+"$JQ_PULL_ARG"} \
+  -v "$PWD:/work" \
+  -w /work \
+  "$JQ_IMAGE" \
+  "$@"

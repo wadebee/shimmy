@@ -50,6 +50,7 @@ if [ -t 0 ] && [ -t 1 ]; then
 fi
 
 exec "$SHIMMY_PODMAN_BIN" run --rm \
+  --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${TEXTUAL_TTY_ARG:+"$TEXTUAL_TTY_ARG"} \
   ${TEXTUAL_PULL_ARG:+"$TEXTUAL_PULL_ARG"} \
   -v "$PWD:/work:rw" \

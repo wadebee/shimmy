@@ -1,0 +1,93 @@
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*~
+*.tmp
+*.temp
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Dependency directories (if any)
+node_modules/
+vendor/
+bower_components/
+jspm_packages/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Build outputs
+dist/
+build/
+out/
+target/
+*.jar
+*.war
+*.ear
+
+# Podman/Docker related (if built locally)
+podman/
+docker/
+*.tar
+*.tar.gz
+*.tgz
+*.img
+*.qcow2
+.vagrant/
+.Vagrantfile
+
+# Test artifacts
+.coverage
+.cache
+.nyc_output
+htmlcov/
+.jest/
+.suite
+*.lcov
+*.lcov.info
+*.gcda
+*.gcno
+
+# IDE project files
+*.sublime-project
+*.sublime-workspace
+*.komodoproject
+
+# Package files (language specific)
+*.gem
+*.lock
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+poetry.lock
+Pipfile.lock
+
+# Miscellaneous
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Local overrides
+local.sh
+local/

@@ -87,6 +87,15 @@ assert_dir_exists() {
   fi
 }
 
+assert_equals() {
+  actual=$1
+  expected=$2
+
+  if [ "$actual" != "$expected" ]; then
+    fail_test "expected '$expected', got '$actual'"
+  fi
+}
+
 assert_path_not_exists() {
   if [ -e "$1" ]; then
     fail_test "expected path to be absent: $1"
@@ -104,6 +113,30 @@ setup_scenario() {
 require_podman() {
   shimmy_podman_preflight_require "shimmy test"
   PODMAN_BIN=$SHIMMY_PODMAN_BIN
+}
+
+test_podman_platform_resolves_host_os() {
+  linux_platform=$(
+    SHIMMY_TEST_OS=Linux /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$PODMAN_HELPER_FILE"
+  )
+  darwin_platform=$(
+    SHIMMY_TEST_OS=Darwin /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$PODMAN_HELPER_FILE"
+  )
+
+  assert_equals "$linux_platform" "linux/amd64"
+  assert_equals "$darwin_platform" "linux/arm64"
+
+  pass "Podman platform resolves from host OS"
+}
+
+test_podman_platform_tag_render() {
+  platform_tag=$(
+    /bin/sh -c '. "$1"; shimmy_podman_platform_tag_render linux/arm64' sh "$PODMAN_HELPER_FILE"
+  )
+
+  assert_equals "$platform_tag" "linux-arm64"
+
+  pass "Podman platform tag rendering"
 }
 
 run_in_repo() {
@@ -149,25 +182,79 @@ test_install_manifest() {
   )
 
   assert_contains "$output" "Installed shimmy assets into $INSTALL_DIR"
-  assert_contains "$output" "Updated startup file: ~/.bashrc"
+  assert_contains "$output" "Updated startup file: $HOME_DIR/.bashrc"
+  assert_contains "$output" "Updated startup file: $HOME_DIR/.bash_profile"
   assert_contains "$output" "Activate this install with: eval"
   assert_file_exists "$INSTALL_DIR/install-manifest.txt"
+  assert_file_exists "$INSTALL_DIR/activate.sh"
   assert_file_exists "$INSTALL_DIR/shims/jq"
   assert_dir_exists "$INSTALL_DIR/lib/shims"
   assert_file_exists "$HOME_DIR/.bashrc"
+  assert_file_exists "$HOME_DIR/.bash_profile"
 
   manifest_contents=$(cat "$INSTALL_DIR/install-manifest.txt")
   assert_contains "$manifest_contents" "install_dir=$INSTALL_DIR"
+  assert_contains "$manifest_contents" "activate_file=$INSTALL_DIR/activate.sh"
   assert_contains "$manifest_contents" "startup_shell=bash"
   assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.bashrc"
+  assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.bash_profile"
   assert_contains "$manifest_contents" "shim=jq"
+  assert_contains "$manifest_contents" "shimmy_manifest_version=1"
+  assert_contains "$manifest_contents" "shimmy_source_url="
+  assert_contains "$manifest_contents" "shimmy_source_ref="
   assert_not_contains "$manifest_contents" "shim_dir="
   assert_not_contains "$manifest_contents" "images_dir="
   assert_not_contains "$manifest_contents" "shim_lib_dir="
   assert_file_contains "$HOME_DIR/.bashrc" "# >>> shimmy onboarding >>>"
-  assert_file_contains "$HOME_DIR/.bashrc" "$INSTALL_DIR/shims"
+  assert_file_contains "$HOME_DIR/.bashrc" "$INSTALL_DIR/activate.sh"
+  assert_file_contains "$HOME_DIR/.bash_profile" "# >>> shimmy onboarding >>>"
+  assert_file_contains "$HOME_DIR/.bash_profile" "$INSTALL_DIR/activate.sh"
+  assert_file_contains "$INSTALL_DIR/activate.sh" "$INSTALL_DIR/shims"
 
   pass "install writes manifest and startup file"
+}
+
+test_install_removes_legacy_shell_init_block() {
+  setup_scenario
+
+  startup_file=$HOME_DIR/.bash_profile
+  {
+    printf '# existing shell config\n'
+    printf '# >>> shimmy shell init >>>\n'
+    printf 'if [ -f "%s/.bashrc_shimmy" ]; then . "%s/.bashrc_shimmy"; fi\n' "$HOME_DIR" "$HOME_DIR"
+    printf '# <<< shimmy shell init <<<\n'
+  } > "$startup_file"
+
+  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+
+  startup_contents=$(cat "$startup_file")
+  assert_contains "$startup_contents" "# existing shell config"
+  assert_contains "$startup_contents" "# >>> shimmy onboarding >>>"
+  assert_contains "$startup_contents" "$INSTALL_DIR/activate.sh"
+  assert_not_contains "$startup_contents" "# >>> shimmy shell init >>>"
+  assert_not_contains "$startup_contents" ".bashrc_shimmy"
+
+  pass "install removes legacy shell init block"
+}
+
+test_install_bash_uses_existing_profile_login_file() {
+  setup_scenario
+
+  printf '# existing profile config\n' > "$HOME_DIR/.profile"
+
+  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+
+  assert_file_contains "$HOME_DIR/.bashrc" "$INSTALL_DIR/activate.sh"
+  assert_file_contains "$HOME_DIR/.profile" "# existing profile config"
+  assert_file_contains "$HOME_DIR/.profile" "$INSTALL_DIR/activate.sh"
+  assert_path_not_exists "$HOME_DIR/.bash_profile"
+
+  manifest_contents=$(cat "$INSTALL_DIR/install-manifest.txt")
+  assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.bashrc"
+  assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.profile"
+  assert_not_contains "$manifest_contents" "startup_file=$HOME_DIR/.bash_profile"
+
+  pass "bash install uses existing profile login file"
 }
 
 test_activate_eval() {
@@ -212,9 +299,24 @@ test_install_no_startup() {
 
   assert_contains "$output" "Future shells will load Shimmy from: manual activation only"
   assert_not_contains "$output" "Updated startup file:"
+  assert_file_exists "$INSTALL_DIR/activate.sh"
   assert_path_not_exists "$HOME_DIR/.bashrc"
+  assert_path_not_exists "$HOME_DIR/.bash_profile"
 
   pass "install can skip startup file updates"
+}
+
+test_install_macos_podman_guidance() {
+  setup_scenario
+
+  output=$(
+    SHIMMY_TEST_OS=Darwin HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup 2>&1
+  )
+
+  assert_contains "$output" "macOS Podman check: run 'podman info' in a normal shell before using Shimmy."
+  assert_contains "$output" "If Podman is unreachable, run 'podman machine start' in that shell, then retry Shimmy."
+
+  pass "install prints macOS Podman guidance"
 }
 
 test_update_repair_startup() {
@@ -232,7 +334,8 @@ test_update_repair_startup() {
 
   assert_contains "$output" "Updated startup file: $startup_file"
   assert_file_contains "$startup_file" "# >>> shimmy onboarding >>>"
-  assert_file_contains "$startup_file" "$INSTALL_DIR/shims"
+  assert_file_contains "$startup_file" "$INSTALL_DIR/activate.sh"
+  assert_file_contains "$INSTALL_DIR/activate.sh" "$INSTALL_DIR/shims"
 
   HOME="$HOME_DIR" SHELL=/bin/zsh run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --repair-startup >/dev/null
   marker_count=$(grep -c '^# >>> shimmy onboarding >>>$' "$startup_file")
@@ -247,7 +350,7 @@ test_status_reports_install() {
   HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task >/dev/null
 
   output=$(
-    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" 2>&1
+    HOME="$HOME_DIR" SHIMMY_TEST_OS=Darwin run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" 2>&1
   )
 
   assert_contains "$output" "installed: yes"
@@ -255,8 +358,31 @@ test_status_reports_install() {
   assert_contains "$output" "shim_dir=$INSTALL_DIR/shims"
   assert_contains "$output" "- jq: docker.io/stedolan/jq:latest"
   assert_contains "$output" "- task: localhost/shimmy-task:"
+  assert_contains "$output" "-linux-arm64"
 
   pass "status reports installed shim details"
+}
+
+test_status_manifest_format() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+
+  output=$(
+    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --format manifest 2>&1
+  )
+
+  assert_contains "$output" "installed=yes"
+  assert_contains "$output" "install_dir=$INSTALL_DIR"
+  assert_contains "$output" "shim_dir=$INSTALL_DIR/shims"
+  assert_contains "$output" "path_active=no"
+  assert_contains "$output" "activate_file=$INSTALL_DIR/activate.sh"
+  assert_contains "$output" "shim=jq"
+  assert_contains "$output" "shimmy_manifest_version=1"
+  assert_not_contains "$output" "Shimmy Status"
+  assert_not_contains "$output" "installed_shims:"
+
+  pass "status manifest format is machine-readable"
 }
 
 test_update_reinstalls_selected_shims() {
@@ -272,6 +398,32 @@ test_update_reinstalls_selected_shims() {
   assert_file_exists "$INSTALL_DIR/shims/task"
 
   pass "update reinstalls manifest-selected shims"
+}
+
+test_update_preserves_shimmy_manifest_fields() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+  manifest_file=$INSTALL_DIR/install-manifest.txt
+  original_source_ref=$(sed -n 's/^shimmy_source_ref=//p' "$manifest_file" | sed -n '1p')
+
+  {
+    printf 'shimmy_update_policy=on-use\n'
+    printf 'shimmy_update_interval_hours=12\n'
+    printf 'shimmy_last_checked=2026-05-04T00:00:00Z\n'
+  } >> "$manifest_file"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" >/dev/null
+
+  manifest_contents=$(cat "$manifest_file")
+  assert_contains "$manifest_contents" "shimmy_update_policy=on-use"
+  assert_contains "$manifest_contents" "shimmy_update_interval_hours=12"
+  assert_contains "$manifest_contents" "shimmy_last_checked=2026-05-04T00:00:00Z"
+  if [ -n "$original_source_ref" ]; then
+    assert_contains "$manifest_contents" "shimmy_previous_source_ref=$original_source_ref"
+  fi
+
+  pass "update preserves shimmy manifest lifecycle fields"
 }
 
 test_aws_shim_direct() {
@@ -300,6 +452,48 @@ test_go_shim_direct() {
   assert_contains "$output" "go version go"
 
   pass "go direct shim execution"
+}
+
+test_go_shim_help_test() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/go" help test 2>&1
+  )
+
+  assert_contains "$output" "usage: go test"
+  assert_not_contains "$output" "forwarding signal"
+  assert_not_contains "$output" "container has already been removed"
+
+  pass "go help test shim execution"
+}
+
+test_go_shim_platform_execution() {
+  setup_scenario
+  require_podman
+
+  case "$(uname -s 2>/dev/null || printf unknown)" in
+    Darwin)
+      expected_goarch=arm64
+      ;;
+    Linux)
+      expected_goarch=amd64
+      ;;
+    *)
+      expected_goarch=amd64
+      ;;
+  esac
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/go" env GOARCH 2>&1
+  )
+
+  assert_contains "$output" "$expected_goarch"
+
+  pass "go shim platform selection"
 }
 
 test_jq_shim_direct() {
@@ -463,31 +657,46 @@ test_uninstall_cleanup() {
   setup_scenario
 
   startup_file=$HOME_DIR/.bashrc
+  bash_profile_file=$HOME_DIR/.bash_profile
   printf '# existing shell config\n' > "$startup_file"
+  printf '# existing profile config\n' > "$bash_profile_file"
 
   HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
   HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" >/dev/null
 
   assert_path_not_exists "$INSTALL_DIR"
   assert_file_contains "$startup_file" "# existing shell config"
+  assert_file_contains "$bash_profile_file" "# existing profile config"
   startup_contents=$(cat "$startup_file")
+  bash_profile_contents=$(cat "$bash_profile_file")
   assert_not_contains "$startup_contents" "# >>> shimmy onboarding >>>"
-  assert_not_contains "$startup_contents" "$INSTALL_DIR/shims"
+  assert_not_contains "$startup_contents" "$INSTALL_DIR/activate.sh"
+  assert_not_contains "$bash_profile_contents" "# >>> shimmy onboarding >>>"
+  assert_not_contains "$bash_profile_contents" "$INSTALL_DIR/activate.sh"
 
   pass "uninstall removes install root and startup block"
 }
 
 main() {
+  test_podman_platform_resolves_host_os
+  test_podman_platform_tag_render
   test_dash_parse
   test_install_manifest
+  test_install_removes_legacy_shell_init_block
+  test_install_bash_uses_existing_profile_login_file
   test_activate_eval
   test_activate_is_idempotent
   test_install_no_startup
+  test_install_macos_podman_guidance
   test_update_repair_startup
   test_status_reports_install
+  test_status_manifest_format
   test_update_reinstalls_selected_shims
+  test_update_preserves_shimmy_manifest_fields
   test_aws_shim_direct
   test_go_shim_direct
+  test_go_shim_help_test
+  test_go_shim_platform_execution
   test_jq_shim_direct
   test_jq_shim_pull_override
   test_installed_go_shim
