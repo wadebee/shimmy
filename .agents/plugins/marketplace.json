@@ -1,0 +1,20 @@
+{
+  "name": "shimmy-local",
+  "interface": {
+    "displayName": "Shimmy Local"
+  },
+  "plugins": [
+    {
+      "name": "shimmy",
+      "source": {
+        "source": "local",
+        "path": "./plugins/shimmy"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

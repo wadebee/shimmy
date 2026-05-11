@@ -57,9 +57,74 @@ When only a single id is present run this command to correct.
 - podman system migrate
 ```
 
-## Installation
+## Installation Options
 
-### Option 1: Shimmy wrapper workflow
+### Option: Codex Plugin
+
+Shimmy includes a packaged Codex plugin under `plugins/shimmy`. The plugin provides Shimmy-specific skills plus the jq and ripgrep tool skills, so Codex can apply the repository's conventions when creating shims, troubleshooting Podman-backed commands, managing Shimmy installs, and working on the jq or rg wrappers.
+
+The primary plugin intentionally does not bundle every tool skill. Optional tool-specific plugins can supplement it later, for example AWS, Terraform, or Go plugins, but the Codex plugin manifest used here does not declare plugin dependencies. Install or enable supplemental plugins independently when a workstation or repo needs those capabilities.
+
+This repository also includes `.agents/plugins/marketplace.json`, which registers the local Shimmy plugin from `./plugins/shimmy`.
+
+#### Use the plugin in this repository
+
+Open a new Codex or VS Code Codex session from the Shimmy checkout after the plugin files are present. Codex discovers plugins at session startup, so an already-running session may not see newly added plugin metadata until it is restarted.
+
+When prompted, install or enable the `shimmy` plugin from the local marketplace. Once enabled, requests that involve Shimmy, jq, or ripgrep shim work can use the packaged skills automatically.
+
+#### Use the plugin from other local repositories
+
+For one workstation-wide setup, copy or sync the packaged plugin into your home plugin directory and register it in your home marketplace:
+
+```text
+~/plugins/shimmy/
+~/.agents/plugins/marketplace.json
+```
+
+The home marketplace entry should point at `./plugins/shimmy`:
+
+```json
+{
+  "name": "shimmy-local",
+  "interface": {
+    "displayName": "Shimmy Local"
+  },
+  "plugins": [
+    {
+      "name": "shimmy",
+      "source": {
+        "source": "local",
+        "path": "./plugins/shimmy"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
+```
+
+After that, start a new Codex session in any repository on that workstation and install or enable the Shimmy plugin from the local marketplace.
+
+#### Use the plugin on another workstation
+
+Clone or copy this repository, then use the packaged plugin directory from `plugins/shimmy`. For a repo-local setup, open Codex from the Shimmy checkout so it can read `.agents/plugins/marketplace.json`. For a workstation-wide setup, copy `plugins/shimmy` to `~/plugins/shimmy` on the target machine and add the home marketplace entry shown above.
+
+Linux and macOS can use the same plugin layout. Shimmy itself still requires a POSIX shell and a working rootless Podman installation. On macOS, start the Podman machine from a normal user shell before using Podman-backed Shimmy tools:
+
+```sh
+podman machine start
+podman info
+```
+
+On Windows, use WSL or another POSIX-compatible environment for Shimmy workflows. On Chromebooks, use Crostini and a bash shell.
+
+Put the plugin and marketplace files in the Linux home directory used by Codex in that environment, for example `/home/<user>/plugins/shimmy` and `/home/<user>/.agents/plugins/marketplace.json`. Configure Podman inside that same environment before running Shimmy-backed tools.
+
+### Option: Shimmy wrapper workflow
 
 Use the repo-root `shimmy` wrapper as the primary control surface:
 
@@ -135,7 +200,7 @@ Common install arguments still pass through to the installer:
 ./shimmy install --shim aws --shim terraform
 ```
 
-### Option 2: Direct script workflow
+#### Option: Direct script workflow
 
 Use the underlying scripts directly when you want the lower-level interfaces explicitly:
 
@@ -436,6 +501,11 @@ shimmy/
 │   ├── status-shimmy.sh      # Status script
 │   ├── test-shimmy.sh        # Test suite
 │   └── update-shimmy.sh      # Update script
+├── plugins/
+│   └── shimmy/               # Packaged Codex plugin for Shimmy skills
+├── .agents/
+│   ├── plugins/              # Local Codex plugin marketplace metadata
+│   └── skills/               # Repo-local agent skills used while developing Shimmy
 ├── .pre-commit-config.yaml   # Git https://github.com/pre-commit/pre-commit-hooks
 ├── .github/
 │   └── workflows/

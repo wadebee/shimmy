@@ -1,0 +1,41 @@
+{
+  "name": "shimmy",
+  "version": "0.1.0",
+  "description": "Packaged Codex skills for building, installing, troubleshooting, and extending Shimmy.",
+  "author": {
+    "name": "Shimmy contributors",
+    "email": "[TODO: contact email]",
+    "url": "https://github.com/wadebee/shimmy"
+  },
+  "homepage": "https://github.com/wadebee/shimmy",
+  "repository": "https://github.com/wadebee/shimmy",
+  "license": "[TODO: license]",
+  "keywords": [
+    "shimmy",
+    "podman",
+    "cli",
+    "shims",
+    "codex"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Shimmy",
+    "shortDescription": "Work with Shimmy's Podman-backed CLI shims.",
+    "longDescription": "Use packaged Shimmy Codex skills for creating new shims, troubleshooting Podman-backed wrappers, managing installs, and maintaining jq and ripgrep shim behavior.",
+    "developerName": "Shimmy contributors",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/wadebee/shimmy",
+    "privacyPolicyURL": "[TODO: privacy policy URL]",
+    "termsOfServiceURL": "[TODO: terms of service URL]",
+    "defaultPrompt": [
+      "Create a new Shimmy wrapper for a CLI tool.",
+      "Troubleshoot a Shimmy-backed command.",
+      "Review Shimmy install behavior."
+    ],
+    "brandColor": "#2563EB"
+  }
+}
