@@ -8,6 +8,16 @@ PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
 
 NMAP_IMAGE=${NMAP_IMAGE:-docker.io/instrumentisto/nmap:7.98-r2}
 NMAP_IMAGE_PULL=${NMAP_IMAGE_PULL:-}
+NMAP_LAN_SCAN=${SHIMMY_NMAP_LAN_SCAN:-}
+NMAP_NETWORK=${SHIMMY_NMAP_NETWORK:-}
+NMAP_NET_ADMIN_CAP_ARG=
+NMAP_NET_ADMIN_CAP_VALUE=
+NMAP_NET_RAW_CAP_ARG=
+NMAP_NET_RAW_CAP_VALUE=
+NMAP_NETWORK_ARG=
+NMAP_NETWORK_VALUE=
+NMAP_PRIVILEGED=${SHIMMY_NMAP_PRIVILEGED:-}
+NMAP_PRIVILEGED_ARG=
 NMAP_PULL_ARG=
 NMAP_TTY_ARG=
 
@@ -25,6 +35,43 @@ if [ "$NMAP_IMAGE_PULL" = "always" ]; then
   NMAP_PULL_ARG=--pull=always
 fi
 
+case "$NMAP_LAN_SCAN" in
+  ''|0)
+    ;;
+  1)
+    if [ -n "$NMAP_NETWORK" ] && [ "$NMAP_NETWORK" != host ]; then
+      printf 'ERROR: SHIMMY_NMAP_LAN_SCAN=1 cannot be combined with SHIMMY_NMAP_NETWORK=%s\n' "$NMAP_NETWORK" >&2
+      exit 1
+    fi
+    NMAP_NETWORK=host
+    NMAP_NET_RAW_CAP_ARG=--cap-add
+    NMAP_NET_RAW_CAP_VALUE=NET_RAW
+    NMAP_NET_ADMIN_CAP_ARG=--cap-add
+    NMAP_NET_ADMIN_CAP_VALUE=NET_ADMIN
+    ;;
+  *)
+    printf 'ERROR: SHIMMY_NMAP_LAN_SCAN must be 1, 0, or unset\n' >&2
+    exit 1
+    ;;
+esac
+
+case "$NMAP_PRIVILEGED" in
+  ''|0)
+    ;;
+  1)
+    NMAP_PRIVILEGED_ARG=--privileged
+    ;;
+  *)
+    printf 'ERROR: SHIMMY_NMAP_PRIVILEGED must be 1, 0, or unset\n' >&2
+    exit 1
+    ;;
+esac
+
+if [ -n "$NMAP_NETWORK" ]; then
+  NMAP_NETWORK_ARG=--network
+  NMAP_NETWORK_VALUE=$NMAP_NETWORK
+fi
+
 if [ -t 0 ] && [ -t 1 ]; then
   NMAP_TTY_ARG=-it
 fi
@@ -33,6 +80,13 @@ exec "$SHIMMY_PODMAN_BIN" run --rm \
   --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${NMAP_PULL_ARG:+"$NMAP_PULL_ARG"} \
   ${NMAP_TTY_ARG:+"$NMAP_TTY_ARG"} \
+  ${NMAP_NETWORK_ARG:+"$NMAP_NETWORK_ARG"} \
+  ${NMAP_NETWORK_VALUE:+"$NMAP_NETWORK_VALUE"} \
+  ${NMAP_NET_RAW_CAP_ARG:+"$NMAP_NET_RAW_CAP_ARG"} \
+  ${NMAP_NET_RAW_CAP_VALUE:+"$NMAP_NET_RAW_CAP_VALUE"} \
+  ${NMAP_NET_ADMIN_CAP_ARG:+"$NMAP_NET_ADMIN_CAP_ARG"} \
+  ${NMAP_NET_ADMIN_CAP_VALUE:+"$NMAP_NET_ADMIN_CAP_VALUE"} \
+  ${NMAP_PRIVILEGED_ARG:+"$NMAP_PRIVILEGED_ARG"} \
   -v "$PWD:/work" \
   -w /work \
   "$NMAP_IMAGE" \

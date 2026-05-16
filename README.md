@@ -377,14 +377,24 @@ The default Netcat image is built locally from `images/netcat/Containerfile`, wh
 
 - `NMAP_IMAGE` — Container image (default: `docker.io/instrumentisto/nmap:7.98-r2`)
 - `NMAP_IMAGE_PULL` — Set to `always` to force pulling the configured image
+- `SHIMMY_NMAP_NETWORK` — Pass a Podman network to the container with `--network <value>`, for example a user-defined network that contains app containers
+- `SHIMMY_NMAP_LAN_SCAN` — Set to `1` to opt into local-network scan support with `--network host`, `--cap-add NET_RAW`, and `--cap-add NET_ADMIN`
+- `SHIMMY_NMAP_PRIVILEGED` — Set to `1` to add `--privileged`; use only as a last-resort opt-in, usually together with `SHIMMY_NMAP_LAN_SCAN=1`
 
 Example:
 
 ```sh
 NMAP_IMAGE=docker.io/instrumentisto/nmap:7.98-r2 nmap --version
+SHIMMY_NMAP_NETWORK=appnet nmap -sT -Pn api
+SHIMMY_NMAP_LAN_SCAN=1 nmap -sn 192.168.1.0/24
+SHIMMY_NMAP_LAN_SCAN=1 SHIMMY_NMAP_PRIVILEGED=1 nmap -sn 192.168.1.0/24
 ```
 
 The default Nmap image is an Instrumentisto-maintained image pinned to an explicit Nmap release tag. The shim does not add privileged mode, host networking, or extra Linux capabilities by default, so containerized scan behavior can differ from a host-installed `nmap` for scan modes that need raw socket, interface, or host network access.
+
+`SHIMMY_NMAP_NETWORK` is useful when scanning other containers attached to a user-defined Podman network. It is a Shimmy wrapper control, not an `nmap` environment variable. `SHIMMY_NMAP_LAN_SCAN=1` is the explicit opt-in for local subnet discovery and adds host networking plus raw/network capabilities. `SHIMMY_NMAP_PRIVILEGED=1` is a stronger opt-in that adds `--privileged`; combine it with `SHIMMY_NMAP_LAN_SCAN=1` only when the capability-based LAN mode is not enough.
+
+On macOS, Podman containers run inside a Linux VM. In that environment, `--network host` means the Podman VM's host network namespace, not the macOS host's physical LAN interface. LAN discovery from the shim may still be incomplete compared with native host `nmap`.
 
 **Mounts:**
 - `$PWD` → `/work` (read-write)

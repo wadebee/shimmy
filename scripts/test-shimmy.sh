@@ -642,6 +642,48 @@ test_nmap_shim_direct() {
   pass "nmap direct shim execution"
 }
 
+test_nmap_shim_lan_scan_opt_in() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NMAP_LAN_SCAN=1 "$ROOT_DIR/shims/nmap" --version 2>&1
+  )
+
+  assert_contains "$output" "Nmap version"
+
+  pass "nmap LAN scan opt-in execution"
+}
+
+test_nmap_shim_network_opt_in() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NMAP_NETWORK=none "$ROOT_DIR/shims/nmap" --version 2>&1
+  )
+
+  assert_contains "$output" "Nmap version"
+
+  pass "nmap network opt-in execution"
+}
+
+test_nmap_shim_privileged_opt_in() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NMAP_LAN_SCAN=1 SHIMMY_NMAP_PRIVILEGED=1 "$ROOT_DIR/shims/nmap" --version 2>&1
+  )
+
+  assert_contains "$output" "Nmap version"
+
+  pass "nmap privileged opt-in execution"
+}
+
 test_rg_shim_direct() {
   setup_scenario
   require_podman
@@ -773,6 +815,9 @@ main() {
   test_installed_jq_shim
   test_netcat_shim_direct
   test_nmap_shim_direct
+  test_nmap_shim_lan_scan_opt_in
+  test_nmap_shim_network_opt_in
+  test_nmap_shim_privileged_opt_in
   test_rg_shim_direct
   test_task_shim_direct
   test_terraform_shim_direct
