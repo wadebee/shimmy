@@ -628,6 +628,20 @@ test_netcat_shim_direct() {
   pass "netcat direct shim execution"
 }
 
+test_nmap_shim_direct() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/nmap" --version 2>&1
+  )
+
+  assert_contains "$output" "Nmap version"
+
+  pass "nmap direct shim execution"
+}
+
 test_rg_shim_direct() {
   setup_scenario
   require_podman
@@ -758,6 +772,7 @@ main() {
   test_installed_go_shim
   test_installed_jq_shim
   test_netcat_shim_direct
+  test_nmap_shim_direct
   test_rg_shim_direct
   test_task_shim_direct
   test_terraform_shim_direct

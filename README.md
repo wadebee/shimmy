@@ -28,6 +28,7 @@ That document is the contributor source of truth, including naming conventions f
 | **go** | Go toolchain CLI | `docker.io/library/golang:latest` | `go version`, `go test ./...` |
 | **jq** | JSON processor | `ghcr.io/jqlang/jq:1.8.1` | `jq .foo file.json` |
 | **netcat** | TCP/UDP debugging client | local build from `images/netcat/Containerfile` | `netcat --help`, `netcat example.com 443` |
+| **nmap** | Network discovery and security scanner | `docker.io/instrumentisto/nmap:7.98-r2` | `nmap --version`, `nmap scanme.nmap.org` |
 | **rg** | Ripgrep search | `docker.io/vszl/ripgrep:latest` | `rg "pattern" .` |
 | **task** | Taskfile task runner | local build from `images/task/Containerfile` | `task --version`, `task --list` |
 | **terraform** | Infrastructure as Code | `docker.io/hashicorp/terraform:latest` | `terraform plan`, `terraform apply` |
@@ -364,6 +365,26 @@ NETCAT_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest netcat --he
 ```
 
 The default Netcat image is built locally from `images/netcat/Containerfile`, which starts from UBI 9 minimal and installs the `nmap-ncat` package. This keeps the base image small while still using a practical Red Hat-supported package manager for the install. Shimmy tags the resulting image under `localhost/shimmy-netcat:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
+
+**Mounts:**
+- `$PWD` → `/work` (read-write)
+
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
+
+### Nmap
+
+- `NMAP_IMAGE` — Container image (default: `docker.io/instrumentisto/nmap:7.98-r2`)
+- `NMAP_IMAGE_PULL` — Set to `always` to force pulling the configured image
+
+Example:
+
+```sh
+NMAP_IMAGE=docker.io/instrumentisto/nmap:7.98-r2 nmap --version
+```
+
+The default Nmap image is an Instrumentisto-maintained image pinned to an explicit Nmap release tag. The shim does not add privileged mode, host networking, or extra Linux capabilities by default, so containerized scan behavior can differ from a host-installed `nmap` for scan modes that need raw socket, interface, or host network access.
 
 **Mounts:**
 - `$PWD` → `/work` (read-write)

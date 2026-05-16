@@ -1,0 +1,39 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+
+NMAP_IMAGE=${NMAP_IMAGE:-docker.io/instrumentisto/nmap:7.98-r2}
+NMAP_IMAGE_PULL=${NMAP_IMAGE_PULL:-}
+NMAP_PULL_ARG=
+NMAP_TTY_ARG=
+
+if [ ! -f "$PODMAN_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
+  exit 1
+fi
+
+# shellcheck source=lib/shims/shimmy-podman.sh
+. "$PODMAN_HELPER_FILE"
+
+shimmy_podman_preflight_require "the nmap shim"
+
+if [ "$NMAP_IMAGE_PULL" = "always" ]; then
+  NMAP_PULL_ARG=--pull=always
+fi
+
+if [ -t 0 ] && [ -t 1 ]; then
+  NMAP_TTY_ARG=-it
+fi
+
+exec "$SHIMMY_PODMAN_BIN" run --rm \
+  --platform "$SHIMMY_PODMAN_PLATFORM" \
+  ${NMAP_PULL_ARG:+"$NMAP_PULL_ARG"} \
+  ${NMAP_TTY_ARG:+"$NMAP_TTY_ARG"} \
+  -v "$PWD:/work" \
+  -w /work \
+  "$NMAP_IMAGE" \
+  "$@"
