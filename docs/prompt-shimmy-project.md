@@ -26,6 +26,7 @@ Constraints:
 - Update `scripts/install-shimmy.sh` because it enumerates shim names explicitly.
 - Treat Podman as an explicit dependency. Do not add install or provisioning steps for it in Shimmy code, tests, or CI.
 - On macOS, account for the official Podman pkg installer path `/opt/podman/bin/podman` when documenting or validating the dependency.
+- In AI Agent environments, approvals are evaluated on the outer command. If `podman info` succeeds but a Shimmy wrapper still reports that Podman is unreachable, request approval for the exact wrapper prefix such as `["rg"]` or `["./shims/rg"]`; approval for `["podman", "info"]` alone is not enough.
 - Update `scripts/test-shimmy.sh` with live Podman-based assertions against prerequisite `podman` installation.
 - Update `README.md` so the default image, env vars, mounts, and examples stay accurate.
 - Keep the `Included Shims` table in `README.md` sorted alphabetically by Tool name whenever you add or rename entries.

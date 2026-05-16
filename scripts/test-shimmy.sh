@@ -81,6 +81,12 @@ assert_file_exists() {
   fi
 }
 
+assert_file_executable() {
+  if [ ! -x "$1" ]; then
+    fail_test "expected file to be executable: $1"
+  fi
+}
+
 assert_dir_exists() {
   if [ ! -d "$1" ]; then
     fail_test "expected directory to exist: $1"
@@ -137,6 +143,18 @@ test_podman_platform_tag_render() {
   assert_equals "$platform_tag" "linux-arm64"
 
   pass "Podman platform tag rendering"
+}
+
+test_podman_unreachable_guidance_agent() {
+  output=$(
+    /bin/sh -c '. "$1"; shimmy_podman_failure_print_unreachable "the rg shim" "/opt/podman/bin/podman"' sh "$PODMAN_HELPER_FILE" 2>&1
+  )
+
+  assert_contains "$output" 'AI Agent note: if `podman info` succeeds but this shim still fails'
+  assert_contains "$output" '["rg"] or ["./shims/rg"]'
+  assert_contains "$output" 'Approving `podman info` alone does not approve Podman access through a Shimmy wrapper.'
+
+  pass "Podman unreachable guidance includes AI Agent approval hint"
 }
 
 run_in_repo() {
@@ -317,6 +335,42 @@ test_install_macos_podman_guidance() {
   assert_contains "$output" "If Podman is unreachable, run 'podman machine start' in that shell, then retry Shimmy."
 
   pass "install prints macOS Podman guidance"
+}
+
+test_agent_shimmy_preflight_reports_approvals() {
+  setup_scenario
+
+  mkdir -p "$WORK_DIR/bin"
+  cat > "$WORK_DIR/bin/podman" <<'EOF'
+#!/bin/sh
+case "${1:-}" in
+  info)
+    exit 0
+    ;;
+  *)
+    printf '%s\n' 'fake podman'
+    exit 0
+    ;;
+esac
+EOF
+  chmod +x "$WORK_DIR/bin/podman"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim rg --no-startup >/dev/null
+
+  output=$(
+    PATH="$WORK_DIR/bin:$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_INSTALL_DIR="$INSTALL_DIR" run_in_repo ./scripts/agent-shimmy-preflight.sh 2>&1
+  )
+
+  assert_file_executable "$ROOT_DIR/scripts/agent-shimmy-preflight.sh"
+  assert_contains "$output" "podman_info=ok"
+  assert_contains "$output" "active_shim=rg"
+  assert_contains "$output" 'agent_prefix_rule=["rg"]'
+  assert_contains "$output" "smoke_command=rg --version"
+  assert_contains "$output" "repo_shim=rg"
+  assert_contains "$output" 'agent_prefix_rule=["./shims/rg"]'
+  assert_contains "$output" 'approving ["podman", "info"] alone does not approve a Shimmy wrapper.'
+
+  pass "AI Agent preflight reports narrow shim approvals"
 }
 
 test_update_repair_startup() {
@@ -680,6 +734,7 @@ test_uninstall_cleanup() {
 main() {
   test_podman_platform_resolves_host_os
   test_podman_platform_tag_render
+  test_podman_unreachable_guidance_agent
   test_dash_parse
   test_install_manifest
   test_install_removes_legacy_shell_init_block
@@ -688,6 +743,7 @@ main() {
   test_activate_is_idempotent
   test_install_no_startup
   test_install_macos_podman_guidance
+  test_agent_shimmy_preflight_reports_approvals
   test_update_repair_startup
   test_status_reports_install
   test_status_manifest_format

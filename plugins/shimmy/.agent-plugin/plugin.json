@@ -1,7 +1,7 @@
 {
   "name": "shimmy",
   "version": "0.1.0",
-  "description": "Packaged Codex skills for building, installing, troubleshooting, and extending Shimmy.",
+  "description": "Packaged AI Agent skills for building, installing, troubleshooting, and extending Shimmy.",
   "author": {
     "name": "Shimmy contributors",
     "email": "[TODO: contact email]",
@@ -15,13 +15,13 @@
     "podman",
     "cli",
     "shims",
-    "codex"
+    "agent"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Shimmy",
     "shortDescription": "Work with Shimmy's Podman-backed CLI shims.",
-    "longDescription": "Use packaged Shimmy Codex skills for creating new shims, troubleshooting Podman-backed wrappers, managing installs, and maintaining jq and ripgrep shim behavior.",
+    "longDescription": "Use packaged Shimmy AI Agent skills for creating new shims, troubleshooting Podman-backed wrappers, managing installs, and maintaining jq and ripgrep shim behavior.",
     "developerName": "Shimmy contributors",
     "category": "Developer Tools",
     "capabilities": [

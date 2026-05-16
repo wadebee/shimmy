@@ -59,19 +59,31 @@ When only a single id is present run this command to correct.
 
 ## Installation Options
 
-### Option: Codex Plugin
+### Option: AI Agent Plugin
 
-Shimmy includes a packaged Codex plugin under `plugins/shimmy`. The plugin provides Shimmy-specific skills plus the jq and ripgrep tool skills, so Codex can apply the repository's conventions when creating shims, troubleshooting Podman-backed commands, managing Shimmy installs, and working on the jq or rg wrappers.
+Shimmy includes a packaged AI Agent plugin under `plugins/shimmy`. The plugin provides Shimmy-specific skills plus the jq and ripgrep tool skills, so an AI Agent can apply the repository's conventions when creating shims, troubleshooting Podman-backed commands, managing Shimmy installs, and working on the jq or rg wrappers.
 
-The primary plugin intentionally does not bundle every tool skill. Optional tool-specific plugins can supplement it later, for example AWS, Terraform, or Go plugins, but the Codex plugin manifest used here does not declare plugin dependencies. Install or enable supplemental plugins independently when a workstation or repo needs those capabilities.
+The primary plugin intentionally does not bundle every tool skill. Optional tool-specific plugins can supplement it later, for example AWS, Terraform, or Go plugins, but the AI Agent plugin manifest used here does not declare plugin dependencies. Install or enable supplemental plugins independently when a workstation or repo needs those capabilities.
 
 This repository also includes `.agents/plugins/marketplace.json`, which registers the local Shimmy plugin from `./plugins/shimmy`.
 
 #### Use the plugin in this repository
 
-Open a new Codex or VS Code Codex session from the Shimmy checkout after the plugin files are present. Codex discovers plugins at session startup, so an already-running session may not see newly added plugin metadata until it is restarted.
+Open a new AI Agent session from the Shimmy checkout after the plugin files are present. Agent plugin discovery usually happens at session startup, so an already-running session may not see newly added plugin metadata until it is restarted.
 
 When prompted, install or enable the `shimmy` plugin from the local marketplace. Once enabled, requests that involve Shimmy, jq, or ripgrep shim work can use the packaged skills automatically.
+
+#### Use Shimmy tools from an AI Agent faster
+
+AI Agent approvals are often evaluated on the outer command. If `podman info` succeeds but a Shimmy wrapper still reports that Podman is unreachable, approve the exact wrapper prefix that the AI Agent is trying to run, such as `["rg"]` for an activated shim or `["./shims/rg"]` for a repo-local shim. Approval for `["podman", "info"]` only verifies the engine; it does not approve nested Podman access through a wrapper.
+
+From a fresh AI Agent session, run the non-mutating preflight to list the exact approval prefixes and smoke commands:
+
+```sh
+./scripts/agent-shimmy-preflight.sh
+```
+
+The script checks `podman info`, discovers active installed shims and repo-local shims, and prints harmless `--version` or `--help` commands to approve with your AI Agent's approval mechanism and the listed `agent_prefix_rule` values. Use `--smoke` from a normal shell when you want the script to run those checks directly.
 
 #### Use the plugin from other local repositories
 
@@ -107,11 +119,11 @@ The home marketplace entry should point at `./plugins/shimmy`:
 }
 ```
 
-After that, start a new Codex session in any repository on that workstation and install or enable the Shimmy plugin from the local marketplace.
+After that, start a new AI Agent session in any repository on that workstation and install or enable the Shimmy plugin from the local marketplace.
 
 #### Use the plugin on another workstation
 
-Clone or copy this repository, then use the packaged plugin directory from `plugins/shimmy`. For a repo-local setup, open Codex from the Shimmy checkout so it can read `.agents/plugins/marketplace.json`. For a workstation-wide setup, copy `plugins/shimmy` to `~/plugins/shimmy` on the target machine and add the home marketplace entry shown above.
+Clone or copy this repository, then use the packaged plugin directory from `plugins/shimmy`. For a repo-local setup, open the AI Agent from the Shimmy checkout so it can read `.agents/plugins/marketplace.json`. For a workstation-wide setup, copy `plugins/shimmy` to `~/plugins/shimmy` on the target machine and add the home marketplace entry shown above.
 
 Linux and macOS can use the same plugin layout. Shimmy itself still requires a POSIX shell and a working rootless Podman installation. On macOS, start the Podman machine from a normal user shell before using Podman-backed Shimmy tools:
 
@@ -122,7 +134,7 @@ podman info
 
 On Windows, use WSL or another POSIX-compatible environment for Shimmy workflows. On Chromebooks, use Crostini and a bash shell.
 
-Put the plugin and marketplace files in the Linux home directory used by Codex in that environment, for example `/home/<user>/plugins/shimmy` and `/home/<user>/.agents/plugins/marketplace.json`. Configure Podman inside that same environment before running Shimmy-backed tools.
+Put the plugin and marketplace files in the Linux home directory used by the AI Agent in that environment, for example `/home/<user>/plugins/shimmy` and `/home/<user>/.agents/plugins/marketplace.json`. Configure Podman inside that same environment before running Shimmy-backed tools.
 
 ### Option: Shimmy wrapper workflow
 
@@ -497,14 +509,15 @@ shimmy/
 │   ├── repo/                 # Repo-only sourced helpers for wrapper/scripts
 │   └── shims/                # Installed shared helper scripts for shims
 ├── scripts/
+│   ├── agent-shimmy-preflight.sh # AI Agent approval preflight
 │   ├── install-shimmy.sh     # Installation script
 │   ├── status-shimmy.sh      # Status script
 │   ├── test-shimmy.sh        # Test suite
 │   └── update-shimmy.sh      # Update script
 ├── plugins/
-│   └── shimmy/               # Packaged Codex plugin for Shimmy skills
+│   └── shimmy/               # Packaged AI Agent plugin for Shimmy skills
 ├── .agents/
-│   ├── plugins/              # Local Codex plugin marketplace metadata
+│   ├── plugins/              # Local AI Agent plugin marketplace metadata
 │   └── skills/               # Repo-local agent skills used while developing Shimmy
 ├── .pre-commit-config.yaml   # Git https://github.com/pre-commit/pre-commit-hooks
 ├── .github/
@@ -514,7 +527,7 @@ shimmy/
 ```
 
 ## AI Generation 
-This code was ![AI-developed](https://img.shields.io/badge/AI-Generated-blue) and human-reviewed/curated in concert with Codex GPT-5.5.
+This code was ![AI-developed](https://img.shields.io/badge/AI-Generated-blue) and human-reviewed/curated with AI Agent assistance.
 
 ## License
 
