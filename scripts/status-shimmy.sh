@@ -111,7 +111,7 @@ describe_shim_image() {
       printf '%s\n' "${GO_IMAGE:-docker.io/library/golang:latest}"
       ;;
     jq)
-      printf '%s\n' "${JQ_IMAGE:-docker.io/stedolan/jq:latest}"
+      printf '%s\n' "${JQ_IMAGE:-ghcr.io/jqlang/jq:1.8.1}"
       ;;
     netcat)
       printf '%s\n' "$(local_image_ref "localhost/shimmy-netcat" "$images_dir/netcat")"

@@ -410,7 +410,7 @@ test_status_reports_install() {
   assert_contains "$output" "installed: yes"
   assert_contains "$output" "install_dir=$INSTALL_DIR"
   assert_contains "$output" "shim_dir=$INSTALL_DIR/shims"
-  assert_contains "$output" "- jq: docker.io/stedolan/jq:latest"
+  assert_contains "$output" "- jq: ghcr.io/jqlang/jq:1.8.1"
   assert_contains "$output" "- task: localhost/shimmy-task:"
   assert_contains "$output" "-linux-arm64"
 
@@ -574,10 +574,10 @@ test_jq_shim_pull_override() {
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" JQ_IMAGE_PULL=always JQ_IMAGE=ghcr.io/jqlang/jq:latest "$ROOT_DIR/shims/jq" --version 2>&1
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" JQ_IMAGE_PULL=always JQ_IMAGE=ghcr.io/jqlang/jq:1.8.1 "$ROOT_DIR/shims/jq" --version 2>&1
   )
 
-  assert_contains "$output" "jq-"
+  assert_contains "$output" "jq-1.8.1"
 
   pass "jq pull override execution"
 }
@@ -593,7 +593,7 @@ test_installed_jq_shim() {
     PATH="$(dirname "$PODMAN_BIN"):$PATH" "$INSTALL_DIR/shims/jq" --version 2>&1
   )
 
-  assert_contains "$output" "jq-"
+  assert_contains "$output" "jq-1.8.1"
 
   pass "installed jq shim execution"
 }

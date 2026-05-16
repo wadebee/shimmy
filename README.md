@@ -26,7 +26,7 @@ That document is the contributor source of truth, including naming conventions f
 |------|---------|----------------|-------|
 | **aws** | AWS CLI | `public.ecr.aws/aws-cli/aws-cli:2.31.21` | `aws s3 ls`, `aws sts get-caller-identity` |
 | **go** | Go toolchain CLI | `docker.io/library/golang:latest` | `go version`, `go test ./...` |
-| **jq** | JSON processor | `docker.io/stedolan/jq:latest` | `jq .foo file.json` |
+| **jq** | JSON processor | `ghcr.io/jqlang/jq:1.8.1` | `jq .foo file.json` |
 | **netcat** | TCP/UDP debugging client | local build from `images/netcat/Containerfile` | `netcat --help`, `netcat example.com 443` |
 | **rg** | Ripgrep search | `docker.io/vszl/ripgrep:latest` | `rg "pattern" .` |
 | **task** | Taskfile task runner | local build from `images/task/Containerfile` | `task --version`, `task --list` |
@@ -334,13 +334,13 @@ GO_IMAGE=docker.io/library/golang:latest go version
 
 ### jq
 
-- `JQ_IMAGE` — Container image (default: `docker.io/stedolan/jq:latest`)
-- `JQ_IMAGE_PULL` — Set to `always` to force pulling the latest image
+- `JQ_IMAGE` — Container image (default: `ghcr.io/jqlang/jq:1.8.1`)
+- `JQ_IMAGE_PULL` — Set to `always` to force pulling the configured image
 
 Example:
 
 ```sh
-JQ_IMAGE=ghcr.io/jqlang/jq:latest jq --version
+JQ_IMAGE=ghcr.io/jqlang/jq:1.8.1 jq --version
 ```
 
 **Mounts:**
