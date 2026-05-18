@@ -22,7 +22,7 @@ Use this skill when managing Shimmy as a developer-facing tool dependency outsid
 - Container runtime: rootless/non-root `podman` preferred; `docker` is acceptable only when the target Shimmy implementation documents Docker support.
 - Network access only when resolving `latest`, pulling repository updates, downloading release metadata, or refreshing images.
 
-Do not install or provision Podman/Docker from this skill. If Shimmy-backed tools fail because Podman is unreachable, use `shimmy-init` first and pause for user remediation when required.
+Do not install or provision Podman/Docker from this skill. If Shimmy-backed tools fail in an AI Agent shell while `podman info` succeeds, use `shimmy-escalation` first so the exact outer wrapper prefix can be approved. If Podman itself is missing or unreachable, use `shimmy-init` first and pause for user remediation when required.
 
 ## Source Of Truth
 
@@ -152,7 +152,7 @@ If no previous known-good ref exists, stop and ask for a target ref. Do not gues
 
 ## Failure Rules
 
-- If the container runtime is missing, rootful-only, or unreachable, stop and report remediation instead of installing or updating.
+- If the container runtime is missing, rootful-only, or unreachable, stop and report remediation instead of installing or updating. If only the Shimmy wrapper is blocked by AI Agent sandbox permissions while `podman info` works, use `shimmy-escalation` before reporting remediation.
 - If the desired target cannot be resolved, stop before changing files.
 - If validation fails after update, attempt rollback only when a known-good ref exists.
 - If existing scripts do not support a requested lifecycle behavior, state that gap and propose the smallest script/spec addition rather than inventing hidden behavior.

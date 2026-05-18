@@ -12,4 +12,4 @@ Always operate in PLAN -> REVIEW -> ACT mode:
 - If I explicitly say to implement, fix, run, or proceed, that counts as plan approval so you may ACT, however you may NEVER modify files immediately.
 - Before acting, read AGENTS.md and follow its execution model.
 - After approval, proceed through implementation, verification, and summary.
-- It is important that you use Shimmy tools when available. This requires Podman to be running. If anything prevents you from running a preferred tool that has Shimmy backing, pause execution and prompt the user for a Podman remediation plan.
+- It is important that you use Shimmy tools when available. This requires Podman to be running. If a Shimmy-backed tool fails in an AI Agent shell with Podman-unreachable or sandbox-permission symptoms, use the `shimmy-escalation` workflow before asking the user for a Podman remediation plan. First verify `podman info`; if it succeeds, request approval for the exact outer wrapper prefix such as `["rg"]`, `["jq"]`, or `["./shims/rg"]` because approval for `["podman", "info"]` does not approve nested Podman access through a wrapper.

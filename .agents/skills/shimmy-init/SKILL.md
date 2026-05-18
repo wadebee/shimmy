@@ -49,6 +49,7 @@ Use this skill when:
 6. If `podman info` succeeds but the Shimmy wrapper still fails:
    - Use the tool-specific Shimmy skill when available.
    - Check `command -v <tool>`; if it resolves under `$HOME/.config/shimmy/shims` or another Shimmy install, the AI Agent may need approval for the outer wrapper command even though direct `podman info` works.
+   - Use `shimmy-escalation` to request approval for the exact outer wrapper prefix before asking the user for broader Podman remediation.
    - Run a harmless wrapper smoke check with exact-command escalation, such as `rg --version` with prefix rule `["rg"]`.
    - Remember that AI Agent permissions are evaluated on the outer command (`rg`, `jq`, `terraform`, etc.), not only on the nested `podman` process that the wrapper starts.
    - If later non-escalated wrapper calls still fail in the same session, keep using exact wrapper escalation or ask the user to persist the exact prefix approval.

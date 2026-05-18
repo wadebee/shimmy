@@ -34,4 +34,4 @@ This repository packages and makes common CLI tools available to your shell as s
 - On macOS, remember the official Podman pkg installer may place the binary at `/opt/podman/bin/podman`. If automation cannot find `podman`, check that `/opt/podman/bin` is on `PATH`.
 - When testing containers, use live Podman and non-mutating cli calls (eg: version or --help) to validate execution  
 - Ensure runnable shell files keep executable bits.
-- In AI Agent environments, approvals are evaluated on the outer command. If `podman info` succeeds but a Shimmy wrapper still reports that Podman is unreachable, request approval for the exact wrapper prefix such as `["rg"]` or `["./shims/rg"]`; approval for `["podman", "info"]` alone is not enough.
+- In AI Agent environments, approvals are evaluated on the outer command. If `podman info` succeeds but a Shimmy wrapper still reports that Podman is unreachable, use the `shimmy-escalation` workflow and request approval for the exact wrapper prefix such as `["rg"]` or `["./shims/rg"]`; approval for `["podman", "info"]` alone is not enough.
