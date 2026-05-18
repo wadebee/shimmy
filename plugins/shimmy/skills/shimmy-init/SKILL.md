@@ -49,8 +49,8 @@ Use this skill when:
 6. If `podman info` succeeds but the Shimmy wrapper still fails:
    - Use the tool-specific Shimmy skill when available.
    - Check `command -v <tool>`; if it resolves under `$HOME/.config/shimmy/shims` or another Shimmy install, the AI Agent may need approval for the outer wrapper command even though direct `podman info` works.
-   - Use `shimmy-escalation` to request approval for the exact outer wrapper prefix before asking the user for broader Podman remediation.
-   - Run a harmless wrapper smoke check with exact-command escalation, such as `rg --version` with prefix rule `["rg"]`.
+   - Use `shimmy-escalation` to request approval for the exact dry-run smoke command prefix before asking the user for broader Podman remediation.
+   - Run a harmless wrapper smoke check with exact-command escalation, such as `rg --version` with prefix rule `["rg","--version"]`.
    - Remember that AI Agent permissions are evaluated on the outer command (`rg`, `jq`, `terraform`, etc.), not only on the nested `podman` process that the wrapper starts.
    - If later non-escalated wrapper calls still fail in the same session, keep using exact wrapper escalation or ask the user to persist the exact prefix approval.
    - Report whether the failure is from image pull/network, credentials, wrapper behavior, or the underlying tool.
@@ -61,7 +61,7 @@ Use narrow escalation requests. Good prefix rules:
 
 - `["podman", "info"]`
 - `["podman", "machine", "list"]`
-- The exact Shimmy tool prefix, such as `["rg"]`, `["jq"]`, `["terraform"]`, or `["aws"]`
+- The exact Shimmy smoke command prefix, such as `["rg","--version"]`, `["jq","--version"]`, `["terraform","version"]`, or `["aws","--version"]`
 
 Avoid broad approvals such as `["podman"]`, shell prefixes, or scripting language prefixes.
 

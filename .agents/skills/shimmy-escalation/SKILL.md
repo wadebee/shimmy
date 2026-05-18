@@ -9,7 +9,7 @@ Use this skill when the user wants AI Agent shell approvals for installed Shimmy
 
 ## Goal
 
-Trigger AI Agent approval prompts for activated shims using narrow command prefixes such as `["rg"]` or `["jq"]`. A skill cannot grant permanent permissions directly; it can only run harmless shim smoke checks with escalation and suggest persistent prefix approval.
+Trigger AI Agent approval prompts for activated shims using narrow dry-run command prefixes such as `["rg","--version"]` or `["jq","--version"]`. A skill cannot grant permanent permissions directly; it can only run harmless shim smoke checks with escalation and suggest persistent prefix approval.
 
 When working in the Shimmy repository, `scripts/agent-shimmy-preflight.sh` can print the exact active and repo-local wrapper prefixes to approve.
 
@@ -37,7 +37,7 @@ Before running shim smoke checks, verify Podman itself is usable.
 1. Locate Podman with `command -v podman`.
 2. Run `podman info`.
 3. If `podman info` succeeds, continue to the Approval Workflow.
-   - If a Shimmy wrapper already failed with Podman-unreachable guidance in the same AI Agent shell, do not keep debugging the Podman machine. Request approval for the exact outer wrapper prefix, such as `["rg"]` or `["./shims/rg"]`.
+   - If a Shimmy wrapper already failed with Podman-unreachable guidance in the same AI Agent shell, do not keep debugging the Podman machine. For availability checks, request approval for the exact dry-run smoke command prefix, such as `["rg","--version"]` or `["./shims/rg","--version"]`.
    - Remember that approval for `["podman", "info"]` does not approve nested Podman access through a Shimmy wrapper.
 4. If `podman info` fails on macOS with socket, lockfile, or `operation not permitted` errors:
    - Run `podman machine list` with the AI Agent's approval mechanism.
@@ -71,7 +71,7 @@ For each discovered shim:
    - Otherwise try `<shim> --version`, then `<shim> --help` if version is not appropriate.
 2. Run the smoke command with the AI Agent's approval mechanism.
 3. Use a justification such as: `Allow the <shim> Shimmy wrapper to run Podman outside the sandbox.`
-4. Use the exact shim command as the prefix rule equivalent, for example `["rg"]`.
+4. Use the exact dry-run smoke command as the prefix rule equivalent, for example `["rg","--version"]`.
 5. Do not request broad approvals such as `["podman"]`, `["sh"]`, `["bash"]`, `["python"]`, or a wildcard path.
 6. If a shim needs credentials or may contact an external service, use a local/version command only. Do not run mutating commands.
 

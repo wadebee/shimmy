@@ -53,10 +53,26 @@ fi
 # shellcheck source=lib/shims/shimmy-podman.sh
 . "$PODMAN_HELPER_FILE"
 
-shimmy_agent_prefix_rule_print() {
-  command_prefix=$1
+shimmy_agent_json_string_print() {
+  json_value=$1
+  escaped_value=$(printf '%s' "$json_value" | sed 's/\\/\\\\/g; s/"/\\"/g')
 
-  printf '["%s"]\n' "$command_prefix"
+  printf '"%s"' "$escaped_value"
+}
+
+shimmy_agent_prefix_rule_print() {
+  first_token=yes
+
+  printf '['
+  for command_token in "$@"; do
+    if [ "$first_token" = yes ]; then
+      first_token=no
+    else
+      printf ','
+    fi
+    shimmy_agent_json_string_print "$command_token"
+  done
+  printf ']\n'
 }
 
 shimmy_agent_shim_name_validate() {
@@ -160,7 +176,8 @@ shimmy_agent_shim_print() {
   esac
   printf 'path=%s\n' "$shim_path"
   printf 'agent_prefix_rule='
-  shimmy_agent_prefix_rule_print "$command_prefix"
+  # shellcheck disable=SC2086
+  shimmy_agent_prefix_rule_print "$command_prefix" $smoke_args
   printf 'smoke_command=%s %s\n' "$command_prefix" "$smoke_args"
 
   if [ "$RUN_SMOKE" = yes ]; then
@@ -279,7 +296,7 @@ if shimmy_podman_bin_resolve; then
     printf 'podman_info=ok\n'
   else
     printf 'podman_info=failed\n'
-    printf '%s\n' 'agent_hint=If `podman info` succeeds outside this script but shims fail in an AI Agent, approve the outer shim prefix such as ["rg"] or ["./shims/rg"].'
+    printf '%s\n' 'agent_hint=If `podman info` succeeds outside this script but shims fail in an AI Agent, approve the dry-run smoke command prefix such as ["rg","--version"] or ["./shims/rg","--version"].'
     PREFLIGHT_STATUS=1
   fi
 else
@@ -310,6 +327,6 @@ fi
 
 printf '\nAI Agent guidance:\n'
 printf '%s\n' "Use the listed agent_prefix_rule values with your AI Agent's approval mechanism for harmless smoke commands."
-printf '%s\n' 'Approve wrapper prefixes such as ["rg"] or ["./shims/rg"]; approving ["podman", "info"] alone does not approve a Shimmy wrapper.'
+printf '%s\n' 'Approve dry-run smoke command prefixes such as ["rg","--version"] or ["./shims/rg","--version"]; approving ["podman", "info"] alone does not approve a Shimmy wrapper.'
 
 exit "$PREFLIGHT_STATUS"

@@ -49,7 +49,7 @@ shimmy_podman_failure_print_unreachable() {
   else
     printf '%s\n' 'If you use CONTAINER_HOST, confirm it points at a reachable Podman service.' >&2
   fi
-  printf '%s\n' 'AI Agent note: if `podman info` succeeds but this shim still fails, request approval for the outer Shimmy wrapper command prefix, for example ["rg"] or ["./shims/rg"].' >&2
+  printf '%s\n' 'AI Agent note: if `podman info` succeeds but this shim still fails, request approval for the dry-run smoke command prefix, for example ["rg","--version"] or ["./shims/rg","--version"].' >&2
   printf '%s\n' 'Approving `podman info` alone does not approve Podman access through a Shimmy wrapper.' >&2
 }
 

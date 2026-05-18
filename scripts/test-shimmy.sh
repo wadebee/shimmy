@@ -151,7 +151,7 @@ test_podman_unreachable_guidance_agent() {
   )
 
   assert_contains "$output" 'AI Agent note: if `podman info` succeeds but this shim still fails'
-  assert_contains "$output" '["rg"] or ["./shims/rg"]'
+  assert_contains "$output" '["rg","--version"] or ["./shims/rg","--version"]'
   assert_contains "$output" 'Approving `podman info` alone does not approve Podman access through a Shimmy wrapper.'
 
   pass "Podman unreachable guidance includes AI Agent approval hint"
@@ -364,10 +364,10 @@ EOF
   assert_file_executable "$ROOT_DIR/scripts/agent-shimmy-preflight.sh"
   assert_contains "$output" "podman_info=ok"
   assert_contains "$output" "active_shim=rg"
-  assert_contains "$output" 'agent_prefix_rule=["rg"]'
+  assert_contains "$output" 'agent_prefix_rule=["rg","--version"]'
   assert_contains "$output" "smoke_command=rg --version"
   assert_contains "$output" "repo_shim=rg"
-  assert_contains "$output" 'agent_prefix_rule=["./shims/rg"]'
+  assert_contains "$output" 'agent_prefix_rule=["./shims/rg","--version"]'
   assert_contains "$output" 'approving ["podman", "info"] alone does not approve a Shimmy wrapper.'
 
   pass "AI Agent preflight reports narrow shim approvals"

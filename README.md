@@ -76,7 +76,7 @@ When prompted, install or enable the `shimmy` plugin from the local marketplace.
 
 #### Use Shimmy tools from an AI Agent faster
 
-AI Agent approvals are often evaluated on the outer command. If `podman info` succeeds but a Shimmy wrapper still reports that Podman is unreachable, approve the exact wrapper prefix that the AI Agent is trying to run, such as `["rg"]` for an activated shim or `["./shims/rg"]` for a repo-local shim. Approval for `["podman", "info"]` only verifies the engine; it does not approve nested Podman access through a wrapper.
+AI Agent approvals are often evaluated on the outer command. If `podman info` succeeds but a Shimmy wrapper still reports that Podman is unreachable, approve the exact dry-run smoke command prefix that the AI Agent is trying to run, such as `["rg","--version"]` for an activated shim or `["./shims/rg","--version"]` for a repo-local shim. Approval for `["podman", "info"]` only verifies the engine; it does not approve nested Podman access through a wrapper.
 
 From a fresh AI Agent session, run the non-mutating preflight to list the exact approval prefixes and smoke commands:
 
@@ -84,7 +84,7 @@ From a fresh AI Agent session, run the non-mutating preflight to list the exact 
 ./scripts/agent-shimmy-preflight.sh
 ```
 
-The script checks `podman info`, discovers active installed shims and repo-local shims, and prints harmless `--version` or `--help` commands to approve with your AI Agent's approval mechanism and the listed `agent_prefix_rule` values. Use `--smoke` from a normal shell when you want the script to run those checks directly.
+The script checks `podman info`, discovers active installed shims and repo-local shims, and prints harmless `--version` or `--help` commands to approve with your AI Agent's approval mechanism and the listed dry-run `agent_prefix_rule` values. Use `--smoke` from a normal shell when you want the script to run those checks directly.
 
 #### Use the plugin from other local repositories
 
