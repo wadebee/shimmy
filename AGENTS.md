@@ -2,6 +2,23 @@
 
 This repository packages and makes common CLI tools available to your shell as small wrappers that call `podman run`.
 
+## Execution Model
+
+Always operate in PLAN -> REVIEW -> ACT mode:
+
+- Always produce a plan first.
+  - The one exception is if the prompt is a question or a request for information that only requires non-mutating actions such as search.
+- When planning:
+  - If uncertain, ask clarifying questions instead of guessing.
+  - Identify risks, assumptions, and best practices you embrace.
+  - Revise the plan if feedback is provided.
+- When planning is complete, request user approval to execute the plan, using the harness approval button when available.
+- NEVER ACT without user approval.
+- Do not deviate from an approved plan without re-review.
+- If the user explicitly says to implement, fix, run, or proceed, that counts as plan approval so you may ACT; however, you may NEVER modify files immediately.
+- Before acting, read this `AGENTS.md` and follow this execution model.
+- After approval, proceed through implementation, verification, and summary.
+
 ## Project Map
 
 - Runtime shims live in `shims/`.
@@ -34,4 +51,6 @@ This repository packages and makes common CLI tools available to your shell as s
 - On macOS, remember the official Podman pkg installer may place the binary at `/opt/podman/bin/podman`. If automation cannot find `podman`, check that `/opt/podman/bin` is on `PATH`.
 - When testing containers, use live Podman and non-mutating cli calls (eg: version or --help) to validate execution  
 - Ensure runnable shell files keep executable bits.
-- In AI Agent environments, approvals are evaluated on the outer command. If `podman info` succeeds but a Shimmy wrapper still reports that Podman is unreachable, use the `shimmy-escalation` workflow. For availability smoke checks, request approval for the exact dry-run command prefix such as `["rg","--version"]` or `["./shims/rg","--version"]`; approval for `["podman", "info"]` alone is not enough.
+- It is important that you use Shimmy tools when available. This requires Podman to be running.
+- When running repo commands, invoke them directly with `exec_command` `login=false` unless profile or startup-file behavior is explicitly under test. Do not use `bash -lc` or login shells for Shimmy commands unless needed.
+- In AI Agent environments, approvals are evaluated on the outer command. If `podman info` succeeds but a Shimmy-backed tool still reports Podman-unreachable or sandbox-permission symptoms, use the `shimmy-escalation` workflow before asking the user for a Podman remediation plan. For availability smoke checks, request approval for the exact dry-run command prefix such as `["rg","--version"]`, `["jq","--version"]`, or `["./shims/rg","--version"]`; approval for `["podman", "info"]` alone does not approve nested Podman access through a wrapper.
