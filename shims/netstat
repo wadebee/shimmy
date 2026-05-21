@@ -1,0 +1,94 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+
+NETSTAT_IMAGE=${NETSTAT_IMAGE:-docker.io/instrumentisto/nmap:7.98-r2}
+NETSTAT_IMAGE_PULL=${NETSTAT_IMAGE_PULL:-}
+NETSTAT_LAN_VIEW=${SHIMMY_NETSTAT_LAN_VIEW:-}
+NETSTAT_NETWORK=${SHIMMY_NETSTAT_NETWORK:-}
+NETSTAT_NETWORK_ARG=
+NETSTAT_NETWORK_VALUE=
+NETSTAT_PID=${SHIMMY_NETSTAT_HOST_PID:-}
+NETSTAT_PID_ARG=
+NETSTAT_PID_VALUE=
+NETSTAT_PRIVILEGED=${SHIMMY_NETSTAT_PRIVILEGED:-}
+NETSTAT_PRIVILEGED_ARG=
+NETSTAT_PULL_ARG=
+
+if [ ! -f "$PODMAN_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
+  exit 1
+fi
+
+# shellcheck source=lib/shims/shimmy-podman.sh
+. "$PODMAN_HELPER_FILE"
+
+shimmy_podman_preflight_require "the netstat shim"
+
+if [ "$NETSTAT_IMAGE_PULL" = "always" ]; then
+  NETSTAT_PULL_ARG=--pull=always
+fi
+
+case "$NETSTAT_LAN_VIEW" in
+  ''|0)
+    ;;
+  1)
+    if [ -n "$NETSTAT_NETWORK" ] && [ "$NETSTAT_NETWORK" != host ]; then
+      printf 'ERROR: SHIMMY_NETSTAT_LAN_VIEW=1 cannot be combined with SHIMMY_NETSTAT_NETWORK=%s\n' "$NETSTAT_NETWORK" >&2
+      exit 1
+    fi
+    NETSTAT_NETWORK=host
+    ;;
+  *)
+    printf 'ERROR: SHIMMY_NETSTAT_LAN_VIEW must be 1, 0, or unset\n' >&2
+    exit 1
+    ;;
+esac
+
+case "$NETSTAT_PID" in
+  ''|0)
+    ;;
+  1)
+    NETSTAT_PID_ARG=--pid
+    NETSTAT_PID_VALUE=host
+    ;;
+  *)
+    printf 'ERROR: SHIMMY_NETSTAT_HOST_PID must be 1, 0, or unset\n' >&2
+    exit 1
+    ;;
+esac
+
+case "$NETSTAT_PRIVILEGED" in
+  ''|0)
+    ;;
+  1)
+    NETSTAT_PRIVILEGED_ARG=--privileged
+    ;;
+  *)
+    printf 'ERROR: SHIMMY_NETSTAT_PRIVILEGED must be 1, 0, or unset\n' >&2
+    exit 1
+    ;;
+esac
+
+if [ -n "$NETSTAT_NETWORK" ]; then
+  NETSTAT_NETWORK_ARG=--network
+  NETSTAT_NETWORK_VALUE=$NETSTAT_NETWORK
+fi
+
+exec "$SHIMMY_PODMAN_BIN" run --rm \
+  --platform "$SHIMMY_PODMAN_PLATFORM" \
+  ${NETSTAT_PULL_ARG:+"$NETSTAT_PULL_ARG"} \
+  ${NETSTAT_NETWORK_ARG:+"$NETSTAT_NETWORK_ARG"} \
+  ${NETSTAT_NETWORK_VALUE:+"$NETSTAT_NETWORK_VALUE"} \
+  ${NETSTAT_PID_ARG:+"$NETSTAT_PID_ARG"} \
+  ${NETSTAT_PID_VALUE:+"$NETSTAT_PID_VALUE"} \
+  ${NETSTAT_PRIVILEGED_ARG:+"$NETSTAT_PRIVILEGED_ARG"} \
+  -v "$PWD:/work" \
+  -w /work \
+  --entrypoint /bin/netstat \
+  "$NETSTAT_IMAGE" \
+  "$@"

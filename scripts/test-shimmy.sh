@@ -628,6 +628,76 @@ test_netcat_shim_direct() {
   pass "netcat direct shim execution"
 }
 
+test_netstat_shim_direct() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/netstat" --help 2>&1
+  )
+
+  assert_contains "$output" "Display networking information"
+
+  pass "netstat direct shim execution"
+}
+
+test_netstat_shim_lan_view_opt_in() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NETSTAT_LAN_VIEW=1 "$ROOT_DIR/shims/netstat" -rn 2>&1
+  )
+
+  assert_contains "$output" "Kernel IP routing table"
+
+  pass "netstat LAN view opt-in execution"
+}
+
+test_netstat_shim_network_opt_in() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NETSTAT_NETWORK=none "$ROOT_DIR/shims/netstat" --help 2>&1
+  )
+
+  assert_contains "$output" "Display networking information"
+
+  pass "netstat network opt-in execution"
+}
+
+test_netstat_shim_host_pid_opt_in() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NETSTAT_HOST_PID=1 "$ROOT_DIR/shims/netstat" -lnp 2>&1
+  )
+
+  assert_contains "$output" "PID/Program name"
+
+  pass "netstat host PID opt-in execution"
+}
+
+test_netstat_shim_privileged_opt_in() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NETSTAT_LAN_VIEW=1 SHIMMY_NETSTAT_HOST_PID=1 SHIMMY_NETSTAT_PRIVILEGED=1 "$ROOT_DIR/shims/netstat" -lnp 2>&1
+  )
+
+  assert_contains "$output" "PID/Program name"
+
+  pass "netstat privileged opt-in execution"
+}
+
 test_nmap_shim_direct() {
   setup_scenario
   require_podman
@@ -814,6 +884,11 @@ main() {
   test_installed_go_shim
   test_installed_jq_shim
   test_netcat_shim_direct
+  test_netstat_shim_direct
+  test_netstat_shim_lan_view_opt_in
+  test_netstat_shim_network_opt_in
+  test_netstat_shim_host_pid_opt_in
+  test_netstat_shim_privileged_opt_in
   test_nmap_shim_direct
   test_nmap_shim_lan_scan_opt_in
   test_nmap_shim_network_opt_in

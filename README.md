@@ -28,6 +28,7 @@ That document is the contributor source of truth, including naming conventions f
 | **go** | Go toolchain CLI | `docker.io/library/golang:latest` | `go version`, `go test ./...` |
 | **jq** | JSON processor | `ghcr.io/jqlang/jq:1.8.1` | `jq .foo file.json` |
 | **netcat** | TCP/UDP debugging client | local build from `images/netcat/Containerfile` | `netcat --help`, `netcat example.com 443` |
+| **netstat** | Network socket and routing table viewer | `docker.io/instrumentisto/nmap:7.98-r2` | `netstat -rn`, `netstat -tuln` |
 | **nmap** | Network discovery and security scanner | `docker.io/instrumentisto/nmap:7.98-r2` | `nmap --version`, `nmap scanme.nmap.org` |
 | **rg** | Ripgrep search | `docker.io/vszl/ripgrep:latest` | `rg "pattern" .` |
 | **task** | Taskfile task runner | local build from `images/task/Containerfile` | `task --version`, `task --list` |
@@ -365,6 +366,40 @@ NETCAT_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest netcat --he
 ```
 
 The default Netcat image is built locally from `images/netcat/Containerfile`, which starts from UBI 9 minimal and installs the `nmap-ncat` package. This keeps the base image small while still using a practical Red Hat-supported package manager for the install. Shimmy tags the resulting image under `localhost/shimmy-netcat:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
+
+**Mounts:**
+- `$PWD` → `/work` (read-write)
+
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
+
+### Netstat
+
+- `NETSTAT_IMAGE` — Container image (default: `docker.io/instrumentisto/nmap:7.98-r2`)
+- `NETSTAT_IMAGE_PULL` — Set to `always` to force pulling the configured image
+- `SHIMMY_NETSTAT_NETWORK` — Pass a Podman network to the container with `--network <value>`, for example a user-defined network that contains app containers
+- `SHIMMY_NETSTAT_LAN_VIEW` — Set to `1` to opt into Podman host network visibility with `--network host`
+- `SHIMMY_NETSTAT_HOST_PID` — Set to `1` to add `--pid host`, which can improve `netstat -p` process visibility when permissions allow it
+- `SHIMMY_NETSTAT_PRIVILEGED` — Set to `1` to add `--privileged`; use only as a last-resort opt-in when host-network plus host-PID visibility is not enough
+
+Example:
+
+```sh
+NETSTAT_IMAGE=docker.io/instrumentisto/nmap:7.98-r2 netstat --help
+SHIMMY_NETSTAT_NETWORK=appnet netstat -rn
+SHIMMY_NETSTAT_LAN_VIEW=1 netstat -tuln
+SHIMMY_NETSTAT_LAN_VIEW=1 SHIMMY_NETSTAT_HOST_PID=1 netstat -tulnp
+SHIMMY_NETSTAT_LAN_VIEW=1 SHIMMY_NETSTAT_HOST_PID=1 SHIMMY_NETSTAT_PRIVILEGED=1 netstat -tulnp
+```
+
+The default Netstat shim reuses the Instrumentisto Nmap image already used by the Nmap shim. The executable is BusyBox `/bin/netstat`, so its options are the BusyBox option set rather than the full GNU net-tools implementation.
+
+The shim does not add host networking, host PID namespace access, or privileged mode by default. `SHIMMY_NETSTAT_LAN_VIEW=1` is the explicit opt-in for viewing the Podman host network namespace. `SHIMMY_NETSTAT_HOST_PID=1` adds the host PID namespace so `netstat -p` can attempt to resolve owning processes. Rootless Podman and host permissions can still limit process names even when host PID or privileged mode is enabled.
+
+`SHIMMY_NETSTAT_NETWORK` is useful when inspecting another container network. It is a Shimmy wrapper control, not a `netstat` environment variable, and cannot be combined with `SHIMMY_NETSTAT_LAN_VIEW=1` unless it is set to `host`.
+
+On macOS, Podman containers run inside a Linux VM. In that environment, `--network host` means the Podman VM's host network namespace, not the macOS host's physical LAN interface. Host-network visibility from the shim may still differ from native host `netstat`.
 
 **Mounts:**
 - `$PWD` → `/work` (read-write)
