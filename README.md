@@ -22,24 +22,25 @@ That document is the contributor source of truth, including naming conventions f
 
 ## Included Shims
 
-| Tool | Purpose | Image Source | Usage |
-|------|---------|----------------|-------|
-| **aws** | AWS CLI | `public.ecr.aws/aws-cli/aws-cli:2.31.21` | `aws s3 ls`, `aws sts get-caller-identity` |
-| **go** | Go toolchain CLI | `docker.io/library/golang:latest` | `go version`, `go test ./...` |
-| **jq** | JSON processor | `ghcr.io/jqlang/jq:1.8.1` | `jq .foo file.json` |
-| **netcat** | TCP/UDP debugging client | local build from `images/netcat/Containerfile` | `netcat --help`, `netcat example.com 443` |
-| **netstat** | Network socket and routing table viewer | `docker.io/instrumentisto/nmap:7.98-r2` | `netstat -rn`, `netstat -tuln` |
-| **nmap** | Network discovery and security scanner | `docker.io/instrumentisto/nmap:7.98-r2` | `nmap --version`, `nmap scanme.nmap.org` |
-| **opnsense-cli** | OPNsense command runner | local build from `images/opnsense-cli/Containerfile` | `opnsense-cli --help`, `opnsense-cli -t root@firewall sysinfo` |
-| **rg** | Ripgrep search | `docker.io/vszl/ripgrep:latest` | `rg "pattern" .` |
-| **task** | Taskfile task runner | local build from `images/task/Containerfile` | `task --version`, `task --list` |
-| **terraform** | Infrastructure as Code | `docker.io/hashicorp/terraform:latest` | `terraform plan`, `terraform apply` |
-| **textual** | Textual developer CLI | local build from `images/textual/Containerfile` | `textual --help`, `textual run app.py` |
+| Tool | Purpose | Quick start |
+|------|---------|-------------|
+| **aws** | AWS CLI | [docs/shims/aws.md](docs/shims/aws.md) |
+| **go** | Go toolchain CLI | [docs/shims/go.md](docs/shims/go.md) |
+| **jq** | JSON processor | [docs/shims/jq.md](docs/shims/jq.md) |
+| **netcat** | TCP/UDP debugging client | [docs/shims/netcat.md](docs/shims/netcat.md) |
+| **netstat** | Network socket and routing table viewer | [docs/shims/netstat.md](docs/shims/netstat.md) |
+| **nmap** | Network discovery and security scanner | [docs/shims/nmap.md](docs/shims/nmap.md) |
+| **opnsense-cli** | OPNsense command runner | [docs/shims/opnsense-cli.md](docs/shims/opnsense-cli.md) |
+| **rg** | Ripgrep search | [docs/shims/rg.md](docs/shims/rg.md) |
+| **task** | Taskfile task runner | [docs/shims/task.md](docs/shims/task.md) |
+| **terraform** | Infrastructure as Code | [docs/shims/terraform.md](docs/shims/terraform.md) |
+| **tessl** | Tessl CLI, present as a repo shim but not installed by default | [docs/shims/tessl.md](docs/shims/tessl.md) |
+| **textual** | Textual developer CLI | [docs/shims/textual.md](docs/shims/textual.md) |
 
 ## Requirements
 
 - **POSIX shell** — `/bin/sh` or another POSIX-compatible shell for the current proof-of-concept rewrite
-- **Podman CLI** — Explicit required dependency. Podman *Desktop* is not required. 
+- **Podman CLI** — Explicit required dependency. Podman *Desktop* is not required.
 For macOS run `podman machine init` if needed, then run `podman machine start` from a normal user shell after installation.
 Install and configure for rootless operation separately before using Shimmy. Official install guide: <https://podman.io/docs/installation>
 If Podman is installed from the macOS pkg installer, the binary may live at `/opt/podman/bin/podman`. `shimmy activate` accounts for that path for interactive shell activation, and Shimmy's shared Podman preflight also checks it directly for runtime shims plus Podman-backed lifecycle commands such as `shimmy update --pull`, `shimmy update --build`, and `shimmy test`.
@@ -261,311 +262,39 @@ The current implementation can reinstall from the checked-out source, refresh re
 Once shims are in your PATH, use tools naturally:
 
 ```sh
-# Terraform
-terraform version
-terraform -chdir=examples/dev plan
-
-# AWS CLI
-aws s3 ls
 aws sts get-caller-identity
-
-# Go CLI
-go version
 go test ./...
-
-# jq
-echo '{"name": "shimmy"}' | jq .name
-
-# ripgrep
+jq . file.json
+netcat example.com 443
+netstat -rn
+nmap --version
+opnsense-cli -t root@firewall sysinfo
 rg "pattern" .
-
-# Task
-task --version
 task --list
-
-# Textual CLI
-textual --help
-textual run app.py
-```
-
-## Configuration
-
-Each shim respects environment variables for customization.
-
-### AWS CLI
-
-- `AWS_IMAGE` — Container image (default: `public.ecr.aws/aws-cli/aws-cli:2.31.21`)
-- `AWS_IMAGE_PULL` — Set to `always` to force pulling the latest image
-
-Example:
-
-```sh
-AWS_IMAGE=public.ecr.aws/aws-cli/aws-cli:2.31.21 aws --version
-```
-
-**Mounts:**
-- `$PWD` → `/work` (read-write)
-- `~/.aws` → `/root/.aws` (read-only, if exists)
-
-**Environment variables forwarded:**
-- `AWS_*`
-
-**Runtime platform:**
-- Linux → `linux/amd64`
-- macOS → `linux/arm64`
-
-### Go CLI
-
-- `GO_IMAGE` — Container image (default: `docker.io/library/golang:latest`)
-- `GO_IMAGE_PULL` — Set to `always` to force pulling the latest image
-
-Example:
-
-```sh
-GO_IMAGE=docker.io/library/golang:latest go version
-```
-
-**Mounts:**
-- `$PWD` → `/work` (read-write)
-
-**Container I/O:**
-- Keeps stdin open without allocating a container TTY, which avoids Podman terminal resize signal warnings for short-lived commands such as `go help test`.
-
-**Runtime platform:**
-- Linux → `linux/amd64`
-- macOS → `linux/arm64`
-
-### jq
-
-- `JQ_IMAGE` — Container image (default: `ghcr.io/jqlang/jq:1.8.1`)
-- `JQ_IMAGE_PULL` — Set to `always` to force pulling the configured image
-
-Example:
-
-```sh
-JQ_IMAGE=ghcr.io/jqlang/jq:1.8.1 jq --version
-```
-
-**Mounts:**
-- `$PWD` → `/work` (read-write)
-
-**Runtime platform:**
-- Linux → `linux/amd64`
-- macOS → `linux/arm64`
-
-### Netcat
-
-- `NETCAT_IMAGE` — Override the runtime image entirely
-- `NETCAT_IMAGE_BUILD` — Set to `always` to rebuild the local Netcat image even if it is already cached
-- `NETCAT_IMAGE_PULL` — Set to `always` to force pulling `NETCAT_IMAGE` when using an explicit remote override
-- `NETCAT_BASE_IMAGE` — Override the `Containerfile` base image (default build arg: `registry.access.redhat.com/ubi9/ubi-minimal:latest`)
-
-Example:
-
-```sh
-NETCAT_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest netcat --help
-```
-
-The default Netcat image is built locally from `images/netcat/Containerfile`, which starts from UBI 9 minimal and installs the `nmap-ncat` package. This keeps the base image small while still using a practical Red Hat-supported package manager for the install. Shimmy tags the resulting image under `localhost/shimmy-netcat:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
-
-**Mounts:**
-- `$PWD` → `/work` (read-write)
-
-**Runtime platform:**
-- Linux → `linux/amd64`
-- macOS → `linux/arm64`
-
-### Netstat
-
-- `NETSTAT_IMAGE` — Container image (default: `docker.io/instrumentisto/nmap:7.98-r2`)
-- `NETSTAT_IMAGE_PULL` — Set to `always` to force pulling the configured image
-- `SHIMMY_NETSTAT_NETWORK` — Pass a Podman network to the container with `--network <value>`, for example a user-defined network that contains app containers
-- `SHIMMY_NETSTAT_LAN_VIEW` — Set to `1` to opt into Podman host network visibility with `--network host`
-- `SHIMMY_NETSTAT_HOST_PID` — Set to `1` to add `--pid host`, which can improve `netstat -p` process visibility when permissions allow it
-- `SHIMMY_NETSTAT_PRIVILEGED` — Set to `1` to add `--privileged`; use only as a last-resort opt-in when host-network plus host-PID visibility is not enough
-
-Example:
-
-```sh
-NETSTAT_IMAGE=docker.io/instrumentisto/nmap:7.98-r2 netstat --help
-SHIMMY_NETSTAT_NETWORK=appnet netstat -rn
-SHIMMY_NETSTAT_LAN_VIEW=1 netstat -tuln
-SHIMMY_NETSTAT_LAN_VIEW=1 SHIMMY_NETSTAT_HOST_PID=1 netstat -tulnp
-SHIMMY_NETSTAT_LAN_VIEW=1 SHIMMY_NETSTAT_HOST_PID=1 SHIMMY_NETSTAT_PRIVILEGED=1 netstat -tulnp
-```
-
-The default Netstat shim reuses the Instrumentisto Nmap image already used by the Nmap shim. The executable is BusyBox `/bin/netstat`, so its options are the BusyBox option set rather than the full GNU net-tools implementation.
-
-The shim does not add host networking, host PID namespace access, or privileged mode by default. `SHIMMY_NETSTAT_LAN_VIEW=1` is the explicit opt-in for viewing the Podman host network namespace. `SHIMMY_NETSTAT_HOST_PID=1` adds the host PID namespace so `netstat -p` can attempt to resolve owning processes. Rootless Podman and host permissions can still limit process names even when host PID or privileged mode is enabled.
-
-`SHIMMY_NETSTAT_NETWORK` is useful when inspecting another container network. It is a Shimmy wrapper control, not a `netstat` environment variable, and cannot be combined with `SHIMMY_NETSTAT_LAN_VIEW=1` unless it is set to `host`.
-
-On macOS, Podman containers run inside a Linux VM. In that environment, `--network host` means the Podman VM's host network namespace, not the macOS host's physical LAN interface. Host-network visibility from the shim may still differ from native host `netstat`.
-
-**Mounts:**
-- `$PWD` → `/work` (read-write)
-
-**Runtime platform:**
-- Linux → `linux/amd64`
-- macOS → `linux/arm64`
-
-### Nmap
-
-- `NMAP_IMAGE` — Container image (default: `docker.io/instrumentisto/nmap:7.98-r2`)
-- `NMAP_IMAGE_PULL` — Set to `always` to force pulling the configured image
-- `SHIMMY_NMAP_NETWORK` — Pass a Podman network to the container with `--network <value>`, for example a user-defined network that contains app containers
-- `SHIMMY_NMAP_LAN_SCAN` — Set to `1` to opt into local-network scan support with `--network host`, `--cap-add NET_RAW`, and `--cap-add NET_ADMIN`
-- `SHIMMY_NMAP_PRIVILEGED` — Set to `1` to add `--privileged`; use only as a last-resort opt-in, usually together with `SHIMMY_NMAP_LAN_SCAN=1`
-
-Example:
-
-```sh
-NMAP_IMAGE=docker.io/instrumentisto/nmap:7.98-r2 nmap --version
-SHIMMY_NMAP_NETWORK=appnet nmap -sT -Pn api
-SHIMMY_NMAP_LAN_SCAN=1 nmap -sn 192.168.1.0/24
-SHIMMY_NMAP_LAN_SCAN=1 SHIMMY_NMAP_PRIVILEGED=1 nmap -sn 192.168.1.0/24
-```
-
-The default Nmap image is an Instrumentisto-maintained image pinned to an explicit Nmap release tag. The shim does not add privileged mode, host networking, or extra Linux capabilities by default, so containerized scan behavior can differ from a host-installed `nmap` for scan modes that need raw socket, interface, or host network access.
-
-`SHIMMY_NMAP_NETWORK` is useful when scanning other containers attached to a user-defined Podman network. It is a Shimmy wrapper control, not an `nmap` environment variable. `SHIMMY_NMAP_LAN_SCAN=1` is the explicit opt-in for local subnet discovery and adds host networking plus raw/network capabilities. `SHIMMY_NMAP_PRIVILEGED=1` is a stronger opt-in that adds `--privileged`; combine it with `SHIMMY_NMAP_LAN_SCAN=1` only when the capability-based LAN mode is not enough.
-
-On macOS, Podman containers run inside a Linux VM. In that environment, `--network host` means the Podman VM's host network namespace, not the macOS host's physical LAN interface. LAN discovery from the shim may still be incomplete compared with native host `nmap`.
-
-**Mounts:**
-- `$PWD` → `/work` (read-write)
-
-**Runtime platform:**
-- Linux → `linux/amd64`
-- macOS → `linux/arm64`
-
-### OPNsense CLI
-
-- `OPNSENSE_CLI_IMAGE` — Override the runtime image entirely
-- `OPNSENSE_CLI_IMAGE_BUILD` — Set to `always` to rebuild the local OPNsense CLI image even if it is already cached
-- `OPNSENSE_CLI_IMAGE_PULL` — Set to `always` to force pulling `OPNSENSE_CLI_IMAGE` when using an explicit remote override
-- `OPNSENSE_CLI_BASE_IMAGE` — Override the runtime `Containerfile` base image (default build arg: `alpine:3.22`)
-- `OPNSENSE_CLI_VERSION` — Override the upstream Go module version installed into the local image (default build arg: `latest`)
-
-Example:
-
-```sh
-opnsense-cli --help
-opnsense-cli -t root@firewall.example.net sysinfo
-OPNSENSE_CLI_VERSION=latest OPNSENSE_CLI_IMAGE_BUILD=always opnsense-cli --help
-```
-
-The default OPNsense CLI image is built locally from `images/opnsense-cli/Containerfile`. The build uses `github.com/mihakralj/opnsense` and installs the upstream `opnsense` binary as the container entrypoint. Shimmy tags the resulting image under `localhost/shimmy-opnsense-cli:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
-
-**Mounts:**
-- `$PWD` → `/work` (read-write)
-- `~/.ssh` → `/root/.ssh` (read-only, if exists)
-
-**Runtime platform:**
-- Linux → `linux/amd64`
-- macOS → `linux/arm64`
-
-### ripgrep
-
-- `RG_IMAGE` — Container image (default: `docker.io/vszl/ripgrep:latest`)
-- `RG_IMAGE_PULL` — Set to `always` to force pulling the latest image
-
-Example:
-
-```sh
-RG_IMAGE=docker.io/vszl/ripgrep:latest rg --version
-```
-
-**Mounts:**
-- `$PWD` → `/work` (read-write)
-
-**Runtime platform:**
-- Linux → `linux/amd64`
-- macOS → `linux/arm64`
-
-### Task
-
-- `TASK_IMAGE` — Override the runtime image entirely
-- `TASK_IMAGE_BUILD` — Set to `always` to rebuild the local Task image even if it is already cached
-- `TASK_IMAGE_PULL` — Set to `always` to force pulling `TASK_IMAGE` when using an explicit remote override
-- `TASK_BASE_IMAGE` — Override the `Containerfile` base image (default build arg: `alpine:3.22`)
-- `TASK_VERSION` — Override the Task release version installed into the local image (default build arg: `v3.45.5`)
-
-Example:
-
-```sh
-TASK_VERSION=v3.45.5 task --version
-```
-
-The default Task image is built locally from `images/task/Containerfile`, which starts from Alpine and installs the official Task release binary from GitHub Releases. Shimmy tags the resulting image under `localhost/shimmy-task:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
-
-**Mounts:**
-- `$PWD` → `$PWD` (read-write)
-- `$PWD` → `/work` (read-write)
-- `$HOME` → `$HOME` (read-write, if it exists)
-- `/tmp` → `/tmp` (read-write, if it exists)
-
-When `CONTAINER_HOST` points at a unix-domain Podman socket, the task shim also forwards that socket into the container so Task-driven automation can launch other shims.
-
-**Environment variables forwarded:**
-- `CONTAINER_HOST` when explicitly set
-- `SHIMMY_HOST_PATH`
-- `HOME` when the home directory mount is enabled
-
-**Runtime platform:**
-- Linux → `linux/amd64`
-- macOS → `linux/arm64`
-
-### Terraform
-
-- `TF_IMAGE` — Container image (default: `docker.io/hashicorp/terraform:latest`)
-- `TF_IMAGE_PULL` — Set to `always` to force pulling the latest image
-
-Example:
-
-```sh
-TF_IMAGE=docker.io/hashicorp/terraform:latest
-TF_IMAGE_PULL=always
-terraform version
 terraform plan
+textual --help
 ```
 
-**Mounts:**
-- `$PWD` → `/work` (read-write)
-- `~/.aws` → `/root/.aws` (read-only, if exists)
-- `~/.terraform.d/plugin-cache` → `/root/.terraform.d/plugin-cache` (if exists)
+## Shim Quick Starts
 
-**Environment variables forwarded:**
-- `AWS_*`
-- `TF_VAR_*`
+Each runtime shim has a focused quick-start document with upstream links, source summary, top-level command notes, Shimmy configuration, and example prompts.
 
-**Runtime platform:**
-- Linux → `linux/amd64`
-- macOS → `linux/arm64`
+| Tool | Quick start |
+|------|-------------|
+| **aws** | [docs/shims/aws.md](docs/shims/aws.md) |
+| **go** | [docs/shims/go.md](docs/shims/go.md) |
+| **jq** | [docs/shims/jq.md](docs/shims/jq.md) |
+| **netcat** | [docs/shims/netcat.md](docs/shims/netcat.md) |
+| **netstat** | [docs/shims/netstat.md](docs/shims/netstat.md) |
+| **nmap** | [docs/shims/nmap.md](docs/shims/nmap.md) |
+| **opnsense-cli** | [docs/shims/opnsense-cli.md](docs/shims/opnsense-cli.md) |
+| **rg** | [docs/shims/rg.md](docs/shims/rg.md) |
+| **task** | [docs/shims/task.md](docs/shims/task.md) |
+| **terraform** | [docs/shims/terraform.md](docs/shims/terraform.md) |
+| **tessl** | [docs/shims/tessl.md](docs/shims/tessl.md) |
+| **textual** | [docs/shims/textual.md](docs/shims/textual.md) |
 
-### Textual CLI
-
-- `TEXTUAL_IMAGE` — Override the runtime image entirely
-- `TEXTUAL_IMAGE_BUILD` — Set to `always` to rebuild the local Textual image even if it is already cached
-- `TEXTUAL_IMAGE_PULL` — Set to `always` to force pulling `TEXTUAL_IMAGE` when using an explicit remote override
-- `TEXTUAL_BASE_IMAGE` — Override the `Containerfile` base image (default build arg: `python:3.13-slim-bookworm`)
-
-Example:
-
-```sh
-TEXTUAL_BASE_IMAGE=python:3.13-slim-bookworm textual --help
-```
-
-The default Textual image is built locally from `images/textual/Containerfile`, which starts from `python:3.13-slim-bookworm` and installs `textual` plus `textual-dev`. This matches the official Textual docs, where the `textual` command comes from the developer tools package. Shimmy tags the resulting image under `localhost/shimmy-textual:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
-
-**Mounts:**
-- `$PWD` → `/work` (read-write)
-
-**Runtime platform:**
-- Linux → `linux/amd64`
-- macOS → `linux/arm64`
-
-The interactive shims (`aws`, `task`, `terraform`, and `textual`) request `-it` only when both stdin and stdout are attached to a terminal, so version and help commands still work cleanly in scripts and smoke tests.
+`shims/tessl` exists in the repository but is not currently listed in the installer supported shim set. Its quick-start doc notes that status explicitly.
 
 ## Testing
 
@@ -580,7 +309,7 @@ sh ./scripts/test-shimmy.sh
 Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
 - install, activate, status, machine-readable manifest output, update, startup-file repair, and uninstall behavior for the single-root manifest layout
-- live Podman execution for the supported shim set: `aws`, `jq`, `netcat`, `rg`, `task`, `terraform`, and `textual`
+- live Podman execution for the supported shim set: `aws`, `go`, `jq`, `netcat`, `netstat`, `nmap`, `opnsense-cli`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
 ```
@@ -588,16 +317,25 @@ shimmy/
 ├── shimmy                    # Repo-root wrapper command
 ├── shims/                    # OCI wrapper scripts
 │   ├── aws
+│   ├── go
 │   ├── jq
 │   ├── netcat
+│   ├── netstat
+│   ├── nmap
+│   ├── opnsense-cli
 │   ├── rg
 │   ├── task
+│   ├── tessl
 │   ├── textual
 │   └── terraform
 ├── images/                   # Custom shim image build contexts
 │   ├── netcat
+│   ├── opnsense-cli
 │   ├── task
+│   ├── tessl
 │   └── textual
+├── docs/
+│   └── shims/                # Per-shim quick-start documentation
 ├── lib/
 │   ├── repo/                 # Repo-only sourced helpers for wrapper/scripts
 │   └── shims/                # Installed shared helper scripts for shims
@@ -619,7 +357,7 @@ shimmy/
 └── README.md                 # This file
 ```
 
-## AI Generation 
+## AI Generation
 This code was ![AI-developed](https://img.shields.io/badge/AI-Generated-blue) and human-reviewed/curated with AI Agent assistance.
 
 ## License
