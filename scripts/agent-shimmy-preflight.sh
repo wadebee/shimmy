@@ -104,6 +104,9 @@ shimmy_agent_smoke_args_render() {
     netcat)
       printf '%s\n' '--help'
       ;;
+    opnsense-cli)
+      printf '%s\n' '--help'
+      ;;
     rg)
       printf '%s\n' '--version'
       ;;

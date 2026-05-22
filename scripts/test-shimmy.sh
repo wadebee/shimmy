@@ -337,6 +337,17 @@ test_install_macos_podman_guidance() {
   pass "install prints macOS Podman guidance"
 }
 
+test_install_opnsense_cli_assets() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim opnsense-cli --no-startup >/dev/null
+
+  assert_file_executable "$INSTALL_DIR/shims/opnsense-cli"
+  assert_file_exists "$INSTALL_DIR/images/opnsense-cli/Containerfile"
+
+  pass "install copies opnsense-cli shim assets"
+}
+
 test_agent_shimmy_preflight_reports_approvals() {
   setup_scenario
 
@@ -754,6 +765,21 @@ test_nmap_shim_privileged_opt_in() {
   pass "nmap privileged opt-in execution"
 }
 
+test_opnsense_cli_shim_direct() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/opnsense-cli" --help 2>&1
+  )
+
+  assert_contains "$output" "Usage:"
+  assert_contains "$output" "opnsense"
+
+  pass "opnsense-cli direct shim execution"
+}
+
 test_rg_shim_direct() {
   setup_scenario
   require_podman
@@ -869,6 +895,7 @@ main() {
   test_activate_is_idempotent
   test_install_no_startup
   test_install_macos_podman_guidance
+  test_install_opnsense_cli_assets
   test_agent_shimmy_preflight_reports_approvals
   test_update_repair_startup
   test_status_reports_install
@@ -893,6 +920,7 @@ main() {
   test_nmap_shim_lan_scan_opt_in
   test_nmap_shim_network_opt_in
   test_nmap_shim_privileged_opt_in
+  test_opnsense_cli_shim_direct
   test_rg_shim_direct
   test_task_shim_direct
   test_terraform_shim_direct

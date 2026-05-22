@@ -30,6 +30,7 @@ That document is the contributor source of truth, including naming conventions f
 | **netcat** | TCP/UDP debugging client | local build from `images/netcat/Containerfile` | `netcat --help`, `netcat example.com 443` |
 | **netstat** | Network socket and routing table viewer | `docker.io/instrumentisto/nmap:7.98-r2` | `netstat -rn`, `netstat -tuln` |
 | **nmap** | Network discovery and security scanner | `docker.io/instrumentisto/nmap:7.98-r2` | `nmap --version`, `nmap scanme.nmap.org` |
+| **opnsense-cli** | OPNsense command runner | local build from `images/opnsense-cli/Containerfile` | `opnsense-cli --help`, `opnsense-cli -t root@firewall sysinfo` |
 | **rg** | Ripgrep search | `docker.io/vszl/ripgrep:latest` | `rg "pattern" .` |
 | **task** | Taskfile task runner | local build from `images/task/Containerfile` | `task --version`, `task --list` |
 | **terraform** | Infrastructure as Code | `docker.io/hashicorp/terraform:latest` | `terraform plan`, `terraform apply` |
@@ -433,6 +434,32 @@ On macOS, Podman containers run inside a Linux VM. In that environment, `--netwo
 
 **Mounts:**
 - `$PWD` → `/work` (read-write)
+
+**Runtime platform:**
+- Linux → `linux/amd64`
+- macOS → `linux/arm64`
+
+### OPNsense CLI
+
+- `OPNSENSE_CLI_IMAGE` — Override the runtime image entirely
+- `OPNSENSE_CLI_IMAGE_BUILD` — Set to `always` to rebuild the local OPNsense CLI image even if it is already cached
+- `OPNSENSE_CLI_IMAGE_PULL` — Set to `always` to force pulling `OPNSENSE_CLI_IMAGE` when using an explicit remote override
+- `OPNSENSE_CLI_BASE_IMAGE` — Override the runtime `Containerfile` base image (default build arg: `alpine:3.22`)
+- `OPNSENSE_CLI_VERSION` — Override the upstream Go module version installed into the local image (default build arg: `latest`)
+
+Example:
+
+```sh
+opnsense-cli --help
+opnsense-cli -t root@firewall.example.net sysinfo
+OPNSENSE_CLI_VERSION=latest OPNSENSE_CLI_IMAGE_BUILD=always opnsense-cli --help
+```
+
+The default OPNsense CLI image is built locally from `images/opnsense-cli/Containerfile`. The build uses `github.com/mihakralj/opnsense` and installs the upstream `opnsense` binary as the container entrypoint. Shimmy tags the resulting image under `localhost/shimmy-opnsense-cli:<context-hash>-<platform>` so Podman keeps a reusable local cache and automatically rebuilds when the build context or runtime platform changes.
+
+**Mounts:**
+- `$PWD` → `/work` (read-write)
+- `~/.ssh` → `/root/.ssh` (read-only, if exists)
 
 **Runtime platform:**
 - Linux → `linux/amd64`

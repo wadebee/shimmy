@@ -1,0 +1,20 @@
+ARG OPNSENSE_CLI_GO_IMAGE=docker.io/library/golang:latest
+ARG OPNSENSE_CLI_BASE_IMAGE=alpine:3.22
+
+FROM ${OPNSENSE_CLI_GO_IMAGE} AS builder
+
+ARG OPNSENSE_CLI_VERSION=latest
+
+ENV CGO_ENABLED=0
+
+RUN GOBIN=/out go install "github.com/mihakralj/opnsense@${OPNSENSE_CLI_VERSION}"
+
+FROM ${OPNSENSE_CLI_BASE_IMAGE}
+
+RUN apk add --no-cache ca-certificates openssh-client
+
+COPY --from=builder /out/opnsense /usr/local/bin/opnsense
+
+WORKDIR /work
+
+ENTRYPOINT ["opnsense"]
