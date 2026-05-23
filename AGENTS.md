@@ -43,9 +43,9 @@ Always operate in PLAN -> REVIEW -> ACT mode:
 - Follow the naming conventions in `CONTRIBUTING.md` for files, functions, and variables.
 - Keep runtime shims as small POSIX shell wrappers with `#!/bin/sh` and `set -eu`.
 - Mount `$PWD` to `/work` unless the shim has a documented reason not to.
-- Use `<PREFIX>_IMAGE` for image override and `<PREFIX>_IMAGE_PULL=always` for pull policy.
+- Use `SHIMMY_{TOOL_PREFIX}_IMAGE` for image override and `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` for pull policy.
 - Use Shimmy's shared Podman helper for runtime platform selection instead of hardcoding per-shim OS or architecture checks.
-- Any Shimmy-defined variable exported into the user's shell must use the `SHIMMY_` prefix.
+- Any Shimmy-defined user-facing environment variable must use the `SHIMMY_` prefix, including image overrides, pull or build flags, opt-in behavior switches, and secret-name selectors.
 - Update shim helper code, install script, tests, and README together when behavior changes.
 - Treat Podman as an explicit dependency. Do not add Shimmy-side installation or provisioning steps for it.
 - On macOS, remember the official Podman pkg installer may place the binary at `/opt/podman/bin/podman`. If automation cannot find `podman`, check that `/opt/podman/bin` is on `PATH`.

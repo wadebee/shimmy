@@ -104,6 +104,9 @@ shimmy_agent_smoke_args_render() {
     netcat)
       printf '%s\n' '--help'
       ;;
+    opnsense-mcp-server)
+      printf '%s\n' ''
+      ;;
     rg)
       printf '%s\n' '--version'
       ;;
@@ -137,6 +140,12 @@ shimmy_agent_smoke_run() {
     ); then
       printf 'smoke_status=ok\n'
     else
+      case "$shim_name:$smoke_output" in
+        opnsense-mcp-server:*'Required environment variable(s) not set: OPNSENSE_URL, OPNSENSE_API_KEY, OPNSENSE_API_SECRET'*)
+          printf 'smoke_status=ok\n'
+          return 0
+          ;;
+      esac
       printf 'smoke_status=failed\n'
       printf 'smoke_output=%s\n' "$smoke_output"
       PREFLIGHT_STATUS=1
@@ -150,6 +159,12 @@ shimmy_agent_smoke_run() {
   ); then
     printf 'smoke_status=ok\n'
   else
+    case "$shim_name:$smoke_output" in
+      opnsense-mcp-server:*'Required environment variable(s) not set: OPNSENSE_URL, OPNSENSE_API_KEY, OPNSENSE_API_SECRET'*)
+        printf 'smoke_status=ok\n'
+        return 0
+        ;;
+    esac
     printf 'smoke_status=failed\n'
     printf 'smoke_output=%s\n' "$smoke_output"
     PREFLIGHT_STATUS=1

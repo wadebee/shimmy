@@ -135,7 +135,7 @@ The rewrite should reproduce these capabilities in a new POSIX-friendly design:
 - Run smoke tests against Podman-backed shims with `shimmy test` command
 - Support remote-image shims: `aws`, `jq`, `rg`, `terraform`
 - Support local-build shims: `netcat`, `task`, `textual`
-- Support `<PREFIX>_IMAGE` and `<PREFIX>_IMAGE_PULL=always`
+- Support `SHIMMY_{TOOL_PREFIX}_IMAGE` and `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always`
 - Build local images from checked-in `Containerfile` contexts
 - Rebuild and prune local images during update when requested
 - Mount working directory and tool-specific state into containers

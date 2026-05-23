@@ -10,7 +10,7 @@ Use this as the starting point for a new shim skill or as a checklist for a one-
 ## Replace These Tokens
 
 - `<shim-name>`
-- `<prefix>` for env vars such as `<PREFIX>_IMAGE`
+- `<tool_prefix>` for env vars such as `SHIMMY_<TOOL_PREFIX>_IMAGE`
 - `<default-image>`
 - `<interactive-flag>` as `-i` or `-it`
 - `<extra-mounts>`
@@ -41,8 +41,8 @@ SCRIPT_DIR=$(
 )
 PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
 
-<PREFIX>_IMAGE=${<PREFIX>_IMAGE:-<default-image>}
-<PREFIX>_IMAGE_PULL=${<PREFIX>_IMAGE_PULL:-}
+SHIMMY_<TOOL_PREFIX>_IMAGE=${SHIMMY_<TOOL_PREFIX>_IMAGE:-<default-image>}
+SHIMMY_<TOOL_PREFIX>_IMAGE_PULL=${SHIMMY_<TOOL_PREFIX>_IMAGE_PULL:-}
 
 if [ ! -f "$PODMAN_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
@@ -54,11 +54,11 @@ fi
 
 shimmy_podman_preflight_require "the <shim-name> shim"
 
-if [ "$<PREFIX>_IMAGE_PULL" = "always" ]; then
-  exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" <interactive-flag> --pull=always -v "$PWD:/work" -w /work "$<PREFIX>_IMAGE" "$@"
+if [ "$SHIMMY_<TOOL_PREFIX>_IMAGE_PULL" = "always" ]; then
+  exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" <interactive-flag> --pull=always -v "$PWD:/work" -w /work "$SHIMMY_<TOOL_PREFIX>_IMAGE" "$@"
 fi
 
-exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" <interactive-flag> -v "$PWD:/work" -w /work "$<PREFIX>_IMAGE" "$@"
+exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" <interactive-flag> -v "$PWD:/work" -w /work "$SHIMMY_<TOOL_PREFIX>_IMAGE" "$@"
 ```
 
 ## Design Rules
@@ -67,6 +67,7 @@ exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" <interac
 - Mount home-directory state only when the tool needs config, credentials, or caches.
 - Prefer wildcard env forwarding such as `-e AWS_*` when the underlying CLI already depends on a family of env vars.
 - Preserve transparent CLI behavior by passing `"$@"` unchanged.
+- Use `SHIMMY_` for every Shimmy-defined user-facing environment variable; reserve non-`SHIMMY_` env vars for upstream-defined pass-through configuration.
 - Choose a pinned image unless there is a strong reason to use `latest`.
 - Treat Podman as an explicit dependency. On macOS, remember the official pkg installer may place it at `/opt/podman/bin/podman`.
 - Use the shared Podman helper's platform resolver; do not hardcode per-shim platform logic.

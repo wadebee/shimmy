@@ -118,7 +118,8 @@ Choose variable names using the same general-to-specific token flow.
 - Local shell variables should use lowercase snake_case.
 - Exported environment variables and shared constants should use uppercase snake_case.
 - Global environment variables should use uppercase snake_case and start with the `SHIMMY_` prefix.
-- Any variable that Shimmy exports into the user's shell environment must use the `SHIMMY_` prefix.
+- Any Shimmy-defined user-facing environment variable must use the `SHIMMY_` prefix, including image overrides, pull or build flags, opt-in behavior switches, and secret-name selectors.
+- Non-`SHIMMY_` environment variables are allowed only when they are upstream-defined pass-through variables such as `AWS_*`, `TF_VAR_*`, or another tool's documented native configuration.
 - Use resource-first ordering where possible.
 - Reuse established env var prefixes for tool shims.
 

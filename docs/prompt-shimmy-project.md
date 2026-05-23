@@ -12,8 +12,10 @@ Constraints:
 - Follow the naming conventions in `CONTRIBUTING.md` for files, functions, and variables.
 - Put the runtime wrapper in `shims/<tool>`.
 - Use POSIX shell with `#!/bin/sh` and `set -eu`.
-- Read the default image from `<PREFIX>_IMAGE`.
-- Support `<PREFIX>_IMAGE_PULL=always` by adding `--pull=always` to `podman run`.
+- Read the default image from `SHIMMY_{TOOL_PREFIX}_IMAGE`.
+- Support `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` by adding `--pull=always` to `podman run`.
+- Use the `SHIMMY_` prefix for every Shimmy-defined user-facing environment variable, including image overrides, pull or build flags, opt-in behavior switches, and secret-name selectors.
+- Use non-`SHIMMY_` env vars only for upstream-defined pass-through configuration such as `AWS_*`, `TF_VAR_*`, or a tool's documented native variables.
 - For tools that are not already published as container images, add `images/<tool>/Containerfile` and build a local Podman image on demand instead of embedding install steps in the runtime wrapper.
 - Source the shared Podman helper and pass `--platform "$SHIMMY_PODMAN_PLATFORM"` to `podman run`. The helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS.
 - Mount `$PWD` to `/work` with `-v "$PWD":/work -w /work`.

@@ -37,7 +37,7 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 
 - Keep runtime shims as small Bash wrappers with `set -euo pipefail`.
 - Mount `$PWD` to `/work` unless the tool has a documented reason not to.
-- Use `<PREFIX>_IMAGE` for image override and `<PREFIX>_IMAGE_PULL=always` for pull policy.
+- Use `SHIMMY_{TOOL_PREFIX}_IMAGE` for image override and `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` for pull policy.
 - Choose `-it` for interactive CLIs and `-i` for filter-style CLIs.
 - Add extra mounts and env forwarding only when the tool actually needs them, and document why.
 - End the shim with `exec podman run --rm ... "$IMAGE" "$@"`.

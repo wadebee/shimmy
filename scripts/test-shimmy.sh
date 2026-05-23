@@ -809,6 +809,26 @@ test_nmap_shim_nmap_unprivileged_opt_in() {
   pass "nmap Nmap unprivileged opt-in execution"
 }
 
+test_opnsense_mcp_server_shim_direct() {
+  setup_scenario
+  require_podman
+
+  set +e
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/opnsense-mcp-server" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-server to require configuration"
+  assert_contains "$output" "Server:"
+  assert_contains "$output" "opnsense, 0.4.0"
+  assert_contains "$output" "Required environment variable(s) not set: OPNSENSE_URL, OPNSENSE_API_KEY, OPNSENSE_API_SECRET"
+
+  pass "opnsense-mcp-server direct shim execution"
+}
+
 test_rg_shim_direct() {
   setup_scenario
   require_podman
@@ -888,6 +908,26 @@ test_installed_task_shim() {
   pass "installed task shim execution"
 }
 
+test_installed_opnsense_mcp_server_shim() {
+  setup_scenario
+  require_podman
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim opnsense-mcp-server >/dev/null
+
+  set +e
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$INSTALL_DIR/shims/opnsense-mcp-server" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected installed opnsense-mcp-server to require configuration"
+  assert_contains "$output" "Required environment variable(s) not set: OPNSENSE_URL, OPNSENSE_API_KEY, OPNSENSE_API_SECRET"
+
+  pass "installed opnsense-mcp-server shim execution"
+}
+
 test_uninstall_cleanup() {
   setup_scenario
 
@@ -948,10 +988,12 @@ main() {
   test_nmap_shim_rootless_host_discovery_guidance
   test_nmap_shim_rootless_podman_privileged_bypasses_guidance
   test_nmap_shim_nmap_unprivileged_opt_in
+  test_opnsense_mcp_server_shim_direct
   test_rg_shim_direct
   test_task_shim_direct
   test_terraform_shim_direct
   test_textual_shim_direct
+  test_installed_opnsense_mcp_server_shim
   test_installed_task_shim
   test_uninstall_cleanup
 

@@ -116,6 +116,9 @@ describe_shim_image() {
     netcat)
       printf '%s\n' "$(local_image_ref "localhost/shimmy-netcat" "$images_dir/netcat")"
       ;;
+    opnsense-mcp-server)
+      printf '%s\n' "${OPNSENSE_MCP_SERVER_IMAGE:-docker.io/uhlenheide/opnsense-mcp-server}"
+      ;;
     rg)
       printf '%s\n' "${RG_IMAGE:-docker.io/vszl/ripgrep:latest}"
       ;;

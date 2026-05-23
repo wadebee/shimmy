@@ -174,6 +174,9 @@ run_pull_refresh() {
       jq)
         JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null </dev/null
         ;;
+      opnsense-mcp-server)
+        "$SHIMMY_PODMAN_BIN" pull --platform "$SHIMMY_PODMAN_PLATFORM" "${OPNSENSE_MCP_SERVER_IMAGE:-docker.io/uhlenheide/opnsense-mcp-server}" >/dev/null
+        ;;
       rg)
         RG_IMAGE_PULL=always "$shim_dir/rg" --version >/dev/null </dev/null
         ;;
