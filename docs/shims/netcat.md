@@ -13,19 +13,19 @@ This shim provides Ncat, the Nmap project's modern Netcat-compatible tool. Ncat 
 
 ## Top-Level Command Summary
 
-Ncat is option-oriented rather than subcommand-oriented. Common usage patterns:
+Ncat is option-oriented. Common usage patterns:
 
-- `netcat HOST PORT` - open a TCP connection.
+- `netcat IPv4 PORT` - open a TCP connection.
 - `netcat -l PORT` - listen for inbound connections.
-- `netcat -u HOST PORT` - use UDP.
-- `netcat --ssl HOST PORT` - connect with TLS.
+- `netcat -u IPv4 PORT` - use UDP.
+- `netcat --ssl IPv4 PORT` - connect with TLS.
 - `netcat --send-only` or `--recv-only` - constrain data direction.
 
 ## Shimmy Usage
 
 ```sh
 netcat --help
-netcat example.com 443
+netcat 198.51.100.10 443
 ```
 
 Environment:
@@ -51,6 +51,6 @@ Runtime platform:
 
 ## Quick-Start Prompts
 
-- Home labber: "Use `netcat` to check whether my NAS is accepting TCP connections on port 445."
-- Software dev: "Use `netcat` to send a raw HTTP request to my local service and show the response headers."
-- Platform engineer: "Use `netcat` to verify whether a service port is reachable from inside this project environment."
+- Home labber: "Use `netcat 192.168.1.20 445` to check whether NAS client `nas-01` is accepting SMB connections."
+- Software dev: "Use `netcat 127.0.0.1 8080` to send a raw HTTP request to local API client `api-dev` and show the response headers."
+- Platform engineer: "Use `netcat 198.51.100.25 443` to verify whether service client `edge-api-01` is reachable from inside this project environment."

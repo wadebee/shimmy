@@ -20,6 +20,40 @@ NMAP_PRIVILEGED=${SHIMMY_NMAP_PRIVILEGED:-}
 NMAP_PRIVILEGED_ARG=
 NMAP_PULL_ARG=
 NMAP_TTY_ARG=
+PODMAN_CONNECTION_ARG=
+PODMAN_CONNECTION_VALUE=
+PODMAN_PRIVILEGED=${SHIMMY_PODMAN_PRIVILEGED:-}
+PODMAN_PRIVILEGED_ARG=
+
+shimmy_nmap_args_include_host_discovery() {
+  for arg do
+    case "$arg" in
+      -sn|-sP)
+        return 0
+        ;;
+    esac
+  done
+
+  return 1
+}
+
+shimmy_nmap_args_include_unprivileged() {
+  for arg do
+    case "$arg" in
+      --unprivileged)
+        return 0
+        ;;
+    esac
+  done
+
+  return 1
+}
+
+shimmy_nmap_is_rootless_podman() {
+  rootless_value=$("$SHIMMY_PODMAN_BIN" info --format '{{.Host.Security.Rootless}}' 2>/dev/null || printf unknown)
+
+  [ "$rootless_value" = true ]
+}
 
 if [ ! -f "$PODMAN_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
@@ -56,16 +90,54 @@ case "$NMAP_LAN_SCAN" in
 esac
 
 case "$NMAP_PRIVILEGED" in
-  ''|0)
+  '')
     ;;
   1)
     NMAP_PRIVILEGED_ARG=--privileged
+    ;;
+  0)
+    NMAP_PRIVILEGED_ARG=--unprivileged
     ;;
   *)
     printf 'ERROR: SHIMMY_NMAP_PRIVILEGED must be 1, 0, or unset\n' >&2
     exit 1
     ;;
 esac
+
+case "$PODMAN_PRIVILEGED" in
+  ''|0)
+    ;;
+  1)
+    shimmy_podman_privileged_connection_require "the nmap shim" || exit 1
+    PODMAN_CONNECTION_ARG=--connection
+    PODMAN_CONNECTION_VALUE=$SHIMMY_PODMAN_PRIVILEGED_CONNECTION
+    PODMAN_PRIVILEGED_ARG=--privileged
+    ;;
+  *)
+    printf 'ERROR: SHIMMY_PODMAN_PRIVILEGED must be 1, 0, or unset\n' >&2
+    exit 1
+    ;;
+esac
+
+if [ "$NMAP_PRIVILEGED_ARG" != "--unprivileged" ] &&
+  [ "$PODMAN_PRIVILEGED_ARG" != "--privileged" ] &&
+  ! shimmy_nmap_args_include_unprivileged "$@" &&
+  shimmy_nmap_args_include_host_discovery "$@" &&
+  shimmy_nmap_is_rootless_podman; then
+  printf '%s\n' 'ERROR: nmap host discovery (-sn/-sP) needs raw socket access, but this Podman connection is rootless.' >&2
+  printf '%s\n' 'This scan requires explicit Podman privileged escalation approval.' >&2
+  printf '%s\n' 'Do not make SHIMMY_PODMAN_PRIVILEGED=1 a default.' >&2
+  printf '%s\n' 'When Podman provides a <default-connection>-root connection, Shimmy uses it only for the approved privileged run.' >&2
+  printf '%s\n' 'Set SHIMMY_PODMAN_PRIVILEGED_CONNECTION to override that rootful connection.' >&2
+  printf '%s\n' 'Request approval for the exact wrapper prefix before retrying, for example:' >&2
+  printf '%s\n' '  ["env","SHIMMY_NMAP_LAN_SCAN=1","SHIMMY_PODMAN_PRIVILEGED=1","./shims/nmap"]' >&2
+  printf '%s\n' '  ["env","SHIMMY_NMAP_LAN_SCAN=1","SHIMMY_PODMAN_PRIVILEGED=1","nmap"]' >&2
+  printf '%s\n' 'After approval, retry with:' >&2
+  printf '%s\n' '  SHIMMY_NMAP_LAN_SCAN=1 SHIMMY_PODMAN_PRIVILEGED=1 nmap -sn <target>' >&2
+  printf '%s\n' 'If the approved privileged run still cannot open raw sockets, use a rootful Podman connection for raw LAN discovery.' >&2
+  printf '%s\n' 'For TCP reachability from rootless Podman, use a non-discovery scan such as: nmap -sT -Pn -p <ports> <target>' >&2
+  exit 1
+fi
 
 if [ -n "$NMAP_NETWORK" ]; then
   NMAP_NETWORK_ARG=--network
@@ -76,7 +148,10 @@ if [ -t 0 ] && [ -t 1 ]; then
   NMAP_TTY_ARG=-it
 fi
 
-exec "$SHIMMY_PODMAN_BIN" run --rm \
+exec "$SHIMMY_PODMAN_BIN" \
+  ${PODMAN_CONNECTION_ARG:+"$PODMAN_CONNECTION_ARG"} \
+  ${PODMAN_CONNECTION_VALUE:+"$PODMAN_CONNECTION_VALUE"} \
+  run --rm \
   --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${NMAP_PULL_ARG:+"$NMAP_PULL_ARG"} \
   ${NMAP_TTY_ARG:+"$NMAP_TTY_ARG"} \
@@ -86,8 +161,9 @@ exec "$SHIMMY_PODMAN_BIN" run --rm \
   ${NMAP_NET_RAW_CAP_VALUE:+"$NMAP_NET_RAW_CAP_VALUE"} \
   ${NMAP_NET_ADMIN_CAP_ARG:+"$NMAP_NET_ADMIN_CAP_ARG"} \
   ${NMAP_NET_ADMIN_CAP_VALUE:+"$NMAP_NET_ADMIN_CAP_VALUE"} \
-  ${NMAP_PRIVILEGED_ARG:+"$NMAP_PRIVILEGED_ARG"} \
+  ${PODMAN_PRIVILEGED_ARG:+"$PODMAN_PRIVILEGED_ARG"} \
   -v "$PWD:/work" \
   -w /work \
   "$NMAP_IMAGE" \
+  ${NMAP_PRIVILEGED_ARG:+"$NMAP_PRIVILEGED_ARG"} \
   "$@"

@@ -28,7 +28,6 @@ That document is the contributor source of truth, including naming conventions f
 | **go** | Go toolchain CLI | [docs/shims/go.md](docs/shims/go.md) |
 | **jq** | JSON processor | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | TCP/UDP debugging client | [docs/shims/netcat.md](docs/shims/netcat.md) |
-| **netstat** | Network socket and routing table viewer | [docs/shims/netstat.md](docs/shims/netstat.md) |
 | **nmap** | Network discovery and security scanner | [docs/shims/nmap.md](docs/shims/nmap.md) |
 | **opnsense-cli** | OPNsense command runner | [docs/shims/opnsense-cli.md](docs/shims/opnsense-cli.md) |
 | **rg** | Ripgrep search | [docs/shims/rg.md](docs/shims/rg.md) |
@@ -265,10 +264,9 @@ Once shims are in your PATH, use tools naturally:
 aws sts get-caller-identity
 go test ./...
 jq . file.json
-netcat example.com 443
-netstat -rn
+netcat 198.51.100.10 443
 nmap --version
-opnsense-cli -t root@firewall sysinfo
+opnsense-cli -t root@192.168.1.1 sysinfo
 rg "pattern" .
 task --list
 terraform plan
@@ -285,7 +283,6 @@ Each runtime shim has a focused quick-start document with upstream links, source
 | **go** | [docs/shims/go.md](docs/shims/go.md) |
 | **jq** | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | [docs/shims/netcat.md](docs/shims/netcat.md) |
-| **netstat** | [docs/shims/netstat.md](docs/shims/netstat.md) |
 | **nmap** | [docs/shims/nmap.md](docs/shims/nmap.md) |
 | **opnsense-cli** | [docs/shims/opnsense-cli.md](docs/shims/opnsense-cli.md) |
 | **rg** | [docs/shims/rg.md](docs/shims/rg.md) |
@@ -309,7 +306,7 @@ sh ./scripts/test-shimmy.sh
 Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
 - install, activate, status, machine-readable manifest output, update, startup-file repair, and uninstall behavior for the single-root manifest layout
-- live Podman execution for the supported shim set: `aws`, `go`, `jq`, `netcat`, `netstat`, `nmap`, `opnsense-cli`, `rg`, `task`, `terraform`, and `textual`
+- live Podman execution for the supported shim set: `aws`, `go`, `jq`, `netcat`, `nmap`, `opnsense-cli`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
 ```
@@ -320,7 +317,6 @@ shimmy/
 │   ├── go
 │   ├── jq
 │   ├── netcat
-│   ├── netstat
 │   ├── nmap
 │   ├── opnsense-cli
 │   ├── rg

@@ -16,7 +16,7 @@ SOURCE_SHIM_LIB_DIR=$ROOT_DIR/lib/shims
 STARTUP_HELPER_FILE=$SOURCE_REPO_LIB_DIR/shimmy-startup.sh
 
 DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
-SUPPORTED_SHIMS='aws go jq netcat netstat nmap opnsense-cli rg task terraform textual'
+SUPPORTED_SHIMS='aws go jq netcat nmap opnsense-cli rg task terraform textual'
 
 REQUESTED_INSTALL_DIR=
 REQUESTED_SHIMS=

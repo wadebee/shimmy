@@ -35,6 +35,25 @@ shimmy_podman_failure_print_missing() {
   printf '%s\n' 'Shimmy also checks /opt/podman/bin/podman for the macOS pkg installer.' >&2
 }
 
+shimmy_podman_failure_print_privileged_connection_missing() {
+  context_label=${1:-shimmy}
+
+  printf 'ERROR: SHIMMY_PODMAN_PRIVILEGED=1 requires a rootful Podman connection for %s.\n' "$context_label" >&2
+  printf '%s\n' 'Set SHIMMY_PODMAN_PRIVILEGED_CONNECTION to a rootful connection from `podman system connection list`.' >&2
+  printf '%s\n' 'On macOS, Podman commonly creates a rootful connection named <default-connection>-root.' >&2
+  printf '%s\n' 'Shimmy will use that rootful connection automatically when it exists.' >&2
+  printf '%s\n' 'Do not change the default Podman connection just to run a privileged shim command.' >&2
+}
+
+shimmy_podman_failure_print_privileged_connection_not_rootful() {
+  context_label=${1:-shimmy}
+  connection_name=${2:-unknown}
+
+  printf 'ERROR: SHIMMY_PODMAN_PRIVILEGED_CONNECTION=%s is not a verified rootful Podman connection for %s.\n' "$connection_name" "$context_label" >&2
+  printf '%s\n' 'Choose a rootful connection from `podman system connection list`, usually one with a root user and /run/podman/podman.sock URI.' >&2
+  printf '%s\n' 'Do not change the default Podman connection just to run a privileged shim command.' >&2
+}
+
 shimmy_podman_failure_print_unreachable() {
   context_label=${1:-shimmy}
   podman_bin=${2:-podman}
@@ -99,4 +118,58 @@ shimmy_podman_preflight_require() {
     shimmy_podman_failure_print_unreachable "$context_label" "$SHIMMY_PODMAN_BIN"
     return 1
   fi
+}
+
+shimmy_podman_privileged_connection_require() {
+  context_label=${1:-shimmy}
+
+  if ! shimmy_podman_privileged_connection_resolve; then
+    shimmy_podman_failure_print_privileged_connection_missing "$context_label"
+    return 1
+  fi
+
+  rootless_value=$("$SHIMMY_PODMAN_BIN" --connection "$SHIMMY_PODMAN_PRIVILEGED_CONNECTION" info --format '{{.Host.Security.Rootless}}' 2>/dev/null || printf unknown)
+  if [ "$rootless_value" != false ]; then
+    shimmy_podman_failure_print_privileged_connection_not_rootful "$context_label" "$SHIMMY_PODMAN_PRIVILEGED_CONNECTION"
+    return 1
+  fi
+
+  export SHIMMY_PODMAN_PRIVILEGED_CONNECTION
+}
+
+shimmy_podman_privileged_connection_resolve() {
+  if [ -n "${SHIMMY_PODMAN_PRIVILEGED_CONNECTION:-}" ]; then
+    return 0
+  fi
+
+  default_connection=$("$SHIMMY_PODMAN_BIN" system connection list --format '{{range .}}{{if .Default}}{{.Name}}{{"\n"}}{{end}}{{end}}' 2>/dev/null | sed -n '1p' || printf '')
+  connection_names=$("$SHIMMY_PODMAN_BIN" system connection list --format '{{range .}}{{.Name}}{{"\n"}}{{end}}' 2>/dev/null || printf '')
+
+  if [ -n "$default_connection" ]; then
+    root_connection=$default_connection-root
+    while IFS= read -r connection_name; do
+      if [ "$connection_name" = "$root_connection" ]; then
+        SHIMMY_PODMAN_PRIVILEGED_CONNECTION=$root_connection
+        return 0
+      fi
+    done <<EOF
+$connection_names
+EOF
+  fi
+
+  connection_entries=$("$SHIMMY_PODMAN_BIN" system connection list --format '{{range .}}{{.Name}} {{.URI}}{{"\n"}}{{end}}' 2>/dev/null || printf '')
+  while IFS=' ' read -r connection_name connection_uri; do
+    [ -n "$connection_name" ] || continue
+    case "$connection_uri" in
+      ssh://root@*|*/run/podman/podman.sock*)
+        SHIMMY_PODMAN_PRIVILEGED_CONNECTION=$connection_name
+        return 0
+        ;;
+    esac
+  done <<EOF
+$connection_entries
+EOF
+
+  SHIMMY_PODMAN_PRIVILEGED_CONNECTION=
+  return 1
 }

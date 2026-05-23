@@ -34,7 +34,7 @@ The upstream repository does not currently publish tagged GitHub releases; Shimm
 
 ```sh
 opnsense-cli --help
-opnsense-cli -t root@firewall.example.net sysinfo
+opnsense-cli -t root@192.168.1.1 sysinfo
 OPNSENSE_CLI_IMAGE_BUILD=always opnsense-cli --help
 ```
 
@@ -63,6 +63,6 @@ Runtime platform:
 
 ## Quick-Start Prompts
 
-- Home labber: "Use `opnsense-cli -t root@firewall sysinfo` to summarize firewall system health."
-- Software dev: "Show me the safe read-only OPNsense CLI commands I can run before changing firewall configuration."
-- Platform engineer: "Use OPNsense CLI backup and compare commands to prepare a reviewable firewall config change."
+- Home labber: "Use `opnsense-cli -t root@192.168.1.1 sysinfo` to summarize firewall client `opnsense-fw-01` system health."
+- Software dev: "Show me the safe read-only OPNsense CLI commands I can run against firewall client `opnsense-fw-01` at `192.168.1.1` before changing firewall configuration."
+- Platform engineer: "Use OPNsense CLI backup and compare commands for firewall client `opnsense-fw-01` at `192.168.1.1` to prepare a reviewable firewall config change."

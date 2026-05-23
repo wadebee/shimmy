@@ -157,6 +157,39 @@ test_podman_unreachable_guidance_agent() {
   pass "Podman unreachable guidance includes AI Agent approval hint"
 }
 
+test_podman_privileged_connection_resolves_default_root() {
+  require_podman
+
+  default_connection=$("$PODMAN_BIN" system connection list --format '{{range .}}{{if .Default}}{{.Name}}{{"\n"}}{{end}}{{end}}' 2>/dev/null | sed -n '1p' || printf '')
+
+  if [ -z "$default_connection" ]; then
+    pass "Podman privileged connection default-root resolution skipped without default connection"
+    return 0
+  fi
+
+  root_connection=$default_connection-root
+  connection_names=$("$PODMAN_BIN" system connection list --format '{{range .}}{{.Name}}{{"\n"}}{{end}}' 2>/dev/null || printf '')
+
+  case "
+$connection_names
+" in
+    *"
+$root_connection
+"*)
+      ;;
+    *)
+      pass "Podman privileged connection default-root resolution skipped without rootful companion connection"
+      return 0
+      ;;
+  esac
+
+  unset SHIMMY_PODMAN_PRIVILEGED_CONNECTION
+  shimmy_podman_privileged_connection_resolve || fail_test "expected rootful Podman companion connection to resolve"
+  assert_equals "$SHIMMY_PODMAN_PRIVILEGED_CONNECTION" "$root_connection"
+
+  pass "Podman privileged connection resolves default-root companion"
+}
+
 run_in_repo() {
   (
     cd "$ROOT_DIR"
@@ -639,76 +672,6 @@ test_netcat_shim_direct() {
   pass "netcat direct shim execution"
 }
 
-test_netstat_shim_direct() {
-  setup_scenario
-  require_podman
-
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/netstat" --help 2>&1
-  )
-
-  assert_contains "$output" "Display networking information"
-
-  pass "netstat direct shim execution"
-}
-
-test_netstat_shim_lan_view_opt_in() {
-  setup_scenario
-  require_podman
-
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NETSTAT_LAN_VIEW=1 "$ROOT_DIR/shims/netstat" -rn 2>&1
-  )
-
-  assert_contains "$output" "Kernel IP routing table"
-
-  pass "netstat LAN view opt-in execution"
-}
-
-test_netstat_shim_network_opt_in() {
-  setup_scenario
-  require_podman
-
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NETSTAT_NETWORK=none "$ROOT_DIR/shims/netstat" --help 2>&1
-  )
-
-  assert_contains "$output" "Display networking information"
-
-  pass "netstat network opt-in execution"
-}
-
-test_netstat_shim_host_pid_opt_in() {
-  setup_scenario
-  require_podman
-
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NETSTAT_HOST_PID=1 "$ROOT_DIR/shims/netstat" -lnp 2>&1
-  )
-
-  assert_contains "$output" "PID/Program name"
-
-  pass "netstat host PID opt-in execution"
-}
-
-test_netstat_shim_privileged_opt_in() {
-  setup_scenario
-  require_podman
-
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NETSTAT_LAN_VIEW=1 SHIMMY_NETSTAT_HOST_PID=1 SHIMMY_NETSTAT_PRIVILEGED=1 "$ROOT_DIR/shims/netstat" -lnp 2>&1
-  )
-
-  assert_contains "$output" "PID/Program name"
-
-  pass "netstat privileged opt-in execution"
-}
-
 test_nmap_shim_direct() {
   setup_scenario
   require_podman
@@ -751,18 +714,110 @@ test_nmap_shim_network_opt_in() {
   pass "nmap network opt-in execution"
 }
 
-test_nmap_shim_privileged_opt_in() {
+test_nmap_shim_nmap_privileged_opt_in() {
   setup_scenario
   require_podman
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NMAP_LAN_SCAN=1 SHIMMY_NMAP_PRIVILEGED=1 "$ROOT_DIR/shims/nmap" --version 2>&1
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NMAP_PRIVILEGED=1 "$ROOT_DIR/shims/nmap" --version 2>&1
   )
 
   assert_contains "$output" "Nmap version"
 
-  pass "nmap privileged opt-in execution"
+  pass "nmap Nmap privileged opt-in execution"
+}
+
+test_nmap_shim_podman_privileged_opt_in() {
+  setup_scenario
+  require_podman
+
+  if ! shimmy_podman_privileged_connection_resolve; then
+    pass "nmap Podman privileged opt-in execution skipped without rootful Podman connection"
+    return 0
+  fi
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NMAP_LAN_SCAN=1 SHIMMY_PODMAN_PRIVILEGED=1 "$ROOT_DIR/shims/nmap" --version 2>&1
+  )
+
+  assert_contains "$output" "Nmap version"
+
+  pass "nmap Podman privileged opt-in execution"
+}
+
+test_nmap_shim_rootless_host_discovery_guidance() {
+  setup_scenario
+  require_podman
+
+  rootless_value=$("$PODMAN_BIN" info --format '{{.Host.Security.Rootless}}' 2>/dev/null || printf false)
+
+  if [ "$rootless_value" != true ]; then
+    pass "nmap rootless host discovery guidance skipped for rootful Podman"
+    return 0
+  fi
+
+  set +e
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/nmap" -sn 127.0.0.1 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected rootless nmap host discovery guidance to fail before execution"
+  assert_contains "$output" "nmap host discovery (-sn/-sP) needs raw socket access"
+  assert_contains "$output" "explicit Podman privileged escalation approval"
+  assert_contains "$output" "Do not make SHIMMY_PODMAN_PRIVILEGED=1 a default."
+  assert_contains "$output" '["env","SHIMMY_NMAP_LAN_SCAN=1","SHIMMY_PODMAN_PRIVILEGED=1","./shims/nmap"]'
+  assert_contains "$output" "SHIMMY_NMAP_LAN_SCAN=1 SHIMMY_PODMAN_PRIVILEGED=1 nmap -sn <target>"
+  assert_contains "$output" "use a rootful Podman connection for raw LAN discovery"
+
+  pass "nmap rootless host discovery guidance"
+}
+
+test_nmap_shim_rootless_podman_privileged_bypasses_guidance() {
+  setup_scenario
+  require_podman
+
+  if ! shimmy_podman_privileged_connection_resolve; then
+    pass "nmap rootless Podman privileged guidance bypass skipped without rootful Podman connection"
+    return 0
+  fi
+
+  rootless_value=$("$PODMAN_BIN" info --format '{{.Host.Security.Rootless}}' 2>/dev/null || printf false)
+
+  if [ "$rootless_value" != true ]; then
+    pass "nmap rootless Podman privileged guidance bypass skipped for rootful Podman"
+    return 0
+  fi
+
+  set +e
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NMAP_LAN_SCAN=1 SHIMMY_PODMAN_PRIVILEGED=1 "$ROOT_DIR/shims/nmap" -sn 127.0.0.1 2>&1
+  )
+  set -e
+
+  assert_not_contains "$output" "explicit Podman privileged escalation approval"
+  assert_not_contains "$output" "Do not make SHIMMY_PODMAN_PRIVILEGED=1 a default."
+
+  pass "nmap rootless Podman privileged guidance bypass"
+}
+
+test_nmap_shim_nmap_unprivileged_opt_in() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NMAP_PRIVILEGED=0 "$ROOT_DIR/shims/nmap" --version 2>&1
+  )
+
+  assert_contains "$output" "Nmap version"
+
+  pass "nmap Nmap unprivileged opt-in execution"
 }
 
 test_opnsense_cli_shim_direct() {
@@ -887,6 +942,7 @@ main() {
   test_podman_platform_resolves_host_os
   test_podman_platform_tag_render
   test_podman_unreachable_guidance_agent
+  test_podman_privileged_connection_resolves_default_root
   test_dash_parse
   test_install_manifest
   test_install_removes_legacy_shell_init_block
@@ -911,15 +967,14 @@ main() {
   test_installed_go_shim
   test_installed_jq_shim
   test_netcat_shim_direct
-  test_netstat_shim_direct
-  test_netstat_shim_lan_view_opt_in
-  test_netstat_shim_network_opt_in
-  test_netstat_shim_host_pid_opt_in
-  test_netstat_shim_privileged_opt_in
   test_nmap_shim_direct
   test_nmap_shim_lan_scan_opt_in
   test_nmap_shim_network_opt_in
-  test_nmap_shim_privileged_opt_in
+  test_nmap_shim_nmap_privileged_opt_in
+  test_nmap_shim_podman_privileged_opt_in
+  test_nmap_shim_rootless_host_discovery_guidance
+  test_nmap_shim_rootless_podman_privileged_bypasses_guidance
+  test_nmap_shim_nmap_unprivileged_opt_in
   test_opnsense_cli_shim_direct
   test_rg_shim_direct
   test_task_shim_direct

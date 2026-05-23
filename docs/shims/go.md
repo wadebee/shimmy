@@ -50,6 +50,6 @@ Runtime platform:
 
 ## Quick-Start Prompts
 
-- Home labber: "Use `go test ./...` to verify this small home automation service before I deploy it."
+- Home labber: "Use `go test ./...` to verify this home automation service before I deploy it."
 - Software dev: "Run the Go test suite and summarize failing packages with the exact test names."
 - Platform engineer: "Use `go env` to confirm the target architecture and module cache settings for this build container."
