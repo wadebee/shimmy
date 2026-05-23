@@ -116,9 +116,6 @@ describe_shim_image() {
     netcat)
       printf '%s\n' "$(local_image_ref "localhost/shimmy-netcat" "$images_dir/netcat")"
       ;;
-    opnsense-cli)
-      printf '%s\n' "$(local_image_ref "localhost/shimmy-opnsense-cli" "$images_dir/opnsense-cli")"
-      ;;
     rg)
       printf '%s\n' "${RG_IMAGE:-docker.io/vszl/ripgrep:latest}"
       ;;

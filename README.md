@@ -29,7 +29,6 @@ That document is the contributor source of truth, including naming conventions f
 | **jq** | JSON processor | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | TCP/UDP debugging client | [docs/shims/netcat.md](docs/shims/netcat.md) |
 | **nmap** | Network discovery and security scanner | [docs/shims/nmap.md](docs/shims/nmap.md) |
-| **opnsense-cli** | OPNsense command runner | [docs/shims/opnsense-cli.md](docs/shims/opnsense-cli.md) |
 | **rg** | Ripgrep search | [docs/shims/rg.md](docs/shims/rg.md) |
 | **task** | Taskfile task runner | [docs/shims/task.md](docs/shims/task.md) |
 | **terraform** | Infrastructure as Code | [docs/shims/terraform.md](docs/shims/terraform.md) |
@@ -266,7 +265,6 @@ go test ./...
 jq . file.json
 netcat 198.51.100.10 443
 nmap --version
-opnsense-cli -t root@192.168.1.1 sysinfo
 rg "pattern" .
 task --list
 terraform plan
@@ -284,7 +282,6 @@ Each runtime shim has a focused quick-start document with upstream links, source
 | **jq** | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | [docs/shims/netcat.md](docs/shims/netcat.md) |
 | **nmap** | [docs/shims/nmap.md](docs/shims/nmap.md) |
-| **opnsense-cli** | [docs/shims/opnsense-cli.md](docs/shims/opnsense-cli.md) |
 | **rg** | [docs/shims/rg.md](docs/shims/rg.md) |
 | **task** | [docs/shims/task.md](docs/shims/task.md) |
 | **terraform** | [docs/shims/terraform.md](docs/shims/terraform.md) |
@@ -306,7 +303,7 @@ sh ./scripts/test-shimmy.sh
 Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
 - install, activate, status, machine-readable manifest output, update, startup-file repair, and uninstall behavior for the single-root manifest layout
-- live Podman execution for the supported shim set: `aws`, `go`, `jq`, `netcat`, `nmap`, `opnsense-cli`, `rg`, `task`, `terraform`, and `textual`
+- live Podman execution for the supported shim set: `aws`, `go`, `jq`, `netcat`, `nmap`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
 ```
@@ -318,7 +315,6 @@ shimmy/
 │   ├── jq
 │   ├── netcat
 │   ├── nmap
-│   ├── opnsense-cli
 │   ├── rg
 │   ├── task
 │   ├── tessl
@@ -326,7 +322,6 @@ shimmy/
 │   └── terraform
 ├── images/                   # Custom shim image build contexts
 │   ├── netcat
-│   ├── opnsense-cli
 │   ├── task
 │   ├── tessl
 │   └── textual

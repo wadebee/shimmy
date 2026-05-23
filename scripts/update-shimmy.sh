@@ -114,7 +114,6 @@ line_list_append() {
 local_build_repo_for_shim() {
   case "$1" in
     netcat) printf 'localhost/shimmy-netcat\n' ;;
-    opnsense-cli) printf 'localhost/shimmy-opnsense-cli\n' ;;
     task) printf 'localhost/shimmy-task\n' ;;
     textual) printf 'localhost/shimmy-textual\n' ;;
     *) return 1 ;;
@@ -199,10 +198,6 @@ run_build_refresh() {
     case "$shim_name" in
       netcat)
         NETCAT_IMAGE_BUILD=always "$shim_dir/netcat" --help >/dev/null </dev/null
-        cleanup_old_local_images "$shim_name" "$images_dir"
-        ;;
-      opnsense-cli)
-        OPNSENSE_CLI_IMAGE_BUILD=always "$shim_dir/opnsense-cli" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
       task)
