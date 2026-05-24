@@ -67,39 +67,43 @@ Runtime platform:
 
 Minimum read-only OPNsense API privileges:
 
-| MCP action | OPNsense API endpoint privilege |
-|------------|----------------------------------|
-| MCP startup/version detection | `GET /api/core/firmware/status` |
-| WAN and gateway status | `GET /api/routes/gateway/status` |
-| DHCP leases via dnsmasq | `GET /api/dnsmasq/leases/search` |
-| DHCP leases via Kea | `GET /api/kea/leases4/search` |
-| DHCP leases via ISC DHCP | `GET /api/dhcpv4/leases/searchLease` or `GET /api/dhcpv4/leases/search_lease` |
-| DNS resolver stats | `GET /api/unbound/diagnostics/stats` |
-| Service list | `POST /api/core/service/search` |
-| Config inventory scan | `GET /api/core/backup/download/this` |
+Use the privilege `Name` values shown in `System | Groups | Edit Group | Privileges`.
+Add `System: Deny config write` to the read-only group so the account cannot
+change saved configuration even if broader page privileges are added later.
 
-Useful optional inventory privileges for `opn_scan_config`:
+| Scope | OPNsense privilege `Name` | MCP tools or prompts covered |
+|-------|----------------------------|------------------------------|
+| Smoke-test baseline | `System: Firmware` | `opn_system_status`; API version/style detection |
+| Smoke-test baseline | `Status: Services` | `opn_list_services`; service status checks |
+| Smoke-test baseline | `System: Gateways` | `opn_gateway_status`; WAN and gateway health |
+| Home lab read-only prompt | `Services: Dnsmasq DNS/DHCP: Settings` | `opn_list_dnsmasq_leases`, `opn_list_dnsmasq_ranges`; dnsmasq DHCP/DNS installs |
+| Home lab read-only prompt | `Services: DHCP: Kea(v4)` | `opn_list_kea_leases`; Kea DHCPv4 installs |
+| Home lab read-only prompt | `Services: ISC DHCPv4: Leases` | `opn_list_dhcp_leases`; legacy ISC DHCPv4 installs |
+| Home lab read-only prompt | `Services: Unbound` | `opn_dns_stats`; Unbound resolver data |
+| Software dev read-only prompt | `Firewall: Aliases` | `opn_list_firewall_aliases`; alias inventory |
+| Software dev read-only prompt | `Firewall: NAT: Destination NAT` | `opn_list_nat_rules`; MVC port-forward rules |
+| Software dev read-only prompt | `Firewall: Rules [new]` | `opn_list_firewall_rules`; MVC firewall automation rules |
+| Software dev read-only prompt | `Diagnostics: Configuration History` | `opn_scan_config`, `opn_get_config_section`, `opn_download_config`; legacy GUI firewall and NAT config inventory |
+| Platform engineer read-only prompt | `Services: HAProxy` | `opn_haproxy_status`; HAProxy status and read-only resource searches |
+| Platform engineer read-only prompt | `Status: OpenVPN` | `opn_openvpn_status`; OpenVPN sessions and routes |
+| Platform engineer read-only prompt | `VPN: OpenVPN: Instances` | `opn_openvpn_status`; OpenVPN instance inventory |
+| Platform engineer read-only prompt | `Status: IPsec` | `opn_ipsec_status`; IPsec phase 1 and phase 2 sessions |
+| Platform engineer read-only prompt | `Status: IPsec: SPD` | `opn_ipsec_status`; IPsec service status |
+| Platform engineer read-only prompt | `VPN: WireGuard: Status` | `opn_wireguard_status`; WireGuard tunnel status |
+| Optional diagnostics | `Diagnostics: ARP Table` | `opn_arp_table`; IPv4 neighbor inventory |
+| Optional diagnostics | `Diagnostics: NDP Table` | `opn_ndp_table`; IPv6 neighbor inventory |
+| Optional diagnostics | `Diagnostics: Netstat` | `opn_interface_stats`; interface counters |
+| Optional diagnostics | `Diagnostics: Show States` | `opn_pf_states`; state table inspection |
+| Optional diagnostics | `Diagnostics: Logs: Firewall: Live View` | `opn_firewall_log`; recent firewall log entries |
+| Optional diagnostics | `Diagnostics: Ping` | `opn_ping`; active ping diagnostic |
+| Optional diagnostics | `Diagnostics: Traceroute` | `opn_traceroute`; active traceroute diagnostic |
+| Optional diagnostics | `Interfaces: Diagnostics: DNS Lookup` | `opn_dns_lookup`; active DNS lookup diagnostic |
 
-- `GET /api/core/firmware/info`
-- `GET /api/dnsmasq/service/status`
-- `GET /api/dnsmasq/settings/get`
-- `GET /api/kea/service/status`
-- `GET /api/kea/dhcpv4/get`
-- `GET /api/dnsmasq/leases/search`
-- `GET /api/kea/leases4/search`
-- `GET /api/diagnostics/interface/getInterfaceConfig` or `GET /api/diagnostics/interface/get_interface_config`
-- `GET /api/diagnostics/interface/getInterfaceNames` or `GET /api/diagnostics/interface/get_interface_names`
-
-Forbidden troubleshooting:
-
-| Error while calling | Usually missing endpoint privilege |
-|---------------------|-------------------------------------|
-| `Version detection failed: HTTP 403` | `GET /api/core/firmware/status` |
-| `opn_gateway_status: Forbidden` | `GET /api/routes/gateway/status` |
-| `opn_list_dnsmasq_leases: Forbidden` | `GET /api/dnsmasq/leases/search` |
-| `opn_dns_stats: Forbidden` | `GET /api/unbound/diagnostics/stats` |
-| `opn_list_services: Forbidden` | `POST /api/core/service/search` |
-| `opn_scan_config: Forbidden` | Start with `GET /api/core/backup/download/this`, then add the optional inventory privileges above as needed. |
+The read-only prompt examples below do not all need every optional diagnostic
+privilege. Grant the optional rows only when the assistant should be allowed to
+run those diagnostics. Some OPNsense versions and plugins expose overlapping
+privileges; the names above come from the OPNsense privilege list at
+`/api/auth/priv/search` and correspond to the UI `Name` column.
 
 MCP stdio smoke test:
 
@@ -108,7 +112,10 @@ MCP stdio smoke test:
   printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"shimmy-smoke","version":"0.0.0"}}}'
   printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}'
   printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"opn_mcp_info","arguments":{}}}'
-  sleep 5
+  printf '%s\n' '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"opn_system_status","arguments":{}}}'
+  printf '%s\n' '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"opn_list_services","arguments":{}}}'
+  printf '%s\n' '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"opn_gateway_status","arguments":{}}}'
+  sleep 20
 ) | OPNSENSE_URL=https://192.168.1.1/api opnsense-mcp-server
 ```
 
@@ -141,8 +148,8 @@ Notes:
 
 Read-only prompts:
 
-- Home labber: "Use the OPNsense MCP server to summarize WAN status, gateway health, DHCP leases, and DNS service status."
-- Software dev: "Inspect firewall aliases and NAT rules relevant to the dev subnet, then explain what inbound and outbound access is allowed."
+- Home labber: "Use the OPNsense MCP server to summarize WAN and dnsmasq status, then show detailed DHCP leases."
+- Software dev: "Show my current host IP/subnet and inspect firewall aliases, interface assignments and rules that apply toit. Summarize effective inbound / outbound access and port forwards. Show floating rules and highlight externally exposed services."
 - Platform engineer: "Review VPN, HAProxy, and firewall rule status for production-facing services and list risks or stale entries."
 
 Write-capable prompts:

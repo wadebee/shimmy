@@ -70,7 +70,44 @@ For read-only network summaries, query tools separately or keep output small:
 
 If combined output is large, rerun individual tools and summarize locally from `structuredContent`.
 
+## Missing OPNsense API Privileges
+
+When an OPNsense MCP call returns HTTP 403 or another authorization error:
+
+1. Stop. Do not try alternate endpoints, remove safety flags, enable writes, or work around the missing privilege.
+2. Identify the failed MCP tool and the likely OPNsense privilege `Name` from `../../../docs/shims/opnsense-mcp-server.md` when possible.
+3. Ask the user to update the API user's group privileges before retrying.
+4. Tell the user to add the privilege in OPNsense at `System | Access | Groups | Edit Group | Privileges`.
+5. Include the security impact of the requested privilege:
+   - If the privilege is status, diagnostics, lease, alias, NAT, rule, service, VPN, or configuration-inspection oriented, say it preserves the intended read-only posture while `System: Deny config write` remains enabled.
+   - If the operation requires removing `System: Deny config write`, setting `OPNSENSE_ALLOW_WRITES=true`, or granting write-capable privileges, say it breaches the read-only boundary and should only happen during an explicit change window.
+6. After the user confirms the privilege has been added, retry the same operation once. If it still fails, stop and report the remaining error.
+
+Use this prompt shape:
+
+```text
+OPNsense returned 403 for `<mcp_tool_name>`.
+
+Likely missing privilege:
+`<OPNsense privilege Name>`
+
+To grant it, update the API user's group in OPNsense:
+`System | Access | Groups | Edit Group | Privileges`
+
+Security impact:
+<Briefly explain whether this preserves the read-only boundary with
+`System: Deny config write`, or whether it breaches the read-only boundary.>
+
+After you add the privilege, approve and I will retry the same operation once.
+```
+
 ## Learning Guidance
 
 - Capture OPNsense MCP-specific lessons here when they affect API privileges, secret handling, stdio framing, read-only defaults, write-window safeguards, or live smoke checks.
+- In AI Agent VM/container shells, local host network commands may expose only loopback, an internal resolver, or sandbox-only routes. For "current host" firewall summaries, infer the real VM host from OPNsense leases, ARP output, and PF states instead of assuming the shell's local IP is the host IP.
+- `opn_arp_table` and `opn_ndp_table` may fail at the MCP/FastMCP serialization layer when the upstream tool returns a bare list instead of a dict. Useful ARP/NDP rows can still appear in the error payload; inspect that text before treating the query as a total failure.
+- Use `opn_pf_states` to distinguish configured policy from active traffic. If an alias such as `server_proxmox` points to one address but live PF states only show another host on the subnet, report that distinction explicitly.
+- For firewall policy summaries, query legacy config sections as well as MVC list tools. `opn_list_firewall_rules` can return empty while legacy GUI rules exist under `opn_get_config_section("filter")`; `opn_list_nat_rules` can show generated rules while NAT mode or legacy NAT details are under `opn_get_config_section("nat")`.
+- Keep active diagnostics such as `opn_ping` and `opn_dns_lookup` out of the default read-only audit path. They may use POST endpoints that OPNsense denies when the API user has `System: Deny config write`, even though the diagnostic intent is non-mutating.
+- When summarizing effective access, separate configuration from runtime evidence: aliases and rules describe intended policy, leases and ARP describe known neighbors, and PF states describe current traffic.
 - Promote reusable Shimmy design lessons to `../shimmy-create/SKILL.md` under `Learning Guidance`.
