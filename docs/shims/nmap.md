@@ -31,8 +31,8 @@ SHIMMY_NMAP_LAN_SCAN=1 nmap -sn 192.168.1.0/24
 
 Environment:
 
-- `NMAP_IMAGE` - override the container image.
-- `NMAP_IMAGE_PULL=always` - force pulling the configured image.
+- `SHIMMY_NMAP_IMAGE` - override the container image.
+- `SHIMMY_NMAP_IMAGE_PULL=always` - force pulling the configured image.
 - `SHIMMY_NMAP_NETWORK` - pass `--network <value>` to Podman.
 - `SHIMMY_NMAP_LAN_SCAN=1` - opt into host networking plus raw/network capabilities.
 - `SHIMMY_PODMAN_PRIVILEGED=1` - add Podman `--privileged` as an explicit last-resort opt-in.

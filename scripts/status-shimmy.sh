@@ -7,7 +7,7 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
-CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
+SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
 DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
 REQUESTED_INSTALL_DIR=
 OUTPUT_FORMAT=human
@@ -17,12 +17,12 @@ fail() {
   exit 1
 }
 
-if [ ! -f "$CUSTOM_IMAGE_HELPER_FILE" ]; then
-  fail "missing custom image helper: $CUSTOM_IMAGE_HELPER_FILE"
+if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
+  fail "missing custom image helper: $SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 fi
 
 # shellcheck source=lib/shims/custom-image.sh
-. "$CUSTOM_IMAGE_HELPER_FILE"
+. "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
 trim_trailing_slash() {
   path_value=${1:-}
@@ -105,28 +105,28 @@ describe_shim_image() {
 
   case "$shim_name" in
     aws)
-      printf '%s\n' "${AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}"
+      printf '%s\n' "${SHIMMY_AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}"
       ;;
     go)
-      printf '%s\n' "${GO_IMAGE:-docker.io/library/golang:latest}"
+      printf '%s\n' "${SHIMMY_GO_IMAGE:-docker.io/library/golang:latest}"
       ;;
     jq)
-      printf '%s\n' "${JQ_IMAGE:-ghcr.io/jqlang/jq:1.8.1}"
+      printf '%s\n' "${SHIMMY_JQ_IMAGE:-ghcr.io/jqlang/jq:1.8.1}"
       ;;
     netcat)
       printf '%s\n' "$(local_image_ref "localhost/shimmy-netcat" "$images_dir/netcat")"
       ;;
     opnsense-mcp-server)
-      printf '%s\n' "${OPNSENSE_MCP_SERVER_IMAGE:-docker.io/uhlenheide/opnsense-mcp-server}"
+      printf '%s\n' "${SHIMMY_OPNSENSE_MCP_IMAGE:-docker.io/uhlenheide/opnsense-mcp-server}"
       ;;
     rg)
-      printf '%s\n' "${RG_IMAGE:-docker.io/vszl/ripgrep:latest}"
+      printf '%s\n' "${SHIMMY_RG_IMAGE:-docker.io/vszl/ripgrep:latest}"
       ;;
     task)
       printf '%s\n' "$(local_image_ref "localhost/shimmy-task" "$images_dir/task")"
       ;;
     terraform)
-      printf '%s\n' "${TF_IMAGE:-docker.io/hashicorp/terraform:latest}"
+      printf '%s\n' "${SHIMMY_TF_IMAGE:-docker.io/hashicorp/terraform:latest}"
       ;;
     textual)
       printf '%s\n' "$(local_image_ref "localhost/shimmy-textual" "$images_dir/textual")"

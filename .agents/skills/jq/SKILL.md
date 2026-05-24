@@ -19,7 +19,7 @@ Use this skill when the task makes use of the jq cli.
 ## Current Behavior
 
 - Default image: `ghcr.io/jqlang/jq:1.8.1`
-- Pull override: `JQ_IMAGE_PULL=always`
+- Pull override: `SHIMMY_JQ_IMAGE_PULL=always`
 - Runtime platform: resolved by shared Podman helper as `linux/amd64` on Linux and `linux/arm64` on macOS
 - Runtime mode: stdin-friendly via `podman run --rm -i`
 - Mounts `$PWD` to `/work`

@@ -1,6 +1,6 @@
 # Hardened Image at dhi.io/node:25-dev 
-ARG TESSL_BASE_IMAGE=node:25 
-FROM ${TESSL_BASE_IMAGE}
+ARG SHIMMY_TESSL_BASE_IMAGE=node:25 
+FROM ${SHIMMY_TESSL_BASE_IMAGE}
 EXPOSE 8888
 RUN mkdir -p .npm-global \
     && apt-get update \

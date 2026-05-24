@@ -8,8 +8,8 @@ ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
 STARTUP_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-startup.sh
-CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
-PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
+SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
+SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
 DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
 REQUESTED_INSTALL_DIR=
 REQUESTED_SHELL=
@@ -24,24 +24,24 @@ fail() {
   exit 1
 }
 
-if [ ! -f "$CUSTOM_IMAGE_HELPER_FILE" ]; then
-  fail "missing custom image helper: $CUSTOM_IMAGE_HELPER_FILE"
+if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
+  fail "missing custom image helper: $SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 fi
 
 if [ ! -f "$STARTUP_HELPER_FILE" ]; then
   fail "missing startup helper: $STARTUP_HELPER_FILE"
 fi
 
-if [ ! -f "$PODMAN_HELPER_FILE" ]; then
-  fail "missing Podman helper: $PODMAN_HELPER_FILE"
+if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
+  fail "missing Podman helper: $SHIMMY_PODMAN_HELPER_FILE"
 fi
 
 # shellcheck source=lib/repo/shimmy-startup.sh
 . "$STARTUP_HELPER_FILE"
 # shellcheck source=lib/shims/custom-image.sh
-. "$CUSTOM_IMAGE_HELPER_FILE"
+. "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 # shellcheck source=lib/shims/shimmy-podman.sh
-. "$PODMAN_HELPER_FILE"
+. "$SHIMMY_PODMAN_HELPER_FILE"
 
 trim_trailing_slash() {
   path_value=${1:-}
@@ -166,22 +166,22 @@ run_pull_refresh() {
     [ -n "$shim_name" ] || continue
     case "$shim_name" in
       aws)
-        AWS_IMAGE_PULL=always "$shim_dir/aws" --version >/dev/null </dev/null
+        SHIMMY_AWS_IMAGE_PULL=always "$shim_dir/aws" --version >/dev/null </dev/null
         ;;
       go)
-        GO_IMAGE_PULL=always "$shim_dir/go" version >/dev/null </dev/null
+        SHIMMY_GO_IMAGE_PULL=always "$shim_dir/go" version >/dev/null </dev/null
         ;;
       jq)
-        JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null </dev/null
+        SHIMMY_JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null </dev/null
         ;;
       opnsense-mcp-server)
-        "$SHIMMY_PODMAN_BIN" pull --platform "$SHIMMY_PODMAN_PLATFORM" "${OPNSENSE_MCP_SERVER_IMAGE:-docker.io/uhlenheide/opnsense-mcp-server}" >/dev/null
+        "$SHIMMY_PODMAN_BIN" pull --platform "$SHIMMY_PODMAN_PLATFORM" "${SHIMMY_OPNSENSE_MCP_IMAGE:-docker.io/uhlenheide/opnsense-mcp-server}" >/dev/null
         ;;
       rg)
-        RG_IMAGE_PULL=always "$shim_dir/rg" --version >/dev/null </dev/null
+        SHIMMY_RG_IMAGE_PULL=always "$shim_dir/rg" --version >/dev/null </dev/null
         ;;
       terraform)
-        TF_IMAGE_PULL=always "$shim_dir/terraform" version >/dev/null </dev/null
+        SHIMMY_TF_IMAGE_PULL=always "$shim_dir/terraform" version >/dev/null </dev/null
         ;;
     esac
   done <<EOF
@@ -200,15 +200,15 @@ run_build_refresh() {
     [ -n "$shim_name" ] || continue
     case "$shim_name" in
       netcat)
-        NETCAT_IMAGE_BUILD=always "$shim_dir/netcat" --help >/dev/null </dev/null
+        SHIMMY_NETCAT_IMAGE_BUILD=always "$shim_dir/netcat" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
       task)
-        TASK_IMAGE_BUILD=always "$shim_dir/task" --version >/dev/null </dev/null
+        SHIMMY_TASK_IMAGE_BUILD=always "$shim_dir/task" --version >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
       textual)
-        TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual" --help >/dev/null </dev/null
+        SHIMMY_TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
     esac

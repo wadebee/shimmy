@@ -4,65 +4,65 @@ set -eu
 SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
-CUSTOM_IMAGE_HELPER_FILE=$SCRIPT_DIR/../lib/shims/custom-image.sh
+SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$SCRIPT_DIR/../lib/shims/custom-image.sh
 
-TESSL_CONFIG_DIR=
-TESSL_IMAGES_DIR=$SCRIPT_DIR/../images/tessl
-TESSL_PULL_ARG=
-TESSL_TTY_ARG=
+SHIMMY_TESSL_CONFIG_DIR=
+SHIMMY_TESSL_IMAGES_DIR=$SCRIPT_DIR/../images/tessl
+SHIMMY_TESSL_PULL_ARG=
+SHIMMY_TESSL_TTY_ARG=
 
-if [ ! -f "$CUSTOM_IMAGE_HELPER_FILE" ]; then
-  printf 'ERROR: missing shim helper: %s\n' "$CUSTOM_IMAGE_HELPER_FILE" >&2
+if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" >&2
   exit 1
 fi
 
 # shellcheck source=lib/shims/custom-image.sh
-. "$CUSTOM_IMAGE_HELPER_FILE"
+. "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
 shimmy_podman_preflight_require "the tessl shim"
 
-if [ -n "${TESSL_IMAGE:-}" ]; then
-  TESSL_RUN_IMAGE=$TESSL_IMAGE
+if [ -n "${SHIMMY_TESSL_IMAGE:-}" ]; then
+  SHIMMY_TESSL_RUN_IMAGE=$SHIMMY_TESSL_IMAGE
 else
-  if [ -n "${TESSL_BASE_IMAGE:-}" ]; then
-    TESSL_RUN_IMAGE=$(
+  if [ -n "${SHIMMY_TESSL_BASE_IMAGE:-}" ]; then
+    SHIMMY_TESSL_RUN_IMAGE=$(
       shimmy_local_image_ensure \
         "localhost/shimmy-tessl" \
-        "$TESSL_IMAGES_DIR" \
-        "${TESSL_IMAGE_BUILD:-auto}" \
-        --build-arg "TESSL_BASE_IMAGE=$TESSL_BASE_IMAGE"
+        "$SHIMMY_TESSL_IMAGES_DIR" \
+        "${SHIMMY_TESSL_IMAGE_BUILD:-auto}" \
+        --build-arg "SHIMMY_TESSL_BASE_IMAGE=$SHIMMY_TESSL_BASE_IMAGE"
     )
   else
-    TESSL_RUN_IMAGE=$(
+    SHIMMY_TESSL_RUN_IMAGE=$(
       shimmy_local_image_ensure \
         "localhost/shimmy-tessl" \
-        "$TESSL_IMAGES_DIR" \
-        "${TESSL_IMAGE_BUILD:-auto}"
+        "$SHIMMY_TESSL_IMAGES_DIR" \
+        "${SHIMMY_TESSL_IMAGE_BUILD:-auto}"
     )
   fi
 fi
 
 if [ -n "${HOME:-}" ] && [ -d "$HOME/.tessl" ]; then
-  TESSL_CONFIG_DIR=$HOME/.tessl
+  SHIMMY_TESSL_CONFIG_DIR=$HOME/.tessl
 fi
 
-if [ -n "${TESSL_IMAGE:-}" ] && [ "${TESSL_IMAGE_PULL:-}" = "always" ]; then
-  TESSL_PULL_ARG=--pull=always
+if [ -n "${SHIMMY_TESSL_IMAGE:-}" ] && [ "${SHIMMY_TESSL_IMAGE_PULL:-}" = "always" ]; then
+  SHIMMY_TESSL_PULL_ARG=--pull=always
 fi
 
 if [ -t 0 ] && [ -t 1 ]; then
-  TESSL_TTY_ARG=-it
+  SHIMMY_TESSL_TTY_ARG=-it
 fi
 
 exec "$SHIMMY_PODMAN_BIN" run --rm \
   --platform "$SHIMMY_PODMAN_PLATFORM" \
-  ${TESSL_TTY_ARG:+"$TESSL_TTY_ARG"} \
+  ${SHIMMY_TESSL_TTY_ARG:+"$SHIMMY_TESSL_TTY_ARG"} \
   -m 300M \
   --memory-swap 1G \
-  ${TESSL_PULL_ARG:+"$TESSL_PULL_ARG"} \
+  ${SHIMMY_TESSL_PULL_ARG:+"$SHIMMY_TESSL_PULL_ARG"} \
   -v "$PWD:/work:rw" \
-  ${TESSL_CONFIG_DIR:+"-v"} \
-  ${TESSL_CONFIG_DIR:+"$TESSL_CONFIG_DIR:/root/.tessl"} \
-  -e TESSL_* \
-  "$TESSL_RUN_IMAGE" \
+  ${SHIMMY_TESSL_CONFIG_DIR:+"-v"} \
+  ${SHIMMY_TESSL_CONFIG_DIR:+"$SHIMMY_TESSL_CONFIG_DIR:/root/.tessl"} \
+  -e SHIMMY_TESSL_* \
+  "$SHIMMY_TESSL_RUN_IMAGE" \
   "$@"

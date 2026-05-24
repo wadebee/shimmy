@@ -4,22 +4,22 @@ set -eu
 SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
-PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+SHIMMY_PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
 
-NMAP_IMAGE=${NMAP_IMAGE:-docker.io/instrumentisto/nmap:7.98-r2}
-NMAP_IMAGE_PULL=${NMAP_IMAGE_PULL:-}
-NMAP_LAN_SCAN=${SHIMMY_NMAP_LAN_SCAN:-}
-NMAP_NETWORK=${SHIMMY_NMAP_NETWORK:-}
-NMAP_NET_ADMIN_CAP_ARG=
-NMAP_NET_ADMIN_CAP_VALUE=
-NMAP_NET_RAW_CAP_ARG=
-NMAP_NET_RAW_CAP_VALUE=
-NMAP_NETWORK_ARG=
-NMAP_NETWORK_VALUE=
-NMAP_PRIVILEGED=${SHIMMY_NMAP_PRIVILEGED:-}
-NMAP_PRIVILEGED_ARG=
-NMAP_PULL_ARG=
-NMAP_TTY_ARG=
+SHIMMY_NMAP_IMAGE=${SHIMMY_NMAP_IMAGE:-docker.io/instrumentisto/nmap:7.98-r2}
+SHIMMY_NMAP_IMAGE_PULL=${SHIMMY_NMAP_IMAGE_PULL:-}
+SHIMMY_NMAP_LAN_SCAN=${SHIMMY_NMAP_LAN_SCAN:-}
+SHIMMY_NMAP_NETWORK=${SHIMMY_NMAP_NETWORK:-}
+SHIMMY_NMAP_NET_ADMIN_CAP_ARG=
+SHIMMY_NMAP_NET_ADMIN_CAP_VALUE=
+SHIMMY_NMAP_NET_RAW_CAP_ARG=
+SHIMMY_NMAP_NET_RAW_CAP_VALUE=
+SHIMMY_NMAP_NETWORK_ARG=
+SHIMMY_NMAP_NETWORK_VALUE=
+SHIMMY_NMAP_PRIVILEGED=${SHIMMY_NMAP_PRIVILEGED:-}
+SHIMMY_NMAP_PRIVILEGED_ARG=
+SHIMMY_NMAP_PULL_ARG=
+SHIMMY_NMAP_TTY_ARG=
 PODMAN_CONNECTION_ARG=
 PODMAN_CONNECTION_VALUE=
 PODMAN_PRIVILEGED=${SHIMMY_PODMAN_PRIVILEGED:-}
@@ -55,33 +55,33 @@ shimmy_nmap_is_rootless_podman() {
   [ "$rootless_value" = true ]
 }
 
-if [ ! -f "$PODMAN_HELPER_FILE" ]; then
-  printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
+if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
   exit 1
 fi
 
 # shellcheck source=lib/shims/shimmy-podman.sh
-. "$PODMAN_HELPER_FILE"
+. "$SHIMMY_PODMAN_HELPER_FILE"
 
 shimmy_podman_preflight_require "the nmap shim"
 
-if [ "$NMAP_IMAGE_PULL" = "always" ]; then
-  NMAP_PULL_ARG=--pull=always
+if [ "$SHIMMY_NMAP_IMAGE_PULL" = "always" ]; then
+  SHIMMY_NMAP_PULL_ARG=--pull=always
 fi
 
-case "$NMAP_LAN_SCAN" in
+case "$SHIMMY_NMAP_LAN_SCAN" in
   ''|0)
     ;;
   1)
-    if [ -n "$NMAP_NETWORK" ] && [ "$NMAP_NETWORK" != host ]; then
-      printf 'ERROR: SHIMMY_NMAP_LAN_SCAN=1 cannot be combined with SHIMMY_NMAP_NETWORK=%s\n' "$NMAP_NETWORK" >&2
+    if [ -n "$SHIMMY_NMAP_NETWORK" ] && [ "$SHIMMY_NMAP_NETWORK" != host ]; then
+      printf 'ERROR: SHIMMY_NMAP_LAN_SCAN=1 cannot be combined with SHIMMY_NMAP_NETWORK=%s\n' "$SHIMMY_NMAP_NETWORK" >&2
       exit 1
     fi
-    NMAP_NETWORK=host
-    NMAP_NET_RAW_CAP_ARG=--cap-add
-    NMAP_NET_RAW_CAP_VALUE=NET_RAW
-    NMAP_NET_ADMIN_CAP_ARG=--cap-add
-    NMAP_NET_ADMIN_CAP_VALUE=NET_ADMIN
+    SHIMMY_NMAP_NETWORK=host
+    SHIMMY_NMAP_NET_RAW_CAP_ARG=--cap-add
+    SHIMMY_NMAP_NET_RAW_CAP_VALUE=NET_RAW
+    SHIMMY_NMAP_NET_ADMIN_CAP_ARG=--cap-add
+    SHIMMY_NMAP_NET_ADMIN_CAP_VALUE=NET_ADMIN
     ;;
   *)
     printf 'ERROR: SHIMMY_NMAP_LAN_SCAN must be 1, 0, or unset\n' >&2
@@ -89,14 +89,14 @@ case "$NMAP_LAN_SCAN" in
     ;;
 esac
 
-case "$NMAP_PRIVILEGED" in
+case "$SHIMMY_NMAP_PRIVILEGED" in
   '')
     ;;
   1)
-    NMAP_PRIVILEGED_ARG=--privileged
+    SHIMMY_NMAP_PRIVILEGED_ARG=--privileged
     ;;
   0)
-    NMAP_PRIVILEGED_ARG=--unprivileged
+    SHIMMY_NMAP_PRIVILEGED_ARG=--unprivileged
     ;;
   *)
     printf 'ERROR: SHIMMY_NMAP_PRIVILEGED must be 1, 0, or unset\n' >&2
@@ -119,7 +119,7 @@ case "$PODMAN_PRIVILEGED" in
     ;;
 esac
 
-if [ "$NMAP_PRIVILEGED_ARG" != "--unprivileged" ] &&
+if [ "$SHIMMY_NMAP_PRIVILEGED_ARG" != "--unprivileged" ] &&
   [ "$PODMAN_PRIVILEGED_ARG" != "--privileged" ] &&
   ! shimmy_nmap_args_include_unprivileged "$@" &&
   shimmy_nmap_args_include_host_discovery "$@" &&
@@ -139,13 +139,13 @@ if [ "$NMAP_PRIVILEGED_ARG" != "--unprivileged" ] &&
   exit 1
 fi
 
-if [ -n "$NMAP_NETWORK" ]; then
-  NMAP_NETWORK_ARG=--network
-  NMAP_NETWORK_VALUE=$NMAP_NETWORK
+if [ -n "$SHIMMY_NMAP_NETWORK" ]; then
+  SHIMMY_NMAP_NETWORK_ARG=--network
+  SHIMMY_NMAP_NETWORK_VALUE=$SHIMMY_NMAP_NETWORK
 fi
 
 if [ -t 0 ] && [ -t 1 ]; then
-  NMAP_TTY_ARG=-it
+  SHIMMY_NMAP_TTY_ARG=-it
 fi
 
 exec "$SHIMMY_PODMAN_BIN" \
@@ -153,17 +153,17 @@ exec "$SHIMMY_PODMAN_BIN" \
   ${PODMAN_CONNECTION_VALUE:+"$PODMAN_CONNECTION_VALUE"} \
   run --rm \
   --platform "$SHIMMY_PODMAN_PLATFORM" \
-  ${NMAP_PULL_ARG:+"$NMAP_PULL_ARG"} \
-  ${NMAP_TTY_ARG:+"$NMAP_TTY_ARG"} \
-  ${NMAP_NETWORK_ARG:+"$NMAP_NETWORK_ARG"} \
-  ${NMAP_NETWORK_VALUE:+"$NMAP_NETWORK_VALUE"} \
-  ${NMAP_NET_RAW_CAP_ARG:+"$NMAP_NET_RAW_CAP_ARG"} \
-  ${NMAP_NET_RAW_CAP_VALUE:+"$NMAP_NET_RAW_CAP_VALUE"} \
-  ${NMAP_NET_ADMIN_CAP_ARG:+"$NMAP_NET_ADMIN_CAP_ARG"} \
-  ${NMAP_NET_ADMIN_CAP_VALUE:+"$NMAP_NET_ADMIN_CAP_VALUE"} \
+  ${SHIMMY_NMAP_PULL_ARG:+"$SHIMMY_NMAP_PULL_ARG"} \
+  ${SHIMMY_NMAP_TTY_ARG:+"$SHIMMY_NMAP_TTY_ARG"} \
+  ${SHIMMY_NMAP_NETWORK_ARG:+"$SHIMMY_NMAP_NETWORK_ARG"} \
+  ${SHIMMY_NMAP_NETWORK_VALUE:+"$SHIMMY_NMAP_NETWORK_VALUE"} \
+  ${SHIMMY_NMAP_NET_RAW_CAP_ARG:+"$SHIMMY_NMAP_NET_RAW_CAP_ARG"} \
+  ${SHIMMY_NMAP_NET_RAW_CAP_VALUE:+"$SHIMMY_NMAP_NET_RAW_CAP_VALUE"} \
+  ${SHIMMY_NMAP_NET_ADMIN_CAP_ARG:+"$SHIMMY_NMAP_NET_ADMIN_CAP_ARG"} \
+  ${SHIMMY_NMAP_NET_ADMIN_CAP_VALUE:+"$SHIMMY_NMAP_NET_ADMIN_CAP_VALUE"} \
   ${PODMAN_PRIVILEGED_ARG:+"$PODMAN_PRIVILEGED_ARG"} \
   -v "$PWD:/work" \
   -w /work \
-  "$NMAP_IMAGE" \
-  ${NMAP_PRIVILEGED_ARG:+"$NMAP_PRIVILEGED_ARG"} \
+  "$SHIMMY_NMAP_IMAGE" \
+  ${SHIMMY_NMAP_PRIVILEGED_ARG:+"$SHIMMY_NMAP_PRIVILEGED_ARG"} \
   "$@"

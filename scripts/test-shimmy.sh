@@ -7,7 +7,7 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
-PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
+SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
 TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/shimmy-test.XXXXXX")
 TEST_COUNT=0
 
@@ -27,12 +27,12 @@ fail_test() {
   exit 1
 }
 
-if [ ! -f "$PODMAN_HELPER_FILE" ]; then
-  fail_test "missing Podman helper: $PODMAN_HELPER_FILE"
+if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
+  fail_test "missing Podman helper: $SHIMMY_PODMAN_HELPER_FILE"
 fi
 
 # shellcheck source=lib/shims/shimmy-podman.sh
-. "$PODMAN_HELPER_FILE"
+. "$SHIMMY_PODMAN_HELPER_FILE"
 
 assert_contains() {
   haystack=$1
@@ -123,10 +123,10 @@ require_podman() {
 
 test_podman_platform_resolves_host_os() {
   linux_platform=$(
-    SHIMMY_TEST_OS=Linux /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$PODMAN_HELPER_FILE"
+    SHIMMY_TEST_OS=Linux /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$SHIMMY_PODMAN_HELPER_FILE"
   )
   darwin_platform=$(
-    SHIMMY_TEST_OS=Darwin /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$PODMAN_HELPER_FILE"
+    SHIMMY_TEST_OS=Darwin /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$SHIMMY_PODMAN_HELPER_FILE"
   )
 
   assert_equals "$linux_platform" "linux/amd64"
@@ -137,7 +137,7 @@ test_podman_platform_resolves_host_os() {
 
 test_podman_platform_tag_render() {
   platform_tag=$(
-    /bin/sh -c '. "$1"; shimmy_podman_platform_tag_render linux/arm64' sh "$PODMAN_HELPER_FILE"
+    /bin/sh -c '. "$1"; shimmy_podman_platform_tag_render linux/arm64' sh "$SHIMMY_PODMAN_HELPER_FILE"
   )
 
   assert_equals "$platform_tag" "linux-arm64"
@@ -147,7 +147,7 @@ test_podman_platform_tag_render() {
 
 test_podman_unreachable_guidance_agent() {
   output=$(
-    /bin/sh -c '. "$1"; shimmy_podman_failure_print_unreachable "the rg shim" "/opt/podman/bin/podman"' sh "$PODMAN_HELPER_FILE" 2>&1
+    /bin/sh -c '. "$1"; shimmy_podman_failure_print_unreachable "the rg shim" "/opt/podman/bin/podman"' sh "$SHIMMY_PODMAN_HELPER_FILE" 2>&1
   )
 
   assert_contains "$output" 'AI Agent note: if `podman info` succeeds but this shim still fails'
@@ -607,7 +607,7 @@ test_jq_shim_pull_override() {
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" JQ_IMAGE_PULL=always JQ_IMAGE=ghcr.io/jqlang/jq:1.8.1 "$ROOT_DIR/shims/jq" --version 2>&1
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_JQ_IMAGE_PULL=always SHIMMY_JQ_IMAGE=ghcr.io/jqlang/jq:1.8.1 "$ROOT_DIR/shims/jq" --version 2>&1
   )
 
   assert_contains "$output" "jq-1.8.1"

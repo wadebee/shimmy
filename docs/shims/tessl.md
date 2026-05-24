@@ -36,10 +36,10 @@ tessl skill lint
 
 Environment:
 
-- `TESSL_IMAGE` - override the runtime image entirely.
-- `TESSL_IMAGE_BUILD=always` - rebuild the local image even when cached.
-- `TESSL_IMAGE_PULL=always` - force pulling `TESSL_IMAGE` when using an override.
-- `TESSL_BASE_IMAGE` - override the Containerfile base image. Default: `node:25`.
+- `SHIMMY_TESSL_IMAGE` - override the runtime image entirely.
+- `SHIMMY_TESSL_IMAGE_BUILD=always` - rebuild the local image even when cached.
+- `SHIMMY_TESSL_IMAGE_PULL=always` - force pulling `SHIMMY_TESSL_IMAGE` when using an override.
+- `SHIMMY_TESSL_BASE_IMAGE` - override the Containerfile base image. Default: `node:25`.
 
 Local image behavior:
 
@@ -52,7 +52,7 @@ Mounts:
 
 Forwarded environment:
 
-- `TESSL_*`
+- `SHIMMY_TESSL_*`
 
 Runtime platform:
 

@@ -1,7 +1,7 @@
-ARG TASK_BASE_IMAGE=alpine:3.22
-FROM ${TASK_BASE_IMAGE}
+ARG SHIMMY_TASK_BASE_IMAGE=alpine:3.22
+FROM ${SHIMMY_TASK_BASE_IMAGE}
 
-ARG TASK_VERSION=v3.45.5
+ARG SHIMMY_TASK_VERSION=v3.45.5
 
 RUN apk add --no-cache bash ca-certificates curl podman-remote tar \
     && case "$(uname -m)" in \
@@ -9,7 +9,7 @@ RUN apk add --no-cache bash ca-certificates curl podman-remote tar \
          aarch64) task_arch='arm64' ;; \
          *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;; \
        esac \
-    && curl -fsSL "https://github.com/go-task/task/releases/download/${TASK_VERSION}/task_linux_${task_arch}.tar.gz" \
+    && curl -fsSL "https://github.com/go-task/task/releases/download/${SHIMMY_TASK_VERSION}/task_linux_${task_arch}.tar.gz" \
        | tar -xz -C /usr/local/bin task \
     && chmod +x /usr/local/bin/task
 

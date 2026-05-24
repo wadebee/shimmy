@@ -23,8 +23,8 @@ The server is meant to be launched by an MCP-compatible client. It requires OPNs
 Create Podman secrets for the OPNsense API key and secret:
 
 ```sh
-printf '%s' 'OPNSENSE_API_KEY_VALUE' | podman secret create opnsense_mcp_api_key -
-printf '%s' 'OPNSENSE_API_SECRET_VALUE' | podman secret create opnsense_mcp_api_secret -
+printf 'paste your api key' | podman secret create opnsense_mcp_api_key -
+printf 'paste your api secret' | podman secret create opnsense_mcp_api_secret -
 ```
 
 Run the shim from an MCP client with non-secret settings in the environment:
@@ -33,17 +33,17 @@ Run the shim from an MCP client with non-secret settings in the environment:
 OPNSENSE_URL=https://192.168.1.1/api \
 OPNSENSE_VERIFY_SSL=false \
 OPNSENSE_ALLOW_WRITES=false \
-OPNSENSE_MCP_SERVER_API_KEY_SECRET=opnsense_mcp_api_key \
-OPNSENSE_MCP_SERVER_API_SECRET_SECRET=opnsense_mcp_api_secret \
+SHIMMY_OPNSENSE_MCP_API_KEY=opnsense_mcp_api_key \
+SHIMMY_OPNSENSE_MCP_API_SECRET=opnsense_mcp_api_secret \
 opnsense-mcp-server
 ```
 
 Environment:
 
-- `OPNSENSE_MCP_SERVER_IMAGE` - override the container image. Default: `docker.io/uhlenheide/opnsense-mcp-server`.
-- `OPNSENSE_MCP_SERVER_IMAGE_PULL=always` - force pulling the configured image.
-- `OPNSENSE_MCP_SERVER_API_KEY_SECRET` - Podman secret name mounted into the container as `OPNSENSE_API_KEY`.
-- `OPNSENSE_MCP_SERVER_API_SECRET_SECRET` - Podman secret name mounted into the container as `OPNSENSE_API_SECRET`.
+- `SHIMMY_OPNSENSE_MCP_IMAGE` - override the container image. Default: `docker.io/uhlenheide/opnsense-mcp-server`.
+- `SHIMMY_OPNSENSE_MCP_IMAGE_PULL=always` - force pulling the configured image.
+- `SHIMMY_OPNSENSE_MCP_API_KEY` - Podman secret name mounted into the container as `OPNSENSE_API_KEY`.
+- `SHIMMY_OPNSENSE_MCP_API_SECRET` - Podman secret name mounted into the container as `OPNSENSE_API_SECRET`.
 - `OPNSENSE_URL` - OPNsense API base URL, including `/api`.
 - `OPNSENSE_VERIFY_SSL` - set `false` for self-signed lab certificates.
 - `OPNSENSE_ALLOW_WRITES` - keep `false` for read-only use; set `true` only for explicit change windows.
@@ -68,8 +68,8 @@ MCP client example:
         "OPNSENSE_URL": "https://192.168.1.1/api",
         "OPNSENSE_VERIFY_SSL": "false",
         "OPNSENSE_ALLOW_WRITES": "false",
-        "OPNSENSE_MCP_SERVER_API_KEY_SECRET": "opnsense_mcp_api_key",
-        "OPNSENSE_MCP_SERVER_API_SECRET_SECRET": "opnsense_mcp_api_secret"
+        "SHIMMY_OPNSENSE_MCP_API_KEY": "opnsense_mcp_api_key",
+        "SHIMMY_OPNSENSE_MCP_API_SECRET": "opnsense_mcp_api_secret"
       }
     }
   }
@@ -81,7 +81,7 @@ Notes:
 - Store API key material in Podman secrets, not project files or MCP config JSON.
 - Start with a dedicated read-only OPNsense API user.
 - Leave `OPNSENSE_ALLOW_WRITES=false` unless you intentionally want firewall-changing tools available.
-- The upstream documentation previously referenced `lucamarien/opnsense-mcp-server`; this Shimmy wrapper uses the corrected image `uhlenheide/opnsense-mcp-server`.
+- The upstream documentation references `lucamarien/opnsense-mcp-server`; this Shimmy wrapper uses the actual image `uhlenheide/opnsense-mcp-server`.
 
 ## Quick-Start Prompts
 

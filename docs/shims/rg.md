@@ -32,8 +32,8 @@ rg --files
 
 Environment:
 
-- `RG_IMAGE` - override the container image.
-- `RG_IMAGE_PULL=always` - force pulling the configured image.
+- `SHIMMY_RG_IMAGE` - override the container image.
+- `SHIMMY_RG_IMAGE_PULL=always` - force pulling the configured image.
 
 Mounts:
 

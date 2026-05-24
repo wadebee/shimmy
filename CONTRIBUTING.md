@@ -133,7 +133,7 @@ Examples:
 - `image_build_context`
 - `install_dir_target`
 - `shim_name_requested`
-- `AWS_IMAGE`
+- `SHIMMY_AWS_IMAGE`
 - `SHIMMY_INSTALL_DIR`
 - `SHIMMY_SHIM_DIR`
 

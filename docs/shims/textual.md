@@ -30,9 +30,9 @@ textual run app.py
 
 Environment:
 
-- `TEXTUAL_IMAGE` - override the runtime image entirely.
-- `TEXTUAL_IMAGE_BUILD=always` - rebuild the local image even when cached.
-- `TEXTUAL_IMAGE_PULL=always` - force pulling `TEXTUAL_IMAGE` when using an override.
+- `SHIMMY_TEXTUAL_IMAGE` - override the runtime image entirely.
+- `SHIMMY_TEXTUAL_IMAGE_BUILD=always` - rebuild the local image even when cached.
+- `SHIMMY_TEXTUAL_IMAGE_PULL=always` - force pulling `SHIMMY_TEXTUAL_IMAGE` when using an override.
 - `TEXTUAL_BASE_IMAGE` - override the Containerfile base image. Default: `python:3.13-slim-bookworm`.
 
 Local image behavior:

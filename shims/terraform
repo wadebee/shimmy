@@ -4,52 +4,52 @@ set -eu
 SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
-PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+SHIMMY_PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
 
-TF_AWS_CONFIG_DIR=
-TF_IMAGE=${TF_IMAGE:-docker.io/hashicorp/terraform:latest}
-TF_IMAGE_PULL=${TF_IMAGE_PULL:-}
-TF_PLUGIN_CACHE_DIR=
-TF_PULL_ARG=
-TF_TTY_ARG=
+SHIMMY_TF_AWS_CONFIG_DIR=
+SHIMMY_TF_IMAGE=${SHIMMY_TF_IMAGE:-docker.io/hashicorp/terraform:latest}
+SHIMMY_TF_IMAGE_PULL=${SHIMMY_TF_IMAGE_PULL:-}
+SHIMMY_TF_PLUGIN_CACHE_DIR=
+SHIMMY_TF_PULL_ARG=
+SHIMMY_TF_TTY_ARG=
 
-if [ ! -f "$PODMAN_HELPER_FILE" ]; then
-  printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
+if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
   exit 1
 fi
 
 # shellcheck source=lib/shims/shimmy-podman.sh
-. "$PODMAN_HELPER_FILE"
+. "$SHIMMY_PODMAN_HELPER_FILE"
 
 shimmy_podman_preflight_require "the terraform shim"
 
 if [ -n "${HOME:-}" ] && [ -d "$HOME/.aws" ]; then
-  TF_AWS_CONFIG_DIR=$HOME/.aws
+  SHIMMY_TF_AWS_CONFIG_DIR=$HOME/.aws
 fi
 
 if [ -n "${HOME:-}" ] && [ -d "$HOME/.terraform.d/plugin-cache" ]; then
-  TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache
+  SHIMMY_TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache
 fi
 
-if [ "$TF_IMAGE_PULL" = "always" ]; then
-  TF_PULL_ARG=--pull=always
+if [ "$SHIMMY_TF_IMAGE_PULL" = "always" ]; then
+  SHIMMY_TF_PULL_ARG=--pull=always
 fi
 
 if [ -t 0 ] && [ -t 1 ]; then
-  TF_TTY_ARG=-it
+  SHIMMY_TF_TTY_ARG=-it
 fi
 
 exec "$SHIMMY_PODMAN_BIN" run --rm \
   --platform "$SHIMMY_PODMAN_PLATFORM" \
-  ${TF_PULL_ARG:+"$TF_PULL_ARG"} \
-  ${TF_TTY_ARG:+"$TF_TTY_ARG"} \
+  ${SHIMMY_TF_PULL_ARG:+"$SHIMMY_TF_PULL_ARG"} \
+  ${SHIMMY_TF_TTY_ARG:+"$SHIMMY_TF_TTY_ARG"} \
   -v "$PWD:/work" \
   -w /work \
-  ${TF_AWS_CONFIG_DIR:+"-v"} \
-  ${TF_AWS_CONFIG_DIR:+"$TF_AWS_CONFIG_DIR:/root/.aws:ro"} \
-  ${TF_PLUGIN_CACHE_DIR:+"-v"} \
-  ${TF_PLUGIN_CACHE_DIR:+"$TF_PLUGIN_CACHE_DIR:/root/.terraform.d/plugin-cache"} \
+  ${SHIMMY_TF_AWS_CONFIG_DIR:+"-v"} \
+  ${SHIMMY_TF_AWS_CONFIG_DIR:+"$SHIMMY_TF_AWS_CONFIG_DIR:/root/.aws:ro"} \
+  ${SHIMMY_TF_PLUGIN_CACHE_DIR:+"-v"} \
+  ${SHIMMY_TF_PLUGIN_CACHE_DIR:+"$SHIMMY_TF_PLUGIN_CACHE_DIR:/root/.terraform.d/plugin-cache"} \
   -e AWS_* \
   -e TF_VAR_* \
-  "$TF_IMAGE" \
+  "$SHIMMY_TF_IMAGE" \
   "$@"

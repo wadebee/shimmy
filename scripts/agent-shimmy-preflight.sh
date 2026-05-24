@@ -7,7 +7,7 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
-PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
+SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
 RUN_SMOKE=no
 PREFLIGHT_STATUS=0
 ACTIVE_SHIM_SEEN=
@@ -45,13 +45,13 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-if [ ! -f "$PODMAN_HELPER_FILE" ]; then
-  printf 'ERROR: missing Podman helper: %s\n' "$PODMAN_HELPER_FILE" >&2
+if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
+  printf 'ERROR: missing Podman helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
   exit 1
 fi
 
 # shellcheck source=lib/shims/shimmy-podman.sh
-. "$PODMAN_HELPER_FILE"
+. "$SHIMMY_PODMAN_HELPER_FILE"
 
 shimmy_agent_json_string_print() {
   json_value=$1

@@ -4,44 +4,44 @@ set -eu
 SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
-PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+SHIMMY_PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
 
-AWS_IMAGE=${AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}
-AWS_IMAGE_PULL=${AWS_IMAGE_PULL:-}
-AWS_CONFIG_DIR=
-AWS_PULL_ARG=
-AWS_TTY_ARG=
+SHIMMY_AWS_IMAGE=${AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}
+SHIMMY_AWS_IMAGE_PULL=${SHIMMY_AWS_IMAGE_PULL:-}
+SHIMMY_AWS_CONFIG_DIR=
+SHIMMY_AWS_PULL_ARG=
+SHIMMY_AWS_TTY_ARG=
 
-if [ ! -f "$PODMAN_HELPER_FILE" ]; then
-  printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
+if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
   exit 1
 fi
 
 # shellcheck source=lib/shims/shimmy-podman.sh
-. "$PODMAN_HELPER_FILE"
+. "$SHIMMY_PODMAN_HELPER_FILE"
 
 shimmy_podman_preflight_require "the aws shim"
 
 if [ -n "${HOME:-}" ] && [ -d "$HOME/.aws" ]; then
-  AWS_CONFIG_DIR=$HOME/.aws
+  SHIMMY_AWS_CONFIG_DIR=$HOME/.aws
 fi
 
-if [ "$AWS_IMAGE_PULL" = "always" ]; then
-  AWS_PULL_ARG=--pull=always
+if [ "$SHIMMY_AWS_IMAGE_PULL" = "always" ]; then
+  SHIMMY_AWS_PULL_ARG=--pull=always
 fi
 
 if [ -t 0 ] && [ -t 1 ]; then
-  AWS_TTY_ARG=-it
+  SHIMMY_AWS_TTY_ARG=-it
 fi
 
 exec "$SHIMMY_PODMAN_BIN" run --rm \
   --platform "$SHIMMY_PODMAN_PLATFORM" \
-  ${AWS_PULL_ARG:+"$AWS_PULL_ARG"} \
-  ${AWS_TTY_ARG:+"$AWS_TTY_ARG"} \
+  ${SHIMMY_AWS_PULL_ARG:+"$SHIMMY_AWS_PULL_ARG"} \
+  ${SHIMMY_AWS_TTY_ARG:+"$SHIMMY_AWS_TTY_ARG"} \
   -v "$PWD:/work" \
   -w /work \
-  ${AWS_CONFIG_DIR:+"-v"} \
-  ${AWS_CONFIG_DIR:+"$AWS_CONFIG_DIR:/root/.aws:ro"} \
+  ${SHIMMY_AWS_CONFIG_DIR:+"-v"} \
+  ${SHIMMY_AWS_CONFIG_DIR:+"$SHIMMY_AWS_CONFIG_DIR:/root/.aws:ro"} \
   -e AWS_* \
-  "$AWS_IMAGE" \
+  "$SHIMMY_AWS_IMAGE" \
   "$@"

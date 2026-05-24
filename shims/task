@@ -4,112 +4,112 @@ set -eu
 SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
-CUSTOM_IMAGE_HELPER_FILE=$SCRIPT_DIR/../lib/shims/custom-image.sh
+SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$SCRIPT_DIR/../lib/shims/custom-image.sh
 
-TASK_CONTAINER_HOST_SOCKET=
-TASK_CONTAINER_HOST_VALUE=
-TASK_HOME_DIR=
-TASK_IMAGES_DIR=$SCRIPT_DIR/../images/task
-TASK_PULL_ARG=
-TASK_TMP_DIR=
-TASK_TTY_ARG=
+SHIMMY_TASK_CONTAINER_HOST_SOCKET=
+SHIMMY_TASK_CONTAINER_HOST_VALUE=
+SHIMMY_TASK_HOME_DIR=
+SHIMMY_TASK_IMAGES_DIR=$SCRIPT_DIR/../images/task
+SHIMMY_TASK_PULL_ARG=
+SHIMMY_TASK_TMP_DIR=
+SHIMMY_TASK_TTY_ARG=
 
-if [ ! -f "$CUSTOM_IMAGE_HELPER_FILE" ]; then
-  printf 'ERROR: missing shim helper: %s\n' "$CUSTOM_IMAGE_HELPER_FILE" >&2
+if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" >&2
   exit 1
 fi
 
 # shellcheck source=lib/shims/custom-image.sh
-. "$CUSTOM_IMAGE_HELPER_FILE"
+. "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
 shimmy_podman_preflight_require "the task shim"
 
-if [ -n "${TASK_IMAGE:-}" ]; then
-  TASK_RUN_IMAGE=$TASK_IMAGE
+if [ -n "${SHIMMY_TASK_IMAGE:-}" ]; then
+  SHIMMY_TASK_RUN_IMAGE=$SHIMMY_TASK_IMAGE
 else
-  if [ -n "${TASK_BASE_IMAGE:-}" ] && [ -n "${TASK_VERSION:-}" ]; then
-    TASK_RUN_IMAGE=$(
+  if [ -n "${SHIMMY_TASK_BASE_IMAGE:-}" ] && [ -n "${SHIMMY_TASK_VERSION:-}" ]; then
+    SHIMMY_TASK_RUN_IMAGE=$(
       shimmy_local_image_ensure \
         "localhost/shimmy-task" \
-        "$TASK_IMAGES_DIR" \
-        "${TASK_IMAGE_BUILD:-auto}" \
-        --build-arg "TASK_BASE_IMAGE=$TASK_BASE_IMAGE" \
-        --build-arg "TASK_VERSION=$TASK_VERSION"
+        "$SHIMMY_TASK_IMAGES_DIR" \
+        "${SHIMMY_TASK_IMAGE_BUILD:-auto}" \
+        --build-arg "SHIMMY_TASK_BASE_IMAGE=$SHIMMY_TASK_BASE_IMAGE" \
+        --build-arg "SHIMMY_TASK_VERSION=$SHIMMY_TASK_VERSION"
     )
-  elif [ -n "${TASK_BASE_IMAGE:-}" ]; then
-    TASK_RUN_IMAGE=$(
+  elif [ -n "${SHIMMY_TASK_BASE_IMAGE:-}" ]; then
+    SHIMMY_TASK_RUN_IMAGE=$(
       shimmy_local_image_ensure \
         "localhost/shimmy-task" \
-        "$TASK_IMAGES_DIR" \
-        "${TASK_IMAGE_BUILD:-auto}" \
-        --build-arg "TASK_BASE_IMAGE=$TASK_BASE_IMAGE"
+        "$SHIMMY_TASK_IMAGES_DIR" \
+        "${SHIMMY_TASK_IMAGE_BUILD:-auto}" \
+        --build-arg "SHIMMY_TASK_BASE_IMAGE=$SHIMMY_TASK_BASE_IMAGE"
     )
-  elif [ -n "${TASK_VERSION:-}" ]; then
-    TASK_RUN_IMAGE=$(
+  elif [ -n "${SHIMMY_TASK_VERSION:-}" ]; then
+    SHIMMY_TASK_RUN_IMAGE=$(
       shimmy_local_image_ensure \
         "localhost/shimmy-task" \
-        "$TASK_IMAGES_DIR" \
-        "${TASK_IMAGE_BUILD:-auto}" \
-        --build-arg "TASK_VERSION=$TASK_VERSION"
+        "$SHIMMY_TASK_IMAGES_DIR" \
+        "${SHIMMY_TASK_IMAGE_BUILD:-auto}" \
+        --build-arg "SHIMMY_TASK_VERSION=$SHIMMY_TASK_VERSION"
     )
   else
-    TASK_RUN_IMAGE=$(
+    SHIMMY_TASK_RUN_IMAGE=$(
       shimmy_local_image_ensure \
         "localhost/shimmy-task" \
-        "$TASK_IMAGES_DIR" \
-        "${TASK_IMAGE_BUILD:-auto}"
+        "$SHIMMY_TASK_IMAGES_DIR" \
+        "${SHIMMY_TASK_IMAGE_BUILD:-auto}"
     )
   fi
 fi
 
-if [ -n "${TASK_IMAGE:-}" ] && [ "${TASK_IMAGE_PULL:-}" = "always" ]; then
-  TASK_PULL_ARG=--pull=always
+if [ -n "${SHIMMY_TASK_IMAGE:-}" ] && [ "${SHIMMY_TASK_IMAGE_PULL:-}" = "always" ]; then
+  SHIMMY_TASK_PULL_ARG=--pull=always
 fi
 
 if [ -n "${HOME:-}" ] && [ -d "$HOME" ]; then
-  TASK_HOME_DIR=$HOME
+  SHIMMY_TASK_HOME_DIR=$HOME
 fi
 
 if [ -n "${CONTAINER_HOST:-}" ]; then
   case "$CONTAINER_HOST" in
     unix://*)
       if [ -S "${CONTAINER_HOST#unix://}" ]; then
-        TASK_CONTAINER_HOST_VALUE=$CONTAINER_HOST
-        TASK_CONTAINER_HOST_SOCKET=${CONTAINER_HOST#unix://}
+        SHIMMY_TASK_CONTAINER_HOST_VALUE=$CONTAINER_HOST
+        SHIMMY_TASK_CONTAINER_HOST_SOCKET=${CONTAINER_HOST#unix://}
       fi
       ;;
     *)
-      TASK_CONTAINER_HOST_VALUE=$CONTAINER_HOST
+      SHIMMY_TASK_CONTAINER_HOST_VALUE=$CONTAINER_HOST
       ;;
   esac
 fi
 
 if [ -t 0 ] && [ -t 1 ]; then
-  TASK_TTY_ARG=-it
+  SHIMMY_TASK_TTY_ARG=-it
 fi
 
 if [ -d /tmp ]; then
-  TASK_TMP_DIR=/tmp
+  SHIMMY_TASK_TMP_DIR=/tmp
 fi
 
 exec "$SHIMMY_PODMAN_BIN" run --rm \
   --platform "$SHIMMY_PODMAN_PLATFORM" \
-  ${TASK_TTY_ARG:+"$TASK_TTY_ARG"} \
-  ${TASK_PULL_ARG:+"$TASK_PULL_ARG"} \
+  ${SHIMMY_TASK_TTY_ARG:+"$SHIMMY_TASK_TTY_ARG"} \
+  ${SHIMMY_TASK_PULL_ARG:+"$SHIMMY_TASK_PULL_ARG"} \
   -v "$PWD:$PWD:rw" \
   -v "$PWD:/work:rw" \
   -w "$PWD" \
-  ${TASK_HOME_DIR:+"-e"} \
-  ${TASK_HOME_DIR:+"HOME=$HOME"} \
-  ${TASK_HOME_DIR:+"-v"} \
-  ${TASK_HOME_DIR:+"$HOME:$HOME:rw"} \
+  ${SHIMMY_TASK_HOME_DIR:+"-e"} \
+  ${SHIMMY_TASK_HOME_DIR:+"HOME=$HOME"} \
+  ${SHIMMY_TASK_HOME_DIR:+"-v"} \
+  ${SHIMMY_TASK_HOME_DIR:+"$HOME:$HOME:rw"} \
   ${PATH:+"-e"} \
   ${PATH:+"SHIMMY_HOST_PATH=$PATH"} \
-  ${TASK_CONTAINER_HOST_VALUE:+"-e"} \
-  ${TASK_CONTAINER_HOST_VALUE:+"CONTAINER_HOST=$TASK_CONTAINER_HOST_VALUE"} \
-  ${TASK_CONTAINER_HOST_SOCKET:+"-v"} \
-  ${TASK_CONTAINER_HOST_SOCKET:+"$TASK_CONTAINER_HOST_SOCKET:$TASK_CONTAINER_HOST_SOCKET"} \
-  ${TASK_TMP_DIR:+"-v"} \
-  ${TASK_TMP_DIR:+"$TASK_TMP_DIR:$TASK_TMP_DIR:rw"} \
-  "$TASK_RUN_IMAGE" \
+  ${SHIMMY_TASK_CONTAINER_HOST_VALUE:+"-e"} \
+  ${SHIMMY_TASK_CONTAINER_HOST_VALUE:+"CONTAINER_HOST=$SHIMMY_TASK_CONTAINER_HOST_VALUE"} \
+  ${SHIMMY_TASK_CONTAINER_HOST_SOCKET:+"-v"} \
+  ${SHIMMY_TASK_CONTAINER_HOST_SOCKET:+"$SHIMMY_TASK_CONTAINER_HOST_SOCKET:$SHIMMY_TASK_CONTAINER_HOST_SOCKET"} \
+  ${SHIMMY_TASK_TMP_DIR:+"-v"} \
+  ${SHIMMY_TASK_TMP_DIR:+"$SHIMMY_TASK_TMP_DIR:$SHIMMY_TASK_TMP_DIR:rw"} \
+  "$SHIMMY_TASK_RUN_IMAGE" \
   "$@"

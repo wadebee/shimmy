@@ -30,8 +30,8 @@ jq .foo file.json
 
 Environment:
 
-- `JQ_IMAGE` - override the container image.
-- `JQ_IMAGE_PULL=always` - force pulling the configured image.
+- `SHIMMY_JQ_IMAGE` - override the container image.
+- `SHIMMY_JQ_IMAGE_PULL=always` - force pulling the configured image.
 
 Mounts:
 

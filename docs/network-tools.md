@@ -73,10 +73,10 @@ this network perspective.
 Shim notes:
 
 - The shim mounts the current working directory at `/work`.
-- `NETCAT_IMAGE` can override the runtime image.
-- `NETCAT_IMAGE_BUILD=always` rebuilds the local image.
-- `NETCAT_BASE_IMAGE` changes the base image used by the local build.
-- `NETCAT_IMAGE_PULL=always` pulls when `NETCAT_IMAGE` is an explicit remote
+- `SHIMMY_NETCAT_IMAGE` can override the runtime image.
+- `SHIMMY_NETCAT_IMAGE_BUILD=always` rebuilds the local image.
+- `SHIMMY_NETCAT_BASE_IMAGE` changes the base image used by the local build.
+- `SHIMMY_NETCAT_IMAGE_PULL=always` pulls when `SHIMMY_NETCAT_IMAGE` is an explicit remote
   override.
 
 ## Nmap
@@ -128,8 +128,8 @@ risks.
 Shim notes:
 
 - The shim mounts the current working directory at `/work`.
-- `NMAP_IMAGE` defaults to `docker.io/instrumentisto/nmap:7.98-r2`.
-- `NMAP_IMAGE_PULL=always` pulls the configured image.
+- `SHIMMY_NMAP_IMAGE` defaults to `docker.io/instrumentisto/nmap:7.98-r2`.
+- `SHIMMY_NMAP_IMAGE_PULL=always` pulls the configured image.
 - `SHIMMY_NMAP_NETWORK=<name>` runs the shim on a specific Podman network.
 - `SHIMMY_NMAP_LAN_SCAN=1` opts into host networking plus `NET_RAW` and
   `NET_ADMIN` capabilities for local-network discovery.

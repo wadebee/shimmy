@@ -32,8 +32,8 @@ aws s3 ls
 
 Environment:
 
-- `AWS_IMAGE` - override the container image.
-- `AWS_IMAGE_PULL=always` - force pulling the configured image.
+- `SHIMMY_AWS_IMAGE` - override the container image.
+- `SHIMMY_AWS_IMAGE_PULL=always` - force pulling the configured image.
 
 Mounts:
 

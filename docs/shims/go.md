@@ -32,8 +32,8 @@ go env GOARCH
 
 Environment:
 
-- `GO_IMAGE` - override the container image.
-- `GO_IMAGE_PULL=always` - force pulling the configured image.
+- `SHIMMY_GO_IMAGE` - override the container image.
+- `SHIMMY_GO_IMAGE_PULL=always` - force pulling the configured image.
 
 Mounts:
 

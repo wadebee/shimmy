@@ -39,18 +39,18 @@ set -eu
 SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
-PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+SHIMMY_PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
 
 SHIMMY_<TOOL_PREFIX>_IMAGE=${SHIMMY_<TOOL_PREFIX>_IMAGE:-<default-image>}
 SHIMMY_<TOOL_PREFIX>_IMAGE_PULL=${SHIMMY_<TOOL_PREFIX>_IMAGE_PULL:-}
 
-if [ ! -f "$PODMAN_HELPER_FILE" ]; then
-  printf 'ERROR: missing shim helper: %s\n' "$PODMAN_HELPER_FILE" >&2
+if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
   exit 1
 fi
 
 # shellcheck source=lib/shims/shimmy-podman.sh
-. "$PODMAN_HELPER_FILE"
+. "$SHIMMY_PODMAN_HELPER_FILE"
 
 shimmy_podman_preflight_require "the <shim-name> shim"
 

@@ -30,10 +30,10 @@ netcat 198.51.100.10 443
 
 Environment:
 
-- `NETCAT_IMAGE` - override the runtime image entirely.
-- `NETCAT_IMAGE_BUILD=always` - rebuild the local image even when cached.
-- `NETCAT_IMAGE_PULL=always` - force pulling `NETCAT_IMAGE` when using an override.
-- `NETCAT_BASE_IMAGE` - override the Containerfile base image. Default: `registry.access.redhat.com/ubi9/ubi-minimal:latest`.
+- `SHIMMY_NETCAT_IMAGE` - override the runtime image entirely.
+- `SHIMMY_NETCAT_IMAGE_BUILD=always` - rebuild the local image even when cached.
+- `SHIMMY_NETCAT_IMAGE_PULL=always` - force pulling `SHIMMY_NETCAT_IMAGE` when using an override.
+- `SHIMMY_NETCAT_BASE_IMAGE` - override the Containerfile base image. Default: `registry.access.redhat.com/ubi9/ubi-minimal:latest`.
 
 Local image behavior:
 

@@ -30,11 +30,11 @@ task test
 
 Environment:
 
-- `TASK_IMAGE` - override the runtime image entirely.
-- `TASK_IMAGE_BUILD=always` - rebuild the local image even when cached.
-- `TASK_IMAGE_PULL=always` - force pulling `TASK_IMAGE` when using an override.
-- `TASK_BASE_IMAGE` - override the Containerfile base image. Default: `alpine:3.22`.
-- `TASK_VERSION` - override the Task release version. Default: `v3.45.5`.
+- `SHIMMY_TASK_IMAGE` - override the runtime image entirely.
+- `SHIMMY_TASK_IMAGE_BUILD=always` - rebuild the local image even when cached.
+- `SHIMMY_TASK_IMAGE_PULL=always` - force pulling `SHIMMY_TASK_IMAGE` when using an override.
+- `SHIMMY_TASK_BASE_IMAGE` - override the Containerfile base image. Default: `alpine:3.22`.
+- `SHIMMY_TASK_VERSION` - override the Task release version. Default: `v3.45.5`.
 
 Local image behavior:
 
