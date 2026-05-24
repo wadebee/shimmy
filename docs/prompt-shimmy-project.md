@@ -22,6 +22,7 @@ Constraints:
 - Choose `-it` for interactive CLIs and `-i` for filter-style CLIs.
 - Add extra mounts only when the tool needs them, and guard them with existence checks.
 - Forward env vars with `-e PREFIX_*` patterns only when the tool needs them.
+- Add small preflight checks for required upstream configuration when a missing or unreachable value would otherwise fail inside the container. For URL-based services, validate the URL shape and document a non-mutating reachability check such as `curl`.
 - Use `Containerfile` naming for custom image build contexts.
 - Keep image-build logic in the shared shim helper library so custom-image shims rebuild only when the build context changes.
 - End with `exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" ... "$IMAGE" "$@"`.
@@ -43,7 +44,8 @@ Deliverables:
 3. Installer updates if the shim set or shared shim helper assets changed.
 4. When creating container tests, use live Podman and non-mutating cli calls (eg: version or --help) to validate container.
 5. README updates.
-6. A short explanation of mounts, env forwarding, pull policy, and local image build behavior when applicable.
+6. Quick-start setup guidance for required environment variables, secrets, and preflight checks.
+7. A short explanation of mounts, env forwarding, pull policy, and local image build behavior when applicable.
 
 ## Repo Anatomy
 

@@ -277,6 +277,8 @@ textual --help
 
 Each runtime shim has a focused quick-start document with upstream links, source summary, top-level command notes, Shimmy configuration, and example prompts.
 
+Some shims also document required setup checks. For example, `opnsense-mcp-server` requires `OPNSENSE_URL`, defaults to read-only/self-signed-lab behavior, validates that the endpoint responds to a local `curl` request before starting the container, and lists the OPNsense API privileges needed for common read-only MCP queries.
+
 | Tool | Quick start |
 |------|-------------|
 | **aws** | [docs/shims/aws.md](docs/shims/aws.md) |

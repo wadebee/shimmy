@@ -13,6 +13,7 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 - Contributor guidance: `../../../CONTRIBUTING.md`
 - Shared repo prompt: `../../../docs/prompt-shimmy-project.md`
 - Runtime shims: `../../../shims/`
+- Tool skills: `../../../.agents/skills/shimmy-tool-*/`
 - Tests: `../../../scripts/test-shimmy.sh`
 - Installer: `../../../scripts/install-shimmy.sh`
 - Docs: `../../../README.md`
@@ -23,7 +24,8 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 2. Inspect `../../../shims/`, `../../../scripts/install-shimmy.sh`, and `../../../scripts/test-shimmy.sh` so the new shim matches existing conventions.
 3. Keep the skill-driven plan concise and actionable. Prefer a short default workflow over long narrative guidance.
 4. Update the runtime shim, installer, tests, and README together when behavior changes.
-5. When adding a shim to the `Included Shims` table in `README.md`, keep the table sorted alphabetically by Tool name.
+5. Create or update a matching tool skill at `../../../.agents/skills/shimmy-tool-{toolname}/SKILL.md` when adding or materially changing a shim.
+6. When adding a shim to the `Included Shims` table in `README.md`, keep the table sorted alphabetically by Tool name.
 
 ## Required Checkpoints
 
@@ -35,13 +37,23 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 
 ## Implementation Rules
 
-- Keep runtime shims as small Bash wrappers with `set -euo pipefail`.
+- Keep runtime shims as small POSIX shell wrappers with `#!/bin/sh` and `set -eu`.
 - Mount `$PWD` to `/work` unless the tool has a documented reason not to.
 - Use `SHIMMY_{TOOL_PREFIX}_IMAGE` for image override and `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` for pull policy.
 - Choose `-it` for interactive CLIs and `-i` for filter-style CLIs.
 - Add extra mounts and env forwarding only when the tool actually needs them, and document why.
 - End the shim with `exec podman run --rm ... "$IMAGE" "$@"`.
 - Keep runnable shell files executable.
+
+## Tool Skill Rules
+
+- Name the skill directory `shimmy-tool-{toolname}` using the runtime shim name unless a shorter canonical tool name is clearer. Example: use `shimmy-tool-opnsense-mcp` for `shims/opnsense-mcp-server`.
+- Skip tool skills for shims that are being intentionally retired.
+- Use frontmatter `name: shimmy-tool-{toolname}` and a description that names the runtime shim plus its distinctive requirements.
+- Use this section order where it fits: `Files`, `Current Behavior`, `Change Rules`, `Validation`, `Learning Guidance`.
+- Derive `Current Behavior` from the runtime shim first, then reconcile it against `docs/shims/<tool>.md`, `scripts/test-shimmy.sh`, `scripts/install-shimmy.sh`, and `README.md`.
+- Preserve tool-specific fidelity: mounts, env forwarding, local image build args, secrets, safe defaults, TTY/stdin mode, network privileges, and known mismatches.
+- Keep old tool-specific lessons when renaming existing skills into the `shimmy-tool-*` convention.
 
 ## Decision Guidance
 
@@ -56,3 +68,10 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 - Use Podman and non-mutating commands such as `--help` or `version` when validating container execution.
 - Update `../../../README.md` so image defaults, env vars, mounts, and examples stay aligned with the implementation.
 - Keep the `Included Shims` table in `../../../README.md` alphabetized by Tool name after README updates.
+
+## Learning Guidance
+
+- After creating or exercising a tool shim, add tool-specific lessons to that tool's `Learning Guidance` section.
+- If a lesson applies across tools, promote it here so future shim creation benefits from it.
+- When a generated tool skill exposes a mismatch between runtime, docs, tests, or README, record the mismatch in the tool skill and either fix it in the same change or make the follow-up explicit.
+- Prefer precise lessons about behavior and validation over broad reminders, for example: "rootless Podman cannot run raw Nmap host discovery without an explicit privileged opt-in."

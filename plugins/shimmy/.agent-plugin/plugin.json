@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "Shimmy",
     "shortDescription": "Work with Shimmy's Podman-backed CLI shims.",
-    "longDescription": "Use packaged Shimmy AI Agent skills for creating new shims, troubleshooting Podman-backed wrappers, managing installs, and maintaining jq and ripgrep shim behavior.",
+    "longDescription": "Use packaged Shimmy AI Agent skills for creating new shims, troubleshooting Podman-backed wrappers, managing installs, and maintaining tool-specific shim behavior.",
     "developerName": "Shimmy contributors",
     "category": "Developer Tools",
     "capabilities": [
@@ -32,7 +32,7 @@
     "privacyPolicyURL": "[TODO: privacy policy URL]",
     "termsOfServiceURL": "[TODO: terms of service URL]",
     "defaultPrompt": [
-      "Create a new Shimmy wrapper for a CLI tool.",
+      "Create a new Shimmy wrapper and matching tool skill for a CLI tool.",
       "Troubleshoot a Shimmy-backed command.",
       "Review Shimmy install behavior."
     ],
