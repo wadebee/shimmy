@@ -121,6 +121,12 @@ require_podman() {
   PODMAN_BIN=$SHIMMY_PODMAN_BIN
 }
 
+require_curl() {
+  if ! command -v curl >/dev/null 2>&1; then
+    fail_test "curl is required for opnsense-mcp-server URL preflight tests"
+  fi
+}
+
 test_podman_platform_resolves_host_os() {
   linux_platform=$(
     SHIMMY_TEST_OS=Linux /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$SHIMMY_PODMAN_HELPER_FILE"
@@ -811,22 +817,97 @@ test_nmap_shim_nmap_unprivileged_opt_in() {
 
 test_opnsense_mcp_server_shim_direct() {
   setup_scenario
-  require_podman
 
   set +e
   output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/opnsense-mcp-server" 2>&1
+    cd "$WORK_DIR" && "$ROOT_DIR/shims/opnsense-mcp-server" 2>&1
   )
   status=$?
   set -e
 
   [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-server to require configuration"
-  assert_contains "$output" "Server:"
-  assert_contains "$output" "opnsense, 0.4.0"
-  assert_contains "$output" "Required environment variable(s) not set: OPNSENSE_URL, OPNSENSE_API_KEY, OPNSENSE_API_SECRET"
+  assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-server shim."
+  assert_contains "$output" "Set OPNSENSE_URL to the OPNsense API base URL, including /api."
 
-  pass "opnsense-mcp-server direct shim execution"
+  pass "opnsense-mcp-server requires OPNSENSE_URL before execution"
+}
+
+test_opnsense_mcp_server_shim_url_invalid() {
+  setup_scenario
+
+  set +e
+  output=$(
+    cd "$WORK_DIR" && OPNSENSE_URL=opnsense.local/api "$ROOT_DIR/shims/opnsense-mcp-server" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-server to reject invalid OPNSENSE_URL"
+  assert_contains "$output" "ERROR: OPNSENSE_URL must be an http:// or https:// URL with a host: opnsense.local/api"
+
+  pass "opnsense-mcp-server rejects invalid OPNSENSE_URL"
+}
+
+test_opnsense_mcp_server_shim_url_unreachable() {
+  setup_scenario
+  require_curl
+
+  set +e
+  output=$(
+    cd "$WORK_DIR" && OPNSENSE_URL=http://127.0.0.1:9/api "$ROOT_DIR/shims/opnsense-mcp-server" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-server to reject unreachable OPNSENSE_URL"
+  assert_contains "$output" "ERROR: OPNSENSE_URL did not respond to curl: http://127.0.0.1:9/api"
+  assert_contains "$output" "Confirm the URL, network path, firewall reachability, and OPNSENSE_VERIFY_SSL setting."
+
+  pass "opnsense-mcp-server rejects unreachable OPNSENSE_URL"
+}
+
+test_opnsense_mcp_server_shim_verify_ssl_default() {
+  setup_scenario
+
+  mkdir -p "$WORK_DIR/bin"
+  curl_args_file=$WORK_DIR/curl.args
+  cat > "$WORK_DIR/bin/curl" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" > "$SHIMMY_TEST_CURL_ARGS_FILE"
+exit 1
+EOF
+  chmod +x "$WORK_DIR/bin/curl"
+
+  set +e
+  output=$(
+    cd "$WORK_DIR" &&
+      PATH="$WORK_DIR/bin:$PATH" \
+      SHIMMY_TEST_CURL_ARGS_FILE="$curl_args_file" \
+      OPNSENSE_URL=https://opnsense.local/api \
+      "$ROOT_DIR/shims/opnsense-mcp-server" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-server preflight to stop after failed curl"
+  assert_contains "$output" "ERROR: OPNSENSE_URL did not respond to curl: https://opnsense.local/api"
+  curl_args=$(cat "$curl_args_file")
+  assert_contains "$curl_args" "--insecure"
+  assert_contains "$curl_args" "--connect-timeout"
+  assert_contains "$curl_args" "10"
+  assert_contains "$curl_args" "--max-time"
+  assert_contains "$curl_args" "20"
+
+  pass "opnsense-mcp-server defaults OPNSENSE_VERIFY_SSL to false"
+}
+
+test_opnsense_mcp_server_shim_secret_selectors() {
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-server" 'SHIMMY_OPNSENSE_MCP_API_KEY=${SHIMMY_OPNSENSE_MCP_API_KEY:-opnsense_mcp_api_key}'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-server" 'SHIMMY_OPNSENSE_MCP_API_SECRET=${SHIMMY_OPNSENSE_MCP_API_SECRET:-opnsense_mcp_api_secret}'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-server" '--secret "$SHIMMY_OPNSENSE_MCP_API_KEY,type=env,target=OPNSENSE_API_KEY"'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-server" '--secret "$SHIMMY_OPNSENSE_MCP_API_SECRET,type=env,target=OPNSENSE_API_SECRET"'
+
+  pass "opnsense-mcp-server secret selectors wire Podman secret names"
 }
 
 test_rg_shim_direct() {
@@ -910,22 +991,21 @@ test_installed_task_shim() {
 
 test_installed_opnsense_mcp_server_shim() {
   setup_scenario
-  require_podman
 
   HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim opnsense-mcp-server >/dev/null
 
   set +e
   output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$INSTALL_DIR/shims/opnsense-mcp-server" 2>&1
+    cd "$WORK_DIR" && "$INSTALL_DIR/shims/opnsense-mcp-server" 2>&1
   )
   status=$?
   set -e
 
   [ "$status" -ne 0 ] || fail_test "expected installed opnsense-mcp-server to require configuration"
-  assert_contains "$output" "Required environment variable(s) not set: OPNSENSE_URL, OPNSENSE_API_KEY, OPNSENSE_API_SECRET"
+  assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-server shim."
+  assert_contains "$output" "Set OPNSENSE_URL to the OPNsense API base URL, including /api."
 
-  pass "installed opnsense-mcp-server shim execution"
+  pass "installed opnsense-mcp-server requires OPNSENSE_URL before execution"
 }
 
 test_uninstall_cleanup() {
@@ -989,6 +1069,10 @@ main() {
   test_nmap_shim_rootless_podman_privileged_bypasses_guidance
   test_nmap_shim_nmap_unprivileged_opt_in
   test_opnsense_mcp_server_shim_direct
+  test_opnsense_mcp_server_shim_url_invalid
+  test_opnsense_mcp_server_shim_url_unreachable
+  test_opnsense_mcp_server_shim_verify_ssl_default
+  test_opnsense_mcp_server_shim_secret_selectors
   test_rg_shim_direct
   test_task_shim_direct
   test_terraform_shim_direct
