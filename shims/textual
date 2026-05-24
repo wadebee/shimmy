@@ -23,13 +23,13 @@ shimmy_podman_preflight_require "the textual shim"
 if [ -n "${SHIMMY_TEXTUAL_IMAGE:-}" ]; then
   SHIMMY_TEXTUAL_RUN_IMAGE=$SHIMMY_TEXTUAL_IMAGE
 else
-  if [ -n "${TEXTUAL_BASE_IMAGE:-}" ]; then
+  if [ -n "${SHIMMY_TEXTUAL_BASE_IMAGE:-}" ]; then
     SHIMMY_TEXTUAL_RUN_IMAGE=$(
       shimmy_local_image_ensure \
         "localhost/shimmy-textual" \
         "$SHIMMY_TEXTUAL_IMAGES_DIR" \
         "${SHIMMY_TEXTUAL_IMAGE_BUILD:-auto}" \
-        --build-arg "TEXTUAL_BASE_IMAGE=$TEXTUAL_BASE_IMAGE"
+        --build-arg "SHIMMY_TEXTUAL_BASE_IMAGE=$SHIMMY_TEXTUAL_BASE_IMAGE"
     )
   else
     SHIMMY_TEXTUAL_RUN_IMAGE=$(

@@ -13,6 +13,8 @@ Trigger AI Agent approval prompts for activated shims using narrow dry-run comma
 
 When working in the Shimmy repository, `scripts/agent-shimmy-preflight.sh` can print the exact active and repo-local wrapper prefixes to approve.
 
+For activated installed shims, invoke the normal tool name such as `rg` or `jq`; do not call the resolved installed shim path. Use `./shims/<tool>` only when intentionally testing the repo-local wrapper file.
+
 On macOS, Shimmy wrappers require a reachable Podman machine before any wrapper
 can run. Treat Podman readiness as the first part of the escalation workflow,
 because sandboxed AI Agent shells may be unable to read Podman machine lockfiles or

@@ -313,8 +313,8 @@ Tests verify:
 ## Directory Structure
 ```
 shimmy/
-├── shimmy                    # Repo-root wrapper command
-├── shims/                    # OCI wrapper scripts
+├── shimmy                        # Repo-root wrapper command
+├── shims/                        # OCI wrapper scripts
 │   ├── aws
 │   ├── go
 │   ├── jq
@@ -326,32 +326,32 @@ shimmy/
 │   ├── tessl
 │   ├── textual
 │   └── terraform
-├── images/                   # Custom shim image build contexts
+├── images/                       # Custom shim image build contexts
 │   ├── netcat
 │   ├── task
 │   ├── tessl
 │   └── textual
 ├── docs/
-│   └── shims/                # Per-shim quick-start documentation
+│   └── shims/                    # Per-shim quick-start documentation
 ├── lib/
-│   ├── repo/                 # Repo-only sourced helpers for wrapper/scripts
-│   └── shims/                # Installed shared helper scripts for shims
+│   ├── repo/                     # Repo-only sourced helpers for wrapper/scripts
+│   └── shims/                    # Installed shared helper scripts for shims
 ├── scripts/
 │   ├── agent-shimmy-preflight.sh # AI Agent approval preflight
-│   ├── install-shimmy.sh     # Installation script
-│   ├── status-shimmy.sh      # Status script
-│   ├── test-shimmy.sh        # Test suite
-│   └── update-shimmy.sh      # Update script
+│   ├── install-shimmy.sh         # Installation script
+│   ├── status-shimmy.sh          # Status script
+│   ├── test-shimmy.sh            # Test suite
+│   └── update-shimmy.sh          # Update script
 ├── plugins/
-│   └── shimmy/               # Packaged AI Agent plugin for Shimmy skills
+│   └── shimmy/                   # Packaged AI Agent plugin for Shimmy skills
 ├── .agents/
-│   ├── plugins/              # Local AI Agent plugin marketplace metadata
-│   └── skills/               # Repo-local agent skills used while developing Shimmy
-├── .pre-commit-config.yaml   # Git https://github.com/pre-commit/pre-commit-hooks
+│   ├── plugins/                  # Local AI Agent plugin marketplace metadata
+│   └── skills/                   # Repo-local agent skills used while developing Shimmy
+├── .pre-commit-config.yaml       # Git https://github.com/pre-commit/pre-commit-hooks
 ├── .github/
 │   └── workflows/
-│       └── test.yml          # CI/CD workflow
-└── README.md                 # This file
+│       └── test.yml              # CI/CD workflow
+└── README.md                     # This file
 ```
 
 ## AI Generation

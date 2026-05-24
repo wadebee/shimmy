@@ -6,7 +6,7 @@ SCRIPT_DIR=$(
 )
 SHIMMY_PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
 
-SHIMMY_AWS_IMAGE=${AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}
+SHIMMY_AWS_IMAGE=${SHIMMY_AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}
 SHIMMY_AWS_IMAGE_PULL=${SHIMMY_AWS_IMAGE_PULL:-}
 SHIMMY_AWS_CONFIG_DIR=
 SHIMMY_AWS_PULL_ARG=
