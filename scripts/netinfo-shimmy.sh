@@ -22,6 +22,7 @@ shimmy_environment_detect() {
   interface_lines=$2
   default_route_lines=$3
   virtual_kind=$4
+  kernel_name=$5
 
   if [ -e /dev/.cros_milestone ]; then
     printf '%s\n' crostini
@@ -63,7 +64,17 @@ shimmy_environment_detect() {
       ;;
   esac
 
-  printf '%s\n' linux
+  case "$kernel_name" in
+    Darwin)
+      printf '%s\n' darwin
+      ;;
+    Linux)
+      printf '%s\n' linux
+      ;;
+    *)
+      printf '%s\n' unknown
+      ;;
+  esac
 }
 
 shimmy_host_ipv4_resolve() {
@@ -85,22 +96,43 @@ shimmy_host_ipv4_resolve() {
     return 0
   fi
 
-  if ! command -v getent >/dev/null 2>&1; then
-    HOST_IPV4=unknown
-    HOST_IPV4_SOURCE=unknown
-    HOST_NAME_RESOLUTION=getent_missing
-    return 0
+  resolver_available=0
+
+  if command -v getent >/dev/null 2>&1; then
+    resolver_available=1
+    host_ipv4=$(
+      getent ahostsv4 "$REQUESTED_HOST_NAME" 2>/dev/null |
+        sed -n '1{s/[[:space:]].*//;p;}'
+    )
+
+    if [ -n "$host_ipv4" ]; then
+      HOST_IPV4=$host_ipv4
+      HOST_IPV4_SOURCE=getent_ahostsv4
+      HOST_NAME_RESOLUTION=resolved
+      return 0
+    fi
   fi
 
-  host_ipv4=$(
-    getent ahostsv4 "$REQUESTED_HOST_NAME" 2>/dev/null |
-      sed -n '1{s/[[:space:]].*//;p;}'
-  )
+  if command -v dscacheutil >/dev/null 2>&1; then
+    resolver_available=1
+    host_ipv4=$(
+      dscacheutil -q host -a name "$REQUESTED_HOST_NAME" 2>/dev/null |
+        sed -n 's/^[[:space:]]*ip_address:[[:space:]]*//p' |
+        sed -n '1p'
+    )
 
-  if [ -n "$host_ipv4" ]; then
-    HOST_IPV4=$host_ipv4
-    HOST_IPV4_SOURCE=getent_ahostsv4
-    HOST_NAME_RESOLUTION=resolved
+    if [ -n "$host_ipv4" ]; then
+      HOST_IPV4=$host_ipv4
+      HOST_IPV4_SOURCE=dscacheutil_host
+      HOST_NAME_RESOLUTION=resolved
+      return 0
+    fi
+  fi
+
+  if [ "$resolver_available" -eq 0 ]; then
+    HOST_IPV4=unknown
+    HOST_IPV4_SOURCE=unknown
+    HOST_NAME_RESOLUTION=resolver_missing
     return 0
   fi
 
@@ -237,19 +269,119 @@ $line_list
 EOF
 }
 
-shimmy_nameservers_read() {
-  if [ ! -f /etc/resolv.conf ]; then
+shimmy_kernel_name_read() {
+  if [ -n "${SHIMMY_TEST_OS:-}" ]; then
+    printf '%s\n' "$SHIMMY_TEST_OS"
     return 0
   fi
 
-  sed -n 's/^[[:space:]]*nameserver[[:space:]][[:space:]]*\([^[:space:]#][^[:space:]#]*\).*$/\1/p' /etc/resolv.conf
+  uname -s 2>/dev/null || printf unknown
 }
 
-shimmy_require_ip() {
+shimmy_nameservers_read() {
+  resolv_nameservers=
+
+  if [ -f /etc/resolv.conf ]; then
+    resolv_nameservers=$(
+      sed -n 's/^[[:space:]]*nameserver[[:space:]][[:space:]]*\([^[:space:]#][^[:space:]#]*\).*$/\1/p' /etc/resolv.conf
+    )
+  fi
+
+  if [ -n "$resolv_nameservers" ]; then
+    printf '%s\n' "$resolv_nameservers"
+    return 0
+  fi
+
+  command -v scutil >/dev/null 2>&1 || return 0
+
+  scutil --dns 2>/dev/null |
+    sed -n 's/^[[:space:]]*nameserver\[[0-9][0-9]*\][[:space:]]*:[[:space:]]*//p'
+}
+
+shimmy_network_tools_require() {
+  case "$KERNEL_NAME" in
+    Linux)
+      shimmy_network_tools_require_linux
+      ;;
+    Darwin)
+      shimmy_network_tools_require_darwin
+      ;;
+    *)
+      fail "unsupported netinfo platform: $KERNEL_NAME"
+      ;;
+  esac
+}
+
+shimmy_network_tools_require_darwin() {
+  command -v ifconfig >/dev/null 2>&1 || fail "ifconfig is required for netinfo on macOS"
+  command -v netstat >/dev/null 2>&1 || fail "netstat is required for netinfo on macOS"
+  command -v route >/dev/null 2>&1 || fail "route is required for netinfo on macOS"
+}
+
+shimmy_network_tools_require_linux() {
   command -v ip >/dev/null 2>&1 || fail "iproute2 is required; install the ip command or run from a Linux shell that provides it"
 }
 
 shimmy_route_targets_read() {
+  case "$KERNEL_NAME" in
+    Linux)
+      shimmy_route_targets_read_linux
+      ;;
+    Darwin)
+      shimmy_route_targets_read_darwin
+      ;;
+  esac
+}
+
+shimmy_route_targets_read_darwin() {
+  target_route_lines=
+
+  while IFS= read -r route_target; do
+    [ -n "$route_target" ] || continue
+    route_result=$(shimmy_command_output route -n get "$route_target")
+    if [ -n "$route_result" ]; then
+      route_gateway=$(
+        printf '%s\n' "$route_result" |
+          sed -n 's/^[[:space:]]*gateway:[[:space:]]*//p' |
+          sed -n '1p'
+      )
+      route_interface=$(
+        printf '%s\n' "$route_result" |
+          sed -n 's/^[[:space:]]*interface:[[:space:]]*//p' |
+          sed -n '1p'
+      )
+      route_source=$(
+        printf '%s\n' "$route_result" |
+          sed -n 's/^[[:space:]]*local addr:[[:space:]]*//p; s/^[[:space:]]*source:[[:space:]]*//p' |
+          sed -n '1p'
+      )
+      if [ -z "$route_source" ] && [ -n "$route_interface" ]; then
+        route_source=$(shimmy_shell_interface_ipv4_read_darwin "$route_interface")
+      fi
+      route_line=$route_target
+      [ -z "$route_gateway" ] || route_line="$route_line via $route_gateway"
+      [ -z "$route_interface" ] || route_line="$route_line dev $route_interface"
+      [ -z "$route_source" ] || route_line="$route_line src $route_source"
+      target_route_lines=$(shimmy_line_list_append "$target_route_lines" "$route_line")
+    else
+      target_route_lines=$(shimmy_line_list_append "$target_route_lines" "$route_target unresolved")
+    fi
+  done <<EOF
+$ROUTE_TARGETS
+EOF
+
+  printf '%s\n' "$target_route_lines"
+}
+
+shimmy_shell_interface_ipv4_read_darwin() {
+  interface_name=$1
+
+  ifconfig "$interface_name" 2>/dev/null |
+    sed -n 's/^[[:space:]]*inet[[:space:]][[:space:]]*\([^[:space:]]*\).*$/\1/p' |
+    sed -n '1p'
+}
+
+shimmy_route_targets_read_linux() {
   target_route_lines=
 
   while IFS= read -r route_target; do
@@ -265,6 +397,67 @@ $ROUTE_TARGETS
 EOF
 
   printf '%s\n' "$target_route_lines"
+}
+
+shimmy_shell_default_routes_read() {
+  case "$KERNEL_NAME" in
+    Linux)
+      shimmy_command_output ip -4 route show default
+      ;;
+    Darwin)
+      netstat -rn -f inet 2>/dev/null |
+        awk '$1 == "default" { print "default via " $2 " dev " $4 }'
+      ;;
+  esac
+}
+
+shimmy_shell_interfaces_read() {
+  case "$KERNEL_NAME" in
+    Linux)
+      shimmy_command_output ip -br -4 addr show
+      ;;
+    Darwin)
+      ifconfig 2>/dev/null |
+        awk '
+          /^[^[:space:]:][^:]*:/ {
+            interface_name = $1
+            sub(":", "", interface_name)
+            interface_state = "DOWN"
+            if ($0 ~ /<[^>]*UP[^>]*>/) {
+              interface_state = "UP"
+            }
+            next
+          }
+          /^[[:space:]]*inet / {
+            print interface_name " " interface_state " " $2
+          }
+        '
+      ;;
+  esac
+}
+
+shimmy_shell_link_routes_read() {
+  case "$KERNEL_NAME" in
+    Linux)
+      shimmy_command_output ip -4 route show scope link
+      ;;
+    Darwin)
+      netstat -rn -f inet 2>/dev/null |
+        awk 'NR > 4 && $1 != "default" && $1 != "" { print }'
+      ;;
+  esac
+}
+
+shimmy_shell_neighbors_read() {
+  case "$KERNEL_NAME" in
+    Linux)
+      shimmy_command_output ip -4 neigh show
+      ;;
+    Darwin)
+      command -v arp >/dev/null 2>&1 || return 0
+      shimmy_command_output arp -an
+      ;;
+  esac
 }
 
 shimmy_section_print() {
@@ -295,7 +488,7 @@ Usage:
 Options:
   --target <host-or-ip>    Add an IPv4 route perspective target. Repeatable.
                            Default: 1.1.1.1
-  --host-name <name>       Resolve a host-side DHCP/DNS name with getent ahostsv4.
+  --host-name <name>       Resolve a host-side DHCP/DNS name with the system resolver.
   --host-ip <ipv4>         Provide the host-side IPv4 address explicitly.
   --host-prefix <bits>     Pair with --host-ip or --host-name to derive host LAN CIDR.
   --host-lan <cidr>        Provide the host-side LAN CIDR explicitly.
@@ -365,22 +558,23 @@ while [ "$#" -gt 0 ]; do
 done
 
 shimmy_inputs_validate
-shimmy_require_ip
+KERNEL_NAME=$(shimmy_kernel_name_read)
+shimmy_network_tools_require
 
 if [ -z "$ROUTE_TARGETS" ]; then
   ROUTE_TARGETS=1.1.1.1
 fi
 
 shell_hostname=$(hostname 2>/dev/null || printf unknown)
-kernel_name=$(uname -s 2>/dev/null || printf unknown)
-interface_lines=$(shimmy_command_output ip -br -4 addr show)
-default_route_lines=$(shimmy_command_output ip -4 route show default)
-link_route_lines=$(shimmy_command_output ip -4 route show scope link)
-neighbor_lines=$(shimmy_command_output ip -4 neigh show)
+kernel_name=$KERNEL_NAME
+interface_lines=$(shimmy_shell_interfaces_read)
+default_route_lines=$(shimmy_shell_default_routes_read)
+link_route_lines=$(shimmy_shell_link_routes_read)
+neighbor_lines=$(shimmy_shell_neighbors_read)
 nameserver_lines=$(shimmy_nameservers_read)
 target_route_lines=$(shimmy_route_targets_read)
 virtual_kind=$(shimmy_virtual_kind_read)
-environment_name=$(shimmy_environment_detect "$shell_hostname" "$interface_lines" "$default_route_lines" "$virtual_kind")
+environment_name=$(shimmy_environment_detect "$shell_hostname" "$interface_lines" "$default_route_lines" "$virtual_kind" "$kernel_name")
 
 shimmy_host_ipv4_resolve
 shimmy_host_lan_resolve
@@ -449,6 +643,9 @@ if [ "$HOST_NAME_RESOLUTION" = failed ]; then
 fi
 if [ "$HOST_NAME_RESOLUTION" = getent_missing ]; then
   printf '%s\n' '- getent is not available, so host_name could not be resolved from this shell.'
+fi
+if [ "$HOST_NAME_RESOLUTION" = resolver_missing ]; then
+  printf '%s\n' '- no supported host resolver is available, so host_name could not be resolved from this shell.'
 fi
 if [ "$HOST_IPV4" != unknown ] && [ "$HOST_LAN" = unknown ]; then
   printf '%s\n' '- host_ipv4 is known, but host_lan still needs --host-prefix or --host-lan.'

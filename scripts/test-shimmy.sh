@@ -496,6 +496,95 @@ EOF
   pass "netinfo manifest resolves Crostini host name"
 }
 
+test_netinfo_manifest_darwin_host_name_resolution() {
+  setup_scenario
+
+  mkdir -p "$WORK_DIR/bin"
+  cat > "$WORK_DIR/bin/arp" <<'EOF'
+#!/bin/sh
+if [ "$1" = -an ]; then
+  printf '%s\n' '? (192.168.10.1) at 00:11:22:33:44:55 on en0 ifscope [ethernet]'
+  exit 0
+fi
+exit 1
+EOF
+  cat > "$WORK_DIR/bin/dscacheutil" <<'EOF'
+#!/bin/sh
+if [ "$1" = -q ] && [ "$2" = host ] && [ "$3" = -a ] && [ "$4" = name ] && [ "$5" = mac-mini ]; then
+  printf '%s\n' 'name: mac-mini'
+  printf '%s\n' 'ip_address: 192.168.10.95'
+  exit 0
+fi
+exit 1
+EOF
+  cat > "$WORK_DIR/bin/hostname" <<'EOF'
+#!/bin/sh
+printf '%s\n' mac-mini
+EOF
+  cat > "$WORK_DIR/bin/ifconfig" <<'EOF'
+#!/bin/sh
+if [ "${1:-}" = en0 ]; then
+  cat <<'IFCONFIG_EN0'
+en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	inet 192.168.10.95 netmask 0xffffff00 broadcast 192.168.10.255
+IFCONFIG_EN0
+  exit 0
+fi
+cat <<'IFCONFIG'
+lo0: flags=8049<UP,LOOPBACK,RUNNING,MULTICAST> mtu 16384
+	inet 127.0.0.1 netmask 0xff000000
+en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	inet 192.168.10.95 netmask 0xffffff00 broadcast 192.168.10.255
+IFCONFIG
+EOF
+  cat > "$WORK_DIR/bin/netstat" <<'EOF'
+#!/bin/sh
+cat <<'NETSTAT'
+Routing tables
+
+Internet:
+Destination        Gateway            Flags           Netif Expire
+default            192.168.10.1       UGScg             en0
+192.168.10/24      link#11            UCS               en0      !
+NETSTAT
+EOF
+  cat > "$WORK_DIR/bin/route" <<'EOF'
+#!/bin/sh
+if [ "$1" = -n ] && [ "$2" = get ]; then
+  cat <<ROUTE
+   route to: $3
+destination: default
+    gateway: 192.168.10.1
+  interface: en0
+ROUTE
+  exit 0
+fi
+exit 1
+EOF
+  chmod +x "$WORK_DIR/bin/arp" "$WORK_DIR/bin/dscacheutil" "$WORK_DIR/bin/hostname" "$WORK_DIR/bin/ifconfig" "$WORK_DIR/bin/netstat" "$WORK_DIR/bin/route"
+
+  output=$(
+    cd "$ROOT_DIR"
+    PATH="$WORK_DIR/bin:/usr/bin:/bin" SHIMMY_TEST_OS=Darwin ./shimmy netinfo --format manifest --host-name mac-mini --host-prefix 24 2>&1
+  )
+
+  assert_contains "$output" "perspective=shell"
+  assert_contains "$output" "environment=darwin"
+  assert_contains "$output" "kernel=Darwin"
+  assert_contains "$output" "shell_hostname=mac-mini"
+  assert_contains "$output" "host_name=mac-mini"
+  assert_contains "$output" "host_name_resolution=resolved"
+  assert_contains "$output" "host_ipv4=192.168.10.95"
+  assert_contains "$output" "host_ipv4_source=dscacheutil_host"
+  assert_contains "$output" "host_lan=192.168.10.0/24"
+  assert_contains "$output" "interface_ipv4=en0 UP 192.168.10.95"
+  assert_contains "$output" "default_route=default via 192.168.10.1 dev en0"
+  assert_contains "$output" "route_target=1.1.1.1 via 192.168.10.1 dev en0 src 192.168.10.95"
+  assert_contains "$output" "neighbor_ipv4=? (192.168.10.1) at 00:11:22:33:44:55 on en0 ifscope [ethernet]"
+
+  pass "netinfo manifest resolves Darwin host name"
+}
+
 test_update_repair_startup() {
   setup_scenario
 
@@ -1132,6 +1221,7 @@ main() {
   test_agent_shimmy_preflight_reports_approvals
   test_netinfo_help
   test_netinfo_manifest_crostini_host_name_resolution
+  test_netinfo_manifest_darwin_host_name_resolution
   test_update_repair_startup
   test_status_reports_install
   test_status_manifest_format

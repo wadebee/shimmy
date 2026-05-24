@@ -1,9 +1,9 @@
 # Shimmy Netinfo
 
-`shimmy netinfo` prints the current shell's network perspective. It is a
-repo-level diagnostic command, not an installed Podman-backed shim, because the
-first question is usually what the shell VM or container can see before another
-container is started.
+`shimmy netinfo` prints the current shell's network perspective on Linux and
+macOS. It is a repo-level diagnostic command, not an installed Podman-backed
+shim, because the first question is usually what the shell VM, container, or
+host can see before another container is started.
 
 ## Usage
 
@@ -20,8 +20,8 @@ Options:
 
 - `--target <host-or-ip>` adds a route perspective target. Repeatable. The
   default is `1.1.1.1`.
-- `--host-name <name>` resolves a host-side DHCP/DNS name with
-  `getent ahostsv4`.
+- `--host-name <name>` resolves a host-side DHCP/DNS name with the system
+  resolver.
 - `--host-ip <ipv4>` provides the host-side IPv4 address explicitly.
 - `--host-prefix <bits>` derives a host-side LAN CIDR from `--host-name` or
   `--host-ip`.
@@ -59,10 +59,12 @@ register that name, use an explicit value:
 the host-side LAN is supplied or can be derived from a resolved host IP plus a
 prefix.
 
-## Other VM Hosts
+## macOS and Other VM Hosts
 
 The same host identity model works for Proxmox guests, macOS Podman VMs, and
-other nested environments. Use a DNS name when the network maintains one:
+other nested environments. On macOS hosts, `netinfo` uses native tools such as
+`ifconfig`, `netstat`, `route`, and `arp` rather than Linux `iproute2`. Use a
+DNS name when the network maintains one:
 
 ```sh
 ./shimmy netinfo --host-name dev-vm-01.home.arpa --host-prefix 24

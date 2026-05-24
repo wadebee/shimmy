@@ -154,12 +154,13 @@ Use the repo-root `shimmy` wrapper as the primary control surface:
 
 The wrapper delegates to script-based interfaces in `scripts/`.
 
-`./shimmy netinfo` reports the current shell's network perspective without
-requiring Podman or probing the LAN. It is useful in VM-heavy environments such
-as Crostini, Proxmox guests, and macOS Podman VMs because it distinguishes the
-shell-side IP and routes from a host-side LAN identity supplied by DNS or by the
-user. For Crostini, do not use the shell hostname `penguin` as the Chromebook
-host identity; provide the Chromebook's router/DNS name instead:
+`./shimmy netinfo` reports the current shell's network perspective on Linux and
+macOS without requiring Podman or probing the LAN. It is useful in VM-heavy
+environments such as Crostini, Proxmox guests, macOS hosts, and macOS Podman VMs
+because it distinguishes the shell-side IP and routes from a host-side LAN
+identity supplied by DNS or by the user. For Crostini, do not use the shell
+hostname `penguin` as the Chromebook host identity; provide the Chromebook's
+router/DNS name instead:
 
 ```sh
 ./shimmy netinfo
