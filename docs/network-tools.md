@@ -5,8 +5,51 @@ network discovery. These tools are most useful when an agent can run them from
 the same checkout, container network, or home-lab context it is already
 debugging.
 
+Shimmy also includes the repo-level `shimmy netinfo` command for identifying the
+current shell's network perspective before choosing a container-backed network
+tool. `netinfo` is intentionally not a Podman-backed shim: it reports what the
+shell VM or container can see, including interfaces, routes, DNS, and optional
+host-side identity supplied through DNS or explicit arguments.
+
 This document is prompt-oriented. It focuses on what to ask an agent to do with
 the shims, not on every command-line option each tool supports.
+
+## Netinfo
+
+`shimmy netinfo` is the safest first check when the question is "which network
+perspective am I in?" It does not scan the LAN, require Podman, or infer a
+physical subnet from NAT-side VM addresses.
+
+Best fit:
+
+- Identify Crostini, VM, or Podman-machine shell-side routes and interfaces.
+- Record the route source address used for one or more targets.
+- Resolve a user-provided host-side DHCP/DNS name with `getent ahostsv4`.
+- Make missing host-side LAN information explicit before running `netcat` or
+  `nmap`.
+
+Prompt examples:
+
+```text
+Use `./shimmy netinfo` to identify this shell's network perspective. If this is
+Crostini, do not use hostname `penguin` as the Chromebook identity; tell me what
+host-side DHCP/DNS name or LAN CIDR is still needed.
+```
+
+```text
+Run `./shimmy netinfo --host-name chromebook-home --host-prefix 24` and explain
+which address is shell-side, which address came from router DNS, and what subnet
+should be used for a later scoped nmap check.
+```
+
+Notes:
+
+- Crostini shells commonly return `penguin` from `hostname`; that is the Linux
+  container hostname, not the Chromebook's DHCP/DNS name.
+- `--host-name <name>` resolves with `getent ahostsv4 <name>` and works only
+  when the router or local DNS registers that name.
+- Use `--host-ip <ipv4> --host-prefix <bits>` or `--host-lan <cidr>` when DNS
+  registration is unavailable.
 
 ## Agent Prompt Patterns
 

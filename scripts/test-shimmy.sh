@@ -412,6 +412,90 @@ EOF
   pass "AI Agent preflight reports narrow shim approvals"
 }
 
+test_netinfo_help() {
+  output=$(
+    run_in_repo ./shimmy netinfo --help 2>&1
+  )
+
+  assert_contains "$output" "Print shell network perspective"
+  assert_contains "$output" "--host-name <name>"
+  assert_contains "$output" "hostname \"penguin\""
+
+  pass "netinfo help"
+}
+
+test_netinfo_manifest_crostini_host_name_resolution() {
+  setup_scenario
+
+  mkdir -p "$WORK_DIR/bin"
+  cat > "$WORK_DIR/bin/getent" <<'EOF'
+#!/bin/sh
+if [ "$1" = ahostsv4 ] && [ "$2" = chromebook-home ]; then
+  printf '%s\n' '192.168.1.42 STREAM chromebook-home'
+  printf '%s\n' '192.168.1.42 DGRAM chromebook-home'
+  exit 0
+fi
+exit 2
+EOF
+  cat > "$WORK_DIR/bin/hostname" <<'EOF'
+#!/bin/sh
+printf '%s\n' penguin
+EOF
+  cat > "$WORK_DIR/bin/ip" <<'EOF'
+#!/bin/sh
+if [ "$1" = -br ] && [ "$2" = -4 ] && [ "$3" = addr ] && [ "$4" = show ]; then
+  printf '%s\n' 'lo UNKNOWN 127.0.0.1/8'
+  printf '%s\n' 'eth0 UP 100.115.92.205/28'
+  exit 0
+fi
+if [ "$1" = -4 ] && [ "$2" = route ] && [ "$3" = show ] && [ "$4" = default ]; then
+  printf '%s\n' 'default via 100.115.92.1 dev eth0'
+  exit 0
+fi
+if [ "$1" = -4 ] && [ "$2" = route ] && [ "$3" = show ] && [ "$4" = scope ] && [ "$5" = link ]; then
+  printf '%s\n' '100.115.92.192/28 dev eth0 proto kernel scope link src 100.115.92.205'
+  exit 0
+fi
+if [ "$1" = -4 ] && [ "$2" = route ] && [ "$3" = get ]; then
+  printf '%s\n' "$4 via 100.115.92.1 dev eth0 src 100.115.92.205"
+  exit 0
+fi
+if [ "$1" = -4 ] && [ "$2" = neigh ] && [ "$3" = show ]; then
+  printf '%s\n' '100.115.92.1 dev eth0 lladdr 00:11:22:33:44:55 REACHABLE'
+  exit 0
+fi
+exit 1
+EOF
+  cat > "$WORK_DIR/bin/uname" <<'EOF'
+#!/bin/sh
+if [ "${1:-}" = -s ]; then
+  printf '%s\n' Linux
+else
+  printf '%s\n' Linux
+fi
+EOF
+  chmod +x "$WORK_DIR/bin/getent" "$WORK_DIR/bin/hostname" "$WORK_DIR/bin/ip" "$WORK_DIR/bin/uname"
+
+  output=$(
+    cd "$ROOT_DIR"
+    PATH="$WORK_DIR/bin:/usr/bin:/bin" ./shimmy netinfo --format manifest --host-name chromebook-home --host-prefix 24 2>&1
+  )
+
+  assert_contains "$output" "perspective=shell"
+  assert_contains "$output" "environment=crostini"
+  assert_contains "$output" "shell_hostname=penguin"
+  assert_contains "$output" "host_name=chromebook-home"
+  assert_contains "$output" "host_name_resolution=resolved"
+  assert_contains "$output" "host_ipv4=192.168.1.42"
+  assert_contains "$output" "host_ipv4_source=getent_ahostsv4"
+  assert_contains "$output" "host_lan=192.168.1.0/24"
+  assert_contains "$output" "host_lan_source=host_prefix"
+  assert_contains "$output" "interface_ipv4=eth0 UP 100.115.92.205/28"
+  assert_contains "$output" "route_target=1.1.1.1 via 100.115.92.1 dev eth0 src 100.115.92.205"
+
+  pass "netinfo manifest resolves Crostini host name"
+}
+
 test_update_repair_startup() {
   setup_scenario
 
@@ -1046,6 +1130,8 @@ main() {
   test_install_no_startup
   test_install_macos_podman_guidance
   test_agent_shimmy_preflight_reports_approvals
+  test_netinfo_help
+  test_netinfo_manifest_crostini_host_name_resolution
   test_update_repair_startup
   test_status_reports_install
   test_status_manifest_format

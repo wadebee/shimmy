@@ -145,6 +145,7 @@ Use the repo-root `shimmy` wrapper as the primary control surface:
 
 ```sh
 ./shimmy install
+./shimmy netinfo
 ./shimmy status
 ./shimmy update --pull --build
 ./shimmy test
@@ -152,6 +153,21 @@ Use the repo-root `shimmy` wrapper as the primary control surface:
 ```
 
 The wrapper delegates to script-based interfaces in `scripts/`.
+
+`./shimmy netinfo` reports the current shell's network perspective without
+requiring Podman or probing the LAN. It is useful in VM-heavy environments such
+as Crostini, Proxmox guests, and macOS Podman VMs because it distinguishes the
+shell-side IP and routes from a host-side LAN identity supplied by DNS or by the
+user. For Crostini, do not use the shell hostname `penguin` as the Chromebook
+host identity; provide the Chromebook's router/DNS name instead:
+
+```sh
+./shimmy netinfo
+./shimmy netinfo --host-name chromebook-home --host-prefix 24
+./shimmy netinfo --host-lan 192.168.1.0/24
+```
+
+See [docs/netinfo.md](docs/netinfo.md) for details.
 
 After `./shimmy install`, activate the installed Shimmy paths in the current shell immediately with:
 
