@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
+DEFAULT_INSTALL_DIR=${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}
 REQUESTED_INSTALL_DIR=
 
 fail() {
@@ -50,9 +50,11 @@ resolve_install_dir() {
 }
 
 render_activate() {
-  shim_dir=$1
-  podman_dir=$2
+  control_bin_dir=$1
+  shim_dir=$2
+  podman_dir=$3
 
+  quoted_control_bin_dir=$(shell_quote "$control_bin_dir")
   quoted_shim_dir=$(shell_quote "$shim_dir")
   quoted_podman_dir=$(shell_quote "$podman_dir")
 
@@ -64,6 +66,14 @@ render_activate() {
   printf '  esac\n'
   printf 'fi\n'
   printf 'unset shimmy_activate_shim_dir\n'
+  printf 'shimmy_activate_control_bin_dir=%s\n' "$quoted_control_bin_dir"
+  printf 'if [ -d "$shimmy_activate_control_bin_dir" ]; then\n'
+  printf '  case ":${PATH:-}:" in\n'
+  printf '    *:"$shimmy_activate_control_bin_dir":*) ;;\n'
+  printf '    *) PATH=$shimmy_activate_control_bin_dir${PATH:+":$PATH"} ;;\n'
+  printf '  esac\n'
+  printf 'fi\n'
+  printf 'unset shimmy_activate_control_bin_dir\n'
   printf 'shimmy_activate_podman_dir=%s\n' "$quoted_podman_dir"
   printf 'if [ -x "$shimmy_activate_podman_dir/podman" ]; then\n'
   printf '  case ":${PATH:-}:" in\n'
@@ -113,13 +123,19 @@ main() {
 
   install_dir=$(resolve_install_dir)
   manifest_file=$install_dir/install-manifest.txt
+  control_bin_dir=$install_dir/bin
   shim_dir=$install_dir/shims
 
   if [ -f "$manifest_file" ]; then
     manifest_install_dir=$(manifest_value "$manifest_file" install_dir || true)
     if [ -n "$manifest_install_dir" ]; then
       install_dir=$(trim_trailing_slash "$manifest_install_dir")
+      control_bin_dir=$install_dir/bin
       shim_dir=$install_dir/shims
+    fi
+    manifest_control_bin=$(manifest_value "$manifest_file" control_bin || true)
+    if [ -n "$manifest_control_bin" ]; then
+      control_bin_dir=$(dirname "$manifest_control_bin")
     fi
   fi
 
@@ -127,7 +143,7 @@ main() {
     fail "no shimmy install found for activate; expected manifest at $manifest_file or shim dir at $shim_dir"
   fi
 
-  render_activate "$shim_dir" /opt/podman/bin
+  render_activate "$control_bin_dir" "$shim_dir" /opt/podman/bin
 }
 
 main "$@"

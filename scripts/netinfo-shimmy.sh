@@ -24,6 +24,13 @@ shimmy_environment_detect() {
   virtual_kind=$4
   kernel_name=$5
 
+  case "$kernel_name" in
+    Darwin)
+      printf '%s\n' darwin
+      return 0
+      ;;
+  esac
+
   if [ -e /dev/.cros_milestone ]; then
     printf '%s\n' crostini
     return 0
@@ -65,9 +72,6 @@ shimmy_environment_detect() {
   esac
 
   case "$kernel_name" in
-    Darwin)
-      printf '%s\n' darwin
-      ;;
     Linux)
       printf '%s\n' linux
       ;;

@@ -42,6 +42,7 @@ assert_contains() {
     *"$needle"*)
       ;;
     *)
+      printf 'Actual output:\n%s\n' "$haystack" >&2
       fail_test "expected output to contain: $needle"
       ;;
   esac
@@ -244,13 +245,18 @@ test_install_manifest() {
   assert_contains "$output" "Activate this install with: eval"
   assert_file_exists "$INSTALL_DIR/install-manifest.txt"
   assert_file_exists "$INSTALL_DIR/activate.sh"
+  assert_file_executable "$INSTALL_DIR/bin/shimmy"
   assert_file_exists "$INSTALL_DIR/shims/jq"
   assert_dir_exists "$INSTALL_DIR/lib/shims"
+  assert_dir_exists "$INSTALL_DIR/libexec/shimmy/scripts"
+  assert_dir_exists "$INSTALL_DIR/libexec/shimmy/lib/repo"
+  assert_dir_exists "$INSTALL_DIR/libexec/shimmy/lib/shims"
   assert_file_exists "$HOME_DIR/.bashrc"
   assert_file_exists "$HOME_DIR/.bash_profile"
 
   manifest_contents=$(cat "$INSTALL_DIR/install-manifest.txt")
   assert_contains "$manifest_contents" "install_dir=$INSTALL_DIR"
+  assert_contains "$manifest_contents" "control_bin=$INSTALL_DIR/bin/shimmy"
   assert_contains "$manifest_contents" "activate_file=$INSTALL_DIR/activate.sh"
   assert_contains "$manifest_contents" "startup_shell=bash"
   assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.bashrc"
@@ -266,6 +272,7 @@ test_install_manifest() {
   assert_file_contains "$HOME_DIR/.bashrc" "$INSTALL_DIR/activate.sh"
   assert_file_contains "$HOME_DIR/.bash_profile" "# >>> shimmy onboarding >>>"
   assert_file_contains "$HOME_DIR/.bash_profile" "$INSTALL_DIR/activate.sh"
+  assert_file_contains "$INSTALL_DIR/activate.sh" "$INSTALL_DIR/bin"
   assert_file_contains "$INSTALL_DIR/activate.sh" "$INSTALL_DIR/shims"
 
   pass "install writes manifest and startup file"
@@ -326,7 +333,7 @@ test_activate_eval() {
 
   assert_contains "$output" "HAS_SHIMMY_INSTALL_DIR="
   assert_contains "$output" "HAS_SHIMMY_SHIM_DIR="
-  assert_contains "$output" "PATH=$INSTALL_DIR/shims:/usr/bin"
+  assert_contains "$output" "PATH=$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin"
 
   pass "activate eval only updates PATH"
 }
@@ -338,11 +345,12 @@ test_activate_is_idempotent() {
 
   output=$(
     cd "$ROOT_DIR"
-    /bin/sh -c 'PATH=/usr/bin; eval "$("./shimmy" activate --install-dir "$1")"; eval "$("./shimmy" activate --install-dir "$1")"; path_count=0; old_ifs=$IFS; IFS=:; for path_entry in $PATH; do if [ "$path_entry" = "$1/shims" ]; then path_count=$((path_count + 1)); fi; done; IFS=$old_ifs; printf "COUNT=%s\nPATH=%s\n" "$path_count" "$PATH"' sh "$INSTALL_DIR"
+    /bin/sh -c 'PATH=/usr/bin; eval "$("./shimmy" activate --install-dir "$1")"; eval "$("./shimmy" activate --install-dir "$1")"; shim_count=0; bin_count=0; old_ifs=$IFS; IFS=:; for path_entry in $PATH; do if [ "$path_entry" = "$1/shims" ]; then shim_count=$((shim_count + 1)); fi; if [ "$path_entry" = "$1/bin" ]; then bin_count=$((bin_count + 1)); fi; done; IFS=$old_ifs; printf "SHIM_COUNT=%s\nBIN_COUNT=%s\nPATH=%s\n" "$shim_count" "$bin_count" "$PATH"' sh "$INSTALL_DIR"
   )
 
-  assert_contains "$output" "COUNT=1"
-  assert_contains "$output" "PATH=$INSTALL_DIR/shims:/usr/bin"
+  assert_contains "$output" "SHIM_COUNT=1"
+  assert_contains "$output" "BIN_COUNT=1"
+  assert_contains "$output" "PATH=$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin"
 
   pass "activate path activation is idempotent"
 }
@@ -521,6 +529,10 @@ EOF
 #!/bin/sh
 printf '%s\n' mac-mini
 EOF
+  cat > "$WORK_DIR/bin/getent" <<'EOF'
+#!/bin/sh
+exit 2
+EOF
   cat > "$WORK_DIR/bin/ifconfig" <<'EOF'
 #!/bin/sh
 if [ "${1:-}" = en0 ]; then
@@ -561,7 +573,11 @@ ROUTE
 fi
 exit 1
 EOF
-  chmod +x "$WORK_DIR/bin/arp" "$WORK_DIR/bin/dscacheutil" "$WORK_DIR/bin/hostname" "$WORK_DIR/bin/ifconfig" "$WORK_DIR/bin/netstat" "$WORK_DIR/bin/route"
+  cat > "$WORK_DIR/bin/systemd-detect-virt" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+  chmod +x "$WORK_DIR/bin/arp" "$WORK_DIR/bin/dscacheutil" "$WORK_DIR/bin/getent" "$WORK_DIR/bin/hostname" "$WORK_DIR/bin/ifconfig" "$WORK_DIR/bin/netstat" "$WORK_DIR/bin/route" "$WORK_DIR/bin/systemd-detect-virt"
 
   output=$(
     cd "$ROOT_DIR"
@@ -601,6 +617,7 @@ test_update_repair_startup() {
   assert_contains "$output" "Updated startup file: $startup_file"
   assert_file_contains "$startup_file" "# >>> shimmy onboarding >>>"
   assert_file_contains "$startup_file" "$INSTALL_DIR/activate.sh"
+  assert_file_contains "$INSTALL_DIR/activate.sh" "$INSTALL_DIR/bin"
   assert_file_contains "$INSTALL_DIR/activate.sh" "$INSTALL_DIR/shims"
 
   HOME="$HOME_DIR" SHELL=/bin/zsh run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --repair-startup >/dev/null
@@ -640,6 +657,7 @@ test_status_manifest_format() {
 
   assert_contains "$output" "installed=yes"
   assert_contains "$output" "install_dir=$INSTALL_DIR"
+  assert_contains "$output" "control_bin=$INSTALL_DIR/bin/shimmy"
   assert_contains "$output" "shim_dir=$INSTALL_DIR/shims"
   assert_contains "$output" "path_active=no"
   assert_contains "$output" "activate_file=$INSTALL_DIR/activate.sh"
@@ -649,6 +667,46 @@ test_status_manifest_format() {
   assert_not_contains "$output" "installed_shims:"
 
   pass "status manifest format is machine-readable"
+}
+
+test_installed_shimmy_management_command() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+
+  status_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status --format manifest 2>&1
+  )
+
+  assert_contains "$status_output" "installed=yes"
+  assert_contains "$status_output" "install_dir=$INSTALL_DIR"
+  assert_contains "$status_output" "control_bin=$INSTALL_DIR/bin/shimmy"
+  assert_contains "$status_output" "shim=jq"
+
+  netinfo_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy netinfo --help 2>&1
+  )
+
+  assert_contains "$netinfo_output" "Print shell network perspective"
+
+  activate_output=$(
+    cd "$WORK_DIR"
+    PATH=/usr/bin "$INSTALL_DIR/bin/shimmy" activate 2>&1
+  )
+
+  assert_contains "$activate_output" "$INSTALL_DIR/bin"
+  assert_contains "$activate_output" "$INSTALL_DIR/shims"
+
+  rm -f "$INSTALL_DIR/shims/jq"
+  (
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy update >/dev/null
+  )
+  assert_file_exists "$INSTALL_DIR/shims/jq"
+
+  pass "installed shimmy management command works outside source checkout"
 }
 
 test_update_reinstalls_selected_shims() {
@@ -1225,6 +1283,7 @@ main() {
   test_update_repair_startup
   test_status_reports_install
   test_status_manifest_format
+  test_installed_shimmy_management_command
   test_update_reinstalls_selected_shims
   test_update_preserves_shimmy_manifest_fields
   test_aws_shim_direct

@@ -1,19 +1,21 @@
 # Shimmy Netinfo
 
 `shimmy netinfo` prints the current shell's network perspective on Linux and
-macOS. It is a repo-level diagnostic command, not an installed Podman-backed
-shim, because the first question is usually what the shell VM, container, or
-host can see before another container is started.
+macOS. It is a local diagnostic command, not a Podman-backed shim, because the
+first question is usually what the shell VM, container, or host can see before
+another container is started. From a source checkout, run it as `./shimmy
+netinfo`; after installation, activated shells can run `shimmy netinfo` from any
+directory.
 
 ## Usage
 
 ```sh
-./shimmy netinfo
-./shimmy netinfo --target 192.168.1.1
-./shimmy netinfo --host-name chromebook --host-prefix 24
-./shimmy netinfo --host-ip 192.168.1.2 --host-prefix 24
-./shimmy netinfo --host-lan 192.168.1.0/24
-./shimmy netinfo --format manifest
+shimmy netinfo
+shimmy netinfo --target 192.168.1.1
+shimmy netinfo --host-name chromebook --host-prefix 24
+shimmy netinfo --host-ip 192.168.1.2 --host-prefix 24
+shimmy netinfo --host-lan 192.168.1.0/24
+shimmy netinfo --format manifest
 ```
 
 Options:
@@ -42,8 +44,8 @@ Linux container hostname, not the Chromebook's DHCP/DNS name. Do not pass
 Preferred Crostini flow:
 
 ```sh
-./shimmy netinfo
-./shimmy netinfo --host-name <chromebook-router-dns-name> --host-prefix 24
+shimmy netinfo
+shimmy netinfo --host-name <chromebook-router-dns-name> --host-prefix 24
 ```
 
 Use the Chromebook's router/DNS name, DHCP reservation name, or another local
@@ -51,8 +53,8 @@ DNS name that resolves to the Chromebook's LAN address. If the network does not
 register that name, use an explicit value:
 
 ```sh
-./shimmy netinfo --host-ip 192.168.1.42 --host-prefix 24
-./shimmy netinfo --host-lan 192.168.1.0/24
+shimmy netinfo --host-ip 192.168.1.42 --host-prefix 24
+shimmy netinfo --host-lan 192.168.1.0/24
 ```
 
 `netinfo` does not scan the LAN by default. It reports `host_lan=unknown` until
@@ -67,13 +69,13 @@ other nested environments. On macOS hosts, `netinfo` uses native tools such as
 DNS name when the network maintains one:
 
 ```sh
-./shimmy netinfo --host-name dev-vm-01.home.arpa --host-prefix 24
+shimmy netinfo --host-name dev-vm-01.home.arpa --host-prefix 24
 ```
 
 If DNS is not available or not stable, pass the LAN explicitly:
 
 ```sh
-./shimmy netinfo --host-lan 10.10.20.0/24
+shimmy netinfo --host-lan 10.10.20.0/24
 ```
 
 ## Manifest Output

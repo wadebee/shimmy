@@ -5,11 +5,13 @@ network discovery. These tools are most useful when an agent can run them from
 the same checkout, container network, or home-lab context it is already
 debugging.
 
-Shimmy also includes the repo-level `shimmy netinfo` command for identifying the
+Shimmy also includes the `shimmy netinfo` management command for identifying the
 current shell's network perspective before choosing a container-backed network
-tool. `netinfo` is intentionally not a Podman-backed shim: it reports what the
-Linux shell, macOS host, VM, or container can see, including interfaces, routes,
-DNS, and optional host-side identity supplied through DNS or explicit arguments.
+tool. It is available as `./shimmy netinfo` from a source checkout and as
+`shimmy netinfo` from any activated installed shell. `netinfo` is intentionally
+not a Podman-backed shim: it reports what the Linux shell, macOS host, VM, or
+container can see, including interfaces, routes, DNS, and optional host-side
+identity supplied through DNS or explicit arguments.
 
 This document is prompt-oriented. It focuses on what to ask an agent to do with
 the shims, not on every command-line option each tool supports.
@@ -31,13 +33,13 @@ Best fit:
 Prompt examples:
 
 ```text
-Use `./shimmy netinfo` to identify this shell's network perspective. If this is
+Use `shimmy netinfo` to identify this shell's network perspective. If this is
 Crostini, do not use hostname `penguin` as the Chromebook identity; tell me what
 host-side DHCP/DNS name or LAN CIDR is still needed.
 ```
 
 ```text
-Run `./shimmy netinfo --host-name chromebook-home --host-prefix 24` and explain
+Run `shimmy netinfo --host-name chromebook-home --host-prefix 24` and explain
 which address is shell-side, which address came from router DNS, and what subnet
 should be used for a later scoped nmap check.
 ```

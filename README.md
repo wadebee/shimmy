@@ -141,7 +141,7 @@ Put the plugin and marketplace files in the Linux home directory used by the AI 
 
 ### Option: Shimmy wrapper workflow
 
-Use the repo-root `shimmy` wrapper as the primary control surface:
+Use the repo-root `shimmy` wrapper to install and manage Shimmy from a source checkout:
 
 ```sh
 ./shimmy install
@@ -154,7 +154,22 @@ Use the repo-root `shimmy` wrapper as the primary control surface:
 
 The wrapper delegates to script-based interfaces in `scripts/`.
 
-`./shimmy netinfo` reports the current shell's network perspective on Linux and
+After installation, Shimmy also installs a management command at:
+
+```sh
+~/.config/shimmy/bin/shimmy
+```
+
+Activated shells can use the installed command from any directory:
+
+```sh
+shimmy status
+shimmy netinfo
+shimmy update --pull --build
+eval "$(shimmy activate)"
+```
+
+`shimmy netinfo` reports the current shell's network perspective on Linux and
 macOS without requiring Podman or probing the LAN. It is useful in VM-heavy
 environments such as Crostini, Proxmox guests, macOS hosts, and macOS Podman VMs
 because it distinguishes the shell-side IP and routes from a host-side LAN
@@ -163,9 +178,9 @@ hostname `penguin` as the Chromebook host identity; provide the Chromebook's
 router/DNS name instead:
 
 ```sh
-./shimmy netinfo
-./shimmy netinfo --host-name chromebook-home --host-prefix 24
-./shimmy netinfo --host-lan 192.168.1.0/24
+shimmy netinfo
+shimmy netinfo --host-name chromebook-home --host-prefix 24
+shimmy netinfo --host-lan 192.168.1.0/24
 ```
 
 See [docs/netinfo.md](docs/netinfo.md) for details.
@@ -173,10 +188,10 @@ See [docs/netinfo.md](docs/netinfo.md) for details.
 After `./shimmy install`, activate the installed Shimmy paths in the current shell immediately with:
 
 ```sh
-eval "$(./shimmy activate)"
+eval "$(~/.config/shimmy/bin/shimmy activate)"
 ```
 
-`./shimmy install` writes one activation file under the install root and updates your shell startup file by default so future shells can source it. It cannot change your current shell session, so use `eval "$(./shimmy activate)"` to make the install available immediately.
+`./shimmy install` writes one activation file under the install root and updates your shell startup file by default so future shells can source it. It cannot change your current shell session, so use the installed `shimmy activate` command to make the install available immediately.
 
 The installed activation file is:
 
@@ -210,15 +225,15 @@ If you prefer not to modify your startup files, use `--no-startup` and add activ
 
 ```sh
 ./shimmy install --no-startup
-eval "$(./shimmy activate)"
+eval "$(~/.config/shimmy/bin/shimmy activate)"
 ```
 
 If your startup file ever needs to be rewritten or repaired later, use update:
 
 ```sh
-./shimmy update --repair-startup
-./shimmy update --repair-startup --shell zsh
-./shimmy update --repair-startup --startup-file "$HOME/.config/shimmy/profile"
+shimmy update --repair-startup
+shimmy update --repair-startup --shell zsh
+shimmy update --repair-startup --startup-file "$HOME/.config/shimmy/profile"
 ```
 
 Without `--repair-startup`, `update` refreshes installed assets only and leaves startup files alone.
@@ -258,6 +273,7 @@ The manifest is the source of truth for activation, status, update, startup-file
 
 Core fields include:
 - `install_dir` — active install root
+- `control_bin` — installed `shimmy` management command
 - `activate_file` — generated activation script
 - `startup_shell` — shell used for managed startup-file selection
 - `startup_file` — managed startup file; repeated when more than one file is updated
@@ -268,7 +284,7 @@ Shimmy also reserves `shimmy_*` fields for lifecycle metadata such as the instal
 For machine-readable inspection, use:
 
 ```sh
-./shimmy status --format manifest
+shimmy status --format manifest
 ```
 
 The current implementation can reinstall from the checked-out source, refresh remote images with `--pull`, rebuild local images with `--build`, repair startup files, and preserve lifecycle metadata. Full latest-version resolution, semver enforcement such as `>=0.10.0`, and rollback to release versions require a release/tag/version convention for Shimmy itself.

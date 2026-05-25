@@ -9,13 +9,15 @@ ROOT_DIR=$(
 )
 
 ACTIVATE_SCRIPT=$SCRIPT_DIR/activate-shimmy.sh
+SOURCE_CONTROL_FILE=$ROOT_DIR/shimmy
+SOURCE_SCRIPT_DIR=$ROOT_DIR/scripts
 SOURCE_SHIMS_DIR=$ROOT_DIR/shims
 SOURCE_IMAGES_DIR=$ROOT_DIR/images
 SOURCE_REPO_LIB_DIR=$ROOT_DIR/lib/repo
 SOURCE_SHIM_LIB_DIR=$ROOT_DIR/lib/shims
 STARTUP_HELPER_FILE=$SOURCE_REPO_LIB_DIR/shimmy-startup.sh
 
-DEFAULT_INSTALL_DIR=$HOME/.config/shimmy
+DEFAULT_INSTALL_DIR=${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}
 SUPPORTED_SHIMS='aws go jq netcat nmap opnsense-mcp-server rg task terraform textual'
 
 REQUESTED_INSTALL_DIR=
@@ -245,6 +247,14 @@ resolve_install_paths() {
   SHIMMY_SHIM_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" shims)
   SHIMMY_IMAGES_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" images)
   SHIMMY_SHIM_LIB_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" lib/shims)
+  SHIMMY_CONTROL_BIN_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" bin)
+  SHIMMY_CONTROL_BIN=$(install_path_render "$SHIMMY_CONTROL_BIN_DIR" shimmy)
+  SHIMMY_CONTROL_SOURCE_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" libexec/shimmy)
+  SHIMMY_CONTROL_SCRIPT_DIR=$(install_path_render "$SHIMMY_CONTROL_SOURCE_DIR" scripts)
+  SHIMMY_CONTROL_SHIMS_DIR=$(install_path_render "$SHIMMY_CONTROL_SOURCE_DIR" shims)
+  SHIMMY_CONTROL_IMAGES_DIR=$(install_path_render "$SHIMMY_CONTROL_SOURCE_DIR" images)
+  SHIMMY_CONTROL_REPO_LIB_DIR=$(install_path_render "$SHIMMY_CONTROL_SOURCE_DIR" lib/repo)
+  SHIMMY_CONTROL_SHIM_LIB_DIR=$(install_path_render "$SHIMMY_CONTROL_SOURCE_DIR" lib/shims)
   SHIMMY_ACTIVATE_FILE=$(install_path_render "$SHIMMY_INSTALL_DIR" activate.sh)
   INSTALL_MANIFEST_FILE=$(install_path_render "$SHIMMY_INSTALL_DIR" install-manifest.txt)
 }
@@ -263,6 +273,14 @@ load_install_root_from_manifest() {
   SHIMMY_SHIM_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" shims)
   SHIMMY_IMAGES_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" images)
   SHIMMY_SHIM_LIB_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" lib/shims)
+  SHIMMY_CONTROL_BIN_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" bin)
+  SHIMMY_CONTROL_BIN=$(install_path_render "$SHIMMY_CONTROL_BIN_DIR" shimmy)
+  SHIMMY_CONTROL_SOURCE_DIR=$(install_path_render "$SHIMMY_INSTALL_DIR" libexec/shimmy)
+  SHIMMY_CONTROL_SCRIPT_DIR=$(install_path_render "$SHIMMY_CONTROL_SOURCE_DIR" scripts)
+  SHIMMY_CONTROL_SHIMS_DIR=$(install_path_render "$SHIMMY_CONTROL_SOURCE_DIR" shims)
+  SHIMMY_CONTROL_IMAGES_DIR=$(install_path_render "$SHIMMY_CONTROL_SOURCE_DIR" images)
+  SHIMMY_CONTROL_REPO_LIB_DIR=$(install_path_render "$SHIMMY_CONTROL_SOURCE_DIR" lib/repo)
+  SHIMMY_CONTROL_SHIM_LIB_DIR=$(install_path_render "$SHIMMY_CONTROL_SOURCE_DIR" lib/shims)
   SHIMMY_ACTIVATE_FILE=$(install_path_render "$SHIMMY_INSTALL_DIR" activate.sh)
   INSTALL_MANIFEST_FILE=$(install_path_render "$SHIMMY_INSTALL_DIR" install-manifest.txt)
 }
@@ -281,6 +299,11 @@ install_file() {
   source_path=$1
   target_path=$2
 
+  if [ "$source_path" = "$target_path" ]; then
+    chmod 755 "$target_path"
+    return 0
+  fi
+
   rm -f "$target_path"
   cp "$source_path" "$target_path"
   chmod 755 "$target_path"
@@ -290,8 +313,39 @@ install_directory_copy() {
   source_path=$1
   target_path=$2
 
+  if [ "$source_path" = "$target_path" ]; then
+    return 0
+  fi
+
   rm -rf "$target_path"
   cp -R "$source_path" "$target_path"
+}
+
+install_control_assets() {
+  [ -f "$SOURCE_CONTROL_FILE" ] || fail "missing source management launcher: $SOURCE_CONTROL_FILE"
+  [ -d "$SOURCE_SCRIPT_DIR" ] || fail "missing source script directory: $SOURCE_SCRIPT_DIR"
+  [ -d "$SOURCE_REPO_LIB_DIR" ] || fail "missing source repo helper directory: $SOURCE_REPO_LIB_DIR"
+
+  if [ "$ROOT_DIR" != "$SHIMMY_CONTROL_SOURCE_DIR" ]; then
+    rm -rf "$SHIMMY_CONTROL_SOURCE_DIR"
+  fi
+
+  mkdir -p "$SHIMMY_CONTROL_BIN_DIR" "$SHIMMY_CONTROL_SCRIPT_DIR" \
+    "$SHIMMY_CONTROL_SHIMS_DIR" "$SHIMMY_CONTROL_IMAGES_DIR" \
+    "$(dirname "$SHIMMY_CONTROL_REPO_LIB_DIR")"
+
+  install_file "$SOURCE_CONTROL_FILE" "$SHIMMY_CONTROL_BIN"
+  install_file "$SOURCE_CONTROL_FILE" "$SHIMMY_CONTROL_SOURCE_DIR/shimmy"
+
+  for script_name in activate-shimmy.sh install-shimmy.sh netinfo-shimmy.sh status-shimmy.sh update-shimmy.sh; do
+    source_path=$SOURCE_SCRIPT_DIR/$script_name
+    target_path=$SHIMMY_CONTROL_SCRIPT_DIR/$script_name
+    [ -f "$source_path" ] || fail "missing management script source: $source_path"
+    install_file "$source_path" "$target_path"
+  done
+
+  install_directory_copy "$SOURCE_REPO_LIB_DIR" "$SHIMMY_CONTROL_REPO_LIB_DIR"
+  install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_CONTROL_SHIM_LIB_DIR"
 }
 
 startup_file_summary_render() {
@@ -337,6 +391,7 @@ write_manifest() {
 
   {
     printf 'install_dir=%s\n' "$SHIMMY_INSTALL_DIR"
+    printf 'control_bin=%s\n' "$SHIMMY_CONTROL_BIN"
     printf 'activate_file=%s\n' "$SHIMMY_ACTIVATE_FILE"
     if [ -n "$STARTUP_SHELL" ]; then
       printf 'startup_shell=%s\n' "$STARTUP_SHELL"
@@ -396,13 +451,18 @@ perform_install() {
   resolve_startup_settings
 
   [ -d "$SOURCE_SHIMS_DIR" ] || fail "missing source shim directory: $SOURCE_SHIMS_DIR"
+  [ -d "$SOURCE_IMAGES_DIR" ] || fail "missing source image support directory: $SOURCE_IMAGES_DIR"
   [ -d "$SOURCE_SHIM_LIB_DIR" ] || fail "missing source shim helper directory: $SOURCE_SHIM_LIB_DIR"
 
   log_info "Installing shimmy into $SHIMMY_INSTALL_DIR"
 
   mkdir -p "$SHIMMY_INSTALL_DIR"
   rm -rf "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$SHIMMY_SHIM_LIB_DIR"
+  rm -f "$SHIMMY_CONTROL_BIN"
   mkdir -p "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")"
+
+  log_debug "Copying management command support to $SHIMMY_CONTROL_SOURCE_DIR"
+  install_control_assets
 
   for shim_name in $(selected_shim_list); do
     source_path=$SOURCE_SHIMS_DIR/$shim_name
@@ -410,6 +470,10 @@ perform_install() {
     [ -f "$source_path" ] || fail "missing shim source: $source_path"
     log_debug "Copying shim $shim_name to $target_path"
     install_file "$source_path" "$target_path"
+
+    control_target_path=$SHIMMY_CONTROL_SHIMS_DIR/$shim_name
+    log_debug "Copying management source shim $shim_name to $control_target_path"
+    install_file "$source_path" "$control_target_path"
   done
 
   for shim_name in $(selected_shim_list); do
@@ -418,6 +482,10 @@ perform_install() {
     if [ -d "$source_path" ]; then
       log_debug "Copying image support for $shim_name to $target_path"
       install_directory_copy "$source_path" "$target_path"
+
+      control_target_path=$SHIMMY_CONTROL_IMAGES_DIR/$shim_name
+      log_debug "Copying management source image support for $shim_name to $control_target_path"
+      install_directory_copy "$source_path" "$control_target_path"
     fi
   done
 
@@ -441,7 +509,7 @@ EOF
 
   log_info "Installed shimmy assets into $SHIMMY_INSTALL_DIR"
   log_info "Future shells will load Shimmy from: $(startup_file_summary_render "$STARTUP_FILE_PATHS")"
-  log_info "Activate this install with: eval \"\$(./shimmy activate --install-dir '$SHIMMY_INSTALL_DIR')\""
+  log_info "Activate this install with: eval \"\$('$SHIMMY_CONTROL_BIN' activate)\""
   podman_macos_guidance_log
 }
 
@@ -477,6 +545,8 @@ EOF
   remove_path_if_present "$SHIMMY_SHIM_DIR" "shim"
   remove_path_if_present "$SHIMMY_IMAGES_DIR" "image"
   remove_path_if_present "$SHIMMY_SHIM_LIB_DIR" "shim helper"
+  remove_path_if_present "$SHIMMY_CONTROL_BIN" "management command"
+  remove_path_if_present "$SHIMMY_CONTROL_SOURCE_DIR" "management support"
   remove_path_if_present "$SHIMMY_ACTIVATE_FILE" "activation"
   remove_path_if_present "$INSTALL_MANIFEST_FILE" "manifest"
 
@@ -488,6 +558,12 @@ EOF
   fi
   if [ -d "$SHIMMY_INSTALL_DIR/shims" ]; then
     rmdir "$SHIMMY_INSTALL_DIR/shims" 2>/dev/null || true
+  fi
+  if [ -d "$SHIMMY_INSTALL_DIR/bin" ]; then
+    rmdir "$SHIMMY_INSTALL_DIR/bin" 2>/dev/null || true
+  fi
+  if [ -d "$SHIMMY_INSTALL_DIR/libexec" ]; then
+    rmdir "$SHIMMY_INSTALL_DIR/libexec" 2>/dev/null || true
   fi
 
   if [ -d "$SHIMMY_INSTALL_DIR" ]; then

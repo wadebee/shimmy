@@ -5,8 +5,45 @@ SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
 ROOT_DIR=$SCRIPT_DIR
+INSTALL_DIR=
+INSTALLED_LAUNCHER=0
+
+if [ -d "$SCRIPT_DIR/../libexec/shimmy/scripts" ]; then
+  ROOT_DIR=$(
+    cd -- "$SCRIPT_DIR/../libexec/shimmy" && pwd
+  )
+  INSTALL_DIR=$(
+    cd -- "$SCRIPT_DIR/.." && pwd
+  )
+  INSTALLED_LAUNCHER=1
+  SHIMMY_CONTROL_INSTALL_DIR=$INSTALL_DIR
+  export SHIMMY_CONTROL_INSTALL_DIR
+fi
 
 usage() {
+  if [ "$INSTALLED_LAUNCHER" -eq 1 ]; then
+    cat <<'EOF'
+Manage an installed Shimmy environment.
+
+Usage:
+  shimmy <command> [options]
+
+Commands:
+  activate [args...]    Print shell code that activates the installed shim paths now
+  netinfo [args...]     Run scripts/netinfo-shimmy.sh
+  status [args...]      Run scripts/status-shimmy.sh
+  update [args...]      Run scripts/update-shimmy.sh
+  help                  Show this help (default action if no command is given)
+
+Examples:
+  eval "$(shimmy activate)"
+  shimmy netinfo
+  shimmy status
+  shimmy update --pull --build --repair-startup
+EOF
+    return 0
+  fi
+
   cat <<'EOF'
 Manage shimmy from a single repo-root launcher.
 
@@ -58,10 +95,16 @@ main() {
       usage
       ;;
     install)
+      if [ "$INSTALLED_LAUNCHER" -eq 1 ]; then
+        fail "install is available from a Shimmy source checkout; use shimmy update for an installed environment"
+      fi
       shift
       run_repo_script "$ROOT_DIR/scripts/install-shimmy.sh" "$@"
       ;;
     uninstall)
+      if [ "$INSTALLED_LAUNCHER" -eq 1 ]; then
+        fail "uninstall is available from a Shimmy source checkout"
+      fi
       shift
       run_repo_script "$ROOT_DIR/scripts/install-shimmy.sh" --uninstall "$@"
       ;;
@@ -82,6 +125,9 @@ main() {
       run_repo_script "$ROOT_DIR/scripts/update-shimmy.sh" "$@"
       ;;
     test)
+      if [ "$INSTALLED_LAUNCHER" -eq 1 ]; then
+        fail "test is available from a Shimmy source checkout"
+      fi
       shift
       run_repo_script "$ROOT_DIR/scripts/test-shimmy.sh" "$@"
       ;;
