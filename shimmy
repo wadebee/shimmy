@@ -29,6 +29,7 @@ Usage:
   shimmy <command> [options]
 
 Commands:
+  install <shim>...     Install available shims into this environment
   activate [args...]    Print shell code that activates the installed shim paths now
   netinfo [args...]     Run scripts/netinfo-shimmy.sh
   status [args...]      Run scripts/status-shimmy.sh
@@ -37,6 +38,7 @@ Commands:
 
 Examples:
   eval "$(shimmy activate)"
+  shimmy install opnsense-mcp-server
   shimmy netinfo
   shimmy status
   shimmy status --available
@@ -89,6 +91,14 @@ run_repo_script() {
   exec "$script_path" "$@"
 }
 
+run_installed_shim_install() {
+  if [ "$#" -eq 0 ]; then
+    fail "install must include the name of an available shim"
+  fi
+
+  run_repo_script "$ROOT_DIR/scripts/install-shimmy.sh" --add-shim "$@"
+}
+
 main() {
   command_name=${1:-help}
 
@@ -98,7 +108,8 @@ main() {
       ;;
     install)
       if [ "$INSTALLED_LAUNCHER" -eq 1 ]; then
-        fail "install is available from a Shimmy source checkout; use shimmy update for an installed environment"
+        shift
+        run_installed_shim_install "$@"
       fi
       shift
       run_repo_script "$ROOT_DIR/scripts/install-shimmy.sh" "$@"

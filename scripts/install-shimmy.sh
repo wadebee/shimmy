@@ -25,6 +25,7 @@ REQUESTED_SHIMS=
 REQUESTED_SHELL=
 REQUESTED_STARTUP_FILES=
 SKIP_STARTUP=0
+ADD_SHIMS=0
 STARTUP_FILE_PATHS=
 STARTUP_SHELL=
 PRESERVED_STARTUP_FILE_PATHS=
@@ -111,6 +112,32 @@ line_list_append() {
   fi
 }
 
+line_list_contains() {
+  list_value=${1:-}
+  line_value=$2
+
+  while IFS= read -r existing_line; do
+    [ -n "$existing_line" ] || continue
+    if [ "$existing_line" = "$line_value" ]; then
+      return 0
+    fi
+  done <<EOF
+$list_value
+EOF
+
+  return 1
+}
+
+requested_shim_append() {
+  requested_shim=$1
+
+  if [ -n "$REQUESTED_SHIMS" ]; then
+    REQUESTED_SHIMS="$REQUESTED_SHIMS $requested_shim"
+  else
+    REQUESTED_SHIMS=$requested_shim
+  fi
+}
+
 fail() {
   log_message error "$*"
   exit 1
@@ -143,6 +170,7 @@ Usage:
 Options:
   --install-dir <dir>    Base install directory. Default: ~/.config/shimmy
   --shim <name>          Install only the named shim. Repeatable.
+  --add-shim             Add named shims to an existing install without reinstalling
   --shell <name>         Override shell detection for startup-file updates
   --startup-file <path>  Override startup file updates. Repeatable.
   --no-startup           Skip persistent startup-file updates during install
@@ -197,6 +225,12 @@ manifest_values() {
   sed -n "s/^${key}=//p" "$manifest_file"
 }
 
+manifest_shim_list() {
+  manifest_file=$1
+
+  manifest_values "$manifest_file" shim || true
+}
+
 manifest_shimmy_lines_preserve() {
   manifest_file=$1
 
@@ -218,6 +252,27 @@ manifest_shimmy_lines_preserve() {
         ;;
     esac
   done < "$manifest_file"
+}
+
+manifest_shims_append() {
+  manifest_file=$1
+  shim_list=$2
+  manifest_tmp=$manifest_file.tmp.$$
+
+  {
+    while IFS= read -r manifest_line || [ -n "$manifest_line" ]; do
+      printf '%s\n' "$manifest_line"
+    done < "$manifest_file"
+
+    while IFS= read -r shim_name; do
+      [ -n "$shim_name" ] || continue
+      printf 'shim=%s\n' "$shim_name"
+    done <<EOF
+$shim_list
+EOF
+  } > "$manifest_tmp"
+
+  mv "$manifest_tmp" "$manifest_file"
 }
 
 source_ref_resolve() {
@@ -311,9 +366,45 @@ install_directory_copy() {
   cp -R "$source_path" "$target_path"
 }
 
+install_shim_management_assets() {
+  shim_name=$1
+  source_path=$SOURCE_SHIMS_DIR/$shim_name
+  target_path=$SHIMMY_CONTROL_SHIMS_DIR/$shim_name
+
+  [ -f "$source_path" ] || fail "missing shim source: $source_path"
+  log_debug "Copying management source shim $shim_name to $target_path"
+  install_file "$source_path" "$target_path"
+
+  source_path=$SOURCE_IMAGES_DIR/$shim_name
+  target_path=$SHIMMY_CONTROL_IMAGES_DIR/$shim_name
+  if [ -d "$source_path" ]; then
+    log_debug "Copying management source image support for $shim_name to $target_path"
+    install_directory_copy "$source_path" "$target_path"
+  fi
+}
+
+install_shim_runtime_assets() {
+  shim_name=$1
+  source_path=$SOURCE_SHIMS_DIR/$shim_name
+  target_path=$SHIMMY_SHIM_DIR/$shim_name
+
+  [ -f "$source_path" ] || fail "missing shim source: $source_path"
+  log_debug "Copying shim $shim_name to $target_path"
+  install_file "$source_path" "$target_path"
+
+  source_path=$SOURCE_IMAGES_DIR/$shim_name
+  target_path=$SHIMMY_IMAGES_DIR/$shim_name
+  if [ -d "$source_path" ]; then
+    log_debug "Copying image support for $shim_name to $target_path"
+    install_directory_copy "$source_path" "$target_path"
+  fi
+}
+
 install_control_assets() {
   [ -f "$SOURCE_CONTROL_FILE" ] || fail "missing source management launcher: $SOURCE_CONTROL_FILE"
   [ -d "$SOURCE_SCRIPT_DIR" ] || fail "missing source script directory: $SOURCE_SCRIPT_DIR"
+  [ -d "$SOURCE_SHIMS_DIR" ] || fail "missing source shim directory: $SOURCE_SHIMS_DIR"
+  [ -d "$SOURCE_IMAGES_DIR" ] || fail "missing source image support directory: $SOURCE_IMAGES_DIR"
   [ -d "$SOURCE_REPO_LIB_DIR" ] || fail "missing source repo helper directory: $SOURCE_REPO_LIB_DIR"
 
   if [ "$ROOT_DIR" != "$SHIMMY_CONTROL_SOURCE_DIR" ]; then
@@ -336,6 +427,8 @@ install_control_assets() {
 
   install_directory_copy "$SOURCE_REPO_LIB_DIR" "$SHIMMY_CONTROL_REPO_LIB_DIR"
   install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_CONTROL_SHIM_LIB_DIR"
+  install_directory_copy "$SOURCE_SHIMS_DIR" "$SHIMMY_CONTROL_SHIMS_DIR"
+  install_directory_copy "$SOURCE_IMAGES_DIR" "$SHIMMY_CONTROL_IMAGES_DIR"
 }
 
 startup_file_summary_render() {
@@ -455,28 +548,7 @@ perform_install() {
   install_control_assets
 
   for shim_name in $(selected_shim_list); do
-    source_path=$SOURCE_SHIMS_DIR/$shim_name
-    target_path=$SHIMMY_SHIM_DIR/$shim_name
-    [ -f "$source_path" ] || fail "missing shim source: $source_path"
-    log_debug "Copying shim $shim_name to $target_path"
-    install_file "$source_path" "$target_path"
-
-    control_target_path=$SHIMMY_CONTROL_SHIMS_DIR/$shim_name
-    log_debug "Copying management source shim $shim_name to $control_target_path"
-    install_file "$source_path" "$control_target_path"
-  done
-
-  for shim_name in $(selected_shim_list); do
-    source_path=$SOURCE_IMAGES_DIR/$shim_name
-    target_path=$SHIMMY_IMAGES_DIR/$shim_name
-    if [ -d "$source_path" ]; then
-      log_debug "Copying image support for $shim_name to $target_path"
-      install_directory_copy "$source_path" "$target_path"
-
-      control_target_path=$SHIMMY_CONTROL_IMAGES_DIR/$shim_name
-      log_debug "Copying management source image support for $shim_name to $control_target_path"
-      install_directory_copy "$source_path" "$control_target_path"
-    fi
+    install_shim_runtime_assets "$shim_name"
   done
 
   log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
@@ -501,6 +573,48 @@ EOF
   log_info "Future shells will load Shimmy from: $(startup_file_summary_render "$STARTUP_FILE_PATHS")"
   log_info "Activate this install with: eval \"\$('$SHIMMY_CONTROL_BIN' activate)\""
   podman_macos_guidance_log
+}
+
+perform_shim_install() {
+  [ -n "$REQUESTED_SHIMS" ] || fail "install must include the name of an available shim"
+  [ "$UNINSTALL" -eq 0 ] || fail "--add-shim cannot be combined with --uninstall"
+  [ "$SKIP_STARTUP" -eq 0 ] || fail "--no-startup is not supported when installing shims into an existing environment"
+  [ -z "$REQUESTED_SHELL" ] || fail "--shell is not supported when installing shims into an existing environment"
+  [ -z "$REQUESTED_STARTUP_FILES" ] || fail "--startup-file is not supported when installing shims into an existing environment"
+  [ -f "$INSTALL_MANIFEST_FILE" ] || fail "no shimmy install manifest found at $INSTALL_MANIFEST_FILE; run ./shimmy install first"
+
+  load_install_root_from_manifest || true
+  validate_requested_shims
+
+  [ -d "$SOURCE_SHIMS_DIR" ] || fail "missing source shim directory: $SOURCE_SHIMS_DIR"
+  [ -d "$SOURCE_IMAGES_DIR" ] || fail "missing source image support directory: $SOURCE_IMAGES_DIR"
+  [ -d "$SOURCE_SHIM_LIB_DIR" ] || fail "missing source shim helper directory: $SOURCE_SHIM_LIB_DIR"
+
+  mkdir -p "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")" \
+    "$SHIMMY_CONTROL_SHIMS_DIR" "$SHIMMY_CONTROL_IMAGES_DIR"
+
+  installed_shims=$(manifest_shim_list "$INSTALL_MANIFEST_FILE")
+  shims_to_append=
+
+  for shim_name in $(selected_shim_list); do
+    install_shim_runtime_assets "$shim_name"
+    install_shim_management_assets "$shim_name"
+
+    if line_list_contains "$installed_shims" "$shim_name" || line_list_contains "$shims_to_append" "$shim_name"; then
+      log_info "Refreshed installed shim: $shim_name"
+      continue
+    fi
+
+    shims_to_append=$(line_list_append "$shims_to_append" "$shim_name")
+    log_info "Installed shim: $shim_name"
+  done
+
+  log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
+  install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_SHIM_LIB_DIR"
+
+  if [ -n "$shims_to_append" ]; then
+    manifest_shims_append "$INSTALL_MANIFEST_FILE" "$shims_to_append"
+  fi
 }
 
 remove_path_if_present() {
@@ -577,16 +691,16 @@ main() {
       --copy)
         shift
         ;;
+      --add-shim)
+        ADD_SHIMS=1
+        shift
+        ;;
       --symlink)
         fail "symlink install mode has been removed on the posix-rewrite branch"
         ;;
       --shim)
         [ "$#" -ge 2 ] || fail "missing value for --shim"
-        if [ -n "$REQUESTED_SHIMS" ]; then
-          REQUESTED_SHIMS="$REQUESTED_SHIMS $2"
-        else
-          REQUESTED_SHIMS=$2
-        fi
+        requested_shim_append "$2"
         shift 2
         ;;
       --shell)
@@ -612,14 +726,21 @@ main() {
         exit 0
         ;;
       *)
-        fail "unknown argument: $1"
+        if [ "$ADD_SHIMS" -eq 1 ]; then
+          requested_shim_append "$1"
+          shift
+        else
+          fail "unknown argument: $1"
+        fi
         ;;
     esac
   done
 
   resolve_install_paths
 
-  if [ "$UNINSTALL" -eq 1 ]; then
+  if [ "$ADD_SHIMS" -eq 1 ]; then
+    perform_shim_install
+  elif [ "$UNINSTALL" -eq 1 ]; then
     perform_uninstall
   else
     perform_install

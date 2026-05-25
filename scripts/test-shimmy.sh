@@ -309,10 +309,12 @@ test_install_manifest() {
   assert_file_exists "$INSTALL_DIR/activate.sh"
   assert_file_executable "$INSTALL_DIR/bin/shimmy"
   assert_file_exists "$INSTALL_DIR/shims/jq"
+  assert_path_not_exists "$INSTALL_DIR/shims/opnsense-mcp-server"
   assert_dir_exists "$INSTALL_DIR/lib/shims"
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/scripts"
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/lib/repo"
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/lib/shims"
+  assert_file_exists "$INSTALL_DIR/libexec/shimmy/shims/opnsense-mcp-server"
   assert_file_exists "$HOME_DIR/.bashrc"
   assert_file_exists "$HOME_DIR/.bash_profile"
 
@@ -818,6 +820,74 @@ test_installed_shimmy_management_command() {
   assert_contains "$activate_output" "$INSTALL_DIR/shims"
 
   pass "installed shimmy management command works outside source checkout"
+}
+
+test_installed_shim_install_adds_available_shim() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install opnsense-mcp-server 2>&1
+  )
+
+  assert_contains "$output" "Installed shim: opnsense-mcp-server"
+  assert_file_exists "$INSTALL_DIR/shims/jq"
+  assert_file_exists "$INSTALL_DIR/shims/opnsense-mcp-server"
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim task 2>&1
+  )
+
+  assert_contains "$output" "Installed shim: task"
+  assert_file_exists "$INSTALL_DIR/shims/task"
+  assert_dir_exists "$INSTALL_DIR/images/task"
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install opnsense-mcp-server 2>&1
+  )
+
+  assert_contains "$output" "Refreshed installed shim: opnsense-mcp-server"
+
+  manifest_contents=$(cat "$INSTALL_DIR/install-manifest.txt")
+  assert_contains "$manifest_contents" "shim=jq"
+  assert_contains "$manifest_contents" "shim=opnsense-mcp-server"
+  assert_contains "$manifest_contents" "shim=task"
+  opnsense_manifest_count=$(sed -n 's/^shim=opnsense-mcp-server$/shim/p' "$INSTALL_DIR/install-manifest.txt" | wc -l | tr -d ' ')
+  assert_equals "$opnsense_manifest_count" "1"
+
+  available_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status --available --format manifest 2>&1
+  )
+
+  assert_contains "$available_output" "shim=jq"
+  assert_contains "$available_output" "shim=opnsense-mcp-server"
+  assert_contains "$available_output" "shim=task"
+  assert_not_contains "$available_output" "available_shim=opnsense-mcp-server"
+  assert_not_contains "$available_output" "available_shim=task"
+
+  pass "installed shimmy installs available shims additively"
+}
+
+test_installed_shim_install_requires_name() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+
+  if output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install 2>&1
+  ); then
+    fail_test "expected installed shim install without a shim name to fail"
+  fi
+
+  assert_contains "$output" "ERROR: install must include the name of an available shim"
+
+  pass "installed shimmy install requires a shim name"
 }
 
 test_installed_update_fetches_manifest_source() {
@@ -1486,6 +1556,8 @@ main() {
   test_status_manifest_format
   test_status_available_manifest_format
   test_installed_shimmy_management_command
+  test_installed_shim_install_adds_available_shim
+  test_installed_shim_install_requires_name
   test_installed_update_fetches_manifest_source
   test_repo_update_uses_current_checkout
   test_installed_update_requires_pull_for_image_refresh

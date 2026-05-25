@@ -166,6 +166,7 @@ Activated shells can use the installed command from any directory:
 ```sh
 shimmy status
 shimmy status --available
+shimmy install opnsense-mcp-server
 shimmy netinfo
 shimmy update --pull --build
 eval "$(shimmy activate)"
@@ -175,8 +176,8 @@ eval "$(shimmy activate)"
 
 Shimmy separates management-plane updates from shim image refreshes. A
 management-plane update refreshes the installed `shimmy` command, lifecycle
-scripts, activation file, helper libraries, and wrapper files for the shims
-already listed in the install manifest.
+scripts, activation file, helper libraries, the management source catalog, and
+runtime wrapper files for the shims already listed in the install manifest.
 
 Contributor workflow:
 
@@ -203,7 +204,12 @@ from the fetched source. This path works from any activated shell and does not
 require the user to keep a Shimmy source checkout open.
 
 Both workflows preserve the currently installed shim list from the manifest.
-Newly available shims are not added automatically during update.
+Newly available shims are not added automatically during update; install them
+explicitly from an activated shell:
+
+```sh
+shimmy install opnsense-mcp-server
+```
 
 Shim container image refresh is still explicit. Normal management-plane updates
 do not pull newer remote images or rebuild local images unless requested:
