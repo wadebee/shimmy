@@ -147,6 +147,7 @@ Use the repo-root `shimmy` wrapper to install and manage Shimmy from a source ch
 ./shimmy install
 ./shimmy netinfo
 ./shimmy status
+./shimmy status --available
 ./shimmy update --pull --build
 ./shimmy test
 ./shimmy uninstall
@@ -164,6 +165,7 @@ Activated shells can use the installed command from any directory:
 
 ```sh
 shimmy status
+shimmy status --available
 shimmy netinfo
 shimmy update --pull --build
 eval "$(shimmy activate)"
@@ -254,6 +256,7 @@ Use the underlying scripts directly when you want the lower-level interfaces exp
 ```sh
 sh ./scripts/install-shimmy.sh
 sh ./scripts/status-shimmy.sh
+sh ./scripts/status-shimmy.sh --available
 sh ./scripts/update-shimmy.sh --pull --build
 sh ./scripts/test-shimmy.sh
 sh ./scripts/install-shimmy.sh --uninstall
@@ -285,6 +288,13 @@ For machine-readable inspection, use:
 
 ```sh
 shimmy status --format manifest
+```
+
+To compare installed shims with the supported shims still available to install, use:
+
+```sh
+shimmy status --available
+shimmy status --available --format manifest
 ```
 
 The current implementation can reinstall from the checked-out source, refresh remote images with `--pull`, rebuild local images with `--build`, repair startup files, and preserve lifecycle metadata. Full latest-version resolution, semver enforcement such as `>=0.10.0`, and rollback to release versions require a release/tag/version convention for Shimmy itself.
@@ -340,7 +350,7 @@ sh ./scripts/test-shimmy.sh
 
 Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
-- install, activate, status, machine-readable manifest output, update, startup-file repair, and uninstall behavior for the single-root manifest layout
+- install, activate, status, available-shim comparison, machine-readable manifest output, update, startup-file repair, and uninstall behavior for the single-root manifest layout
 - live Podman execution for the supported shim set: `aws`, `go`, `jq`, `netcat`, `nmap`, `opnsense-mcp-server`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure

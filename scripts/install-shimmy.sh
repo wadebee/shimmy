@@ -15,10 +15,10 @@ SOURCE_SHIMS_DIR=$ROOT_DIR/shims
 SOURCE_IMAGES_DIR=$ROOT_DIR/images
 SOURCE_REPO_LIB_DIR=$ROOT_DIR/lib/repo
 SOURCE_SHIM_LIB_DIR=$ROOT_DIR/lib/shims
+CATALOG_HELPER_FILE=$SOURCE_REPO_LIB_DIR/shimmy-catalog.sh
 STARTUP_HELPER_FILE=$SOURCE_REPO_LIB_DIR/shimmy-startup.sh
 
 DEFAULT_INSTALL_DIR=${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}
-SUPPORTED_SHIMS='aws go jq netcat nmap opnsense-mcp-server rg task terraform textual'
 
 REQUESTED_INSTALL_DIR=
 REQUESTED_SHIMS=
@@ -124,6 +124,12 @@ if [ ! -x "$ACTIVATE_SCRIPT" ]; then
   fail "missing activate helper: $ACTIVATE_SCRIPT"
 fi
 
+if [ ! -f "$CATALOG_HELPER_FILE" ]; then
+  fail "missing catalog helper: $CATALOG_HELPER_FILE"
+fi
+
+# shellcheck source=lib/repo/shimmy-catalog.sh
+. "$CATALOG_HELPER_FILE"
 # shellcheck source=lib/repo/shimmy-startup.sh
 . "$STARTUP_HELPER_FILE"
 
@@ -145,34 +151,18 @@ Options:
 EOF
 }
 
-supported_shim_list() {
-  printf '%s\n' "$SUPPORTED_SHIMS"
-}
-
 selected_shim_list() {
   if [ -n "$REQUESTED_SHIMS" ]; then
     printf '%s\n' "$REQUESTED_SHIMS"
     return 0
   fi
 
-  supported_shim_list
-}
-
-is_supported_shim() {
-  requested_shim=$1
-
-  for supported_shim in $SUPPORTED_SHIMS; do
-    if [ "$supported_shim" = "$requested_shim" ]; then
-      return 0
-    fi
-  done
-
-  return 1
+  shimmy_supported_shim_list
 }
 
 validate_requested_shims() {
   for requested_shim in $(selected_shim_list); do
-    is_supported_shim "$requested_shim" || fail "unsupported shim on posix-rewrite branch: $requested_shim"
+    shimmy_is_supported_shim "$requested_shim" || fail "unsupported shim on posix-rewrite branch: $requested_shim"
   done
 }
 

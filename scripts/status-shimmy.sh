@@ -7,10 +7,12 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
+CATALOG_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-catalog.sh
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
 DEFAULT_INSTALL_DIR=${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}
 REQUESTED_INSTALL_DIR=
 OUTPUT_FORMAT=human
+SHOW_AVAILABLE=0
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -21,6 +23,12 @@ if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
   fail "missing custom image helper: $SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 fi
 
+if [ ! -f "$CATALOG_HELPER_FILE" ]; then
+  fail "missing catalog helper: $CATALOG_HELPER_FILE"
+fi
+
+# shellcheck source=lib/repo/shimmy-catalog.sh
+. "$CATALOG_HELPER_FILE"
 # shellcheck source=lib/shims/custom-image.sh
 . "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
@@ -70,6 +78,51 @@ manifest_shim_list() {
   sed -n 's/^shim=//p' "$manifest_file"
 }
 
+installed_shim_list() {
+  manifest_file=$1
+  shim_dir=$2
+
+  if [ -f "$manifest_file" ]; then
+    manifest_shim_list "$manifest_file"
+    return 0
+  fi
+
+  if [ -d "$shim_dir" ]; then
+    find "$shim_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) | sort | while IFS= read -r shim_path; do
+      [ -n "$shim_path" ] || continue
+      basename "$shim_path"
+    done
+  fi
+}
+
+is_installed_shim() {
+  shim_name=$1
+  manifest_file=$2
+  shim_dir=$3
+
+  while IFS= read -r installed_shim; do
+    [ -n "$installed_shim" ] || continue
+    if [ "$installed_shim" = "$shim_name" ]; then
+      return 0
+    fi
+  done <<EOF
+$(installed_shim_list "$manifest_file" "$shim_dir")
+EOF
+
+  return 1
+}
+
+available_shim_list() {
+  manifest_file=$1
+  shim_dir=$2
+
+  for supported_shim in $(shimmy_supported_shim_list); do
+    if ! is_installed_shim "$supported_shim" "$manifest_file" "$shim_dir"; then
+      printf '%s\n' "$supported_shim"
+    fi
+  done
+}
+
 path_contains() {
   needle=$1
   path_value=${PATH:-}
@@ -116,6 +169,9 @@ describe_shim_image() {
     netcat)
       printf '%s\n' "$(local_image_ref "localhost/shimmy-netcat" "$images_dir/netcat")"
       ;;
+    nmap)
+      printf '%s\n' "${SHIMMY_NMAP_IMAGE:-docker.io/instrumentisto/nmap:7.98-r2}"
+      ;;
     opnsense-mcp-server)
       printf '%s\n' "${SHIMMY_OPNSENSE_MCP_IMAGE:-docker.io/uhlenheide/opnsense-mcp-server}"
       ;;
@@ -145,28 +201,49 @@ print_installed_shims() {
 
   printf 'installed_shims:\n'
 
-  if [ -f "$manifest_file" ]; then
-    while IFS= read -r shim_name; do
-      [ -n "$shim_name" ] || continue
-      printed_any=1
-      printf -- '- %s: %s\n' "$shim_name" "$(describe_shim_image "$shim_name" "$images_dir")"
-    done <<EOF
-$(manifest_shim_list "$manifest_file")
+  while IFS= read -r shim_name; do
+    [ -n "$shim_name" ] || continue
+    printed_any=1
+    printf -- '- %s: %s\n' "$shim_name" "$(describe_shim_image "$shim_name" "$images_dir")"
+  done <<EOF
+$(installed_shim_list "$manifest_file" "$shim_dir")
 EOF
-  elif [ -d "$shim_dir" ]; then
-    while IFS= read -r shim_path; do
-      [ -n "$shim_path" ] || continue
-      printed_any=1
-      shim_name=$(basename "$shim_path")
-      printf -- '- %s: %s\n' "$shim_name" "$(describe_shim_image "$shim_name" "$images_dir")"
-    done <<EOF
-$(find "$shim_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) | sort)
-EOF
-  fi
 
   if [ "$printed_any" -eq 0 ]; then
     printf -- '- none\n'
   fi
+}
+
+print_available_shims() {
+  manifest_file=$1
+  shim_dir=$2
+  printed_any=0
+
+  printf 'available_shims:\n'
+
+  while IFS= read -r shim_name; do
+    [ -n "$shim_name" ] || continue
+    printed_any=1
+    printf -- '- %s\n' "$shim_name"
+  done <<EOF
+$(available_shim_list "$manifest_file" "$shim_dir")
+EOF
+
+  if [ "$printed_any" -eq 0 ]; then
+    printf -- '- none\n'
+  fi
+}
+
+print_manifest_available_shims() {
+  manifest_file=$1
+  shim_dir=$2
+
+  while IFS= read -r shim_name; do
+    [ -n "$shim_name" ] || continue
+    printf 'available_shim=%s\n' "$shim_name"
+  done <<EOF
+$(available_shim_list "$manifest_file" "$shim_dir")
+EOF
 }
 
 print_manifest_status() {
@@ -216,7 +293,7 @@ usage() {
 Print the current Shimmy install status.
 
 Usage:
-  scripts/status-shimmy.sh [--install-dir <dir>] [--format human|manifest]
+  scripts/status-shimmy.sh [--install-dir <dir>] [--available] [--format human|manifest]
 EOF
 }
 
@@ -239,6 +316,10 @@ main() {
             ;;
         esac
         shift 2
+        ;;
+      --available)
+        SHOW_AVAILABLE=1
+        shift
         ;;
       -h|--help)
         usage
@@ -267,6 +348,9 @@ main() {
 
   if [ "$OUTPUT_FORMAT" = manifest ]; then
     print_manifest_status "$manifest_file" "$install_dir" "$shim_dir" "$images_dir" "$shim_lib_dir"
+    if [ "$SHOW_AVAILABLE" -eq 1 ]; then
+      print_manifest_available_shims "$manifest_file" "$shim_dir"
+    fi
     return 0
   fi
 
@@ -286,6 +370,9 @@ main() {
     printf 'path_active: no\n'
   fi
   print_installed_shims "$manifest_file" "$shim_dir" "$images_dir"
+  if [ "$SHOW_AVAILABLE" -eq 1 ]; then
+    print_available_shims "$manifest_file" "$shim_dir"
+  fi
 }
 
 main "$@"

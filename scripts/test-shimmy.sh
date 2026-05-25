@@ -646,6 +646,28 @@ test_status_reports_install() {
   pass "status reports installed shim details"
 }
 
+test_status_available_reports_remaining_shims() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task >/dev/null
+
+  output=$(
+    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --available 2>&1
+  )
+
+  assert_contains "$output" "installed_shims:"
+  assert_contains "$output" "- jq: ghcr.io/jqlang/jq:1.8.1"
+  assert_contains "$output" "- task: localhost/shimmy-task:"
+  assert_contains "$output" "available_shims:"
+  assert_contains "$output" "- aws"
+  assert_contains "$output" "- go"
+  assert_contains "$output" "- nmap"
+  assert_contains "$output" "- textual"
+  assert_not_contains "$output" "- tessl"
+
+  pass "status available reports remaining installable shims"
+}
+
 test_status_manifest_format() {
   setup_scenario
 
@@ -669,6 +691,30 @@ test_status_manifest_format() {
   pass "status manifest format is machine-readable"
 }
 
+test_status_available_manifest_format() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task >/dev/null
+
+  output=$(
+    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --available --format manifest 2>&1
+  )
+
+  assert_contains "$output" "installed=yes"
+  assert_contains "$output" "shim=jq"
+  assert_contains "$output" "shim=task"
+  assert_contains "$output" "available_shim=aws"
+  assert_contains "$output" "available_shim=go"
+  assert_contains "$output" "available_shim=nmap"
+  assert_contains "$output" "available_shim=textual"
+  assert_not_contains "$output" "available_shim=jq"
+  assert_not_contains "$output" "available_shim=task"
+  assert_not_contains "$output" "available_shim=tessl"
+  assert_not_contains "$output" "available_shims:"
+
+  pass "status available manifest format is machine-readable"
+}
+
 test_installed_shimmy_management_command() {
   setup_scenario
 
@@ -683,6 +729,16 @@ test_installed_shimmy_management_command() {
   assert_contains "$status_output" "install_dir=$INSTALL_DIR"
   assert_contains "$status_output" "control_bin=$INSTALL_DIR/bin/shimmy"
   assert_contains "$status_output" "shim=jq"
+
+  available_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status --available --format manifest 2>&1
+  )
+
+  assert_contains "$available_output" "available_shim=aws"
+  assert_contains "$available_output" "available_shim=task"
+  assert_not_contains "$available_output" "available_shim=jq"
+  assert_not_contains "$available_output" "available_shim=tessl"
 
   netinfo_output=$(
     cd "$WORK_DIR"
@@ -1282,7 +1338,9 @@ main() {
   test_netinfo_manifest_darwin_host_name_resolution
   test_update_repair_startup
   test_status_reports_install
+  test_status_available_reports_remaining_shims
   test_status_manifest_format
+  test_status_available_manifest_format
   test_installed_shimmy_management_command
   test_update_reinstalls_selected_shims
   test_update_preserves_shimmy_manifest_fields

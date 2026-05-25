@@ -1,0 +1,17 @@
+SHIMMY_SUPPORTED_SHIMS='aws go jq netcat nmap opnsense-mcp-server rg task terraform textual'
+
+shimmy_is_supported_shim() {
+  requested_shim=${1:?shim name is required}
+
+  for supported_shim in $SHIMMY_SUPPORTED_SHIMS; do
+    if [ "$supported_shim" = "$requested_shim" ]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+shimmy_supported_shim_list() {
+  printf '%s\n' "$SHIMMY_SUPPORTED_SHIMS"
+}
