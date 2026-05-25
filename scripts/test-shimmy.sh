@@ -117,6 +117,68 @@ setup_scenario() {
   mkdir -p "$HOME_DIR" "$WORK_DIR"
 }
 
+test_source_remote_create() {
+  source_repo=$1
+  remote_repo=$2
+
+  mkdir -p "$source_repo"
+  cp -R "$ROOT_DIR/." "$source_repo"
+  rm -rf "$source_repo/.git"
+
+  git init -q "$source_repo"
+  git -C "$source_repo" config user.name "Shimmy Test"
+  git -C "$source_repo" config user.email "shimmy-test@example.invalid"
+  git -C "$source_repo" add .
+  git -C "$source_repo" commit -q -m "test source"
+  git -C "$source_repo" branch -M main
+
+  git init --bare -q "$remote_repo"
+  git -C "$remote_repo" symbolic-ref HEAD refs/heads/main
+  git -C "$source_repo" remote add origin "$remote_repo"
+  git -C "$source_repo" push -q -u origin main
+}
+
+test_source_remote_commit_status_marker() {
+  source_repo=$1
+  marker_line=$2
+
+  {
+    printf '\n'
+    printf "printf '%%s\\n' '%s'\n" "$marker_line"
+  } >> "$source_repo/scripts/status-shimmy.sh"
+
+  git -C "$source_repo" add scripts/status-shimmy.sh
+  git -C "$source_repo" commit -q -m "test status marker"
+  git -C "$source_repo" push -q origin main
+}
+
+test_source_remote_commit_jq_pull_marker() {
+  source_repo=$1
+  pull_log=$2
+
+  cat > "$source_repo/shims/jq" <<EOF
+#!/bin/sh
+if [ "\${SHIMMY_JQ_IMAGE_PULL:-}" = always ]; then
+  printf '%s\n' pulled > "$pull_log"
+fi
+exit 0
+EOF
+  chmod 755 "$source_repo/shims/jq"
+
+  git -C "$source_repo" add shims/jq
+  git -C "$source_repo" commit -q -m "test jq pull marker"
+  git -C "$source_repo" push -q origin main
+}
+
+test_manifest_source_url_replace() {
+  manifest_file=$1
+  source_url=$2
+  manifest_tmp=$manifest_file.tmp
+
+  sed "s|^shimmy_source_url=.*|shimmy_source_url=$source_url|" "$manifest_file" > "$manifest_tmp"
+  mv "$manifest_tmp" "$manifest_file"
+}
+
 require_podman() {
   shimmy_podman_preflight_require "shimmy test"
   PODMAN_BIN=$SHIMMY_PODMAN_BIN
@@ -699,14 +761,96 @@ test_installed_shimmy_management_command() {
   assert_contains "$activate_output" "$INSTALL_DIR/bin"
   assert_contains "$activate_output" "$INSTALL_DIR/shims"
 
+  pass "installed shimmy management command works outside source checkout"
+}
+
+test_installed_update_fetches_manifest_source() {
+  setup_scenario
+
+  source_repo=$SCENARIO_DIR/source
+  remote_repo=$SCENARIO_DIR/remote.git
+  marker_line=self_update_marker=remote
+
+  test_source_remote_create "$source_repo" "$remote_repo"
+  test_source_remote_commit_status_marker "$source_repo" "$marker_line"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+  test_manifest_source_url_replace "$INSTALL_DIR/install-manifest.txt" "$remote_repo"
+
   rm -f "$INSTALL_DIR/shims/jq"
   (
     cd "$WORK_DIR"
     PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy update >/dev/null
   )
+
   assert_file_exists "$INSTALL_DIR/shims/jq"
 
-  pass "installed shimmy management command works outside source checkout"
+  status_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status --format manifest 2>&1
+  )
+
+  assert_contains "$status_output" "$marker_line"
+
+  pass "installed update fetches the manifest source URL"
+}
+
+test_repo_update_uses_current_checkout() {
+  setup_scenario
+
+  source_repo=$SCENARIO_DIR/source
+  remote_repo=$SCENARIO_DIR/remote.git
+  marker_line=self_update_marker=remote
+
+  test_source_remote_create "$source_repo" "$remote_repo"
+  test_source_remote_commit_status_marker "$source_repo" "$marker_line"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+  test_manifest_source_url_replace "$INSTALL_DIR/install-manifest.txt" "$remote_repo"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" >/dev/null
+
+  status_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status --format manifest 2>&1
+  )
+
+  assert_not_contains "$status_output" "$marker_line"
+
+  pass "repo-root update refreshes from the current checkout"
+}
+
+test_installed_update_requires_pull_for_image_refresh() {
+  setup_scenario
+
+  source_repo=$SCENARIO_DIR/source
+  remote_repo=$SCENARIO_DIR/remote.git
+  pull_log=$SCENARIO_DIR/jq-pull.log
+
+  test_source_remote_create "$source_repo" "$remote_repo"
+  test_source_remote_commit_jq_pull_marker "$source_repo" "$pull_log"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+  test_manifest_source_url_replace "$INSTALL_DIR/install-manifest.txt" "$remote_repo"
+
+  (
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy update >/dev/null
+  )
+  assert_path_not_exists "$pull_log"
+
+  if ! shimmy_podman_preflight_require "shimmy test update --pull" >/dev/null 2>&1; then
+    pass "installed update leaves shim images untouched unless --pull is requested; explicit pull skipped without Podman"
+    return 0
+  fi
+
+  (
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy update --pull >/dev/null
+  )
+  assert_file_exists "$pull_log"
+
+  pass "installed update forwards --pull for explicit image refresh"
 }
 
 test_update_reinstalls_selected_shims() {
@@ -1284,6 +1428,9 @@ main() {
   test_status_reports_install
   test_status_manifest_format
   test_installed_shimmy_management_command
+  test_installed_update_fetches_manifest_source
+  test_repo_update_uses_current_checkout
+  test_installed_update_requires_pull_for_image_refresh
   test_update_reinstalls_selected_shims
   test_update_preserves_shimmy_manifest_fields
   test_aws_shim_direct

@@ -169,6 +169,49 @@ shimmy update --pull --build
 eval "$(shimmy activate)"
 ```
 
+#### Management-plane updates
+
+Shimmy separates management-plane updates from shim image refreshes. A
+management-plane update refreshes the installed `shimmy` command, lifecycle
+scripts, activation file, helper libraries, and wrapper files for the shims
+already listed in the install manifest.
+
+Contributor workflow:
+
+```sh
+cd /path/to/shimmy
+git pull --ff-only
+./shimmy update --install-dir ~/.config/shimmy
+```
+
+When `update` is run from the repo-root `./shimmy` launcher, it refreshes the
+install from that current checkout. Use this path when developing Shimmy,
+testing local changes, or intentionally installing from a specific source tree.
+
+Installed-user workflow:
+
+```sh
+shimmy update
+```
+
+When `update` is run from the installed `shimmy` command, Shimmy reads
+`shimmy_source_url` from `~/.config/shimmy/install-manifest.txt`, fetches that
+source into a temporary checkout, and refreshes the installed management plane
+from the fetched source. This path works from any activated shell and does not
+require the user to keep a Shimmy source checkout open.
+
+Both workflows preserve the currently installed shim list from the manifest.
+Newly available shims are not added automatically during update.
+
+Shim container image refresh is still explicit. Normal management-plane updates
+do not pull newer remote images or rebuild local images unless requested:
+
+```sh
+shimmy update --pull
+shimmy update --build
+shimmy update --pull --build
+```
+
 `shimmy netinfo` reports the current shell's network perspective on Linux and
 macOS without requiring Podman or probing the LAN. It is useful in VM-heavy
 environments such as Crostini, Proxmox guests, macOS hosts, and macOS Podman VMs
@@ -287,7 +330,7 @@ For machine-readable inspection, use:
 shimmy status --format manifest
 ```
 
-The current implementation can reinstall from the checked-out source, refresh remote images with `--pull`, rebuild local images with `--build`, repair startup files, and preserve lifecycle metadata. Full latest-version resolution, semver enforcement such as `>=0.10.0`, and rollback to release versions require a release/tag/version convention for Shimmy itself.
+The current implementation can refresh the management plane from the checked-out source or from an installed command's recorded source URL, refresh remote images with `--pull`, rebuild local images with `--build`, repair startup files, and preserve lifecycle metadata. Full latest-version resolution, semver enforcement such as `>=0.10.0`, and rollback to release versions require a release/tag/version convention for Shimmy itself.
 
 ## Usage
 
