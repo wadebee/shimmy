@@ -102,9 +102,10 @@ Options:
   --manifest <path>   Record audit entries in the given manifest if present
   -h, --help          Show help
 
-With no explicit skill names, install writes the core Shimmy management skills.
+With no explicit skill names, install writes the core Shimmy management skills
+plus tool skills for shims recorded in the install manifest.
 Update refreshes manifest-tracked skills for the target, falling back to the
-core management skills when no target manifest exists yet.
+core management and installed-shim skills when no target manifest exists yet.
 EOF
 }
 
@@ -211,6 +212,60 @@ skill_manifest_skill_names_read() {
   fi
 }
 
+installed_shim_skill_name_render() {
+  shim_name=$1
+
+  case "$shim_name" in
+    opnsense-mcp-server)
+      printf 'shimmy-tool-opnsense-mcp\n'
+      ;;
+    *)
+      printf 'shimmy-tool-%s\n' "$shim_name"
+      ;;
+  esac
+}
+
+installed_shim_skill_names_read() {
+  manifest_file=$(install_manifest_file_resolve || true)
+  skill_names=
+
+  [ -n "$manifest_file" ] || return 0
+  [ -f "$manifest_file" ] || return 0
+
+  while IFS= read -r manifest_line; do
+    case "$manifest_line" in
+      shim=*)
+        shim_name=${manifest_line#shim=}
+        [ -n "$shim_name" ] || continue
+        skill_name=$(installed_shim_skill_name_render "$shim_name")
+        if ! line_list_contains "$skill_names" "$skill_name"; then
+          skill_names=$(line_list_append "$skill_names" "$skill_name")
+        fi
+        ;;
+    esac
+  done < "$manifest_file"
+
+  if [ -n "$skill_names" ]; then
+    printf '%s\n' "$skill_names"
+  fi
+}
+
+default_skill_names_resolve() {
+  default_skills=$CORE_SKILLS
+  installed_skill_names=$(installed_shim_skill_names_read)
+
+  while IFS= read -r installed_skill_name; do
+    [ -n "$installed_skill_name" ] || continue
+    if ! line_list_contains "$default_skills" "$installed_skill_name"; then
+      default_skills=$(line_list_append "$default_skills" "$installed_skill_name")
+    fi
+  done <<EOF
+$installed_skill_names
+EOF
+
+  printf '%s\n' "$default_skills"
+}
+
 selected_skill_names_resolve() {
   target_manifest_file=$1
   existing_skills=$(skill_manifest_skill_names_read "$target_manifest_file")
@@ -222,9 +277,9 @@ selected_skill_names_resolve() {
       printf '%s\n' "$existing_skills"
       return 0
     fi
-    selected_skills=$CORE_SKILLS
+    selected_skills=$(default_skill_names_resolve)
   else
-    selected_skills=$CORE_SKILLS
+    selected_skills=$(default_skill_names_resolve)
   fi
 
   if [ -z "$existing_skills" ]; then

@@ -14,12 +14,6 @@ For tools that do not ship a usable upstream container image, Shimmy can build a
 
 Shimmy also resolves the container platform at runtime without changing the command a user runs. Linux hosts run containers as `linux/amd64`, while macOS hosts run containers as `linux/arm64`. Explicit `SHIMMY_{TOOL_PREFIX}_IMAGE` overrides still select the image reference, and Shimmy applies the platform selection underneath.
 
-## Contributor Guidance
-
-Contributor guidance lives in `CONTRIBUTING.md`.
-
-That document is the contributor source of truth, including naming conventions for files, functions, and variables. It is also referenced from `AGENTS.md` and the shared project prompt so future AI contributors pick it up automatically.
-
 ## Included Shims
 
 | Tool | Purpose | Quick start |
@@ -94,7 +88,7 @@ Targets:
 - `plugin` writes to `plugins/shimmy/skills` in the active Shimmy source or installed management bundle.
 - `--export` writes a portable skills folder, or a zip archive when the path ends in `.zip`; zip archives require either `zip` or `python3`.
 
-With no explicit skill names, `install` shares the core Shimmy management skills. To share a generated shim skill, pass it explicitly:
+With no explicit skill names, `install` shares the core Shimmy management skills plus `shimmy-tool-*` skills for shims recorded in the install manifest. To share an additional generated shim skill, pass it explicitly:
 
 ```sh
 ./shimmy skills install --target repo shimmy-tool-example
@@ -326,7 +320,7 @@ Common install arguments still pass through to the installer:
 ./shimmy install --skills-target repo
 ```
 
-During an interactive install, Shimmy asks where to share the core management skills: `repo`, `profile`, `plugin`, or `none`. For non-interactive installs, pass `--skills-target <repo|profile|plugin>` or run `shimmy skills install` later.
+During an interactive install, Shimmy asks where to share Shimmy agent skills: `repo`, `profile`, `plugin`, or `none`. For non-interactive installs, pass `--skills-target <repo|profile|plugin>` or run `shimmy skills install` later.
 
 #### Option: Direct script workflow
 
@@ -489,6 +483,12 @@ shimmy/
 
 ## AI Generation
 This code was ![AI-developed](https://img.shields.io/badge/AI-Generated-blue) and human-reviewed/curated with AI Agent assistance.
+
+## Contributor Guidance
+
+Contributor guidance lives in `CONTRIBUTING.md`.
+
+That document is the contributor source of truth, including naming conventions for files, functions, and variables. It is also referenced from `AGENTS.md` and the shared project prompt so future AI contributors pick it up automatically.
 
 ## License
 

@@ -315,6 +315,8 @@ test_install_manifest() {
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/lib/repo"
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/lib/shims"
   assert_file_executable "$INSTALL_DIR/libexec/shimmy/scripts/skills-shimmy.sh"
+  assert_file_exists "$INSTALL_DIR/libexec/shimmy/.agents/skills/shimmy-tool-jq/SKILL.md"
+  assert_file_exists "$INSTALL_DIR/libexec/shimmy/.agents/skills/shimmy-tool-task/SKILL.md"
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/plugins/shimmy/skills"
   assert_file_exists "$INSTALL_DIR/libexec/shimmy/shims/opnsense-mcp-server"
   assert_file_exists "$HOME_DIR/.bashrc"
@@ -461,6 +463,32 @@ test_skills_install_repo_target() {
   pass "skills install writes core skills to repo target"
 }
 
+test_installed_launcher_skills_install_includes_installed_shim_skills() {
+  setup_scenario
+
+  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task --shim opnsense-mcp-server --no-startup --no-skills >/dev/null
+
+  output=$(
+    cd "$WORK_DIR"
+    "$INSTALL_DIR/bin/shimmy" skills install --target repo 2>&1
+  )
+
+  assert_contains "$output" "Installed skill: shimmy-tool-jq"
+  assert_contains "$output" "Installed skill: shimmy-tool-task"
+  assert_contains "$output" "Installed skill: shimmy-tool-opnsense-mcp"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-install/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-jq/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-task/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp/SKILL.md"
+
+  manifest_contents=$(cat "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt")
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-jq|$WORK_DIR/.agents/skills/shimmy-tool-jq|"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-task|$WORK_DIR/.agents/skills/shimmy-tool-task|"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-opnsense-mcp|$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp|"
+
+  pass "installed launcher skills install includes installed shim skills"
+}
+
 test_skills_update_repo_target() {
   setup_scenario
 
@@ -512,15 +540,18 @@ test_install_shares_management_skills_explicit_target() {
   )
 
   assert_contains "$output" "Installed skill: shimmy-install"
+  assert_contains "$output" "Installed skill: shimmy-tool-jq"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-install/SKILL.md"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-create/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-jq/SKILL.md"
   assert_file_exists "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt"
 
   manifest_contents=$(cat "$INSTALL_DIR/install-manifest.txt")
   assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-install|$WORK_DIR/.agents/skills/shimmy-install|"
   assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-create|$WORK_DIR/.agents/skills/shimmy-create|"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-jq|$WORK_DIR/.agents/skills/shimmy-tool-jq|"
 
-  pass "install shares management skills with explicit target"
+  pass "install shares management and installed shim skills with explicit target"
 }
 
 test_install_macos_podman_guidance() {
@@ -1634,6 +1665,7 @@ main() {
   test_activate_is_idempotent
   test_install_no_startup
   test_skills_install_repo_target
+  test_installed_launcher_skills_install_includes_installed_shim_skills
   test_skills_update_repo_target
   test_skills_export_folder
   test_install_shares_management_skills_explicit_target

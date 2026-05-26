@@ -89,7 +89,7 @@ Install flow:
 2. Read existing state and manifest, if any.
 3. If not installed, run `./shimmy install` with the requested `--install-dir`, `--shim`, `--shell`, `--startup-file`, or `--no-startup` arguments.
 4. If installed, rerun install only when the requested install options differ or repair is needed.
-5. Share Shimmy management skills during install by asking the user for `repo`, `profile`, or `plugin`, or by passing `--skills-target <target>` for non-interactive command-line installs.
+5. Share Shimmy agent skills during install, including tool skills for installed shims, by asking the user for `repo`, `profile`, or `plugin`, or by passing `--skills-target <target>` for non-interactive command-line installs.
 6. Validate installed state.
 7. Persist lifecycle state through manifest-aware Shimmy commands. Do not create a separate state file.
 

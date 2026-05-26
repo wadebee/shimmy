@@ -14,6 +14,7 @@ SOURCE_SCRIPT_DIR=$ROOT_DIR/scripts
 SOURCE_SHIMS_DIR=$ROOT_DIR/shims
 SOURCE_IMAGES_DIR=$ROOT_DIR/images
 SOURCE_PLUGIN_DIR=$ROOT_DIR/plugins
+SOURCE_AGENT_SKILLS_DIR=$ROOT_DIR/.agents/skills
 SOURCE_REPO_LIB_DIR=$ROOT_DIR/lib/repo
 SOURCE_SHIM_LIB_DIR=$ROOT_DIR/lib/shims
 CATALOG_HELPER_FILE=$SOURCE_REPO_LIB_DIR/shimmy-catalog.sh
@@ -175,8 +176,8 @@ Options:
   --install-dir <dir>    Base install directory. Default: ~/.config/shimmy
   --shim <name>          Install only the named shim. Repeatable.
   --add-shim             Add named shims to an existing install without reinstalling
-  --skills-target <name> Share Shimmy management skills to repo, profile, or plugin
-  --no-skills            Do not prompt for or share Shimmy management skills
+  --skills-target <name> Share Shimmy agent skills to repo, profile, or plugin
+  --no-skills            Do not prompt for or share Shimmy agent skills
   --shell <name>         Override shell detection for startup-file updates
   --startup-file <path>  Override startup file updates. Repeatable.
   --no-startup           Skip persistent startup-file updates during install
@@ -382,6 +383,19 @@ install_directory_copy() {
   cp -R "$source_path" "$target_path"
 }
 
+install_agent_skill_assets() {
+  [ -d "$SOURCE_AGENT_SKILLS_DIR" ] || return 0
+
+  target_root=$SHIMMY_CONTROL_SOURCE_DIR/.agents/skills
+  mkdir -p "$target_root"
+
+  for source_path in "$SOURCE_AGENT_SKILLS_DIR"/shimmy-*; do
+    [ -d "$source_path" ] || continue
+    skill_name=$(basename "$source_path")
+    install_directory_copy "$source_path" "$target_root/$skill_name"
+  done
+}
+
 install_shim_management_assets() {
   shim_name=$1
   source_path=$SOURCE_SHIMS_DIR/$shim_name
@@ -448,6 +462,7 @@ install_control_assets() {
   if [ -d "$SOURCE_PLUGIN_DIR" ]; then
     install_directory_copy "$SOURCE_PLUGIN_DIR" "$SHIMMY_CONTROL_SOURCE_DIR/plugins"
   fi
+  install_agent_skill_assets
 }
 
 startup_file_summary_render() {
@@ -480,7 +495,7 @@ skills_target_prompt() {
   [ -t 0 ] && [ -t 2 ] || return 1
 
   while :; do
-    printf 'Share Shimmy management skills? Choose target [repo/profile/plugin/none] (repo): ' >&2
+    printf 'Share Shimmy agent skills? Choose target [repo/profile/plugin/none] (repo): ' >&2
     IFS= read -r skills_target_answer || return 1
     case "$skills_target_answer" in
       '')
