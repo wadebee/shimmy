@@ -32,35 +32,14 @@ Shimmy also resolves the container platform at runtime without changing the comm
 
 ## Requirements
 
-### POSIX shell
- — `/bin/sh` or another POSIX-compatible shell for the current proof-of-concept rewrite
+- POSIX shell — `/bin/sh` or another POSIX-compatible shell for the current proof-of-concept rewrite
 
-### Podman
-   — The CLI is a required dependency. Podman *Desktop* is not required.
+- Podman - Shimmy runs tools through `podman run`, so the cli and engine must be
+ installed and reachable from the same shell where you use Shimmy. Podman
+ Desktop is not required.
 
-  - Official install guide: <https://podman.io/docs/installation>
+  See [docs/podman.md](docs/podman.md) for a Podman Quick Start, Troubleshooting, and Basic Hygiene.
 
-  - When Podman is installed but unreachable, Shimmy fails with shared guidance that points to `podman info`, user-shell `podman machine start`, `podman system connection list`, and `CONTAINER_HOST` verification.
-
-  - Note for macOS users: Run `podman machine init` if needed, then run `podman machine start` from a normal user shell after installation.
-
-  If Podman is installed from the macOS pkg installer, the binary may live at `/opt/podman/bin/podman`. `shimmy activate` accounts for that path for interactive shell activation, and Shimmy's shared Podman preflight also checks it directly for runtime shims plus Podman-backed lifecycle commands such as `shimmy update --pull`, `shimmy update --build`, and `shimmy test`.
-
-  #### Podman rootless requirement
-
-  Shimmy expects a working rootless Podman engine setup. On some minimal Linux environments, including Chromebook's Crostini, rootless requirements for subordinate id ranges do not exist. In this scenario Podman will warn "no subuid ranges found" and fall back to a single UID/GID mapping.
-
-  Check your configuration (should output a range of id values, eg: 10000:65536):
-  ```
-  grep "^$(whoami):" /etc/subuid /etc/subgid
-  ```
-
-  When only a single id is present run this command to correct.
-  ```
-  - sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 $(whoami)
-  - podman system migrate
-  ```
-  
 ## Installation Options
 
 ### Option: AI Agent Plugin
@@ -154,12 +133,7 @@ After that, start a new AI Agent session in any repository on that workstation a
 
 Clone or copy this repository, then use the packaged plugin directory from `plugins/shimmy`. For a repo-local setup, open the AI Agent from the Shimmy checkout so it can read `.agents/plugins/marketplace.json`. For a workstation-wide setup, copy `plugins/shimmy` to `~/plugins/shimmy` on the target machine and add the home marketplace entry shown above.
 
-Linux and macOS can use the same plugin layout. Shimmy itself still requires a POSIX shell and a working rootless Podman installation. On macOS, start the Podman machine from a normal user shell before using Podman-backed Shimmy tools:
-
-```sh
-podman machine start
-podman info
-```
+Linux and macOS can use the same plugin layout. Shimmy itself still requires a POSIX shell and a working rootless Podman installation; see [docs/podman.md](docs/podman.md) for workstation setup and verification.
 
 On Windows, use WSL or another POSIX-compatible environment for Shimmy workflows. On Chromebooks, use Crostini and a bash shell.
 
@@ -465,6 +439,7 @@ shimmy/
 │   ├── tessl
 │   └── textual
 ├── docs/
+│   ├── podman.md                 # Podman setup, verification, troubleshooting, and hygiene
 │   └── shims/                    # Per-shim quick-start documentation
 ├── lib/
 │   ├── repo/                     # Repo-only sourced helpers for wrapper/scripts
