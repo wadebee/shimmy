@@ -13,18 +13,22 @@ SOURCE_CONTROL_FILE=$ROOT_DIR/shimmy
 SOURCE_SCRIPT_DIR=$ROOT_DIR/scripts
 SOURCE_SHIMS_DIR=$ROOT_DIR/shims
 SOURCE_IMAGES_DIR=$ROOT_DIR/images
+SOURCE_PLUGIN_DIR=$ROOT_DIR/plugins
 SOURCE_REPO_LIB_DIR=$ROOT_DIR/lib/repo
 SOURCE_SHIM_LIB_DIR=$ROOT_DIR/lib/shims
 CATALOG_HELPER_FILE=$SOURCE_REPO_LIB_DIR/shimmy-catalog.sh
 STARTUP_HELPER_FILE=$SOURCE_REPO_LIB_DIR/shimmy-startup.sh
+SKILLS_SCRIPT=$SOURCE_SCRIPT_DIR/skills-shimmy.sh
 
 DEFAULT_INSTALL_DIR=${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}
 
 REQUESTED_INSTALL_DIR=
 REQUESTED_SHIMS=
+REQUESTED_SKILLS_TARGET=
 REQUESTED_SHELL=
 REQUESTED_STARTUP_FILES=
 SKIP_STARTUP=0
+SKIP_SKILLS=0
 ADD_SHIMS=0
 STARTUP_FILE_PATHS=
 STARTUP_SHELL=
@@ -171,6 +175,8 @@ Options:
   --install-dir <dir>    Base install directory. Default: ~/.config/shimmy
   --shim <name>          Install only the named shim. Repeatable.
   --add-shim             Add named shims to an existing install without reinstalling
+  --skills-target <name> Share Shimmy management skills to repo, profile, or plugin
+  --no-skills            Do not prompt for or share Shimmy management skills
   --shell <name>         Override shell detection for startup-file updates
   --startup-file <path>  Override startup file updates. Repeatable.
   --no-startup           Skip persistent startup-file updates during install
@@ -192,6 +198,16 @@ validate_requested_shims() {
   for requested_shim in $(selected_shim_list); do
     shimmy_is_supported_shim "$requested_shim" || fail "unsupported shim on posix-rewrite branch: $requested_shim"
   done
+}
+
+validate_skills_target() {
+  case "$1" in
+    repo|profile|plugin)
+      ;;
+    *)
+      fail "unsupported skills target: $1"
+      ;;
+  esac
 }
 
 resolve_install_root() {
@@ -418,7 +434,7 @@ install_control_assets() {
   install_file "$SOURCE_CONTROL_FILE" "$SHIMMY_CONTROL_BIN"
   install_file "$SOURCE_CONTROL_FILE" "$SHIMMY_CONTROL_SOURCE_DIR/shimmy"
 
-  for script_name in activate-shimmy.sh install-shimmy.sh netinfo-shimmy.sh status-shimmy.sh update-shimmy.sh; do
+  for script_name in activate-shimmy.sh install-shimmy.sh netinfo-shimmy.sh skills-shimmy.sh status-shimmy.sh update-shimmy.sh; do
     source_path=$SOURCE_SCRIPT_DIR/$script_name
     target_path=$SHIMMY_CONTROL_SCRIPT_DIR/$script_name
     [ -f "$source_path" ] || fail "missing management script source: $source_path"
@@ -429,6 +445,9 @@ install_control_assets() {
   install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_CONTROL_SHIM_LIB_DIR"
   install_directory_copy "$SOURCE_SHIMS_DIR" "$SHIMMY_CONTROL_SHIMS_DIR"
   install_directory_copy "$SOURCE_IMAGES_DIR" "$SHIMMY_CONTROL_IMAGES_DIR"
+  if [ -d "$SOURCE_PLUGIN_DIR" ]; then
+    install_directory_copy "$SOURCE_PLUGIN_DIR" "$SHIMMY_CONTROL_SOURCE_DIR/plugins"
+  fi
 }
 
 startup_file_summary_render() {
@@ -455,6 +474,58 @@ podman_macos_guidance_log() {
 
   log_info "macOS Podman check: run 'podman info' in a normal shell before using Shimmy."
   log_info "If Podman is unreachable, run 'podman machine start' in that shell, then retry Shimmy."
+}
+
+skills_target_prompt() {
+  [ -t 0 ] && [ -t 2 ] || return 1
+
+  while :; do
+    printf 'Share Shimmy management skills? Choose target [repo/profile/plugin/none] (repo): ' >&2
+    IFS= read -r skills_target_answer || return 1
+    case "$skills_target_answer" in
+      '')
+        printf 'repo\n'
+        return 0
+        ;;
+      repo|profile|plugin)
+        printf '%s\n' "$skills_target_answer"
+        return 0
+        ;;
+      none|skip|no)
+        printf 'none\n'
+        return 0
+        ;;
+      *)
+        printf 'ERROR: enter repo, profile, plugin, or none\n' >&2
+        ;;
+    esac
+  done
+}
+
+share_management_skills() {
+  [ "$SKIP_SKILLS" -eq 0 ] || return 0
+
+  if [ ! -x "$SKILLS_SCRIPT" ]; then
+    fail "missing skills helper: $SKILLS_SCRIPT"
+  fi
+
+  skills_target=$REQUESTED_SKILLS_TARGET
+  if [ -z "$skills_target" ]; then
+    skills_target=$(skills_target_prompt || true)
+  fi
+
+  case "$skills_target" in
+    '')
+      return 0
+      ;;
+    none)
+      log_info "Skipped Shimmy management skill sharing"
+      return 0
+      ;;
+  esac
+
+  validate_skills_target "$skills_target"
+  "$SKILLS_SCRIPT" install --target "$skills_target" --manifest "$INSTALL_MANIFEST_FILE"
 }
 
 write_activate_file() {
@@ -568,6 +639,7 @@ EOF
   fi
 
   write_manifest
+  share_management_skills
 
   log_info "Installed shimmy assets into $SHIMMY_INSTALL_DIR"
   log_info "Future shells will load Shimmy from: $(startup_file_summary_render "$STARTUP_FILE_PATHS")"
@@ -579,6 +651,8 @@ perform_shim_install() {
   [ -n "$REQUESTED_SHIMS" ] || fail "install must include the name of an available shim"
   [ "$UNINSTALL" -eq 0 ] || fail "--add-shim cannot be combined with --uninstall"
   [ "$SKIP_STARTUP" -eq 0 ] || fail "--no-startup is not supported when installing shims into an existing environment"
+  [ "$SKIP_SKILLS" -eq 0 ] || fail "--no-skills is not supported when installing shims into an existing environment"
+  [ -z "$REQUESTED_SKILLS_TARGET" ] || fail "--skills-target is not supported when installing shims into an existing environment"
   [ -z "$REQUESTED_SHELL" ] || fail "--shell is not supported when installing shims into an existing environment"
   [ -z "$REQUESTED_STARTUP_FILES" ] || fail "--startup-file is not supported when installing shims into an existing environment"
   [ -f "$INSTALL_MANIFEST_FILE" ] || fail "no shimmy install manifest found at $INSTALL_MANIFEST_FILE; run ./shimmy install first"
@@ -631,6 +705,9 @@ remove_path_if_present() {
 }
 
 perform_uninstall() {
+  [ "$SKIP_SKILLS" -eq 0 ] || fail "--no-skills is not supported with --uninstall"
+  [ -z "$REQUESTED_SKILLS_TARGET" ] || fail "--skills-target is not supported with --uninstall"
+
   log_info "Removing shimmy install rooted at $SHIMMY_INSTALL_DIR"
 
   load_install_root_from_manifest || true
@@ -693,6 +770,16 @@ main() {
         ;;
       --add-shim)
         ADD_SHIMS=1
+        shift
+        ;;
+      --skills-target)
+        [ "$#" -ge 2 ] || fail "missing value for --skills-target"
+        REQUESTED_SKILLS_TARGET=$2
+        validate_skills_target "$REQUESTED_SKILLS_TARGET"
+        shift 2
+        ;;
+      --no-skills)
+        SKIP_SKILLS=1
         shift
         ;;
       --symlink)

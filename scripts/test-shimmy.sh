@@ -314,6 +314,8 @@ test_install_manifest() {
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/scripts"
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/lib/repo"
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/lib/shims"
+  assert_file_executable "$INSTALL_DIR/libexec/shimmy/scripts/skills-shimmy.sh"
+  assert_dir_exists "$INSTALL_DIR/libexec/shimmy/plugins/shimmy/skills"
   assert_file_exists "$INSTALL_DIR/libexec/shimmy/shims/opnsense-mcp-server"
   assert_file_exists "$HOME_DIR/.bashrc"
   assert_file_exists "$HOME_DIR/.bash_profile"
@@ -433,6 +435,92 @@ test_install_no_startup() {
   assert_path_not_exists "$HOME_DIR/.bash_profile"
 
   pass "install can skip startup file updates"
+}
+
+test_skills_install_repo_target() {
+  setup_scenario
+
+  output=$(
+    cd "$WORK_DIR"
+    "$ROOT_DIR/shimmy" skills install --target repo 2>&1
+  )
+
+  assert_contains "$output" "Installed skill: shimmy-install"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-install/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-init/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-create/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-escalation/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt"
+
+  manifest_contents=$(cat "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt")
+  assert_contains "$manifest_contents" "shimmy_skills_manifest_version=1"
+  assert_contains "$manifest_contents" "shimmy_skills_target=repo"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-install|$WORK_DIR/.agents/skills/shimmy-install|"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-escalation|$WORK_DIR/.agents/skills/shimmy-escalation|"
+
+  pass "skills install writes core skills to repo target"
+}
+
+test_skills_update_repo_target() {
+  setup_scenario
+
+  (
+    cd "$WORK_DIR"
+    "$ROOT_DIR/shimmy" skills install --target repo >/dev/null
+    "$ROOT_DIR/shimmy" skills install --target repo shimmy-tool-task >/dev/null
+  )
+  printf '%s\n' stale > "$WORK_DIR/.agents/skills/shimmy-tool-task/SKILL.md"
+
+  output=$(
+    cd "$WORK_DIR"
+    "$ROOT_DIR/shimmy" skills update --target repo 2>&1
+  )
+
+  assert_contains "$output" "Installed skill: shimmy-tool-task"
+  assert_file_contains "$WORK_DIR/.agents/skills/shimmy-tool-task/SKILL.md" "name: shimmy-tool-task"
+  core_manifest_count=$(sed -n 's/^shimmy_skill=repo|shimmy-install|.*/skill/p' "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt" | wc -l | tr -d ' ')
+  task_manifest_count=$(sed -n 's/^shimmy_skill=repo|shimmy-tool-task|.*/skill/p' "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt" | wc -l | tr -d ' ')
+  assert_equals "$core_manifest_count" "1"
+  assert_equals "$task_manifest_count" "1"
+
+  pass "skills update refreshes manifest-tracked repo skills idempotently"
+}
+
+test_skills_export_folder() {
+  setup_scenario
+
+  export_dir=$SCENARIO_DIR/exported-skills
+  output=$(
+    run_in_repo ./shimmy skills install --export "$export_dir" 2>&1
+  )
+
+  assert_contains "$output" "Exported skills folder: $export_dir"
+  assert_file_exists "$export_dir/shimmy-install/SKILL.md"
+  assert_file_exists "$export_dir/shimmy-init/SKILL.md"
+  assert_file_exists "$export_dir/.shimmy-skills-manifest.txt"
+  assert_file_contains "$export_dir/.shimmy-skills-manifest.txt" "shimmy_skills_target=export"
+
+  pass "skills export writes a portable folder"
+}
+
+test_install_shares_management_skills_explicit_target() {
+  setup_scenario
+
+  output=$(
+    cd "$WORK_DIR"
+    HOME="$HOME_DIR" SHELL=/bin/bash "$ROOT_DIR/shimmy" install --install-dir "$INSTALL_DIR" --shim jq --no-startup --skills-target repo 2>&1
+  )
+
+  assert_contains "$output" "Installed skill: shimmy-install"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-install/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-create/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt"
+
+  manifest_contents=$(cat "$INSTALL_DIR/install-manifest.txt")
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-install|$WORK_DIR/.agents/skills/shimmy-install|"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-create|$WORK_DIR/.agents/skills/shimmy-create|"
+
+  pass "install shares management skills with explicit target"
 }
 
 test_install_macos_podman_guidance() {
@@ -1545,6 +1633,10 @@ main() {
   test_activate_eval
   test_activate_is_idempotent
   test_install_no_startup
+  test_skills_install_repo_target
+  test_skills_update_repo_target
+  test_skills_export_folder
+  test_install_shares_management_skills_explicit_target
   test_install_macos_podman_guidance
   test_agent_shimmy_preflight_reports_approvals
   test_netinfo_help

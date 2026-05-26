@@ -62,9 +62,12 @@ shimmy_update_interval_hours=12
 shimmy_last_checked=2026-05-04T00:00:00Z
 shimmy_previous_source_ref=...
 shimmy_validation_status=ok
+shimmy_skill=repo|shimmy-install|/path/to/.agents/skills/shimmy-install|fingerprint
 ```
 
 Do not edit the manifest directly when a Shimmy script supports the action. If a script rewrites the manifest, it must preserve unknown `shimmy_*` fields unless it intentionally owns and refreshes that key.
+
+Generated or shared agent skills are tracked with repeated `shimmy_skill=` entries. Use `./shimmy skills install` or `./shimmy skills update` to rewrite those entries idempotently instead of hand-editing them.
 
 Every capability must produce machine-readable output for the action. Prefer `./shimmy status --format manifest` or equivalent `key=value` output over JSON so bootstrap, activation, and recovery do not depend on JSON tooling.
 
@@ -86,8 +89,9 @@ Install flow:
 2. Read existing state and manifest, if any.
 3. If not installed, run `./shimmy install` with the requested `--install-dir`, `--shim`, `--shell`, `--startup-file`, or `--no-startup` arguments.
 4. If installed, rerun install only when the requested install options differ or repair is needed.
-5. Validate installed state.
-6. Persist lifecycle state through manifest-aware Shimmy commands. Do not create a separate state file.
+5. Share Shimmy management skills during install by asking the user for `repo`, `profile`, or `plugin`, or by passing `--skills-target <target>` for non-interactive command-line installs.
+6. Validate installed state.
+7. Persist lifecycle state through manifest-aware Shimmy commands. Do not create a separate state file.
 
 Activation is a shell-session action. Report the exact activation command, usually `eval "$(./shimmy activate)"`, but do not assume the agent can mutate the user's current shell.
 

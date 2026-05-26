@@ -25,7 +25,8 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 3. Keep the skill-driven plan concise and actionable. Prefer a short default workflow over long narrative guidance.
 4. Update the runtime shim, installer, tests, and README together when behavior changes.
 5. Create or update a matching tool skill at `../../../.agents/skills/shimmy-tool-{toolname}/SKILL.md` when adding or materially changing a shim.
-6. When adding a shim to the `Included Shims` table in `README.md`, keep the table sorted alphabetically by Tool name.
+6. Share the new or updated tool skill before final verification with `./shimmy skills install --target repo shimmy-tool-{toolname}` from the Shimmy checkout unless the user chose `profile` or `plugin` as the target.
+7. When adding a shim to the `Included Shims` table in `README.md`, keep the table sorted alphabetically by Tool name.
 
 ## Required Checkpoints
 
@@ -54,6 +55,7 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 - Derive `Current Behavior` from the runtime shim first, then reconcile it against `docs/shims/<tool>.md`, `scripts/test-shimmy.sh`, `scripts/install-shimmy.sh`, and `README.md`.
 - Preserve tool-specific fidelity: mounts, env forwarding, local image build args, secrets, safe defaults, TTY/stdin mode, network privileges, and known mismatches.
 - Keep old tool-specific lessons when renaming existing skills into the `shimmy-tool-*` convention.
+- After creating or updating a `shimmy-tool-*` skill, run `./shimmy skills install --target <repo|profile|plugin> shimmy-tool-{toolname}` from the Shimmy checkout so the generated skill is tracked in Shimmy's skills manifest and can be updated idempotently.
 
 ## Decision Guidance
 

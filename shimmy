@@ -32,6 +32,7 @@ Commands:
   install <shim>...     Install available shims into this environment
   activate [args...]    Print shell code that activates the installed shim paths now
   netinfo [args...]     Run scripts/netinfo-shimmy.sh
+  skills [args...]      Run scripts/skills-shimmy.sh
   status [args...]      Run scripts/status-shimmy.sh
   update [args...]      Run scripts/update-shimmy.sh
   help                  Show this help (default action if no command is given)
@@ -40,6 +41,7 @@ Examples:
   eval "$(shimmy activate)"
   shimmy install opnsense-mcp-server
   shimmy netinfo
+  shimmy skills install --target repo
   shimmy status
   shimmy status --available
   shimmy update --pull --build --repair-startup
@@ -58,6 +60,7 @@ Commands:
   uninstall [args...]   Run scripts/install-shimmy.sh --uninstall
   activate [args...]    Print shell code that activates the installed shim paths now
   netinfo [args...]     Run scripts/netinfo-shimmy.sh
+  skills [args...]      Run scripts/skills-shimmy.sh
   status [args...]      Run scripts/status-shimmy.sh
   update [args...]      Run scripts/update-shimmy.sh
   test [args...]        Run scripts/test-shimmy.sh
@@ -68,6 +71,7 @@ Examples:
   eval "$(./shimmy activate)"
   ./shimmy uninstall
   ./shimmy netinfo
+  ./shimmy skills install --target repo
   ./shimmy status
   ./shimmy status --available
   ./shimmy update --pull --build --repair-startup
@@ -128,6 +132,10 @@ main() {
     netinfo)
       shift
       run_repo_script "$ROOT_DIR/scripts/netinfo-shimmy.sh" "$@"
+      ;;
+    skills)
+      shift
+      run_repo_script "$ROOT_DIR/scripts/skills-shimmy.sh" "$@"
       ;;
     status)
       shift

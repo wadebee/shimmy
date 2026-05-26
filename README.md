@@ -64,7 +64,7 @@ When only a single id is present run this command to correct.
 
 ### Option: AI Agent Plugin
 
-Shimmy includes a packaged AI Agent plugin under `plugins/shimmy`. The plugin provides Shimmy-specific skills plus the jq and ripgrep tool skills, so an AI Agent can apply the repository's conventions when creating shims, troubleshooting Podman-backed commands, managing Shimmy installs, and working on the jq or rg wrappers.
+Shimmy includes a packaged AI Agent plugin under `plugins/shimmy`. The plugin provides core Shimmy management skills (`shimmy-install`, `shimmy-init`, `shimmy-create`, and `shimmy-escalation`) plus the jq and ripgrep tool skills, so an AI Agent can apply the repository's conventions when creating shims, troubleshooting Podman-backed commands, managing Shimmy installs, and working on the jq or rg wrappers.
 
 The primary plugin intentionally does not bundle every tool skill. Optional tool-specific plugins can supplement it later, for example AWS, Terraform, or Go plugins, but the AI Agent plugin manifest used here does not declare plugin dependencies. Install or enable supplemental plugins independently when a workstation or repo needs those capabilities.
 
@@ -75,6 +75,31 @@ This repository also includes `.agents/plugins/marketplace.json`, which register
 Open a new AI Agent session from the Shimmy checkout after the plugin files are present. Agent plugin discovery usually happens at session startup, so an already-running session may not see newly added plugin metadata until it is restarted.
 
 When prompted, install or enable the `shimmy` plugin from the local marketplace. Once enabled, requests that involve Shimmy, jq, or ripgrep shim work can use the packaged skills automatically.
+
+#### Share Shimmy skills
+
+Shimmy can copy packaged skills into a project, a user profile, or the packaged plugin bundle:
+
+```sh
+./shimmy skills install --target repo
+./shimmy skills install --target profile
+./shimmy skills update --target plugin
+./shimmy skills install --export ./shimmy-skills
+./shimmy skills install --export ./shimmy-skills.zip
+```
+
+Targets:
+- `repo` writes to `.agents/skills` in the current directory.
+- `profile` writes to `~/.agents/skills`.
+- `plugin` writes to `plugins/shimmy/skills` in the active Shimmy source or installed management bundle.
+- `--export` writes a portable skills folder, or a zip archive when the path ends in `.zip`; zip archives require either `zip` or `python3`.
+
+With no explicit skill names, `install` shares the core Shimmy management skills. To share a generated shim skill, pass it explicitly:
+
+```sh
+./shimmy skills install --target repo shimmy-tool-example
+./shimmy skills update --target repo
+```
 
 #### Use Shimmy tools from an AI Agent faster
 
@@ -146,6 +171,7 @@ Use the repo-root `shimmy` wrapper to install and manage Shimmy from a source ch
 ```sh
 ./shimmy install
 ./shimmy netinfo
+./shimmy skills install --target repo
 ./shimmy status
 ./shimmy status --available
 ./shimmy update --pull --build
@@ -168,6 +194,7 @@ shimmy status
 shimmy status --available
 shimmy install opnsense-mcp-server
 shimmy netinfo
+shimmy skills update --target repo
 shimmy update --pull --build
 eval "$(shimmy activate)"
 ```
@@ -296,7 +323,10 @@ Common install arguments still pass through to the installer:
 ```sh
 ./shimmy install --install-dir "$HOME/.local/share/shimmy"
 ./shimmy install --shim aws --shim terraform
+./shimmy install --skills-target repo
 ```
+
+During an interactive install, Shimmy asks where to share the core management skills: `repo`, `profile`, `plugin`, or `none`. For non-interactive installs, pass `--skills-target <repo|profile|plugin>` or run `shimmy skills install` later.
 
 #### Option: Direct script workflow
 
@@ -330,8 +360,11 @@ Core fields include:
 - `startup_shell` — shell used for managed startup-file selection
 - `startup_file` — managed startup file; repeated when more than one file is updated
 - `shim` — installed shim name; repeated for each installed tool
+- `shimmy_skill` — shared generated skill audit entry; repeated for each tracked skill and encoded as `target|name|path|fingerprint`
 
 Shimmy also reserves `shimmy_*` fields for lifecycle metadata such as the installed source URL/ref, update policy, last update check, previous ref, and validation status. Install and update preserve unknown `shimmy_*` fields so agent-driven lifecycle metadata is not lost during normal refreshes.
+
+Each skills target also gets a local `.shimmy-skills-manifest.txt` under the target skills directory. `shimmy skills update` reads that manifest to refresh the same skill set idempotently, so generated `shimmy-tool-*` skills can be audited and updated without duplicate entries.
 
 For machine-readable inspection, use:
 
@@ -406,6 +439,7 @@ sh ./scripts/test-shimmy.sh
 Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
 - install, activate, status, available-shim comparison, machine-readable manifest output, update, startup-file repair, and uninstall behavior for the single-root manifest layout
+- Shimmy skill sharing, export, idempotent skills manifest updates, and install-time management skill sharing
 - live Podman execution for the supported shim set: `aws`, `go`, `jq`, `netcat`, `nmap`, `opnsense-mcp-server`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
@@ -437,6 +471,7 @@ shimmy/
 ├── scripts/
 │   ├── agent-shimmy-preflight.sh # AI Agent approval preflight
 │   ├── install-shimmy.sh         # Installation script
+│   ├── skills-shimmy.sh          # Agent skill sharing/export script
 │   ├── status-shimmy.sh          # Status script
 │   ├── test-shimmy.sh            # Test suite
 │   └── update-shimmy.sh          # Update script

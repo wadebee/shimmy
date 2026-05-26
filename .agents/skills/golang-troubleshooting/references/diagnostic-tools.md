@@ -91,7 +91,7 @@ stack                # show stack trace
 ```json
 // .vscode/launch.json
 {
-  "version": "0.2.0",
+  "version": "0.1.0",
   "configurations": [
     {
       "name": "Launch Package",
