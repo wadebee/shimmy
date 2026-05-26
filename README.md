@@ -32,28 +32,35 @@ Shimmy also resolves the container platform at runtime without changing the comm
 
 ## Requirements
 
-- **POSIX shell** — `/bin/sh` or another POSIX-compatible shell for the current proof-of-concept rewrite
-- **Podman CLI** — Explicit required dependency. Podman *Desktop* is not required.
-For macOS run `podman machine init` if needed, then run `podman machine start` from a normal user shell after installation.
-Install and configure for rootless operation separately before using Shimmy. Official install guide: <https://podman.io/docs/installation>
-If Podman is installed from the macOS pkg installer, the binary may live at `/opt/podman/bin/podman`. `shimmy activate` accounts for that path for interactive shell activation, and Shimmy's shared Podman preflight also checks it directly for runtime shims plus Podman-backed lifecycle commands such as `shimmy update --pull`, `shimmy update --build`, and `shimmy test`.
-When Podman is installed but unreachable, Shimmy now fails with shared guidance that points to `podman info`, user-shell `podman machine start`, `podman system connection list`, and `CONTAINER_HOST` verification.
+### POSIX shell
+ — `/bin/sh` or another POSIX-compatible shell for the current proof-of-concept rewrite
 
-### Podman rootless requirement
+### Podman
+   — The CLI is a required dependency. Podman *Desktop* is not required.
 
-Shimmy expects a working rootless Podman engine setup. On some minimal Linux environments, including Chromebook's Crostini, rootless requirements for subordinate id ranges do not exist. In this scenario Podman will warn "no subuid ranges found" and fall back to a single UID/GID mapping.
+  - Official install guide: <https://podman.io/docs/installation>
 
-Check your configuration (should output a range of id values, eg: 10000:65536):
-```
-grep "^$(whoami):" /etc/subuid /etc/subgid
-```
+  - When Podman is installed but unreachable, Shimmy fails with shared guidance that points to `podman info`, user-shell `podman machine start`, `podman system connection list`, and `CONTAINER_HOST` verification.
 
-When only a single id is present run this command to correct.
-```
-- sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 $(whoami)
-- podman system migrate
-```
+  - Note for macOS users: Run `podman machine init` if needed, then run `podman machine start` from a normal user shell after installation.
 
+  If Podman is installed from the macOS pkg installer, the binary may live at `/opt/podman/bin/podman`. `shimmy activate` accounts for that path for interactive shell activation, and Shimmy's shared Podman preflight also checks it directly for runtime shims plus Podman-backed lifecycle commands such as `shimmy update --pull`, `shimmy update --build`, and `shimmy test`.
+
+  #### Podman rootless requirement
+
+  Shimmy expects a working rootless Podman engine setup. On some minimal Linux environments, including Chromebook's Crostini, rootless requirements for subordinate id ranges do not exist. In this scenario Podman will warn "no subuid ranges found" and fall back to a single UID/GID mapping.
+
+  Check your configuration (should output a range of id values, eg: 10000:65536):
+  ```
+  grep "^$(whoami):" /etc/subuid /etc/subgid
+  ```
+
+  When only a single id is present run this command to correct.
+  ```
+  - sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 $(whoami)
+  - podman system migrate
+  ```
+  
 ## Installation Options
 
 ### Option: AI Agent Plugin

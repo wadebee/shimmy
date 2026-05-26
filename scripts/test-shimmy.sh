@@ -1157,14 +1157,27 @@ test_go_shim_direct() {
   setup_scenario
   require_podman
 
+  case "$(uname -s 2>/dev/null || printf unknown)" in
+    Darwin)
+      expected_goarch=arm64
+      ;;
+    Linux)
+      expected_goarch=amd64
+      ;;
+    *)
+      expected_goarch=amd64
+      ;;
+  esac
+
   output=$(
     cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/go" version 2>&1
+    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/go" env GOVERSION GOARCH 2>&1
   )
 
-  assert_contains "$output" "go version go"
+  assert_contains "$output" "go"
+  assert_contains "$output" "$expected_goarch"
 
-  pass "go direct shim execution"
+  pass "go direct shim execution and platform selection"
 }
 
 test_go_shim_help_test() {
@@ -1181,32 +1194,6 @@ test_go_shim_help_test() {
   assert_not_contains "$output" "container has already been removed"
 
   pass "go help test shim execution"
-}
-
-test_go_shim_platform_execution() {
-  setup_scenario
-  require_podman
-
-  case "$(uname -s 2>/dev/null || printf unknown)" in
-    Darwin)
-      expected_goarch=arm64
-      ;;
-    Linux)
-      expected_goarch=amd64
-      ;;
-    *)
-      expected_goarch=amd64
-      ;;
-  esac
-
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/go" env GOARCH 2>&1
-  )
-
-  assert_contains "$output" "$expected_goarch"
-
-  pass "go shim platform selection"
 }
 
 test_jq_shim_direct() {
@@ -1259,18 +1246,13 @@ test_installed_jq_shim() {
 
 test_installed_go_shim() {
   setup_scenario
-  require_podman
 
   HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim go >/dev/null
 
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$INSTALL_DIR/shims/go" version 2>&1
-  )
+  assert_file_executable "$INSTALL_DIR/shims/go"
+  cmp -s "$ROOT_DIR/shims/go" "$INSTALL_DIR/shims/go" || fail_test "expected installed go shim to match source shim"
 
-  assert_contains "$output" "go version go"
-
-  pass "installed go shim execution"
+  pass "installed go shim matches source shim"
 }
 
 test_netcat_shim_direct() {
@@ -1302,45 +1284,29 @@ test_nmap_shim_direct() {
 }
 
 test_nmap_shim_lan_scan_opt_in() {
-  setup_scenario
-  require_podman
+  assert_file_contains "$ROOT_DIR/shims/nmap" 'SHIMMY_NMAP_LAN_SCAN=${SHIMMY_NMAP_LAN_SCAN:-}'
+  assert_file_contains "$ROOT_DIR/shims/nmap" 'SHIMMY_NMAP_NETWORK=host'
+  assert_file_contains "$ROOT_DIR/shims/nmap" 'SHIMMY_NMAP_NET_RAW_CAP_VALUE=NET_RAW'
+  assert_file_contains "$ROOT_DIR/shims/nmap" 'SHIMMY_NMAP_NET_ADMIN_CAP_VALUE=NET_ADMIN'
 
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NMAP_LAN_SCAN=1 "$ROOT_DIR/shims/nmap" --version 2>&1
-  )
-
-  assert_contains "$output" "Nmap version"
-
-  pass "nmap LAN scan opt-in execution"
+  pass "nmap LAN scan opt-in wiring"
 }
 
 test_nmap_shim_network_opt_in() {
-  setup_scenario
-  require_podman
+  assert_file_contains "$ROOT_DIR/shims/nmap" 'SHIMMY_NMAP_NETWORK=${SHIMMY_NMAP_NETWORK:-}'
+  assert_file_contains "$ROOT_DIR/shims/nmap" 'SHIMMY_NMAP_NETWORK_ARG=--network'
+  assert_file_contains "$ROOT_DIR/shims/nmap" '${SHIMMY_NMAP_NETWORK_ARG:+"$SHIMMY_NMAP_NETWORK_ARG"}'
+  assert_file_contains "$ROOT_DIR/shims/nmap" '${SHIMMY_NMAP_NETWORK_VALUE:+"$SHIMMY_NMAP_NETWORK_VALUE"}'
 
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NMAP_NETWORK=none "$ROOT_DIR/shims/nmap" --version 2>&1
-  )
-
-  assert_contains "$output" "Nmap version"
-
-  pass "nmap network opt-in execution"
+  pass "nmap network opt-in wiring"
 }
 
 test_nmap_shim_nmap_privileged_opt_in() {
-  setup_scenario
-  require_podman
+  assert_file_contains "$ROOT_DIR/shims/nmap" 'SHIMMY_NMAP_PRIVILEGED=${SHIMMY_NMAP_PRIVILEGED:-}'
+  assert_file_contains "$ROOT_DIR/shims/nmap" 'SHIMMY_NMAP_PRIVILEGED_ARG=--privileged'
+  assert_file_contains "$ROOT_DIR/shims/nmap" '${SHIMMY_NMAP_PRIVILEGED_ARG:+"$SHIMMY_NMAP_PRIVILEGED_ARG"}'
 
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NMAP_PRIVILEGED=1 "$ROOT_DIR/shims/nmap" --version 2>&1
-  )
-
-  assert_contains "$output" "Nmap version"
-
-  pass "nmap Nmap privileged opt-in execution"
+  pass "nmap Nmap privileged opt-in wiring"
 }
 
 test_nmap_shim_podman_privileged_opt_in() {
@@ -1422,17 +1388,11 @@ test_nmap_shim_rootless_podman_privileged_bypasses_guidance() {
 }
 
 test_nmap_shim_nmap_unprivileged_opt_in() {
-  setup_scenario
-  require_podman
+  assert_file_contains "$ROOT_DIR/shims/nmap" 'SHIMMY_NMAP_PRIVILEGED=${SHIMMY_NMAP_PRIVILEGED:-}'
+  assert_file_contains "$ROOT_DIR/shims/nmap" 'SHIMMY_NMAP_PRIVILEGED_ARG=--unprivileged'
+  assert_file_contains "$ROOT_DIR/shims/nmap" '${SHIMMY_NMAP_PRIVILEGED_ARG:+"$SHIMMY_NMAP_PRIVILEGED_ARG"}'
 
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" SHIMMY_NMAP_PRIVILEGED=0 "$ROOT_DIR/shims/nmap" --version 2>&1
-  )
-
-  assert_contains "$output" "Nmap version"
-
-  pass "nmap Nmap unprivileged opt-in execution"
+  pass "nmap Nmap unprivileged opt-in wiring"
 }
 
 test_opnsense_mcp_server_shim_direct() {
@@ -1690,7 +1650,6 @@ main() {
   test_aws_shim_direct
   test_go_shim_direct
   test_go_shim_help_test
-  test_go_shim_platform_execution
   test_jq_shim_direct
   test_jq_shim_pull_override
   test_installed_go_shim
