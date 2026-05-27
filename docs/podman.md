@@ -119,10 +119,15 @@ updated user mapping.
 
 ### Storage Performance
 
-Linux rootless Podman performs best for Shimmy with the `overlay` storage driver
-backed by `fuse-overlayfs`. Shimmy starts many short-lived containers; `vfs` can
-make large images noticeably slower and more disk-heavy because it copies
-filesystem data instead of using overlay layers.
+Shimmy starts many short-lived containers, so Podman's storage driver matters.
+The best baseline is `overlay` storage. While `vfs` provides a "lowest common denominator" of compatibility it also makes working with container images noticeably slower because of the inherent disk-heavy copying of filesystem data instead of using overlay layers.
+
+On Linux rootless Podman, many distros use `fuse-overlayfs` which works well when native rootless kernel overlay support is unavailable or not configured.
+
+On macOS, Podman runs inside a Linux VM. The default high-performance
+`overlay` storage backed by the VM's Linux filesystem is `xfs`. It is
+better than a userspace `fuse-overlayfs` path and does not require extra
+Shimmy-specific tuning.
 
 Check the active storage driver:
 
@@ -130,10 +135,8 @@ Check the active storage driver:
 podman info --format '{{.Store.GraphDriverName}}'
 ```
 
-If this reports `vfs`, install `fuse-overlayfs` with your OS package manager and
-configure rootless Podman storage to use `overlay`.
-
-Changing an existing Podman store requires a `podman system reset`, which removes local Podman containers, images, pods, and **volumes** for that user. 
+If this reports `vfs` on Linux, consider reconfiguring it to use `fuse-overlayfs`.
+Changing your existing Podman storage driver requires a `podman system reset`, which removes local Podman containers, images, pods, and **volumes** for that user. 
 
 **Data Loss Alert**: Treat this as you would any system reset. If you have been running podman for awhile and have existing container services and volumes - be sure to back them up! 
 
@@ -313,13 +316,16 @@ updates Podman state for the new mapping.
 
 ### Slow image startup or high disk usage
 
-Check whether Linux rootless Podman is using `vfs`:
+Check whether Podman is using `vfs` instead of `overlay`:
 
 ```sh
 podman info --format '{{.Store.GraphDriverName}}'
 ```
 
-Prefer `overlay` with `fuse-overlayfs` for normal Shimmy usage.
+Prefer `overlay` for normal Shimmy usage. On macOS, `overlay` backed by the
+Podman VM's `xfs` filesystem is a good default. On Linux rootless systems,
+`fuse-overlayfs` may be the right support package for a working `overlay`
+configuration.
 
 Also inspect image usage:
 
@@ -349,7 +355,12 @@ For network-oriented shims, also see [network-tools.md](network-tools.md).
 
 Podman keeps downloaded images, locally built images, stopped containers,
 volumes, and build cache under your user's Podman storage. That cache is useful:
-it makes repeated Shimmy commands faster. Do not delete it reflexively.
+it makes repeated Shimmy commands faster. It can also grow over time as images
+are updated, local image builds change, and short-lived containers come and go.
+
+A good maintenance habit is to inspect first, prune conservative categories
+periodically, and reserve broad cleanup for cases where disk usage is clearly
+out of hand.
 
 Useful inspection commands:
 
@@ -359,25 +370,29 @@ podman images
 podman system df
 ```
 
-Remove stopped containers:
+Stopped containers are usually safe to remove when you do not need their logs or
+filesystem state:
 
 ```sh
 podman container prune
 ```
 
-Remove dangling or unused images:
+Dangling or unused images are a normal source of growth after image updates and
+local rebuilds:
 
 ```sh
 podman image prune
 ```
 
-Remove unused containers, networks, dangling images, and build cache:
+For a broader cleanup, remove unused containers, networks, dangling images, and
+build cache:
 
 ```sh
 podman system prune
 ```
 
-Use more aggressive cleanup only when you understand what will be removed:
+Use more aggressive image cleanup only when you understand that older images may
+need to be pulled or rebuilt later:
 
 ```sh
 podman system prune --all
