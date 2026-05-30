@@ -4,7 +4,12 @@ on:
   pull_request:
     paths:
       - "shims/**"
+      - "scripts/activate-shimmy.sh"
+      - "scripts/agent-shimmy-preflight.sh"
+      - "scripts/dispatch-shimmy.sh"
       - "scripts/install-shimmy.sh"
+      - "scripts/netinfo-shimmy.sh"
+      - "scripts/skills-shimmy.sh"
       - "scripts/status-shimmy.sh"
       - "scripts/test-shimmy.sh"
       - "scripts/update-shimmy.sh"
@@ -12,12 +17,22 @@ on:
       - "shimmy"
       - "images/task/**"
       - "lib/shims/**"
+      - ".agents/skills/**"
       - ".pre-commit-config.yaml"
       - ".github/workflows/test.yml"
+      - "CONTRIBUTING.md"
+      - "README.md"
+      - "docs/**"
+      - "plugins/shimmy/**"
   push:
     paths:
       - "shims/**"
+      - "scripts/activate-shimmy.sh"
+      - "scripts/agent-shimmy-preflight.sh"
+      - "scripts/dispatch-shimmy.sh"
       - "scripts/install-shimmy.sh"
+      - "scripts/netinfo-shimmy.sh"
+      - "scripts/skills-shimmy.sh"
       - "scripts/status-shimmy.sh"
       - "scripts/test-shimmy.sh"
       - "scripts/update-shimmy.sh"
@@ -25,8 +40,13 @@ on:
       - "shimmy"
       - "images/task/**"
       - "lib/shims/**"
+      - ".agents/skills/**"
       - ".pre-commit-config.yaml"
       - ".github/workflows/test.yml"
+      - "CONTRIBUTING.md"
+      - "README.md"
+      - "docs/**"
+      - "plugins/shimmy/**"
   workflow_dispatch:
 
 jobs:

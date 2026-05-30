@@ -88,6 +88,13 @@ shimmy_agent_shim_name_validate() {
   esac
 }
 
+shimmy_agent_manifest_value() {
+  manifest_file=$1
+  manifest_key=$2
+
+  sed -n "s/^$manifest_key=//p" "$manifest_file" | sed -n '1p'
+}
+
 shimmy_agent_smoke_args_render() {
   shim_name=$1
 
@@ -229,19 +236,29 @@ $shim_name
   shimmy_agent_shim_print active "$shim_name" "$shim_name" "$resolved_path"
 }
 
-shimmy_agent_installed_shims_discover() {
+shimmy_agent_manifest_shims_discover() {
   install_dir=$1
-  manifest_file=$install_dir/install-manifest.txt
-  shim_dir=$install_dir/shims
+  manifest_file=$2
+  dispatcher_dir=$(shimmy_agent_manifest_value "$manifest_file" dispatcher_dir || true)
 
-  if [ -f "$manifest_file" ]; then
-    while IFS= read -r shim_name; do
-      [ -n "$shim_name" ] || continue
-      shimmy_agent_active_shim_consider "$shim_name" "$shim_dir/$shim_name"
-    done <<EOF
+  [ -n "$dispatcher_dir" ] || dispatcher_dir=$install_dir/shims
+
+  while IFS= read -r shim_name; do
+    [ -n "$shim_name" ] || continue
+    shimmy_agent_active_shim_consider "$shim_name" "$dispatcher_dir/$shim_name"
+  done <<EOF
 $(sed -n 's/^shim=//p' "$manifest_file")
 EOF
-  fi
+}
+
+shimmy_agent_installed_shims_discover() {
+  install_dir=$1
+  shim_dir=$install_dir/shims
+
+  for manifest_file in "$install_dir"/profiles/default/install-manifest.txt "$install_dir"/profiles/upstream/install-manifest.txt "$install_dir"/install-manifest.txt; do
+    [ -f "$manifest_file" ] || continue
+    shimmy_agent_manifest_shims_discover "$install_dir" "$manifest_file"
+  done
 
   [ -d "$shim_dir" ] || return 0
 

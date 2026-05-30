@@ -1152,6 +1152,43 @@ EOF
   pass "AI Agent preflight reports narrow shim approvals"
 }
 
+test_agent_shimmy_preflight_reports_upstream_profile() {
+  setup_scenario
+
+  mkdir -p "$WORK_DIR/bin" "$SCENARIO_DIR/upstream-checkout/shims"
+  cat > "$WORK_DIR/bin/podman" <<'EOF'
+#!/bin/sh
+case "${1:-}" in
+  info)
+    exit 0
+    ;;
+  *)
+    printf '%s\n' 'fake podman'
+    exit 0
+    ;;
+esac
+EOF
+  cat > "$SCENARIO_DIR/upstream-checkout/shims/rg" <<'EOF'
+#!/bin/sh
+printf '%s\n' 'fake rg'
+EOF
+  chmod +x "$WORK_DIR/bin/podman" "$SCENARIO_DIR/upstream-checkout/shims/rg"
+
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$SCENARIO_DIR/upstream-checkout" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim rg --no-startup --no-skills >/dev/null
+
+  output=$(
+    PATH="$WORK_DIR/bin:$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_INSTALL_DIR="$INSTALL_DIR" run_in_repo ./scripts/agent-shimmy-preflight.sh 2>&1
+  )
+
+  assert_contains "$output" "podman_info=ok"
+  assert_contains "$output" "active_shim=rg"
+  assert_contains "$output" "path=$INSTALL_DIR/shims/rg"
+  assert_contains "$output" 'agent_prefix_rule=["rg","--version"]'
+  assert_contains "$output" "smoke_command=rg --version"
+
+  pass "AI Agent preflight reports upstream profile shims"
+}
+
 test_netinfo_help() {
   output=$(
     run_in_repo ./shimmy netinfo --help 2>&1
@@ -1996,6 +2033,30 @@ test_installed_jq_shim() {
   pass "installed jq shim execution"
 }
 
+test_installed_upstream_jq_shim() {
+  setup_scenario
+  require_podman
+
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$ROOT_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=upstream jq --version 2>&1
+  )
+  assert_contains "$output" "jq-1.8.1"
+
+  test_output=$(
+    cd "$WORK_DIR"
+    PATH="$(dirname "$PODMAN_BIN"):$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin:/bin" shimmy test --mode upstream --shim jq 2>&1
+  )
+  assert_contains "$test_output" "Selected Shimmy mode: upstream"
+  assert_contains "$test_output" "mode=upstream"
+  assert_contains "$test_output" "test_shim=jq"
+  assert_contains "$test_output" "profile_test=ok"
+
+  pass "installed upstream jq shim execution"
+}
+
 test_installed_go_shim() {
   setup_scenario
 
@@ -2524,6 +2585,7 @@ main() {
   test_install_shares_management_skills_explicit_target
   test_install_macos_podman_guidance
   test_agent_shimmy_preflight_reports_approvals
+  test_agent_shimmy_preflight_reports_upstream_profile
   test_netinfo_help
   test_netinfo_manifest_crostini_host_name_resolution
   test_netinfo_manifest_darwin_host_name_resolution
@@ -2556,6 +2618,7 @@ main() {
   test_jq_shim_pull_override
   test_installed_go_shim
   test_installed_jq_shim
+  test_installed_upstream_jq_shim
   test_netcat_shim_direct
   test_nmap_shim_direct
   test_nmap_shim_lan_scan_opt_in
