@@ -7,17 +7,21 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
+PROFILE_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-profile.sh
 STARTUP_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-startup.sh
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
 SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
-DEFAULT_INSTALL_DIR=${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}
+DEFAULT_INSTALL_DIR=${SHIMMY_INSTALL_DIR:-${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}}
 REQUESTED_INSTALL_DIR=
+REQUESTED_MODE=
 REQUESTED_SHELL=
 REQUESTED_STARTUP_FILES=
 PULL_IMAGES=0
 BUILD_IMAGES=0
 REPAIR_STARTUP=0
 PREVIOUS_SOURCE_REF=
+MODE_WAS_SELECTED=0
+UPDATE_SOURCE_CHECKOUT=
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -36,6 +40,12 @@ if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
   fail "missing Podman helper: $SHIMMY_PODMAN_HELPER_FILE"
 fi
 
+if [ ! -f "$PROFILE_HELPER_FILE" ]; then
+  fail "missing profile helper: $PROFILE_HELPER_FILE"
+fi
+
+# shellcheck source=lib/repo/shimmy-profile.sh
+. "$PROFILE_HELPER_FILE"
 # shellcheck source=lib/repo/shimmy-startup.sh
 . "$STARTUP_HELPER_FILE"
 # shellcheck source=lib/shims/custom-image.sh
@@ -100,6 +110,25 @@ manifest_shim_list() {
   sed -n 's/^shim=//p' "$manifest_file"
 }
 
+manifest_file_resolve() {
+  manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
+  legacy_manifest_file=$SHIMMY_PROFILE_INSTALL_DIR/install-manifest.txt
+
+  if [ "$SHIMMY_PROFILE_MODE" = default ] && [ -f "$legacy_manifest_file" ] && { [ ! -f "$manifest_file" ] || [ "$MODE_WAS_SELECTED" -eq 0 ]; }; then
+    manifest_file=$legacy_manifest_file
+  fi
+
+  printf '%s\n' "$manifest_file"
+}
+
+profile_paths_resolve() {
+  install_dir=$1
+
+  if ! shimmy_profile_paths_resolve "$REQUESTED_MODE" "$install_dir" "$ROOT_DIR"; then
+    fail "unsupported shimmy mode: ${REQUESTED_MODE:-${SHIMMY_MODE:-}}"
+  fi
+}
+
 line_list_append() {
   list_value=${1:-}
   line_value=$2
@@ -155,6 +184,9 @@ run_installed_management_update() {
   printf 'INFO: Updating Shimmy management plane from %s\n' "$source_ref" >&2
 
   set -- "$source_dir/shimmy" update --install-dir "$install_dir"
+  if [ "$MODE_WAS_SELECTED" -eq 1 ]; then
+    set -- "$@" --mode "$SHIMMY_PROFILE_MODE"
+  fi
   if [ "$PULL_IMAGES" -eq 1 ]; then
     set -- "$@" --pull
   fi
@@ -176,12 +208,21 @@ $REQUESTED_STARTUP_FILES
 EOF
   fi
 
-  if "$@"; then
+  set +e
+  if [ -n "$UPDATE_SOURCE_CHECKOUT" ]; then
+    SHIMMY_UPSTREAM_CHECKOUT_DIR=$UPDATE_SOURCE_CHECKOUT "$@"
+    command_status=$?
+  else
+    "$@"
+    command_status=$?
+  fi
+  set -e
+
+  if [ "$command_status" -eq 0 ]; then
     rm -rf "$update_tmp_dir"
     return 0
   fi
 
-  command_status=$?
   rm -rf "$update_tmp_dir"
   return "$command_status"
 }
@@ -234,6 +275,7 @@ cleanup_old_local_images() {
 run_pull_refresh() {
   shim_dir=$1
   manifest_file=$2
+  mode_value=$3
 
   shimmy_podman_preflight_require "shimmy update --pull"
 
@@ -241,22 +283,22 @@ run_pull_refresh() {
     [ -n "$shim_name" ] || continue
     case "$shim_name" in
       aws)
-        SHIMMY_AWS_IMAGE_PULL=always "$shim_dir/aws" --version >/dev/null </dev/null
+        SHIMMY_MODE=$mode_value SHIMMY_AWS_IMAGE_PULL=always "$shim_dir/aws" --version >/dev/null </dev/null
         ;;
       go)
-        SHIMMY_GO_IMAGE_PULL=always "$shim_dir/go" version >/dev/null </dev/null
+        SHIMMY_MODE=$mode_value SHIMMY_GO_IMAGE_PULL=always "$shim_dir/go" version >/dev/null </dev/null
         ;;
       jq)
-        SHIMMY_JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null </dev/null
+        SHIMMY_MODE=$mode_value SHIMMY_JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null </dev/null
         ;;
       opnsense-mcp-server)
         "$SHIMMY_PODMAN_BIN" pull --platform "$SHIMMY_PODMAN_PLATFORM" "${SHIMMY_OPNSENSE_MCP_IMAGE:-docker.io/uhlenheide/opnsense-mcp-server}" >/dev/null
         ;;
       rg)
-        SHIMMY_RG_IMAGE_PULL=always "$shim_dir/rg" --version >/dev/null </dev/null
+        SHIMMY_MODE=$mode_value SHIMMY_RG_IMAGE_PULL=always "$shim_dir/rg" --version >/dev/null </dev/null
         ;;
       terraform)
-        SHIMMY_TF_IMAGE_PULL=always "$shim_dir/terraform" version >/dev/null </dev/null
+        SHIMMY_MODE=$mode_value SHIMMY_TF_IMAGE_PULL=always "$shim_dir/terraform" version >/dev/null </dev/null
         ;;
     esac
   done <<EOF
@@ -268,6 +310,7 @@ run_build_refresh() {
   shim_dir=$1
   images_dir=$2
   manifest_file=$3
+  mode_value=$4
 
   shimmy_podman_preflight_require "shimmy update --build"
 
@@ -275,15 +318,15 @@ run_build_refresh() {
     [ -n "$shim_name" ] || continue
     case "$shim_name" in
       netcat)
-        SHIMMY_NETCAT_IMAGE_BUILD=always "$shim_dir/netcat" --help >/dev/null </dev/null
+        SHIMMY_MODE=$mode_value SHIMMY_NETCAT_IMAGE_BUILD=always "$shim_dir/netcat" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
       task)
-        SHIMMY_TASK_IMAGE_BUILD=always "$shim_dir/task" --version >/dev/null </dev/null
+        SHIMMY_MODE=$mode_value SHIMMY_TASK_IMAGE_BUILD=always "$shim_dir/task" --version >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
       textual)
-        SHIMMY_TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual" --help >/dev/null </dev/null
+        SHIMMY_MODE=$mode_value SHIMMY_TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
     esac
@@ -297,7 +340,7 @@ usage() {
 Refresh an existing shimmy installation.
 
 Usage:
-  scripts/update-shimmy.sh [--install-dir <dir>] [--pull] [--build] [--repair-startup]
+  scripts/update-shimmy.sh [--install-dir <dir>] [--mode default|upstream] [--pull] [--build] [--repair-startup]
 
 When run from a source checkout, update refreshes the install from that checkout.
 When run through an installed shimmy command, update fetches the recorded
@@ -305,6 +348,7 @@ shimmy_source_url and refreshes the management plane from that source.
 
 Options:
   --install-dir <dir>   Base install directory. Default: ~/.config/shimmy
+  --mode <name>         Update profile mode: default or upstream
   --pull                Pull newer remote images for installed remote-image shims.
   --build               Rebuild local images for installed local-build shims.
   --repair-startup      Rewrite the managed Shimmy startup block after reinstalling
@@ -320,6 +364,12 @@ main() {
       --install-dir)
         [ "$#" -ge 2 ] || fail "missing value for --install-dir"
         REQUESTED_INSTALL_DIR=$2
+        shift 2
+        ;;
+      --mode)
+        [ "$#" -ge 2 ] || fail "missing value for --mode"
+        REQUESTED_MODE=$2
+        MODE_WAS_SELECTED=1
         shift 2
         ;;
       --pull)
@@ -354,17 +404,29 @@ main() {
     esac
   done
 
+  if [ -n "${SHIMMY_MODE:-}" ]; then
+    MODE_WAS_SELECTED=1
+  fi
+
   install_dir=$(install_dir_resolve)
-  manifest_file=$install_dir/install-manifest.txt
+  profile_paths_resolve "$install_dir"
+  install_dir=$SHIMMY_PROFILE_INSTALL_DIR
+  manifest_file=$(manifest_file_resolve)
 
   if [ ! -f "$manifest_file" ]; then
-    fail "no shimmy install manifest found at $manifest_file; run ./shimmy install first"
+    fail "no shimmy install manifest found for mode $SHIMMY_PROFILE_MODE at $manifest_file; run ./shimmy install first"
   fi
 
   manifest_install_dir=$(manifest_value "$manifest_file" install_dir || true)
   if [ -n "$manifest_install_dir" ]; then
     install_dir=$(trim_trailing_slash "$manifest_install_dir")
-    manifest_file=$install_dir/install-manifest.txt
+    profile_paths_resolve "$install_dir"
+    manifest_file=$(manifest_file_resolve)
+  fi
+
+  manifest_source_checkout=$(manifest_value "$manifest_file" source_checkout || true)
+  if [ "$SHIMMY_PROFILE_MODE" = upstream ] && [ -n "$manifest_source_checkout" ]; then
+    UPDATE_SOURCE_CHECKOUT=$manifest_source_checkout
   fi
 
   if is_installed_management_update "$install_dir"; then
@@ -375,6 +437,9 @@ main() {
   PREVIOUS_SOURCE_REF=$(manifest_value "$manifest_file" shimmy_source_ref || true)
 
   set -- "$SCRIPT_DIR/install-shimmy.sh" --install-dir "$install_dir"
+  if [ "$MODE_WAS_SELECTED" -eq 1 ]; then
+    set -- "$@" --mode "$SHIMMY_PROFILE_MODE"
+  fi
   if [ "$REPAIR_STARTUP" -eq 0 ]; then
     set -- "$@" --no-startup
   else
@@ -407,20 +472,35 @@ EOF
 $(manifest_shim_list "$manifest_file")
 EOF
   if [ -n "$PREVIOUS_SOURCE_REF" ]; then
-    SHIMMY_PREVIOUS_SOURCE_REF=$PREVIOUS_SOURCE_REF "$@"
+    if [ -n "$UPDATE_SOURCE_CHECKOUT" ]; then
+      SHIMMY_UPSTREAM_CHECKOUT_DIR=$UPDATE_SOURCE_CHECKOUT SHIMMY_PREVIOUS_SOURCE_REF=$PREVIOUS_SOURCE_REF "$@"
+    else
+      SHIMMY_PREVIOUS_SOURCE_REF=$PREVIOUS_SOURCE_REF "$@"
+    fi
   else
-    "$@"
+    if [ -n "$UPDATE_SOURCE_CHECKOUT" ]; then
+      SHIMMY_UPSTREAM_CHECKOUT_DIR=$UPDATE_SOURCE_CHECKOUT "$@"
+    else
+      "$@"
+    fi
   fi
 
-  shim_dir=$install_dir/shims
-  images_dir=$install_dir/images
+  profile_paths_resolve "$install_dir"
+  manifest_file=$(manifest_file_resolve)
+
+  shim_dir=$(manifest_value "$manifest_file" dispatcher_dir || true)
+  [ -n "$shim_dir" ] || shim_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
+  images_dir=$SHIMMY_PROFILE_DIR/images
+  if [ "$SHIMMY_PROFILE_MODE" = default ] && [ "$manifest_file" = "$install_dir/install-manifest.txt" ]; then
+    images_dir=$install_dir/images
+  fi
 
   if [ "$PULL_IMAGES" -eq 1 ]; then
-    run_pull_refresh "$shim_dir" "$manifest_file"
+    run_pull_refresh "$shim_dir" "$manifest_file" "$SHIMMY_PROFILE_MODE"
   fi
 
   if [ "$BUILD_IMAGES" -eq 1 ]; then
-    run_build_refresh "$shim_dir" "$images_dir" "$manifest_file"
+    run_build_refresh "$shim_dir" "$images_dir" "$manifest_file" "$SHIMMY_PROFILE_MODE"
   fi
 }
 

@@ -33,6 +33,7 @@ REQUESTED_STARTUP_FILES=
 SKIP_STARTUP=0
 SKIP_SKILLS=0
 ADD_SHIMS=0
+MODE_WAS_SELECTED=0
 STARTUP_FILE_PATHS=
 STARTUP_SHELL=
 PRESERVED_STARTUP_FILE_PATHS=
@@ -887,34 +888,63 @@ remove_path_if_present() {
   rm -rf "$path_value"
 }
 
-perform_uninstall() {
-  [ "$SKIP_SKILLS" -eq 0 ] || fail "--no-skills is not supported with --uninstall"
-  [ -z "$REQUESTED_SKILLS_TARGET" ] || fail "--skills-target is not supported with --uninstall"
+is_shim_listed_in_manifest() {
+  shim_name=$1
+  manifest_file=$2
 
-  log_info "Removing shimmy install rooted at $SHIMMY_INSTALL_DIR"
+  [ -f "$manifest_file" ] || return 1
 
-  load_install_root_from_manifest || true
-  startup_files_to_remove=$(manifest_values "$INSTALL_MANIFEST_FILE" startup_file || true)
-
-  if [ -n "$startup_files_to_remove" ]; then
-    while IFS= read -r startup_file_to_remove; do
-      [ -n "$startup_file_to_remove" ] || continue
-      shimmy_startup_block_remove "$startup_file_to_remove"
-      log_info "Removed managed Shimmy startup block from: $startup_file_to_remove"
-    done <<EOF
-$startup_files_to_remove
+  while IFS= read -r manifest_shim_name; do
+    [ -n "$manifest_shim_name" ] || continue
+    if [ "$manifest_shim_name" = "$shim_name" ]; then
+      return 0
+    fi
+  done <<EOF
+$(manifest_shim_list "$manifest_file")
 EOF
+
+  return 1
+}
+
+is_shim_needed_by_other_profile() {
+  shim_name=$1
+  skip_manifest_one=${2:-}
+  skip_manifest_two=${3:-}
+
+  if [ -f "$SHIMMY_LEGACY_MANIFEST_FILE" ] && [ "$SHIMMY_LEGACY_MANIFEST_FILE" != "$skip_manifest_one" ] && [ "$SHIMMY_LEGACY_MANIFEST_FILE" != "$skip_manifest_two" ]; then
+    if is_shim_listed_in_manifest "$shim_name" "$SHIMMY_LEGACY_MANIFEST_FILE"; then
+      return 0
+    fi
   fi
 
-  remove_path_if_present "$SHIMMY_SHIM_DIR" "shim"
-  remove_path_if_present "$SHIMMY_IMAGES_DIR" "image"
-  remove_path_if_present "$SHIMMY_SHIM_LIB_DIR" "shim helper"
-  remove_path_if_present "$SHIMMY_CONTROL_BIN" "management command"
-  remove_path_if_present "$SHIMMY_CONTROL_SOURCE_DIR" "management support"
-  remove_path_if_present "$SHIMMY_ACTIVATE_FILE" "activation"
-  remove_path_if_present "$INSTALL_MANIFEST_FILE" "manifest"
-  remove_path_if_present "$SHIMMY_PROFILE_DIR" "profile"
+  for manifest_file in "$SHIMMY_INSTALL_DIR"/profiles/*/install-manifest.txt; do
+    [ -f "$manifest_file" ] || continue
+    [ "$manifest_file" != "$skip_manifest_one" ] || continue
+    [ "$manifest_file" != "$skip_manifest_two" ] || continue
+    if is_shim_listed_in_manifest "$shim_name" "$manifest_file"; then
+      return 0
+    fi
+  done
 
+  return 1
+}
+
+profile_manifest_count() {
+  manifest_count=0
+
+  if [ -f "$SHIMMY_LEGACY_MANIFEST_FILE" ]; then
+    manifest_count=$((manifest_count + 1))
+  fi
+
+  for manifest_file in "$SHIMMY_INSTALL_DIR"/profiles/*/install-manifest.txt; do
+    [ -f "$manifest_file" ] || continue
+    manifest_count=$((manifest_count + 1))
+  done
+
+  printf '%s\n' "$manifest_count"
+}
+
+remove_empty_install_dirs() {
   if [ -d "$SHIMMY_INSTALL_DIR/lib" ]; then
     rmdir "$SHIMMY_INSTALL_DIR/lib" 2>/dev/null || true
   fi
@@ -940,8 +970,109 @@ EOF
       log_debug "Removed empty install directory: $SHIMMY_INSTALL_DIR"
     fi
   fi
+}
+
+startup_blocks_remove() {
+  manifest_file=$1
+
+  startup_files_to_remove=$(manifest_values "$manifest_file" startup_file || true)
+
+  if [ -n "$startup_files_to_remove" ]; then
+    while IFS= read -r startup_file_to_remove; do
+      [ -n "$startup_file_to_remove" ] || continue
+      shimmy_startup_block_remove "$startup_file_to_remove"
+      log_info "Removed managed Shimmy startup block from: $startup_file_to_remove"
+    done <<EOF
+$startup_files_to_remove
+EOF
+  fi
+}
+
+uninstall_profile_manifest_resolve() {
+  case "$SHIMMY_MODE_RESOLVED" in
+    default)
+      if [ -f "$SHIMMY_PROFILE_MANIFEST_FILE" ]; then
+        printf '%s\n' "$SHIMMY_PROFILE_MANIFEST_FILE"
+      else
+        printf '%s\n' "$SHIMMY_LEGACY_MANIFEST_FILE"
+      fi
+      ;;
+    upstream)
+      printf '%s\n' "$SHIMMY_PROFILE_MANIFEST_FILE"
+      ;;
+  esac
+}
+
+perform_uninstall_legacy_full() {
+  [ "$SKIP_SKILLS" -eq 0 ] || fail "--no-skills is not supported with --uninstall"
+  [ -z "$REQUESTED_SKILLS_TARGET" ] || fail "--skills-target is not supported with --uninstall"
+
+  log_info "Removing shimmy install rooted at $SHIMMY_INSTALL_DIR"
+
+  load_install_root_from_manifest || true
+
+  if [ -f "$INSTALL_MANIFEST_FILE" ]; then
+    startup_blocks_remove "$INSTALL_MANIFEST_FILE"
+  fi
+
+  remove_path_if_present "$SHIMMY_INSTALL_DIR" "install root"
 
   log_info "Removed shimmy assets from $SHIMMY_INSTALL_DIR"
+}
+
+perform_uninstall_profile() {
+  [ "$SKIP_SKILLS" -eq 0 ] || fail "--no-skills is not supported with --uninstall"
+  [ -z "$REQUESTED_SKILLS_TARGET" ] || fail "--skills-target is not supported with --uninstall"
+
+  uninstall_manifest_file=$(uninstall_profile_manifest_resolve)
+  if [ ! -f "$uninstall_manifest_file" ] && [ ! -d "$SHIMMY_PROFILE_DIR" ]; then
+    fail "no shimmy profile found for mode $SHIMMY_MODE_RESOLVED at $uninstall_manifest_file"
+  fi
+
+  log_info "Removing shimmy $SHIMMY_MODE_RESOLVED profile rooted at $SHIMMY_PROFILE_DIR"
+
+  shims_to_check=$(manifest_shim_list "$uninstall_manifest_file" || true)
+  startup_files_to_remove=$(manifest_values "$uninstall_manifest_file" startup_file || true)
+  skip_manifest_two=
+  if [ "$SHIMMY_MODE_RESOLVED" = default ]; then
+    skip_manifest_two=$SHIMMY_LEGACY_MANIFEST_FILE
+  fi
+
+  remove_path_if_present "$SHIMMY_PROFILE_DIR" "profile"
+  if [ "$SHIMMY_MODE_RESOLVED" = default ]; then
+    remove_path_if_present "$SHIMMY_LEGACY_MANIFEST_FILE" "legacy manifest"
+    remove_path_if_present "$SHIMMY_LEGACY_IMAGES_DIR" "legacy image"
+    remove_path_if_present "$SHIMMY_LEGACY_SHIM_LIB_DIR" "legacy shim helper"
+  fi
+
+  while IFS= read -r shim_name; do
+    [ -n "$shim_name" ] || continue
+    if is_shim_needed_by_other_profile "$shim_name" "$uninstall_manifest_file" "$skip_manifest_two"; then
+      continue
+    fi
+    remove_path_if_present "$SHIMMY_DISPATCHER_DIR/$shim_name" "dispatcher"
+  done <<EOF
+$shims_to_check
+EOF
+
+  if [ "$(profile_manifest_count)" -eq 0 ]; then
+    if [ -n "$startup_files_to_remove" ]; then
+      while IFS= read -r startup_file_to_remove; do
+        [ -n "$startup_file_to_remove" ] || continue
+        shimmy_startup_block_remove "$startup_file_to_remove"
+        log_info "Removed managed Shimmy startup block from: $startup_file_to_remove"
+      done <<EOF
+$startup_files_to_remove
+EOF
+    fi
+    remove_path_if_present "$SHIMMY_CONTROL_BIN" "management command"
+    remove_path_if_present "$SHIMMY_CONTROL_SOURCE_DIR" "management support"
+    remove_path_if_present "$SHIMMY_ACTIVATE_FILE" "activation"
+  fi
+
+  remove_empty_install_dirs
+
+  log_info "Removed shimmy $SHIMMY_MODE_RESOLVED profile from $SHIMMY_INSTALL_DIR"
 }
 
 main() {
@@ -955,6 +1086,7 @@ main() {
       --mode)
         [ "$#" -ge 2 ] || fail "missing value for --mode"
         REQUESTED_MODE=$2
+        MODE_WAS_SELECTED=1
         shift 2
         ;;
       --copy)
@@ -1015,12 +1147,20 @@ main() {
     esac
   done
 
+  if [ -n "${SHIMMY_MODE:-}" ]; then
+    MODE_WAS_SELECTED=1
+  fi
+
   resolve_install_paths
 
   if [ "$ADD_SHIMS" -eq 1 ]; then
     perform_shim_install
   elif [ "$UNINSTALL" -eq 1 ]; then
-    perform_uninstall
+    if [ "$MODE_WAS_SELECTED" -eq 0 ]; then
+      perform_uninstall_legacy_full
+    else
+      perform_uninstall_profile
+    fi
   else
     perform_install
   fi

@@ -1774,6 +1774,123 @@ test_update_preserves_shimmy_manifest_fields() {
   pass "update preserves shimmy manifest lifecycle fields"
 }
 
+test_update_mode_default_profile() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  rm -f "$INSTALL_DIR/shims/jq"
+  rm -f "$INSTALL_DIR/profiles/default/shims/jq"
+
+  output=$(
+    HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --mode default 2>&1
+  )
+
+  assert_contains "$output" "Selected Shimmy mode: default"
+  assert_path_symlink "$INSTALL_DIR/shims/jq"
+  assert_file_executable "$INSTALL_DIR/profiles/default/shims/jq"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "mode=default"
+
+  pass "update default mode refreshes default profile"
+}
+
+test_update_mode_environment_fallback() {
+  setup_scenario
+
+  checkout_dir=$SCENARIO_DIR/upstream-checkout
+  mkdir -p "$checkout_dir/shims"
+  test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-update-env"
+
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  rm -f "$INSTALL_DIR/shims/jq"
+  rm -f "$INSTALL_DIR/profiles/upstream/shims/jq"
+
+  output=$(
+    HOME="$HOME_DIR" SHIMMY_MODE=upstream run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" 2>&1
+  )
+
+  assert_contains "$output" "Selected Shimmy mode: upstream"
+  assert_path_symlink "$INSTALL_DIR/shims/jq"
+  assert_file_executable "$INSTALL_DIR/profiles/upstream/shims/jq"
+  assert_file_contains "$INSTALL_DIR/profiles/upstream/shims/jq" "shimmy_upstream_checkout='$checkout_dir'"
+
+  command_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=upstream jq --version 2>&1
+  )
+  assert_contains "$command_output" "upstream-update-env"
+
+  pass "update uses SHIMMY_MODE fallback"
+}
+
+test_update_mode_invalid_environment_rejected() {
+  setup_scenario
+
+  set +e
+  output=$(
+    HOME="$HOME_DIR" SHIMMY_MODE=invalid run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" 2>&1
+  )
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_MODE to fail update"
+  assert_contains "$output" "unsupported shimmy mode: invalid"
+
+  pass "update rejects invalid SHIMMY_MODE"
+}
+
+test_update_mode_precedence() {
+  setup_scenario
+
+  checkout_dir=$SCENARIO_DIR/upstream-checkout
+  mkdir -p "$checkout_dir/shims"
+  test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-update-precedence"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  rm -f "$INSTALL_DIR/profiles/default/shims/jq"
+  rm -f "$INSTALL_DIR/profiles/upstream/shims/jq"
+
+  output=$(
+    HOME="$HOME_DIR" SHIMMY_MODE=upstream run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --mode default 2>&1
+  )
+
+  assert_contains "$output" "Selected Shimmy mode: default"
+  assert_file_executable "$INSTALL_DIR/profiles/default/shims/jq"
+  assert_path_not_exists "$INSTALL_DIR/profiles/upstream/shims/jq"
+
+  pass "update mode flag overrides environment"
+}
+
+test_update_mode_upstream_profile() {
+  setup_scenario
+
+  checkout_dir=$SCENARIO_DIR/upstream-checkout
+  mkdir -p "$checkout_dir/shims"
+  test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-update-profile"
+
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  rm -f "$INSTALL_DIR/shims/jq"
+  rm -f "$INSTALL_DIR/profiles/upstream/shims/jq"
+
+  output=$(
+    HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --mode upstream 2>&1
+  )
+
+  assert_contains "$output" "Selected Shimmy mode: upstream"
+  assert_path_symlink "$INSTALL_DIR/shims/jq"
+  assert_file_executable "$INSTALL_DIR/profiles/upstream/shims/jq"
+  assert_file_contains "$INSTALL_DIR/profiles/upstream/shims/jq" "shimmy_upstream_checkout='$checkout_dir'"
+  assert_path_not_exists "$INSTALL_DIR/install-manifest.txt"
+
+  command_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=upstream jq --version 2>&1
+  )
+  assert_contains "$command_output" "upstream-update-profile"
+
+  pass "update upstream mode refreshes upstream profile"
+}
+
 test_aws_shim_direct() {
   setup_scenario
   require_podman
@@ -2251,6 +2368,118 @@ test_uninstall_cleanup() {
   pass "uninstall removes install root and startup block"
 }
 
+test_uninstall_installed_command_cleanup() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup --no-skills >/dev/null
+
+  (
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy uninstall >/dev/null
+  )
+
+  assert_path_not_exists "$INSTALL_DIR"
+
+  pass "installed shimmy command can uninstall current environment"
+}
+
+test_uninstall_legacy_shape_cleanup() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup --no-skills >/dev/null
+  rm -rf "$INSTALL_DIR/profiles"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" >/dev/null
+
+  assert_path_not_exists "$INSTALL_DIR"
+
+  pass "unqualified uninstall removes legacy-shaped install"
+}
+
+test_uninstall_mode_default_preserves_upstream() {
+  setup_scenario
+
+  checkout_dir=$SCENARIO_DIR/upstream-checkout
+  mkdir -p "$checkout_dir/shims"
+  test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-after-default-uninstall"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+
+  HOME="$HOME_DIR" SHIMMY_MODE=upstream run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" --mode default >/dev/null
+
+  assert_path_not_exists "$INSTALL_DIR/install-manifest.txt"
+  assert_path_not_exists "$INSTALL_DIR/profiles/default"
+  assert_file_exists "$INSTALL_DIR/profiles/upstream/install-manifest.txt"
+  assert_path_symlink "$INSTALL_DIR/shims/jq"
+  assert_file_executable "$INSTALL_DIR/bin/shimmy"
+
+  command_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=upstream jq --version 2>&1
+  )
+  assert_contains "$command_output" "upstream-after-default-uninstall"
+
+  pass "uninstall default mode preserves upstream profile"
+}
+
+test_uninstall_mode_invalid_environment_rejected() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+
+  set +e
+  output=$(
+    HOME="$HOME_DIR" SHIMMY_MODE=invalid run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" 2>&1
+  )
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_MODE to fail uninstall"
+  assert_contains "$output" "unsupported shimmy mode: invalid"
+  assert_file_exists "$INSTALL_DIR/profiles/default/install-manifest.txt"
+
+  pass "uninstall rejects invalid SHIMMY_MODE"
+}
+
+test_uninstall_mode_upstream_last_profile_cleanup() {
+  setup_scenario
+
+  checkout_dir=$SCENARIO_DIR/upstream-checkout
+  mkdir -p "$checkout_dir/shims"
+  test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-last-profile"
+
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" --mode upstream >/dev/null
+
+  assert_path_not_exists "$INSTALL_DIR"
+
+  pass "uninstall upstream mode removes install when last profile"
+}
+
+test_uninstall_mode_upstream_preserves_default() {
+  setup_scenario
+
+  checkout_dir=$SCENARIO_DIR/upstream-checkout
+  mkdir -p "$checkout_dir/shims"
+  test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-before-uninstall"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" --mode upstream >/dev/null
+
+  assert_file_exists "$INSTALL_DIR/install-manifest.txt"
+  assert_file_exists "$INSTALL_DIR/profiles/default/install-manifest.txt"
+  assert_path_not_exists "$INSTALL_DIR/profiles/upstream"
+  assert_path_symlink "$INSTALL_DIR/shims/jq"
+  assert_file_executable "$INSTALL_DIR/profiles/default/shims/jq"
+  assert_file_executable "$INSTALL_DIR/bin/shimmy"
+
+  pass "uninstall upstream mode preserves default profile"
+}
+
 main() {
   parse_args "$@"
 
@@ -2315,6 +2544,11 @@ main() {
   test_installed_update_requires_pull_for_image_refresh
   test_update_reinstalls_selected_shims
   test_update_preserves_shimmy_manifest_fields
+  test_update_mode_default_profile
+  test_update_mode_environment_fallback
+  test_update_mode_invalid_environment_rejected
+  test_update_mode_precedence
+  test_update_mode_upstream_profile
   test_aws_shim_direct
   test_go_shim_direct
   test_go_shim_help_test
@@ -2343,6 +2577,12 @@ main() {
   test_installed_opnsense_mcp_server_shim
   test_installed_task_shim
   test_uninstall_cleanup
+  test_uninstall_installed_command_cleanup
+  test_uninstall_legacy_shape_cleanup
+  test_uninstall_mode_default_preserves_upstream
+  test_uninstall_mode_invalid_environment_rejected
+  test_uninstall_mode_upstream_last_profile_cleanup
+  test_uninstall_mode_upstream_preserves_default
 
   printf 'All %s shim tests passed.\n' "$TEST_COUNT"
 }
