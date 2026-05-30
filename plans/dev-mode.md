@@ -97,6 +97,63 @@ Do not introduce a default clone path such as `~/src/shimmy` or
 `~/repos/github.com/wadebee/shimmy`. Those are reasonable user conventions, but
 upstream contributors should own where their git checkout lives.
 
+## Design Direction: Singleton Root
+
+Shimmy should be a singleton tool scoped to an end user's shell profile,
+independent of `$PWD`.
+
+The current public `--install-dir` behavior is legacy multi-root behavior. The
+target architecture is one user-scoped Shimmy install root with profile modes for
+isolation:
+
+```text
+$SHIMMY_INSTALL_DIR/shims
+$SHIMMY_INSTALL_DIR/profiles/default
+$SHIMMY_INSTALL_DIR/profiles/upstream
+```
+
+Do not expand `--install-dir` as part of upstream mode. Keep it only as needed
+during migration and compatibility work. Custom profiles should replace advanced
+multi-root use cases in a separate follow-up plan after the default and upstream
+profiles are stable.
+
+Future custom profile examples:
+
+```sh
+shimmy profile create test
+shimmy install --mode test
+SHIMMY_MODE=test rg --version
+shimmy status --mode test
+```
+
+This plan should prepare for future mode values, but it should implement only
+the built-in `default` and `upstream` profiles.
+
+## Implementation Sequencing
+
+Implement the architecture as vertical slices after the shared mode and path
+resolver exists. Avoid changing every top-level command horizontally at each
+checkpoint.
+
+Recommended sequence:
+
+1. Build shared mode parsing, path resolution, and manifest helpers.
+2. Implement `shimmy status --mode ...` end to end as the first read-only
+   profile-aware command.
+3. Review and correct shared mode/path/manifest patterns based on `status`.
+4. Implement `shimmy install --mode ...` using the corrected shared patterns.
+5. Implement `shimmy activate --mode ...`.
+6. Implement direct tool dispatcher wrappers and upstream generated exec
+   wrappers.
+7. Implement `shimmy test --mode ...`.
+8. Implement `shimmy update --mode ...`.
+9. Implement uninstall or profile cleanup behavior.
+10. Update docs, skills, and CI after command behavior has settled.
+
+Each vertical slice should include focused tests before moving to the next
+command. If a shared mistake is found in one slice, fix the shared helper first,
+then continue with later commands using the corrected pattern.
+
 ## Assumptions
 
 - All top-level shimmy commands (eg: `shimmy install`, `shimmy activate`, `shimmy update`, `shimmy status`, and `shimmy test`) are the long-term public
