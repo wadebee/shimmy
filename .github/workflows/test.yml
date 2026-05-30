@@ -59,5 +59,8 @@ jobs:
       - name: Check Podman Dependency
         run: podman --version
 
+      - name: Pull jq container image
+        run: podman pull ghcr.io/jqlang/jq:1.8.1
+        
       - name: Run shim tests
         run: ./shimmy test

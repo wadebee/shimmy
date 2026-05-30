@@ -1,0 +1,12 @@
+shimmy_skills_manifest_version=1
+shimmy_skills_target=repo
+shimmy_skills_root=/home/wade/repos/github.com/wadebee/shimmy/.agents/skills
+shimmy_skill=repo|shimmy-install|/home/wade/repos/github.com/wadebee/shimmy/.agents/skills/shimmy-install|393875727-40
+shimmy_skill=repo|shimmy-init|/home/wade/repos/github.com/wadebee/shimmy/.agents/skills/shimmy-init|925612383-38
+shimmy_skill=repo|shimmy-create|/home/wade/repos/github.com/wadebee/shimmy/.agents/skills/shimmy-create|2653448-39
+shimmy_skill=repo|shimmy-escalation|/home/wade/repos/github.com/wadebee/shimmy/.agents/skills/shimmy-escalation|3011419889-39
+shimmy_skill=repo|shimmy-tool-jq|/home/wade/repos/github.com/wadebee/shimmy/.agents/skills/shimmy-tool-jq|975441237-38
+shimmy_skill=repo|shimmy-tool-rg|/home/wade/repos/github.com/wadebee/shimmy/.agents/skills/shimmy-tool-rg|1489774538-39
+shimmy_skill=repo|shimmy-tool-task|/home/wade/repos/github.com/wadebee/shimmy/.agents/skills/shimmy-tool-task|1252635181-39
+shimmy_skill=repo|shimmy-tool-go|/home/wade/repos/github.com/wadebee/shimmy/.agents/skills/shimmy-tool-go|1761512386-39
+shimmy_skill=repo|shimmy-tool-opnsense-mcp|/home/wade/repos/github.com/wadebee/shimmy/.agents/skills/shimmy-tool-opnsense-mcp|444785424-38
