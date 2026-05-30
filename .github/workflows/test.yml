@@ -57,7 +57,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Check Podman Dependency
-        run: podman --version1
+        run: podman --version
         
       - name: Run shim tests
         run: SHIMMY_JQ_IMAGE_PULL=always ./shimmy test
