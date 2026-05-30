@@ -14,7 +14,6 @@ Use this skill when working with `shims/rg`, its tests, its docs, or ripgrep usa
 - Tests: `../../../scripts/test-shimmy.sh`
 - Installer: `../../../scripts/install-shimmy.sh`
 - README: `../../../README.md`
-- Contributor guidance: `../../../CONTRIBUTING.md`
 - Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Current Behavior

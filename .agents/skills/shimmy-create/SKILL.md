@@ -10,7 +10,6 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 ## Files
 
 - Skill file: `SKILL.md`
-- Contributor guidance: `../../../CONTRIBUTING.md`
 - Shared repo prompt: `../../../docs/prompt-shimmy-project.md`
 - Runtime shims: `../../../shims/`
 - Tool skills: `../../../.agents/skills/shimmy-tool-*/`
