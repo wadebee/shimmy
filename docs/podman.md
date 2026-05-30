@@ -231,6 +231,16 @@ From a source checkout, use:
 ./shimmy test
 ```
 
+For maintainer testing through the upstream profile, install and activate that profile first:
+
+```sh
+./shimmy install --mode upstream
+eval "$(./shimmy activate --mode upstream)"
+shimmy status --mode upstream
+shimmy test --mode upstream
+SHIMMY_MODE=upstream rg --version
+```
+
 `shimmy test` uses live Podman execution for supported shims. It is a stronger
 check than `podman info` because it verifies that Shimmy's wrappers can actually
 start the tool containers.

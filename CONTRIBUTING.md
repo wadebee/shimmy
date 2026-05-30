@@ -14,6 +14,29 @@ Use it as the source of truth for repository contribution guidance that should b
 - Use live Podman execution for shim tests. Do not replace `podman` with fake binaries or argv-only mocks when validating shim behavior.
 - Use the shared Podman helper for runtime platform selection. Linux shims run containers as `linux/amd64`; macOS shims run containers as `linux/arm64`.
 
+## Profile Workflow
+
+Shimmy has one install root with two built-in profiles:
+
+- `default` is the external-user profile and the default for top-level commands.
+- `upstream` is the maintainer profile that dispatches installed tool commands to the current source checkout.
+
+Mode precedence is explicit flag, then `SHIMMY_MODE`, then `default`. Direct tool commands such as `rg` and `jq` do not accept `--mode`; they read `SHIMMY_MODE` and dispatch through the selected profile.
+
+For source changes that should be tested through normal installed commands, install and activate the upstream profile:
+
+```sh
+./shimmy install --mode upstream
+eval "$(./shimmy activate --mode upstream)"
+shimmy status --mode upstream --format manifest
+shimmy test --mode upstream
+SHIMMY_MODE=upstream rg --version
+```
+
+Use repo-local wrapper paths such as `./shims/rg` only when intentionally testing source files directly. For installed-state inspection, prefer `shimmy status --format manifest` over `command -v <tool>`: `command -v` shows the stable dispatcher entrypoint, while status shows the selected profile manifest, implementation directory, and upstream checkout.
+
+`SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state, defaulting under `$SHIMMY_INSTALL_DIR/profiles/upstream`. It is not the git checkout. Use `SHIMMY_UPSTREAM_CHECKOUT_DIR` only as an optional install-time override for `shimmy install --mode upstream`; Shimmy records that absolute checkout path in the upstream manifest.
+
 ## Naming Conventions
 
 Use these naming conventions for files, functions, and variables unless a stronger repo-specific rule already exists.

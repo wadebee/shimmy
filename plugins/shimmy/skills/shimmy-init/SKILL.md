@@ -32,6 +32,7 @@ Use this skill when:
 1. Confirm the command is likely Shimmy-backed:
    - Prefer `command -v <tool>`.
    - Treat paths under `$HOME/.config/shimmy/shims` or another `shimmy/shims` directory as Shimmy wrappers.
+   - `command -v <tool>` resolves the stable dispatcher path. Use `shimmy status --format manifest` or `shimmy status --mode upstream --format manifest` when you need the selected profile implementation path.
 2. Locate Podman:
    - Run `command -v podman`.
    - On macOS, remember the official pkg installer may place it at `/opt/podman/bin/podman`.
@@ -49,6 +50,7 @@ Use this skill when:
 6. If `podman info` succeeds but the Shimmy wrapper still fails:
    - Use the tool-specific Shimmy skill when available.
    - Check `command -v <tool>`; if it resolves under `$HOME/.config/shimmy/shims` or another Shimmy install, the AI Agent may need approval for the outer wrapper command even though direct `podman info` works.
+   - If `SHIMMY_MODE=upstream` is active, keep it in place for wrapper retries so the dispatcher uses the upstream profile.
    - Use `shimmy-escalation` to request approval for the exact dry-run smoke command prefix before asking the user for broader Podman remediation.
    - Run a harmless wrapper smoke check with exact-command escalation, such as `rg --version` with prefix rule `["rg","--version"]`.
    - Remember that AI Agent permissions are evaluated on the outer command (`rg`, `jq`, `terraform`, etc.), not only on the nested `podman` process that the wrapper starts.

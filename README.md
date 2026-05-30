@@ -74,7 +74,7 @@ Targets:
 - `plugin` writes to `plugins/shimmy/skills` in the active Shimmy source or installed management bundle.
 - `--export` writes a portable skills folder, or a zip archive when the path ends in `.zip`; zip archives require either `zip` or `python3`.
 
-With no explicit skill names, `install` shares the core Shimmy management skills plus `shimmy-tool-*` skills for shims recorded in the install manifest. To share an additional generated shim skill, pass it explicitly:
+With no explicit skill names, `install` shares the core Shimmy management skills plus `shimmy-tool-*` skills for shims recorded in the selected profile manifest. To share an additional generated shim skill, pass it explicitly:
 
 ```sh
 ./shimmy skills install --target repo shimmy-tool-example
@@ -145,12 +145,15 @@ Use the repo-root `shimmy` wrapper to install and manage Shimmy from a source ch
 
 ```sh
 ./shimmy install
+./shimmy install --mode upstream
 ./shimmy netinfo
 ./shimmy skills install --target repo
 ./shimmy status
+./shimmy status --mode upstream
 ./shimmy status --available
 ./shimmy update --pull --build
 ./shimmy test
+./shimmy test --mode upstream
 ./shimmy uninstall
 ```
 
@@ -171,27 +174,79 @@ shimmy install opnsense-mcp-server
 shimmy netinfo
 shimmy skills update --target repo
 shimmy update --pull --build
+shimmy test
 eval "$(shimmy activate)"
 ```
+
+### Profiles and mode selection
+
+Shimmy uses one user-scoped install root with two built-in profiles:
+
+- `default` is the normal external-user profile. It is selected when no mode is provided.
+- `upstream` is an opt-in maintainer profile. It runs installed commands through wrappers that exec source files from a recorded Shimmy checkout.
+
+Profile selection is intentionally simple:
+
+1. An explicit `--mode default|upstream` flag wins.
+2. Otherwise `SHIMMY_MODE=default|upstream` wins.
+3. Otherwise Shimmy uses `default`.
+
+Use explicit flags for one-off operations:
+
+```sh
+./shimmy install --mode upstream
+eval "$(./shimmy activate --mode upstream)"
+shimmy status --mode upstream
+shimmy test --mode upstream
+shimmy update --mode upstream
+```
+
+Use `SHIMMY_MODE` for a whole shell session:
+
+```sh
+export SHIMMY_MODE=upstream
+eval "$(shimmy activate --mode upstream)"
+rg --version
+shimmy status
+shimmy test
+```
+
+Direct tool commands such as `rg` and `jq` do not take `--mode`. They read `SHIMMY_MODE`, then dispatch through the selected profile. `command -v rg` shows the stable dispatcher under the install root; `shimmy status --format manifest` shows the selected profile's manifest, implementation directory, and source checkout when upstream mode is active.
+
+`SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state. By default it is:
+
+```text
+~/.config/shimmy/profiles/upstream
+```
+
+It is not the git checkout. To install upstream mode from a specific checkout, set `SHIMMY_UPSTREAM_CHECKOUT_DIR` for `shimmy install --mode upstream`; Shimmy records the resolved absolute checkout path in the upstream manifest.
+
+```sh
+SHIMMY_UPSTREAM_CHECKOUT_DIR=/path/to/shimmy ./shimmy install --mode upstream
+```
+
+After an upstream install, editing an existing source shim such as `/path/to/shimmy/shims/rg` is reflected by activated upstream commands without reinstalling. Moving or renaming shim source files requires rerunning `shimmy install --mode upstream`.
 
 #### Management-plane updates
 
 Shimmy separates management-plane updates from shim image refreshes. A
 management-plane update refreshes the installed `shimmy` command, lifecycle
 scripts, activation file, helper libraries, the management source catalog, and
-runtime wrapper files for the shims already listed in the install manifest.
+runtime wrapper files for the shims already listed in the selected profile manifest.
 
 Contributor workflow:
 
 ```sh
 cd /path/to/shimmy
 git pull --ff-only
-./shimmy update --install-dir ~/.config/shimmy
+./shimmy update --mode upstream
 ```
 
 When `update` is run from the repo-root `./shimmy` launcher, it refreshes the
 install from that current checkout. Use this path when developing Shimmy,
 testing local changes, or intentionally installing from a specific source tree.
+For default-profile updates from a checkout, omit `--mode` or pass
+`--mode default`.
 
 Installed-user workflow:
 
@@ -200,7 +255,7 @@ shimmy update
 ```
 
 When `update` is run from the installed `shimmy` command, Shimmy reads
-`shimmy_source_url` from `~/.config/shimmy/install-manifest.txt`, fetches that
+`shimmy_source_url` from the selected profile manifest, fetches that
 source into a temporary checkout, and refreshes the installed management plane
 from the fetched source. This path works from any activated shell and does not
 require the user to keep a Shimmy source checkout open.
@@ -291,7 +346,7 @@ shimmy update --repair-startup --startup-file "$HOME/.config/shimmy/profile"
 
 Without `--repair-startup`, `update` refreshes installed assets only and leaves startup files alone.
 
-The active install layout is always derived from one install root, which defaults to `~/.config/shimmy` and can be overridden with `--install-dir`.
+The active install layout is always derived from one install root, which defaults to `~/.config/shimmy` and can be overridden with `--install-dir` during migration or testing.
 
 Common install arguments still pass through to the installer:
 
@@ -320,16 +375,25 @@ This is the same functionality the wrapper exposes, without the repo-root dispat
 
 ### Install manifest and lifecycle state
 
-Shimmy stores install state in one POSIX-readable manifest under the install root:
+Shimmy stores install state in POSIX-readable profile manifests. The legacy default manifest remains at the install root for compatibility, and the profile manifests are the long-term source of truth:
 
-```sh
+```text
 ~/.config/shimmy/install-manifest.txt
+~/.config/shimmy/profiles/default/install-manifest.txt
+~/.config/shimmy/profiles/upstream/install-manifest.txt
 ```
 
-The manifest is the source of truth for activation, status, update, startup-file repair, and uninstall. It uses one `key=value` entry per line and repeated keys for lists.
+The selected profile manifest is the source of truth for activation, status, update, startup-file repair, direct dispatch, and profile cleanup. It uses one `key=value` entry per line and repeated keys for lists.
 
 Core fields include:
+- `mode` — selected profile mode
 - `install_dir` — active install root
+- `config_dir` — selected profile config directory
+- `dispatcher_dir` — stable direct-command entrypoint directory
+- `bin_dir` — selected profile implementation directory
+- `manifest_path` — manifest file path for this profile
+- `shim_source` — `copied-source-shim` for default or `generated-exec-wrapper` for upstream
+- `source_checkout` — resolved upstream checkout path for upstream installs
 - `control_bin` — installed `shimmy` management command
 - `activate_file` — generated activation script
 - `startup_shell` — shell used for managed startup-file selection
@@ -345,11 +409,12 @@ For machine-readable inspection, use:
 
 ```sh
 shimmy status --format manifest
+shimmy status --mode upstream --format manifest
 ```
 
 The current implementation can:
 - Reinstall from the checked-out source
-- Refresh the management plane from the checked-out source or from an installed command's recorded source URL
+- Refresh the selected profile from the checked-out source or from an installed command's recorded source URL
 - Refresh remote images with `--pull`
 - Rebuild local images with `--build`
 - Repair startup files, and preserve lifecycle metadata. 
@@ -411,9 +476,18 @@ Run the test suite to validate that shim containers run via Podman:
 sh ./scripts/test-shimmy.sh
 ```
 
+After installing upstream mode, maintainers can exercise source changes through the installed dispatcher path:
+
+```sh
+./shimmy install --mode upstream
+eval "$(./shimmy activate --mode upstream)"
+shimmy test --mode upstream
+SHIMMY_MODE=upstream rg --version
+```
+
 Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
-- install, activate, status, available-shim comparison, machine-readable manifest output, update, startup-file repair, and uninstall behavior for the single-root manifest layout
+- install, activate, status, available-shim comparison, machine-readable manifest output, update, startup-file repair, and uninstall behavior for default and upstream profiles
 - Shimmy skill sharing, export, idempotent skills manifest updates, and install-time management skill sharing
 - live Podman execution for the supported shim set: `aws`, `go`, `jq`, `netcat`, `nmap`, `opnsense-mcp-server`, `rg`, `task`, `terraform`, and `textual`
 

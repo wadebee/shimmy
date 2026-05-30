@@ -86,7 +86,7 @@ Before committing completed item changes, confirm:
 - The current restart work first replaced `shellenv` with `activate`, collapsed installs to a single root-derived layout, and removed the exported Shimmy path variables from activation output.
 - The fixed install root remains `~/.config/shimmy`, with `--install-dir` retained as the explicit override.
 - `activate` should own PATH activation for installed shims and should also cover the macOS pkg-installed Podman path when needed so users do not have to prepend `/opt/podman/bin` manually.
-- The foundation now includes POSIX `install`, `activate`, `status`, `update`, and `test` flows built around the single-root manifest model.
+- The foundation now includes POSIX `install`, `activate`, `status`, `update`, and `test` flows; current profile-aware work now treats the selected profile manifest as installed-state truth.
 - The remaining in-scope runtime shims now resolve shared helpers and image contexts from the install-root-relative layout instead of exported Shimmy path variables, and the smoke suite covers both remote-image and local-build execution paths.
 
 Next-session priority adjustments:

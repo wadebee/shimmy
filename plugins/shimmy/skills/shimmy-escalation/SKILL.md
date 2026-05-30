@@ -27,10 +27,11 @@ connect to the local Podman socket without escalation.
    - Prefer `SHIMMY_INSTALL_DIR` when it is set.
    - Otherwise use `$HOME/.config/shimmy`.
 3. Discover activated shims:
-   - Prefer `$SHIMMY_INSTALL_DIR/install-manifest.txt` and read `shim=` entries.
+   - Prefer `shimmy status --format manifest` for the active mode or `shimmy status --mode upstream --format manifest` for upstream mode, then read `shim=` entries.
+   - If the status command is unavailable, inspect `$SHIMMY_INSTALL_DIR/profiles/default/install-manifest.txt`, `$SHIMMY_INSTALL_DIR/profiles/upstream/install-manifest.txt`, then the legacy `$SHIMMY_INSTALL_DIR/install-manifest.txt`.
    - If the manifest is missing, inspect `$SHIMMY_INSTALL_DIR/shims`.
    - If that is unavailable, inspect every executable in `PATH` directories whose path ends in `/shimmy/shims`.
-4. Keep only executable shim names that resolve through the active shell with `command -v <name>`.
+4. Keep only executable shim names that resolve through the active shell with `command -v <name>`. Remember that `command -v <name>` shows the stable dispatcher; use `shimmy status` for the selected profile implementation path.
 
 ## Podman Readiness
 
@@ -88,7 +89,7 @@ Summarize:
 - Smoke checks that succeeded.
 - Smoke checks that failed, including whether failure came from approval denial, missing Podman, image pull/network, credentials, or the tool itself.
 
-If no activated shims are found, report the install directory checked and suggest activating Shimmy first with `eval "$(./shimmy activate)"` or installing shims with `./shimmy install`.
+If no activated shims are found, report the install directory checked and suggest activating Shimmy first with `eval "$(shimmy activate)"`, `eval "$(./shimmy activate --mode upstream)"`, or installing shims with `shimmy install`.
 
 ## Safety
 
