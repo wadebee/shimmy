@@ -1,4 +1,4 @@
-# Shimmy Dev Mode Plan
+# Shimmy Upstream Mode Plan
 
 ## Objective
 
@@ -7,7 +7,7 @@ Move Shimmy toward one external-style operating model with two explicit install 
 - `default`: the normal external-user profile and the default for all top-level shimmy commands (eg: install,
   activate, update, status, netinfo and test operations).
 - `upstream`: an opt-in git checkout-backed maintainer profile that exercises local source
-  changes through activated commands.
+  changes through direct Shimmy-managed commands.
 
 The maintainer experience should remain comparable to the current repo-local
 workflow, but implementation and skill guidance should prefer activated commands
@@ -22,15 +22,23 @@ and installed-state inspection over repo-relative paths.
 - The public CLI selector is always `--mode {value}`. Do not add profile-specific selection flags such as `--upstream`.
 - Mode is resolved once near the command boundary, then all paths derive from the
   resolved mode in a normalize_path function.
-- Each mode owns unique install, config, manifest, and bin paths.
+- Each mode owns unique install, config, manifest, and profile implementation bin paths.
+- Shimmy-managed profile state remains under the existing install root by default.
+- The upstream git checkout is user-owned. Shimmy records its resolved absolute path during upstream install but does not choose or create a default clone location.
+- Direct tool commands such as `rg` are stable dispatcher wrappers that inspect
+  `SHIMMY_MODE`, resolve the selected profile, and exec the profile implementation.
 - Path resolution must normalize mode-specific variables before downstream code uses them.
-- Direct tool commands such as `rg` select a profile through activation unless a later checkpoint intentionally introduces mode-aware dispatcher wrappers.
+- Dispatcher entrypoint paths, profile implementation paths, and upstream checkout source paths must remain separate.
 - Runtime shims remain small POSIX shell wrappers.
 - Upstream mode must not depend on ad hoc `../../../...` path traversal.
+- Recursive dispatch must fail fast instead of re-execing a dispatcher.
 
 Example resolution shape:
 
 ```sh
+SHIMMY_INSTALL_DIR=${SHIMMY_INSTALL_DIR:-${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}}
+SHIMMY_UPSTREAM_DIR=${SHIMMY_UPSTREAM_DIR:-$SHIMMY_INSTALL_DIR/profiles/upstream}
+
 case "${shimmy_mode}" in
   upstream)
     shimmy_base_path=${SHIMMY_UPSTREAM_DIR}
@@ -43,11 +51,58 @@ esac
 
 Prefer central helper functions over repeated inline conditionals so every command resolves paths the same way.
 
+## Resolved Path Defaults
+
+Use the existing Shimmy install root as the stable control root:
+
+```text
+SHIMMY_INSTALL_DIR=${SHIMMY_INSTALL_DIR:-${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}}
+```
+
+Derived control paths:
+
+```text
+dispatcher_dir=$SHIMMY_INSTALL_DIR/shims
+control_bin_dir=$SHIMMY_INSTALL_DIR/bin
+control_libexec_dir=$SHIMMY_INSTALL_DIR/libexec/shimmy
+```
+
+Default profile paths:
+
+```text
+default_profile_dir=$SHIMMY_INSTALL_DIR/profiles/default
+default_bin_dir=$default_profile_dir/shims
+default_config_dir=$default_profile_dir/config
+default_manifest_path=$default_profile_dir/install-manifest.txt
+```
+
+Upstream profile paths:
+
+```text
+SHIMMY_UPSTREAM_DIR=${SHIMMY_UPSTREAM_DIR:-$SHIMMY_INSTALL_DIR/profiles/upstream}
+upstream_profile_dir=$SHIMMY_UPSTREAM_DIR
+upstream_bin_dir=$SHIMMY_UPSTREAM_DIR/shims
+upstream_config_dir=$SHIMMY_UPSTREAM_DIR/config
+upstream_manifest_path=$SHIMMY_UPSTREAM_DIR/install-manifest.txt
+```
+
+Upstream checkout path:
+
+```text
+SHIMMY_UPSTREAM_CHECKOUT_DIR=<optional explicit checkout override>
+source_checkout=<resolved absolute current Shimmy checkout during shimmy install --mode upstream>
+```
+
+Do not introduce a default clone path such as `~/src/shimmy` or
+`~/repos/github.com/wadebee/shimmy`. Those are reasonable user conventions, but
+upstream contributors should own where their git checkout lives.
+
 ## Assumptions
 
 - All top-level shimmy commands (eg: `shimmy install`, `shimmy activate`, `shimmy update`, `shimmy status`, and `shimmy test`) are the long-term public
   entrypoints for both profiles.
-- The `upstream` profile can point at the current checkout through symlinks or generated wrappers instead of copying all shim files.
+- The `upstream` profile points at the current checkout through generated exec wrappers instead of copying all shim files.
+- Upstream mode does not auto-clone Shimmy. It uses the current checkout or an explicit `SHIMMY_UPSTREAM_CHECKOUT_DIR`.
 - The `default` profile keeps existing user-facing behavior unless a checkpoint explicitly changes it and receives review approval.
 - Existing repo-local commands can remain during migration, but new skill and user workflows should converge on activated commands.
 
@@ -82,18 +137,28 @@ Work items:
   - mode
   - install base path
   - config base path
+  - dispatcher entrypoint path
   - bin path
   - manifest path
+  - profile implementation path
   - source checkout path, for upstream only
+- Set `SHIMMY_INSTALL_DIR` default to `${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}` for compatibility with the current install root.
+- Set `SHIMMY_UPSTREAM_DIR` default to `$SHIMMY_INSTALL_DIR/profiles/upstream`.
+- Derive upstream config, bin, and manifest paths from `SHIMMY_UPSTREAM_DIR`; do not add separate upstream config env vars unless a future use case requires them.
+- Resolve `SHIMMY_UPSTREAM_CHECKOUT_DIR` only as an optional install-time checkout override.
 - Ensure default and upstream paths are unique after resolution.
 - Avoid downstream code reading raw `SHIMMY_INSTALL_DIR` or `SHIMMY_UPSTREAM_DIR`
   directly after mode resolution.
+- Ensure shared helpers do not use `command -v <tool>` to find profile implementation targets, because that can resolve back to the dispatcher.
 
 Verification:
 
 - Unit or shell tests cover flag precedence over `SHIMMY_MODE`.
 - Tests reject invalid `SHIMMY_MODE` values.
 - Tests prove `default` and `upstream` profiles resolve to different base, bin, config, and manifest paths.
+- Tests prove `SHIMMY_UPSTREAM_DIR` defaults under `$SHIMMY_INSTALL_DIR/profiles/upstream`.
+- Tests prove upstream checkout resolution records an absolute path and does not create or assume a clone directory.
+- Tests prove dispatcher entrypoint paths do not equal profile implementation paths.
 - Existing default-mode install path behavior still passes.
 
 Review gate:
@@ -108,13 +173,12 @@ Make public commands profile-aware while preserving default behavior.
 Work items:
 
 - Teach `shimmy install` to target `default` unless `--mode upstream` is provided.
-- Teach `shimmy activate` to emit activation for `default` unless `--mode upstream` is provided.
+- Teach `shimmy activate` to put the stable dispatcher entrypoint directory on `PATH`.
+- Teach `shimmy activate --mode upstream` to also export `SHIMMY_MODE=upstream`.
+- Teach `shimmy activate --mode default` to export or reset `SHIMMY_MODE=default`.
 - Teach `shimmy status` to execute against the selected profile.
 - Teach `shimmy test` to execute against the selected profile.
-- Define the scope of `SHIMMY_MODE` for direct tool commands:
-  - activation-only selection, where `shimmy activate --mode upstream` changes `PATH`, or
-  - runtime dispatcher selection, where installed command wrappers inspect
-    `SHIMMY_MODE`.
+- Generate stable dispatcher wrappers for direct tool commands. Direct commands do not accept `--mode`; they resolve mode from `SHIMMY_MODE`, then fall back to `default`.
 - Prefer flags for one-off usage:
 
 ```sh
@@ -126,6 +190,7 @@ shimmy test --mode upstream
 
 ```sh
 SHIMMY_MODE=upstream shimmy test
+SHIMMY_MODE=upstream rg --version
 ```
 
 - Ensure command output identifies the selected mode when it affects behavior.
@@ -135,8 +200,10 @@ Verification:
 - `shimmy install` without mode still uses the default profile.
 - `SHIMMY_MODE=upstream shimmy install` targets the upstream profile.
 - `SHIMMY_MODE=upstream shimmy install --mode default` targets the default profile.
-- `shimmy activate --mode upstream` emits an upstream-profile `PATH`.
+- `shimmy activate --mode upstream` emits the dispatcher `PATH` and `SHIMMY_MODE=upstream`.
 - `shimmy test --mode upstream` runs against the upstream-profile bin path.
+- `SHIMMY_MODE=upstream rg --version` dispatches to the upstream profile.
+- An invalid `SHIMMY_MODE` fails direct tool commands with a clear error.
 
 Review gate:
 
@@ -154,10 +221,13 @@ Work items:
   - `mode`
   - `install_dir`
   - `config_dir`
+  - `dispatcher_dir`
   - `bin_dir`
   - `manifest_path`
-  - `shim_source`
-  - `source_checkout`, for upstream only
+  - `shim_source`, set to `generated-exec-wrapper` for upstream installs
+  - `source_checkout`, set to the resolved absolute checkout path for upstream only
+- Write upstream manifests to `$SHIMMY_UPSTREAM_DIR/install-manifest.txt`.
+- Write default profile manifests to `$SHIMMY_INSTALL_DIR/profiles/default/install-manifest.txt`.
 - Add status output that shows the selected profile and resolved paths.
 - Ensure manifests are generated consistently for both profiles.
 - Ensure commands never infer profile state by walking from installed skill paths.
@@ -165,34 +235,39 @@ Work items:
 Verification:
 
 - Default install writes only the default manifest.
-- Dev install writes only the upstream manifest.
-- `shimmy status --mode upstream` or equivalent output shows mode, bin path, manifest path, and source checkout.
+- Upstream install writes only the upstream manifest.
+- `shimmy status --mode upstream` or equivalent output shows mode, dispatcher path, target bin path, manifest path, and source checkout.
 - Tests prove profile manifests do not overwrite each other.
 
 Review gate:
 
 - Confirm manifest fields and directory layout before changing wrapper generation.
 
-## Checkpoint 4: Checkout-Backed Dev Wrappers
+## Checkpoint 4: Checkout-Backed Upstream Wrappers
 
-Make the upstream profile exercise local source changes through activated commands.
+Make the upstream profile exercise local source changes through direct tool commands.
 
 Work items:
 
-- Choose the upstream wrapper strategy:
-  - symlink activated commands to checkout files, or
-  - generate wrappers that exec checkout files.
-- Record the chosen strategy in the upstream manifest as `shim_source`.
+- Generate upstream activated-command wrappers that exec checkout files.
+- Resolve the absolute checkout path during `shimmy install --mode upstream`.
+- Embed the resolved absolute checkout path in each generated wrapper.
+- Record the wrapper strategy in the upstream manifest as `shim_source=generated-exec-wrapper`.
 - Ensure `rg`, `jq`, and other activated commands in upstream mode run the current checkout implementation.
+- Add dispatcher guards so the selected target path cannot equal the dispatcher path.
+- Validate that profile implementation files are not symlinks to the stable dispatcher.
+- Validate that upstream source files resolve inside the recorded checkout and not to installed Shimmy entrypoints.
 - Keep wrapper behavior POSIX-compatible.
 - Avoid hardcoding per-tool repo paths outside the installer or wrapper generation logic.
 
 Verification:
 
-- Editing a repo-local shim is reflected through the upstream activated command after
-  install, or after the documented regeneration step if generated wrappers are chosen.
+- Editing a repo-local shim is reflected through the upstream activated command without wrapper regeneration when the shim file path is unchanged.
+- Moving or renaming checkout files requires rerunning `shimmy install --mode upstream` to regenerate wrappers.
 - After upstream activation, `rg --version` exercises the upstream profile.
-- If dispatcher wrappers are chosen, `SHIMMY_MODE=upstream rg --version` exercises the upstream profile without a separate activation step.
+- `SHIMMY_MODE=upstream rg --version` exercises the upstream profile without a separate activation step.
+- A dispatcher refuses to exec itself and exits with a clear recursive-dispatch error.
+- A profile implementation that resolves back to the dispatcher fails verification.
 - Default activated commands are unaffected by upstream installation.
 - Non-mutating live Podman checks still work for representative shims.
 
@@ -212,6 +287,7 @@ Work items:
   - upstream profile opt-in behavior
   - mode precedence
   - path resolution model
+  - dispatcher entrypoint and profile implementation layout
   - manifest inspection
   - activation examples
 - Update Shimmy skills to prefer activated commands and manifest inspection.
@@ -225,7 +301,10 @@ Verification:
 
 - Docs describe one external-style model with two profiles.
 - Skills explain when to use `SHIMMY_MODE=upstream` or `--mode upstream`.
+- Docs describe `SHIMMY_UPSTREAM_DIR` as Shimmy-managed profile state, not the git checkout path.
+- Docs describe `SHIMMY_UPSTREAM_CHECKOUT_DIR` as an optional explicit checkout override for `shimmy install --mode upstream`.
 - Docs and skills do not imply that default and upstream share paths.
+- Docs explain that `command -v <tool>` shows the stable dispatcher and `shimmy status` shows the resolved profile target.
 - Examples use `SHIMMY_`-prefixed environment variables for Shimmy-defined
   behavior.
 
@@ -243,6 +322,7 @@ Work items:
 - Add or update CI to install and test the default profile.
 - Add or update CI to install and test the upstream profile from the checkout.
 - Run representative activated-command smoke checks for both profiles.
+- Run representative direct dispatcher smoke checks with `SHIMMY_MODE=upstream`.
 - Ensure CI output makes the selected mode visible.
 - Keep live Podman execution for shim behavior tests.
 
@@ -252,6 +332,7 @@ Verification:
 - Upstream profile CI covers checkout-backed maintainer behavior.
 - Tests verify default and upstream manifests, bin paths, and config paths remain
   independent.
+- Tests verify dispatchers reject recursive target paths.
 - Existing behavioral tests still pass.
 
 Review gate:
@@ -261,12 +342,6 @@ Review gate:
 
 ## Open Decisions
 
-- Should the preferred upstream wrapper strategy be symlinks or generated exec
-  wrappers?
-- Should direct tool commands use activation-only profile selection or
-  `SHIMMY_MODE` runtime dispatcher selection?
-- What are the exact default values for `SHIMMY_UPSTREAM_DIR` and any upstream-specific
-  config directory variables?
 - Should activation scripts warn when the selected profile differs from an
   already-active Shimmy path earlier on `PATH`?
 
@@ -276,6 +351,8 @@ Review gate:
   `shimmy test` without learning about upstream mode.
 - Maintainers can run `shimmy install --mode upstream`, activate the upstream profile, and test
   local source changes through normal commands such as `rg --version`.
+- Maintainers can run `SHIMMY_MODE=upstream rg --version` and dispatch directly to the upstream profile.
 - Default and upstream profile paths are unique, normalized, and inspectable.
+- Dispatcher wrappers cannot recursively dispatch to themselves.
 - Skills and docs use external-style installed-state workflows by default.
 - CI verifies both profiles independently.
