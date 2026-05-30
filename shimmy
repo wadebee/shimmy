@@ -34,6 +34,7 @@ Commands:
   netinfo [args...]     Run scripts/netinfo-shimmy.sh
   skills [args...]      Run scripts/skills-shimmy.sh
   status [args...]      Run scripts/status-shimmy.sh
+  test [args...]        Run scripts/test-shimmy.sh
   update [args...]      Run scripts/update-shimmy.sh
   help                  Show this help (default action if no command is given)
 
@@ -44,6 +45,7 @@ Examples:
   shimmy skills install --target repo
   shimmy status
   shimmy status --available
+  shimmy test
   shimmy update --pull --build --repair-startup
 EOF
     return 0
@@ -146,9 +148,6 @@ main() {
       run_repo_script "$ROOT_DIR/scripts/update-shimmy.sh" "$@"
       ;;
     test)
-      if [ "$INSTALLED_LAUNCHER" -eq 1 ]; then
-        fail "test is available from a Shimmy source checkout"
-      fi
       shift
       run_repo_script "$ROOT_DIR/scripts/test-shimmy.sh" "$@"
       ;;

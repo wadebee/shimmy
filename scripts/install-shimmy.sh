@@ -554,7 +554,7 @@ install_control_assets() {
   install_file "$SOURCE_CONTROL_FILE" "$SHIMMY_CONTROL_BIN"
   install_file "$SOURCE_CONTROL_FILE" "$SHIMMY_CONTROL_SOURCE_DIR/shimmy"
 
-  for script_name in activate-shimmy.sh dispatch-shimmy.sh install-shimmy.sh netinfo-shimmy.sh skills-shimmy.sh status-shimmy.sh update-shimmy.sh; do
+  for script_name in activate-shimmy.sh dispatch-shimmy.sh install-shimmy.sh netinfo-shimmy.sh skills-shimmy.sh status-shimmy.sh test-shimmy.sh update-shimmy.sh; do
     source_path=$SOURCE_SCRIPT_DIR/$script_name
     target_path=$SHIMMY_CONTROL_SCRIPT_DIR/$script_name
     [ -f "$source_path" ] || fail "missing management script source: $source_path"
