@@ -161,7 +161,7 @@ If no previous known-good ref exists, stop and ask for a target ref. Do not gues
 ### uninstall
 
 1. Read the selected profile manifest.
-2. Run `shimmy uninstall --mode <mode>`, `./shimmy uninstall --mode <mode>`, or the documented temporary unqualified uninstall only when full legacy removal is intended.
+2. Run `shimmy uninstall --mode <mode>` or `./shimmy uninstall --mode <mode>`.
 3. Validate removal with `./shimmy status` or by confirming the manifest, activation file, shims, and managed startup blocks are gone.
 4. Emit final machine-readable output showing `installed=no`, timestamp, and removed paths.
 

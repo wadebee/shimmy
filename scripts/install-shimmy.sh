@@ -191,7 +191,7 @@ Options:
   --shell <name>         Override shell detection for startup-file updates
   --startup-file <path>  Override startup file updates. Repeatable.
   --no-startup           Skip persistent startup-file updates during install
-  --uninstall            Remove the current install instead of creating it
+  --uninstall            Remove a profile; requires --mode default or --mode upstream
   -h, --help             Show help
 EOF
 }
@@ -1003,23 +1003,6 @@ uninstall_profile_manifest_resolve() {
   esac
 }
 
-perform_uninstall_legacy_full() {
-  [ "$SKIP_SKILLS" -eq 0 ] || fail "--no-skills is not supported with --uninstall"
-  [ -z "$REQUESTED_SKILLS_TARGET" ] || fail "--skills-target is not supported with --uninstall"
-
-  log_info "Removing shimmy install rooted at $SHIMMY_INSTALL_DIR"
-
-  load_install_root_from_manifest || true
-
-  if [ -f "$INSTALL_MANIFEST_FILE" ]; then
-    startup_blocks_remove "$INSTALL_MANIFEST_FILE"
-  fi
-
-  remove_path_if_present "$SHIMMY_INSTALL_DIR" "install root"
-
-  log_info "Removed shimmy assets from $SHIMMY_INSTALL_DIR"
-}
-
 perform_uninstall_profile() {
   [ "$SKIP_SKILLS" -eq 0 ] || fail "--no-skills is not supported with --uninstall"
   [ -z "$REQUESTED_SKILLS_TARGET" ] || fail "--skills-target is not supported with --uninstall"
@@ -1157,10 +1140,9 @@ main() {
     perform_shim_install
   elif [ "$UNINSTALL" -eq 1 ]; then
     if [ "$MODE_WAS_SELECTED" -eq 0 ]; then
-      perform_uninstall_legacy_full
-    else
-      perform_uninstall_profile
+      fail "uninstall requires --mode default or --mode upstream"
     fi
+    perform_uninstall_profile
   else
     perform_install
   fi

@@ -368,7 +368,7 @@ sh ./scripts/status-shimmy.sh
 sh ./scripts/status-shimmy.sh --available
 sh ./scripts/update-shimmy.sh --pull --build
 sh ./scripts/test-shimmy.sh
-sh ./scripts/install-shimmy.sh --uninstall
+sh ./scripts/install-shimmy.sh --uninstall --mode default
 ```
 
 This is the same functionality the wrapper exposes, without the repo-root dispatcher.

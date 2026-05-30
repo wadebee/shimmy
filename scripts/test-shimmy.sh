@@ -2405,56 +2405,23 @@ test_installed_opnsense_mcp_server_shim() {
   pass "installed opnsense-mcp-server requires OPNSENSE_URL before execution"
 }
 
-test_uninstall_cleanup() {
+test_uninstall_requires_mode() {
   setup_scenario
 
-  startup_file=$HOME_DIR/.bashrc
-  bash_profile_file=$HOME_DIR/.bash_profile
-  printf '# existing shell config\n' > "$startup_file"
-  printf '# existing profile config\n' > "$bash_profile_file"
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
 
-  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
-  HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" >/dev/null
-
-  assert_path_not_exists "$INSTALL_DIR"
-  assert_file_contains "$startup_file" "# existing shell config"
-  assert_file_contains "$bash_profile_file" "# existing profile config"
-  startup_contents=$(cat "$startup_file")
-  bash_profile_contents=$(cat "$bash_profile_file")
-  assert_not_contains "$startup_contents" "# >>> shimmy onboarding >>>"
-  assert_not_contains "$startup_contents" "$INSTALL_DIR/activate.sh"
-  assert_not_contains "$bash_profile_contents" "# >>> shimmy onboarding >>>"
-  assert_not_contains "$bash_profile_contents" "$INSTALL_DIR/activate.sh"
-
-  pass "uninstall removes install root and startup block"
-}
-
-test_uninstall_installed_command_cleanup() {
-  setup_scenario
-
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup --no-skills >/dev/null
-
-  (
-    cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy uninstall >/dev/null
+  set +e
+  output=$(
+    HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" 2>&1
   )
+  status_code=$?
+  set -e
 
-  assert_path_not_exists "$INSTALL_DIR"
+  [ "$status_code" -ne 0 ] || fail_test "expected uninstall without mode to fail"
+  assert_contains "$output" "uninstall requires --mode default or --mode upstream"
+  assert_file_exists "$INSTALL_DIR/profiles/default/install-manifest.txt"
 
-  pass "installed shimmy command can uninstall current environment"
-}
-
-test_uninstall_legacy_shape_cleanup() {
-  setup_scenario
-
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup --no-skills >/dev/null
-  rm -rf "$INSTALL_DIR/profiles"
-
-  HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" >/dev/null
-
-  assert_path_not_exists "$INSTALL_DIR"
-
-  pass "unqualified uninstall removes legacy-shaped install"
+  pass "uninstall requires explicit mode"
 }
 
 test_uninstall_mode_default_preserves_upstream() {
@@ -2639,9 +2606,7 @@ main() {
   test_textual_shim_direct
   test_installed_opnsense_mcp_server_shim
   test_installed_task_shim
-  test_uninstall_cleanup
-  test_uninstall_installed_command_cleanup
-  test_uninstall_legacy_shape_cleanup
+  test_uninstall_requires_mode
   test_uninstall_mode_default_preserves_upstream
   test_uninstall_mode_invalid_environment_rejected
   test_uninstall_mode_upstream_last_profile_cleanup
