@@ -88,6 +88,12 @@ assert_file_executable() {
   fi
 }
 
+assert_path_symlink() {
+  if [ ! -L "$1" ]; then
+    fail_test "expected path to be a symlink: $1"
+  fi
+}
+
 assert_dir_exists() {
   if [ ! -d "$1" ]; then
     fail_test "expected directory to exist: $1"
@@ -314,6 +320,7 @@ test_install_manifest() {
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/scripts"
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/lib/repo"
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/lib/shims"
+  assert_file_executable "$INSTALL_DIR/libexec/shimmy/scripts/dispatch-shimmy.sh"
   assert_file_executable "$INSTALL_DIR/libexec/shimmy/scripts/skills-shimmy.sh"
   assert_file_exists "$INSTALL_DIR/libexec/shimmy/.agents/skills/shimmy-tool-jq/SKILL.md"
   assert_file_exists "$INSTALL_DIR/libexec/shimmy/.agents/skills/shimmy-tool-task/SKILL.md"
@@ -356,6 +363,7 @@ test_install_mode_default_profile_manifest() {
 
   assert_file_exists "$legacy_manifest"
   assert_file_exists "$profile_manifest"
+  assert_path_symlink "$INSTALL_DIR/shims/jq"
   assert_file_executable "$INSTALL_DIR/shims/jq"
   assert_file_executable "$INSTALL_DIR/profiles/default/shims/jq"
 
@@ -426,9 +434,13 @@ test_install_mode_upstream_profile_manifest() {
   assert_contains "$output" "Selected Shimmy mode: upstream"
   assert_file_exists "$profile_manifest"
   assert_file_executable "$INSTALL_DIR/bin/shimmy"
+  assert_path_symlink "$INSTALL_DIR/shims/jq"
+  assert_file_executable "$INSTALL_DIR/shims/jq"
   assert_file_executable "$INSTALL_DIR/profiles/upstream/shims/jq"
   assert_path_not_exists "$INSTALL_DIR/install-manifest.txt"
-  assert_path_not_exists "$INSTALL_DIR/shims/jq"
+  dispatch_target=$(readlink "$INSTALL_DIR/shims/jq")
+  assert_equals "$dispatch_target" "../libexec/shimmy/scripts/dispatch-shimmy.sh"
+  assert_file_contains "$INSTALL_DIR/profiles/upstream/shims/jq" "shimmy_upstream_checkout='$SCENARIO_DIR/upstream-checkout'"
 
   profile_contents=$(cat "$profile_manifest")
   assert_contains "$profile_contents" "mode=upstream"
@@ -438,7 +450,7 @@ test_install_mode_upstream_profile_manifest() {
   assert_contains "$profile_contents" "bin_dir=$INSTALL_DIR/profiles/upstream/shims"
   assert_contains "$profile_contents" "manifest_path=$profile_manifest"
   assert_contains "$profile_contents" "source_checkout=$SCENARIO_DIR/upstream-checkout"
-  assert_contains "$profile_contents" "shim_source=copied-source-shim"
+  assert_contains "$profile_contents" "shim_source=generated-exec-wrapper"
   assert_contains "$profile_contents" "shim=jq"
 
   status_output=$(
@@ -450,6 +462,106 @@ test_install_mode_upstream_profile_manifest() {
   assert_contains "$status_output" "shim=jq"
 
   pass "install upstream mode writes profile manifest"
+}
+
+test_installed_dispatcher_invalid_mode_rejected() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+
+  set +e
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=invalid jq --version 2>&1
+  )
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_MODE to fail dispatcher"
+  assert_contains "$output" "unsupported SHIMMY_MODE: invalid"
+
+  pass "installed dispatcher rejects invalid SHIMMY_MODE"
+}
+
+test_installed_dispatcher_recursive_target_rejected() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+
+  profile_manifest=$INSTALL_DIR/profiles/default/install-manifest.txt
+  manifest_tmp=$profile_manifest.tmp
+  sed "s|^bin_dir=.*|bin_dir=$INSTALL_DIR/shims|" "$profile_manifest" > "$manifest_tmp"
+  mv "$manifest_tmp" "$profile_manifest"
+
+  set +e
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=default jq --version 2>&1
+  )
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "expected recursive dispatch to fail"
+  assert_contains "$output" "refusing recursive Shimmy dispatch for jq"
+
+  pass "installed dispatcher rejects recursive target"
+}
+
+test_installed_dispatcher_parameterized_invocation() {
+  setup_scenario
+
+  checkout_dir=$SCENARIO_DIR/upstream-checkout
+  mkdir -p "$checkout_dir/shims"
+  cat > "$checkout_dir/shims/jq" <<'EOF'
+#!/bin/sh
+printf 'param:%s\n' "$*"
+EOF
+  chmod 755 "$checkout_dir/shims/jq"
+
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+
+  output=$(
+    cd "$WORK_DIR"
+    SHIMMY_MODE=upstream "$INSTALL_DIR/libexec/shimmy/scripts/dispatch-shimmy.sh" jq one two 2>&1
+  )
+
+  assert_contains "$output" "param:one two"
+
+  pass "central dispatcher supports parameterized invocation"
+}
+
+test_installed_dispatcher_upstream_checkout_reflects_edits() {
+  setup_scenario
+
+  checkout_dir=$SCENARIO_DIR/upstream-checkout
+  mkdir -p "$checkout_dir/shims"
+  cat > "$checkout_dir/shims/jq" <<'EOF'
+#!/bin/sh
+printf 'first:%s\n' "$*"
+EOF
+  chmod 755 "$checkout_dir/shims/jq"
+
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+
+  first_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=upstream jq alpha beta 2>&1
+  )
+  assert_contains "$first_output" "first:alpha beta"
+
+  cat > "$checkout_dir/shims/jq" <<'EOF'
+#!/bin/sh
+printf 'second:%s\n' "$*"
+EOF
+  chmod 755 "$checkout_dir/shims/jq"
+
+  second_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=upstream jq gamma 2>&1
+  )
+  assert_contains "$second_output" "second:gamma"
+
+  pass "installed dispatcher reflects upstream checkout edits"
 }
 
 test_install_removes_legacy_shell_init_block() {
@@ -1508,10 +1620,14 @@ test_installed_go_shim() {
 
   HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim go >/dev/null
 
+  assert_path_symlink "$INSTALL_DIR/shims/go"
   assert_file_executable "$INSTALL_DIR/shims/go"
-  cmp -s "$ROOT_DIR/shims/go" "$INSTALL_DIR/shims/go" || fail_test "expected installed go shim to match source shim"
+  assert_file_executable "$INSTALL_DIR/profiles/default/shims/go"
+  dispatch_target=$(readlink "$INSTALL_DIR/shims/go")
+  assert_equals "$dispatch_target" "../libexec/shimmy/scripts/dispatch-shimmy.sh"
+  cmp -s "$ROOT_DIR/shims/go" "$INSTALL_DIR/profiles/default/shims/go" || fail_test "expected default profile go shim to match source shim"
 
-  pass "installed go shim matches source shim"
+  pass "installed go dispatcher targets default profile shim"
 }
 
 test_netcat_shim_direct() {
@@ -1882,6 +1998,10 @@ main() {
   test_install_mode_invalid_environment_rejected
   test_install_mode_precedence
   test_install_mode_upstream_profile_manifest
+  test_installed_dispatcher_invalid_mode_rejected
+  test_installed_dispatcher_recursive_target_rejected
+  test_installed_dispatcher_parameterized_invocation
+  test_installed_dispatcher_upstream_checkout_reflects_edits
   test_install_removes_legacy_shell_init_block
   test_install_bash_uses_existing_profile_login_file
   test_activate_eval

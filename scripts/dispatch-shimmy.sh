@@ -1,0 +1,141 @@
+#!/bin/sh
+set -eu
+
+fail() {
+  printf 'ERROR: %s\n' "$*" >&2
+  exit 1
+}
+
+path_absolute_resolve() {
+  path_value=${1:-}
+
+  if [ -z "$path_value" ]; then
+    return 1
+  fi
+
+  case "$path_value" in
+    /*)
+      ;;
+    *)
+      path_value=$(pwd -P)/$path_value
+      ;;
+  esac
+
+  path_dir=$(dirname -- "$path_value")
+  path_base=$(basename -- "$path_value")
+
+  if [ -d "$path_dir" ]; then
+    (
+      cd -- "$path_dir" && printf '%s/%s\n' "$(pwd -P)" "$path_base"
+    )
+    return 0
+  fi
+
+  printf '%s\n' "$path_value"
+}
+
+script_path_resolve() {
+  script_name=$1
+
+  case "$script_name" in
+    */*)
+      path_absolute_resolve "$script_name"
+      return 0
+      ;;
+  esac
+
+  old_ifs=$IFS
+  IFS=:
+  for path_dir in ${PATH:-}; do
+    [ -n "$path_dir" ] || path_dir=.
+    if [ -e "$path_dir/$script_name" ]; then
+      IFS=$old_ifs
+      path_absolute_resolve "$path_dir/$script_name"
+      return 0
+    fi
+  done
+  IFS=$old_ifs
+
+  return 1
+}
+
+shim_name_validate() {
+  shim_name=$1
+
+  case "$shim_name" in
+    ''|.*|*/*)
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+script_path=$(script_path_resolve "$0") || fail "unable to resolve dispatcher path: $0"
+script_name=$(basename -- "$script_path")
+script_dir=$(
+  cd -- "$(dirname -- "$script_path")" && pwd -P
+)
+
+case "$script_name" in
+  dispatch-shimmy.sh)
+    [ "$#" -gt 0 ] || fail "missing shim name for Shimmy dispatcher"
+    shim_name=$1
+    shift
+    install_dir=$(
+      cd -- "$script_dir/../../.." && pwd -P
+    )
+    ;;
+  *)
+    shim_name=$script_name
+    install_dir=$(
+      cd -- "$script_dir/.." && pwd -P
+    )
+    ;;
+esac
+
+shim_name_validate "$shim_name" || fail "invalid shim name for Shimmy dispatcher: $shim_name"
+
+profile_helper=$install_dir/libexec/shimmy/lib/repo/shimmy-profile.sh
+central_dispatcher=$install_dir/libexec/shimmy/scripts/dispatch-shimmy.sh
+
+[ -f "$profile_helper" ] || fail "missing Shimmy profile helper: $profile_helper"
+
+# shellcheck source=lib/repo/shimmy-profile.sh
+. "$profile_helper"
+
+if ! shimmy_profile_paths_resolve "" "$install_dir" "$install_dir"; then
+  fail "unsupported SHIMMY_MODE: ${SHIMMY_MODE:-}"
+fi
+
+manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
+if [ "$SHIMMY_PROFILE_MODE" = default ] && [ ! -f "$manifest_file" ] && [ -f "$install_dir/install-manifest.txt" ]; then
+  manifest_file=$install_dir/install-manifest.txt
+fi
+
+[ -f "$manifest_file" ] || fail "no Shimmy profile manifest found for mode $SHIMMY_PROFILE_MODE: $manifest_file"
+
+target_dir=$(shimmy_manifest_value "$manifest_file" bin_dir || true)
+if [ -z "$target_dir" ]; then
+  target_dir=$SHIMMY_PROFILE_BIN_DIR
+fi
+
+target_path=$target_dir/$shim_name
+
+[ -f "$target_path" ] || fail "no Shimmy profile implementation for $shim_name in mode $SHIMMY_PROFILE_MODE: $target_path"
+
+entry_path=$(path_absolute_resolve "$0")
+target_absolute=$(path_absolute_resolve "$target_path")
+central_absolute=$(path_absolute_resolve "$central_dispatcher")
+
+if [ "$target_absolute" = "$entry_path" ] || [ "$target_absolute" = "$central_absolute" ]; then
+  fail "refusing recursive Shimmy dispatch for $shim_name: $target_path"
+fi
+
+if [ -L "$target_path" ]; then
+  fail "refusing symlinked Shimmy profile implementation: $target_path"
+fi
+[ -x "$target_path" ] || fail "Shimmy profile implementation is not executable: $target_path"
+
+exec "$target_path" "$@"
