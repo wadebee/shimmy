@@ -1,71 +1,66 @@
 #!/bin/sh
 set -eu
 
-DEFAULT_INSTALL_DIR=${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+ROOT_DIR=$(
+  cd -- "$SCRIPT_DIR/.." && pwd
+)
+PROFILE_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-profile.sh
+DEFAULT_INSTALL_DIR=${SHIMMY_INSTALL_DIR:-${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}}
 REQUESTED_INSTALL_DIR=
+REQUESTED_MODE=
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
   exit 1
 }
 
-trim_trailing_slash() {
-  path_value=${1:-}
+if [ ! -f "$PROFILE_HELPER_FILE" ]; then
+  fail "missing profile helper: $PROFILE_HELPER_FILE"
+fi
 
-  case "$path_value" in
-    ''|/)
-      printf '%s\n' "$path_value"
-      ;;
-    */)
-      printf '%s\n' "${path_value%/}"
-      ;;
-    *)
-      printf '%s\n' "$path_value"
-      ;;
-  esac
-}
+# shellcheck source=lib/repo/shimmy-profile.sh
+. "$PROFILE_HELPER_FILE"
 
 shell_quote() {
   printf "%s" "$1" | sed "s/'/'\\\\''/g; 1s/^/'/; \$s/\$/'/"
 }
 
-manifest_value() {
-  manifest_file=$1
-  key=$2
-
-  if [ ! -f "$manifest_file" ]; then
-    return 1
-  fi
-
-  sed -n "s/^${key}=//p" "$manifest_file" | sed -n '1p'
-}
-
 resolve_install_dir() {
   if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    printf '%s\n' "$(trim_trailing_slash "$REQUESTED_INSTALL_DIR")"
+    printf '%s\n' "$(shimmy_path_trim_trailing_slash "$REQUESTED_INSTALL_DIR")"
     return 0
   fi
 
-  printf '%s\n' "$(trim_trailing_slash "$DEFAULT_INSTALL_DIR")"
+  printf '%s\n' "$(shimmy_path_trim_trailing_slash "$DEFAULT_INSTALL_DIR")"
 }
 
 render_activate() {
   control_bin_dir=$1
-  shim_dir=$2
+  dispatcher_dir=$2
   podman_dir=$3
+  mode_export_value=$4
 
   quoted_control_bin_dir=$(shell_quote "$control_bin_dir")
-  quoted_shim_dir=$(shell_quote "$shim_dir")
+  quoted_dispatcher_dir=$(shell_quote "$dispatcher_dir")
   quoted_podman_dir=$(shell_quote "$podman_dir")
 
-  printf 'shimmy_activate_shim_dir=%s\n' "$quoted_shim_dir"
-  printf 'if [ -d "$shimmy_activate_shim_dir" ]; then\n'
+  if [ -n "$mode_export_value" ]; then
+    quoted_mode_export_value=$(shell_quote "$mode_export_value")
+    printf 'SHIMMY_MODE=%s\n' "$quoted_mode_export_value"
+    printf 'export SHIMMY_MODE\n'
+  fi
+
+  printf 'shimmy_activate_dispatcher_dir=%s\n' "$quoted_dispatcher_dir"
+  printf 'if [ -d "$shimmy_activate_dispatcher_dir" ]; then\n'
   printf '  case ":${PATH:-}:" in\n'
-  printf '    *:"$shimmy_activate_shim_dir":*) ;;\n'
-  printf '    *) PATH=$shimmy_activate_shim_dir${PATH:+":$PATH"} ;;\n'
+  printf '    *:"$shimmy_activate_dispatcher_dir":*) ;;\n'
+  printf '    *) PATH=$shimmy_activate_dispatcher_dir${PATH:+":$PATH"} ;;\n'
   printf '  esac\n'
   printf 'fi\n'
-  printf 'unset shimmy_activate_shim_dir\n'
+  printf 'unset shimmy_activate_dispatcher_dir\n'
   printf 'shimmy_activate_control_bin_dir=%s\n' "$quoted_control_bin_dir"
   printf 'if [ -d "$shimmy_activate_control_bin_dir" ]; then\n'
   printf '  case ":${PATH:-}:" in\n'
@@ -94,10 +89,11 @@ usage() {
 Print shell code that activates a Shimmy install in the current shell.
 
 Usage:
-  scripts/activate-shimmy.sh [--install-dir <dir>]
+  scripts/activate-shimmy.sh [--install-dir <dir>] [--mode default|upstream]
 
 Examples:
   ./shimmy activate
+  ./shimmy activate --mode upstream
   ./shimmy activate --install-dir "$HOME/.config/shimmy"
   eval "$(./shimmy activate)"
 EOF
@@ -111,6 +107,11 @@ main() {
         REQUESTED_INSTALL_DIR=$2
         shift 2
         ;;
+      --mode)
+        [ "$#" -ge 2 ] || fail "missing value for --mode"
+        REQUESTED_MODE=$2
+        shift 2
+        ;;
       -h|--help)
         usage
         exit 0
@@ -121,29 +122,48 @@ main() {
     esac
   done
 
-  install_dir=$(resolve_install_dir)
-  manifest_file=$install_dir/install-manifest.txt
-  control_bin_dir=$install_dir/bin
-  shim_dir=$install_dir/shims
+  if ! shimmy_profile_paths_resolve "$REQUESTED_MODE" "$(resolve_install_dir)" "$ROOT_DIR"; then
+    fail "unsupported shimmy mode: ${REQUESTED_MODE:-${SHIMMY_MODE:-}}"
+  fi
+
+  install_dir=$SHIMMY_PROFILE_INSTALL_DIR
+  profile_manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
+  legacy_manifest_file=$install_dir/install-manifest.txt
+  manifest_file=$profile_manifest_file
+  control_bin_dir=$SHIMMY_PROFILE_CONTROL_BIN_DIR
+  dispatcher_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
+
+  if [ "$SHIMMY_PROFILE_MODE" = default ] && [ -f "$legacy_manifest_file" ] && { [ ! -f "$profile_manifest_file" ] || { [ -z "$REQUESTED_MODE" ] && [ -z "${SHIMMY_MODE:-}" ]; }; }; then
+    manifest_file=$legacy_manifest_file
+  fi
 
   if [ -f "$manifest_file" ]; then
-    manifest_install_dir=$(manifest_value "$manifest_file" install_dir || true)
+    manifest_install_dir=$(shimmy_manifest_value "$manifest_file" install_dir || true)
     if [ -n "$manifest_install_dir" ]; then
-      install_dir=$(trim_trailing_slash "$manifest_install_dir")
+      install_dir=$(shimmy_path_trim_trailing_slash "$manifest_install_dir")
       control_bin_dir=$install_dir/bin
-      shim_dir=$install_dir/shims
+      dispatcher_dir=$install_dir/shims
     fi
-    manifest_control_bin=$(manifest_value "$manifest_file" control_bin || true)
+    manifest_control_bin=$(shimmy_manifest_value "$manifest_file" control_bin || true)
     if [ -n "$manifest_control_bin" ]; then
       control_bin_dir=$(dirname "$manifest_control_bin")
     fi
+    manifest_dispatcher_dir=$(shimmy_manifest_value "$manifest_file" dispatcher_dir || true)
+    if [ -n "$manifest_dispatcher_dir" ]; then
+      dispatcher_dir=$manifest_dispatcher_dir
+    fi
   fi
 
-  if [ ! -f "$manifest_file" ] && [ ! -d "$shim_dir" ]; then
-    fail "no shimmy install found for activate; expected manifest at $manifest_file or shim dir at $shim_dir"
+  if [ ! -f "$manifest_file" ] && [ ! -d "$dispatcher_dir" ]; then
+    fail "no shimmy install found for activate; expected manifest at $manifest_file or dispatcher dir at $dispatcher_dir"
   fi
 
-  render_activate "$control_bin_dir" "$shim_dir" /opt/podman/bin
+  mode_export_value=
+  if [ -n "$REQUESTED_MODE" ] || [ -n "${SHIMMY_MODE:-}" ]; then
+    mode_export_value=$SHIMMY_PROFILE_MODE
+  fi
+
+  render_activate "$control_bin_dir" "$dispatcher_dir" /opt/podman/bin "$mode_export_value"
 }
 
 main "$@"

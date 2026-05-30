@@ -512,6 +512,56 @@ test_activate_eval() {
   pass "activate eval only updates PATH"
 }
 
+test_activate_mode_default_exports_mode() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+
+  output=$(
+    cd "$ROOT_DIR"
+    /bin/sh -c 'PATH=/usr/bin; eval "$("./shimmy" activate --install-dir "$1" --mode default)"; printf "SHIMMY_MODE=%s\n" "${SHIMMY_MODE:-}"; printf "PATH=%s\n" "$PATH"' sh "$INSTALL_DIR"
+  )
+
+  assert_contains "$output" "SHIMMY_MODE=default"
+  assert_contains "$output" "PATH=$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin"
+
+  pass "activate default mode exports mode"
+}
+
+test_activate_mode_invalid_environment_rejected() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup --no-skills >/dev/null
+
+  set +e
+  output=$(
+    HOME="$HOME_DIR" SHIMMY_MODE=invalid run_in_repo ./shimmy activate --install-dir "$INSTALL_DIR" 2>&1
+  )
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_MODE to fail activate"
+  assert_contains "$output" "unsupported shimmy mode: invalid"
+
+  pass "activate rejects invalid SHIMMY_MODE"
+}
+
+test_activate_mode_precedence() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+
+  output=$(
+    cd "$ROOT_DIR"
+    /bin/sh -c 'PATH=/usr/bin; SHIMMY_MODE=upstream; export SHIMMY_MODE; eval "$("./shimmy" activate --install-dir "$1" --mode default)"; printf "SHIMMY_MODE=%s\n" "$SHIMMY_MODE"; printf "PATH=%s\n" "$PATH"' sh "$INSTALL_DIR"
+  )
+
+  assert_contains "$output" "SHIMMY_MODE=default"
+  assert_contains "$output" "PATH=$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin"
+
+  pass "activate mode flag overrides environment"
+}
+
 test_activate_is_idempotent() {
   setup_scenario
 
@@ -527,6 +577,23 @@ test_activate_is_idempotent() {
   assert_contains "$output" "PATH=$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin"
 
   pass "activate path activation is idempotent"
+}
+
+test_activate_mode_upstream_exports_mode() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+
+  output=$(
+    cd "$ROOT_DIR"
+    /bin/sh -c 'PATH=/usr/bin; eval "$("./shimmy" activate --install-dir "$1" --mode upstream)"; printf "SHIMMY_MODE=%s\n" "${SHIMMY_MODE:-}"; printf "PATH=%s\n" "$PATH"; printf "HAS_PROFILE_SHIMS="; case ":$PATH:" in *":$1/profiles/upstream/shims:"*) printf "yes\n" ;; *) printf "no\n" ;; esac' sh "$INSTALL_DIR"
+  )
+
+  assert_contains "$output" "SHIMMY_MODE=upstream"
+  assert_contains "$output" "PATH=$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin"
+  assert_contains "$output" "HAS_PROFILE_SHIMS=no"
+
+  pass "activate upstream mode exports mode and dispatcher path"
 }
 
 test_install_no_startup() {
@@ -1818,7 +1885,11 @@ main() {
   test_install_removes_legacy_shell_init_block
   test_install_bash_uses_existing_profile_login_file
   test_activate_eval
+  test_activate_mode_default_exports_mode
+  test_activate_mode_invalid_environment_rejected
+  test_activate_mode_precedence
   test_activate_is_idempotent
+  test_activate_mode_upstream_exports_mode
   test_install_no_startup
   test_skills_install_repo_target
   test_installed_launcher_skills_install_includes_installed_shim_skills
