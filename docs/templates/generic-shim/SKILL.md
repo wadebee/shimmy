@@ -26,6 +26,7 @@ Use this as the starting point for a new shim skill or as a checklist for a one-
 ## Required Outputs
 
 - `../../../shims/<shim-name>`
+- `../../../shims/<shim-name>.conf`
 - `../../../scripts/install-shimmy.sh`
 - `../../../scripts/test-shimmy.sh`
 - `../../../README.md`
@@ -61,6 +62,16 @@ fi
 exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" <interactive-flag> -v "$PWD:/work" -w /work "$SHIMMY_<TOOL_PREFIX>_IMAGE" "$@"
 ```
 
+## Shim Config Pattern
+
+```text
+shim_config_version=1
+shim_name=<shim-name>
+smoke_arg=<non-mutating-arg>
+```
+
+Use repeated `smoke_arg=` lines when the smoke command needs more than one argument. The smoke command must be non-mutating and must belong to the shim config rather than `scripts/test-shimmy.sh`.
+
 ## Design Rules
 
 - Keep the wrapper linear and readable; avoid helper functions unless the shim genuinely needs them.
@@ -74,8 +85,9 @@ exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" <interac
 
 ## Change Checklist
 
-1. Add the shim to the fixed install list in `scripts/install-shimmy.sh`.
-2. Add live Podman-backed tests in `scripts/test-shimmy.sh`.
-3. Document the tool in `README.md`.
-4. Keep executable bits on runnable shell files.
-5. If the tool differs materially from existing shims, add a shim-specific skill folder under `../../../.agents/skills/`.
+1. Add the shim to the supported shim catalog in `lib/repo/shimmy-catalog.sh`.
+2. Add a shim config with a non-mutating smoke command in `shims/<shim-name>.conf`.
+3. Add live Podman-backed tests in `scripts/test-shimmy.sh`.
+4. Document the tool in `README.md`.
+5. Keep executable bits on runnable shell files.
+6. If the tool differs materially from existing shims, add a shim-specific skill folder under `../../../.agents/skills/`.

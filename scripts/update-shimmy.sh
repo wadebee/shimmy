@@ -111,14 +111,7 @@ manifest_shim_list() {
 }
 
 manifest_file_resolve() {
-  manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
-  legacy_manifest_file=$SHIMMY_PROFILE_INSTALL_DIR/install-manifest.txt
-
-  if [ "$SHIMMY_PROFILE_MODE" = default ] && [ -f "$legacy_manifest_file" ] && { [ ! -f "$manifest_file" ] || [ "$MODE_WAS_SELECTED" -eq 0 ]; }; then
-    manifest_file=$legacy_manifest_file
-  fi
-
-  printf '%s\n' "$manifest_file"
+  printf '%s\n' "$SHIMMY_PROFILE_MANIFEST_PATH"
 }
 
 profile_paths_resolve() {
@@ -412,29 +405,45 @@ main() {
   profile_paths_resolve "$install_dir"
   install_dir=$SHIMMY_PROFILE_INSTALL_DIR
   manifest_file=$(manifest_file_resolve)
+  root_manifest_file=$install_dir/install-manifest.txt
 
-  if [ ! -f "$manifest_file" ]; then
-    fail "no shimmy install manifest found for mode $SHIMMY_PROFILE_MODE at $manifest_file; run ./shimmy install first"
-  fi
-
-  manifest_install_dir=$(manifest_value "$manifest_file" install_dir || true)
+  manifest_install_dir=$(manifest_value "$root_manifest_file" install_dir || true)
   if [ -n "$manifest_install_dir" ]; then
     install_dir=$(trim_trailing_slash "$manifest_install_dir")
     profile_paths_resolve "$install_dir"
     manifest_file=$(manifest_file_resolve)
+    root_manifest_file=$install_dir/install-manifest.txt
   fi
 
-  manifest_source_checkout=$(manifest_value "$manifest_file" source_checkout || true)
-  if [ "$SHIMMY_PROFILE_MODE" = upstream ] && [ -n "$manifest_source_checkout" ]; then
-    UPDATE_SOURCE_CHECKOUT=$manifest_source_checkout
+  if [ ! -f "$manifest_file" ]; then
+    if [ "$SHIMMY_PROFILE_MODE" = upstream ] && [ -z "${SHIMMY_UPSTREAM_CHECKOUT_DIR:-}" ]; then
+      fail "no shimmy profile manifest found for mode upstream at $manifest_file; rerun ./shimmy install --mode upstream from the desired Shimmy checkout"
+    fi
+    manifest_missing=1
+  else
+    manifest_missing=0
   fi
 
-  if is_installed_management_update "$install_dir"; then
+  if [ "$manifest_missing" -eq 0 ]; then
+    manifest_source_checkout=$(manifest_value "$manifest_file" source_checkout || true)
+    if [ "$SHIMMY_PROFILE_MODE" = upstream ] && [ -n "$manifest_source_checkout" ]; then
+      UPDATE_SOURCE_CHECKOUT=$manifest_source_checkout
+      upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$UPDATE_SOURCE_CHECKOUT" || true)
+      if [ -n "$upstream_invalid_reason" ]; then
+        fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $UPDATE_SOURCE_CHECKOUT; rerun ./shimmy install --mode upstream from the desired Shimmy checkout"
+      fi
+    fi
+  fi
+
+  if [ "$manifest_missing" -eq 0 ] && is_installed_management_update "$install_dir"; then
     run_installed_management_update "$install_dir" "$manifest_file"
     exit 0
   fi
 
-  PREVIOUS_SOURCE_REF=$(manifest_value "$manifest_file" shimmy_source_ref || true)
+  PREVIOUS_SOURCE_REF=
+  if [ "$manifest_missing" -eq 0 ]; then
+    PREVIOUS_SOURCE_REF=$(manifest_value "$manifest_file" shimmy_source_ref || true)
+  fi
 
   set -- "$SCRIPT_DIR/install-shimmy.sh" --install-dir "$install_dir"
   if [ "$MODE_WAS_SELECTED" -eq 1 ]; then
@@ -465,12 +474,14 @@ $startup_files
 EOF
     fi
   fi
-  while IFS= read -r shim_name; do
-    [ -n "$shim_name" ] || continue
-    set -- "$@" --shim "$shim_name"
-  done <<EOF
+  if [ "$manifest_missing" -eq 0 ]; then
+    while IFS= read -r shim_name; do
+      [ -n "$shim_name" ] || continue
+      set -- "$@" --shim "$shim_name"
+    done <<EOF
 $(manifest_shim_list "$manifest_file")
 EOF
+  fi
   if [ -n "$PREVIOUS_SOURCE_REF" ]; then
     if [ -n "$UPDATE_SOURCE_CHECKOUT" ]; then
       SHIMMY_UPSTREAM_CHECKOUT_DIR=$UPDATE_SOURCE_CHECKOUT SHIMMY_PREVIOUS_SOURCE_REF=$PREVIOUS_SOURCE_REF "$@"
@@ -488,12 +499,8 @@ EOF
   profile_paths_resolve "$install_dir"
   manifest_file=$(manifest_file_resolve)
 
-  shim_dir=$(manifest_value "$manifest_file" dispatcher_dir || true)
-  [ -n "$shim_dir" ] || shim_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
+  shim_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
   images_dir=$SHIMMY_PROFILE_DIR/images
-  if [ "$SHIMMY_PROFILE_MODE" = default ] && [ "$manifest_file" = "$install_dir/install-manifest.txt" ]; then
-    images_dir=$install_dir/images
-  fi
 
   if [ "$PULL_IMAGES" -eq 1 ]; then
     run_pull_refresh "$shim_dir" "$manifest_file" "$SHIMMY_PROFILE_MODE"

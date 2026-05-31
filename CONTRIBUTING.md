@@ -19,9 +19,11 @@ Use it as the source of truth for repository contribution guidance that should b
 Shimmy has one install root with two built-in profiles:
 
 - `default` is the external-user profile and the default for top-level commands.
-- `upstream` is the maintainer profile that dispatches installed tool commands to the current source checkout.
+- `upstream` is the maintainer profile that dispatches installed tool commands to the recorded source checkout.
 
 Mode precedence is explicit flag, then `SHIMMY_MODE`, then `default`. Direct tool commands such as `rg` and `jq` do not accept `--mode`; they read `SHIMMY_MODE` and dispatch through the selected profile.
+
+Bare `shimmy install` creates or repairs only the default profile. Use `shimmy install --mode upstream` only when intentionally installing the maintainer profile.
 
 For source changes that should be tested through normal installed commands, install and activate the upstream profile:
 

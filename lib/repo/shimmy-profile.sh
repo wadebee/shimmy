@@ -20,6 +20,126 @@ shimmy_manifest_values() {
   sed -n "s/^${key}=//p" "$manifest_file"
 }
 
+shimmy_profile_install_hint() {
+  mode_value=$1
+
+  case "$mode_value" in
+    upstream)
+      printf '%s\n' 'shimmy install --mode upstream'
+      ;;
+    *)
+      printf '%s\n' 'shimmy install'
+      ;;
+  esac
+}
+
+shimmy_profile_repair_hint_print() {
+  mode_value=$1
+
+  case "$mode_value" in
+    upstream)
+      printf 'shimmy_repair_hint=shimmy install --mode upstream\n'
+      printf 'shimmy_repair_hint=shimmy update --mode upstream\n'
+      ;;
+    *)
+      printf 'shimmy_repair_hint=shimmy install\n'
+      printf 'shimmy_repair_hint=shimmy update\n'
+      ;;
+  esac
+}
+
+shimmy_profile_structure_missing_print() {
+  manifest_file=$1
+  implementation_dir=$2
+
+  if [ ! -f "$manifest_file" ]; then
+    printf 'shimmy_missing=profile_manifest\n'
+  fi
+
+  if [ ! -d "$implementation_dir" ]; then
+    printf 'shimmy_missing=profile_implementation_dir\n'
+  fi
+}
+
+shimmy_profile_structure_validate() {
+  manifest_file=$1
+  implementation_dir=$2
+
+  [ -f "$manifest_file" ] || return 1
+  [ -d "$implementation_dir" ] || return 1
+}
+
+shimmy_root_installed_profile_list() {
+  root_manifest_file=$1
+
+  if [ ! -f "$root_manifest_file" ]; then
+    return 0
+  fi
+
+  shimmy_manifest_values "$root_manifest_file" profile || true
+}
+
+shimmy_root_manifest_path_resolve() {
+  install_dir=$1
+
+  shimmy_path_append "$install_dir" install-manifest.txt
+}
+
+shimmy_upstream_checkout_invalid_reason() {
+  checkout_dir=${1:-}
+  shim_name=${2:-}
+
+  if [ -z "$checkout_dir" ]; then
+    printf '%s\n' missing_source_checkout
+    return 0
+  fi
+
+  if [ ! -d "$checkout_dir" ]; then
+    printf '%s\n' stale_source_checkout
+    return 0
+  fi
+
+  if [ ! -x "$checkout_dir/shimmy" ]; then
+    printf '%s\n' invalid_source_checkout_missing_shimmy
+    return 0
+  fi
+
+  for required_dir in scripts shims lib/repo lib/shims; do
+    if [ ! -d "$checkout_dir/$required_dir" ]; then
+      printf 'invalid_source_checkout_missing_%s\n' "$(printf '%s' "$required_dir" | tr / _)"
+      return 0
+    fi
+  done
+
+  for required_file in \
+    scripts/install-shimmy.sh \
+    scripts/update-shimmy.sh \
+    scripts/dispatch-shimmy.sh \
+    scripts/status-shimmy.sh \
+    lib/repo/shimmy-profile.sh \
+    lib/repo/shimmy-catalog.sh
+  do
+    if [ ! -f "$checkout_dir/$required_file" ]; then
+      printf 'invalid_source_checkout_missing_%s\n' "$(printf '%s' "$required_file" | tr / _ | tr . _)"
+      return 0
+    fi
+  done
+
+  if [ -n "$shim_name" ] && [ ! -f "$checkout_dir/shims/$shim_name" ]; then
+    printf '%s\n' missing_upstream_shim_source
+    return 0
+  fi
+
+  return 1
+}
+
+shimmy_upstream_checkout_validate() {
+  checkout_dir=${1:-}
+  shim_name=${2:-}
+
+  ! shimmy_upstream_checkout_invalid_reason "$checkout_dir" "$shim_name" >/dev/null
+}
+
 shimmy_mode_resolve() {
   requested_mode=${1:-}
   environment_mode=${2:-}

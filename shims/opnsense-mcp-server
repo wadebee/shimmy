@@ -14,6 +14,22 @@ SHIMMY_OPNSENSE_MCP_PULL_ARG=
 OPNSENSE_VERIFY_SSL=${OPNSENSE_VERIFY_SSL:-false}
 OPNSENSE_ALLOW_WRITES=${OPNSENSE_ALLOW_WRITES:-false}
 
+case "${1:-}" in
+  -h|--help)
+    cat <<'EOF'
+Run the OPNsense MCP server through Shimmy.
+
+Required environment:
+  OPNSENSE_URL
+
+Required Podman secrets:
+  opnsense_mcp_api_key
+  opnsense_mcp_api_secret
+EOF
+    exit 0
+    ;;
+esac
+
 shimmy_opnsense_mcp_url_preflight_require() {
   if [ -z "${OPNSENSE_URL:-}" ]; then
     printf '%s\n' 'ERROR: OPNSENSE_URL is required for the opnsense-mcp-server shim.' >&2
@@ -57,12 +73,12 @@ fi
 # shellcheck source=lib/shims/shimmy-podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
 
-shimmy_opnsense_mcp_url_preflight_require
-shimmy_podman_preflight_require "the opnsense-mcp-server shim"
-
 if [ "$SHIMMY_OPNSENSE_MCP_IMAGE_PULL" = "always" ]; then
   SHIMMY_OPNSENSE_MCP_PULL_ARG=--pull=always
 fi
+
+shimmy_opnsense_mcp_url_preflight_require
+shimmy_podman_preflight_require "the opnsense-mcp-server shim"
 
 exec "$SHIMMY_PODMAN_BIN" run --rm \
   --platform "$SHIMMY_PODMAN_PLATFORM" \

@@ -1,4 +1,9 @@
 SHIMMY_SUPPORTED_SHIMS='aws go jq netcat nmap opnsense-mcp-server rg task terraform textual'
+SHIMMY_DEFAULT_SHIMS='jq rg'
+
+shimmy_default_shim_list() {
+  printf '%s\n' "$SHIMMY_DEFAULT_SHIMS"
+}
 
 shimmy_is_supported_shim() {
   requested_shim=${1:?shim name is required}

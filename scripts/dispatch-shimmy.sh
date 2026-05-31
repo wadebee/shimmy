@@ -110,11 +110,18 @@ if ! shimmy_profile_paths_resolve "" "$install_dir" "$install_dir"; then
 fi
 
 manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
-if [ "$SHIMMY_PROFILE_MODE" = default ] && [ ! -f "$manifest_file" ] && [ -f "$install_dir/install-manifest.txt" ]; then
-  manifest_file=$install_dir/install-manifest.txt
+if ! shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"; then
+  install_hint=$(shimmy_profile_install_hint "$SHIMMY_PROFILE_MODE")
+  fail "incomplete Shimmy profile for mode $SHIMMY_PROFILE_MODE: expected manifest at $manifest_file and implementation directory at $SHIMMY_PROFILE_IMPLEMENTATION_DIR; repair with $install_hint"
 fi
 
-[ -f "$manifest_file" ] || fail "no Shimmy profile manifest found for mode $SHIMMY_PROFILE_MODE: $manifest_file"
+if [ "$SHIMMY_PROFILE_MODE" = upstream ]; then
+  source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
+  upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" "$shim_name" || true)
+  if [ -n "$upstream_invalid_reason" ]; then
+    fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout; rerun ./shimmy install --mode upstream from the desired Shimmy checkout"
+  fi
+fi
 
 target_dir=$(shimmy_manifest_value "$manifest_file" bin_dir || true)
 if [ -z "$target_dir" ]; then

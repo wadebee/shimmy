@@ -98,8 +98,8 @@ Options:
   --target profile    Write skills to ~/.agents/skills
   --target plugin     Write skills to the packaged Shimmy plugin skill bundle
   --export <path>     Export a portable skills folder, or a .zip archive
-  --install-dir <dir> Record audit entries in <dir>/install-manifest.txt if present
-  --manifest <path>   Record audit entries in the given manifest if present
+  --install-dir <dir> Read installed shims from <dir>/profiles/<mode>/install-manifest.txt
+  --manifest <path>   Read installed shims from the given profile manifest if present
   -h, --help          Show help
 
 With no explicit skill names, install writes the core Shimmy management skills
@@ -387,13 +387,22 @@ install_manifest_file_resolve() {
     return 0
   fi
 
+  profile_mode=${SHIMMY_MODE:-default}
+  case "$profile_mode" in
+    default|upstream)
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
   if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    printf '%s/install-manifest.txt\n' "$(trim_trailing_slash "$REQUESTED_INSTALL_DIR")"
+    printf '%s/profiles/%s/install-manifest.txt\n' "$(trim_trailing_slash "$REQUESTED_INSTALL_DIR")" "$profile_mode"
     return 0
   fi
 
   if [ -n "${SHIMMY_CONTROL_INSTALL_DIR:-}" ]; then
-    printf '%s/install-manifest.txt\n' "$(trim_trailing_slash "$DEFAULT_INSTALL_DIR")"
+    printf '%s/profiles/%s/install-manifest.txt\n' "$(trim_trailing_slash "$DEFAULT_INSTALL_DIR")" "$profile_mode"
     return 0
   fi
 
@@ -401,46 +410,7 @@ install_manifest_file_resolve() {
 }
 
 install_manifest_skills_update() {
-  target_name=$1
-  target_root=$2
-  skill_names=$3
-  manifest_file=$(install_manifest_file_resolve || true)
-  [ -n "$manifest_file" ] || return 0
-
-  if [ ! -f "$manifest_file" ]; then
-    return 0
-  fi
-
-  manifest_tmp=$manifest_file.tmp.$$
-
-  {
-    while IFS= read -r manifest_line || [ -n "$manifest_line" ]; do
-      case "$manifest_line" in
-        shimmy_skill=*)
-          skill_entry=${manifest_line#shimmy_skill=}
-          skill_target=${skill_entry%%|*}
-          if [ "$skill_target" = "$target_name" ]; then
-            continue
-          fi
-          printf '%s\n' "$manifest_line"
-          ;;
-        *)
-          printf '%s\n' "$manifest_line"
-          ;;
-      esac
-    done < "$manifest_file"
-
-    while IFS= read -r skill_name; do
-      [ -n "$skill_name" ] || continue
-      skill_dir=$target_root/$skill_name
-      fingerprint=$(skill_fingerprint_render "$skill_dir")
-      printf 'shimmy_skill=%s|%s|%s|%s\n' "$target_name" "$skill_name" "$skill_dir" "$fingerprint"
-    done <<EOF
-$skill_names
-EOF
-  } > "$manifest_tmp"
-
-  mv "$manifest_tmp" "$manifest_file"
+  return 0
 }
 
 skills_sync_to_root() {

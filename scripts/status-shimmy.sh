@@ -221,7 +221,7 @@ print_manifest_available_shims() {
 
   while IFS= read -r shim_name; do
     [ -n "$shim_name" ] || continue
-    printf 'available_shim=%s\n' "$shim_name"
+    printf 'shimmy_available_shim=%s\n' "$shim_name"
   done <<EOF
 $(available_shim_list "$manifest_file" "$shim_dir")
 EOF
@@ -233,49 +233,82 @@ print_manifest_status() {
   shim_dir=$3
   images_dir=$4
   shim_lib_dir=$5
+  root_manifest_file=$6
 
-  printf 'mode=%s\n' "$SHIMMY_PROFILE_MODE"
-  if [ -f "$manifest_file" ] || [ -d "$shim_dir" ]; then
-    printf 'installed=yes\n'
+  root_dispatcher_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
+  root_control_bin=$install_dir/bin/shimmy
+  root_activate_file=$install_dir/activate.sh
+  root_default_mode=default
+
+  if [ -f "$root_manifest_file" ]; then
+    manifest_dispatcher_dir=$(shimmy_manifest_value "$root_manifest_file" dispatcher_dir || true)
+    manifest_control_bin=$(shimmy_manifest_value "$root_manifest_file" control_bin || true)
+    manifest_activate_file=$(shimmy_manifest_value "$root_manifest_file" activate_file || true)
+    manifest_default_mode=$(shimmy_manifest_value "$root_manifest_file" default_mode || true)
+    [ -z "$manifest_dispatcher_dir" ] || root_dispatcher_dir=$manifest_dispatcher_dir
+    [ -z "$manifest_control_bin" ] || root_control_bin=$manifest_control_bin
+    [ -z "$manifest_activate_file" ] || root_activate_file=$manifest_activate_file
+    [ -z "$manifest_default_mode" ] || root_default_mode=$manifest_default_mode
+  fi
+
+  printf 'shimmy_install_dir=%s\n' "$install_dir"
+  printf 'shimmy_dispatcher_dir=%s\n' "$root_dispatcher_dir"
+  printf 'shimmy_control_bin=%s\n' "$root_control_bin"
+  printf 'shimmy_activate_file=%s\n' "$root_activate_file"
+  printf 'shimmy_default_mode=%s\n' "$root_default_mode"
+  printf 'shimmy_manifest_path=%s\n' "$root_manifest_file"
+  if shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"; then
+    printf 'shimmy_installed=yes\n'
   else
-    printf 'installed=no\n'
+    printf 'shimmy_installed=no\n'
   fi
-  printf 'install_dir=%s\n' "$install_dir"
-  printf 'profile_dir=%s\n' "$SHIMMY_PROFILE_DIR"
-  printf 'config_dir=%s\n' "$SHIMMY_PROFILE_CONFIG_DIR"
-  printf 'dispatcher_dir=%s\n' "$SHIMMY_PROFILE_DISPATCHER_DIR"
-  printf 'bin_dir=%s\n' "$SHIMMY_PROFILE_BIN_DIR"
-  printf 'manifest_path=%s\n' "$SHIMMY_PROFILE_MANIFEST_PATH"
-  printf 'profile_implementation_dir=%s\n' "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"
-  if [ -n "$SHIMMY_PROFILE_SOURCE_CHECKOUT" ]; then
-    printf 'source_checkout=%s\n' "$SHIMMY_PROFILE_SOURCE_CHECKOUT"
-  fi
-  printf 'shim_dir=%s\n' "$shim_dir"
-  printf 'images_dir=%s\n' "$images_dir"
-  printf 'shim_lib_dir=%s\n' "$shim_lib_dir"
-  if path_contains "$shim_dir"; then
-    printf 'path_active=yes\n'
+  if path_contains "$root_dispatcher_dir"; then
+    printf 'shimmy_path_active=yes\n'
   else
-    printf 'path_active=no\n'
+    printf 'shimmy_path_active=no\n'
   fi
+  shimmy_profile_structure_missing_print "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"
+
+  printf 'shimmy_profile_mode=%s\n' "$SHIMMY_PROFILE_MODE"
+  printf 'shimmy_profile_dir=%s\n' "$SHIMMY_PROFILE_DIR"
+  printf 'shimmy_profile_manifest_path=%s\n' "$SHIMMY_PROFILE_MANIFEST_PATH"
+  printf 'shimmy_profile_config_dir=%s\n' "$SHIMMY_PROFILE_CONFIG_DIR"
+  printf 'shimmy_profile_bin_dir=%s\n' "$SHIMMY_PROFILE_BIN_DIR"
+  printf 'shimmy_profile_implementation_dir=%s\n' "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"
+  printf 'shimmy_profile_images_dir=%s\n' "$images_dir"
+  printf 'shimmy_profile_shim_lib_dir=%s\n' "$shim_lib_dir"
+  printf 'shimmy_profile_shim_dir=%s\n' "$shim_dir"
 
   if [ -f "$manifest_file" ]; then
-    while IFS= read -r manifest_line; do
-      case "$manifest_line" in
-        mode=*|install_dir=*|profile_dir=*|config_dir=*|dispatcher_dir=*|bin_dir=*|manifest_path=*|profile_implementation_dir=*|source_checkout=*|shim_dir=*|images_dir=*|shim_lib_dir=*)
-          ;;
-        *)
-          printf '%s\n' "$manifest_line"
-          ;;
-      esac
-    done < "$manifest_file"
-  elif [ -d "$shim_dir" ]; then
-    while IFS= read -r shim_path; do
-      [ -n "$shim_path" ] || continue
-      printf 'shim=%s\n' "$(basename "$shim_path")"
+    shim_source=$(shimmy_manifest_value "$manifest_file" shim_source || true)
+    source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
+    source_url=$(shimmy_manifest_value "$manifest_file" shimmy_source_url || true)
+    source_ref=$(shimmy_manifest_value "$manifest_file" shimmy_source_ref || true)
+    previous_source_ref=$(shimmy_manifest_value "$manifest_file" shimmy_previous_source_ref || true)
+    [ -z "$shim_source" ] || printf 'shimmy_profile_shim_source=%s\n' "$shim_source"
+    [ -z "$source_checkout" ] || printf 'shimmy_profile_source_checkout=%s\n' "$source_checkout"
+    [ -z "$source_url" ] || printf 'shimmy_profile_source_url=%s\n' "$source_url"
+    [ -z "$source_ref" ] || printf 'shimmy_profile_source_ref=%s\n' "$source_ref"
+    [ -z "$previous_source_ref" ] || printf 'shimmy_profile_previous_source_ref=%s\n' "$previous_source_ref"
+    while IFS= read -r shim_name; do
+      [ -n "$shim_name" ] || continue
+      printf 'shimmy_profile_shim=%s\n' "$shim_name"
     done <<EOF
-$(find "$shim_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) | sort)
+$(manifest_shim_list "$manifest_file")
 EOF
+  fi
+
+  if [ "$SHIMMY_PROFILE_MODE" = upstream ] && [ -f "$manifest_file" ]; then
+    source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
+    upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" || true)
+    if [ -n "$upstream_invalid_reason" ]; then
+      printf 'shimmy_missing=%s\n' "$upstream_invalid_reason"
+      printf 'shimmy_repair_hint=rerun ./shimmy install --mode upstream from the desired Shimmy checkout\n'
+    fi
+  fi
+
+  if ! shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"; then
+    shimmy_profile_repair_hint_print "$SHIMMY_PROFILE_MODE"
   fi
 }
 
@@ -333,30 +366,25 @@ main() {
 
   install_dir=$SHIMMY_PROFILE_INSTALL_DIR
   manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
-  legacy_manifest_file=$install_dir/install-manifest.txt
+  root_manifest_file=$install_dir/install-manifest.txt
   shim_dir=$SHIMMY_PROFILE_BIN_DIR
   images_dir=$SHIMMY_PROFILE_DIR/images
   shim_lib_dir=$SHIMMY_PROFILE_DIR/lib/shims
 
-  if [ "$SHIMMY_PROFILE_MODE" = default ] && [ -f "$legacy_manifest_file" ] && { [ ! -f "$manifest_file" ] || { [ -z "$REQUESTED_MODE" ] && [ -z "${SHIMMY_MODE:-}" ]; }; }; then
-    manifest_file=$legacy_manifest_file
-    shim_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
-    images_dir=$install_dir/images
-    shim_lib_dir=$install_dir/lib/shims
+  if [ -f "$root_manifest_file" ]; then
+    manifest_install_dir=$(shimmy_manifest_value "$root_manifest_file" install_dir || true)
+    if [ -n "$manifest_install_dir" ]; then
+      install_dir=$(shimmy_path_trim_trailing_slash "$manifest_install_dir")
+      shimmy_profile_paths_resolve "$REQUESTED_MODE" "$install_dir" "$ROOT_DIR" || fail "unsupported shimmy mode: ${REQUESTED_MODE:-${SHIMMY_MODE:-}}"
+      manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
+      root_manifest_file=$install_dir/install-manifest.txt
+      shim_dir=$SHIMMY_PROFILE_BIN_DIR
+      images_dir=$SHIMMY_PROFILE_DIR/images
+      shim_lib_dir=$SHIMMY_PROFILE_DIR/lib/shims
+    fi
   fi
 
   if [ -f "$manifest_file" ]; then
-    manifest_install_dir=$(shimmy_manifest_value "$manifest_file" install_dir || true)
-    if [ -n "$manifest_install_dir" ]; then
-      install_dir=$(shimmy_path_trim_trailing_slash "$manifest_install_dir")
-      if [ "$SHIMMY_PROFILE_MODE" = default ] && [ "$manifest_file" = "$legacy_manifest_file" ]; then
-        legacy_manifest_file=$install_dir/install-manifest.txt
-        manifest_file=$legacy_manifest_file
-        shim_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
-        images_dir=$install_dir/images
-        shim_lib_dir=$install_dir/lib/shims
-      fi
-    fi
     manifest_source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
     if [ "$SHIMMY_PROFILE_MODE" = upstream ] && [ -n "$manifest_source_checkout" ]; then
       SHIMMY_PROFILE_SOURCE_CHECKOUT=$manifest_source_checkout
@@ -364,7 +392,7 @@ main() {
   fi
 
   if [ "$OUTPUT_FORMAT" = manifest ]; then
-    print_manifest_status "$manifest_file" "$install_dir" "$shim_dir" "$images_dir" "$shim_lib_dir"
+    print_manifest_status "$manifest_file" "$install_dir" "$shim_dir" "$images_dir" "$shim_lib_dir" "$root_manifest_file"
     if [ "$SHOW_AVAILABLE" -eq 1 ]; then
       print_manifest_available_shims "$manifest_file" "$shim_dir"
     fi
@@ -373,7 +401,7 @@ main() {
 
   printf 'Shimmy Status\n'
   printf 'mode=%s\n' "$SHIMMY_PROFILE_MODE"
-  if [ -f "$manifest_file" ] || [ -d "$shim_dir" ]; then
+  if shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"; then
     printf 'installed: yes\n'
   else
     printf 'installed: no\n'

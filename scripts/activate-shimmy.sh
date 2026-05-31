@@ -128,42 +128,46 @@ main() {
 
   install_dir=$SHIMMY_PROFILE_INSTALL_DIR
   profile_manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
-  legacy_manifest_file=$install_dir/install-manifest.txt
+  root_manifest_file=$install_dir/install-manifest.txt
   manifest_file=$profile_manifest_file
   control_bin_dir=$SHIMMY_PROFILE_CONTROL_BIN_DIR
   dispatcher_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
 
-  if [ "$SHIMMY_PROFILE_MODE" = default ] && [ -f "$legacy_manifest_file" ] && { [ ! -f "$profile_manifest_file" ] || { [ -z "$REQUESTED_MODE" ] && [ -z "${SHIMMY_MODE:-}" ]; }; }; then
-    manifest_file=$legacy_manifest_file
-  fi
-
-  if [ -f "$manifest_file" ]; then
-    manifest_install_dir=$(shimmy_manifest_value "$manifest_file" install_dir || true)
+  if [ -f "$root_manifest_file" ]; then
+    manifest_install_dir=$(shimmy_manifest_value "$root_manifest_file" install_dir || true)
     if [ -n "$manifest_install_dir" ]; then
       install_dir=$(shimmy_path_trim_trailing_slash "$manifest_install_dir")
+      shimmy_profile_paths_resolve "$REQUESTED_MODE" "$install_dir" "$ROOT_DIR" || fail "unsupported shimmy mode: ${REQUESTED_MODE:-${SHIMMY_MODE:-}}"
       control_bin_dir=$install_dir/bin
       dispatcher_dir=$install_dir/shims
+      root_manifest_file=$install_dir/install-manifest.txt
+      profile_manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
+      manifest_file=$profile_manifest_file
     fi
-    manifest_control_bin=$(shimmy_manifest_value "$manifest_file" control_bin || true)
+    manifest_control_bin=$(shimmy_manifest_value "$root_manifest_file" control_bin || true)
     if [ -n "$manifest_control_bin" ]; then
       control_bin_dir=$(dirname "$manifest_control_bin")
     fi
-    manifest_dispatcher_dir=$(shimmy_manifest_value "$manifest_file" dispatcher_dir || true)
+    manifest_dispatcher_dir=$(shimmy_manifest_value "$root_manifest_file" dispatcher_dir || true)
     if [ -n "$manifest_dispatcher_dir" ]; then
       dispatcher_dir=$manifest_dispatcher_dir
     fi
   fi
 
-  if [ ! -f "$manifest_file" ] && [ ! -d "$dispatcher_dir" ]; then
-    fail "no shimmy install found for activate; expected manifest at $manifest_file or dispatcher dir at $dispatcher_dir"
+  if ! shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"; then
+    install_hint=$(shimmy_profile_install_hint "$SHIMMY_PROFILE_MODE")
+    fail "incomplete Shimmy profile for mode $SHIMMY_PROFILE_MODE: expected manifest at $manifest_file and implementation directory at $SHIMMY_PROFILE_IMPLEMENTATION_DIR; repair with $install_hint"
   fi
 
-  mode_export_value=
-  if [ -n "$REQUESTED_MODE" ] || [ -n "${SHIMMY_MODE:-}" ]; then
-    mode_export_value=$SHIMMY_PROFILE_MODE
+  if [ "$SHIMMY_PROFILE_MODE" = upstream ]; then
+    source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
+    upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" || true)
+    if [ -n "$upstream_invalid_reason" ]; then
+      fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout; rerun ./shimmy install --mode upstream from the desired Shimmy checkout"
+    fi
   fi
 
-  render_activate "$control_bin_dir" "$dispatcher_dir" /opt/podman/bin "$mode_export_value"
+  render_activate "$control_bin_dir" "$dispatcher_dir" /opt/podman/bin "$SHIMMY_PROFILE_MODE"
 }
 
 main "$@"
