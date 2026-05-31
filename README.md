@@ -44,21 +44,21 @@ Shimmy also resolves the container platform at runtime without changing the comm
 
 ### Option: AI Agent Plugin
 
-Shimmy includes a packaged AI Agent plugin under `plugins/shimmy`. The plugin provides core Shimmy management skills (`shimmy-install`, `shimmy-init`, `shimmy-create`, and `shimmy-escalation`) plus the jq and ripgrep tool skills, so an AI Agent can apply the repository's conventions when creating shims, troubleshooting Podman-backed commands, managing Shimmy installs, and working on the jq or rg wrappers.
+Shimmy includes a packaged AI Agent plugin. The plugin provides core Shimmy management skills (`shimmy-install`, `shimmy-init`, `shimmy-create`, and `shimmy-escalation`) plus the jq and ripgrep tool skills most AI agents use. This allows an AI Agent to manage Shimmy installs, quickly create new shims, troubleshoot Podman, and work with the jq or rg tooling.
 
-The primary plugin intentionally does not bundle every tool skill. Optional tool-specific plugins can supplement it later, for example AWS, Terraform, or Go plugins, but the AI Agent plugin manifest used here does not declare plugin dependencies. Install or enable supplemental plugins independently when a workstation or repo needs those capabilities.
+The primary plugin intentionally does not bundle every tool skill. Optional tool-specific plugins can be added later, for example AWS, Terraform, or Go. Install or enable supplemental plugins when a workstation or repo needs those capabilities.
 
-This repository also includes `.agents/plugins/marketplace.json`, which registers the local Shimmy plugin from `./plugins/shimmy`.
+This repository also includes `.agents/plugins/marketplace.json`, which registers a local Shimmy plugin repo to `plugins/shimmy`.
 
 #### Use the plugin in this repository
 
-Open a new AI Agent session from the Shimmy checkout after the plugin files are present. Agent plugin discovery usually happens at session startup, so an already-running session may not see newly added plugin metadata until it is restarted.
+Open a new AI Agent session from the Shimmy git clone checkout after the plugin files are present. Agent plugin discovery usually happens at session startup, so an already-running session may not see newly added plugin metadata until it is restarted.
 
-When prompted, install or enable the `shimmy` plugin from the local marketplace. Once enabled, requests that involve Shimmy, jq, or ripgrep shim work can use the packaged skills automatically.
+When prompted, install or enable the `shimmy` plugin from the local marketplace repo. Once enabled, requests that involve Shimmy, jq, or ripgrep can use the packaged skills automatically.
 
 #### Share Shimmy skills
 
-Shimmy can copy packaged skills into a project, a user profile, or the packaged plugin bundle:
+Shimmy skills can be shared beyond the default project repo and into your user profile, or exported as a packaged plugin bundle:
 
 ```sh
 ./shimmy skills install --target repo
@@ -70,7 +70,7 @@ Shimmy can copy packaged skills into a project, a user profile, or the packaged 
 
 Targets:
 - `repo` writes to `.agents/skills` in the current directory.
-- `profile` writes to `~/.agents/skills`.
+- `profile` writes to your user profile at `~/.agents/skills`.
 - `plugin` writes to `plugins/shimmy/skills` in the active Shimmy source or installed management bundle.
 - `--export` writes a portable skills folder, or a zip archive when the path ends in `.zip`; zip archives require either `zip` or `python3`.
 
@@ -83,15 +83,13 @@ With no explicit skill names, `install` shares the core Shimmy management skills
 
 #### Use Shimmy tools from an AI Agent faster
 
-AI Agent approvals are often evaluated on the outer command. If `podman info` succeeds but a Shimmy wrapper still reports that Podman is unreachable, approve the exact dry-run smoke command prefix that the AI Agent is trying to run, such as `["rg","--version"]` for an activated shim or `["./shims/rg","--version"]` for a repo-local shim. Approval for `["podman", "info"]` only verifies the engine; it does not approve nested Podman access through a wrapper.
-
-From a fresh AI Agent session, run the non-mutating preflight to list the exact approval prefixes and smoke commands:
+From a fresh AI Agent session, run the agent preflight to review the exact prompt approval escalations Shimmy will need from you for normal operations:
 
 ```sh
 ./scripts/agent-shimmy-preflight.sh
 ```
 
-The script checks `podman info`, discovers active installed shims and repo-local shims, and prints harmless `--version` or `--help` commands to approve with your AI Agent's approval mechanism and the listed dry-run `agent_prefix_rule` values. Use `--smoke` from a normal shell when you want the script to run those checks directly.
+The script checks `podman info`, discovers active installed shims and repo-local shims, and prints harmless `--version` or `--help` commands. Once you have approved these with your AI Agent's approval mechanism future Shimmy use will be less "needy". Preflight also supports a `--smoke` toggle which runs a smoke check on shimmed tools directly.
 
 #### Use the plugin from other local repositories
 
@@ -185,7 +183,7 @@ Shimmy uses one user-scoped install root with two built-in profiles:
 - `default` is the normal external-user profile. It is selected when no mode is provided.
 - `upstream` is an opt-in maintainer profile. It runs installed commands through wrappers that exec source files from a recorded Shimmy checkout.
 
-Profile selection is intentionally simple:
+Profile default selection follows this progression:
 
 1. An explicit `--mode default|upstream` flag wins.
 2. Otherwise `SHIMMY_MODE=default|upstream` wins.
