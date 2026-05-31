@@ -168,10 +168,10 @@ Activated shells can use the installed command from any directory:
 ```sh
 shimmy status
 shimmy status --available
-shimmy install opnsense-mcp-server
+shimmy install --shim opnsense-mcp-server
 shimmy netinfo
 shimmy skills update --target repo
-shimmy update --pull --build
+shimmy update --all --pull --build
 shimmy test
 eval "$(shimmy activate)"
 ```
@@ -229,24 +229,25 @@ After an upstream install, editing an existing source shim such as `/path/to/shi
 
 #### Management-plane updates
 
-Shimmy separates management-plane updates from shim image refreshes. A
+Shimmy separates management-plane updates from shim image refreshes. A bare
 management-plane update refreshes the installed `shimmy` command, lifecycle
 scripts, activation file, helper libraries, the management source catalog, and
-runtime wrapper files for the shims already listed in the selected profile manifest.
+runtime wrapper files for installed default shims such as `jq` and `rg`.
 
 Contributor workflow:
 
 ```sh
 cd /path/to/shimmy
 git pull --ff-only
-./shimmy update --profile upstream
+./shimmy update --all
 ```
 
 When `update` is run from the repo-root `./shimmy` launcher, it refreshes the
 install from that current checkout. Use this path when developing Shimmy,
 testing local changes, or intentionally installing from a specific source tree.
 For default-profile updates from a checkout, omit `--profile` or pass
-`--profile default`.
+`--profile default`. Use `--shim <name>` to refresh one installed profile shim,
+or `--all` to refresh every installed profile shim.
 
 Installed-user workflow:
 
@@ -262,10 +263,10 @@ require the user to keep a Shimmy source checkout open.
 
 Both workflows preserve the currently installed shim list from the manifest.
 Newly available shims are not added automatically during update; install them
-explicitly from an activated shell:
+explicitly:
 
 ```sh
-shimmy install opnsense-mcp-server
+shimmy install --shim opnsense-mcp-server
 ```
 
 Shim container image refresh is still explicit. Normal management-plane updates
@@ -357,7 +358,7 @@ Common install arguments still pass through to the installer:
 ./shimmy install --skills-target repo
 ```
 
-With no explicit `--shim`, install creates the default external-user profile with `jq` and `rg`. Use repeated `--shim` flags when you want an exact shim set, and use the installed `shimmy install <shim>...` form to add shims later from an activated environment.
+With no explicit `--shim`, install creates or completes the default external-user profile with `jq` and `rg`. Repeated `--shim` flags add missing shims to the selected profile. If a shim is already installed, install leaves it alone and points you to `shimmy update --shim <name>` for refresh behavior.
 
 During an interactive install, Shimmy asks where to share Shimmy agent skills: `repo`, `profile`, `plugin`, or `none`. For non-interactive installs, pass `--skills-target <repo|profile|plugin>` or run `shimmy skills install` later.
 

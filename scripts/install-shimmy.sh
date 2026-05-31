@@ -32,13 +32,14 @@ REQUESTED_SHELL=
 REQUESTED_STARTUP_FILES=
 SKIP_STARTUP=0
 SKIP_SKILLS=0
-ADD_SHIMS=0
+REFRESH_SHIMS=0
 SHIMMY_PROFILE_ACTIVATED=0
 STARTUP_FILE_PATHS=
 STARTUP_SHELL=
 PRESERVED_STARTUP_FILE_PATHS=
 PRESERVED_STARTUP_SHELL=
 PRESERVED_SHIMMY_MANIFEST_LINES=
+PROFILE_MANIFEST_SHIMS=
 UNINSTALL=0
 
 LOG_LEVEL=${LOG_LEVEL:-info}
@@ -184,8 +185,7 @@ Usage:
 Options:
   --install-dir <dir>    Base install directory. Default: ~/.config/shimmy
   --profile <name>          Install profile: default or upstream
-  --shim <name>          Install only the named shim. Repeatable.
-  --add-shim             Add named shims to an existing install without reinstalling
+  --shim <name>          Install the named shim if missing. Repeatable.
   --skills-target <name> Share Shimmy agent skills to repo, profile, or plugin
   --no-skills            Do not prompt for or share Shimmy agent skills
   --shell <name>         Override shell detection for startup-file updates
@@ -300,6 +300,15 @@ EOF
   } > "$manifest_tmp"
 
   mv "$manifest_tmp" "$manifest_file"
+}
+
+profile_manifest_shim_list() {
+  if [ -n "$PROFILE_MANIFEST_SHIMS" ]; then
+    printf '%s\n' "$PROFILE_MANIFEST_SHIMS"
+    return 0
+  fi
+
+  selected_shim_list
 }
 
 source_ref_resolve() {
@@ -811,7 +820,7 @@ write_profile_manifest_file() {
     if [ -n "$SHIMMY_PROFILE_SOURCE_CHECKOUT" ]; then
       printf 'source_checkout=%s\n' "$SHIMMY_PROFILE_SOURCE_CHECKOUT"
     fi
-    for shim_name in $(selected_shim_list); do
+    for shim_name in $(profile_manifest_shim_list); do
       printf 'shim=%s\n' "$shim_name"
     done
     if [ -n "$shimmy_source_url" ]; then
@@ -920,10 +929,7 @@ EOF
 }
 
 perform_shim_install() {
-  [ -n "$REQUESTED_SHIMS" ] || fail "install must include the name of an available shim"
-  [ "$UNINSTALL" -eq 0 ] || fail "--add-shim cannot be combined with --uninstall"
-  [ "$SKIP_STARTUP" -eq 0 ] || fail "--no-startup is not supported when installing shims into an existing environment"
-  [ "$SKIP_SKILLS" -eq 0 ] || fail "--no-skills is not supported when installing shims into an existing environment"
+  [ "$UNINSTALL" -eq 0 ] || fail "--shim cannot be combined with --uninstall"
   [ -z "$REQUESTED_SKILLS_TARGET" ] || fail "--skills-target is not supported when installing shims into an existing environment"
   [ -z "$REQUESTED_SHELL" ] || fail "--shell is not supported when installing shims into an existing environment"
   [ -z "$REQUESTED_STARTUP_FILES" ] || fail "--startup-file is not supported when installing shims into an existing environment"
@@ -943,15 +949,15 @@ perform_shim_install() {
   shims_to_append=
 
   for shim_name in $(selected_shim_list); do
+    if line_list_contains "$installed_shims" "$shim_name" || line_list_contains "$shims_to_append" "$shim_name"; then
+      log_warn "Shim already installed: $shim_name; run shimmy update --shim $shim_name to refresh it"
+      continue
+    fi
+
     install_shim_runtime_assets "$shim_name"
     install_shim_config_assets "$shim_name"
     install_shim_dispatcher "$shim_name"
     install_shim_management_assets "$shim_name"
-
-    if line_list_contains "$installed_shims" "$shim_name" || line_list_contains "$shims_to_append" "$shim_name"; then
-      log_info "Refreshed installed shim: $shim_name"
-      continue
-    fi
 
     shims_to_append=$(line_list_append "$shims_to_append" "$shim_name")
     log_info "Installed shim: $shim_name"
@@ -963,6 +969,76 @@ perform_shim_install() {
   if [ -n "$shims_to_append" ]; then
     manifest_shims_append "$INSTALL_MANIFEST_FILE" "$shims_to_append"
   fi
+}
+
+perform_shim_refresh() {
+  [ -n "$REQUESTED_SHIMS" ] || fail "refresh must include --shim"
+  [ "$UNINSTALL" -eq 0 ] || fail "--refresh-shims cannot be combined with --uninstall"
+  [ -z "$REQUESTED_SKILLS_TARGET" ] || fail "--skills-target is not supported when refreshing shims"
+  [ -f "$INSTALL_MANIFEST_FILE" ] || fail "no shimmy profile manifest found at $INSTALL_MANIFEST_FILE; run ./shimmy install first"
+
+  load_install_root_from_manifest || true
+  validate_requested_shims
+
+  installed_shims=$(manifest_shim_list "$INSTALL_MANIFEST_FILE")
+  for shim_name in $(selected_shim_list); do
+    if ! line_list_contains "$installed_shims" "$shim_name"; then
+      fail "$shim_name not installed; run shimmy install --shim $shim_name"
+    fi
+  done
+
+  PROFILE_MANIFEST_SHIMS=$installed_shims
+
+  if [ -f "$SHIMMY_ROOT_MANIFEST_FILE" ]; then
+    PRESERVED_STARTUP_SHELL=$(manifest_value "$SHIMMY_ROOT_MANIFEST_FILE" startup_shell || true)
+    PRESERVED_STARTUP_FILE_PATHS=$(manifest_values "$SHIMMY_ROOT_MANIFEST_FILE" startup_file || true)
+  fi
+  PRESERVED_SHIMMY_MANIFEST_LINES=$(manifest_shimmy_lines_preserve "$INSTALL_MANIFEST_FILE")
+  resolve_startup_settings
+
+  [ -d "$SOURCE_SHIMS_DIR" ] || fail "missing source shim directory: $SOURCE_SHIMS_DIR"
+  [ -d "$SOURCE_IMAGES_DIR" ] || fail "missing source image support directory: $SOURCE_IMAGES_DIR"
+  [ -d "$SOURCE_SHIM_LIB_DIR" ] || fail "missing source shim helper directory: $SOURCE_SHIM_LIB_DIR"
+
+  if [ "$SHIMMY_PROFILE_RESOLVED" = upstream ]; then
+    upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$SHIMMY_PROFILE_SOURCE_CHECKOUT" || true)
+    if [ -n "$upstream_invalid_reason" ]; then
+      fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $SHIMMY_PROFILE_SOURCE_CHECKOUT; rerun ./shimmy install --profile upstream from the desired Shimmy checkout"
+    fi
+  fi
+
+  log_info "Refreshing shimmy assets in $SHIMMY_INSTALL_DIR"
+  log_info "Selected Shimmy profile: $SHIMMY_PROFILE_RESOLVED"
+
+  mkdir -p "$SHIMMY_INSTALL_DIR" "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")" "$SHIMMY_PROFILE_CONFIG_DIR/shims" "$SHIMMY_DISPATCHER_DIR"
+
+  log_debug "Copying management command support to $SHIMMY_CONTROL_SOURCE_DIR"
+  install_control_assets
+
+  for shim_name in $(selected_shim_list); do
+    install_shim_runtime_assets "$shim_name"
+    install_shim_config_assets "$shim_name"
+    install_shim_dispatcher "$shim_name"
+  done
+
+  log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
+  install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_SHIM_LIB_DIR"
+
+  write_manifest
+  write_activate_file
+
+  if [ -n "$STARTUP_FILE_PATHS" ]; then
+    activate_block=$(shimmy_activate_source_block_render "$SHIMMY_ACTIVATE_FILE") || fail "unable to render activate block for startup file"
+    while IFS= read -r startup_file_path; do
+      [ -n "$startup_file_path" ] || continue
+      shimmy_startup_file_update "$startup_file_path" "$activate_block"
+      log_info "Updated startup file: $startup_file_path"
+    done <<EOF
+$STARTUP_FILE_PATHS
+EOF
+  fi
+
+  log_info "Refreshed shimmy assets into $SHIMMY_INSTALL_DIR"
 }
 
 remove_path_if_present() {
@@ -1180,8 +1256,8 @@ main() {
       --copy)
         shift
         ;;
-      --add-shim)
-        ADD_SHIMS=1
+      --refresh-shims)
+        REFRESH_SHIMS=1
         shift
         ;;
       --skills-target)
@@ -1225,12 +1301,7 @@ main() {
         exit 0
         ;;
       *)
-        if [ "$ADD_SHIMS" -eq 1 ]; then
-          requested_shim_append "$1"
-          shift
-        else
-          fail "unknown argument: $1"
-        fi
+        fail "unknown argument: $1"
         ;;
     esac
   done
@@ -1241,13 +1312,15 @@ main() {
 
   resolve_install_paths
 
-  if [ "$ADD_SHIMS" -eq 1 ]; then
-    perform_shim_install
+  if [ "$REFRESH_SHIMS" -eq 1 ]; then
+    perform_shim_refresh
   elif [ "$UNINSTALL" -eq 1 ]; then
     if [ "$SHIMMY_PROFILE_ACTIVATED" -eq 0 ]; then
       fail "uninstall requires --profile default or --profile upstream"
     fi
     perform_uninstall_profile
+  elif [ -f "$INSTALL_MANIFEST_FILE" ]; then
+    perform_shim_install
   else
     perform_install
   fi

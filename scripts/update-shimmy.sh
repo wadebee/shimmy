@@ -7,6 +7,7 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
+CATALOG_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-catalog.sh
 PROFILE_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-profile.sh
 STARTUP_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-startup.sh
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
@@ -14,11 +15,13 @@ SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
 DEFAULT_INSTALL_DIR=${SHIMMY_INSTALL_DIR:-${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}}
 REQUESTED_INSTALL_DIR=
 SHIMMY_PROFILE_REQUESTED=
+REQUESTED_SHIMS=
 REQUESTED_SHELL=
 REQUESTED_STARTUP_FILES=
 PULL_IMAGES=0
 BUILD_IMAGES=0
 REPAIR_STARTUP=0
+UPDATE_ALL=0
 PREVIOUS_SOURCE_REF=
 SHIMMY_PROFILE_ACTIVATED=0
 UPDATE_SOURCE_CHECKOUT=
@@ -27,6 +30,14 @@ fail() {
   printf 'ERROR: %s\n' "$*" >&2
   exit 1
 }
+
+warn() {
+  printf 'WARN: %s\n' "$*" >&2
+}
+
+if [ ! -f "$CATALOG_HELPER_FILE" ]; then
+  fail "missing catalog helper: $CATALOG_HELPER_FILE"
+fi
 
 if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
   fail "missing custom image helper: $SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
@@ -44,6 +55,8 @@ if [ ! -f "$PROFILE_HELPER_FILE" ]; then
   fail "missing profile helper: $PROFILE_HELPER_FILE"
 fi
 
+# shellcheck source=lib/repo/shimmy-catalog.sh
+. "$CATALOG_HELPER_FILE"
 # shellcheck source=lib/repo/shimmy-profile.sh
 . "$PROFILE_HELPER_FILE"
 # shellcheck source=lib/repo/shimmy-startup.sh
@@ -133,6 +146,32 @@ line_list_append() {
   fi
 }
 
+line_list_contains() {
+  list_value=${1:-}
+  line_value=$2
+
+  while IFS= read -r existing_line; do
+    [ -n "$existing_line" ] || continue
+    if [ "$existing_line" = "$line_value" ]; then
+      return 0
+    fi
+  done <<EOF
+$list_value
+EOF
+
+  return 1
+}
+
+requested_shim_append() {
+  requested_shim=$1
+
+  if [ -n "$REQUESTED_SHIMS" ]; then
+    REQUESTED_SHIMS="$REQUESTED_SHIMS $requested_shim"
+  else
+    REQUESTED_SHIMS=$requested_shim
+  fi
+}
+
 is_installed_management_update() {
   install_dir=$1
 
@@ -188,6 +227,14 @@ run_installed_management_update() {
   fi
   if [ "$REPAIR_STARTUP" -eq 1 ]; then
     set -- "$@" --repair-startup
+  fi
+  if [ "$UPDATE_ALL" -eq 1 ]; then
+    set -- "$@" --all
+  fi
+  if [ -n "$REQUESTED_SHIMS" ]; then
+    for shim_name in $REQUESTED_SHIMS; do
+      set -- "$@" --shim "$shim_name"
+    done
   fi
   if [ -n "$REQUESTED_SHELL" ]; then
     set -- "$@" --shell "$REQUESTED_SHELL"
@@ -267,8 +314,8 @@ cleanup_old_local_images() {
 
 run_pull_refresh() {
   shim_dir=$1
-  manifest_file=$2
-  profile_name=$3
+  profile_name=$2
+  shim_list=$3
 
   shimmy_podman_preflight_require "shimmy update --pull"
 
@@ -295,15 +342,15 @@ run_pull_refresh() {
         ;;
     esac
   done <<EOF
-$(manifest_shim_list "$manifest_file")
+$shim_list
 EOF
 }
 
 run_build_refresh() {
   shim_dir=$1
   images_dir=$2
-  manifest_file=$3
-  profile_name=$4
+  profile_name=$3
+  shim_list=$4
 
   shimmy_podman_preflight_require "shimmy update --build"
 
@@ -324,8 +371,114 @@ run_build_refresh() {
         ;;
     esac
   done <<EOF
-$(manifest_shim_list "$manifest_file")
+$shim_list
 EOF
+}
+
+default_installed_shim_list() {
+  manifest_file=$1
+  installed_shims=$(manifest_shim_list "$manifest_file")
+  default_installed_shims=
+
+  for shim_name in $(shimmy_default_shim_list); do
+    if line_list_contains "$installed_shims" "$shim_name"; then
+      default_installed_shims=$(line_list_append "$default_installed_shims" "$shim_name")
+    fi
+  done
+
+  printf '%s\n' "$default_installed_shims"
+}
+
+installed_profile_list() {
+  root_manifest_file=$1
+  profile_names=
+
+  if [ -f "$root_manifest_file" ]; then
+    profile_names=$(manifest_values "$root_manifest_file" profile || true)
+  fi
+
+  for profile_manifest_file in "$install_dir"/profiles/*/install-manifest.txt; do
+    [ -f "$profile_manifest_file" ] || continue
+    profile_name=$(basename "$(dirname "$profile_manifest_file")")
+    if ! line_list_contains "$profile_names" "$profile_name"; then
+      profile_names=$(line_list_append "$profile_names" "$profile_name")
+    fi
+  done
+
+  printf '%s\n' "$profile_names"
+}
+
+profile_refresh_run() {
+  profile_name=$1
+  profile_manifest_file=$2
+  shim_list=$3
+
+  [ -n "$shim_list" ] || fail "no installed shims selected for profile $profile_name"
+
+  PREVIOUS_SOURCE_REF=$(manifest_value "$profile_manifest_file" shimmy_source_ref || true)
+  UPDATE_SOURCE_CHECKOUT=
+  manifest_source_checkout=$(manifest_value "$profile_manifest_file" source_checkout || true)
+  if [ "$profile_name" = upstream ] && [ -n "$manifest_source_checkout" ]; then
+    UPDATE_SOURCE_CHECKOUT=$manifest_source_checkout
+    upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$UPDATE_SOURCE_CHECKOUT" || true)
+    if [ -n "$upstream_invalid_reason" ]; then
+      fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $UPDATE_SOURCE_CHECKOUT; rerun ./shimmy install --profile upstream from the desired Shimmy checkout"
+    fi
+  fi
+
+  set -- "$SCRIPT_DIR/install-shimmy.sh" --install-dir "$install_dir" --profile "$profile_name" --refresh-shims --no-skills
+  if [ "$REPAIR_STARTUP" -eq 0 ]; then
+    set -- "$@" --no-startup
+  else
+    startup_shell=$REQUESTED_SHELL
+    startup_files=$REQUESTED_STARTUP_FILES
+
+    if [ -z "$startup_shell" ]; then
+      startup_shell=$(manifest_value "$root_manifest_file" startup_shell || true)
+    fi
+    if [ -z "$startup_files" ]; then
+      startup_files=$(manifest_values "$root_manifest_file" startup_file || true)
+    fi
+
+    if [ -n "$startup_shell" ]; then
+      set -- "$@" --shell "$startup_shell"
+    fi
+    if [ -n "$startup_files" ]; then
+      while IFS= read -r startup_file; do
+        [ -n "$startup_file" ] || continue
+        set -- "$@" --startup-file "$startup_file"
+      done <<EOF
+$startup_files
+EOF
+    fi
+  fi
+
+  for shim_name in $shim_list; do
+    set -- "$@" --shim "$shim_name"
+  done
+
+  if [ -n "$PREVIOUS_SOURCE_REF" ]; then
+    if [ -n "$UPDATE_SOURCE_CHECKOUT" ]; then
+      SHIMMY_UPSTREAM_CHECKOUT_DIR=$UPDATE_SOURCE_CHECKOUT SHIMMY_PREVIOUS_SOURCE_REF=$PREVIOUS_SOURCE_REF "$@"
+    else
+      SHIMMY_PREVIOUS_SOURCE_REF=$PREVIOUS_SOURCE_REF "$@"
+    fi
+  else
+    if [ -n "$UPDATE_SOURCE_CHECKOUT" ]; then
+      SHIMMY_UPSTREAM_CHECKOUT_DIR=$UPDATE_SOURCE_CHECKOUT "$@"
+    else
+      "$@"
+    fi
+  fi
+
+  profile_paths_resolve "$install_dir"
+  if [ "$PULL_IMAGES" -eq 1 ]; then
+    run_pull_refresh "$SHIMMY_PROFILE_DISPATCHER_DIR" "$profile_name" "$shim_list"
+  fi
+
+  if [ "$BUILD_IMAGES" -eq 1 ]; then
+    run_build_refresh "$SHIMMY_PROFILE_DISPATCHER_DIR" "$SHIMMY_PROFILE_DIR/images" "$profile_name" "$shim_list"
+  fi
 }
 
 usage() {
@@ -333,7 +486,7 @@ usage() {
 Refresh an existing shimmy installation.
 
 Usage:
-  scripts/update-shimmy.sh [--install-dir <dir>] [--profile default|upstream] [--pull] [--build] [--repair-startup]
+  scripts/update-shimmy.sh [--install-dir <dir>] [--profile default|upstream] [--shim <name>] [--all] [--pull] [--build] [--repair-startup]
 
 When run from a source checkout, update refreshes the install from that checkout.
 When run through an installed shimmy command, update fetches the recorded
@@ -342,6 +495,8 @@ shimmy_source_url and refreshes the management plane from that source.
 Options:
   --install-dir <dir>   Base install directory. Default: ~/.config/shimmy
   --profile <name>         Update profile: default or upstream
+  --shim <name>         Refresh one installed shim in the selected profile. Repeatable.
+  --all                 Refresh root assets and every installed profile shim.
   --pull                Pull newer remote images for installed remote-image shims.
   --build               Rebuild local images for installed local-build shims.
   --repair-startup      Rewrite the managed Shimmy startup block after reinstalling
@@ -364,6 +519,15 @@ main() {
         SHIMMY_PROFILE_REQUESTED=$2
         SHIMMY_PROFILE_ACTIVATED=1
         shift 2
+        ;;
+      --shim)
+        [ "$#" -ge 2 ] || fail "missing value for --shim"
+        requested_shim_append "$2"
+        shift 2
+        ;;
+      --all)
+        UPDATE_ALL=1
+        shift
         ;;
       --pull)
         PULL_IMAGES=1
@@ -401,7 +565,14 @@ main() {
     SHIMMY_PROFILE_ACTIVATED=1
   fi
 
+  if [ "$UPDATE_ALL" -eq 1 ] && [ -n "$REQUESTED_SHIMS" ]; then
+    fail "--all cannot be combined with --shim"
+  fi
+
   install_dir=$(install_dir_resolve)
+  if [ "$UPDATE_ALL" -eq 1 ]; then
+    SHIMMY_PROFILE_REQUESTED=default
+  fi
   profile_paths_resolve "$install_dir"
   install_dir=$SHIMMY_PROFILE_INSTALL_DIR
   manifest_file=$(manifest_file_resolve)
@@ -415,100 +586,57 @@ main() {
     root_manifest_file=$install_dir/install-manifest.txt
   fi
 
+  if [ "$UPDATE_ALL" -eq 1 ] && [ ! -f "$manifest_file" ]; then
+    [ -f "$root_manifest_file" ] || fail "no shimmy install manifest found at $root_manifest_file; run ./shimmy install first"
+    first_profile_name=$(installed_profile_list "$root_manifest_file" | sed -n '1p')
+    [ -n "$first_profile_name" ] || fail "no shimmy profiles found under $install_dir; run ./shimmy install first"
+    SHIMMY_PROFILE_REQUESTED=$first_profile_name
+    profile_paths_resolve "$install_dir"
+    manifest_file=$(manifest_file_resolve)
+  fi
+
   if [ ! -f "$manifest_file" ]; then
     if [ "$SHIMMY_PROFILE_NAME" = upstream ] && [ -z "${SHIMMY_UPSTREAM_CHECKOUT_DIR:-}" ]; then
       fail "no shimmy profile manifest found for profile upstream at $manifest_file; rerun ./shimmy install --profile upstream from the desired Shimmy checkout"
     fi
-    manifest_missing=1
-  else
-    manifest_missing=0
+    fail "no shimmy profile manifest found for profile $SHIMMY_PROFILE_NAME at $manifest_file; run ./shimmy install first"
   fi
 
-  if [ "$manifest_missing" -eq 0 ]; then
-    manifest_source_checkout=$(manifest_value "$manifest_file" source_checkout || true)
-    if [ "$SHIMMY_PROFILE_NAME" = upstream ] && [ -n "$manifest_source_checkout" ]; then
-      UPDATE_SOURCE_CHECKOUT=$manifest_source_checkout
-      upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$UPDATE_SOURCE_CHECKOUT" || true)
-      if [ -n "$upstream_invalid_reason" ]; then
-        fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $UPDATE_SOURCE_CHECKOUT; rerun ./shimmy install --profile upstream from the desired Shimmy checkout"
-      fi
-    fi
-  fi
-
-  if [ "$manifest_missing" -eq 0 ] && is_installed_management_update "$install_dir"; then
+  if is_installed_management_update "$install_dir"; then
     run_installed_management_update "$install_dir" "$manifest_file"
     exit 0
   fi
 
-  PREVIOUS_SOURCE_REF=
-  if [ "$manifest_missing" -eq 0 ]; then
-    PREVIOUS_SOURCE_REF=$(manifest_value "$manifest_file" shimmy_source_ref || true)
-  fi
-
-  set -- "$SCRIPT_DIR/install-shimmy.sh" --install-dir "$install_dir"
-  if [ "$SHIMMY_PROFILE_ACTIVATED" -eq 1 ]; then
-    set -- "$@" --profile "$SHIMMY_PROFILE_NAME"
-  fi
-  if [ "$REPAIR_STARTUP" -eq 0 ]; then
-    set -- "$@" --no-startup
-  else
-    startup_shell=$REQUESTED_SHELL
-    startup_files=$REQUESTED_STARTUP_FILES
-
-    if [ -z "$startup_shell" ]; then
-      startup_shell=$(manifest_value "$manifest_file" startup_shell || true)
-    fi
-    if [ -z "$startup_files" ]; then
-      startup_files=$(manifest_values "$manifest_file" startup_file || true)
-    fi
-
-    if [ -n "$startup_shell" ]; then
-      set -- "$@" --shell "$startup_shell"
-    fi
-    if [ -n "$startup_files" ]; then
-      while IFS= read -r startup_file; do
-        [ -n "$startup_file" ] || continue
-        set -- "$@" --startup-file "$startup_file"
-      done <<EOF
-$startup_files
-EOF
-    fi
-  fi
-  if [ "$manifest_missing" -eq 0 ]; then
-    while IFS= read -r shim_name; do
-      [ -n "$shim_name" ] || continue
-      set -- "$@" --shim "$shim_name"
+  if [ "$UPDATE_ALL" -eq 1 ]; then
+    while IFS= read -r profile_name; do
+      [ -n "$profile_name" ] || continue
+      SHIMMY_PROFILE_REQUESTED=$profile_name
+      profile_paths_resolve "$install_dir"
+      profile_manifest_file=$(manifest_file_resolve)
+      [ -f "$profile_manifest_file" ] || fail "no shimmy profile manifest found for profile $profile_name at $profile_manifest_file"
+      profile_shims=$(manifest_shim_list "$profile_manifest_file")
+      profile_refresh_run "$profile_name" "$profile_manifest_file" "$profile_shims"
     done <<EOF
-$(manifest_shim_list "$manifest_file")
+$(installed_profile_list "$root_manifest_file")
 EOF
+    exit 0
   fi
-  if [ -n "$PREVIOUS_SOURCE_REF" ]; then
-    if [ -n "$UPDATE_SOURCE_CHECKOUT" ]; then
-      SHIMMY_UPSTREAM_CHECKOUT_DIR=$UPDATE_SOURCE_CHECKOUT SHIMMY_PREVIOUS_SOURCE_REF=$PREVIOUS_SOURCE_REF "$@"
-    else
-      SHIMMY_PREVIOUS_SOURCE_REF=$PREVIOUS_SOURCE_REF "$@"
-    fi
+
+  installed_shims=$(manifest_shim_list "$manifest_file")
+  if [ -n "$REQUESTED_SHIMS" ]; then
+    for shim_name in $REQUESTED_SHIMS; do
+      if ! line_list_contains "$installed_shims" "$shim_name"; then
+        warn "$shim_name not installed; run shimmy install --shim $shim_name"
+        exit 1
+      fi
+    done
+    shims_to_refresh=$REQUESTED_SHIMS
   else
-    if [ -n "$UPDATE_SOURCE_CHECKOUT" ]; then
-      SHIMMY_UPSTREAM_CHECKOUT_DIR=$UPDATE_SOURCE_CHECKOUT "$@"
-    else
-      "$@"
-    fi
+    shims_to_refresh=$(default_installed_shim_list "$manifest_file")
+    [ -n "$shims_to_refresh" ] || fail "no default shims are installed in profile $SHIMMY_PROFILE_NAME; run ./shimmy install first"
   fi
 
-  profile_paths_resolve "$install_dir"
-  manifest_file=$(manifest_file_resolve)
-
-  shim_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
-  images_dir=$SHIMMY_PROFILE_DIR/images
-
-  if [ "$PULL_IMAGES" -eq 1 ]; then
-    run_pull_refresh "$shim_dir" "$manifest_file" "$SHIMMY_PROFILE_NAME"
-  fi
-
-  if [ "$BUILD_IMAGES" -eq 1 ]; then
-    run_build_refresh "$shim_dir" "$images_dir" "$manifest_file" "$SHIMMY_PROFILE_NAME"
-  fi
+  profile_refresh_run "$SHIMMY_PROFILE_NAME" "$manifest_file" "$shims_to_refresh"
 }
 
 main "$@"

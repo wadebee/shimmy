@@ -2068,7 +2068,7 @@ test_installed_shim_install_adds_available_shim() {
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install opnsense-mcp-server 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim opnsense-mcp-server 2>&1
   )
 
   assert_contains "$output" "Installed shim: opnsense-mcp-server"
@@ -2086,10 +2086,10 @@ test_installed_shim_install_adds_available_shim() {
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install opnsense-mcp-server 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim opnsense-mcp-server 2>&1
   )
 
-  assert_contains "$output" "Refreshed installed shim: opnsense-mcp-server"
+  assert_contains "$output" "WARN: Shim already installed: opnsense-mcp-server; run shimmy update --shim opnsense-mcp-server to refresh it"
 
   manifest_contents=$(cat "$INSTALL_DIR/profiles/default/install-manifest.txt")
   assert_contains "$manifest_contents" "shim=jq"
@@ -2112,21 +2112,21 @@ test_installed_shim_install_adds_available_shim() {
   pass "installed shimmy installs available shims additively"
 }
 
-test_installed_shim_install_requires_name() {
+test_installed_shim_install_rejects_positional_name() {
   setup_scenario
 
   HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
 
   if output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install opnsense-mcp-server 2>&1
   ); then
-    fail_test "expected installed shim install without a shim name to fail"
+    fail_test "expected installed shim install with positional shim name to fail"
   fi
 
-  assert_contains "$output" "ERROR: install must include the name of an available shim"
+  assert_contains "$output" "ERROR: unknown argument: opnsense-mcp-server"
 
-  pass "installed shimmy install requires a shim name"
+  pass "installed shimmy install rejects positional shim names"
 }
 
 test_installed_update_fetches_manifest_source() {
@@ -2218,7 +2218,7 @@ test_installed_update_requires_pull_for_image_refresh() {
   pass "installed update forwards --pull for explicit image refresh"
 }
 
-test_update_reinstalls_selected_shims() {
+test_update_reinstalls_default_shims_only() {
   setup_scenario
 
   HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task >/dev/null
@@ -2228,9 +2228,56 @@ test_update_reinstalls_selected_shims() {
   HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" >/dev/null
 
   assert_file_exists "$INSTALL_DIR/shims/jq"
+  assert_path_not_exists "$INSTALL_DIR/shims/task"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "shim=task"
+
+  pass "update reinstalls default shims only"
+}
+
+test_update_shim_reinstalls_selected_shim() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task >/dev/null
+  rm -f "$INSTALL_DIR/shims/jq"
+  rm -f "$INSTALL_DIR/shims/task"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --shim task >/dev/null
+
+  assert_path_not_exists "$INSTALL_DIR/shims/jq"
   assert_file_exists "$INSTALL_DIR/shims/task"
 
-  pass "update reinstalls manifest-selected shims"
+  pass "update --shim reinstalls one selected shim"
+}
+
+test_update_shim_requires_installed_shim() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
+
+  if output=$(
+    HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --shim task 2>&1
+  ); then
+    fail_test "expected update --shim for missing shim to fail"
+  fi
+
+  assert_contains "$output" "WARN: task not installed; run shimmy install --shim task"
+
+  pass "update --shim rejects missing shims"
+}
+
+test_update_all_reinstalls_profile_shims() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task >/dev/null
+  rm -f "$INSTALL_DIR/shims/jq"
+  rm -f "$INSTALL_DIR/shims/task"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --all >/dev/null
+
+  assert_file_exists "$INSTALL_DIR/shims/jq"
+  assert_file_exists "$INSTALL_DIR/shims/task"
+
+  pass "update --all reinstalls profile shims"
 }
 
 test_update_preserves_shimmy_manifest_fields() {
@@ -3030,11 +3077,14 @@ main() {
   test_status_upstream_checkout_absolute_resolution
   test_installed_shimmy_management_command
   test_installed_shim_install_adds_available_shim
-  test_installed_shim_install_requires_name
+  test_installed_shim_install_rejects_positional_name
   test_installed_update_fetches_manifest_source
   test_repo_update_uses_current_checkout
   test_installed_update_requires_pull_for_image_refresh
-  test_update_reinstalls_selected_shims
+  test_update_reinstalls_default_shims_only
+  test_update_shim_reinstalls_selected_shim
+  test_update_shim_requires_installed_shim
+  test_update_all_reinstalls_profile_shims
   test_update_preserves_shimmy_manifest_fields
   test_update_mode_default_profile
   test_update_mode_environment_fallback

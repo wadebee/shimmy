@@ -29,7 +29,7 @@ Usage:
   shimmy <command> [options]
 
 Commands:
-  install <shim>...     Install available shims into this environment
+  install [args...]     Install missing shims into this environment
   uninstall [args...]   Remove this installed environment
   activate [args...]    Print shell code that activates the installed shim paths now
   netinfo [args...]     Run scripts/netinfo-shimmy.sh
@@ -41,7 +41,7 @@ Commands:
 
 Examples:
   eval "$(shimmy activate)"
-  shimmy install opnsense-mcp-server
+  shimmy install --shim opnsense-mcp-server
   shimmy uninstall
   shimmy netinfo
   shimmy skills install --target repo
@@ -99,14 +99,6 @@ run_repo_script() {
   exec "$script_path" "$@"
 }
 
-run_installed_shim_install() {
-  if [ "$#" -eq 0 ]; then
-    fail "install must include the name of an available shim"
-  fi
-
-  run_repo_script "$ROOT_DIR/scripts/install-shimmy.sh" --add-shim "$@"
-}
-
 main() {
   command_name=${1:-help}
 
@@ -115,10 +107,6 @@ main() {
       usage
       ;;
     install)
-      if [ "$INSTALLED_LAUNCHER" -eq 1 ]; then
-        shift
-        run_installed_shim_install "$@"
-      fi
       shift
       run_repo_script "$ROOT_DIR/scripts/install-shimmy.sh" "$@"
       ;;
