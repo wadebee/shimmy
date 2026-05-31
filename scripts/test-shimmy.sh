@@ -8,6 +8,7 @@ ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
 SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
+COMMON_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-common.sh
 CATALOG_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-catalog.sh
 PROFILE_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-profile.sh
 TMP_PARENT=${TMPDIR:-/tmp}
@@ -52,12 +53,18 @@ if [ ! -f "$CATALOG_HELPER_FILE" ]; then
   fail_test "missing catalog helper: $CATALOG_HELPER_FILE"
 fi
 
+if [ ! -f "$COMMON_HELPER_FILE" ]; then
+  fail_test "missing common helper: $COMMON_HELPER_FILE"
+fi
+
 if [ ! -f "$PROFILE_HELPER_FILE" ]; then
   fail_test "missing profile helper: $PROFILE_HELPER_FILE"
 fi
 
 # shellcheck source=lib/shims/shimmy-podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
+# shellcheck source=lib/repo/shimmy-common.sh
+. "$COMMON_HELPER_FILE"
 # shellcheck source=lib/repo/shimmy-catalog.sh
 . "$CATALOG_HELPER_FILE"
 # shellcheck source=lib/repo/shimmy-profile.sh
@@ -230,11 +237,11 @@ parse_args() {
 
 test_install_dir_resolve() {
   if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    shimmy_path_trim_trailing_slash "$REQUESTED_INSTALL_DIR"
+    shimmy_trim_path_trailing_slash "$REQUESTED_INSTALL_DIR"
     return 0
   fi
 
-  shimmy_path_trim_trailing_slash "${SHIMMY_INSTALL_DIR:-${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}}"
+  shimmy_trim_path_trailing_slash "${SHIMMY_INSTALL_DIR:-${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}}"
 }
 
 test_profile_manifest_resolve() {
@@ -255,7 +262,7 @@ test_root_default_shim_contains() {
       return 0
     fi
   done <<EOF
-$(shimmy_manifest_values "$root_manifest_file" default_shim || true)
+$(shimmy_read_manifest_values "$root_manifest_file" default_shim || true)
 EOF
 
   return 1
@@ -271,7 +278,7 @@ test_root_shim_resolve() {
     return 0
   fi
 
-  shimmy_manifest_values "$root_manifest_file" default_shim || true
+  shimmy_read_manifest_values "$root_manifest_file" default_shim || true
 }
 
 test_manifest_shim_contains() {
@@ -284,7 +291,7 @@ test_manifest_shim_contains() {
       return 0
     fi
   done <<EOF
-$(shimmy_manifest_values "$manifest_file" shim || true)
+$(shimmy_read_manifest_values "$manifest_file" shim || true)
 EOF
 
   return 1
@@ -294,7 +301,7 @@ test_root_manifest_validate() {
   root_manifest_file=$1
 
   [ -f "$root_manifest_file" ] || fail_test "no Shimmy root manifest found: $root_manifest_file"
-  root_install_dir=$(shimmy_manifest_value "$root_manifest_file" install_dir || true)
+  root_install_dir=$(shimmy_read_manifest_value "$root_manifest_file" install_dir || true)
   [ -n "$root_install_dir" ] || fail_test "root manifest missing install_dir: $root_manifest_file"
 
   for shim_name in $(shimmy_default_shim_list); do
@@ -355,7 +362,7 @@ test_profile_shim_resolve() {
       printf '%s\n' "$shim_name"
     fi
   done <<EOF
-$(shimmy_manifest_values "$manifest_file" shim || true)
+$(shimmy_read_manifest_values "$manifest_file" shim || true)
 EOF
 }
 
@@ -421,18 +428,18 @@ run_profile_tests() {
   fi
 
   if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then
-    source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
+    source_checkout=$(shimmy_read_manifest_value "$manifest_file" source_checkout || true)
     upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" || true)
     if [ -n "$upstream_invalid_reason" ]; then
       fail_test "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout; rerun ./shimmy install --profile upstream from the desired Shimmy checkout"
     fi
   fi
 
-  bin_dir=$(shimmy_manifest_value "$manifest_file" bin_dir || true)
+  bin_dir=$(shimmy_read_manifest_value "$manifest_file" bin_dir || true)
   [ -n "$bin_dir" ] || bin_dir=$SHIMMY_PROFILE_BIN_DIR
-  dispatcher_dir=$(shimmy_manifest_value "$root_manifest_file" dispatcher_dir || true)
+  dispatcher_dir=$(shimmy_read_manifest_value "$root_manifest_file" dispatcher_dir || true)
   [ -n "$dispatcher_dir" ] || dispatcher_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
-  config_dir=$(shimmy_manifest_value "$manifest_file" config_dir || true)
+  config_dir=$(shimmy_read_manifest_value "$manifest_file" config_dir || true)
   [ -n "$config_dir" ] || config_dir=$SHIMMY_PROFILE_CONFIG_DIR
 
   printf 'Shimmy Test\n'

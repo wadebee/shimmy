@@ -97,11 +97,15 @@ esac
 
 shim_name_validate "$shim_name" || fail "invalid shim name for Shimmy dispatcher: $shim_name"
 
+common_helper=$install_dir/libexec/shimmy/lib/repo/shimmy-common.sh
 profile_helper=$install_dir/libexec/shimmy/lib/repo/shimmy-profile.sh
 central_dispatcher=$install_dir/libexec/shimmy/scripts/dispatch-shimmy.sh
 
+[ -f "$common_helper" ] || fail "missing Shimmy common helper: $common_helper"
 [ -f "$profile_helper" ] || fail "missing Shimmy profile helper: $profile_helper"
 
+# shellcheck source=lib/repo/shimmy-common.sh
+. "$common_helper"
 # shellcheck source=lib/repo/shimmy-profile.sh
 . "$profile_helper"
 
@@ -116,14 +120,14 @@ if ! shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEME
 fi
 
 if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then
-  source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
+  source_checkout=$(shimmy_read_manifest_value "$manifest_file" source_checkout || true)
   upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" "$shim_name" || true)
   if [ -n "$upstream_invalid_reason" ]; then
     fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout; rerun ./shimmy install --profile upstream from the desired Shimmy checkout"
   fi
 fi
 
-target_dir=$(shimmy_manifest_value "$manifest_file" bin_dir || true)
+target_dir=$(shimmy_read_manifest_value "$manifest_file" bin_dir || true)
 if [ -z "$target_dir" ]; then
   target_dir=$SHIMMY_PROFILE_BIN_DIR
 fi
@@ -132,9 +136,9 @@ target_path=$target_dir/$shim_name
 
 [ -f "$target_path" ] || fail "no Shimmy profile implementation for $shim_name in profile $SHIMMY_PROFILE_NAME: $target_path"
 
-entry_path=$(path_absolute_resolve "$0")
-target_absolute=$(path_absolute_resolve "$target_path")
-central_absolute=$(path_absolute_resolve "$central_dispatcher")
+entry_path=$(shimmy_resolve_path_absolute "$0")
+target_absolute=$(shimmy_resolve_path_absolute "$target_path")
+central_absolute=$(shimmy_resolve_path_absolute "$central_dispatcher")
 
 if [ "$target_absolute" = "$entry_path" ] || [ "$target_absolute" = "$central_absolute" ]; then
   fail "refusing recursive Shimmy dispatch for $shim_name: $target_path"

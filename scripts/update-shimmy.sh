@@ -7,6 +7,7 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
+COMMON_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-common.sh
 CATALOG_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-catalog.sh
 PROFILE_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-profile.sh
 STARTUP_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-startup.sh
@@ -39,6 +40,10 @@ if [ ! -f "$CATALOG_HELPER_FILE" ]; then
   fail "missing catalog helper: $CATALOG_HELPER_FILE"
 fi
 
+if [ ! -f "$COMMON_HELPER_FILE" ]; then
+  fail "missing common helper: $COMMON_HELPER_FILE"
+fi
+
 if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
   fail "missing custom image helper: $SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 fi
@@ -55,6 +60,8 @@ if [ ! -f "$PROFILE_HELPER_FILE" ]; then
   fail "missing profile helper: $PROFILE_HELPER_FILE"
 fi
 
+# shellcheck source=lib/repo/shimmy-common.sh
+. "$COMMON_HELPER_FILE"
 # shellcheck source=lib/repo/shimmy-catalog.sh
 . "$CATALOG_HELPER_FILE"
 # shellcheck source=lib/repo/shimmy-profile.sh
@@ -66,61 +73,13 @@ fi
 # shellcheck source=lib/shims/shimmy-podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
 
-trim_trailing_slash() {
-  path_value=${1:-}
-
-  case "$path_value" in
-    ''|/)
-      printf '%s\n' "$path_value"
-      ;;
-    */)
-      printf '%s\n' "${path_value%/}"
-      ;;
-    *)
-      printf '%s\n' "$path_value"
-      ;;
-  esac
-}
-
 install_dir_resolve() {
   if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    printf '%s\n' "$(trim_trailing_slash "$REQUESTED_INSTALL_DIR")"
+    printf '%s\n' "$(shimmy_trim_path_trailing_slash "$REQUESTED_INSTALL_DIR")"
     return 0
   fi
 
-  printf '%s\n' "$(trim_trailing_slash "$DEFAULT_INSTALL_DIR")"
-}
-
-manifest_value() {
-  manifest_file=$1
-  key=$2
-
-  if [ ! -f "$manifest_file" ]; then
-    return 1
-  fi
-
-  sed -n "s/^${key}=//p" "$manifest_file" | sed -n '1p'
-}
-
-manifest_values() {
-  manifest_file=$1
-  key=$2
-
-  if [ ! -f "$manifest_file" ]; then
-    return 1
-  fi
-
-  sed -n "s/^${key}=//p" "$manifest_file"
-}
-
-manifest_shim_list() {
-  manifest_file=$1
-
-  if [ ! -f "$manifest_file" ]; then
-    return 1
-  fi
-
-  sed -n 's/^shim=//p' "$manifest_file"
+  printf '%s\n' "$(shimmy_trim_path_trailing_slash "$DEFAULT_INSTALL_DIR")"
 }
 
 manifest_file_resolve() {
@@ -133,33 +92,6 @@ profile_paths_resolve() {
   if ! shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$install_dir" "$ROOT_DIR"; then
     fail "unsupported Shimmy profile: ${SHIMMY_PROFILE_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
   fi
-}
-
-line_list_append() {
-  list_value=${1:-}
-  line_value=$2
-
-  if [ -n "$list_value" ]; then
-    printf '%s\n%s\n' "$list_value" "$line_value"
-  else
-    printf '%s\n' "$line_value"
-  fi
-}
-
-line_list_contains() {
-  list_value=${1:-}
-  line_value=$2
-
-  while IFS= read -r existing_line; do
-    [ -n "$existing_line" ] || continue
-    if [ "$existing_line" = "$line_value" ]; then
-      return 0
-    fi
-  done <<EOF
-$list_value
-EOF
-
-  return 1
 }
 
 requested_shim_append() {
@@ -190,7 +122,7 @@ run_installed_management_update() {
   install_dir=$1
   manifest_file=$2
 
-  source_url=$(manifest_value "$manifest_file" shimmy_source_url || true)
+  source_url=$(shimmy_read_manifest_value "$manifest_file" shimmy_source_url || true)
   [ -n "$source_url" ] || fail "no shimmy_source_url found in $manifest_file; run update from a Shimmy source checkout"
   command -v git >/dev/null 2>&1 || fail "git is required for installed shimmy update"
 
@@ -377,12 +309,12 @@ EOF
 
 default_installed_shim_list() {
   manifest_file=$1
-  installed_shims=$(manifest_shim_list "$manifest_file")
+  installed_shims=$(shimmy_read_manifest_shims "$manifest_file")
   default_installed_shims=
 
   for shim_name in $(shimmy_default_shim_list); do
-    if line_list_contains "$installed_shims" "$shim_name"; then
-      default_installed_shims=$(line_list_append "$default_installed_shims" "$shim_name")
+    if shimmy_contains_line_list "$installed_shims" "$shim_name"; then
+      default_installed_shims=$(shimmy_append_line_list "$default_installed_shims" "$shim_name")
     fi
   done
 
@@ -394,14 +326,14 @@ installed_profile_list() {
   profile_names=
 
   if [ -f "$root_manifest_file" ]; then
-    profile_names=$(manifest_values "$root_manifest_file" profile || true)
+    profile_names=$(shimmy_read_manifest_values "$root_manifest_file" profile || true)
   fi
 
   for profile_manifest_file in "$install_dir"/profiles/*/install-manifest.txt; do
     [ -f "$profile_manifest_file" ] || continue
     profile_name=$(basename "$(dirname "$profile_manifest_file")")
-    if ! line_list_contains "$profile_names" "$profile_name"; then
-      profile_names=$(line_list_append "$profile_names" "$profile_name")
+    if ! shimmy_contains_line_list "$profile_names" "$profile_name"; then
+      profile_names=$(shimmy_append_line_list "$profile_names" "$profile_name")
     fi
   done
 
@@ -415,9 +347,9 @@ profile_refresh_run() {
 
   [ -n "$shim_list" ] || fail "no installed shims selected for profile $profile_name"
 
-  PREVIOUS_SOURCE_REF=$(manifest_value "$profile_manifest_file" shimmy_source_ref || true)
+  PREVIOUS_SOURCE_REF=$(shimmy_read_manifest_value "$profile_manifest_file" shimmy_source_ref || true)
   UPDATE_SOURCE_CHECKOUT=
-  manifest_source_checkout=$(manifest_value "$profile_manifest_file" source_checkout || true)
+  manifest_source_checkout=$(shimmy_read_manifest_value "$profile_manifest_file" source_checkout || true)
   if [ "$profile_name" = upstream ] && [ -n "$manifest_source_checkout" ]; then
     UPDATE_SOURCE_CHECKOUT=$manifest_source_checkout
     upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$UPDATE_SOURCE_CHECKOUT" || true)
@@ -434,10 +366,10 @@ profile_refresh_run() {
     startup_files=$REQUESTED_STARTUP_FILES
 
     if [ -z "$startup_shell" ]; then
-      startup_shell=$(manifest_value "$root_manifest_file" startup_shell || true)
+      startup_shell=$(shimmy_read_manifest_value "$root_manifest_file" startup_shell || true)
     fi
     if [ -z "$startup_files" ]; then
-      startup_files=$(manifest_values "$root_manifest_file" startup_file || true)
+      startup_files=$(shimmy_read_manifest_values "$root_manifest_file" startup_file || true)
     fi
 
     if [ -n "$startup_shell" ]; then
@@ -548,7 +480,7 @@ main() {
         ;;
       --startup-file)
         [ "$#" -ge 2 ] || fail "missing value for --startup-file"
-        REQUESTED_STARTUP_FILES=$(line_list_append "$REQUESTED_STARTUP_FILES" "$2")
+        REQUESTED_STARTUP_FILES=$(shimmy_append_line_list "$REQUESTED_STARTUP_FILES" "$2")
         shift 2
         ;;
       -h|--help)
@@ -578,9 +510,9 @@ main() {
   manifest_file=$(manifest_file_resolve)
   root_manifest_file=$install_dir/install-manifest.txt
 
-  manifest_install_dir=$(manifest_value "$root_manifest_file" install_dir || true)
+  manifest_install_dir=$(shimmy_read_manifest_value "$root_manifest_file" install_dir || true)
   if [ -n "$manifest_install_dir" ]; then
-    install_dir=$(trim_trailing_slash "$manifest_install_dir")
+    install_dir=$(shimmy_trim_path_trailing_slash "$manifest_install_dir")
     profile_paths_resolve "$install_dir"
     manifest_file=$(manifest_file_resolve)
     root_manifest_file=$install_dir/install-manifest.txt
@@ -614,7 +546,7 @@ main() {
       profile_paths_resolve "$install_dir"
       profile_manifest_file=$(manifest_file_resolve)
       [ -f "$profile_manifest_file" ] || fail "no shimmy profile manifest found for profile $profile_name at $profile_manifest_file"
-      profile_shims=$(manifest_shim_list "$profile_manifest_file")
+      profile_shims=$(shimmy_read_manifest_shims "$profile_manifest_file")
       profile_refresh_run "$profile_name" "$profile_manifest_file" "$profile_shims"
     done <<EOF
 $(installed_profile_list "$root_manifest_file")
@@ -622,10 +554,10 @@ EOF
     exit 0
   fi
 
-  installed_shims=$(manifest_shim_list "$manifest_file")
+  installed_shims=$(shimmy_read_manifest_shims "$manifest_file")
   if [ -n "$REQUESTED_SHIMS" ]; then
     for shim_name in $REQUESTED_SHIMS; do
-      if ! line_list_contains "$installed_shims" "$shim_name"; then
+      if ! shimmy_contains_line_list "$installed_shims" "$shim_name"; then
         warn "$shim_name not installed; run shimmy install --shim $shim_name"
         exit 1
       fi

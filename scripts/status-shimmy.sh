@@ -7,6 +7,7 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
+COMMON_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-common.sh
 CATALOG_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-catalog.sh
 PROFILE_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-profile.sh
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
@@ -29,10 +30,16 @@ if [ ! -f "$CATALOG_HELPER_FILE" ]; then
   fail "missing catalog helper: $CATALOG_HELPER_FILE"
 fi
 
+if [ ! -f "$COMMON_HELPER_FILE" ]; then
+  fail "missing common helper: $COMMON_HELPER_FILE"
+fi
+
 if [ ! -f "$PROFILE_HELPER_FILE" ]; then
   fail "missing profile helper: $PROFILE_HELPER_FILE"
 fi
 
+# shellcheck source=lib/repo/shimmy-common.sh
+. "$COMMON_HELPER_FILE"
 # shellcheck source=lib/repo/shimmy-catalog.sh
 . "$CATALOG_HELPER_FILE"
 # shellcheck source=lib/repo/shimmy-profile.sh
@@ -42,21 +49,11 @@ fi
 
 install_dir_resolve() {
   if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    printf '%s\n' "$(shimmy_path_trim_trailing_slash "$REQUESTED_INSTALL_DIR")"
+    printf '%s\n' "$(shimmy_trim_path_trailing_slash "$REQUESTED_INSTALL_DIR")"
     return 0
   fi
 
-  printf '%s\n' "$(shimmy_path_trim_trailing_slash "$DEFAULT_INSTALL_DIR")"
-}
-
-manifest_shim_list() {
-  manifest_file=$1
-
-  if [ ! -f "$manifest_file" ]; then
-    return 0
-  fi
-
-  shimmy_manifest_values "$manifest_file" shim || true
+  printf '%s\n' "$(shimmy_trim_path_trailing_slash "$DEFAULT_INSTALL_DIR")"
 }
 
 installed_shim_list() {
@@ -64,7 +61,7 @@ installed_shim_list() {
   shim_dir=$2
 
   if [ -f "$manifest_file" ]; then
-    manifest_shim_list "$manifest_file"
+    shimmy_read_manifest_shims "$manifest_file" || true
     return 0
   fi
 
@@ -241,10 +238,10 @@ print_manifest_status() {
   root_profile_default=default
 
   if [ -f "$root_manifest_file" ]; then
-    manifest_dispatcher_dir=$(shimmy_manifest_value "$root_manifest_file" dispatcher_dir || true)
-    manifest_control_bin=$(shimmy_manifest_value "$root_manifest_file" control_bin || true)
-    manifest_activate_file=$(shimmy_manifest_value "$root_manifest_file" activate_file || true)
-    manifest_profile_default=$(shimmy_manifest_value "$root_manifest_file" shimmy_profile_default || true)
+    manifest_dispatcher_dir=$(shimmy_read_manifest_value "$root_manifest_file" dispatcher_dir || true)
+    manifest_control_bin=$(shimmy_read_manifest_value "$root_manifest_file" control_bin || true)
+    manifest_activate_file=$(shimmy_read_manifest_value "$root_manifest_file" activate_file || true)
+    manifest_profile_default=$(shimmy_read_manifest_value "$root_manifest_file" shimmy_profile_default || true)
     [ -z "$manifest_dispatcher_dir" ] || root_dispatcher_dir=$manifest_dispatcher_dir
     [ -z "$manifest_control_bin" ] || root_control_bin=$manifest_control_bin
     [ -z "$manifest_activate_file" ] || root_activate_file=$manifest_activate_file
@@ -280,11 +277,11 @@ print_manifest_status() {
   printf 'shimmy_profile_shim_dir=%s\n' "$shim_dir"
 
   if [ -f "$manifest_file" ]; then
-    shim_source=$(shimmy_manifest_value "$manifest_file" shim_source || true)
-    source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
-    source_url=$(shimmy_manifest_value "$manifest_file" shimmy_source_url || true)
-    source_ref=$(shimmy_manifest_value "$manifest_file" shimmy_source_ref || true)
-    previous_source_ref=$(shimmy_manifest_value "$manifest_file" shimmy_previous_source_ref || true)
+    shim_source=$(shimmy_read_manifest_value "$manifest_file" shim_source || true)
+    source_checkout=$(shimmy_read_manifest_value "$manifest_file" source_checkout || true)
+    source_url=$(shimmy_read_manifest_value "$manifest_file" shimmy_source_url || true)
+    source_ref=$(shimmy_read_manifest_value "$manifest_file" shimmy_source_ref || true)
+    previous_source_ref=$(shimmy_read_manifest_value "$manifest_file" shimmy_previous_source_ref || true)
     [ -z "$shim_source" ] || printf 'shimmy_profile_shim_source=%s\n' "$shim_source"
     [ -z "$source_checkout" ] || printf 'shimmy_profile_source_checkout=%s\n' "$source_checkout"
     [ -z "$source_url" ] || printf 'shimmy_profile_source_url=%s\n' "$source_url"
@@ -294,12 +291,12 @@ print_manifest_status() {
       [ -n "$shim_name" ] || continue
       printf 'shimmy_profile_shim=%s\n' "$shim_name"
     done <<EOF
-$(manifest_shim_list "$manifest_file")
+$(shimmy_read_manifest_shims "$manifest_file" || true)
 EOF
   fi
 
   if [ "$SHIMMY_PROFILE_NAME" = upstream ] && [ -f "$manifest_file" ]; then
-    source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
+    source_checkout=$(shimmy_read_manifest_value "$manifest_file" source_checkout || true)
     upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" || true)
     if [ -n "$upstream_invalid_reason" ]; then
       printf 'shimmy_missing=%s\n' "$upstream_invalid_reason"
@@ -372,9 +369,9 @@ main() {
   shim_lib_dir=$SHIMMY_PROFILE_DIR/lib/shims
 
   if [ -f "$root_manifest_file" ]; then
-    manifest_install_dir=$(shimmy_manifest_value "$root_manifest_file" install_dir || true)
+    manifest_install_dir=$(shimmy_read_manifest_value "$root_manifest_file" install_dir || true)
     if [ -n "$manifest_install_dir" ]; then
-      install_dir=$(shimmy_path_trim_trailing_slash "$manifest_install_dir")
+      install_dir=$(shimmy_trim_path_trailing_slash "$manifest_install_dir")
       shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$install_dir" "$ROOT_DIR" || fail "unsupported Shimmy profile: ${SHIMMY_PROFILE_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
       manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
       root_manifest_file=$install_dir/install-manifest.txt
@@ -385,7 +382,7 @@ main() {
   fi
 
   if [ -f "$manifest_file" ]; then
-    manifest_source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
+    manifest_source_checkout=$(shimmy_read_manifest_value "$manifest_file" source_checkout || true)
     if [ "$SHIMMY_PROFILE_NAME" = upstream ] && [ -n "$manifest_source_checkout" ]; then
       SHIMMY_PROFILE_SOURCE_CHECKOUT=$manifest_source_checkout
     fi

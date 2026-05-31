@@ -7,6 +7,7 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
+COMMON_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-common.sh
 
 DEFAULT_INSTALL_DIR=${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}
 REQUESTED_INSTALL_DIR=
@@ -28,6 +29,13 @@ fail() {
   exit 1
 }
 
+if [ ! -f "$COMMON_HELPER_FILE" ]; then
+  fail "missing common helper: $COMMON_HELPER_FILE"
+fi
+
+# shellcheck source=lib/repo/shimmy-common.sh
+. "$COMMON_HELPER_FILE"
+
 ensure_safe_root() {
   root_path=$1
 
@@ -40,49 +48,6 @@ ensure_safe_root() {
 
 log_info() {
   printf 'INFO: %s\n' "$*" >&2
-}
-
-line_list_append() {
-  list_value=${1:-}
-  line_value=$2
-
-  if [ -n "$list_value" ]; then
-    printf '%s\n%s\n' "$list_value" "$line_value"
-  else
-    printf '%s\n' "$line_value"
-  fi
-}
-
-line_list_contains() {
-  list_value=${1:-}
-  line_value=$2
-
-  while IFS= read -r existing_line; do
-    [ -n "$existing_line" ] || continue
-    if [ "$existing_line" = "$line_value" ]; then
-      return 0
-    fi
-  done <<EOF
-$list_value
-EOF
-
-  return 1
-}
-
-trim_trailing_slash() {
-  path_value=${1:-}
-
-  case "$path_value" in
-    ''|/)
-      printf '%s\n' "$path_value"
-      ;;
-    */)
-      printf '%s\n' "${path_value%/}"
-      ;;
-    *)
-      printf '%s\n' "$path_value"
-      ;;
-  esac
 }
 
 usage() {
@@ -156,10 +121,10 @@ target_root_resolve() {
       if [ -n "${SHIMMY_SKILLS_PLUGIN_DIR:-}" ]; then
         case "$SHIMMY_SKILLS_PLUGIN_DIR" in
           */skills)
-            printf '%s\n' "$(trim_trailing_slash "$SHIMMY_SKILLS_PLUGIN_DIR")"
+            printf '%s\n' "$(shimmy_trim_path_trailing_slash "$SHIMMY_SKILLS_PLUGIN_DIR")"
             ;;
           *)
-            printf '%s/skills\n' "$(trim_trailing_slash "$SHIMMY_SKILLS_PLUGIN_DIR")"
+            printf '%s/skills\n' "$(shimmy_trim_path_trailing_slash "$SHIMMY_SKILLS_PLUGIN_DIR")"
             ;;
         esac
         return 0
@@ -200,8 +165,8 @@ skill_manifest_skill_names_read() {
         skill_entry=${skill_entry#*|}
         skill_name=${skill_entry%%|*}
         [ -n "$skill_name" ] || continue
-        if ! line_list_contains "$skill_names" "$skill_name"; then
-          skill_names=$(line_list_append "$skill_names" "$skill_name")
+        if ! shimmy_contains_line_list "$skill_names" "$skill_name"; then
+          skill_names=$(shimmy_append_line_list "$skill_names" "$skill_name")
         fi
         ;;
     esac
@@ -238,8 +203,8 @@ installed_shim_skill_names_read() {
         shim_name=${manifest_line#shim=}
         [ -n "$shim_name" ] || continue
         skill_name=$(installed_shim_skill_name_render "$shim_name")
-        if ! line_list_contains "$skill_names" "$skill_name"; then
-          skill_names=$(line_list_append "$skill_names" "$skill_name")
+        if ! shimmy_contains_line_list "$skill_names" "$skill_name"; then
+          skill_names=$(shimmy_append_line_list "$skill_names" "$skill_name")
         fi
         ;;
     esac
@@ -256,8 +221,8 @@ default_skill_names_resolve() {
 
   while IFS= read -r installed_skill_name; do
     [ -n "$installed_skill_name" ] || continue
-    if ! line_list_contains "$default_skills" "$installed_skill_name"; then
-      default_skills=$(line_list_append "$default_skills" "$installed_skill_name")
+    if ! shimmy_contains_line_list "$default_skills" "$installed_skill_name"; then
+      default_skills=$(shimmy_append_line_list "$default_skills" "$installed_skill_name")
     fi
   done <<EOF
 $installed_skill_names
@@ -290,8 +255,8 @@ selected_skill_names_resolve() {
   combined_skills=$existing_skills
   while IFS= read -r selected_skill; do
     [ -n "$selected_skill" ] || continue
-    if ! line_list_contains "$combined_skills" "$selected_skill"; then
-      combined_skills=$(line_list_append "$combined_skills" "$selected_skill")
+    if ! shimmy_contains_line_list "$combined_skills" "$selected_skill"; then
+      combined_skills=$(shimmy_append_line_list "$combined_skills" "$selected_skill")
     fi
   done <<EOF
 $selected_skills
@@ -397,12 +362,12 @@ install_manifest_file_resolve() {
   esac
 
   if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    printf '%s/profiles/%s/install-manifest.txt\n' "$(trim_trailing_slash "$REQUESTED_INSTALL_DIR")" "$profile_name"
+    printf '%s/profiles/%s/install-manifest.txt\n' "$(shimmy_trim_path_trailing_slash "$REQUESTED_INSTALL_DIR")" "$profile_name"
     return 0
   fi
 
   if [ -n "${SHIMMY_CONTROL_INSTALL_DIR:-}" ]; then
-    printf '%s/profiles/%s/install-manifest.txt\n' "$(trim_trailing_slash "$DEFAULT_INSTALL_DIR")" "$profile_name"
+    printf '%s/profiles/%s/install-manifest.txt\n' "$(shimmy_trim_path_trailing_slash "$DEFAULT_INSTALL_DIR")" "$profile_name"
     return 0
   fi
 
@@ -490,7 +455,7 @@ skills_export() {
       log_info "Exported skills archive: $export_path"
       ;;
     *)
-      export_root=$(trim_trailing_slash "$export_path")
+      export_root=$(shimmy_trim_path_trailing_slash "$export_path")
       target_manifest_file=$export_root/$SKILLS_MANIFEST_NAME
       skill_names=$(selected_skill_names_resolve "$target_manifest_file")
       mkdir -p "$export_root"

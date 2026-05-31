@@ -7,6 +7,7 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
+COMMON_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-common.sh
 PROFILE_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-profile.sh
 DEFAULT_INSTALL_DIR=${SHIMMY_INSTALL_DIR:-${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}}
 REQUESTED_INSTALL_DIR=
@@ -17,24 +18,26 @@ fail() {
   exit 1
 }
 
+if [ ! -f "$COMMON_HELPER_FILE" ]; then
+  fail "missing common helper: $COMMON_HELPER_FILE"
+fi
+
 if [ ! -f "$PROFILE_HELPER_FILE" ]; then
   fail "missing profile helper: $PROFILE_HELPER_FILE"
 fi
 
+# shellcheck source=lib/repo/shimmy-common.sh
+. "$COMMON_HELPER_FILE"
 # shellcheck source=lib/repo/shimmy-profile.sh
 . "$PROFILE_HELPER_FILE"
 
-shell_quote() {
-  printf "%s" "$1" | sed "s/'/'\\\\''/g; 1s/^/'/; \$s/\$/'/"
-}
-
 resolve_install_dir() {
   if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    printf '%s\n' "$(shimmy_path_trim_trailing_slash "$REQUESTED_INSTALL_DIR")"
+    printf '%s\n' "$(shimmy_trim_path_trailing_slash "$REQUESTED_INSTALL_DIR")"
     return 0
   fi
 
-  printf '%s\n' "$(shimmy_path_trim_trailing_slash "$DEFAULT_INSTALL_DIR")"
+  printf '%s\n' "$(shimmy_trim_path_trailing_slash "$DEFAULT_INSTALL_DIR")"
 }
 
 render_activate() {
@@ -43,12 +46,12 @@ render_activate() {
   podman_dir=$3
   mode_export_value=$4
 
-  quoted_control_bin_dir=$(shell_quote "$control_bin_dir")
-  quoted_dispatcher_dir=$(shell_quote "$dispatcher_dir")
-  quoted_podman_dir=$(shell_quote "$podman_dir")
+  quoted_control_bin_dir=$(shimmy_quote_shell_word "$control_bin_dir")
+  quoted_dispatcher_dir=$(shimmy_quote_shell_word "$dispatcher_dir")
+  quoted_podman_dir=$(shimmy_quote_shell_word "$podman_dir")
 
   if [ -n "$mode_export_value" ]; then
-    quoted_mode_export_value=$(shell_quote "$mode_export_value")
+    quoted_mode_export_value=$(shimmy_quote_shell_word "$mode_export_value")
     printf 'SHIMMY_PROFILE_ACTIVE=%s\n' "$quoted_mode_export_value"
     printf 'export SHIMMY_PROFILE_ACTIVE\n'
   fi
@@ -134,9 +137,9 @@ main() {
   dispatcher_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
 
   if [ -f "$root_manifest_file" ]; then
-    manifest_install_dir=$(shimmy_manifest_value "$root_manifest_file" install_dir || true)
+    manifest_install_dir=$(shimmy_read_manifest_value "$root_manifest_file" install_dir || true)
     if [ -n "$manifest_install_dir" ]; then
-      install_dir=$(shimmy_path_trim_trailing_slash "$manifest_install_dir")
+      install_dir=$(shimmy_trim_path_trailing_slash "$manifest_install_dir")
       shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$install_dir" "$ROOT_DIR" || fail "unsupported Shimmy profile: ${SHIMMY_PROFILE_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
       control_bin_dir=$install_dir/bin
       dispatcher_dir=$install_dir/shims
@@ -144,11 +147,11 @@ main() {
       profile_manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
       manifest_file=$profile_manifest_file
     fi
-    manifest_control_bin=$(shimmy_manifest_value "$root_manifest_file" control_bin || true)
+    manifest_control_bin=$(shimmy_read_manifest_value "$root_manifest_file" control_bin || true)
     if [ -n "$manifest_control_bin" ]; then
       control_bin_dir=$(dirname "$manifest_control_bin")
     fi
-    manifest_dispatcher_dir=$(shimmy_manifest_value "$root_manifest_file" dispatcher_dir || true)
+    manifest_dispatcher_dir=$(shimmy_read_manifest_value "$root_manifest_file" dispatcher_dir || true)
     if [ -n "$manifest_dispatcher_dir" ]; then
       dispatcher_dir=$manifest_dispatcher_dir
     fi
@@ -160,7 +163,7 @@ main() {
   fi
 
   if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then
-    source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
+    source_checkout=$(shimmy_read_manifest_value "$manifest_file" source_checkout || true)
     upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" || true)
     if [ -n "$upstream_invalid_reason" ]; then
       fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout; rerun ./shimmy install --profile upstream from the desired Shimmy checkout"

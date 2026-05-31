@@ -107,26 +107,27 @@ Use function names that are explicit, source-safe, and easy to scan.
 - For shell functions, use the POSIX-safe `shimmy_` prefix to avoid collisions with other libraries or built-in commands.
 - Internal helper functions that are not intended for external use should start with `shimmy__`.
 - Use lowercase snake_case after the prefix.
-- Keep token flow general to specific.
+- For shared shell helpers, prefer action-first names after the prefix: `shimmy_<action>_<resource>[_<resource_id>]`.
+- Choose conformity when it improves scanning, but do not force action-first or CRUD wording when it makes the function less clear.
 - Flag functions that return `0/1` or `true/false` intent should be prefixed with `is_`.
 - Name flag functions so the predicate is obvious from the call site.
+- Internal helper function names are not public API. Compatibility wrappers are not required when refactoring internal helpers; update all in-repo call sites instead.
 
 Patterns:
 
-- public function: `shimmy_<resource>_<action>_<instance>`
-- internal function: `shimmy__<resource>_<action>_<instance>`
+- public shared helper: `shimmy_<action>_<resource>[_<qualifier>]`
+- internal shared helper: `shimmy__<action>_<resource>[_<qualifier>]`
 - public flag function: `shimmy_is_<resource>_<state>`
 - internal flag function: `shimmy__is_<resource>_<state>`
 
 Examples:
 
-- `shimmy_image_build_context_hash`
+- `shimmy_read_manifest_value`
+- `shimmy_resolve_path_absolute`
+- `shimmy_validate_remove_path_safe`
 - `shimmy_is_shimmy_in_path`
-- `shimmy_is_dir_in_path`
-- `shimmy__is_token_in_manifest`
-- `shimmy_install_path_render`
+- `shimmy__read_shim_list`
 - `shimmy__log_level_normalize`
-- `shimmy__shim_list_read`
 
 Avoid:
 

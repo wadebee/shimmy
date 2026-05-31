@@ -19,17 +19,13 @@ shimmy_activate_block_read() {
 
 shimmy_activate_source_block_render() {
   activate_file=${1:?activate file path is required}
-  quoted_activate_file=$(shimmy_shell_quote "$activate_file")
+  quoted_activate_file=$(shimmy_quote_shell_word "$activate_file")
 
   printf 'shimmy_activate_file=%s\n' "$quoted_activate_file"
   printf 'if [ -r "$shimmy_activate_file" ]; then\n'
   printf '  . "$shimmy_activate_file"\n'
   printf 'fi\n'
   printf 'unset shimmy_activate_file\n'
-}
-
-shimmy_shell_quote() {
-  printf "%s" "$1" | sed "s/'/'\\\\''/g; 1s/^/'/; \$s/\$/'/"
 }
 
 shimmy_shell_name_normalize() {
