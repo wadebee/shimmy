@@ -21,11 +21,11 @@ shimmy_manifest_values() {
 }
 
 shimmy_profile_install_hint() {
-  mode_value=$1
+  profile_name=$1
 
-  case "$mode_value" in
+  case "$profile_name" in
     upstream)
-      printf '%s\n' 'shimmy install --mode upstream'
+      printf '%s\n' 'shimmy install --profile upstream'
       ;;
     *)
       printf '%s\n' 'shimmy install'
@@ -34,12 +34,12 @@ shimmy_profile_install_hint() {
 }
 
 shimmy_profile_repair_hint_print() {
-  mode_value=$1
+  profile_name=$1
 
-  case "$mode_value" in
+  case "$profile_name" in
     upstream)
-      printf 'shimmy_repair_hint=shimmy install --mode upstream\n'
-      printf 'shimmy_repair_hint=shimmy update --mode upstream\n'
+      printf 'shimmy_repair_hint=shimmy install --profile upstream\n'
+      printf 'shimmy_repair_hint=shimmy update --profile upstream\n'
       ;;
     *)
       printf 'shimmy_repair_hint=shimmy install\n'
@@ -140,29 +140,29 @@ shimmy_upstream_checkout_validate() {
   ! shimmy_upstream_checkout_invalid_reason "$checkout_dir" "$shim_name" >/dev/null
 }
 
-shimmy_mode_resolve() {
-  requested_mode=${1:-}
-  environment_mode=${2:-}
+shimmy_profile_name_resolve() {
+  profile_requested=${1:-}
+  profile_active=${2:-}
 
-  if [ -n "$requested_mode" ]; then
-    shimmy_mode_validate "$requested_mode" || return 1
-    printf '%s\n' "$requested_mode"
+  if [ -n "$profile_requested" ]; then
+    shimmy_profile_name_validate "$profile_requested" || return 1
+    printf '%s\n' "$profile_requested"
     return 0
   fi
 
-  if [ -n "$environment_mode" ]; then
-    shimmy_mode_validate "$environment_mode" || return 1
-    printf '%s\n' "$environment_mode"
+  if [ -n "$profile_active" ]; then
+    shimmy_profile_name_validate "$profile_active" || return 1
+    printf '%s\n' "$profile_active"
     return 0
   fi
 
   printf '%s\n' default
 }
 
-shimmy_mode_validate() {
-  mode_value=${1:-}
+shimmy_profile_name_validate() {
+  profile_name=${1:-}
 
-  case "$mode_value" in
+  case "$profile_name" in
     default|upstream)
       return 0
       ;;
@@ -243,17 +243,17 @@ shimmy_profile_install_dir_resolve() {
 }
 
 shimmy_profile_paths_resolve() {
-  mode_value=$1
+  profile_name=$1
   requested_install_dir=${2:-}
   source_root_dir=${3:-}
 
-  SHIMMY_PROFILE_MODE=$(shimmy_mode_resolve "$mode_value" "${SHIMMY_MODE:-}") || return 1
+  SHIMMY_PROFILE_NAME=$(shimmy_profile_name_resolve "$profile_name" "${SHIMMY_PROFILE_ACTIVE:-}") || return 1
   SHIMMY_PROFILE_INSTALL_DIR=$(shimmy_profile_install_dir_resolve "$requested_install_dir")
   SHIMMY_PROFILE_DISPATCHER_DIR=$(shimmy_path_append "$SHIMMY_PROFILE_INSTALL_DIR" shims)
   SHIMMY_PROFILE_CONTROL_BIN_DIR=$(shimmy_path_append "$SHIMMY_PROFILE_INSTALL_DIR" bin)
   SHIMMY_PROFILE_CONTROL_LIBEXEC_DIR=$(shimmy_path_append "$SHIMMY_PROFILE_INSTALL_DIR" libexec/shimmy)
 
-  case "$SHIMMY_PROFILE_MODE" in
+  case "$SHIMMY_PROFILE_NAME" in
     default)
       SHIMMY_PROFILE_DIR=$(shimmy_path_append "$SHIMMY_PROFILE_INSTALL_DIR" profiles/default)
       SHIMMY_PROFILE_SOURCE_CHECKOUT=

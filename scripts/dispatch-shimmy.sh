@@ -106,20 +106,20 @@ central_dispatcher=$install_dir/libexec/shimmy/scripts/dispatch-shimmy.sh
 . "$profile_helper"
 
 if ! shimmy_profile_paths_resolve "" "$install_dir" "$install_dir"; then
-  fail "unsupported SHIMMY_MODE: ${SHIMMY_MODE:-}"
+  fail "unsupported SHIMMY_PROFILE_ACTIVE: ${SHIMMY_PROFILE_ACTIVE:-}"
 fi
 
 manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
 if ! shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"; then
-  install_hint=$(shimmy_profile_install_hint "$SHIMMY_PROFILE_MODE")
-  fail "incomplete Shimmy profile for mode $SHIMMY_PROFILE_MODE: expected manifest at $manifest_file and implementation directory at $SHIMMY_PROFILE_IMPLEMENTATION_DIR; repair with $install_hint"
+  install_hint=$(shimmy_profile_install_hint "$SHIMMY_PROFILE_NAME")
+  fail "incomplete Shimmy profile for profile $SHIMMY_PROFILE_NAME: expected manifest at $manifest_file and implementation directory at $SHIMMY_PROFILE_IMPLEMENTATION_DIR; repair with $install_hint"
 fi
 
-if [ "$SHIMMY_PROFILE_MODE" = upstream ]; then
+if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then
   source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
   upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" "$shim_name" || true)
   if [ -n "$upstream_invalid_reason" ]; then
-    fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout; rerun ./shimmy install --mode upstream from the desired Shimmy checkout"
+    fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout; rerun ./shimmy install --profile upstream from the desired Shimmy checkout"
   fi
 fi
 
@@ -130,7 +130,7 @@ fi
 
 target_path=$target_dir/$shim_name
 
-[ -f "$target_path" ] || fail "no Shimmy profile implementation for $shim_name in mode $SHIMMY_PROFILE_MODE: $target_path"
+[ -f "$target_path" ] || fail "no Shimmy profile implementation for $shim_name in profile $SHIMMY_PROFILE_NAME: $target_path"
 
 entry_path=$(path_absolute_resolve "$0")
 target_absolute=$(path_absolute_resolve "$target_path")

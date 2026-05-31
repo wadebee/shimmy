@@ -21,23 +21,23 @@ Shimmy has one install root with two built-in profiles:
 - `default` is the external-user profile and the default for top-level commands.
 - `upstream` is the maintainer profile that dispatches installed tool commands to the recorded source checkout.
 
-Mode precedence is explicit flag, then `SHIMMY_MODE`, then `default`. Direct tool commands such as `rg` and `jq` do not accept `--mode`; they read `SHIMMY_MODE` and dispatch through the selected profile.
+Profile precedence is explicit flag, then `SHIMMY_PROFILE_ACTIVE`, then `default`. Direct tool commands such as `rg` and `jq` do not accept `--profile`; they read `SHIMMY_PROFILE_ACTIVE` and dispatch through the selected profile.
 
-Bare `shimmy install` creates or repairs only the default profile. Use `shimmy install --mode upstream` only when intentionally installing the maintainer profile.
+Bare `shimmy install` creates or repairs only the default profile. Use `shimmy install --profile upstream` only when intentionally installing the maintainer profile.
 
 For source changes that should be tested through normal installed commands, install and activate the upstream profile:
 
 ```sh
-./shimmy install --mode upstream
-eval "$(./shimmy activate --mode upstream)"
-shimmy status --mode upstream --format manifest
-shimmy test --mode upstream
-SHIMMY_MODE=upstream rg --version
+./shimmy install --profile upstream
+eval "$(./shimmy activate --profile upstream)"
+shimmy status --profile upstream --format manifest
+shimmy test --profile upstream
+SHIMMY_PROFILE_ACTIVE=upstream rg --version
 ```
 
 Use repo-local wrapper paths such as `./shims/rg` only when intentionally testing source files directly. For installed-state inspection, prefer `shimmy status --format manifest` over `command -v <tool>`: `command -v` shows the stable dispatcher entrypoint, while status shows the selected profile manifest, implementation directory, and upstream checkout.
 
-`SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state, defaulting under `$SHIMMY_INSTALL_DIR/profiles/upstream`. It is not the git checkout. Use `SHIMMY_UPSTREAM_CHECKOUT_DIR` only as an optional install-time override for `shimmy install --mode upstream`; Shimmy records that absolute checkout path in the upstream manifest.
+`SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state, defaulting under `$SHIMMY_INSTALL_DIR/profiles/upstream`. It is not the git checkout. Use `SHIMMY_UPSTREAM_CHECKOUT_DIR` only as an optional install-time override for `shimmy install --profile upstream`; Shimmy records that absolute checkout path in the upstream manifest.
 
 ## Naming Conventions
 

@@ -23,7 +23,7 @@ TMP_ROOT=$(mktemp -d "$TMP_PARENT/shimmy-test.XXXXXX")
 TEST_COUNT=0
 SHIM_SMOKE_TEST_COUNT=0
 REQUESTED_INSTALL_DIR=
-REQUESTED_MODE=
+SHIMMY_PROFILE_REQUESTED=
 REQUESTED_TEST_ALL=0
 REQUESTED_TEST_SHIM=
 RUN_PROFILE_TESTS=0
@@ -173,9 +173,9 @@ usage() {
 Run Shimmy tests.
 
 Usage:
-  scripts/test-shimmy.sh [--install-dir <dir>] [--mode default|upstream] [--shim <name>] [--all]
+  scripts/test-shimmy.sh [--install-dir <dir>] [--profile default|upstream] [--shim <name>] [--all]
 
-Without an explicit mode, install dir, SHIMMY_MODE, or installed launcher
+Without an explicit mode, install dir, SHIMMY_PROFILE_ACTIVE, or installed launcher
 context, this runs the full source-checkout test suite. With a selected
 profile, it validates root/profile manifests and tests root default shims.
 Use --shim for one installed shim or --all for root default shims plus every
@@ -192,9 +192,9 @@ parse_args() {
         RUN_PROFILE_TESTS=1
         shift 2
         ;;
-      --mode)
-        [ "$#" -ge 2 ] || fail_test "missing value for --mode"
-        REQUESTED_MODE=$2
+      --profile)
+        [ "$#" -ge 2 ] || fail_test "missing value for --profile"
+        SHIMMY_PROFILE_REQUESTED=$2
         RUN_PROFILE_TESTS=1
         shift 2
         ;;
@@ -219,7 +219,7 @@ parse_args() {
     esac
   done
 
-  if [ -n "${SHIMMY_MODE:-}" ] || [ -n "${SHIMMY_CONTROL_INSTALL_DIR:-}" ]; then
+  if [ -n "${SHIMMY_PROFILE_ACTIVE:-}" ] || [ -n "${SHIMMY_CONTROL_INSTALL_DIR:-}" ]; then
     RUN_PROFILE_TESTS=1
   fi
 
@@ -304,6 +304,36 @@ test_root_manifest_validate() {
   done
 }
 
+assert_mode_flag_rejected() {
+  command_name=$1
+  shift
+
+  setup_scenario
+  removed_flag_prefix=--mo
+  removed_profile_flag=${removed_flag_prefix}de
+
+  set +e
+  output=$(
+    HOME="$HOME_DIR" run_in_repo ./shimmy "$@" "$removed_profile_flag" default 2>&1
+  )
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "expected removed profile flag to fail for $command_name"
+  assert_contains "$output" "unknown argument: $removed_profile_flag"
+}
+
+test_profile_rejects_mode_flag() {
+  assert_mode_flag_rejected "install" install
+  assert_mode_flag_rejected "uninstall" uninstall
+  assert_mode_flag_rejected "activate" activate
+  assert_mode_flag_rejected "status" status
+  assert_mode_flag_rejected "update" update
+  assert_mode_flag_rejected "test" test
+
+  pass "removed profile flag is rejected as an unknown argument"
+}
+
 test_profile_shim_resolve() {
   manifest_file=$1
   root_manifest_file=$2
@@ -365,20 +395,20 @@ test_shim_smoke_run() {
 
   set +e
   command_output=$(
-    SHIMMY_MODE=$SHIMMY_PROFILE_MODE "$shim_dispatcher_path" "$@" 2>&1
+    SHIMMY_PROFILE_ACTIVE=$SHIMMY_PROFILE_NAME "$shim_dispatcher_path" "$@" 2>&1
   )
   command_status=$?
   set -e
 
   printf '%s\n' "$command_output"
-  [ "$command_status" -eq 0 ] || fail_test "$test_scope smoke command failed for $shim_name in mode $SHIMMY_PROFILE_MODE"
+  [ "$command_status" -eq 0 ] || fail_test "$test_scope smoke command failed for $shim_name in profile $SHIMMY_PROFILE_NAME"
   SHIM_SMOKE_TEST_COUNT=$((SHIM_SMOKE_TEST_COUNT + 1))
 }
 
 run_profile_tests() {
   install_dir=$(test_install_dir_resolve)
-  if ! shimmy_profile_paths_resolve "$REQUESTED_MODE" "$install_dir" "$ROOT_DIR"; then
-    fail_test "unsupported shimmy mode: ${REQUESTED_MODE:-${SHIMMY_MODE:-}}"
+  if ! shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$install_dir" "$ROOT_DIR"; then
+    fail_test "unsupported Shimmy profile: ${SHIMMY_PROFILE_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
   fi
 
   root_manifest_file=$(test_root_manifest_resolve)
@@ -386,15 +416,15 @@ run_profile_tests() {
   test_root_manifest_validate "$root_manifest_file"
 
   if ! shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"; then
-    install_hint=$(shimmy_profile_install_hint "$SHIMMY_PROFILE_MODE")
-    fail_test "incomplete Shimmy profile for mode $SHIMMY_PROFILE_MODE: expected manifest at $manifest_file and implementation directory at $SHIMMY_PROFILE_IMPLEMENTATION_DIR; repair with $install_hint"
+    install_hint=$(shimmy_profile_install_hint "$SHIMMY_PROFILE_NAME")
+    fail_test "incomplete Shimmy profile for profile $SHIMMY_PROFILE_NAME: expected manifest at $manifest_file and implementation directory at $SHIMMY_PROFILE_IMPLEMENTATION_DIR; repair with $install_hint"
   fi
 
-  if [ "$SHIMMY_PROFILE_MODE" = upstream ]; then
+  if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then
     source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
     upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" || true)
     if [ -n "$upstream_invalid_reason" ]; then
-      fail_test "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout; rerun ./shimmy install --mode upstream from the desired Shimmy checkout"
+      fail_test "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout; rerun ./shimmy install --profile upstream from the desired Shimmy checkout"
     fi
   fi
 
@@ -406,8 +436,8 @@ run_profile_tests() {
   [ -n "$config_dir" ] || config_dir=$SHIMMY_PROFILE_CONFIG_DIR
 
   printf 'Shimmy Test\n'
-  printf 'Selected Shimmy mode: %s\n' "$SHIMMY_PROFILE_MODE"
-  printf 'mode=%s\n' "$SHIMMY_PROFILE_MODE"
+  printf 'Selected Shimmy profile: %s\n' "$SHIMMY_PROFILE_NAME"
+  printf 'shimmy_profile_name=%s\n' "$SHIMMY_PROFILE_NAME"
   printf 'install_dir=%s\n' "$SHIMMY_PROFILE_INSTALL_DIR"
   printf 'root_manifest_path=%s\n' "$root_manifest_file"
   printf 'manifest_path=%s\n' "$manifest_file"
@@ -688,7 +718,7 @@ test_install_manifest() {
   assert_not_contains "$manifest_contents" "shim_lib_dir="
   profile_contents=$(cat "$INSTALL_DIR/profiles/default/install-manifest.txt")
   assert_contains "$profile_contents" "shimmy_profile_manifest_version=1"
-  assert_contains "$profile_contents" "mode=default"
+  assert_contains "$profile_contents" "shimmy_profile_name=default"
   assert_contains "$profile_contents" "shim=jq"
   assert_contains "$profile_contents" "shimmy_source_url="
   assert_contains "$profile_contents" "shimmy_source_ref="
@@ -728,7 +758,7 @@ test_install_default_shims() {
 test_install_mode_default_profile_manifest() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
 
   legacy_manifest=$INSTALL_DIR/install-manifest.txt
   profile_manifest=$INSTALL_DIR/profiles/default/install-manifest.txt
@@ -751,14 +781,14 @@ test_install_mode_default_profile_manifest() {
   assert_not_contains "$legacy_contents" "shim_source=copied-source-shim"
   assert_no_line_with_prefix "$legacy_contents" "shim="
   assert_contains "$profile_contents" "shimmy_profile_manifest_version=1"
-  assert_contains "$profile_contents" "mode=default"
+  assert_contains "$profile_contents" "shimmy_profile_name=default"
   assert_contains "$profile_contents" "shim_source=copied-source-shim"
   assert_contains "$profile_contents" "bin_dir=$INSTALL_DIR/profiles/default/shims"
   assert_not_contains "$profile_contents" "install_dir="
   assert_not_contains "$profile_contents" "dispatcher_dir="
 
   status_output=$(
-    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --mode default --format manifest 2>&1
+    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --profile default --format manifest 2>&1
   )
   assert_contains "$status_output" "shimmy_installed=yes"
   assert_contains "$status_output" "shimmy_profile_manifest_path=$profile_manifest"
@@ -773,27 +803,27 @@ test_install_mode_invalid_environment_rejected() {
 
   set +e
   output=$(
-    HOME="$HOME_DIR" SHIMMY_MODE=invalid run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup --no-skills 2>&1
+    HOME="$HOME_DIR" SHIMMY_PROFILE_ACTIVE=invalid run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup --no-skills 2>&1
   )
   status_code=$?
   set -e
 
-  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_MODE to fail install"
-  assert_contains "$output" "unsupported shimmy mode: invalid"
+  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_PROFILE_ACTIVE to fail install"
+  assert_contains "$output" "unsupported Shimmy profile: invalid"
   assert_path_not_exists "$INSTALL_DIR/install-manifest.txt"
 
-  pass "install rejects invalid SHIMMY_MODE"
+  pass "install rejects invalid SHIMMY_PROFILE_ACTIVE"
 }
 
 test_install_mode_precedence() {
   setup_scenario
 
-  HOME="$HOME_DIR" SHIMMY_MODE=upstream run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_PROFILE_ACTIVE=upstream run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
 
   assert_file_exists "$INSTALL_DIR/install-manifest.txt"
   assert_file_exists "$INSTALL_DIR/profiles/default/install-manifest.txt"
   assert_path_not_exists "$INSTALL_DIR/profiles/upstream/install-manifest.txt"
-  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "mode=default"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "shimmy_profile_name=default"
 
   pass "install mode flag overrides environment"
 }
@@ -806,11 +836,11 @@ test_install_mode_upstream_profile_manifest() {
 
   output=$(
     cd "$SCENARIO_DIR"
-    HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR=upstream-checkout "$ROOT_DIR/shimmy" install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills 2>&1
+    HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR=upstream-checkout "$ROOT_DIR/shimmy" install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills 2>&1
   )
 
   profile_manifest=$INSTALL_DIR/profiles/upstream/install-manifest.txt
-  assert_contains "$output" "Selected Shimmy mode: upstream"
+  assert_contains "$output" "Selected Shimmy profile: upstream"
   assert_file_exists "$profile_manifest"
   assert_file_executable "$INSTALL_DIR/bin/shimmy"
   assert_path_symlink "$INSTALL_DIR/shims/jq"
@@ -823,7 +853,7 @@ test_install_mode_upstream_profile_manifest() {
   assert_file_contains "$INSTALL_DIR/profiles/upstream/shims/jq" "shimmy_upstream_checkout='$upstream_checkout_real'"
 
   profile_contents=$(cat "$profile_manifest")
-  assert_contains "$profile_contents" "mode=upstream"
+  assert_contains "$profile_contents" "shimmy_profile_name=upstream"
   assert_contains "$profile_contents" "config_dir=$INSTALL_DIR/profiles/upstream/config"
   assert_contains "$profile_contents" "bin_dir=$INSTALL_DIR/profiles/upstream/shims"
   assert_contains "$profile_contents" "source_checkout=$upstream_checkout_real"
@@ -831,7 +861,7 @@ test_install_mode_upstream_profile_manifest() {
   assert_contains "$profile_contents" "shim=jq"
 
   status_output=$(
-    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --mode upstream --format manifest 2>&1
+    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --profile upstream --format manifest 2>&1
   )
   assert_contains "$status_output" "shimmy_installed=yes"
   assert_contains "$status_output" "shimmy_profile_manifest_path=$profile_manifest"
@@ -844,26 +874,26 @@ test_install_mode_upstream_profile_manifest() {
 test_installed_dispatcher_invalid_mode_rejected() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
 
   set +e
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=invalid jq --version 2>&1
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=invalid jq --version 2>&1
   )
   status_code=$?
   set -e
 
-  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_MODE to fail dispatcher"
-  assert_contains "$output" "unsupported SHIMMY_MODE: invalid"
+  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_PROFILE_ACTIVE to fail dispatcher"
+  assert_contains "$output" "unsupported SHIMMY_PROFILE_ACTIVE: invalid"
 
-  pass "installed dispatcher rejects invalid SHIMMY_MODE"
+  pass "installed dispatcher rejects invalid SHIMMY_PROFILE_ACTIVE"
 }
 
 test_installed_dispatcher_recursive_target_rejected() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
 
   profile_manifest=$INSTALL_DIR/profiles/default/install-manifest.txt
   manifest_tmp=$profile_manifest.tmp
@@ -873,7 +903,7 @@ test_installed_dispatcher_recursive_target_rejected() {
   set +e
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=default jq --version 2>&1
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=default jq --version 2>&1
   )
   status_code=$?
   set -e
@@ -895,11 +925,11 @@ printf 'param:%s\n' "$*"
 EOF
   chmod 755 "$checkout_dir/shims/jq"
 
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
 
   output=$(
     cd "$WORK_DIR"
-    SHIMMY_MODE=upstream "$INSTALL_DIR/libexec/shimmy/scripts/dispatch-shimmy.sh" jq one two 2>&1
+    SHIMMY_PROFILE_ACTIVE=upstream "$INSTALL_DIR/libexec/shimmy/scripts/dispatch-shimmy.sh" jq one two 2>&1
   )
 
   assert_contains "$output" "param:one two"
@@ -918,11 +948,11 @@ printf 'first:%s\n' "$*"
 EOF
   chmod 755 "$checkout_dir/shims/jq"
 
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
 
   first_output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=upstream jq alpha beta 2>&1
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream jq alpha beta 2>&1
   )
   assert_contains "$first_output" "first:alpha beta"
 
@@ -934,7 +964,7 @@ EOF
 
   second_output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=upstream jq gamma 2>&1
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream jq gamma 2>&1
   )
   assert_contains "$second_output" "second:gamma"
 
@@ -956,17 +986,17 @@ EOF
 test_shimmy_test_mode_default_profile() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --no-startup --no-skills >/dev/null
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/jq" "default-profile-test"
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/rg" "default-profile-rg-test"
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --mode default 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --profile default 2>&1
   )
 
-  assert_contains "$output" "Selected Shimmy mode: default"
-  assert_contains "$output" "mode=default"
+  assert_contains "$output" "Selected Shimmy profile: default"
+  assert_contains "$output" "shimmy_profile_name=default"
   assert_contains "$output" "bin_dir=$INSTALL_DIR/profiles/default/shims"
   assert_contains "$output" "root_test_shim=jq"
   assert_contains "$output" "root_test_shim=rg"
@@ -986,17 +1016,17 @@ test_shimmy_test_mode_default_profile() {
 test_shimmy_test_mode_default_profile_shim() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --no-startup --no-skills >/dev/null
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/jq" "default-profile-test"
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/rg" "default-profile-rg-test"
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --mode default --shim jq 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --profile default --shim jq 2>&1
   )
 
-  assert_contains "$output" "Selected Shimmy mode: default"
-  assert_contains "$output" "mode=default"
+  assert_contains "$output" "Selected Shimmy profile: default"
+  assert_contains "$output" "shimmy_profile_name=default"
   assert_contains "$output" "bin_dir=$INSTALL_DIR/profiles/default/shims"
   assert_contains "$output" "config_dir=$INSTALL_DIR/profiles/default/config"
   assert_contains "$output" "root_test_shim=jq"
@@ -1016,16 +1046,16 @@ test_shimmy_test_mode_default_profile_shim() {
 test_shimmy_test_mode_default_profile_only_shim() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim aws --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim aws --no-startup --no-skills >/dev/null
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/aws" "default-profile-aws-test"
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --mode default --shim aws 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --profile default --shim aws 2>&1
   )
 
-  assert_contains "$output" "Selected Shimmy mode: default"
-  assert_contains "$output" "mode=default"
+  assert_contains "$output" "Selected Shimmy profile: default"
+  assert_contains "$output" "shimmy_profile_name=default"
   assert_contains "$output" "root_smoke_tests=skipped"
   assert_contains "$output" "root_test=ok"
   assert_contains "$output" "profile_test_shim=aws"
@@ -1041,14 +1071,14 @@ test_shimmy_test_mode_default_profile_only_shim() {
 test_shimmy_test_mode_default_profile_all() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --shim rg --shim aws --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --shim rg --shim aws --no-startup --no-skills >/dev/null
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/jq" "default-all-jq"
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/rg" "default-all-rg"
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/aws" "default-all-aws"
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --mode default --all 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --profile default --all 2>&1
   )
 
   assert_contains "$output" "root_test_shim=jq"
@@ -1084,13 +1114,13 @@ test_shimmy_test_mode_all_rejects_shim() {
 test_shimmy_test_mode_missing_config_rejected() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
   rm -f "$INSTALL_DIR/profiles/default/config/shims/jq.conf"
 
   set +e
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --mode default --shim jq 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --profile default --shim jq 2>&1
   )
   status_code=$?
   set -e
@@ -1104,13 +1134,13 @@ test_shimmy_test_mode_missing_config_rejected() {
 test_shimmy_test_mode_missing_smoke_arg_rejected() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
   printf '%s\n' 'shim_config_version=1' 'shim_name=jq' > "$INSTALL_DIR/profiles/default/config/shims/jq.conf"
 
   set +e
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --mode default --shim jq 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --profile default --shim jq 2>&1
   )
   status_code=$?
   set -e
@@ -1129,15 +1159,15 @@ test_shimmy_test_mode_environment_fallback() {
   test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-env-jq-test"
   test_profile_fake_shim_write "$checkout_dir/shims/rg" "upstream-env-rg-test"
 
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --shim rg --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --shim rg --no-startup --no-skills >/dev/null
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" SHIMMY_MODE=upstream shimmy test 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream shimmy test 2>&1
   )
 
-  assert_contains "$output" "Selected Shimmy mode: upstream"
-  assert_contains "$output" "mode=upstream"
+  assert_contains "$output" "Selected Shimmy profile: upstream"
+  assert_contains "$output" "shimmy_profile_name=upstream"
   assert_contains "$output" "bin_dir=$INSTALL_DIR/profiles/upstream/shims"
   assert_contains "$output" "root_test_shim=jq"
   assert_contains "$output" "root_test_shim=rg"
@@ -1147,26 +1177,26 @@ test_shimmy_test_mode_environment_fallback() {
   assert_contains "$output" "profile_smoke_tests=skipped"
   assert_contains "$output" "profile_test=ok"
 
-  pass "shimmy test uses SHIMMY_MODE fallback"
+  pass "shimmy test uses SHIMMY_PROFILE_ACTIVE fallback"
 }
 
 test_shimmy_test_mode_invalid_environment_rejected() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
 
   set +e
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" SHIMMY_MODE=invalid shimmy test 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=invalid shimmy test 2>&1
   )
   status_code=$?
   set -e
 
-  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_MODE to fail shimmy test"
-  assert_contains "$output" "unsupported shimmy mode: invalid"
+  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_PROFILE_ACTIVE to fail shimmy test"
+  assert_contains "$output" "unsupported Shimmy profile: invalid"
 
-  pass "shimmy test rejects invalid SHIMMY_MODE"
+  pass "shimmy test rejects invalid SHIMMY_PROFILE_ACTIVE"
 }
 
 test_shimmy_test_mode_precedence() {
@@ -1176,18 +1206,18 @@ test_shimmy_test_mode_precedence() {
   test_upstream_checkout_create "$checkout_dir"
   test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-precedence-test"
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --no-startup --no-skills >/dev/null
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/jq" "default-precedence-test"
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/rg" "default-precedence-rg-test"
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" SHIMMY_MODE=upstream shimmy test --mode default 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream shimmy test --profile default 2>&1
   )
 
-  assert_contains "$output" "Selected Shimmy mode: default"
-  assert_contains "$output" "mode=default"
+  assert_contains "$output" "Selected Shimmy profile: default"
+  assert_contains "$output" "shimmy_profile_name=default"
   assert_contains "$output" "bin_dir=$INSTALL_DIR/profiles/default/shims"
   assert_contains "$output" "root_test_shim=jq"
   assert_contains "$output" "root_test_shim=rg"
@@ -1207,15 +1237,15 @@ test_shimmy_test_mode_upstream_profile() {
   test_upstream_checkout_create "$checkout_dir"
   test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-profile-test"
 
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --mode upstream --shim jq 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --profile upstream --shim jq 2>&1
   )
 
-  assert_contains "$output" "Selected Shimmy mode: upstream"
-  assert_contains "$output" "mode=upstream"
+  assert_contains "$output" "Selected Shimmy profile: upstream"
+  assert_contains "$output" "shimmy_profile_name=upstream"
   assert_contains "$output" "manifest_path="
   assert_contains "$output" "/profiles/upstream/install-manifest.txt"
   assert_contains "$output" "dispatcher_dir="
@@ -1283,12 +1313,12 @@ test_activate_eval() {
 
   output=$(
     cd "$ROOT_DIR"
-    /bin/sh -c 'PATH=/usr/bin; eval "$("./shimmy" activate --install-dir "$1")"; printf "HAS_SHIMMY_INSTALL_DIR=%s\n" "${SHIMMY_INSTALL_DIR+yes}"; printf "HAS_SHIMMY_SHIM_DIR=%s\n" "${SHIMMY_SHIM_DIR+yes}"; printf "SHIMMY_MODE=%s\n" "${SHIMMY_MODE:-}"; printf "PATH=%s\n" "$PATH"' sh "$INSTALL_DIR"
+    /bin/sh -c 'PATH=/usr/bin; eval "$("./shimmy" activate --install-dir "$1")"; printf "HAS_SHIMMY_INSTALL_DIR=%s\n" "${SHIMMY_INSTALL_DIR+yes}"; printf "HAS_SHIMMY_SHIM_DIR=%s\n" "${SHIMMY_SHIM_DIR+yes}"; printf "SHIMMY_PROFILE_ACTIVE=%s\n" "${SHIMMY_PROFILE_ACTIVE:-}"; printf "PATH=%s\n" "$PATH"' sh "$INSTALL_DIR"
   )
 
   assert_contains "$output" "HAS_SHIMMY_INSTALL_DIR="
   assert_contains "$output" "HAS_SHIMMY_SHIM_DIR="
-  assert_contains "$output" "SHIMMY_MODE=default"
+  assert_contains "$output" "SHIMMY_PROFILE_ACTIVE=default"
   assert_contains "$output" "PATH=$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin"
 
   pass "activate eval updates PATH and exports default mode"
@@ -1297,14 +1327,14 @@ test_activate_eval() {
 test_activate_mode_default_exports_mode() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
 
   output=$(
     cd "$ROOT_DIR"
-    /bin/sh -c 'PATH=/usr/bin; eval "$("./shimmy" activate --install-dir "$1" --mode default)"; printf "SHIMMY_MODE=%s\n" "${SHIMMY_MODE:-}"; printf "PATH=%s\n" "$PATH"' sh "$INSTALL_DIR"
+    /bin/sh -c 'PATH=/usr/bin; eval "$("./shimmy" activate --install-dir "$1" --profile default)"; printf "SHIMMY_PROFILE_ACTIVE=%s\n" "${SHIMMY_PROFILE_ACTIVE:-}"; printf "PATH=%s\n" "$PATH"' sh "$INSTALL_DIR"
   )
 
-  assert_contains "$output" "SHIMMY_MODE=default"
+  assert_contains "$output" "SHIMMY_PROFILE_ACTIVE=default"
   assert_contains "$output" "PATH=$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin"
 
   pass "activate default mode exports mode"
@@ -1317,28 +1347,28 @@ test_activate_mode_invalid_environment_rejected() {
 
   set +e
   output=$(
-    HOME="$HOME_DIR" SHIMMY_MODE=invalid run_in_repo ./shimmy activate --install-dir "$INSTALL_DIR" 2>&1
+    HOME="$HOME_DIR" SHIMMY_PROFILE_ACTIVE=invalid run_in_repo ./shimmy activate --install-dir "$INSTALL_DIR" 2>&1
   )
   status_code=$?
   set -e
 
-  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_MODE to fail activate"
-  assert_contains "$output" "unsupported shimmy mode: invalid"
+  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_PROFILE_ACTIVE to fail activate"
+  assert_contains "$output" "unsupported Shimmy profile: invalid"
 
-  pass "activate rejects invalid SHIMMY_MODE"
+  pass "activate rejects invalid SHIMMY_PROFILE_ACTIVE"
 }
 
 test_activate_mode_precedence() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
 
   output=$(
     cd "$ROOT_DIR"
-    /bin/sh -c 'PATH=/usr/bin; SHIMMY_MODE=upstream; export SHIMMY_MODE; eval "$("./shimmy" activate --install-dir "$1" --mode default)"; printf "SHIMMY_MODE=%s\n" "$SHIMMY_MODE"; printf "PATH=%s\n" "$PATH"' sh "$INSTALL_DIR"
+    /bin/sh -c 'PATH=/usr/bin; SHIMMY_PROFILE_ACTIVE=upstream; export SHIMMY_PROFILE_ACTIVE; eval "$("./shimmy" activate --install-dir "$1" --profile default)"; printf "SHIMMY_PROFILE_ACTIVE=%s\n" "$SHIMMY_PROFILE_ACTIVE"; printf "PATH=%s\n" "$PATH"' sh "$INSTALL_DIR"
   )
 
-  assert_contains "$output" "SHIMMY_MODE=default"
+  assert_contains "$output" "SHIMMY_PROFILE_ACTIVE=default"
   assert_contains "$output" "PATH=$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin"
 
   pass "activate mode flag overrides environment"
@@ -1364,14 +1394,14 @@ test_activate_is_idempotent() {
 test_activate_mode_upstream_exports_mode() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
 
   output=$(
     cd "$ROOT_DIR"
-    /bin/sh -c 'PATH=/usr/bin; eval "$("./shimmy" activate --install-dir "$1" --mode upstream)"; printf "SHIMMY_MODE=%s\n" "${SHIMMY_MODE:-}"; printf "PATH=%s\n" "$PATH"; printf "HAS_PROFILE_SHIMS="; case ":$PATH:" in *":$1/profiles/upstream/shims:"*) printf "yes\n" ;; *) printf "no\n" ;; esac' sh "$INSTALL_DIR"
+    /bin/sh -c 'PATH=/usr/bin; eval "$("./shimmy" activate --install-dir "$1" --profile upstream)"; printf "SHIMMY_PROFILE_ACTIVE=%s\n" "${SHIMMY_PROFILE_ACTIVE:-}"; printf "PATH=%s\n" "$PATH"; printf "HAS_PROFILE_SHIMS="; case ":$PATH:" in *":$1/profiles/upstream/shims:"*) printf "yes\n" ;; *) printf "no\n" ;; esac' sh "$INSTALL_DIR"
   )
 
-  assert_contains "$output" "SHIMMY_MODE=upstream"
+  assert_contains "$output" "SHIMMY_PROFILE_ACTIVE=upstream"
   assert_contains "$output" "PATH=$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin"
   assert_contains "$output" "HAS_PROFILE_SHIMS=no"
 
@@ -1585,7 +1615,7 @@ printf '%s\n' 'fake rg'
 EOF
   chmod +x "$WORK_DIR/bin/podman" "$SCENARIO_DIR/upstream-checkout/shims/rg"
 
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$SCENARIO_DIR/upstream-checkout" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim rg --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$SCENARIO_DIR/upstream-checkout" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim rg --no-startup --no-skills >/dev/null
 
   output=$(
     PATH="$WORK_DIR/bin:$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_INSTALL_DIR="$INSTALL_DIR" run_in_repo ./scripts/agent-shimmy-preflight.sh 2>&1
@@ -1902,28 +1932,28 @@ test_status_mode_invalid_environment_rejected() {
 
   set +e
   output=$(
-    HOME="$HOME_DIR" SHIMMY_MODE=invalid run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --format manifest 2>&1
+    HOME="$HOME_DIR" SHIMMY_PROFILE_ACTIVE=invalid run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --format manifest 2>&1
   )
   status_code=$?
   set -e
 
-  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_MODE to fail"
-  assert_contains "$output" "unsupported shimmy mode: invalid"
+  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_PROFILE_ACTIVE to fail"
+  assert_contains "$output" "unsupported Shimmy profile: invalid"
 
-  pass "status rejects invalid SHIMMY_MODE"
+  pass "status rejects invalid SHIMMY_PROFILE_ACTIVE"
 }
 
 test_status_mode_paths_are_distinct() {
   setup_scenario
 
   default_output=$(
-    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --mode default --format manifest 2>&1
+    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --profile default --format manifest 2>&1
   )
   upstream_output=$(
-    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --mode upstream --format manifest 2>&1
+    HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --profile upstream --format manifest 2>&1
   )
 
-  assert_contains "$default_output" "shimmy_profile_mode=default"
+  assert_contains "$default_output" "shimmy_profile_name=default"
   assert_contains "$default_output" "shimmy_profile_dir=$INSTALL_DIR/profiles/default"
   assert_contains "$default_output" "shimmy_profile_config_dir=$INSTALL_DIR/profiles/default/config"
   assert_contains "$default_output" "shimmy_dispatcher_dir=$INSTALL_DIR/shims"
@@ -1931,7 +1961,7 @@ test_status_mode_paths_are_distinct() {
   assert_contains "$default_output" "shimmy_profile_manifest_path=$INSTALL_DIR/profiles/default/install-manifest.txt"
   assert_contains "$default_output" "shimmy_profile_implementation_dir=$INSTALL_DIR/profiles/default/shims"
 
-  assert_contains "$upstream_output" "shimmy_profile_mode=upstream"
+  assert_contains "$upstream_output" "shimmy_profile_name=upstream"
   assert_contains "$upstream_output" "shimmy_profile_dir=$INSTALL_DIR/profiles/upstream"
   assert_contains "$upstream_output" "shimmy_profile_config_dir=$INSTALL_DIR/profiles/upstream/config"
   assert_contains "$upstream_output" "shimmy_dispatcher_dir=$INSTALL_DIR/shims"
@@ -1955,14 +1985,14 @@ test_status_mode_precedence() {
   setup_scenario
 
   env_output=$(
-    HOME="$HOME_DIR" SHIMMY_MODE=upstream run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --format manifest 2>&1
+    HOME="$HOME_DIR" SHIMMY_PROFILE_ACTIVE=upstream run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --format manifest 2>&1
   )
   flag_output=$(
-    HOME="$HOME_DIR" SHIMMY_MODE=upstream run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --mode default --format manifest 2>&1
+    HOME="$HOME_DIR" SHIMMY_PROFILE_ACTIVE=upstream run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --profile default --format manifest 2>&1
   )
 
-  assert_contains "$env_output" "shimmy_profile_mode=upstream"
-  assert_contains "$flag_output" "shimmy_profile_mode=default"
+  assert_contains "$env_output" "shimmy_profile_name=upstream"
+  assert_contains "$flag_output" "shimmy_profile_name=default"
 
   pass "status mode flag overrides environment"
 }
@@ -1974,12 +2004,12 @@ test_status_upstream_checkout_absolute_resolution() {
   upstream_checkout_real=$(cd "$SCENARIO_DIR/upstream-checkout" && pwd -P)
   (
     cd "$SCENARIO_DIR"
-    HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR=upstream-checkout "$ROOT_DIR/shimmy" install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+    HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR=upstream-checkout "$ROOT_DIR/shimmy" install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
   )
 
   output=$(
     cd "$SCENARIO_DIR"
-    HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR=upstream-checkout "$ROOT_DIR/shimmy" status --install-dir "$INSTALL_DIR" --mode upstream --format manifest 2>&1
+    HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR=upstream-checkout "$ROOT_DIR/shimmy" status --install-dir "$INSTALL_DIR" --profile upstream --format manifest 2>&1
   )
 
   assert_contains "$output" "shimmy_profile_source_checkout=$upstream_checkout_real"
@@ -2232,18 +2262,18 @@ test_update_preserves_shimmy_manifest_fields() {
 test_update_mode_default_profile() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
   rm -f "$INSTALL_DIR/shims/jq"
   rm -f "$INSTALL_DIR/profiles/default/shims/jq"
 
   output=$(
-    HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --mode default 2>&1
+    HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --profile default 2>&1
   )
 
-  assert_contains "$output" "Selected Shimmy mode: default"
+  assert_contains "$output" "Selected Shimmy profile: default"
   assert_path_symlink "$INSTALL_DIR/shims/jq"
   assert_file_executable "$INSTALL_DIR/profiles/default/shims/jq"
-  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "mode=default"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "shimmy_profile_name=default"
 
   pass "update default mode refreshes default profile"
 }
@@ -2256,26 +2286,26 @@ test_update_mode_environment_fallback() {
   checkout_dir_real=$(cd "$checkout_dir" && pwd -P)
   test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-update-env"
 
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
   rm -f "$INSTALL_DIR/shims/jq"
   rm -f "$INSTALL_DIR/profiles/upstream/shims/jq"
 
   output=$(
-    HOME="$HOME_DIR" SHIMMY_MODE=upstream run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" 2>&1
+    HOME="$HOME_DIR" SHIMMY_PROFILE_ACTIVE=upstream run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" 2>&1
   )
 
-  assert_contains "$output" "Selected Shimmy mode: upstream"
+  assert_contains "$output" "Selected Shimmy profile: upstream"
   assert_path_symlink "$INSTALL_DIR/shims/jq"
   assert_file_executable "$INSTALL_DIR/profiles/upstream/shims/jq"
   assert_file_contains "$INSTALL_DIR/profiles/upstream/shims/jq" "shimmy_upstream_checkout='$checkout_dir_real'"
 
   command_output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=upstream jq --version 2>&1
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream jq --version 2>&1
   )
   assert_contains "$command_output" "upstream-update-env"
 
-  pass "update uses SHIMMY_MODE fallback"
+  pass "update uses SHIMMY_PROFILE_ACTIVE fallback"
 }
 
 test_update_mode_invalid_environment_rejected() {
@@ -2283,15 +2313,15 @@ test_update_mode_invalid_environment_rejected() {
 
   set +e
   output=$(
-    HOME="$HOME_DIR" SHIMMY_MODE=invalid run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" 2>&1
+    HOME="$HOME_DIR" SHIMMY_PROFILE_ACTIVE=invalid run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" 2>&1
   )
   status_code=$?
   set -e
 
-  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_MODE to fail update"
-  assert_contains "$output" "unsupported shimmy mode: invalid"
+  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_PROFILE_ACTIVE to fail update"
+  assert_contains "$output" "unsupported Shimmy profile: invalid"
 
-  pass "update rejects invalid SHIMMY_MODE"
+  pass "update rejects invalid SHIMMY_PROFILE_ACTIVE"
 }
 
 test_update_mode_precedence() {
@@ -2301,16 +2331,16 @@ test_update_mode_precedence() {
   test_upstream_checkout_create "$checkout_dir"
   test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-update-precedence"
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
   rm -f "$INSTALL_DIR/profiles/default/shims/jq"
   rm -f "$INSTALL_DIR/profiles/upstream/shims/jq"
 
   output=$(
-    HOME="$HOME_DIR" SHIMMY_MODE=upstream run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --mode default 2>&1
+    HOME="$HOME_DIR" SHIMMY_PROFILE_ACTIVE=upstream run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --profile default 2>&1
   )
 
-  assert_contains "$output" "Selected Shimmy mode: default"
+  assert_contains "$output" "Selected Shimmy profile: default"
   assert_file_executable "$INSTALL_DIR/profiles/default/shims/jq"
   assert_path_not_exists "$INSTALL_DIR/profiles/upstream/shims/jq"
 
@@ -2325,15 +2355,15 @@ test_update_mode_upstream_profile() {
   checkout_dir_real=$(cd "$checkout_dir" && pwd -P)
   test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-update-profile"
 
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
   rm -f "$INSTALL_DIR/shims/jq"
   rm -f "$INSTALL_DIR/profiles/upstream/shims/jq"
 
   output=$(
-    HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --mode upstream 2>&1
+    HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --profile upstream 2>&1
   )
 
-  assert_contains "$output" "Selected Shimmy mode: upstream"
+  assert_contains "$output" "Selected Shimmy profile: upstream"
   assert_path_symlink "$INSTALL_DIR/shims/jq"
   assert_file_executable "$INSTALL_DIR/profiles/upstream/shims/jq"
   assert_file_contains "$INSTALL_DIR/profiles/upstream/shims/jq" "shimmy_upstream_checkout='$checkout_dir_real'"
@@ -2341,7 +2371,7 @@ test_update_mode_upstream_profile() {
 
   command_output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=upstream jq --version 2>&1
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream jq --version 2>&1
   )
   assert_contains "$command_output" "upstream-update-profile"
 
@@ -2457,20 +2487,20 @@ test_installed_upstream_jq_shim() {
   setup_scenario
   require_podman
 
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$ROOT_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$ROOT_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=upstream jq --version 2>&1
+    PATH="$(dirname "$PODMAN_BIN"):$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream jq --version 2>&1
   )
   assert_contains "$output" "jq-1.8.1"
 
   test_output=$(
     cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin:/bin" shimmy test --mode upstream --shim jq 2>&1
+    PATH="$(dirname "$PODMAN_BIN"):$INSTALL_DIR/bin:$INSTALL_DIR/shims:/usr/bin:/bin" shimmy test --profile upstream --shim jq 2>&1
   )
-  assert_contains "$test_output" "Selected Shimmy mode: upstream"
-  assert_contains "$test_output" "mode=upstream"
+  assert_contains "$test_output" "Selected Shimmy profile: upstream"
+  assert_contains "$test_output" "shimmy_profile_name=upstream"
   assert_contains "$test_output" "root_test_shim=jq"
   assert_contains "$test_output" "root_smoke_tests=1"
   assert_contains "$test_output" "profile_smoke_tests=skipped"
@@ -2830,7 +2860,7 @@ test_installed_opnsense_mcp_server_shim() {
 test_uninstall_requires_mode() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
 
   set +e
   output=$(
@@ -2840,7 +2870,7 @@ test_uninstall_requires_mode() {
   set -e
 
   [ "$status_code" -ne 0 ] || fail_test "expected uninstall without mode to fail"
-  assert_contains "$output" "uninstall requires --mode default or --mode upstream"
+  assert_contains "$output" "uninstall requires --profile default or --profile upstream"
   assert_file_exists "$INSTALL_DIR/profiles/default/install-manifest.txt"
 
   pass "uninstall requires explicit mode"
@@ -2853,10 +2883,10 @@ test_uninstall_mode_default_preserves_upstream() {
   test_upstream_checkout_create "$checkout_dir"
   test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-after-default-uninstall"
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
 
-  HOME="$HOME_DIR" SHIMMY_MODE=upstream run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" --mode default >/dev/null
+  HOME="$HOME_DIR" SHIMMY_PROFILE_ACTIVE=upstream run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" --profile default >/dev/null
 
   assert_file_exists "$INSTALL_DIR/install-manifest.txt"
   assert_file_contains "$INSTALL_DIR/install-manifest.txt" "profile=upstream"
@@ -2869,7 +2899,7 @@ test_uninstall_mode_default_preserves_upstream() {
 
   command_output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_MODE=upstream jq --version 2>&1
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream jq --version 2>&1
   )
   assert_contains "$command_output" "upstream-after-default-uninstall"
 
@@ -2879,20 +2909,20 @@ test_uninstall_mode_default_preserves_upstream() {
 test_uninstall_mode_invalid_environment_rejected() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
 
   set +e
   output=$(
-    HOME="$HOME_DIR" SHIMMY_MODE=invalid run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" 2>&1
+    HOME="$HOME_DIR" SHIMMY_PROFILE_ACTIVE=invalid run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" 2>&1
   )
   status_code=$?
   set -e
 
-  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_MODE to fail uninstall"
-  assert_contains "$output" "unsupported shimmy mode: invalid"
+  [ "$status_code" -ne 0 ] || fail_test "expected invalid SHIMMY_PROFILE_ACTIVE to fail uninstall"
+  assert_contains "$output" "unsupported Shimmy profile: invalid"
   assert_file_exists "$INSTALL_DIR/profiles/default/install-manifest.txt"
 
-  pass "uninstall rejects invalid SHIMMY_MODE"
+  pass "uninstall rejects invalid SHIMMY_PROFILE_ACTIVE"
 }
 
 test_uninstall_mode_upstream_last_profile_cleanup() {
@@ -2902,9 +2932,9 @@ test_uninstall_mode_upstream_last_profile_cleanup() {
   test_upstream_checkout_create "$checkout_dir"
   test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-last-profile"
 
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" --mode upstream >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" --profile upstream >/dev/null
 
   assert_path_not_exists "$INSTALL_DIR"
 
@@ -2918,10 +2948,10 @@ test_uninstall_mode_upstream_preserves_default() {
   test_upstream_checkout_create "$checkout_dir"
   test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-before-uninstall"
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim jq --no-startup --no-skills >/dev/null
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" --mode upstream >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" --profile upstream >/dev/null
 
   assert_file_exists "$INSTALL_DIR/install-manifest.txt"
   assert_file_exists "$INSTALL_DIR/profiles/default/install-manifest.txt"
@@ -2947,6 +2977,7 @@ main() {
   test_podman_unreachable_guidance_agent
   test_podman_privileged_connection_resolves_default_root
   test_dash_parse
+  test_profile_rejects_mode_flag
   test_install_manifest
   test_install_default_shims
   test_install_mode_default_profile_manifest

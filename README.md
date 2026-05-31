@@ -143,15 +143,15 @@ Use the repo-root `shimmy` wrapper to install and manage Shimmy from a source ch
 
 ```sh
 ./shimmy install
-./shimmy install --mode upstream
+./shimmy install --profile upstream
 ./shimmy netinfo
 ./shimmy skills install --target repo
 ./shimmy status
-./shimmy status --mode upstream
+./shimmy status --profile upstream
 ./shimmy status --available
 ./shimmy update --pull --build
 ./shimmy test
-./shimmy test --mode upstream
+./shimmy test --profile upstream
 ./shimmy uninstall
 ```
 
@@ -176,42 +176,42 @@ shimmy test
 eval "$(shimmy activate)"
 ```
 
-### Profiles and mode selection
+### Profiles and profile selection
 
 Shimmy uses one user-scoped install root with two built-in profiles:
 
-- `default` is the normal external-user profile. It is selected when no mode is provided.
+- `default` is the normal external-user profile. It is selected when no profile is provided.
 - `upstream` is an opt-in maintainer profile. It runs installed commands through wrappers that exec source files from a recorded Shimmy checkout.
 
-Bare `shimmy install` creates or repairs only the `default` profile. Install the maintainer profile explicitly with `shimmy install --mode upstream`.
+Bare `shimmy install` creates or repairs only the `default` profile. Install the maintainer profile explicitly with `shimmy install --profile upstream`.
 
 Profile default selection follows this progression:
 
-1. An explicit `--mode default|upstream` flag wins.
-2. Otherwise `SHIMMY_MODE=default|upstream` wins.
+1. An explicit `--profile default|upstream` flag wins.
+2. Otherwise `SHIMMY_PROFILE_ACTIVE=default|upstream` wins.
 3. Otherwise Shimmy uses `default`.
 
 Use explicit flags for one-off operations:
 
 ```sh
-./shimmy install --mode upstream
-eval "$(./shimmy activate --mode upstream)"
-shimmy status --mode upstream
-shimmy test --mode upstream
-shimmy update --mode upstream
+./shimmy install --profile upstream
+eval "$(./shimmy activate --profile upstream)"
+shimmy status --profile upstream
+shimmy test --profile upstream
+shimmy update --profile upstream
 ```
 
-Use `SHIMMY_MODE` for a whole shell session:
+Use `SHIMMY_PROFILE_ACTIVE` for a whole shell session:
 
 ```sh
-export SHIMMY_MODE=upstream
-eval "$(shimmy activate --mode upstream)"
+export SHIMMY_PROFILE_ACTIVE=upstream
+eval "$(shimmy activate --profile upstream)"
 rg --version
 shimmy status
 shimmy test
 ```
 
-Direct tool commands such as `rg` and `jq` do not take `--mode`. They read `SHIMMY_MODE`, then dispatch through the selected profile. `command -v rg` shows the stable dispatcher under the install root; `shimmy status --format manifest` shows the selected profile's manifest, implementation directory, and source checkout when upstream mode is active.
+Direct tool commands such as `rg` and `jq` do not take `--profile`. They read `SHIMMY_PROFILE_ACTIVE`, then dispatch through the selected profile. `command -v rg` shows the stable dispatcher under the install root; `shimmy status --format manifest` shows the selected profile's manifest, implementation directory, and source checkout when upstream profile is active.
 
 `SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state. By default it is:
 
@@ -219,13 +219,13 @@ Direct tool commands such as `rg` and `jq` do not take `--mode`. They read `SHIM
 ~/.config/shimmy/profiles/upstream
 ```
 
-It is not the git checkout. To install upstream mode from a specific checkout, set `SHIMMY_UPSTREAM_CHECKOUT_DIR` for `shimmy install --mode upstream`; Shimmy records the resolved absolute checkout path in the upstream manifest.
+It is not the git checkout. To install upstream profile from a specific checkout, set `SHIMMY_UPSTREAM_CHECKOUT_DIR` for `shimmy install --profile upstream`; Shimmy records the resolved absolute checkout path in the upstream manifest.
 
 ```sh
-SHIMMY_UPSTREAM_CHECKOUT_DIR=/path/to/shimmy ./shimmy install --mode upstream
+SHIMMY_UPSTREAM_CHECKOUT_DIR=/path/to/shimmy ./shimmy install --profile upstream
 ```
 
-After an upstream install, editing an existing source shim such as `/path/to/shimmy/shims/rg` is reflected by activated upstream commands without reinstalling. Moving or renaming shim source files requires rerunning `shimmy install --mode upstream`.
+After an upstream install, editing an existing source shim such as `/path/to/shimmy/shims/rg` is reflected by activated upstream commands without reinstalling. Moving or renaming shim source files requires rerunning `shimmy install --profile upstream`.
 
 #### Management-plane updates
 
@@ -239,14 +239,14 @@ Contributor workflow:
 ```sh
 cd /path/to/shimmy
 git pull --ff-only
-./shimmy update --mode upstream
+./shimmy update --profile upstream
 ```
 
 When `update` is run from the repo-root `./shimmy` launcher, it refreshes the
 install from that current checkout. Use this path when developing Shimmy,
 testing local changes, or intentionally installing from a specific source tree.
-For default-profile updates from a checkout, omit `--mode` or pass
-`--mode default`.
+For default-profile updates from a checkout, omit `--profile` or pass
+`--profile default`.
 
 Installed-user workflow:
 
@@ -371,7 +371,7 @@ sh ./scripts/status-shimmy.sh
 sh ./scripts/status-shimmy.sh --available
 sh ./scripts/update-shimmy.sh --pull --build
 sh ./scripts/test-shimmy.sh
-sh ./scripts/install-shimmy.sh --uninstall --mode default
+sh ./scripts/install-shimmy.sh --uninstall --profile default
 ```
 
 This is the same functionality the wrapper exposes, without the repo-root dispatcher.
@@ -393,16 +393,16 @@ The root manifest records install-wide integration state:
 - `dispatcher_dir` — stable direct-command entrypoint directory
 - `control_bin` — installed `shimmy` management command
 - `activate_file` — generated activation script
-- `default_mode` — default mode, currently `default`
+- `shimmy_profile_default` — default profile, currently `default`
 - `default_shim` — baseline shim name for a bare install; currently repeated for `jq` and `rg`
 - `profile` — installed profile name; repeated for each installed profile
 - `startup_shell` and `startup_file` — managed startup-file state
 
-The selected profile manifest is the source of truth for mode-specific shims, update, direct dispatch, and profile cleanup. It uses one `key=value` entry per line and repeated keys for lists. Each installed shim also has a config file under `<config_dir>/shims/<shim>.conf`; `shimmy test --shim` and `shimmy test --all` read repeated `smoke_arg=` entries from that config instead of guessing a default command.
+The selected profile manifest is the source of truth for profile-specific shims, update, direct dispatch, and profile cleanup. It uses one `key=value` entry per line and repeated keys for lists. Each installed shim also has a config file under `<config_dir>/shims/<shim>.conf`; `shimmy test --shim` and `shimmy test --all` read repeated `smoke_arg=` entries from that config instead of guessing a default command.
 
 Profile fields include:
 - `shimmy_profile_manifest_version` — profile manifest format version
-- `mode` — selected profile mode
+- `shimmy_profile_name` — selected profile name
 - `config_dir` — selected profile config directory
 - `bin_dir` — selected profile implementation directory
 - `profile_implementation_dir` — selected profile implementation directory
@@ -419,7 +419,7 @@ For machine-readable inspection, use:
 
 ```sh
 shimmy status --format manifest
-shimmy status --mode upstream --format manifest
+shimmy status --profile upstream --format manifest
 ```
 
 The current implementation can:
@@ -486,15 +486,15 @@ Run the test suite to validate that shim containers run via Podman:
 sh ./scripts/test-shimmy.sh
 ```
 
-After installing upstream mode, maintainers can exercise source changes through the installed dispatcher path:
+After installing upstream profile, maintainers can exercise source changes through the installed dispatcher path:
 
 ```sh
-./shimmy install --mode upstream
-eval "$(./shimmy activate --mode upstream)"
-shimmy test --mode upstream
-shimmy test --mode upstream --shim rg
-shimmy test --mode upstream --all
-SHIMMY_MODE=upstream rg --version
+./shimmy install --profile upstream
+eval "$(./shimmy activate --profile upstream)"
+shimmy test --profile upstream
+shimmy test --profile upstream --shim rg
+shimmy test --profile upstream --all
+SHIMMY_PROFILE_ACTIVE=upstream rg --version
 ```
 
 When a profile is selected, `shimmy test` validates the root manifest and selected profile structure, then smoke-tests root default shims such as `jq` and `rg`. Use `--shim <name>` to test one installed shim in its owning output section. Use `--all` to test root default shims plus profile-owned non-default shims, with root and profile smoke results reported separately.

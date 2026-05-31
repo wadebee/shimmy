@@ -234,11 +234,11 @@ From a source checkout, use:
 For maintainer testing through the upstream profile, install and activate that profile first:
 
 ```sh
-./shimmy install --mode upstream
-eval "$(./shimmy activate --mode upstream)"
-shimmy status --mode upstream
-shimmy test --mode upstream
-SHIMMY_MODE=upstream rg --version
+./shimmy install --profile upstream
+eval "$(./shimmy activate --profile upstream)"
+shimmy status --profile upstream
+shimmy test --profile upstream
+SHIMMY_PROFILE_ACTIVE=upstream rg --version
 ```
 
 `shimmy test` uses live Podman execution for supported shims. It is a stronger

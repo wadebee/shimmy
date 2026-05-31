@@ -12,7 +12,7 @@ PROFILE_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-profile.sh
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/shims/custom-image.sh
 DEFAULT_INSTALL_DIR=${SHIMMY_INSTALL_DIR:-${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}}
 REQUESTED_INSTALL_DIR=
-REQUESTED_MODE=
+SHIMMY_PROFILE_REQUESTED=
 OUTPUT_FORMAT=human
 SHOW_AVAILABLE=0
 
@@ -238,24 +238,24 @@ print_manifest_status() {
   root_dispatcher_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
   root_control_bin=$install_dir/bin/shimmy
   root_activate_file=$install_dir/activate.sh
-  root_default_mode=default
+  root_profile_default=default
 
   if [ -f "$root_manifest_file" ]; then
     manifest_dispatcher_dir=$(shimmy_manifest_value "$root_manifest_file" dispatcher_dir || true)
     manifest_control_bin=$(shimmy_manifest_value "$root_manifest_file" control_bin || true)
     manifest_activate_file=$(shimmy_manifest_value "$root_manifest_file" activate_file || true)
-    manifest_default_mode=$(shimmy_manifest_value "$root_manifest_file" default_mode || true)
+    manifest_profile_default=$(shimmy_manifest_value "$root_manifest_file" shimmy_profile_default || true)
     [ -z "$manifest_dispatcher_dir" ] || root_dispatcher_dir=$manifest_dispatcher_dir
     [ -z "$manifest_control_bin" ] || root_control_bin=$manifest_control_bin
     [ -z "$manifest_activate_file" ] || root_activate_file=$manifest_activate_file
-    [ -z "$manifest_default_mode" ] || root_default_mode=$manifest_default_mode
+    [ -z "$manifest_profile_default" ] || root_profile_default=$manifest_profile_default
   fi
 
   printf 'shimmy_install_dir=%s\n' "$install_dir"
   printf 'shimmy_dispatcher_dir=%s\n' "$root_dispatcher_dir"
   printf 'shimmy_control_bin=%s\n' "$root_control_bin"
   printf 'shimmy_activate_file=%s\n' "$root_activate_file"
-  printf 'shimmy_default_mode=%s\n' "$root_default_mode"
+  printf 'shimmy_profile_default=%s\n' "$root_profile_default"
   printf 'shimmy_manifest_path=%s\n' "$root_manifest_file"
   if shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"; then
     printf 'shimmy_installed=yes\n'
@@ -269,7 +269,7 @@ print_manifest_status() {
   fi
   shimmy_profile_structure_missing_print "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"
 
-  printf 'shimmy_profile_mode=%s\n' "$SHIMMY_PROFILE_MODE"
+  printf 'shimmy_profile_name=%s\n' "$SHIMMY_PROFILE_NAME"
   printf 'shimmy_profile_dir=%s\n' "$SHIMMY_PROFILE_DIR"
   printf 'shimmy_profile_manifest_path=%s\n' "$SHIMMY_PROFILE_MANIFEST_PATH"
   printf 'shimmy_profile_config_dir=%s\n' "$SHIMMY_PROFILE_CONFIG_DIR"
@@ -298,17 +298,17 @@ $(manifest_shim_list "$manifest_file")
 EOF
   fi
 
-  if [ "$SHIMMY_PROFILE_MODE" = upstream ] && [ -f "$manifest_file" ]; then
+  if [ "$SHIMMY_PROFILE_NAME" = upstream ] && [ -f "$manifest_file" ]; then
     source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
     upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" || true)
     if [ -n "$upstream_invalid_reason" ]; then
       printf 'shimmy_missing=%s\n' "$upstream_invalid_reason"
-      printf 'shimmy_repair_hint=rerun ./shimmy install --mode upstream from the desired Shimmy checkout\n'
+      printf 'shimmy_repair_hint=rerun ./shimmy install --profile upstream from the desired Shimmy checkout\n'
     fi
   fi
 
   if ! shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"; then
-    shimmy_profile_repair_hint_print "$SHIMMY_PROFILE_MODE"
+    shimmy_profile_repair_hint_print "$SHIMMY_PROFILE_NAME"
   fi
 }
 
@@ -317,7 +317,7 @@ usage() {
 Print the current Shimmy install status.
 
 Usage:
-  scripts/status-shimmy.sh [--install-dir <dir>] [--mode default|upstream] [--available] [--format human|manifest]
+  scripts/status-shimmy.sh [--install-dir <dir>] [--profile default|upstream] [--available] [--format human|manifest]
 EOF
 }
 
@@ -329,9 +329,9 @@ main() {
         REQUESTED_INSTALL_DIR=$2
         shift 2
         ;;
-      --mode)
-        [ "$#" -ge 2 ] || fail "missing value for --mode"
-        REQUESTED_MODE=$2
+      --profile)
+        [ "$#" -ge 2 ] || fail "missing value for --profile"
+        SHIMMY_PROFILE_REQUESTED=$2
         shift 2
         ;;
       --format)
@@ -360,8 +360,8 @@ main() {
     esac
   done
 
-  if ! shimmy_profile_paths_resolve "$REQUESTED_MODE" "$(install_dir_resolve)" "$ROOT_DIR"; then
-    fail "unsupported shimmy mode: ${REQUESTED_MODE:-${SHIMMY_MODE:-}}"
+  if ! shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$(install_dir_resolve)" "$ROOT_DIR"; then
+    fail "unsupported Shimmy profile: ${SHIMMY_PROFILE_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
   fi
 
   install_dir=$SHIMMY_PROFILE_INSTALL_DIR
@@ -375,7 +375,7 @@ main() {
     manifest_install_dir=$(shimmy_manifest_value "$root_manifest_file" install_dir || true)
     if [ -n "$manifest_install_dir" ]; then
       install_dir=$(shimmy_path_trim_trailing_slash "$manifest_install_dir")
-      shimmy_profile_paths_resolve "$REQUESTED_MODE" "$install_dir" "$ROOT_DIR" || fail "unsupported shimmy mode: ${REQUESTED_MODE:-${SHIMMY_MODE:-}}"
+      shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$install_dir" "$ROOT_DIR" || fail "unsupported Shimmy profile: ${SHIMMY_PROFILE_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
       manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
       root_manifest_file=$install_dir/install-manifest.txt
       shim_dir=$SHIMMY_PROFILE_BIN_DIR
@@ -386,7 +386,7 @@ main() {
 
   if [ -f "$manifest_file" ]; then
     manifest_source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
-    if [ "$SHIMMY_PROFILE_MODE" = upstream ] && [ -n "$manifest_source_checkout" ]; then
+    if [ "$SHIMMY_PROFILE_NAME" = upstream ] && [ -n "$manifest_source_checkout" ]; then
       SHIMMY_PROFILE_SOURCE_CHECKOUT=$manifest_source_checkout
     fi
   fi
@@ -400,7 +400,7 @@ main() {
   fi
 
   printf 'Shimmy Status\n'
-  printf 'mode=%s\n' "$SHIMMY_PROFILE_MODE"
+  printf 'shimmy_profile_name=%s\n' "$SHIMMY_PROFILE_NAME"
   if shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"; then
     printf 'installed: yes\n'
   else

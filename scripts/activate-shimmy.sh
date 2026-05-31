@@ -10,7 +10,7 @@ ROOT_DIR=$(
 PROFILE_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-profile.sh
 DEFAULT_INSTALL_DIR=${SHIMMY_INSTALL_DIR:-${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}}
 REQUESTED_INSTALL_DIR=
-REQUESTED_MODE=
+SHIMMY_PROFILE_REQUESTED=
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -49,8 +49,8 @@ render_activate() {
 
   if [ -n "$mode_export_value" ]; then
     quoted_mode_export_value=$(shell_quote "$mode_export_value")
-    printf 'SHIMMY_MODE=%s\n' "$quoted_mode_export_value"
-    printf 'export SHIMMY_MODE\n'
+    printf 'SHIMMY_PROFILE_ACTIVE=%s\n' "$quoted_mode_export_value"
+    printf 'export SHIMMY_PROFILE_ACTIVE\n'
   fi
 
   printf 'shimmy_activate_dispatcher_dir=%s\n' "$quoted_dispatcher_dir"
@@ -89,11 +89,11 @@ usage() {
 Print shell code that activates a Shimmy install in the current shell.
 
 Usage:
-  scripts/activate-shimmy.sh [--install-dir <dir>] [--mode default|upstream]
+  scripts/activate-shimmy.sh [--install-dir <dir>] [--profile default|upstream]
 
 Examples:
   ./shimmy activate
-  ./shimmy activate --mode upstream
+  ./shimmy activate --profile upstream
   ./shimmy activate --install-dir "$HOME/.config/shimmy"
   eval "$(./shimmy activate)"
 EOF
@@ -107,9 +107,9 @@ main() {
         REQUESTED_INSTALL_DIR=$2
         shift 2
         ;;
-      --mode)
-        [ "$#" -ge 2 ] || fail "missing value for --mode"
-        REQUESTED_MODE=$2
+      --profile)
+        [ "$#" -ge 2 ] || fail "missing value for --profile"
+        SHIMMY_PROFILE_REQUESTED=$2
         shift 2
         ;;
       -h|--help)
@@ -122,8 +122,8 @@ main() {
     esac
   done
 
-  if ! shimmy_profile_paths_resolve "$REQUESTED_MODE" "$(resolve_install_dir)" "$ROOT_DIR"; then
-    fail "unsupported shimmy mode: ${REQUESTED_MODE:-${SHIMMY_MODE:-}}"
+  if ! shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$(resolve_install_dir)" "$ROOT_DIR"; then
+    fail "unsupported Shimmy profile: ${SHIMMY_PROFILE_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
   fi
 
   install_dir=$SHIMMY_PROFILE_INSTALL_DIR
@@ -137,7 +137,7 @@ main() {
     manifest_install_dir=$(shimmy_manifest_value "$root_manifest_file" install_dir || true)
     if [ -n "$manifest_install_dir" ]; then
       install_dir=$(shimmy_path_trim_trailing_slash "$manifest_install_dir")
-      shimmy_profile_paths_resolve "$REQUESTED_MODE" "$install_dir" "$ROOT_DIR" || fail "unsupported shimmy mode: ${REQUESTED_MODE:-${SHIMMY_MODE:-}}"
+      shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$install_dir" "$ROOT_DIR" || fail "unsupported Shimmy profile: ${SHIMMY_PROFILE_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
       control_bin_dir=$install_dir/bin
       dispatcher_dir=$install_dir/shims
       root_manifest_file=$install_dir/install-manifest.txt
@@ -155,19 +155,19 @@ main() {
   fi
 
   if ! shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"; then
-    install_hint=$(shimmy_profile_install_hint "$SHIMMY_PROFILE_MODE")
-    fail "incomplete Shimmy profile for mode $SHIMMY_PROFILE_MODE: expected manifest at $manifest_file and implementation directory at $SHIMMY_PROFILE_IMPLEMENTATION_DIR; repair with $install_hint"
+    install_hint=$(shimmy_profile_install_hint "$SHIMMY_PROFILE_NAME")
+    fail "incomplete Shimmy profile for profile $SHIMMY_PROFILE_NAME: expected manifest at $manifest_file and implementation directory at $SHIMMY_PROFILE_IMPLEMENTATION_DIR; repair with $install_hint"
   fi
 
-  if [ "$SHIMMY_PROFILE_MODE" = upstream ]; then
+  if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then
     source_checkout=$(shimmy_manifest_value "$manifest_file" source_checkout || true)
     upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" || true)
     if [ -n "$upstream_invalid_reason" ]; then
-      fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout; rerun ./shimmy install --mode upstream from the desired Shimmy checkout"
+      fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout; rerun ./shimmy install --profile upstream from the desired Shimmy checkout"
     fi
   fi
 
-  render_activate "$control_bin_dir" "$dispatcher_dir" /opt/podman/bin "$SHIMMY_PROFILE_MODE"
+  render_activate "$control_bin_dir" "$dispatcher_dir" /opt/podman/bin "$SHIMMY_PROFILE_NAME"
 }
 
 main "$@"

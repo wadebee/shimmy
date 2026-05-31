@@ -98,7 +98,7 @@ Options:
   --target profile    Write skills to ~/.agents/skills
   --target plugin     Write skills to the packaged Shimmy plugin skill bundle
   --export <path>     Export a portable skills folder, or a .zip archive
-  --install-dir <dir> Read installed shims from <dir>/profiles/<mode>/install-manifest.txt
+  --install-dir <dir> Read installed shims from <dir>/profiles/<profile>/install-manifest.txt
   --manifest <path>   Read installed shims from the given profile manifest if present
   -h, --help          Show help
 
@@ -387,8 +387,8 @@ install_manifest_file_resolve() {
     return 0
   fi
 
-  profile_mode=${SHIMMY_MODE:-default}
-  case "$profile_mode" in
+  profile_name=${SHIMMY_PROFILE_ACTIVE:-default}
+  case "$profile_name" in
     default|upstream)
       ;;
     *)
@@ -397,12 +397,12 @@ install_manifest_file_resolve() {
   esac
 
   if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    printf '%s/profiles/%s/install-manifest.txt\n' "$(trim_trailing_slash "$REQUESTED_INSTALL_DIR")" "$profile_mode"
+    printf '%s/profiles/%s/install-manifest.txt\n' "$(trim_trailing_slash "$REQUESTED_INSTALL_DIR")" "$profile_name"
     return 0
   fi
 
   if [ -n "${SHIMMY_CONTROL_INSTALL_DIR:-}" ]; then
-    printf '%s/profiles/%s/install-manifest.txt\n' "$(trim_trailing_slash "$DEFAULT_INSTALL_DIR")" "$profile_mode"
+    printf '%s/profiles/%s/install-manifest.txt\n' "$(trim_trailing_slash "$DEFAULT_INSTALL_DIR")" "$profile_name"
     return 0
   fi
 
