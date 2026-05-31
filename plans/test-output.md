@@ -26,13 +26,13 @@ The root manifest can contain default shims such as `jq` and `rg`. Those default
    - With no `--all` or `--shim`, smoke-test only root default shims.
    - With `--all`, smoke-test root default shims in the root section and profile-owned non-default shims in the profile section.
    - With `--shim <name>`, smoke-test only the requested shim.
-   - An explicitly  requested shim, such as `shimmy test --shim jq`, should report in the section that owns it (eg: a profile-only shim reports only in the profile section, a root-owned shim reports in the root section).
+   - An explicitly requested shim, such as `shimmy test --shim jq`, should report in the section that owns it (eg: a profile-only shim reports only in the profile section, a root-owned shim reports in the root section).
    - Do not double-count root default shims as profile-owned extras under `--all`.
 
 5. Test coverage:
    - Default no-flag output shows root default shim tests for `jq` and `rg`.
    - `--all` shows root default shim output and additional profile-owned shim output separately.
-   - `--shim rg` reports `rg` in the root section only.
+   - `--shim jq` reports `jq` in the root section only.
    - `--shim <profile-only>` reports the requested shim in the profile section only.
 
 6. Verification:

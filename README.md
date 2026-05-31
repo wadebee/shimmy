@@ -497,7 +497,7 @@ shimmy test --mode upstream --all
 SHIMMY_MODE=upstream rg --version
 ```
 
-When a profile is selected, `shimmy test` validates the root manifest and selected profile structure. It does not run shim smoke checks unless `--shim <name>` or `--all` is provided.
+When a profile is selected, `shimmy test` validates the root manifest and selected profile structure, then smoke-tests root default shims such as `jq` and `rg`. Use `--shim <name>` to test one installed shim in its owning output section. Use `--all` to test root default shims plus profile-owned non-default shims, with root and profile smoke results reported separately.
 
 Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims

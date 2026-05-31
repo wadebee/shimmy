@@ -21,6 +21,7 @@ case "$TMP_PARENT" in
 esac
 TMP_ROOT=$(mktemp -d "$TMP_PARENT/shimmy-test.XXXXXX")
 TEST_COUNT=0
+SHIM_SMOKE_TEST_COUNT=0
 REQUESTED_INSTALL_DIR=
 REQUESTED_MODE=
 REQUESTED_TEST_ALL=0
@@ -176,9 +177,9 @@ Usage:
 
 Without an explicit mode, install dir, SHIMMY_MODE, or installed launcher
 context, this runs the full source-checkout test suite. With a selected
-profile and no --shim or --all, it validates root/profile manifests without
-running shim smoke tests. Use --shim for one installed shim or --all for every
-shim recorded in the selected profile manifest.
+profile, it validates root/profile manifests and tests root default shims.
+Use --shim for one installed shim or --all for root default shims plus every
+profile-owned shim recorded in the selected profile manifest.
 EOF
 }
 
@@ -260,6 +261,19 @@ EOF
   return 1
 }
 
+test_root_shim_resolve() {
+  root_manifest_file=$1
+
+  if [ -n "$REQUESTED_TEST_SHIM" ]; then
+    if test_root_default_shim_contains "$root_manifest_file" "$REQUESTED_TEST_SHIM"; then
+      printf '%s\n' "$REQUESTED_TEST_SHIM"
+    fi
+    return 0
+  fi
+
+  shimmy_manifest_values "$root_manifest_file" default_shim || true
+}
+
 test_manifest_shim_contains() {
   manifest_file=$1
   shim_name_expected=$2
@@ -292,9 +306,12 @@ test_root_manifest_validate() {
 
 test_profile_shim_resolve() {
   manifest_file=$1
+  root_manifest_file=$2
 
   if [ -n "$REQUESTED_TEST_SHIM" ]; then
-    printf '%s\n' "$REQUESTED_TEST_SHIM"
+    if ! test_root_default_shim_contains "$root_manifest_file" "$REQUESTED_TEST_SHIM"; then
+      printf '%s\n' "$REQUESTED_TEST_SHIM"
+    fi
     return 0
   fi
 
@@ -302,15 +319,23 @@ test_profile_shim_resolve() {
     return 0
   fi
 
-  shimmy_manifest_values "$manifest_file" shim || true
+  while IFS= read -r shim_name; do
+    [ -n "$shim_name" ] || continue
+    if ! test_root_default_shim_contains "$root_manifest_file" "$shim_name"; then
+      printf '%s\n' "$shim_name"
+    fi
+  done <<EOF
+$(shimmy_manifest_values "$manifest_file" shim || true)
+EOF
 }
 
 test_shim_smoke_run() {
   shim_name=$1
-  manifest_file=$2
-  bin_dir=$3
-  dispatcher_dir=$4
-  config_dir=$5
+  test_scope=$2
+  manifest_file=$3
+  bin_dir=$4
+  dispatcher_dir=$5
+  config_dir=$6
 
   test_manifest_shim_contains "$manifest_file" "$shim_name" || fail_test "shim not recorded in Shimmy profile manifest: $shim_name"
 
@@ -333,9 +358,9 @@ test_shim_smoke_run() {
 
   [ "$#" -gt 0 ] || fail_test "missing smoke_arg in installed shim config: $shim_config_file"
 
-  printf 'test_shim=%s\n' "$shim_name"
+  printf '%s_test_shim=%s\n' "$test_scope" "$shim_name"
   for shim_smoke_arg in "$@"; do
-    printf 'smoke_arg=%s\n' "$shim_smoke_arg"
+    printf '%s_test_shim_smoke_arg=%s|%s\n' "$test_scope" "$shim_name" "$shim_smoke_arg"
   done
 
   set +e
@@ -346,7 +371,8 @@ test_shim_smoke_run() {
   set -e
 
   printf '%s\n' "$command_output"
-  [ "$command_status" -eq 0 ] || fail_test "profile smoke command failed for $shim_name in mode $SHIMMY_PROFILE_MODE"
+  [ "$command_status" -eq 0 ] || fail_test "$test_scope smoke command failed for $shim_name in mode $SHIMMY_PROFILE_MODE"
+  SHIM_SMOKE_TEST_COUNT=$((SHIM_SMOKE_TEST_COUNT + 1))
 }
 
 run_profile_tests() {
@@ -389,26 +415,41 @@ run_profile_tests() {
   printf 'bin_dir=%s\n' "$bin_dir"
   printf 'config_dir=%s\n' "$config_dir"
 
-  if [ -z "$REQUESTED_TEST_SHIM" ] && [ "$REQUESTED_TEST_ALL" -eq 0 ]; then
-    printf 'profile_smoke_tests=skipped\n'
-    printf 'profile_test=ok\n'
-    pass "profile mode manifest validation"
-    return 0
-  fi
-
-  shim_test_count=0
+  root_shim_test_count=0
   while IFS= read -r shim_name; do
     [ -n "$shim_name" ] || continue
-    test_shim_smoke_run "$shim_name" "$manifest_file" "$bin_dir" "$dispatcher_dir" "$config_dir"
-    shim_test_count=$((shim_test_count + 1))
+    test_shim_smoke_run "$shim_name" root "$manifest_file" "$bin_dir" "$dispatcher_dir" "$config_dir"
+    root_shim_test_count=$((root_shim_test_count + 1))
   done <<EOF
-$(test_profile_shim_resolve "$manifest_file")
+$(test_root_shim_resolve "$root_manifest_file")
 EOF
 
-  [ "$shim_test_count" -gt 0 ] || fail_test "no shim selected for profile smoke test"
-  printf 'profile_smoke_tests=%s\n' "$shim_test_count"
+  if [ "$root_shim_test_count" -gt 0 ]; then
+    printf 'root_smoke_tests=%s\n' "$root_shim_test_count"
+  else
+    printf 'root_smoke_tests=skipped\n'
+  fi
+  printf 'root_test=ok\n'
+  pass "root test phase"
+
+  profile_shim_test_count=0
+  while IFS= read -r shim_name; do
+    [ -n "$shim_name" ] || continue
+    test_shim_smoke_run "$shim_name" profile "$manifest_file" "$bin_dir" "$dispatcher_dir" "$config_dir"
+    profile_shim_test_count=$((profile_shim_test_count + 1))
+  done <<EOF
+$(test_profile_shim_resolve "$manifest_file" "$root_manifest_file")
+EOF
+
+  if [ "$profile_shim_test_count" -gt 0 ]; then
+    printf 'profile_smoke_tests=%s\n' "$profile_shim_test_count"
+  elif [ "$REQUESTED_TEST_ALL" -eq 1 ]; then
+    printf 'profile_smoke_tests=0\n'
+  else
+    printf 'profile_smoke_tests=skipped\n'
+  fi
   printf 'profile_test=ok\n'
-  pass "profile mode smoke test"
+  pass "profile test phase"
 }
 
 test_source_remote_create() {
@@ -915,8 +956,9 @@ EOF
 test_shimmy_test_mode_default_profile() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --no-startup --no-skills >/dev/null
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/jq" "default-profile-test"
+  test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/rg" "default-profile-rg-test"
 
   output=$(
     cd "$WORK_DIR"
@@ -926,18 +968,27 @@ test_shimmy_test_mode_default_profile() {
   assert_contains "$output" "Selected Shimmy mode: default"
   assert_contains "$output" "mode=default"
   assert_contains "$output" "bin_dir=$INSTALL_DIR/profiles/default/shims"
+  assert_contains "$output" "root_test_shim=jq"
+  assert_contains "$output" "root_test_shim=rg"
+  assert_contains "$output" "root_test_shim_smoke_arg=jq|--version"
+  assert_contains "$output" "root_test_shim_smoke_arg=rg|--version"
+  assert_contains "$output" "default-profile-test"
+  assert_contains "$output" "default-profile-rg-test"
+  assert_contains "$output" "root_smoke_tests=2"
+  assert_contains "$output" "root_test=ok"
   assert_contains "$output" "profile_smoke_tests=skipped"
   assert_contains "$output" "profile_test=ok"
-  assert_not_contains "$output" "default-profile-test"
+  assert_not_contains "$output" "profile_test_shim="
 
-  pass "shimmy test default mode validates profile without smoke"
+  pass "shimmy test default mode tests root default shims"
 }
 
 test_shimmy_test_mode_default_profile_shim() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --no-startup --no-skills >/dev/null
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/jq" "default-profile-test"
+  test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/rg" "default-profile-rg-test"
 
   output=$(
     cd "$WORK_DIR"
@@ -948,36 +999,70 @@ test_shimmy_test_mode_default_profile_shim() {
   assert_contains "$output" "mode=default"
   assert_contains "$output" "bin_dir=$INSTALL_DIR/profiles/default/shims"
   assert_contains "$output" "config_dir=$INSTALL_DIR/profiles/default/config"
-  assert_contains "$output" "test_shim=jq"
-  assert_contains "$output" "smoke_arg=--version"
+  assert_contains "$output" "root_test_shim=jq"
+  assert_contains "$output" "root_test_shim_smoke_arg=jq|--version"
   assert_contains "$output" "default-profile-test"
+  assert_contains "$output" "args:--version"
+  assert_not_contains "$output" "default-profile-rg-test"
+  assert_not_contains "$output" "profile_test_shim=jq"
+  assert_contains "$output" "root_smoke_tests=1"
+  assert_contains "$output" "root_test=ok"
+  assert_contains "$output" "profile_smoke_tests=skipped"
+  assert_contains "$output" "profile_test=ok"
+
+  pass "shimmy test --shim reports root-owned shim in root section"
+}
+
+test_shimmy_test_mode_default_profile_only_shim() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim aws --no-startup --no-skills >/dev/null
+  test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/aws" "default-profile-aws-test"
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --mode default --shim aws 2>&1
+  )
+
+  assert_contains "$output" "Selected Shimmy mode: default"
+  assert_contains "$output" "mode=default"
+  assert_contains "$output" "root_smoke_tests=skipped"
+  assert_contains "$output" "root_test=ok"
+  assert_contains "$output" "profile_test_shim=aws"
+  assert_contains "$output" "profile_test_shim_smoke_arg=aws|--version"
+  assert_contains "$output" "default-profile-aws-test"
   assert_contains "$output" "args:--version"
   assert_contains "$output" "profile_smoke_tests=1"
   assert_contains "$output" "profile_test=ok"
 
-  pass "shimmy test --shim uses installed shim config"
+  pass "shimmy test --shim reports profile-owned shim in profile section"
 }
 
 test_shimmy_test_mode_default_profile_all() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --shim rg --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --shim rg --shim aws --no-startup --no-skills >/dev/null
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/jq" "default-all-jq"
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/rg" "default-all-rg"
+  test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/aws" "default-all-aws"
 
   output=$(
     cd "$WORK_DIR"
     PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --mode default --all 2>&1
   )
 
-  assert_contains "$output" "test_shim=jq"
-  assert_contains "$output" "test_shim=rg"
+  assert_contains "$output" "root_test_shim=jq"
+  assert_contains "$output" "root_test_shim=rg"
+  assert_contains "$output" "profile_test_shim=aws"
   assert_contains "$output" "default-all-jq"
   assert_contains "$output" "default-all-rg"
-  assert_contains "$output" "profile_smoke_tests=2"
+  assert_contains "$output" "default-all-aws"
+  assert_contains "$output" "root_smoke_tests=2"
+  assert_contains "$output" "root_test=ok"
+  assert_contains "$output" "profile_smoke_tests=1"
   assert_contains "$output" "profile_test=ok"
 
-  pass "shimmy test --all uses installed shim configs"
+  pass "shimmy test --all separates root and profile shim output"
 }
 
 test_shimmy_test_mode_all_rejects_shim() {
@@ -1041,9 +1126,10 @@ test_shimmy_test_mode_environment_fallback() {
 
   checkout_dir=$SCENARIO_DIR/upstream-checkout
   test_upstream_checkout_create "$checkout_dir"
-  test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-env-test"
+  test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-env-jq-test"
+  test_profile_fake_shim_write "$checkout_dir/shims/rg" "upstream-env-rg-test"
 
-  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --shim rg --no-startup --no-skills >/dev/null
 
   output=$(
     cd "$WORK_DIR"
@@ -1053,8 +1139,12 @@ test_shimmy_test_mode_environment_fallback() {
   assert_contains "$output" "Selected Shimmy mode: upstream"
   assert_contains "$output" "mode=upstream"
   assert_contains "$output" "bin_dir=$INSTALL_DIR/profiles/upstream/shims"
+  assert_contains "$output" "root_test_shim=jq"
+  assert_contains "$output" "root_test_shim=rg"
+  assert_contains "$output" "upstream-env-jq-test"
+  assert_contains "$output" "upstream-env-rg-test"
+  assert_contains "$output" "root_smoke_tests=2"
   assert_contains "$output" "profile_smoke_tests=skipped"
-  assert_not_contains "$output" "upstream-env-test"
   assert_contains "$output" "profile_test=ok"
 
   pass "shimmy test uses SHIMMY_MODE fallback"
@@ -1086,8 +1176,9 @@ test_shimmy_test_mode_precedence() {
   test_upstream_checkout_create "$checkout_dir"
   test_profile_fake_shim_write "$checkout_dir/shims/jq" "upstream-precedence-test"
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode default --no-startup --no-skills >/dev/null
   test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/jq" "default-precedence-test"
+  test_profile_fake_shim_write "$INSTALL_DIR/profiles/default/shims/rg" "default-precedence-rg-test"
   HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --mode upstream --shim jq --no-startup --no-skills >/dev/null
 
   output=$(
@@ -1098,8 +1189,12 @@ test_shimmy_test_mode_precedence() {
   assert_contains "$output" "Selected Shimmy mode: default"
   assert_contains "$output" "mode=default"
   assert_contains "$output" "bin_dir=$INSTALL_DIR/profiles/default/shims"
+  assert_contains "$output" "root_test_shim=jq"
+  assert_contains "$output" "root_test_shim=rg"
+  assert_contains "$output" "default-precedence-test"
+  assert_contains "$output" "default-precedence-rg-test"
+  assert_contains "$output" "root_smoke_tests=2"
   assert_contains "$output" "profile_smoke_tests=skipped"
-  assert_not_contains "$output" "default-precedence-test"
   assert_not_contains "$output" "upstream-precedence-test"
 
   pass "shimmy test mode flag overrides environment"
@@ -1127,11 +1222,12 @@ test_shimmy_test_mode_upstream_profile() {
   assert_contains "$output" "/shims"
   assert_contains "$output" "bin_dir="
   assert_contains "$output" "/profiles/upstream/shims"
-  assert_contains "$output" "test_shim=jq"
-  assert_contains "$output" "smoke_arg=--version"
+  assert_contains "$output" "root_test_shim=jq"
+  assert_contains "$output" "root_test_shim_smoke_arg=jq|--version"
   assert_contains "$output" "upstream-profile-test"
   assert_contains "$output" "args:--version"
-  assert_contains "$output" "profile_smoke_tests=1"
+  assert_contains "$output" "root_smoke_tests=1"
+  assert_contains "$output" "profile_smoke_tests=skipped"
   assert_contains "$output" "profile_test=ok"
 
   pass "shimmy test upstream mode uses upstream profile"
@@ -2375,7 +2471,9 @@ test_installed_upstream_jq_shim() {
   )
   assert_contains "$test_output" "Selected Shimmy mode: upstream"
   assert_contains "$test_output" "mode=upstream"
-  assert_contains "$test_output" "test_shim=jq"
+  assert_contains "$test_output" "root_test_shim=jq"
+  assert_contains "$test_output" "root_smoke_tests=1"
+  assert_contains "$test_output" "profile_smoke_tests=skipped"
   assert_contains "$test_output" "profile_test=ok"
 
   pass "installed upstream jq shim execution"
@@ -2840,7 +2938,7 @@ main() {
 
   if [ "$RUN_PROFILE_TESTS" -eq 1 ]; then
     run_profile_tests
-    printf 'All %s shim tests passed.\n' "$TEST_COUNT"
+    printf 'All %s shim smoke tests passed.\n' "$SHIM_SMOKE_TEST_COUNT"
     return 0
   fi
 
@@ -2861,6 +2959,7 @@ main() {
   test_installed_dispatcher_upstream_checkout_reflects_edits
   test_shimmy_test_mode_default_profile
   test_shimmy_test_mode_default_profile_shim
+  test_shimmy_test_mode_default_profile_only_shim
   test_shimmy_test_mode_default_profile_all
   test_shimmy_test_mode_all_rejects_shim
   test_shimmy_test_mode_missing_config_rejected
