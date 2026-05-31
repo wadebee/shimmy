@@ -27,6 +27,8 @@ Best fit:
 - Identify Crostini, VM, or Podman-machine shell-side routes and interfaces.
 - Record the route source address used for one or more targets.
 - Resolve a user-provided host-side DHCP/DNS name with the system resolver.
+- Infer host-side IPv4/LAN values from the default interface when the shell
+  appears to be the real host.
 - Make missing host-side LAN information explicit before running `netcat` or
   `nmap`.
 
@@ -50,6 +52,9 @@ Notes:
   container hostname, not the Chromebook's DHCP/DNS name.
 - `--host-name <name>` resolves with the shell's system resolver and works only
   when the router or local DNS registers that name.
+- Automatic default-interface inference is intentionally skipped for
+  VM/container-like environments because those routes often describe the nested
+  shell, not the physical LAN.
 - Use `--host-ip <ipv4> --host-prefix <bits>` or `--host-lan <cidr>` when DNS
   registration is unavailable.
 

@@ -2,6 +2,8 @@
 set -eu
 
 OUTPUT_FORMAT=human
+AUTO_HOST_PREFIX=
+HOST_RESOLUTION_CONFIDENCE=unknown
 REQUESTED_HOST_IP=
 REQUESTED_HOST_LAN=
 REQUESTED_HOST_NAME=
@@ -65,6 +67,13 @@ shimmy_environment_detect() {
   esac
 
   case "$virtual_kind" in
+    docker|podman|lxc|lxc-libvirt|systemd-nspawn|container-other|wsl)
+      printf '%s\n' container_probable
+      return 0
+      ;;
+  esac
+
+  case "$virtual_kind" in
     kvm|qemu|oracle|vmware|microsoft|parallels|bhyve)
       printf '%s\n' vm_probable
       return 0
@@ -81,10 +90,151 @@ shimmy_environment_detect() {
   esac
 }
 
+shimmy_default_interface_name_resolve() {
+  default_route_lines=$1
+
+  while IFS= read -r default_route_line; do
+    [ -n "$default_route_line" ] || continue
+    set -- $default_route_line
+    while [ "$#" -gt 0 ]; do
+      if [ "$1" = dev ] && [ "$#" -ge 2 ]; then
+        printf '%s\n' "$2"
+        return 0
+      fi
+      shift
+    done
+  done <<EOF
+$default_route_lines
+EOF
+}
+
+shimmy_host_default_interface_ipv4_resolve() {
+  default_route_lines=$1
+  interface_lines=$2
+
+  default_interface_name=$(shimmy_default_interface_name_resolve "$default_route_lines" || true)
+  [ -n "$default_interface_name" ] || return 1
+
+  while IFS= read -r interface_line; do
+    [ -n "$interface_line" ] || continue
+    set -- $interface_line
+    [ "$#" -ge 3 ] || continue
+    [ "$1" = "$default_interface_name" ] || continue
+    case "$2" in
+      UP|UNKNOWN)
+        ;;
+      *)
+        continue
+        ;;
+    esac
+
+    interface_ipv4=${3%/*}
+    interface_prefix=
+    case "$3" in
+      */*)
+        interface_prefix=${3#*/}
+        ;;
+    esac
+
+    if [ -z "$interface_prefix" ] && [ "$KERNEL_NAME" = Darwin ]; then
+      interface_prefix=$(shimmy_shell_interface_prefix_read_darwin "$default_interface_name" || true)
+    fi
+
+    shimmy_is_ipv4 "$interface_ipv4" || continue
+    if [ -n "$interface_prefix" ] && ! shimmy_is_prefix "$interface_prefix"; then
+      interface_prefix=
+    fi
+
+    AUTO_HOST_PREFIX=$interface_prefix
+    HOST_AUTO_IPV4=$interface_ipv4
+    return 0
+  done <<EOF
+$interface_lines
+EOF
+
+  return 1
+}
+
+shimmy_host_name_ipv4_lookup() {
+  host_name_value=$1
+
+  HOST_IPV4_LOOKUP=unknown
+  HOST_IPV4_LOOKUP_SOURCE=unknown
+  HOST_NAME_LOOKUP_RESOLUTION=failed
+  resolver_available=0
+
+  if command -v getent >/dev/null 2>&1; then
+    resolver_available=1
+    host_ipv4=$(
+      getent ahostsv4 "$host_name_value" 2>/dev/null |
+        sed -n '1{s/[[:space:]].*//;p;}'
+    )
+
+    if [ -n "$host_ipv4" ]; then
+      HOST_IPV4_LOOKUP=$host_ipv4
+      HOST_IPV4_LOOKUP_SOURCE=getent_ahostsv4
+      HOST_NAME_LOOKUP_RESOLUTION=resolved
+      return 0
+    fi
+  fi
+
+  if command -v dscacheutil >/dev/null 2>&1; then
+    resolver_available=1
+    host_ipv4=$(
+      dscacheutil -q host -a name "$host_name_value" 2>/dev/null |
+        sed -n 's/^[[:space:]]*ip_address:[[:space:]]*//p' |
+        sed -n '1p'
+    )
+
+    if [ -n "$host_ipv4" ]; then
+      HOST_IPV4_LOOKUP=$host_ipv4
+      HOST_IPV4_LOOKUP_SOURCE=dscacheutil_host
+      HOST_NAME_LOOKUP_RESOLUTION=resolved
+      return 0
+    fi
+  fi
+
+  if [ "$resolver_available" -eq 0 ]; then
+    HOST_NAME_LOOKUP_RESOLUTION=resolver_missing
+  fi
+
+  return 1
+}
+
+shimmy_host_name_auto_candidates_read() {
+  if [ "$shell_hostname" != unknown ]; then
+    printf '%s\n' "$shell_hostname"
+    case "$shell_hostname" in
+      *.local)
+        ;;
+      *)
+        printf '%s.local\n' "$shell_hostname"
+        ;;
+    esac
+  fi
+
+  if [ "$KERNEL_NAME" = Darwin ] && command -v scutil >/dev/null 2>&1; then
+    local_host_name=$(scutil --get LocalHostName 2>/dev/null || true)
+    if [ -n "$local_host_name" ]; then
+      printf '%s\n' "$local_host_name"
+      case "$local_host_name" in
+        *.local)
+          ;;
+        *)
+          printf '%s.local\n' "$local_host_name"
+          ;;
+      esac
+    fi
+  fi
+}
+
 shimmy_host_ipv4_resolve() {
+  HOST_NAME=${REQUESTED_HOST_NAME:-unknown}
+
   if [ -n "$REQUESTED_HOST_IP" ]; then
     HOST_IPV4=$REQUESTED_HOST_IP
     HOST_IPV4_SOURCE=explicit
+    HOST_RESOLUTION_CONFIDENCE=high
     if [ -n "$REQUESTED_HOST_NAME" ]; then
       HOST_NAME_RESOLUTION=skipped_explicit_host_ip
     else
@@ -93,62 +243,66 @@ shimmy_host_ipv4_resolve() {
     return 0
   fi
 
-  if [ -z "$REQUESTED_HOST_NAME" ]; then
+  if [ -n "$REQUESTED_HOST_NAME" ]; then
+    if shimmy_host_name_ipv4_lookup "$REQUESTED_HOST_NAME"; then
+      HOST_IPV4=$HOST_IPV4_LOOKUP
+      HOST_IPV4_SOURCE=$HOST_IPV4_LOOKUP_SOURCE
+      HOST_NAME_RESOLUTION=$HOST_NAME_LOOKUP_RESOLUTION
+      HOST_RESOLUTION_CONFIDENCE=high
+      return 0
+    fi
+
     HOST_IPV4=unknown
     HOST_IPV4_SOURCE=unknown
-    HOST_NAME_RESOLUTION=not_requested
+    HOST_NAME_RESOLUTION=$HOST_NAME_LOOKUP_RESOLUTION
     return 0
   fi
 
-  resolver_available=0
-
-  if command -v getent >/dev/null 2>&1; then
-    resolver_available=1
-    host_ipv4=$(
-      getent ahostsv4 "$REQUESTED_HOST_NAME" 2>/dev/null |
-        sed -n '1{s/[[:space:]].*//;p;}'
-    )
-
-    if [ -n "$host_ipv4" ]; then
-      HOST_IPV4=$host_ipv4
-      HOST_IPV4_SOURCE=getent_ahostsv4
-      HOST_NAME_RESOLUTION=resolved
+  if shimmy_is_environment_host_authoritative "$environment_name"; then
+    if shimmy_host_default_interface_ipv4_resolve "$default_route_lines" "$interface_lines"; then
+      HOST_IPV4=$HOST_AUTO_IPV4
+      HOST_IPV4_SOURCE=auto_default_interface
+      HOST_RESOLUTION_CONFIDENCE=high
+      if [ "$shell_hostname" != unknown ]; then
+        HOST_NAME=$shell_hostname
+        HOST_NAME_RESOLUTION=auto_shell_hostname
+      else
+        HOST_NAME_RESOLUTION=not_requested
+      fi
       return 0
     fi
-  fi
 
-  if command -v dscacheutil >/dev/null 2>&1; then
-    resolver_available=1
-    host_ipv4=$(
-      dscacheutil -q host -a name "$REQUESTED_HOST_NAME" 2>/dev/null |
-        sed -n 's/^[[:space:]]*ip_address:[[:space:]]*//p' |
-        sed -n '1p'
-    )
-
-    if [ -n "$host_ipv4" ]; then
-      HOST_IPV4=$host_ipv4
-      HOST_IPV4_SOURCE=dscacheutil_host
-      HOST_NAME_RESOLUTION=resolved
-      return 0
-    fi
-  fi
-
-  if [ "$resolver_available" -eq 0 ]; then
-    HOST_IPV4=unknown
-    HOST_IPV4_SOURCE=unknown
-    HOST_NAME_RESOLUTION=resolver_missing
-    return 0
+    host_name_candidate_lines=$(shimmy_host_name_auto_candidates_read || true)
+    while IFS= read -r host_name_candidate; do
+      [ -n "$host_name_candidate" ] || continue
+      if shimmy_host_name_ipv4_lookup "$host_name_candidate"; then
+        HOST_NAME=$host_name_candidate
+        HOST_IPV4=$HOST_IPV4_LOOKUP
+        HOST_IPV4_SOURCE=auto_$HOST_IPV4_LOOKUP_SOURCE
+        HOST_NAME_RESOLUTION=auto_resolved
+        HOST_RESOLUTION_CONFIDENCE=high
+        return 0
+      fi
+    done <<EOF
+$host_name_candidate_lines
+EOF
   fi
 
   HOST_IPV4=unknown
   HOST_IPV4_SOURCE=unknown
-  HOST_NAME_RESOLUTION=failed
+  HOST_NAME_RESOLUTION=not_requested
+  if shimmy_is_environment_host_authoritative "$environment_name"; then
+    HOST_RESOLUTION_CONFIDENCE=unknown
+  else
+    HOST_RESOLUTION_CONFIDENCE=low
+  fi
 }
 
 shimmy_host_lan_resolve() {
   if [ -n "$REQUESTED_HOST_LAN" ]; then
     HOST_LAN=$REQUESTED_HOST_LAN
     HOST_LAN_SOURCE=explicit
+    HOST_RESOLUTION_CONFIDENCE=high
     return 0
   fi
 
@@ -158,8 +312,29 @@ shimmy_host_lan_resolve() {
     return 0
   fi
 
+  if [ "$HOST_IPV4" != unknown ] &&
+    [ "$HOST_IPV4_SOURCE" = auto_default_interface ] &&
+    [ -n "$AUTO_HOST_PREFIX" ]; then
+    HOST_LAN=$(shimmy_ipv4_cidr_network_render "$HOST_IPV4" "$AUTO_HOST_PREFIX")
+    HOST_LAN_SOURCE=auto_interface_prefix
+    return 0
+  fi
+
   HOST_LAN=unknown
   HOST_LAN_SOURCE=unknown
+}
+
+shimmy_is_environment_host_authoritative() {
+  environment_value=$1
+
+  case "$environment_value" in
+    darwin|linux)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 shimmy_inputs_validate() {
@@ -259,6 +434,93 @@ shimmy_line_list_append() {
   else
     printf '%s\n' "$line_value"
   fi
+}
+
+shimmy_netmask_octet_prefix_resolve() {
+  octet_value=$1
+
+  case "$octet_value" in
+    255)
+      printf '%s\n' 8
+      ;;
+    254)
+      printf '%s\n' 7
+      ;;
+    252)
+      printf '%s\n' 6
+      ;;
+    248)
+      printf '%s\n' 5
+      ;;
+    240)
+      printf '%s\n' 4
+      ;;
+    224)
+      printf '%s\n' 3
+      ;;
+    192)
+      printf '%s\n' 2
+      ;;
+    128)
+      printf '%s\n' 1
+      ;;
+    0)
+      printf '%s\n' 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+shimmy_netmask_prefix_resolve() {
+  netmask_value=$1
+
+  case "$netmask_value" in
+    0x*)
+      netmask_hex=${netmask_value#0x}
+      netmask_prefix=0
+      for netmask_nibble in $(printf '%s\n' "$netmask_hex" | sed 's/./& /g'); do
+        case "$netmask_nibble" in
+          f|F)
+            netmask_prefix=$((netmask_prefix + 4))
+            ;;
+          e|E)
+            netmask_prefix=$((netmask_prefix + 3))
+            ;;
+          c|C)
+            netmask_prefix=$((netmask_prefix + 2))
+            ;;
+          8)
+            netmask_prefix=$((netmask_prefix + 1))
+            ;;
+          0)
+            ;;
+          *)
+            return 1
+            ;;
+        esac
+      done
+      printf '%s\n' "$netmask_prefix"
+      ;;
+    *.*.*.*)
+      old_ifs=$IFS
+      IFS=.
+      set -- $netmask_value
+      IFS=$old_ifs
+
+      [ "$#" -eq 4 ] || return 1
+      netmask_prefix=0
+      for netmask_octet do
+        octet_prefix=$(shimmy_netmask_octet_prefix_resolve "$netmask_octet") || return 1
+        netmask_prefix=$((netmask_prefix + octet_prefix))
+      done
+      printf '%s\n' "$netmask_prefix"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 shimmy_manifest_line_print() {
@@ -385,6 +647,19 @@ shimmy_shell_interface_ipv4_read_darwin() {
     sed -n '1p'
 }
 
+shimmy_shell_interface_prefix_read_darwin() {
+  interface_name=$1
+
+  interface_netmask=$(
+    ifconfig "$interface_name" 2>/dev/null |
+      sed -n 's/^[[:space:]]*inet[[:space:]][[:space:]]*[^[:space:]][^[:space:]]*[[:space:]][[:space:]]*netmask[[:space:]][[:space:]]*\([^[:space:]]*\).*$/\1/p' |
+      sed -n '1p'
+  )
+  [ -n "$interface_netmask" ] || return 1
+
+  shimmy_netmask_prefix_resolve "$interface_netmask"
+}
+
 shimmy_route_targets_read_linux() {
   target_route_lines=
 
@@ -500,6 +775,8 @@ Options:
   -h, --help               Show help.
 
 Notes:
+  When the shell appears to be the real host, netinfo can infer host IPv4 and
+  LAN values from the default route interface.
   Crostini shells commonly report hostname "penguin". That is the Linux shell
   hostname, not the Chromebook DHCP/DNS name. Use --host-name with the name your
   router or local DNS resolves for the Chromebook.
@@ -589,12 +866,13 @@ if [ "$OUTPUT_FORMAT" = manifest ]; then
   printf 'virtualization=%s\n' "${virtual_kind:-unknown}"
   printf 'kernel=%s\n' "$kernel_name"
   printf 'shell_hostname=%s\n' "$shell_hostname"
-  printf 'host_name=%s\n' "${REQUESTED_HOST_NAME:-unknown}"
+  printf 'host_name=%s\n' "$HOST_NAME"
   printf 'host_name_resolution=%s\n' "$HOST_NAME_RESOLUTION"
   printf 'host_ipv4=%s\n' "$HOST_IPV4"
   printf 'host_ipv4_source=%s\n' "$HOST_IPV4_SOURCE"
   printf 'host_lan=%s\n' "$HOST_LAN"
   printf 'host_lan_source=%s\n' "$HOST_LAN_SOURCE"
+  printf 'host_resolution_confidence=%s\n' "$HOST_RESOLUTION_CONFIDENCE"
   shimmy_manifest_line_print interface_ipv4 "$interface_lines"
   shimmy_manifest_line_print default_route "$default_route_lines"
   shimmy_manifest_line_print link_route "$link_route_lines"
@@ -616,10 +894,11 @@ printf 'environment: %s\n' "$environment_name"
 printf 'virtualization: %s\n' "${virtual_kind:-unknown}"
 printf 'kernel: %s\n' "$kernel_name"
 printf 'shell_hostname: %s\n' "$shell_hostname"
-printf 'host_name: %s\n' "${REQUESTED_HOST_NAME:-unknown}"
+printf 'host_name: %s\n' "$HOST_NAME"
 printf 'host_name_resolution: %s\n' "$HOST_NAME_RESOLUTION"
 printf 'host_ipv4: %s\n' "$HOST_IPV4"
 printf 'host_lan: %s\n' "$HOST_LAN"
+printf 'host_resolution_confidence: %s\n' "$HOST_RESOLUTION_CONFIDENCE"
 printf '\n'
 
 shimmy_section_print interfaces "$interface_lines"
@@ -642,14 +921,19 @@ if [ "$environment_name" = crostini ] || [ "$environment_name" = crostini_probab
     printf '%s\n' '- shell_hostname penguin is the Crostini container name; do not use it as the Chromebook DHCP/DNS name.'
   fi
 fi
-if [ "$HOST_NAME_RESOLUTION" = failed ]; then
-  printf -- '- getent ahostsv4 did not return an IPv4 address for host_name %s.\n' "$REQUESTED_HOST_NAME"
+if [ "$environment_name" = container_probable ] ||
+  [ "$environment_name" = podman_vm_probable ] ||
+  [ "$environment_name" = vm_probable ]; then
+  printf '%s\n' '- This environment looks VM/container-side, so shell IPs were not promoted to host LAN values.'
 fi
-if [ "$HOST_NAME_RESOLUTION" = getent_missing ]; then
-  printf '%s\n' '- getent is not available, so host_name could not be resolved from this shell.'
+if [ "$HOST_NAME_RESOLUTION" = failed ]; then
+  printf -- '- the system resolver did not return an IPv4 address for host_name %s.\n' "$REQUESTED_HOST_NAME"
 fi
 if [ "$HOST_NAME_RESOLUTION" = resolver_missing ]; then
   printf '%s\n' '- no supported host resolver is available, so host_name could not be resolved from this shell.'
+fi
+if [ "$HOST_IPV4_SOURCE" = auto_default_interface ]; then
+  printf '%s\n' '- host_ipv4 was inferred from the default route interface.'
 fi
 if [ "$HOST_IPV4" != unknown ] && [ "$HOST_LAN" = unknown ]; then
   printf '%s\n' '- host_ipv4 is known, but host_lan still needs --host-prefix or --host-lan.'

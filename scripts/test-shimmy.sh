@@ -1811,6 +1811,125 @@ EOF
   pass "netinfo manifest resolves Darwin host name"
 }
 
+test_netinfo_manifest_auto_darwin_default_interface() {
+  setup_scenario
+
+  mkdir -p "$WORK_DIR/bin"
+  cat > "$WORK_DIR/bin/arp" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+  cat > "$WORK_DIR/bin/hostname" <<'EOF'
+#!/bin/sh
+printf '%s\n' mac-mini
+EOF
+  cat > "$WORK_DIR/bin/ifconfig" <<'EOF'
+#!/bin/sh
+if [ "${1:-}" = en1 ]; then
+  cat <<'IFCONFIG_EN1'
+en1: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	inet 192.168.10.240 netmask 0xffffff00 broadcast 192.168.10.255
+IFCONFIG_EN1
+  exit 0
+fi
+cat <<'IFCONFIG'
+lo0: flags=8049<UP,LOOPBACK,RUNNING,MULTICAST> mtu 16384
+	inet 127.0.0.1 netmask 0xff000000
+en1: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	inet 192.168.10.240 netmask 0xffffff00 broadcast 192.168.10.255
+IFCONFIG
+EOF
+  cat > "$WORK_DIR/bin/netstat" <<'EOF'
+#!/bin/sh
+cat <<'NETSTAT'
+Routing tables
+
+Internet:
+Destination        Gateway            Flags           Netif Expire
+default            192.168.10.1       UGScg             en1
+192.168.10/24      link#15            UCS               en1      !
+NETSTAT
+EOF
+  cat > "$WORK_DIR/bin/route" <<'EOF'
+#!/bin/sh
+exit 71
+EOF
+  cat > "$WORK_DIR/bin/systemd-detect-virt" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+  chmod +x "$WORK_DIR/bin/arp" "$WORK_DIR/bin/hostname" "$WORK_DIR/bin/ifconfig" "$WORK_DIR/bin/netstat" "$WORK_DIR/bin/route" "$WORK_DIR/bin/systemd-detect-virt"
+
+  output=$(
+    cd "$ROOT_DIR"
+    PATH="$WORK_DIR/bin:/usr/bin:/bin" SHIMMY_TEST_OS=Darwin ./shimmy netinfo --format manifest 2>&1
+  )
+
+  assert_contains "$output" "environment=darwin"
+  assert_contains "$output" "host_name=mac-mini"
+  assert_contains "$output" "host_name_resolution=auto_shell_hostname"
+  assert_contains "$output" "host_ipv4=192.168.10.240"
+  assert_contains "$output" "host_ipv4_source=auto_default_interface"
+  assert_contains "$output" "host_lan=192.168.10.0/24"
+  assert_contains "$output" "host_lan_source=auto_interface_prefix"
+  assert_contains "$output" "host_resolution_confidence=high"
+
+  pass "netinfo manifest auto resolves Darwin default interface"
+}
+
+test_netinfo_manifest_auto_skips_crostini_shell_lan() {
+  setup_scenario
+
+  mkdir -p "$WORK_DIR/bin"
+  cat > "$WORK_DIR/bin/hostname" <<'EOF'
+#!/bin/sh
+printf '%s\n' penguin
+EOF
+  cat > "$WORK_DIR/bin/ip" <<'EOF'
+#!/bin/sh
+if [ "$1" = -br ] && [ "$2" = -4 ] && [ "$3" = addr ] && [ "$4" = show ]; then
+  printf '%s\n' 'lo UNKNOWN 127.0.0.1/8'
+  printf '%s\n' 'eth0 UP 100.115.92.205/28'
+  exit 0
+fi
+if [ "$1" = -4 ] && [ "$2" = route ] && [ "$3" = show ] && [ "$4" = default ]; then
+  printf '%s\n' 'default via 100.115.92.1 dev eth0'
+  exit 0
+fi
+if [ "$1" = -4 ] && [ "$2" = route ] && [ "$3" = show ] && [ "$4" = scope ] && [ "$5" = link ]; then
+  printf '%s\n' '100.115.92.192/28 dev eth0 proto kernel scope link src 100.115.92.205'
+  exit 0
+fi
+if [ "$1" = -4 ] && [ "$2" = route ] && [ "$3" = get ]; then
+  printf '%s\n' "$4 via 100.115.92.1 dev eth0 src 100.115.92.205"
+  exit 0
+fi
+if [ "$1" = -4 ] && [ "$2" = neigh ] && [ "$3" = show ]; then
+  exit 0
+fi
+exit 1
+EOF
+  cat > "$WORK_DIR/bin/uname" <<'EOF'
+#!/bin/sh
+printf '%s\n' Linux
+EOF
+  chmod +x "$WORK_DIR/bin/hostname" "$WORK_DIR/bin/ip" "$WORK_DIR/bin/uname"
+
+  output=$(
+    cd "$ROOT_DIR"
+    PATH="$WORK_DIR/bin:/usr/bin:/bin" ./shimmy netinfo --format manifest 2>&1
+  )
+
+  assert_contains "$output" "shell_hostname=penguin"
+  assert_contains "$output" "host_name=unknown"
+  assert_contains "$output" "host_ipv4=unknown"
+  assert_contains "$output" "host_lan=unknown"
+  assert_contains "$output" "host_resolution_confidence=low"
+  assert_contains "$output" "action_needed=provide_host_name_host_ip_prefix_or_host_lan"
+
+  pass "netinfo manifest skips Crostini shell LAN auto resolution"
+}
+
 test_update_repair_startup() {
   setup_scenario
 
@@ -3066,6 +3185,8 @@ main() {
   test_netinfo_help
   test_netinfo_manifest_crostini_host_name_resolution
   test_netinfo_manifest_darwin_host_name_resolution
+  test_netinfo_manifest_auto_darwin_default_interface
+  test_netinfo_manifest_auto_skips_crostini_shell_lan
   test_update_repair_startup
   test_status_reports_install
   test_status_available_reports_remaining_shims

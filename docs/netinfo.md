@@ -59,13 +59,17 @@ shimmy netinfo --host-lan 192.168.1.0/24
 
 `netinfo` does not scan the LAN by default. It reports `host_lan=unknown` until
 the host-side LAN is supplied or can be derived from a resolved host IP plus a
-prefix.
+prefix. It intentionally does not promote Crostini shell interface addresses to
+host-side LAN values.
 
 ## macOS and Other VM Hosts
 
 The same host identity model works for Proxmox guests, macOS Podman VMs, and
 other nested environments. On macOS hosts, `netinfo` uses native tools such as
-`ifconfig`, `netstat`, `route`, and `arp` rather than Linux `iproute2`. Use a
+`ifconfig`, `netstat`, `route`, and `arp` rather than Linux `iproute2`. When the
+shell appears to be the real host, `netinfo` can infer `host_ipv4` and
+`host_lan` from the default route interface. In VM or container-like
+environments, it keeps host-side values unknown until you provide them. Use a
 DNS name when the network maintains one:
 
 ```sh
@@ -90,5 +94,6 @@ host_name=chromebook-home
 host_name_resolution=resolved
 host_ipv4=192.168.1.42
 host_lan=192.168.1.0/24
+host_resolution_confidence=high
 route_target=1.1.1.1 via 100.115.92.1 dev eth0 src 100.115.92.205
 ```
