@@ -2,29 +2,144 @@
 set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
-SHIMMY_PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$SCRIPT_DIR/../lib/shims/custom-image.sh
 
-SHIMMY_GDRIVE_IMAGE=${SHIMMY_GDRIVE_IMAGE:-docker.io/mcp/gdrive:latest}
-SHIMMY_GDRIVE_IMAGE_PULL=${SHIMMY_GDRIVE_IMAGE_PULL:-}
+SHIMMY_GDRIVE_CREDS_DIR=
+SHIMMY_GDRIVE_AUTH_PORT_ARG=
+SHIMMY_GDRIVE_IMAGES_DIR=$SCRIPT_DIR/../images/gdrive
+SHIMMY_GDRIVE_PULL_ARG=
 
-if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
-  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
+if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" >&2
   exit 1
 fi
 
-# shellcheck source=lib/shims/shimmy-podman.sh
-. "$SHIMMY_PODMAN_HELPER_FILE"
+# shellcheck source=lib/shims/custom-image.sh
+. "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
 shimmy_podman_preflight_require "the gdrive shim"
 
-if [ "$SHIMMY_GDRIVE_IMAGE_PULL" = "always" ]; then
+if [ -n "${SHIMMY_GDRIVE_IMAGE:-}" ]; then
+  SHIMMY_GDRIVE_RUN_IMAGE=$SHIMMY_GDRIVE_IMAGE
+else
+  if [ -n "${SHIMMY_GDRIVE_BASE_IMAGE:-}" ] && [ -n "${SHIMMY_GDRIVE_SOURCE_REF:-}" ]; then
+    SHIMMY_GDRIVE_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-gdrive" \
+        "$SHIMMY_GDRIVE_IMAGES_DIR" \
+        "${SHIMMY_GDRIVE_IMAGE_BUILD:-auto}" \
+        --build-arg "SHIMMY_GDRIVE_BASE_IMAGE=$SHIMMY_GDRIVE_BASE_IMAGE" \
+        --build-arg "SHIMMY_GDRIVE_SOURCE_REF=$SHIMMY_GDRIVE_SOURCE_REF"
+    )
+  elif [ -n "${SHIMMY_GDRIVE_BASE_IMAGE:-}" ]; then
+    SHIMMY_GDRIVE_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-gdrive" \
+        "$SHIMMY_GDRIVE_IMAGES_DIR" \
+        "${SHIMMY_GDRIVE_IMAGE_BUILD:-auto}" \
+        --build-arg "SHIMMY_GDRIVE_BASE_IMAGE=$SHIMMY_GDRIVE_BASE_IMAGE"
+    )
+  elif [ -n "${SHIMMY_GDRIVE_SOURCE_REF:-}" ]; then
+    SHIMMY_GDRIVE_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-gdrive" \
+        "$SHIMMY_GDRIVE_IMAGES_DIR" \
+        "${SHIMMY_GDRIVE_IMAGE_BUILD:-auto}" \
+        --build-arg "SHIMMY_GDRIVE_SOURCE_REF=$SHIMMY_GDRIVE_SOURCE_REF"
+    )
+  else
+    SHIMMY_GDRIVE_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-gdrive" \
+        "$SHIMMY_GDRIVE_IMAGES_DIR" \
+        "${SHIMMY_GDRIVE_IMAGE_BUILD:-auto}"
+    )
+  fi
+fi
+
+if [ -n "${SHIMMY_GDRIVE_IMAGE:-}" ] && [ "${SHIMMY_GDRIVE_IMAGE_PULL:-}" = "always" ]; then
   SHIMMY_GDRIVE_PULL_ARG=--pull=always
 fi
+
+case "${1:-}" in
+  -h|--help)
+    cat <<'EOF'
+Run the isaacphi/mcp-gdrive MCP server through Shimmy.
+
+Required environment:
+  CLIENT_ID
+  CLIENT_SECRET
+  GDRIVE_CREDS_DIR
+
+Credentials:
+  Place gcp-oauth.keys.json in GDRIVE_CREDS_DIR for first-time auth.
+  The server writes .gdrive-server-credentials.json in GDRIVE_CREDS_DIR.
+
+Shimmy environment:
+  SHIMMY_GDRIVE_IMAGE                  override the runtime image
+  SHIMMY_GDRIVE_IMAGE_PULL=always      pull an override image before running
+  SHIMMY_GDRIVE_IMAGE_BUILD=always     rebuild the local source image
+  SHIMMY_GDRIVE_AUTH_PORT              host OAuth callback port; default 3000
+  SHIMMY_GDRIVE_BASE_IMAGE             override the Node base image for local builds
+  SHIMMY_GDRIVE_SOURCE_REF             override the isaacphi/mcp-gdrive git ref
+EOF
+    exit 0
+    ;;
+esac
+
+shimmy_gdrive_config_preflight_require() {
+  if [ -z "${CLIENT_ID:-}" ]; then
+    printf '%s\n' 'ERROR: CLIENT_ID is required for the gdrive shim.' >&2
+    return 1
+  fi
+
+  if [ -z "${CLIENT_SECRET:-}" ]; then
+    printf '%s\n' 'ERROR: CLIENT_SECRET is required for the gdrive shim.' >&2
+    return 1
+  fi
+
+  if [ -z "${GDRIVE_CREDS_DIR:-}" ]; then
+    printf '%s\n' 'ERROR: GDRIVE_CREDS_DIR is required for the gdrive shim.' >&2
+    printf '%s\n' 'Set it to a host directory containing gcp-oauth.keys.json.' >&2
+    return 1
+  fi
+
+  if [ ! -d "$GDRIVE_CREDS_DIR" ]; then
+    printf 'ERROR: GDRIVE_CREDS_DIR does not exist or is not a directory: %s\n' "$GDRIVE_CREDS_DIR" >&2
+    return 1
+  fi
+
+  if [ ! -f "$GDRIVE_CREDS_DIR/.gdrive-server-credentials.json" ] && [ ! -f "$GDRIVE_CREDS_DIR/gcp-oauth.keys.json" ]; then
+    printf 'ERROR: GDRIVE_CREDS_DIR must contain gcp-oauth.keys.json or .gdrive-server-credentials.json: %s\n' "$GDRIVE_CREDS_DIR" >&2
+    return 1
+  fi
+
+  case "${SHIMMY_GDRIVE_AUTH_PORT:-3000}" in
+    *[!0-9]*|'')
+      printf 'ERROR: SHIMMY_GDRIVE_AUTH_PORT must be a TCP port number: %s\n' "${SHIMMY_GDRIVE_AUTH_PORT:-}" >&2
+      return 1
+      ;;
+  esac
+
+  SHIMMY_GDRIVE_CREDS_DIR=$GDRIVE_CREDS_DIR
+
+  if [ ! -f "$GDRIVE_CREDS_DIR/.gdrive-server-credentials.json" ]; then
+    SHIMMY_GDRIVE_AUTH_PORT_ARG=127.0.0.1:${SHIMMY_GDRIVE_AUTH_PORT:-3000}:3000
+  fi
+}
+
+shimmy_gdrive_config_preflight_require
 
 exec "$SHIMMY_PODMAN_BIN" run --rm -i \
   --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${SHIMMY_GDRIVE_PULL_ARG:+"$SHIMMY_GDRIVE_PULL_ARG"} \
-  -v "$PWD:/work" \
+  -v "$PWD:/work:rw" \
   -w /work \
-  "$SHIMMY_GDRIVE_IMAGE" \
+  ${SHIMMY_GDRIVE_AUTH_PORT_ARG:+"-p"} \
+  ${SHIMMY_GDRIVE_AUTH_PORT_ARG:+"$SHIMMY_GDRIVE_AUTH_PORT_ARG"} \
+  -v "$SHIMMY_GDRIVE_CREDS_DIR:$SHIMMY_GDRIVE_CREDS_DIR:rw" \
+  -e "CLIENT_ID=$CLIENT_ID" \
+  -e "CLIENT_SECRET=$CLIENT_SECRET" \
+  -e "GDRIVE_CREDS_DIR=$SHIMMY_GDRIVE_CREDS_DIR" \
+  "$SHIMMY_GDRIVE_RUN_IMAGE" \
   "$@"

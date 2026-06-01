@@ -14,3 +14,6 @@ note: the installer still reported an update to /Users/wade/.zshrc even with --n
 Do you want to allow the aws Shimmy wrapper to run Podman outside the sandbox for this non-mutating smoke check?  
     aws --version 
     shimmy test
+
+# -----------
+One wrinkle: the Shimmy rg wrapper only mounts the current repo at /work, so it can’t search the temp clone under /private/tmp

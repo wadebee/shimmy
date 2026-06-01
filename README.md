@@ -448,6 +448,7 @@ Once shims are in your PATH, use tools naturally:
 ```sh
 aws sts get-caller-identity
 go test ./...
+gdrive --help
 jq . file.json
 netcat 198.51.100.10 443
 nmap --version
@@ -468,6 +469,7 @@ Some shims also document required setup checks. For example, `opnsense-mcp-serve
 |------|-------------|
 | **aws** | [docs/shims/aws.md](docs/shims/aws.md) |
 | **go** | [docs/shims/go.md](docs/shims/go.md) |
+| **gdrive** | [docs/shims/gdrive.md](docs/shims/gdrive.md) |
 | **jq** | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | [docs/shims/netcat.md](docs/shims/netcat.md) |
 | **nmap** | [docs/shims/nmap.md](docs/shims/nmap.md) |
@@ -507,7 +509,7 @@ Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
 - install, activate, status, available-shim comparison, machine-readable manifest output, update, startup-file repair, and uninstall behavior for default and upstream profiles
 - Shimmy skill sharing, export, idempotent skills manifest updates, and install-time management skill sharing
-- live Podman execution for the supported shim set: `aws`, `go`, `jq`, `netcat`, `nmap`, `opnsense-mcp-server`, `rg`, `task`, `terraform`, and `textual`
+- live Podman execution for the supported shim set: `aws`, `go`, `gdrive`, `jq`, `netcat`, `nmap`, `opnsense-mcp-server`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
 ```
@@ -516,6 +518,7 @@ shimmy/
 ├── shims/                        # OCI wrapper scripts
 │   ├── aws
 │   ├── go
+│   ├── gdrive
 │   ├── jq
 │   ├── netcat
 │   ├── nmap
@@ -526,6 +529,7 @@ shimmy/
 │   ├── textual
 │   └── terraform
 ├── images/                       # Custom shim image build contexts
+│   ├── gdrive
 │   ├── netcat
 │   ├── task
 │   ├── tessl

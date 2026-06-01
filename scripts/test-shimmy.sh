@@ -3002,9 +3002,27 @@ test_gdrive_shim_direct() {
      PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/gdrive" --help 2>&1
    )
 
-   assert_contains "$output" "MCP server for interacting with Google Drive and Sheets"
+   assert_contains "$output" "Run the isaacphi/mcp-gdrive MCP server through Shimmy."
 
    pass "gdrive direct shim execution"
+}
+
+test_gdrive_shim_requires_config() {
+   setup_scenario
+   require_podman
+
+   set +e
+   output=$(
+     cd "$WORK_DIR"
+     PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/gdrive" 2>&1
+   )
+   status=$?
+   set -e
+
+   [ "$status" -ne 0 ] || fail_test "expected gdrive to require configuration"
+   assert_contains "$output" "ERROR: CLIENT_ID is required for the gdrive shim."
+
+   pass "gdrive requires OAuth configuration before execution"
 }
 
 test_installed_task_shim() {
@@ -3259,6 +3277,7 @@ main() {
    test_terraform_shim_direct
    test_textual_shim_direct
    test_gdrive_shim_direct
+   test_gdrive_shim_requires_config
    test_installed_opnsense_mcp_server_shim
   test_installed_task_shim
   test_uninstall_requires_mode
