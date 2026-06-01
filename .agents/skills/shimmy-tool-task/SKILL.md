@@ -62,4 +62,4 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 ## Learning Guidance
 
 - Capture Task-specific lessons here when they affect host path expectations, nested Podman access, home/tmp mounts, image builds, or Taskfile side-effect safety.
-- Promote reusable Shimmy design lessons to `../shimmy-create/SKILL.md` under `Learning Guidance`.
+- Promote reusable Shimmy design lessons to `../shimmy-create-tool/SKILL.md` under `Learning Guidance`.

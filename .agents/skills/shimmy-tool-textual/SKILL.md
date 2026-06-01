@@ -51,4 +51,4 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 ## Learning Guidance
 
 - Capture Textual-specific lessons here when they affect TTY behavior, local image builds, app execution, browser serving, diagnostics, or Python base image choice.
-- Promote reusable Shimmy design lessons to `../shimmy-create/SKILL.md` under `Learning Guidance`.
+- Promote reusable Shimmy design lessons to `../shimmy-create-tool/SKILL.md` under `Learning Guidance`.

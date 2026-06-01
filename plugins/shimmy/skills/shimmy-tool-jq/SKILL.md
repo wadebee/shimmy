@@ -49,4 +49,4 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 ## Learning Guidance
 
 - Capture jq-specific lessons here when they affect stdin handling, filter behavior, image tags, or JSON fixture tests.
-- Promote reusable Shimmy design lessons to `../shimmy-create/SKILL.md` under `Learning Guidance`.
+- Promote reusable Shimmy design lessons to `../shimmy-create-tool/SKILL.md` under `Learning Guidance`.

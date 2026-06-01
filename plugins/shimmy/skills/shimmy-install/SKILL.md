@@ -31,7 +31,7 @@ Before acting, inspect the target project and active Shimmy install:
 - Prefer activated installed commands such as `shimmy status`, `shimmy install`, `shimmy update`, and `shimmy test` when working outside the Shimmy source checkout.
 - In the Shimmy source checkout, use repo-root `./shimmy` for source-driven install, update, and test workflows.
 - Use documented scripts directly only when the wrapper is unavailable or the lower-level interface is explicitly needed: `scripts/install-shimmy.sh`, `scripts/status-shimmy.sh`, `scripts/update-shimmy.sh`, `scripts/test-shimmy.sh`, and `scripts/activate-shimmy.sh`.
-- Treat `shimmy status --format manifest` as the first inspection command. It reports the selected mode, profile manifest, dispatcher directory, profile implementation directory, and upstream checkout when applicable.
+- Treat `shimmy status --format manifest` as the first inspection command. It reports the selected profile, profile manifest, dispatcher directory, profile implementation directory, and upstream checkout when applicable.
 - Treat the selected profile manifest as installed-state truth. Default profile state is normally under `$SHIMMY_INSTALL_DIR/profiles/default/install-manifest.txt`; upstream profile state is normally under `$SHIMMY_INSTALL_DIR/profiles/upstream/install-manifest.txt`. The install-root `install-manifest.txt` is legacy default compatibility state.
 - Treat an external pinned ref, release tag, commit SHA, or version constraint as stronger than `latest`.
 
@@ -44,7 +44,7 @@ Each profile has a Shimmy-owned lifecycle state file. Keep manifests POSIX-reada
 Required baseline fields:
 
 ```text
-mode=default
+shimmy_profile_name=default
 install_dir=...
 config_dir=...
 dispatcher_dir=...
@@ -67,7 +67,7 @@ Upstream profile manifests additionally record:
 source_checkout=...
 ```
 
-`SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state, not the git checkout path. `SHIMMY_UPSTREAM_CHECKOUT_DIR` is an optional install-time checkout override for `shimmy install --mode upstream`.
+`SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state, not the git checkout path. `SHIMMY_UPSTREAM_CHECKOUT_DIR` is an optional install-time checkout override for `shimmy install --profile upstream`.
 
 Lifecycle fields must use the `shimmy_` prefix, for example:
 
@@ -86,9 +86,9 @@ Do not edit the manifest directly when a Shimmy script supports the action. If a
 
 Generated or shared agent skills are tracked with repeated `shimmy_skill=` entries. Use `./shimmy skills install` or `./shimmy skills update` to rewrite those entries idempotently instead of hand-editing them.
 
-Every capability must produce machine-readable output for the action. Prefer `shimmy status --format manifest`, `shimmy status --mode upstream --format manifest`, or equivalent `key=value` output over JSON so bootstrap, activation, and recovery do not depend on JSON tooling.
+Every capability must produce machine-readable output for the action. Prefer `shimmy status --format manifest`, `shimmy status --profile upstream --format manifest`, or equivalent `key=value` output over JSON so bootstrap, activation, and recovery do not depend on JSON tooling.
 
-Mode precedence is explicit `--mode`, then `SHIMMY_MODE`, then `default`. Direct tool commands such as `rg` and `jq` read `SHIMMY_MODE`; they do not accept `--mode`. `command -v <tool>` shows the stable dispatcher path, not the selected profile implementation. Use `shimmy status` to inspect the selected target.
+Profile precedence is explicit `--profile`, then `SHIMMY_PROFILE_ACTIVE`, then `default`. Direct tool commands such as `rg` and `jq` read `SHIMMY_PROFILE_ACTIVE`; they do not accept `--profile`. `command -v <tool>` shows the stable dispatcher path, not the selected profile implementation. Use `shimmy status` to inspect the selected target.
 
 ## Capabilities
 
@@ -106,13 +106,13 @@ Install flow:
 
 1. Run `detect_environment`.
 2. Read existing state and manifest, if any.
-3. If not installed, run `shimmy install` or `./shimmy install` with the requested `--mode`, `--install-dir`, `--shim`, `--shell`, `--startup-file`, or `--no-startup` arguments.
+3. If not installed, run `shimmy install` or `./shimmy install` with the requested `--profile`, `--install-dir`, `--shim`, `--shell`, `--startup-file`, or `--no-startup` arguments.
 4. If installed, rerun install only when the requested install options differ or repair is needed.
 5. Share Shimmy agent skills during install, including tool skills for installed shims, by asking the user for `repo`, `profile`, or `plugin`, or by passing `--skills-target <target>` for non-interactive command-line installs.
 6. Validate installed state.
 7. Persist lifecycle state through manifest-aware Shimmy commands. Do not create a separate state file.
 
-Activation is a shell-session action. Report the exact activation command, usually `eval "$(shimmy activate)"` for installed workflows or `eval "$(./shimmy activate --mode upstream)"` for maintainer upstream workflows, but do not assume the agent can mutate the user's current shell.
+Activation is a shell-session action. Report the exact activation command, usually `eval "$(shimmy activate)"` for installed workflows or `eval "$(./shimmy activate --profile upstream)"` for maintainer upstream workflows, but do not assume the agent can mutate the user's current shell.
 
 ### update
 
@@ -125,11 +125,11 @@ Update flow:
    - constrained: resolve the newest available version satisfying the repo requirement.
 3. Compare current version/ref against target.
 4. If target is newer or `force=true`, update the Shimmy source/install using the documented repo process.
-5. Run `shimmy update` or `./shimmy update` with appropriate flags such as `--mode`, `--pull`, `--build`, or `--repair-startup`.
+5. Run `shimmy update` or `./shimmy update` with appropriate flags such as `--profile`, `--pull`, `--build`, or `--repair-startup`.
 6. Validate installed state.
 7. Persist new manifest fields only after validation succeeds.
 
-Supported update modes:
+Supported update policies:
 
 - Passive/manual: run only when the user or agent explicitly asks.
 - On-use auto-update: on first Shimmy invocation in a session, read `shimmy_last_checked`; check at most every configured interval, default 12 hours; skip network work when cache is fresh.
@@ -142,7 +142,7 @@ Supported update modes:
 3. Confirm activation script exists.
 4. Confirm installed shim files are executable.
 5. Confirm PATH activation when required by the workflow.
-6. Run `shimmy test`, `shimmy test --mode upstream`, or focused non-mutating shim smoke checks when live container execution is in scope.
+6. Run `shimmy test`, `shimmy test --profile upstream`, or focused non-mutating shim smoke checks when live container execution is in scope.
 7. Emit machine-readable output with pass/fail checks and raw command references.
 
 Use live non-mutating runtime calls such as `version`, `--version`, or `--help`. Do not use fake Podman/Docker binaries for validation.
@@ -161,7 +161,7 @@ If no previous known-good ref exists, stop and ask for a target ref. Do not gues
 ### uninstall
 
 1. Read the selected profile manifest.
-2. Run `shimmy uninstall --mode <mode>` or `./shimmy uninstall --mode <mode>`.
+2. Run `shimmy uninstall --profile <profile>` or `./shimmy uninstall --profile <profile>`.
 3. Validate removal with `./shimmy status` or by confirming the manifest, activation file, shims, and managed startup blocks are gone.
 4. Emit final machine-readable output showing `installed=no`, timestamp, and removed paths.
 

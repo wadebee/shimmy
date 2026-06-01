@@ -51,4 +51,4 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 ## Learning Guidance
 
 - Capture Terraform-specific lessons here when they affect credential mounts, plugin caching, provider behavior, env forwarding, state safety, or apply/destroy approval boundaries.
-- Promote reusable Shimmy design lessons to `../shimmy-create/SKILL.md` under `Learning Guidance`.
+- Promote reusable Shimmy design lessons to `../shimmy-create-tool/SKILL.md` under `Learning Guidance`.

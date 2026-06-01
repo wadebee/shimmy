@@ -45,7 +45,7 @@ Shimmy also resolves the container platform at runtime without changing the comm
 
 ### Option: AI Agent Plugin
 
-Shimmy includes a packaged AI Agent plugin. The plugin provides core Shimmy management skills (`shimmy-install`, `shimmy-init`, `shimmy-create`, and `shimmy-escalation`) plus the jq and ripgrep tool skills most AI agents use. This allows an AI Agent to manage Shimmy installs, quickly create new shims, troubleshoot Podman, and work with the jq or rg tooling.
+Shimmy includes a packaged AI Agent plugin. The plugin provides core Shimmy management skills (`shimmy-install`, `shimmy-init`, `shimmy-create-tool`, and `shimmy-escalation`) plus the jq and ripgrep tool skills most AI agents use. This allows an AI Agent to manage Shimmy installs, quickly create new shims, troubleshoot Podman, and work with the jq or rg tooling.
 
 The primary plugin intentionally does not bundle every tool skill. Optional tool-specific plugins can be added later, for example AWS, Terraform, or Go. Install or enable supplemental plugins when a workstation or repo needs those capabilities.
 

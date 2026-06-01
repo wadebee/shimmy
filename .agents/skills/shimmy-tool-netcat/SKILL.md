@@ -51,4 +51,4 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 ## Learning Guidance
 
 - Capture Netcat-specific lessons here when they affect local image builds, base image choice, network probe behavior, stdin, or ncat package behavior.
-- Promote reusable Shimmy design lessons to `../shimmy-create/SKILL.md` under `Learning Guidance`.
+- Promote reusable Shimmy design lessons to `../shimmy-create-tool/SKILL.md` under `Learning Guidance`.

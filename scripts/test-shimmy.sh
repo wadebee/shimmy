@@ -1442,7 +1442,7 @@ test_skills_install_repo_target() {
   assert_contains "$output" "Installed skill: shimmy-install"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-install/SKILL.md"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-init/SKILL.md"
-  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-create/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-create-tool/SKILL.md"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-escalation/SKILL.md"
   assert_file_exists "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt"
 
@@ -1534,7 +1534,7 @@ test_install_shares_management_skills_explicit_target() {
   assert_contains "$output" "Installed skill: shimmy-install"
   assert_contains "$output" "Installed skill: shimmy-tool-jq"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-install/SKILL.md"
-  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-create/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-create-tool/SKILL.md"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-jq/SKILL.md"
   assert_file_exists "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt"
 
@@ -1544,7 +1544,7 @@ test_install_shares_management_skills_explicit_target() {
   assert_not_contains "$root_manifest_contents" "shimmy_skill="
   assert_not_contains "$profile_manifest_contents" "shimmy_skill="
   assert_contains "$skills_manifest_contents" "shimmy_skill=repo|shimmy-install|$WORK_DIR/.agents/skills/shimmy-install|"
-  assert_contains "$skills_manifest_contents" "shimmy_skill=repo|shimmy-create|$WORK_DIR/.agents/skills/shimmy-create|"
+  assert_contains "$skills_manifest_contents" "shimmy_skill=repo|shimmy-create-tool|$WORK_DIR/.agents/skills/shimmy-create-tool|"
   assert_contains "$skills_manifest_contents" "shimmy_skill=repo|shimmy-tool-jq|$WORK_DIR/.agents/skills/shimmy-tool-jq|"
 
   pass "install shares management and installed shim skills with explicit target"

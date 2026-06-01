@@ -56,4 +56,4 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 ## Learning Guidance
 
 - Capture Nmap-specific lessons here when they affect scan modes, rootless Podman behavior, privileged approval wording, macOS LAN visibility, or safe validation commands.
-- Promote reusable Shimmy design lessons to `../shimmy-create/SKILL.md` under `Learning Guidance`.
+- Promote reusable Shimmy design lessons to `../shimmy-create-tool/SKILL.md` under `Learning Guidance`.

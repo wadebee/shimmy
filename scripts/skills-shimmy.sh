@@ -19,7 +19,7 @@ ACTION=${1:-help}
 
 CORE_SKILLS='shimmy-install
 shimmy-init
-shimmy-create
+shimmy-create-tool
 shimmy-escalation'
 
 SKILLS_MANIFEST_NAME=.shimmy-skills-manifest.txt

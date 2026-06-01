@@ -114,4 +114,4 @@ After you add the privilege, approve and I will retry the same operation once.
 - For firewall policy summaries, query legacy config sections as well as MVC list tools. `opn_list_firewall_rules` can return empty while legacy GUI rules exist under `opn_get_config_section("filter")`; `opn_list_nat_rules` can show generated rules while NAT mode or legacy NAT details are under `opn_get_config_section("nat")`.
 - Keep active diagnostics such as `opn_ping` and `opn_dns_lookup` out of the default read-only audit path. They may use POST endpoints that OPNsense denies when the API user has `System: Deny config write`, even though the diagnostic intent is non-mutating.
 - When summarizing effective access, separate configuration from runtime evidence: aliases and rules describe intended policy, leases and ARP describe known neighbors, and PF states describe current traffic.
-- Promote reusable Shimmy design lessons to `../shimmy-create/SKILL.md` under `Learning Guidance`.
+- Promote reusable Shimmy design lessons to `../shimmy-create-tool/SKILL.md` under `Learning Guidance`.
