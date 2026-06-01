@@ -20,6 +20,7 @@ Shimmy also resolves the container platform at runtime without changing the comm
 |------|---------|-------------|
 | **aws** | AWS CLI | [docs/shims/aws.md](docs/shims/aws.md) |
 | **go** | Go toolchain CLI | [docs/shims/go.md](docs/shims/go.md) |
+| **gdrive** | MCP server for interacting with Google Drive and Sheets | [docs/shims/gdrive.md](docs/shims/gdrive.md) |
 | **jq** | JSON processor | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | TCP/UDP debugging client | [docs/shims/netcat.md](docs/shims/netcat.md) |
 | **nmap** | Network discovery and security scanner | [docs/shims/nmap.md](docs/shims/nmap.md) |

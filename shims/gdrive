@@ -1,0 +1,30 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
+SHIMMY_PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+
+SHIMMY_GDRIVE_IMAGE=${SHIMMY_GDRIVE_IMAGE:-docker.io/mcp/gdrive:latest}
+SHIMMY_GDRIVE_IMAGE_PULL=${SHIMMY_GDRIVE_IMAGE_PULL:-}
+
+if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
+  exit 1
+fi
+
+# shellcheck source=lib/shims/shimmy-podman.sh
+. "$SHIMMY_PODMAN_HELPER_FILE"
+
+shimmy_podman_preflight_require "the gdrive shim"
+
+if [ "$SHIMMY_GDRIVE_IMAGE_PULL" = "always" ]; then
+  SHIMMY_GDRIVE_PULL_ARG=--pull=always
+fi
+
+exec "$SHIMMY_PODMAN_BIN" run --rm -i \
+  --platform "$SHIMMY_PODMAN_PLATFORM" \
+  ${SHIMMY_GDRIVE_PULL_ARG:+"$SHIMMY_GDRIVE_PULL_ARG"} \
+  -v "$PWD:/work" \
+  -w /work \
+  "$SHIMMY_GDRIVE_IMAGE" \
+  "$@"

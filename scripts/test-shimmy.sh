@@ -2980,18 +2980,31 @@ test_terraform_shim_direct() {
 }
 
 test_textual_shim_direct() {
-  setup_scenario
-  require_podman
+   setup_scenario
+   require_podman
 
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/textual" --help 2>&1
-  )
+   output=$(
+     cd "$WORK_DIR"
+     PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/textual" --help 2>&1
+   )
 
-  assert_contains "$output" "Usage:"
-  assert_contains "$output" "textual"
+   assert_contains "$output" "Textual developer CLI"
 
-  pass "textual direct shim execution"
+   pass "textual direct shim execution"
+}
+
+test_gdrive_shim_direct() {
+   setup_scenario
+   require_podman
+
+   output=$(
+     cd "$WORK_DIR"
+     PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/gdrive" --help 2>&1
+   )
+
+   assert_contains "$output" "MCP server for interacting with Google Drive and Sheets"
+
+   pass "gdrive direct shim execution"
 }
 
 test_installed_task_shim() {
@@ -3236,16 +3249,17 @@ main() {
   test_nmap_shim_rootless_host_discovery_guidance
   test_nmap_shim_rootless_podman_privileged_bypasses_guidance
   test_nmap_shim_nmap_unprivileged_opt_in
-  test_opnsense_mcp_server_shim_direct
-  test_opnsense_mcp_server_shim_url_invalid
-  test_opnsense_mcp_server_shim_url_unreachable
-  test_opnsense_mcp_server_shim_verify_ssl_default
-  test_opnsense_mcp_server_shim_secret_selectors
-  test_rg_shim_direct
-  test_task_shim_direct
-  test_terraform_shim_direct
-  test_textual_shim_direct
-  test_installed_opnsense_mcp_server_shim
+   test_opnsense_mcp_server_shim_direct
+   test_opnsense_mcp_server_shim_url_invalid
+   test_opnsense_mcp_server_shim_url_unreachable
+   test_opnsense_mcp_server_shim_verify_ssl_default
+   test_opnsense_mcp_server_shim_secret_selectors
+   test_rg_shim_direct
+   test_task_shim_direct
+   test_terraform_shim_direct
+   test_textual_shim_direct
+   test_gdrive_shim_direct
+   test_installed_opnsense_mcp_server_shim
   test_installed_task_shim
   test_uninstall_requires_mode
   test_uninstall_mode_default_preserves_upstream
