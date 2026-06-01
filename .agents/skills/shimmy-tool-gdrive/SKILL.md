@@ -63,5 +63,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Learning Guidance
 
-- The stale `docker.io/mcp/gdrive:latest` image tracks the older Docker MCP/Model Context Protocol server and lacks the current `isaacphi/mcp-gdrive` Sheets write behavior. Prefer the local source-built image unless a current, maintained image for `isaacphi/mcp-gdrive` appears.
 - `isaacphi/mcp-gdrive` starts OAuth during server startup when no saved token exists, so wrapper help must not enter the upstream Node entrypoint.
+- `isaacphi/mcp-gdrive` currently has no release tags. Keep the default local build pinned to a commit SHA and expose `SHIMMY_GDRIVE_SOURCE_REF` for deliberate source upgrades.
+- A plain `npm ci` runs the package `prepare` script, which invokes TypeScript and can exceed the default Podman VM memory limit. Because upstream commits `dist/`, prefer `npm ci --omit=dev --ignore-scripts` and copy the committed `dist/` into the runtime image.
+- First-time OAuth needs the upstream localhost callback reachable from the host browser. Publish `127.0.0.1:${SHIMMY_GDRIVE_AUTH_PORT:-3000}:3000` only when `.gdrive-server-credentials.json` is absent; normal MCP stdio runs should not publish a port.
