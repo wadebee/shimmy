@@ -5,7 +5,8 @@
 - Source repo README: <https://github.com/GoogleCloudPlatform/cloud-sdk-docker/blob/main/README.md>
 - Latest release: <https://github.com/GoogleCloudPlatform/cloud-sdk-docker/releases>
 - Docs: <https://cloud.google.com/sdk/docs>
-- Shim image: `docker.io/google/cloud-sdk:latest`
+- Shim image: `gcr.io/google.com/cloudsdktool/google-cloud-cli:stable`
+- Image docs: <https://cloud.google.com/sdk/docs/downloads-docker>
 
 ## Upstream README Summary
 
@@ -37,6 +38,8 @@ Environment:
 
 - `SHIMMY_GCLOUD_IMAGE` - override the container image.
 - `SHIMMY_GCLOUD_IMAGE_PULL=always` - force pulling the configured image.
+
+The default image uses Google's documented Google Cloud CLI image repository and the `:stable` tag because it supports both `linux/amd64` and `linux/arm64` platforms.
 
 Mounts:
 

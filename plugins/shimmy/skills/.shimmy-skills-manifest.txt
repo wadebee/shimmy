@@ -3,5 +3,5 @@ shimmy_skills_target=plugin
 shimmy_skills_root=/Users/wade/Repos/Github/wadebee/shimmy/plugins/shimmy/skills
 shimmy_skill=plugin|shimmy-install|/Users/wade/Repos/Github/wadebee/shimmy/plugins/shimmy/skills/shimmy-install|1410417987-40
 shimmy_skill=plugin|shimmy-init|/Users/wade/Repos/Github/wadebee/shimmy/plugins/shimmy/skills/shimmy-init|1879134018-39
-shimmy_skill=plugin|shimmy-create-tool|/Users/wade/Repos/Github/wadebee/shimmy/plugins/shimmy/skills/shimmy-create-tool|3528018052-39
+shimmy_skill=plugin|shimmy-create-tool|/Users/wade/Repos/Github/wadebee/shimmy/plugins/shimmy/skills/shimmy-create-tool|1080947432-39
 shimmy_skill=plugin|shimmy-escalation|/Users/wade/Repos/Github/wadebee/shimmy/plugins/shimmy/skills/shimmy-escalation|2860638416-38

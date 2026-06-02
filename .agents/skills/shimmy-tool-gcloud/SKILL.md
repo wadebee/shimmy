@@ -23,7 +23,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Current Behavior
 
-- Default image: `docker.io/google/cloud-sdk:latest`
+- Default image: `gcr.io/google.com/cloudsdktool/google-cloud-cli:stable`
 - Image override: `SHIMMY_GCLOUD_IMAGE`
 - Pull override: `SHIMMY_GCLOUD_IMAGE_PULL=always`
 - Runtime mode: TTY only when stdin and stdout are terminals
@@ -37,11 +37,12 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 ## Change Rules
 
 1. Preserve the optional gcloud config and kubeconfig mounts unless the task explicitly changes credential or cache behavior.
-2. Treat `CLOUDSDK_*` forwarding as the current contract; update docs and tests deliberately if it changes.
-3. Prefer `gcloud info`, `gcloud version`, and `gcloud auth list` for validation and information gathering.
-4. Do not run `gcloud apply` or `gcloud destroy` style operations unless the user explicitly asks for that operation and understands the consequences.
-5. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
-6. Update the runtime shim, docs, tests, installer behavior, and README together when behavior changes.
+2. Keep the default image aligned with Google's documented Google Cloud CLI Docker image repository. The `:stable` tag is the preferred default because Google documents it as supporting both `linux/amd64` and `linux/arm64`.
+3. Treat `CLOUDSDK_*` forwarding as the current contract; update docs and tests deliberately if it changes.
+4. Prefer `gcloud info`, `gcloud version`, and `gcloud auth list` for validation and information gathering.
+5. Do not run `gcloud apply` or `gcloud destroy` style operations unless the user explicitly asks for that operation and understands the consequences.
+6. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
+7. Update the runtime shim, docs, tests, installer behavior, and README together when behavior changes.
 
 ## Validation
 
@@ -52,4 +53,4 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 ## Learning Guidance
 
 - Capture gcloud-specific lessons here when they affect credential management, project configuration, or command behavior.
-- Promote reusable Shimmy design lessons to `../shimmy-create/SKILL.md` under `Learning Guidance`.
+- Promote reusable Shimmy design lessons to `../shimmy-create-tool/SKILL.md` under `Learning Guidance`.
