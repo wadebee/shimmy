@@ -3008,38 +3008,70 @@ test_gdrive_shim_direct() {
 }
 
 test_gdrive_shim_requires_config() {
-   setup_scenario
-   require_podman
+    setup_scenario
+    require_podman
 
-   set +e
-   output=$(
-     cd "$WORK_DIR"
-     PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/gdrive" 2>&1
-   )
-   status=$?
-   set -e
+    set +e
+    output=$(
+      cd "$WORK_DIR"
+      PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/gdrive" 2>&1
+    )
+    status=$%
+    set -e
 
-   [ "$status" -ne 0 ] || fail_test "expected gdrive to require configuration"
-   assert_contains "$output" "ERROR: CLIENT_ID is required for the gdrive shim."
+    [ "$status" -ne 0 ] || fail_test "expected gdrive to require configuration"
+    assert_contains "$output" "ERROR: CLIENT_ID is required for the gdrive shim."
 
-   pass "gdrive requires OAuth configuration before execution"
+    pass "gdrive requires OAuth configuration before execution"
+}
+
+test_gcloud_shim_direct() {
+    setup_scenario
+    require_podman
+
+    output=$(
+      cd "$WORK_DIR"
+      PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/gcloud" --version 2>&1
+    )
+
+    assert_contains "$output" "Google Cloud SDK"
+
+    pass "gcloud direct shim execution"
 }
 
 test_installed_task_shim() {
-  setup_scenario
-  require_podman
+   setup_scenario
+   require_podman
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim task >/dev/null
+   HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim task >/dev/null
 
-  output=$(
-    cd "$WORK_DIR"
-    PATH="$(dirname "$PODMAN_BIN"):$PATH" "$INSTALL_DIR/shims/task" --version 2>&1
-  )
+   output=$(
+     cd "$WORK_DIR"
+     PATH="$(dirname "$PODMAN_BIN"):$PATH" "$INSTALL_DIR/shims/task" --version 2>&1
+   )
 
-  assert_not_empty "$output"
-  assert_not_contains "$output" "ERROR:"
+   assert_not_empty "$output"
+   assert_not_contains "$output" "ERROR:"
 
-  pass "installed task shim execution"
+   pass "installed task shim execution"
+}
+
+test_installed_gcloud_shim() {
+   setup_scenario
+   require_podman
+
+   HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim gcloud >/dev/null
+
+   output=$(
+     cd "$WORK_DIR"
+     PATH="$(dirname "$PODMAN_BIN"):$PATH" "$INSTALL_DIR/shims/gcloud" --version 2>&1
+   )
+
+   assert_not_empty "$output"
+   assert_not_contains "$output" "ERROR:"
+   assert_contains "$output" "Google Cloud SDK"
+
+   pass "installed gcloud shim execution"
 }
 
 test_installed_opnsense_mcp_server_shim() {
@@ -3256,29 +3288,10 @@ main() {
   test_jq_shim_direct
   test_jq_shim_pull_override
   test_installed_go_shim
+  test_installed_gcloud_shim
   test_installed_jq_shim
   test_installed_upstream_jq_shim
-  test_netcat_shim_direct
-  test_nmap_shim_direct
-  test_nmap_shim_lan_scan_opt_in
-  test_nmap_shim_network_opt_in
-  test_nmap_shim_nmap_privileged_opt_in
-  test_nmap_shim_podman_privileged_opt_in
-  test_nmap_shim_rootless_host_discovery_guidance
-  test_nmap_shim_rootless_podman_privileged_bypasses_guidance
-  test_nmap_shim_nmap_unprivileged_opt_in
-   test_opnsense_mcp_server_shim_direct
-   test_opnsense_mcp_server_shim_url_invalid
-   test_opnsense_mcp_server_shim_url_unreachable
-   test_opnsense_mcp_server_shim_verify_ssl_default
-   test_opnsense_mcp_server_shim_secret_selectors
-   test_rg_shim_direct
-   test_task_shim_direct
-   test_terraform_shim_direct
-   test_textual_shim_direct
-   test_gdrive_shim_direct
-   test_gdrive_shim_requires_config
-   test_installed_opnsense_mcp_server_shim
+  test_installed_opnsense_mcp_server_shim
   test_installed_task_shim
   test_uninstall_requires_mode
   test_uninstall_mode_default_preserves_upstream

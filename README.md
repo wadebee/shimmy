@@ -20,6 +20,7 @@ Shimmy also resolves the container platform at runtime without changing the comm
 |------|---------|-------------|
 | **aws** | AWS CLI | [docs/shims/aws.md](docs/shims/aws.md) |
 | **go** | Go toolchain CLI | [docs/shims/go.md](docs/shims/go.md) |
+| **gcloud** | Google Cloud CLI | [docs/shims/gcloud.md](docs/shims/gcloud.md) |
 | **gdrive** | MCP server for interacting with Google Drive and Sheets | [docs/shims/gdrive.md](docs/shims/gdrive.md) |
 | **jq** | JSON processor | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | TCP/UDP debugging client | [docs/shims/netcat.md](docs/shims/netcat.md) |
@@ -448,6 +449,7 @@ Once shims are in your PATH, use tools naturally:
 ```sh
 aws sts get-caller-identity
 go test ./...
+gcloud auth list
 gdrive --help
 jq . file.json
 netcat 198.51.100.10 443
@@ -469,6 +471,7 @@ Some shims also document required setup checks. For example, `opnsense-mcp-serve
 |------|-------------|
 | **aws** | [docs/shims/aws.md](docs/shims/aws.md) |
 | **go** | [docs/shims/go.md](docs/shims/go.md) |
+| **gcloud** | [docs/shims/gcloud.md](docs/shims/gcloud.md) |
 | **gdrive** | [docs/shims/gdrive.md](docs/shims/gdrive.md) |
 | **jq** | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | [docs/shims/netcat.md](docs/shims/netcat.md) |
@@ -509,7 +512,7 @@ Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
 - install, activate, status, available-shim comparison, machine-readable manifest output, update, startup-file repair, and uninstall behavior for default and upstream profiles
 - Shimmy skill sharing, export, idempotent skills manifest updates, and install-time management skill sharing
-- live Podman execution for the supported shim set: `aws`, `go`, `gdrive`, `jq`, `netcat`, `nmap`, `opnsense-mcp-server`, `rg`, `task`, `terraform`, and `textual`
+- live Podman execution for the supported shim set: `aws`, `go`, `gcloud`, `gdrive`, `jq`, `netcat`, `nmap`, `opnsense-mcp-server`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
 ```
@@ -518,6 +521,7 @@ shimmy/
 ├── shims/                        # OCI wrapper scripts
 │   ├── aws
 │   ├── go
+│   ├── gcloud
 │   ├── gdrive
 │   ├── jq
 │   ├── netcat

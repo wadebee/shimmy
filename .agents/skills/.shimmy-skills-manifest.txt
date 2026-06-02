@@ -16,3 +16,4 @@ shimmy_skill=repo|shimmy-tool-nmap|/Users/wade/Repos/Github/wadebee/shimmy/.agen
 shimmy_skill=repo|shimmy-tool-terraform|/Users/wade/Repos/Github/wadebee/shimmy/.agents/skills/shimmy-tool-terraform|1261084955-39
 shimmy_skill=repo|shimmy-tool-textual|/Users/wade/Repos/Github/wadebee/shimmy/.agents/skills/shimmy-tool-textual|1382628182-39
 shimmy_skill=repo|shimmy-tool-gdrive|/Users/wade/Repos/Github/wadebee/shimmy/.agents/skills/shimmy-tool-gdrive|956758929-39
+shimmy_skill=repo|shimmy-tool-gcloud|/Users/wade/Repos/Github/wadebee/shimmy/.agents/skills/shimmy-tool-gcloud|358109383-38
