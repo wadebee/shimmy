@@ -3031,12 +3031,73 @@ test_gcloud_shim_direct() {
 
     output=$(
       cd "$WORK_DIR"
-      PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/gcloud" --version 2>&1
+      CLOUDSDK_CONFIG="$HOME_DIR/.config/gcloud" PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/gcloud" --version 2>&1
     )
 
     assert_contains "$output" "Google Cloud SDK"
+    assert_dir_exists "$HOME_DIR/.config/gcloud"
 
     pass "gcloud direct shim execution"
+}
+
+test_gcloud_shim_config_help_missing_paths() {
+    setup_scenario
+
+    output=$(
+      cd "$WORK_DIR"
+      HOME="$HOME_DIR" "$ROOT_DIR/shims/gcloud" --shimmy-config-help 2>&1
+    )
+
+    assert_contains "$output" "Shimmy gcloud configuration help"
+    assert_contains "$output" "Host HOME: $HOME_DIR"
+    assert_contains "$output" "Expected gcloud config directory: $HOME_DIR/.config/gcloud (missing)"
+    assert_contains "$output" "Expected kubeconfig file: $HOME_DIR/.kube/config (missing)"
+    assert_contains "$output" "Host CLOUDSDK_CONFIG: <unset>"
+    assert_contains "$output" "Effective host gcloud config directory: $HOME_DIR/.config/gcloud (missing, source: HOME)"
+    assert_contains "$output" "Mount policy: Shimmy creates the gcloud config directory, then mounts it read-write."
+    assert_contains "$output" "Container user: cloudsdk"
+    assert_contains "$output" "Container HOME: /home/cloudsdk"
+    assert_contains "$output" "Container CLOUDSDK_CONFIG: /home/cloudsdk/.config/gcloud"
+    assert_contains "$output" "Mount policy: Shimmy mounts ~/.kube/config read-only when it exists."
+    assert_path_not_exists "$HOME_DIR/.config/gcloud"
+
+    pass "gcloud config help reports missing host paths"
+}
+
+test_gcloud_shim_config_help_cloudsdk_config_override() {
+    setup_scenario
+    mkdir -p "$HOME_DIR/custom-gcloud-config" "$HOME_DIR/.kube"
+    printf '%s\n' 'apiVersion: v1' > "$HOME_DIR/.kube/config"
+
+    output=$(
+      cd "$WORK_DIR"
+      HOME="$HOME_DIR" CLOUDSDK_CONFIG="$HOME_DIR/custom-gcloud-config" "$ROOT_DIR/shims/gcloud" --shimmy-config-help 2>&1
+    )
+
+    assert_contains "$output" "Expected gcloud config directory: $HOME_DIR/.config/gcloud (missing)"
+    assert_contains "$output" "Expected kubeconfig file: $HOME_DIR/.kube/config (present)"
+    assert_contains "$output" "Host CLOUDSDK_CONFIG: $HOME_DIR/custom-gcloud-config (present)"
+    assert_contains "$output" "Effective host gcloud config directory: $HOME_DIR/custom-gcloud-config (present, source: CLOUDSDK_CONFIG)"
+    assert_path_not_exists "$HOME_DIR/.config/gcloud"
+
+    pass "gcloud config help reports CLOUDSDK_CONFIG override"
+}
+
+test_gcloud_shim_config_help_present_paths() {
+    setup_scenario
+    mkdir -p "$HOME_DIR/.config/gcloud" "$HOME_DIR/.kube"
+    printf '%s\n' 'apiVersion: v1' > "$HOME_DIR/.kube/config"
+
+    output=$(
+      cd "$WORK_DIR"
+      HOME="$HOME_DIR" "$ROOT_DIR/shims/gcloud" --shimmy-config-help 2>&1
+    )
+
+    assert_contains "$output" "Expected gcloud config directory: $HOME_DIR/.config/gcloud (present)"
+    assert_contains "$output" "Expected kubeconfig file: $HOME_DIR/.kube/config (present)"
+    assert_contains "$output" "Effective host gcloud config directory: $HOME_DIR/.config/gcloud (present, source: HOME)"
+
+    pass "gcloud config help reports present host paths"
 }
 
 test_installed_task_shim() {
@@ -3064,12 +3125,13 @@ test_installed_gcloud_shim() {
 
    output=$(
      cd "$WORK_DIR"
-     PATH="$(dirname "$PODMAN_BIN"):$PATH" "$INSTALL_DIR/shims/gcloud" --version 2>&1
+     CLOUDSDK_CONFIG="$HOME_DIR/.config/gcloud" PATH="$(dirname "$PODMAN_BIN"):$PATH" "$INSTALL_DIR/shims/gcloud" --version 2>&1
    )
 
    assert_not_empty "$output"
    assert_not_contains "$output" "ERROR:"
    assert_contains "$output" "Google Cloud SDK"
+   assert_dir_exists "$HOME_DIR/.config/gcloud"
 
    pass "installed gcloud shim execution"
 }
@@ -3285,6 +3347,10 @@ main() {
   test_aws_shim_direct
   test_go_shim_direct
   test_go_shim_help_test
+  test_gcloud_shim_config_help_missing_paths
+  test_gcloud_shim_config_help_cloudsdk_config_override
+  test_gcloud_shim_config_help_present_paths
+  test_gcloud_shim_direct
   test_jq_shim_direct
   test_jq_shim_pull_override
   test_installed_go_shim

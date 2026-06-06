@@ -29,6 +29,7 @@ Google Cloud CLI (gcloud) is the primary command-line interface for Google Cloud
 ## Shimmy Usage
 
 ```sh
+gcloud --shimmy-config-help
 gcloud version
 gcloud auth list
 gcloud projects list
@@ -38,14 +39,29 @@ Environment:
 
 - `SHIMMY_GCLOUD_IMAGE` - override the container image.
 - `SHIMMY_GCLOUD_IMAGE_PULL=always` - force pulling the configured image.
+- `CLOUDSDK_CONFIG` - standard Google Cloud CLI config directory override. When set on the host, Shimmy creates and mounts that directory instead of `$HOME/.config/gcloud`.
 
 The default image uses Google's documented Google Cloud CLI image repository and the `:stable` tag because it supports both `linux/amd64` and `linux/arm64` platforms.
 
 Mounts:
 
 - `$PWD` -> `/work` read-write.
-- `~/.config/gcloud` -> `/root/.config/gcloud` read-only when it exists.
-- `~/.kube/config` -> `/root/.kube/config` read-only when it exists.
+- `~/.config/gcloud` or host `CLOUDSDK_CONFIG` -> `/home/cloudsdk/.config/gcloud` read-write. Shimmy creates the host directory when needed.
+- `~/.kube/config` -> `/home/cloudsdk/.kube/config` read-only when it exists.
+
+Container user and config:
+
+- The container runs as the image's built-in `cloudsdk` user.
+- Shimmy sets container `HOME=/home/cloudsdk`.
+- Shimmy uses host `CLOUDSDK_CONFIG` as the source directory when it is set, then sets container `CLOUDSDK_CONFIG=/home/cloudsdk/.config/gcloud` so the mounted config directory is used consistently.
+
+Configuration diagnostics:
+
+- `gcloud --shimmy-config-help` prints the host `HOME`, host `CLOUDSDK_CONFIG`, the expected `~/.config/gcloud` and `~/.kube/config` paths, the effective host config directory, whether those paths exist, and the current mount policy.
+- Shimmy creates host `CLOUDSDK_CONFIG` when set, otherwise host `~/.config/gcloud` when `HOME` is set, during normal gcloud execution. The diagnostic command does not create it.
+- Shimmy does not create credentials or Google Cloud CLI configuration files automatically.
+- If the mounted config directory is empty or unconfigured, auth-dependent read commands such as `gcloud auth list` or `gcloud projects list` may fail with upstream Google Cloud CLI auth/config errors.
+- Config-writing commands such as `gcloud init`, `gcloud auth login`, `gcloud auth application-default login`, and `gcloud config set` run through the shim and can write to the mounted config directory.
 
 Forwarded environment:
 
