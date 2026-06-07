@@ -14,6 +14,16 @@ For tools that do not ship a usable upstream container image, Shimmy can build a
 
 Shimmy also resolves the container platform at runtime without changing the command a user runs. Linux hosts run containers as `linux/amd64`, while macOS hosts run containers as `linux/arm64`. Explicit `SHIMMY_{TOOL_PREFIX}_IMAGE` overrides still select the image reference, and Shimmy applies the platform selection underneath.
 
+For diagnostic purposes you may inspect the shim command that gets passed to Podman without actually running the command using the `--preview-shim`
+flag in your tool command. Shimmy will intercept that flag and print a shell-quoted `podman run` command, then exit without checking
+Podman engine reachability, pulling images, building local images, or starting a
+container.
+
+```sh
+jq --preview-shim --version
+netcat --help --preview-shim
+```
+
 ## Included Shims
 
 | Tool | Purpose | Quick start |

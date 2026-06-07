@@ -20,7 +20,7 @@ fi
 # shellcheck source=lib/shims/shimmy-podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
 
-shimmy_podman_preflight_require "the aws shim"
+shimmy_podman_preflight_or_preview_require "the aws shim" "$@"
 
 if [ -n "${HOME:-}" ] && [ -d "$HOME/.aws" ]; then
   SHIMMY_AWS_CONFIG_DIR=$HOME/.aws
@@ -34,7 +34,7 @@ if [ -t 0 ] && [ -t 1 ]; then
   SHIMMY_AWS_TTY_ARG=-it
 fi
 
-exec "$SHIMMY_PODMAN_BIN" run --rm \
+shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${SHIMMY_AWS_PULL_ARG:+"$SHIMMY_AWS_PULL_ARG"} \
   ${SHIMMY_AWS_TTY_ARG:+"$SHIMMY_AWS_TTY_ARG"} \

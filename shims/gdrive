@@ -17,7 +17,7 @@ fi
 # shellcheck source=lib/shims/custom-image.sh
 . "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
-shimmy_podman_preflight_require "the gdrive shim"
+shimmy_podman_preflight_or_preview_require "the gdrive shim" "$@"
 
 if [ -n "${SHIMMY_GDRIVE_IMAGE:-}" ]; then
   SHIMMY_GDRIVE_RUN_IMAGE=$SHIMMY_GDRIVE_IMAGE
@@ -61,9 +61,10 @@ if [ -n "${SHIMMY_GDRIVE_IMAGE:-}" ] && [ "${SHIMMY_GDRIVE_IMAGE_PULL:-}" = "alw
   SHIMMY_GDRIVE_PULL_ARG=--pull=always
 fi
 
-case "${1:-}" in
-  -h|--help)
-    cat <<'EOF'
+if ! shimmy_podman_is_preview; then
+  case "${1:-}" in
+    -h|--help)
+      cat <<'EOF'
 Run the isaacphi/mcp-gdrive MCP server through Shimmy.
 
 Required environment:
@@ -83,9 +84,10 @@ Shimmy environment:
   SHIMMY_GDRIVE_BASE_IMAGE             override the Node base image for local builds
   SHIMMY_GDRIVE_SOURCE_REF             override the isaacphi/mcp-gdrive git ref
 EOF
-    exit 0
-    ;;
-esac
+      exit 0
+      ;;
+  esac
+fi
 
 shimmy_gdrive_config_preflight_require() {
   if [ -z "${CLIENT_ID:-}" ]; then
@@ -128,18 +130,23 @@ shimmy_gdrive_config_preflight_require() {
   fi
 }
 
-shimmy_gdrive_config_preflight_require
+if shimmy_podman_is_preview; then
+  SHIMMY_GDRIVE_CREDS_DIR=${GDRIVE_CREDS_DIR:-}
+else
+  shimmy_gdrive_config_preflight_require
+fi
 
-exec "$SHIMMY_PODMAN_BIN" run --rm -i \
+shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm -i \
   --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${SHIMMY_GDRIVE_PULL_ARG:+"$SHIMMY_GDRIVE_PULL_ARG"} \
   -v "$PWD:/work:rw" \
   -w /work \
   ${SHIMMY_GDRIVE_AUTH_PORT_ARG:+"-p"} \
   ${SHIMMY_GDRIVE_AUTH_PORT_ARG:+"$SHIMMY_GDRIVE_AUTH_PORT_ARG"} \
-  -v "$SHIMMY_GDRIVE_CREDS_DIR:$SHIMMY_GDRIVE_CREDS_DIR:rw" \
-  -e "CLIENT_ID=$CLIENT_ID" \
-  -e "CLIENT_SECRET=$CLIENT_SECRET" \
+  ${SHIMMY_GDRIVE_CREDS_DIR:+"-v"} \
+  ${SHIMMY_GDRIVE_CREDS_DIR:+"$SHIMMY_GDRIVE_CREDS_DIR:$SHIMMY_GDRIVE_CREDS_DIR:rw"} \
+  -e "CLIENT_ID=${CLIENT_ID:-}" \
+  -e "CLIENT_SECRET=${CLIENT_SECRET:-}" \
   -e "GDRIVE_CREDS_DIR=$SHIMMY_GDRIVE_CREDS_DIR" \
   "$SHIMMY_GDRIVE_RUN_IMAGE" \
   "$@"

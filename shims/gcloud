@@ -117,13 +117,6 @@ shimmy_gcloud_config_help_print() {
   printf '%s\n' 'Shimmy does not create credentials or Google Cloud CLI configuration files automatically.'
 }
 
-case "${1:-}" in
-  --shimmy-config-help)
-    shimmy_gcloud_config_help_print
-    exit 0
-    ;;
-esac
-
 if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
   exit 1
@@ -132,9 +125,26 @@ fi
 # shellcheck source=lib/shims/shimmy-podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
 
-shimmy_podman_preflight_require "the gcloud shim"
+shimmy_podman_preview_prepare "$@"
 
-shimmy_gcloud_config_dir_ensure
+if ! shimmy_podman_is_preview; then
+  case "${1:-}" in
+    --shimmy-config-help)
+      shimmy_gcloud_config_help_print
+      exit 0
+      ;;
+  esac
+fi
+
+if ! shimmy_podman_is_preview; then
+  shimmy_podman_preflight_require "the gcloud shim"
+fi
+
+if shimmy_podman_is_preview; then
+  shimmy_gcloud_config_dir_resolve
+else
+  shimmy_gcloud_config_dir_ensure
+fi
 
 if [ -n "${HOME:-}" ] && [ -f "$HOME/.kube/config" ]; then
   SHIMMY_GCLOUD_KUBECONFIG=$HOME/.kube/config
@@ -148,7 +158,7 @@ if [ -t 0 ] && [ -t 1 ]; then
   SHIMMY_GCLOUD_TTY_ARG=-it
 fi
 
-exec "$SHIMMY_PODMAN_BIN" run --rm \
+shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${SHIMMY_GCLOUD_PULL_ARG:+"$SHIMMY_GCLOUD_PULL_ARG"} \
   ${SHIMMY_GCLOUD_TTY_ARG:+"$SHIMMY_GCLOUD_TTY_ARG"} \

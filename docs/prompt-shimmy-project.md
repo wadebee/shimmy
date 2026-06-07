@@ -23,9 +23,10 @@ Constraints:
 - Add extra mounts only when the tool needs them, and guard them with existence checks.
 - Forward env vars with `-e PREFIX_*` patterns only when the tool needs them.
 - Add small preflight checks for required upstream configuration when a missing or unreachable value would otherwise fail inside the container. For URL-based services, validate the URL shape and document a non-mutating reachability check such as `curl`.
+- Support the global self-contained `--preview-shim` flag by using the shared Podman helper's preview-aware preflight and final run helpers. The flag may appear anywhere in the tool arguments, is consumed by Shimmy, and prints the shell-quoted `podman run` command without contacting Podman, pulling images, building images, or running a container.
 - Use `Containerfile` naming for custom image build contexts.
 - Keep image-build logic in the shared shim helper library so custom-image shims rebuild only when the build context changes.
-- End with `exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" ... "$IMAGE" "$@"`.
+- End with `shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" ... "$IMAGE" "$@"`.
 - Update `scripts/install-shimmy.sh` because it enumerates shim names explicitly.
 - Treat Podman as an explicit dependency. Do not add install or provisioning steps for it in Shimmy code, tests, or CI.
 - On macOS, account for the official Podman pkg installer path `/opt/podman/bin/podman` when documenting or validating the dependency.

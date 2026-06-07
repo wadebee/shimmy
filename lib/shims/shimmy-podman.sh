@@ -72,6 +72,10 @@ shimmy_podman_failure_print_unreachable() {
   printf '%s\n' 'Approving `podman info` alone does not approve Podman access through a Shimmy wrapper.' >&2
 }
 
+shimmy_podman_is_preview() {
+  [ "${SHIMMY_PODMAN_PREVIEW:-0}" = 1 ]
+}
+
 shimmy_podman_path_activate() {
   podman_bin=${1:?podman binary path is required}
   podman_dir=$(dirname -- "$podman_bin")
@@ -108,6 +112,30 @@ shimmy_podman_platform_tag_render() {
   printf '%s\n' "$platform_value" | sed 's#[/:]#-#g'
 }
 
+shimmy_podman_preview_args_include() {
+  for arg do
+    if [ "$arg" = "--preview-shim" ]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+shimmy_podman_preview_prepare() {
+  if ! shimmy_podman_preview_args_include "$@"; then
+    SHIMMY_PODMAN_PREVIEW=0
+    return 0
+  fi
+
+  SHIMMY_PODMAN_PREVIEW=1
+  if ! shimmy_podman_bin_resolve; then
+    SHIMMY_PODMAN_BIN=podman
+  fi
+  shimmy_podman_platform_resolve
+  export SHIMMY_PODMAN_BIN
+}
+
 shimmy_podman_preflight_require() {
   context_label=${1:-shimmy}
 
@@ -118,6 +146,18 @@ shimmy_podman_preflight_require() {
     shimmy_podman_failure_print_unreachable "$context_label" "$SHIMMY_PODMAN_BIN"
     return 1
   fi
+}
+
+shimmy_podman_preflight_or_preview_require() {
+  context_label=${1:-shimmy}
+  shift
+
+  shimmy_podman_preview_prepare "$@"
+  if shimmy_podman_is_preview; then
+    return 0
+  fi
+
+  shimmy_podman_preflight_require "$context_label"
 }
 
 shimmy_podman_privileged_connection_require() {
@@ -172,4 +212,32 @@ EOF
 
   SHIMMY_PODMAN_PRIVILEGED_CONNECTION=
   return 1
+}
+
+shimmy_podman_shell_word_print() {
+  printf "'"
+  printf '%s' "$1" | sed "s/'/'\\\\''/g"
+  printf "'"
+}
+
+shimmy_podman_command_preview_print() {
+  separator=
+
+  for arg do
+    [ "$arg" = "--preview-shim" ] && continue
+    printf '%s' "$separator"
+    shimmy_podman_shell_word_print "$arg"
+    separator=' '
+  done
+
+  printf '\n'
+}
+
+shimmy_podman_run_or_preview() {
+  if shimmy_podman_is_preview; then
+    shimmy_podman_command_preview_print "$@"
+    return 0
+  fi
+
+  exec "$@"
 }

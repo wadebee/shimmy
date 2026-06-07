@@ -68,6 +68,11 @@ shimmy_local_image_ensure() {
   platform_tag=$(shimmy_podman_platform_tag_render "$SHIMMY_PODMAN_PLATFORM")
   image_ref=${image_repo}:${context_hash}-${platform_tag}
 
+  if shimmy_podman_is_preview; then
+    printf '%s\n' "$image_ref"
+    return 0
+  fi
+
   shimmy_podman_preflight_require "local shim image builds" || return 1
 
   if [ "$build_mode" = "always" ] || ! "$SHIMMY_PODMAN_BIN" image exists "$image_ref" >/dev/null 2>&1; then

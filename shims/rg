@@ -18,13 +18,13 @@ fi
 # shellcheck source=lib/shims/shimmy-podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
 
-shimmy_podman_preflight_require "the rg shim"
+shimmy_podman_preflight_or_preview_require "the rg shim" "$@"
 
 if [ "$SHIMMY_RG_IMAGE_PULL" = "always" ]; then
   SHIMMY_RG_PULL_ARG=--pull=always
 fi
 
-exec "$SHIMMY_PODMAN_BIN" run --rm -i \
+shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm -i \
   --platform "$SHIMMY_PODMAN_PLATFORM" \
   ${SHIMMY_RG_PULL_ARG:+"$SHIMMY_RG_PULL_ARG"} \
   -v "$PWD:/work" \

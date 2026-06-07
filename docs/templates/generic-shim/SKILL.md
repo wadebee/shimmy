@@ -44,6 +44,7 @@ SHIMMY_PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
 
 SHIMMY_<TOOL_PREFIX>_IMAGE=${SHIMMY_<TOOL_PREFIX>_IMAGE:-<default-image>}
 SHIMMY_<TOOL_PREFIX>_IMAGE_PULL=${SHIMMY_<TOOL_PREFIX>_IMAGE_PULL:-}
+SHIMMY_<TOOL_PREFIX>_PULL_ARG=
 
 if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
@@ -53,13 +54,13 @@ fi
 # shellcheck source=lib/shims/shimmy-podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
 
-shimmy_podman_preflight_require "the <shim-name> shim"
+shimmy_podman_preflight_or_preview_require "the <shim-name> shim" "$@"
 
 if [ "$SHIMMY_<TOOL_PREFIX>_IMAGE_PULL" = "always" ]; then
-  exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" <interactive-flag> --pull=always -v "$PWD:/work" -w /work "$SHIMMY_<TOOL_PREFIX>_IMAGE" "$@"
+  SHIMMY_<TOOL_PREFIX>_PULL_ARG=--pull=always
 fi
 
-exec "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" <interactive-flag> -v "$PWD:/work" -w /work "$SHIMMY_<TOOL_PREFIX>_IMAGE" "$@"
+shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" <interactive-flag> ${SHIMMY_<TOOL_PREFIX>_PULL_ARG:+"$SHIMMY_<TOOL_PREFIX>_PULL_ARG"} -v "$PWD:/work" -w /work "$SHIMMY_<TOOL_PREFIX>_IMAGE" "$@"
 ```
 
 ## Shim Config Pattern
@@ -78,6 +79,7 @@ Use repeated `smoke_arg=` lines when the smoke command needs more than one argum
 - Mount home-directory state only when the tool needs config, credentials, or caches.
 - Prefer wildcard env forwarding such as `-e AWS_*` when the underlying CLI already depends on a family of env vars.
 - Preserve transparent CLI behavior by passing `"$@"` unchanged.
+- Support `--preview-shim` as a global Shimmy flag through the shared Podman helper.
 - Use `SHIMMY_` for every Shimmy-defined user-facing environment variable; reserve non-`SHIMMY_` env vars for upstream-defined pass-through configuration.
 - Choose a pinned image unless there is a strong reason to use `latest`.
 - Treat Podman as an explicit dependency. On macOS, remember the official pkg installer may place it at `/opt/podman/bin/podman`.

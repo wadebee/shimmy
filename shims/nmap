@@ -63,7 +63,7 @@ fi
 # shellcheck source=lib/shims/shimmy-podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
 
-shimmy_podman_preflight_require "the nmap shim"
+shimmy_podman_preflight_or_preview_require "the nmap shim" "$@"
 
 if [ "$SHIMMY_NMAP_IMAGE_PULL" = "always" ]; then
   SHIMMY_NMAP_PULL_ARG=--pull=always
@@ -108,9 +108,16 @@ case "$PODMAN_PRIVILEGED" in
   ''|0)
     ;;
   1)
-    shimmy_podman_privileged_connection_require "the nmap shim" || exit 1
-    PODMAN_CONNECTION_ARG=--connection
-    PODMAN_CONNECTION_VALUE=$SHIMMY_PODMAN_PRIVILEGED_CONNECTION
+    if shimmy_podman_is_preview; then
+      if [ -n "${SHIMMY_PODMAN_PRIVILEGED_CONNECTION:-}" ]; then
+        PODMAN_CONNECTION_ARG=--connection
+        PODMAN_CONNECTION_VALUE=$SHIMMY_PODMAN_PRIVILEGED_CONNECTION
+      fi
+    else
+      shimmy_podman_privileged_connection_require "the nmap shim" || exit 1
+      PODMAN_CONNECTION_ARG=--connection
+      PODMAN_CONNECTION_VALUE=$SHIMMY_PODMAN_PRIVILEGED_CONNECTION
+    fi
     PODMAN_PRIVILEGED_ARG=--privileged
     ;;
   *)
@@ -121,6 +128,7 @@ esac
 
 if [ "$SHIMMY_NMAP_PRIVILEGED_ARG" != "--unprivileged" ] &&
   [ "$PODMAN_PRIVILEGED_ARG" != "--privileged" ] &&
+  ! shimmy_podman_is_preview &&
   ! shimmy_nmap_args_include_unprivileged "$@" &&
   shimmy_nmap_args_include_host_discovery "$@" &&
   shimmy_nmap_is_rootless_podman; then
@@ -148,7 +156,7 @@ if [ -t 0 ] && [ -t 1 ]; then
   SHIMMY_NMAP_TTY_ARG=-it
 fi
 
-exec "$SHIMMY_PODMAN_BIN" \
+shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" \
   ${PODMAN_CONNECTION_ARG:+"$PODMAN_CONNECTION_ARG"} \
   ${PODMAN_CONNECTION_VALUE:+"$PODMAN_CONNECTION_VALUE"} \
   run --rm \

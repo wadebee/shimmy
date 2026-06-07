@@ -597,6 +597,29 @@ test_podman_platform_tag_render() {
   pass "Podman platform tag rendering"
 }
 
+test_podman_preview_helpers() {
+  if ! /bin/sh -c '. "$1"; shimmy_podman_preview_args_include one --preview-shim two' sh "$SHIMMY_PODMAN_HELPER_FILE"; then
+    fail_test "expected preview helper to detect --preview-shim"
+  fi
+
+  if /bin/sh -c '. "$1"; shimmy_podman_preview_args_include one --not-preview two' sh "$SHIMMY_PODMAN_HELPER_FILE"; then
+    fail_test "expected preview helper to ignore non-preview args"
+  fi
+
+  output=$(
+    /bin/sh -c '. "$1"; shimmy_podman_command_preview_print podman run --preview-shim "has space" "single'\''quote"' sh "$SHIMMY_PODMAN_HELPER_FILE"
+  )
+  expected="'podman' 'run' 'has space' 'single'\\''quote'"
+  assert_equals "$output" "$expected"
+
+  output=$(
+    /bin/sh -c '. "$1"; shimmy_podman_preview_prepare one --preview-shim two; shimmy_podman_run_or_preview podman run --preview-shim image --flag' sh "$SHIMMY_PODMAN_HELPER_FILE"
+  )
+  assert_equals "$output" "'podman' 'run' 'image' '--flag'"
+
+  pass "Podman preview helpers strip and quote preview commands"
+}
+
 test_podman_unreachable_guidance_agent() {
   output=$(
     /bin/sh -c '. "$1"; shimmy_podman_failure_print_unreachable "the rg shim" "/opt/podman/bin/podman"' sh "$SHIMMY_PODMAN_HELPER_FILE" 2>&1
@@ -2640,6 +2663,36 @@ test_jq_shim_pull_override() {
   pass "jq pull override execution"
 }
 
+test_jq_shim_preview() {
+  setup_scenario
+
+  output=$(
+    cd "$WORK_DIR"
+    "$ROOT_DIR/shims/jq" --preview-shim --version 2>&1
+  )
+
+  assert_contains "$output" "'run'"
+  assert_contains "$output" "'--platform'"
+  assert_contains "$output" "'-v'"
+  assert_contains "$output" "'$WORK_DIR:/work'"
+  assert_contains "$output" "'ghcr.io/jqlang/jq:1.8.1'"
+  assert_contains "$output" "'--version'"
+  assert_not_contains "$output" "--preview-shim"
+  assert_not_contains "$output" "jq-1.8.1"
+
+  output=$(
+    cd "$WORK_DIR"
+    "$ROOT_DIR/shims/jq" --version --preview-shim 2>&1
+  )
+
+  assert_contains "$output" "'run'"
+  assert_contains "$output" "'--version'"
+  assert_not_contains "$output" "--preview-shim"
+  assert_not_contains "$output" "jq-1.8.1"
+
+  pass "jq preview shim renders podman command"
+}
+
 test_installed_jq_shim() {
   setup_scenario
   require_podman
@@ -2709,6 +2762,24 @@ test_netcat_shim_direct() {
   assert_contains "$output" "Ncat"
 
   pass "netcat direct shim execution"
+}
+
+test_netcat_shim_preview() {
+  setup_scenario
+
+  output=$(
+    cd "$WORK_DIR"
+    "$ROOT_DIR/shims/netcat" --preview-shim --help 2>&1
+  )
+
+  assert_contains "$output" "'run'"
+  assert_contains "$output" "'--platform'"
+  assert_contains "$output" "'localhost/shimmy-netcat:"
+  assert_contains "$output" "'--help'"
+  assert_not_contains "$output" "--preview-shim"
+  assert_not_contains "$output" "Building local shim image"
+
+  pass "netcat preview shim renders local image command"
 }
 
 test_nmap_shim_direct() {
@@ -3272,6 +3343,7 @@ main() {
 
   test_podman_platform_resolves_host_os
   test_podman_platform_tag_render
+  test_podman_preview_helpers
   test_podman_unreachable_guidance_agent
   test_podman_privileged_connection_resolves_default_root
   test_dash_parse
@@ -3353,6 +3425,7 @@ main() {
   test_gcloud_shim_direct
   test_jq_shim_direct
   test_jq_shim_pull_override
+  test_jq_shim_preview
   test_installed_go_shim
   test_installed_gcloud_shim
   test_installed_jq_shim
@@ -3364,6 +3437,7 @@ main() {
   test_uninstall_mode_invalid_environment_rejected
   test_uninstall_mode_upstream_last_profile_cleanup
   test_uninstall_mode_upstream_preserves_default
+  test_netcat_shim_preview
 
   printf 'All %s shim tests passed.\n' "$TEST_COUNT"
 }
