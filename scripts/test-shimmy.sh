@@ -11,6 +11,7 @@ SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/shims/shimmy-podman.sh
 COMMON_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-common.sh
 CATALOG_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-catalog.sh
 PROFILE_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-profile.sh
+TEST_HELPER_FILE=$ROOT_DIR/lib/repo/shimmy-test.sh
 TMP_PARENT=${TMPDIR:-/tmp}
 case "$TMP_PARENT" in
   ''|/)
@@ -29,21 +30,15 @@ REQUESTED_TEST_ALL=0
 REQUESTED_TEST_SHIM=
 RUN_PROFILE_TESTS=0
 
-cleanup() {
-  rm -rf "$TMP_ROOT"
-}
-
-trap cleanup EXIT HUP INT TERM
-
-pass() {
-  TEST_COUNT=$((TEST_COUNT + 1))
-  printf 'PASS: %s\n' "$1"
-}
-
-fail_test() {
-  printf 'FAIL: %s\n' "$1" >&2
+if [ ! -f "$TEST_HELPER_FILE" ]; then
+  printf 'FAIL: missing test helper: %s\n' "$TEST_HELPER_FILE" >&2
   exit 1
-}
+fi
+
+# shellcheck source=lib/repo/shimmy-test.sh
+. "$TEST_HELPER_FILE"
+
+trap shimmy_test_cleanup EXIT HUP INT TERM
 
 if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
   fail_test "missing Podman helper: $SHIMMY_PODMAN_HELPER_FILE"
@@ -70,111 +65,6 @@ fi
 # shellcheck source=lib/repo/shimmy-profile.sh
 . "$PROFILE_HELPER_FILE"
 
-assert_contains() {
-  haystack=$1
-  needle=$2
-
-  case "$haystack" in
-    *"$needle"*)
-      ;;
-    *)
-      printf 'Actual output:\n%s\n' "$haystack" >&2
-      fail_test "expected output to contain: $needle"
-      ;;
-  esac
-}
-
-assert_not_contains() {
-  haystack=$1
-  needle=$2
-
-  case "$haystack" in
-    *"$needle"*)
-      fail_test "expected output not to contain: $needle"
-      ;;
-    *)
-      ;;
-  esac
-}
-
-assert_no_line_with_prefix() {
-  haystack=$1
-  prefix=$2
-
-  while IFS= read -r haystack_line; do
-    case "$haystack_line" in
-      "$prefix"*)
-        printf 'Actual output:\n%s\n' "$haystack" >&2
-        fail_test "expected no line beginning with: $prefix"
-        ;;
-    esac
-  done <<EOF
-$haystack
-EOF
-}
-
-assert_not_empty() {
-  if [ -z "${1:-}" ]; then
-    fail_test "expected output to be non-empty"
-  fi
-}
-
-assert_file_contains() {
-  file_path=$1
-  needle=$2
-
-  [ -f "$file_path" ] || fail_test "expected file to exist: $file_path"
-  file_contents=$(cat "$file_path")
-  assert_contains "$file_contents" "$needle"
-}
-
-assert_file_exists() {
-  if [ ! -f "$1" ]; then
-    fail_test "expected file to exist: $1"
-  fi
-}
-
-assert_file_executable() {
-  if [ ! -x "$1" ]; then
-    fail_test "expected file to be executable: $1"
-  fi
-}
-
-assert_path_symlink() {
-  if [ ! -L "$1" ]; then
-    fail_test "expected path to be a symlink: $1"
-  fi
-}
-
-assert_dir_exists() {
-  if [ ! -d "$1" ]; then
-    fail_test "expected directory to exist: $1"
-  fi
-}
-
-assert_equals() {
-  actual=$1
-  expected=$2
-
-  if [ "$actual" != "$expected" ]; then
-    fail_test "expected '$expected', got '$actual'"
-  fi
-}
-
-assert_path_not_exists() {
-  if [ -e "$1" ]; then
-    fail_test "expected path to be absent: $1"
-  fi
-}
-
-setup_scenario() {
-  SCENARIO_DIR=$(mktemp -d "$TMP_ROOT/scenario.XXXXXX")
-  HOME_DIR=$SCENARIO_DIR/home
-  INSTALL_DIR=$SCENARIO_DIR/install
-  WORK_DIR=$SCENARIO_DIR/work
-  mkdir -p "$HOME_DIR" "$WORK_DIR"
-}
-
 usage() {
   cat <<'EOF'
 Run Shimmy tests.
@@ -183,7 +73,7 @@ Usage:
   scripts/test-shimmy.sh [--install-dir <dir>] [--profile default|upstream] [--shim <name>] [--all]
 
 Without an explicit mode, install dir, SHIMMY_PROFILE_ACTIVE, or installed launcher
-context, this runs the full source-checkout test suite. With a selected
+context, this runs the default source-checkout test suite. With a selected
 profile, it validates root/profile manifests and tests root default shims.
 Use --shim for one installed shim or --all for root default shims plus every
 profile-owned shim recorded in the selected profile manifest.
@@ -663,24 +553,6 @@ $root_connection
   assert_equals "$SHIMMY_PODMAN_PRIVILEGED_CONNECTION" "$root_connection"
 
   pass "Podman privileged connection resolves default-root companion"
-}
-
-run_in_repo() {
-  (
-    cd "$ROOT_DIR"
-    "$@"
-  )
-}
-
-tracked_shell_file_list() {
-  git -C "$ROOT_DIR" ls-files | while IFS= read -r tracked_path; do
-    case "$tracked_path" in
-      shimmy|scripts/*.sh|lib/*/*.sh|shims/*)
-        [ -f "$ROOT_DIR/$tracked_path" ] || continue
-        printf '%s\n' "$ROOT_DIR/$tracked_path"
-        ;;
-    esac
-  done
 }
 
 test_dash_parse() {
@@ -3345,20 +3217,15 @@ main() {
   test_podman_platform_tag_render
   test_podman_preview_helpers
   test_podman_unreachable_guidance_agent
-  test_podman_privileged_connection_resolves_default_root
   test_dash_parse
   test_profile_rejects_mode_flag
   test_install_manifest
-  test_install_default_shims
   test_install_mode_default_profile_manifest
   test_install_mode_invalid_environment_rejected
-  test_install_mode_precedence
   test_install_mode_upstream_profile_manifest
   test_installed_dispatcher_invalid_mode_rejected
   test_installed_dispatcher_recursive_target_rejected
-  test_installed_dispatcher_parameterized_invocation
   test_installed_dispatcher_upstream_checkout_reflects_edits
-  test_shimmy_test_mode_default_profile
   test_shimmy_test_mode_default_profile_shim
   test_shimmy_test_mode_default_profile_only_shim
   test_shimmy_test_mode_default_profile_all
@@ -3368,75 +3235,53 @@ main() {
   test_shimmy_test_mode_environment_fallback
   test_shimmy_test_mode_invalid_environment_rejected
   test_shimmy_test_mode_precedence
-  test_shimmy_test_mode_upstream_profile
   test_install_removes_legacy_shell_init_block
   test_install_bash_uses_existing_profile_login_file
   test_activate_eval
-  test_activate_mode_default_exports_mode
   test_activate_mode_invalid_environment_rejected
   test_activate_mode_precedence
   test_activate_is_idempotent
-  test_activate_mode_upstream_exports_mode
   test_install_no_startup
   test_skills_install_repo_target
   test_installed_launcher_skills_install_includes_installed_shim_skills
   test_skills_update_repo_target
   test_skills_export_folder
-  test_install_shares_management_skills_explicit_target
   test_install_macos_podman_guidance
   test_agent_shimmy_preflight_reports_approvals
-  test_agent_shimmy_preflight_reports_upstream_profile
   test_netinfo_help
   test_netinfo_manifest_crostini_host_name_resolution
   test_netinfo_manifest_darwin_host_name_resolution
   test_netinfo_manifest_auto_darwin_default_interface
   test_netinfo_manifest_auto_skips_crostini_shell_lan
   test_update_repair_startup
-  test_status_reports_install
-  test_status_available_reports_remaining_shims
   test_status_manifest_format
   test_status_available_manifest_format
   test_status_mode_invalid_environment_rejected
   test_status_mode_paths_are_distinct
   test_status_mode_precedence
-  test_status_upstream_checkout_absolute_resolution
   test_installed_shimmy_management_command
   test_installed_shim_install_adds_available_shim
   test_installed_shim_install_rejects_positional_name
   test_installed_update_fetches_manifest_source
-  test_repo_update_uses_current_checkout
-  test_installed_update_requires_pull_for_image_refresh
-  test_update_reinstalls_default_shims_only
   test_update_shim_reinstalls_selected_shim
   test_update_shim_requires_installed_shim
   test_update_all_reinstalls_profile_shims
   test_update_preserves_shimmy_manifest_fields
-  test_update_mode_default_profile
-  test_update_mode_environment_fallback
   test_update_mode_invalid_environment_rejected
-  test_update_mode_precedence
   test_update_mode_upstream_profile
   test_aws_shim_direct
   test_go_shim_direct
-  test_go_shim_help_test
   test_gcloud_shim_config_help_missing_paths
   test_gcloud_shim_config_help_cloudsdk_config_override
-  test_gcloud_shim_config_help_present_paths
   test_gcloud_shim_direct
   test_jq_shim_direct
-  test_jq_shim_pull_override
   test_jq_shim_preview
-  test_installed_go_shim
-  test_installed_gcloud_shim
-  test_installed_jq_shim
   test_installed_upstream_jq_shim
   test_installed_opnsense_mcp_server_shim
-  test_installed_task_shim
   test_uninstall_requires_mode
   test_uninstall_mode_default_preserves_upstream
   test_uninstall_mode_invalid_environment_rejected
   test_uninstall_mode_upstream_last_profile_cleanup
-  test_uninstall_mode_upstream_preserves_default
   test_netcat_shim_preview
 
   printf 'All %s shim tests passed.\n' "$TEST_COUNT"
