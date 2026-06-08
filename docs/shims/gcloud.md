@@ -2,7 +2,7 @@
 
 ## Upstream
 
-- Source repo README: <https://github.com/GoogleCloudPlatform/cloud-sdk-docker/blob/main/README.md>
+- Source repo README: <https://github.com/GoogleCloudPlatform/cloud-sdk-docker/blob/master/README.md>
 - Latest release: <https://github.com/GoogleCloudPlatform/cloud-sdk-docker/releases>
 - Docs: <https://cloud.google.com/sdk/docs>
 - Shim image: `gcr.io/google.com/cloudsdktool/google-cloud-cli:stable`

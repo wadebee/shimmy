@@ -12,6 +12,7 @@ Constraints:
 - Follow the naming conventions in `CONTRIBUTING.md` for files, functions, and variables.
 - Put the runtime wrapper in `shims/<tool>`.
 - Use POSIX shell with `#!/bin/sh` and `set -eu`.
+- Do not propose or implement Go, Rust, Python, or other language rewrites for Shimmy core behavior or runtime shims unless the user explicitly asks to leave the POSIX shell architecture.
 - Read the default image from `SHIMMY_{TOOL_PREFIX}_IMAGE`.
 - Support `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` by adding `--pull=always` to `podman run`.
 - Use the `SHIMMY_` prefix for every Shimmy-defined user-facing environment variable, including image overrides, pull or build flags, opt-in behavior switches, and secret-name selectors.

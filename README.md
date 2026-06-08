@@ -12,7 +12,7 @@ Shimmy wraps popular CLI tools in lightweight Podman containers, providing:
 
 For tools that do not ship a usable upstream container image, Shimmy can build and cache a local image from a checked-in `Containerfile` context. The image tag is derived from the build-context hash and resolved platform, so Podman reuses the cached image until the `Containerfile`, supporting files, or host platform changes.
 
-Shimmy also resolves the container platform at runtime without changing the command a user runs. Linux hosts run containers as `linux/amd64`, while macOS hosts run containers as `linux/arm64`. Explicit `SHIMMY_{TOOL_PREFIX}_IMAGE` overrides still select the image reference, and Shimmy applies the platform selection underneath.
+Shimmy also resolves the container platform at runtime without changing the command a user runs. Linux hosts run containers as `linux/amd64`, while macOS hosts run [containers](https://github.com/apple/container/blob/main/docs/technical-overview.md) as `linux/arm64`. Explicit `SHIMMY_{TOOL_PREFIX}_IMAGE` overrides still select the image reference, and Shimmy applies the platform selection underneath.
 
 For diagnostic purposes you may inspect the shim command that gets passed to Podman without actually running the command using the `--preview-shim`
 flag in your tool command. Shimmy will intercept that flag and print a shell-quoted `podman run` command, then exit without checking
@@ -44,11 +44,10 @@ netcat --help --preview-shim
 
 ## Requirements
 
-- POSIX shell — `/bin/sh` or another POSIX-compatible shell for the current proof-of-concept rewrite
+- POSIX shell — `/bin/sh` or another POSIX-compatible shell
 
-- Podman - Shimmy runs tools through `podman run`, so the cli and engine must be
- installed and reachable from the same shell where you use Shimmy. Podman
- Desktop is not required.
+- Podman CLI - Shimmy runs tools through `podman run`, so the cli and engine must be
+ installed and reachable from the same shell where you use Shimmy. Podman Desktop is not required.
 
   See [docs/podman.md](docs/podman.md) for a Podman Quick Start, Troubleshooting, and Basic Hygiene.
 

@@ -42,6 +42,7 @@ Always operate in PLAN -> REVIEW -> ACT mode:
 - Read `CONTRIBUTING.md` before making repo changes.
 - Follow the naming conventions in `CONTRIBUTING.md` for files, functions, and variables.
 - Keep runtime shims as small POSIX shell wrappers with `#!/bin/sh` and `set -eu`.
+- Do not propose or implement Go, Rust, Python, or other language rewrites for Shimmy core behavior or runtime shims unless the user explicitly asks to leave the POSIX shell architecture.
 - Mount `$PWD` to `/work` unless the shim has a documented reason not to.
 - Use `SHIMMY_{TOOL_PREFIX}_IMAGE` for image override and `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` for pull policy.
 - Use Shimmy's shared Podman helper for runtime platform selection instead of hardcoding per-shim OS or architecture checks.
