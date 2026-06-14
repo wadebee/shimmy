@@ -105,6 +105,130 @@ Document and encode this guidance in README, shim docs, and agent skills:
    expected rollback or verification path before using it.
 5. See Section 7 for Supported Tool Inventories and make use of this localized list when selecting the appropriate opnsense mcp library
 
+## Implementation Batches
+
+Use the workstreams below as the complete scope, but implement them in batches.
+Each batch should leave the repository in a reviewable state with a short status
+summary, relevant tests run, known gaps, and a clean resume point. Prefer
+separate commits or PR-sized changes for each batch if this plan is executed in
+source control.
+
+### Batch 0. Upstream Discovery And Inventory
+
+Purpose: remove ambiguity before changing Shimmy behavior.
+
+- Inspect Marien and Grousset upstream repositories at pinned source refs.
+- Confirm runtime command, package manager, container entrypoint, supported
+  platforms, required env vars, and credential env names for both libraries.
+- Confirm no current Marien upstream image exists and record why Shimmy must
+  build the read-only image locally.
+- Check whether Grousset publishes a suitable image; if not, record the local
+  build decision.
+- Extract supported MCP tool inventories from upstream code or metadata where
+  feasible, grouped by capability area.
+- Record the exact source refs and extraction method that future skill updates
+  should cite.
+
+Quality gate:
+
+- No runtime behavior changes yet.
+- Source refs, build strategy, and tool inventory source are documented.
+- Any unresolved upstream ambiguity is listed before Batch 1 starts.
+
+### Batch 1. Read-Only Rename And Marien Local Image
+
+Purpose: complete the safety-first default path before adding admin tooling.
+
+- Rename `opnsense-mcp-server` to `opnsense-mcp-read-only`.
+- Remove old command support, old config name, and old secret defaults.
+- Add `images/opnsense-mcp-read-only/Containerfile`.
+- Wire the read-only shim to Shimmy's custom-image helper with pinned Marien
+  source-ref support.
+- Update catalog/install behavior and targeted tests for the read-only name.
+- Keep docs minimal in this batch if needed, but include enough migration
+  guidance to avoid stale command usage.
+
+Quality gate:
+
+- POSIX parse checks pass for the renamed shim.
+- Targeted install/catalog/preflight tests pass for `opnsense-mcp-read-only`.
+- `opnsense-mcp-server` is rejected by supported-shim validation.
+- `--help` and `--preview-shim` work without contacting Podman.
+- Local image build behavior is exercised or explicitly deferred with the
+  reason and exact command to run next.
+
+### Batch 2. Admin Shim And Grousset Local Image
+
+Purpose: add high-capability admin tooling after the read-only path is stable.
+
+- Add `opnsense-mcp-admin` shim, config, and image context when needed.
+- Wire admin-specific image/build env vars and separate Podman secret defaults.
+- Add admin warning/help text and URL/Podman preflight behavior.
+- Add targeted tests for admin preflight, secret selector wiring, and
+  `--preview-shim`.
+
+Quality gate:
+
+- POSIX parse checks pass for the admin shim.
+- Targeted admin tests pass.
+- `opnsense-mcp-admin --help` and `--preview-shim` work without side effects.
+- Any live Podman/image build smoke is non-mutating and approval-gated.
+
+### Batch 3. Documentation And Migration Notes
+
+Purpose: make the user-facing split understandable before optimizing agent
+routing.
+
+- Update `README.md` Included Shims table.
+- Add `docs/shims/opnsense-mcp-read-only.md`.
+- Add `docs/shims/opnsense-mcp-admin.md`.
+- Document separate Podman secrets, local image rebuilds, source refs, MCP
+  client examples, and selection policy.
+- State clearly that `opnsense-mcp-server` was removed and is not an alias.
+
+Quality gate:
+
+- Docs match implemented env vars, image behavior, secret defaults, and command
+  names.
+- Stale command references exist only where explicitly discussing migration or
+  removal.
+
+### Batch 4. Agent Skills And Tool Inventories
+
+Purpose: optimize future OPNsense prompt routing with compact skill context.
+
+- Replace the old OPNsense skill with read-only and admin tool skills.
+- Preserve useful read-only lessons from the existing skill.
+- Add admin-specific risk, approval, and change-window guidance.
+- Add compact supported-tool inventories for both libraries using exact MCP
+  tool names where useful.
+- Install/update repo skills through Shimmy after editing skill content.
+- Update packaged plugin skills if those skills are expected to ship there.
+
+Quality gate:
+
+- Each skill includes routing guidance and a compact tool inventory.
+- Inventories cite or imply the source ref used for extraction.
+- Skill install/update succeeds or the manifest-write issue is documented with
+  a targeted follow-up.
+
+### Batch 5. Final Integration And Stale-Reference Audit
+
+Purpose: catch cross-file regressions after all pieces are present.
+
+- Run the broad test suite if feasible.
+- Run targeted shim tests again after docs and skills are in place.
+- Audit for stale `opnsense-mcp-server` references outside approved migration
+  text.
+- Verify executable bits and installed-profile behavior.
+- Summarize remaining risks and commands that require live Podman approval.
+
+Quality gate:
+
+- Full or agreed targeted test pass is reported.
+- Any skipped live smoke is explicitly listed with the reason.
+- The repo is left in a coherent state suitable for review or commit.
+
 ## Implementation Workstreams
 
 ### 1. Rename Current Read-Only Shim
@@ -236,9 +360,15 @@ Suggested inventory sections:
 - Switching from read-only to admin on privilege errors would weaken the safety
   model. Mitigate with explicit skill guidance and docs. 
 - Switching from read-only to admin should always include a user-prompt alerting to risks and requesting explicit approval/elevation
+- Implementing the rename, two local images, docs, tests, and skills in one
+  pass would make regressions hard to isolate. Mitigate by following the
+  implementation batches above and stopping at each quality gate before moving
+  on.
 
 ## Verification Plan
 
+- Apply verification incrementally at each batch quality gate before starting
+  the next batch.
 - Run POSIX parse checks over new and renamed shell scripts.
 - Run targeted `scripts/test-shimmy.sh` checks for catalog/install/profile
   behavior and OPNsense shim preflight behavior.
@@ -254,3 +384,5 @@ Suggested inventory sections:
 - Confirm README, docs, tests, installer, catalog, and agent skills do not
   retain stale `opnsense-mcp-server` command references except in migration
   notes.
+- At the end of each batch, record tests run, skipped checks, known risks, and
+  the next resume step.
