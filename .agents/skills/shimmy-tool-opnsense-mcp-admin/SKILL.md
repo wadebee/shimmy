@@ -1,0 +1,95 @@
+---
+name: shimmy-tool-opnsense-mcp-admin
+description: Guidance for using, changing, testing, and troubleshooting the opnsense-mcp-admin shim in this repository, including admin-capable OPNsense MCP routing, change-window approval, rollback guidance, Podman secrets, and supported tool inventory.
+---
+
+# OPNsense MCP Admin Shim
+
+Use this skill when working with `shims/opnsense-mcp-admin`, its tests, its docs, or approved admin-capable OPNsense MCP workflows.
+
+## Files
+
+- Runtime shim: `../../../shims/opnsense-mcp-admin`
+- User docs: `../../../docs/shims/opnsense-mcp-admin.md`
+- Image context: `../../../images/opnsense-mcp-admin/Containerfile`
+- Tests: `../../../scripts/test-shimmy.sh`
+- Skill installer: `../../../scripts/skills-shimmy.sh`
+- README: `../../../README.md`
+
+## Installed Workflow
+
+When this skill is installed outside the Shimmy checkout, prefer activated commands such as `opnsense-mcp-admin --help`, inspect selected profile state with `shimmy status --format manifest`, and use `SHIMMY_PROFILE_ACTIVE=upstream opnsense-mcp-admin --help` when validating the upstream profile. Use `./shims/opnsense-mcp-admin` only when intentionally editing or testing the repo-local wrapper.
+
+## Current Behavior
+
+- Default image: local build from `../../../images/opnsense-mcp-admin/Containerfile`
+- Source ref: `eeccd8189dc2d80fd397b2a589b20683ec947266` from `floriangrousset/opnsense-mcp-server`
+- Build override: `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_BUILD=always`
+- Source ref override: `SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF`
+- Pull override for explicit image overrides: `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_PULL=always`
+- Image override: `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE`
+- Podman secrets:
+  - `SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY`, default `opnsense_mcp_admin_api_key`, mounted as `OPNSENSE_API_KEY`
+  - `SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET`, default `opnsense_mcp_admin_api_secret`, mounted as `OPNSENSE_API_SECRET`
+- Required upstream env: `OPNSENSE_URL`
+- SSL preflight default: `OPNSENSE_VERIFY_SSL=false`
+- Runtime mode: stdio-friendly via `podman run --rm -i`
+- Mount: `$PWD` to `/work`
+- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+
+## Routing Rules
+
+1. Prefer `opnsense-mcp-read-only` for inventory, status, diagnostics, inspection, and policy review when a matching read-only tool exists.
+2. Use this admin shim only when the user explicitly asks for a configuration change, an approved change-window workflow, or a capability absent from the read-only tool inventory.
+3. Do not switch to admin because a read-only call returned HTTP 403. Ask for the needed read-only privilege instead.
+4. Before using admin, state the reason, requested change boundary, affected objects, expected verification, and rollback path. Ask for explicit approval/elevation before executing the admin action.
+5. Keep admin and read-only Podman secrets separate. Never reuse read-only secret names for admin.
+
+Use this prompt shape before admin changes:
+
+```text
+This requires `opnsense-mcp-admin` because <missing read-only capability or requested change>.
+
+Change boundary:
+<specific objects, fields, and allowed action>
+
+Verification:
+<read-back or status check>
+
+Rollback:
+<delete/revert/restore path>
+
+Approve this admin change window before I execute it.
+```
+
+## Preflight
+
+The shim should fail before Podman when `OPNSENSE_URL` is unset, does not start with `http://` or `https://`, `curl` is unavailable, or the URL does not respond to curl. When `OPNSENSE_VERIFY_SSL` is unset or `false`, curl uses `--insecure`. Keep current timeouts at `--connect-timeout 10 --max-time 20` unless there is a tested reason to change them.
+
+## Supported Tool Inventory
+
+Inventory source: Grousset pinned ref `eeccd8189dc2d80fd397b2a589b20683ec947266`, `src/opnsense_mcp/domains/*` FastMCP `@mcp.tool(name="...")` registrations. The wrapper notes 166 tools total; the compact inventory below lists exact names useful for routing.
+
+- Connection and API discovery: `configure_opnsense_connection`, `get_api_endpoints`, `exec_api_call`
+- System and firmware: `get_system_status`, `get_system_health`, `get_system_routes`, `restart_service`, `backup_config`, `list_plugins`, `install_plugin`, `perform_firewall_audit`
+- Interfaces and gateways: `get_interfaces`, `get_dhcp_leases`, `get_interface_details`, `reload_interface`, `export_interface_config`; VLAN `list_vlan_interfaces`, `get_vlan_interface`, `create_vlan_interface`, `update_vlan_interface`, `delete_vlan_interface`; bridge `list_bridge_interfaces`, `get_bridge_interface`, `create_bridge_interface`, `update_bridge_interface`, `delete_bridge_interface`; LAGG `list_lagg_interfaces`, `get_lagg_interface`, `create_lagg_interface`, `update_lagg_interface`, `delete_lagg_interface`; VIP `list_virtual_ips`, `get_virtual_ip`, `create_virtual_ip`, `update_virtual_ip`, `delete_virtual_ip`, `get_unused_vhid`
+- Firewall rules, aliases, NAT, states, and logs: `firewall_get_rules`, `firewall_add_rule`, `firewall_delete_rule`, `firewall_toggle_rule`, `get_firewall_aliases`, `add_to_alias`, `delete_from_alias`, `get_firewall_logs`, `nat_list_outbound_rules`, `nat_add_outbound_rule`, `nat_delete_outbound_rule`, `nat_toggle_outbound_rule`, `nat_list_one_to_one_rules`, `nat_add_one_to_one_rule`, `nat_delete_one_to_one_rule`, `nat_get_port_forward_info`
+- DNS, DHCP, leases, and resolver data: DHCP `dhcp_list_servers`, `dhcp_get_server`, `dhcp_set_server`, `dhcp_restart_service`, `dhcp_list_static_mappings`, `dhcp_get_static_mapping`, `dhcp_add_static_mapping`, `dhcp_update_static_mapping`, `dhcp_delete_static_mapping`, `dhcp_get_leases`, `dhcp_search_leases`, `dhcp_get_lease_statistics`; Unbound `dns_resolver_get_settings`, `dns_resolver_set_settings`, `dns_resolver_restart_service`, `dns_resolver_list_host_overrides`, `dns_resolver_get_host_override`, `dns_resolver_add_host_override`, `dns_resolver_update_host_override`, `dns_resolver_delete_host_override`, `dns_resolver_list_domain_overrides`, `dns_resolver_add_domain_override`; dnsmasq `dns_forwarder_get_settings`, `dns_forwarder_set_settings`, `dns_forwarder_list_hosts`, `dns_forwarder_add_host`, `dns_forwarder_restart_service`
+- VPN: `get_vpn_connections`
+- Services and plugins: `list_plugins`, `install_plugin`
+- Diagnostics, logs, and monitoring: `get_firewall_logs`, `get_system_logs`, `get_service_logs`, `search_logs`, `export_logs`, `get_log_statistics`, `clear_logs`, `configure_logging`, `analyze_security_events`, `generate_log_report`
+- Configuration backup, history, and apply/revert behavior: `backup_config`, `traffic_shaper_reconfigure`, `dhcp_restart_service`, `dns_resolver_restart_service`, `dns_forwarder_restart_service`, `restart_service`
+- Admin-only create/update/delete actions: firewall add/delete/toggle, NAT add/delete/toggle, alias add/delete, DHCP set/add/update/delete, DNS set/add/update/delete, interface/VLAN/bridge/LAGG/VIP create/update/delete, user/group/privilege create/update/delete/assign/revoke/reset/bulk/template, certificate/ACME create/import/sign/revoke/delete, logging clear/configure, traffic shaper create/update/delete/toggle helpers, plugin install, custom `exec_api_call`
+- Certificates and ACME: CA `list_certificate_authorities`, `get_certificate_authority`, `create_certificate_authority`, `delete_certificate_authority`, `export_certificate_authority`; cert `list_certificates`, `get_certificate`, `import_certificate`, `delete_certificate`, `export_certificate`; CSR `list_certificate_signing_requests`, `get_certificate_signing_request`, `create_certificate_signing_request`, `delete_certificate_signing_request`; ACME `list_acme_accounts`, `get_acme_account`, `create_acme_account`, `delete_acme_account`, `list_acme_certificates`, `get_acme_certificate`, `create_acme_certificate`, `sign_acme_certificate`, `revoke_acme_certificate`, `delete_acme_certificate`; analysis `analyze_certificate_expiration`, `validate_certificate_chain`, `get_certificate_usage`
+- Users, groups, and privileges: `list_users`, `get_user`, `create_user`, `update_user`, `delete_user`, `toggle_user`, `list_groups`, `get_group`, `create_group`, `update_group`, `delete_group`, `add_user_to_group`, `remove_user_from_group`, `list_privileges`, `get_user_effective_privileges`, `assign_privilege_to_user`, `revoke_privilege_from_user`, `list_auth_servers`, `test_user_authentication`, `create_admin_user`, `create_readonly_user`, `reset_user_password`, `bulk_user_creation`, `setup_user_group_template`
+- Traffic shaping: `traffic_shaper_get_status`, `traffic_shaper_reconfigure`, `traffic_shaper_get_settings`, pipe tools `traffic_shaper_list_pipes`, `traffic_shaper_get_pipe`, `traffic_shaper_create_pipe`, `traffic_shaper_update_pipe`, `traffic_shaper_delete_pipe`, `traffic_shaper_toggle_pipe`; queue tools `traffic_shaper_list_queues`, `traffic_shaper_get_queue`, `traffic_shaper_create_queue`, `traffic_shaper_update_queue`, `traffic_shaper_delete_queue`, `traffic_shaper_toggle_queue`; rule tools `traffic_shaper_list_rules`, `traffic_shaper_get_rule`, `traffic_shaper_create_rule`, `traffic_shaper_update_rule`, `traffic_shaper_delete_rule`, `traffic_shaper_toggle_rule`; helpers `traffic_shaper_limit_user_bandwidth`, `traffic_shaper_prioritize_voip`, `traffic_shaper_setup_gaming_priority`, `traffic_shaper_create_guest_limits`
+
+Use read-only first when a matching tool exists. Use admin only for missing read-only coverage or explicit configuration changes.
+
+## Admin Safety
+
+- Treat `exec_api_call` as power-user tooling. Use a dedicated tool first when available; if using `exec_api_call`, define the exact method and endpoint and avoid destructive HTTP methods unless the user approved them.
+- Treat `restart_service`, `reload_interface`, DNS/DHCP restarts, and traffic-shaper reconfigure as operational changes even when configuration is not edited.
+- Prefer read-back verification through the least privileged matching tool after every admin action.
+- Do not put API key material in MCP config JSON, docs examples, shell history, or tests.
+- If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.

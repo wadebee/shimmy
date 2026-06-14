@@ -36,3 +36,26 @@ Always operate in PLAN → REVIEW → ACT mode:
 - It is important that you use Shimmy tools when available. This requires Podman to be running. If anything prevents you from running a preferred tool with Shimmy backing, pause execution and prompt the user for a remediation plan.  
 # -----------
 ./shimmy update --shim opnsense-mcp-read-only --build
+
+# -----------
+Correct this tmp mount to rg container issue
+Ran git clone https://github.com/lucamarien/opnsense-mcp-server.git /private/tmp/shimmy-opnsense-mcp-read-only-src
+Ran git clone https://github.com/floriangrousset/opnsense-mcp-server.git /private/tmp/shimmy-opnsense-mcp-admin-src
+
+Ran git -C /private/tmp/shimmy-opnsense-mcp-read-only-src checkout 8ddb99a2a99102abc084b5e605aaba1c05c2ff56
+Ran git -C /private/tmp/shimmy-opnsense-mcp-admin-src checkout eeccd8189dc2d80fd397b2a589b20683ec947266
+
+Listed files in shimmy-opnsense-mcp-read-only-src
+Listed files in shimmy-opnsense-mcp-admin-src
+
+Searched for @.*tool|add_tool|tools/list|def opn_|name=|Tool\( in shimmy-opnsense-mcp-read-only-src
+Searched for @.*tool|add_tool|tools/list|def opn_|name=|Tool\( in shimmy-opnsense-mcp-admin-src
+
+The upstream clone commands completed, but the follow-up search could not see those temp paths. I’m checking the temp directory state and will reclone into the repo workspace if the temp location is not durable in this harness.
+
+The temp clones are present; the earlier rg failed because the Shimmy rg wrapper only sees the mounted working directory. I’ll run rg from inside each clone so the wrapper can inspect the pinned source safely.
+
+# ---------
+The install commands exposed a stale manifest issue: the repo skills manifest still tracks the removed old skill, and skills install <new-skill> combines requested skills with existing manifest entries before validating sources. I’m going to make the installer tolerate stale manifest entries whose source skill no longer exists, then rerun the mandated commands.
+
+Read a fileRead .shimmy Skills Manifest.txt skill

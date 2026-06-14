@@ -1362,18 +1362,31 @@ test_installed_launcher_skills_install_includes_installed_shim_skills() {
 
   assert_contains "$output" "Installed skill: shimmy-tool-jq"
   assert_contains "$output" "Installed skill: shimmy-tool-task"
-  assert_contains "$output" "Installed skill: shimmy-tool-opnsense-mcp"
-  assert_not_contains "$output" "shimmy-tool-opnsense-mcp-admin"
+  assert_contains "$output" "Installed skill: shimmy-tool-opnsense-mcp-read-only"
+  assert_contains "$output" "Installed skill: shimmy-tool-opnsense-mcp-admin"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-install/SKILL.md"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-jq/SKILL.md"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-task/SKILL.md"
-  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp/SKILL.md"
-  assert_path_not_exists "$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp-admin"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp-read-only/SKILL.md"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp-admin/SKILL.md"
 
   manifest_contents=$(cat "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt")
   assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-jq|$WORK_DIR/.agents/skills/shimmy-tool-jq|"
   assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-task|$WORK_DIR/.agents/skills/shimmy-tool-task|"
-  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-opnsense-mcp|$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp|"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-opnsense-mcp-read-only|$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp-read-only|"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-opnsense-mcp-admin|$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp-admin|"
+
+  profile_output=$(
+    cd "$WORK_DIR"
+    HOME="$HOME_DIR" "$INSTALL_DIR/bin/shimmy" skills install --target profile 2>&1
+  )
+
+  assert_contains "$profile_output" "Installed skill: shimmy-tool-opnsense-mcp-read-only"
+  assert_contains "$profile_output" "Installed skill: shimmy-tool-opnsense-mcp-admin"
+  assert_file_exists "$HOME_DIR/.agents/skills/shimmy-tool-opnsense-mcp-read-only/SKILL.md"
+  assert_file_exists "$HOME_DIR/.agents/skills/shimmy-tool-opnsense-mcp-admin/SKILL.md"
+  assert_file_contains "$HOME_DIR/.agents/skills/.shimmy-skills-manifest.txt" "shimmy_skill=profile|shimmy-tool-opnsense-mcp-read-only|$HOME_DIR/.agents/skills/shimmy-tool-opnsense-mcp-read-only|"
+  assert_file_contains "$HOME_DIR/.agents/skills/.shimmy-skills-manifest.txt" "shimmy_skill=profile|shimmy-tool-opnsense-mcp-admin|$HOME_DIR/.agents/skills/shimmy-tool-opnsense-mcp-admin|"
 
   pass "installed launcher skills install includes installed shim skills"
 }

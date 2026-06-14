@@ -150,6 +150,14 @@ skill_source_dir_resolve() {
   fail "missing source skill: $skill_name"
 }
 
+skill_source_exists() {
+  skill_name=$1
+
+  [ -f "$ROOT_DIR/.agents/skills/$skill_name/SKILL.md" ] && return 0
+  [ -f "$ROOT_DIR/plugins/shimmy/skills/$skill_name/SKILL.md" ] && return 0
+  return 1
+}
+
 skill_manifest_skill_names_read() {
   skills_manifest_file=$1
   skill_names=
@@ -165,6 +173,7 @@ skill_manifest_skill_names_read() {
         skill_entry=${skill_entry#*|}
         skill_name=${skill_entry%%|*}
         [ -n "$skill_name" ] || continue
+        skill_source_exists "$skill_name" || continue
         if ! shimmy_contains_line_list "$skill_names" "$skill_name"; then
           skill_names=$(shimmy_append_line_list "$skill_names" "$skill_name")
         fi
@@ -182,10 +191,10 @@ installed_shim_skill_name_render() {
 
   case "$shim_name" in
     opnsense-mcp-admin)
-      return 0
+      printf 'shimmy-tool-opnsense-mcp-admin\n'
       ;;
     opnsense-mcp-read-only)
-      printf 'shimmy-tool-opnsense-mcp\n'
+      printf 'shimmy-tool-opnsense-mcp-read-only\n'
       ;;
     *)
       printf 'shimmy-tool-%s\n' "$shim_name"

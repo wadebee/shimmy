@@ -303,16 +303,20 @@ Quality gate:
 
 ### 6. Agent Skills
 
-- Replace `.agents/skills/shimmy-tool-opnsense-mcp` with explicit read-only and
+- (x) Replace `.agents/skills/shimmy-tool-opnsense-mcp` with explicit read-only and
   admin skill directories.
-- Preserve relevant OPNsense lessons from the current skill in the read-only
+- (x) Preserve and ensure Agent skills may be installed in user profile as well as repo local. 
+- (x) Preserve relevant OPNsense lessons from the current skill in the read-only
   skill, then add admin-specific change-window and privilege guidance.
-- Install/update the generated skills with
+- (x) Install/update the generated skills with
   `./shimmy skills install --target repo shimmy-tool-opnsense-mcp-read-only`
   and
   `./shimmy skills install --target repo shimmy-tool-opnsense-mcp-admin`.
-- Update plugin skills if the packaged Shimmy plugin is expected to carry these
+- (x) Update plugin skills if the packaged Shimmy plugin is expected to carry these
   tool skills.
+  - Packaged plugin defaults remain core skills plus jq/rg tool skills; explicit
+    `--target plugin` installs can still copy these OPNsense skills from the repo
+    source.
 
 ### 7. Supported Tool Inventories In Skills
 
