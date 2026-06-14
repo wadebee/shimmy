@@ -181,6 +181,9 @@ installed_shim_skill_name_render() {
   shim_name=$1
 
   case "$shim_name" in
+    opnsense-mcp-admin)
+      return 0
+      ;;
     opnsense-mcp-read-only)
       printf 'shimmy-tool-opnsense-mcp\n'
       ;;
@@ -203,6 +206,7 @@ installed_shim_skill_names_read() {
         shim_name=${manifest_line#shim=}
         [ -n "$shim_name" ] || continue
         skill_name=$(installed_shim_skill_name_render "$shim_name")
+        [ -n "$skill_name" ] || continue
         if ! shimmy_contains_line_list "$skill_names" "$skill_name"; then
           skill_names=$(shimmy_append_line_list "$skill_names" "$skill_name")
         fi

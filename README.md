@@ -180,12 +180,19 @@ Activated shells can use the installed command from any directory:
 shimmy status
 shimmy status --available
 shimmy install --shim opnsense-mcp-read-only
+shimmy install --shim opnsense-mcp-admin
 shimmy netinfo
 shimmy skills update --target repo
 shimmy update --all --pull --build
 shimmy test
 eval "$(shimmy activate)"
 ```
+
+`shimmy install --shim opnsense-mcp-read-only` for normal inspection, and
+`shimmy install --shim opnsense-mcp-admin` only for change-capable workflows.
+Create separate Podman secrets for each shim: `opnsense_mcp_read_only_api_key`
+and `opnsense_mcp_read_only_api_secret` for read-only, and
+`opnsense_mcp_admin_api_key` and `opnsense_mcp_admin_api_secret` for admin.
 
 ### Profiles and profile selection
 

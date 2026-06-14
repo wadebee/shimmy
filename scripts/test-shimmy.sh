@@ -1353,7 +1353,7 @@ test_skills_install_repo_target() {
 test_installed_launcher_skills_install_includes_installed_shim_skills() {
   setup_scenario
 
-  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task --shim opnsense-mcp-read-only --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task --shim opnsense-mcp-read-only --shim opnsense-mcp-admin --no-startup --no-skills >/dev/null
 
   output=$(
     cd "$WORK_DIR"
@@ -1363,10 +1363,12 @@ test_installed_launcher_skills_install_includes_installed_shim_skills() {
   assert_contains "$output" "Installed skill: shimmy-tool-jq"
   assert_contains "$output" "Installed skill: shimmy-tool-task"
   assert_contains "$output" "Installed skill: shimmy-tool-opnsense-mcp"
+  assert_not_contains "$output" "shimmy-tool-opnsense-mcp-admin"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-install/SKILL.md"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-jq/SKILL.md"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-task/SKILL.md"
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp/SKILL.md"
+  assert_path_not_exists "$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp-admin"
 
   manifest_contents=$(cat "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt")
   assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-jq|$WORK_DIR/.agents/skills/shimmy-tool-jq|"
@@ -2099,6 +2101,16 @@ test_installed_shim_install_adds_available_shim() {
 
   output=$(
     cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim opnsense-mcp-admin 2>&1
+  )
+
+  assert_contains "$output" "Installed shim: opnsense-mcp-admin"
+  assert_file_exists "$INSTALL_DIR/shims/opnsense-mcp-admin"
+  assert_file_exists "$INSTALL_DIR/profiles/default/config/shims/opnsense-mcp-admin.conf"
+  assert_dir_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin"
+
+  output=$(
+    cd "$WORK_DIR"
     PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim task 2>&1
   )
 
@@ -2115,8 +2127,11 @@ test_installed_shim_install_adds_available_shim() {
 
   manifest_contents=$(cat "$INSTALL_DIR/profiles/default/install-manifest.txt")
   assert_contains "$manifest_contents" "shim=jq"
+  assert_contains "$manifest_contents" "shim=opnsense-mcp-admin"
   assert_contains "$manifest_contents" "shim=opnsense-mcp-read-only"
   assert_contains "$manifest_contents" "shim=task"
+  opnsense_admin_manifest_count=$(sed -n 's/^shim=opnsense-mcp-admin$/shim/p' "$INSTALL_DIR/profiles/default/install-manifest.txt" | wc -l | tr -d ' ')
+  assert_equals "$opnsense_admin_manifest_count" "1"
   opnsense_manifest_count=$(sed -n 's/^shim=opnsense-mcp-read-only$/shim/p' "$INSTALL_DIR/profiles/default/install-manifest.txt" | wc -l | tr -d ' ')
   assert_equals "$opnsense_manifest_count" "1"
 
@@ -2126,10 +2141,20 @@ test_installed_shim_install_adds_available_shim() {
   )
 
   assert_contains "$available_output" "shimmy_profile_shim=jq"
+  assert_contains "$available_output" "shimmy_profile_shim=opnsense-mcp-admin"
   assert_contains "$available_output" "shimmy_profile_shim=opnsense-mcp-read-only"
   assert_contains "$available_output" "shimmy_profile_shim=task"
+  assert_not_contains "$available_output" "shimmy_available_shim=opnsense-mcp-admin"
   assert_not_contains "$available_output" "shimmy_available_shim=opnsense-mcp-read-only"
   assert_not_contains "$available_output" "shimmy_available_shim=task"
+
+  status_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status 2>&1
+  )
+
+  assert_contains "$status_output" "opnsense-mcp-admin: localhost/shimmy-opnsense-mcp-admin:"
+  assert_contains "$status_output" "opnsense-mcp-read-only: localhost/shimmy-opnsense-mcp-read-only:"
 
   set +e
   output=$(

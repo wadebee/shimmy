@@ -1,4 +1,4 @@
-SHIMMY_SUPPORTED_SHIMS='aws go gcloud jq netcat nmap opnsense-mcp-read-only rg task terraform textual gdrive'
+SHIMMY_SUPPORTED_SHIMS='aws go gcloud gdrive jq netcat nmap opnsense-mcp-admin opnsense-mcp-read-only rg task terraform textual'
 SHIMMY_DEFAULT_SHIMS='jq rg'
 
 shimmy_default_shim_list() {

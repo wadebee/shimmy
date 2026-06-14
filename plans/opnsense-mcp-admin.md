@@ -264,13 +264,13 @@ Quality gate:
 
 ### 3. Installer And Catalog
 
-- Update `lib/repo/shimmy-catalog.sh` supported shim list.
-- Remove `opnsense-mcp-server` from supported shim names.
-- Add `opnsense-mcp-read-only` and `opnsense-mcp-admin`.
-- Keep default installed shims unchanged unless product policy changes later.
-- Update `scripts/install-shimmy.sh` behavior where shim names, copied assets,
+- (x) Update `lib/repo/shimmy-catalog.sh` supported shim list.
+- (x) Remove `opnsense-mcp-server` from supported shim names.
+- (x) Add `opnsense-mcp-read-only` and `opnsense-mcp-admin`.
+- (x) Keep default installed shims unchanged unless product policy changes later.
+- (x) Update `scripts/install-shimmy.sh` behavior where shim names, copied assets,
   or skills depend on the catalog.
-- Add migration notes explaining that existing installed profiles must install
+- (x) Add migration notes explaining that existing installed profiles must install
   the new shim names and create new secrets.
 
 ### 4. Tests
