@@ -41,7 +41,7 @@ Commands:
 
 Examples:
   eval "$(shimmy activate)"
-  shimmy install --shim opnsense-mcp-server
+  shimmy install --shim opnsense-mcp-read-only
   shimmy uninstall
   shimmy netinfo
   shimmy skills install --target repo

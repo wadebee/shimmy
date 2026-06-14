@@ -264,9 +264,6 @@ run_pull_refresh() {
       jq)
         SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null </dev/null
         ;;
-      opnsense-mcp-server)
-        "$SHIMMY_PODMAN_BIN" pull --platform "$SHIMMY_PODMAN_PLATFORM" "${SHIMMY_OPNSENSE_MCP_IMAGE:-docker.io/uhlenheide/opnsense-mcp-server}" >/dev/null
-        ;;
       rg)
         SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_RG_IMAGE_PULL=always "$shim_dir/rg" --version >/dev/null </dev/null
         ;;
@@ -292,6 +289,21 @@ run_build_refresh() {
     case "$shim_name" in
       netcat)
         SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_NETCAT_IMAGE_BUILD=always "$shim_dir/netcat" --help >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name" "$images_dir"
+        ;;
+      opnsense-mcp-read-only)
+        if [ -n "${SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF:-}" ]; then
+          shimmy_local_image_ensure \
+            "localhost/shimmy-opnsense-mcp-read-only" \
+            "$images_dir/opnsense-mcp-read-only" \
+            always \
+            --build-arg "SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF=$SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF" >/dev/null
+        else
+          shimmy_local_image_ensure \
+            "localhost/shimmy-opnsense-mcp-read-only" \
+            "$images_dir/opnsense-mcp-read-only" \
+            always >/dev/null
+        fi
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
       gdrive)

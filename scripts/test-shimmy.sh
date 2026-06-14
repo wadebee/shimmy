@@ -459,7 +459,7 @@ require_podman() {
 
 require_curl() {
   if ! command -v curl >/dev/null 2>&1; then
-    fail_test "curl is required for opnsense-mcp-server URL preflight tests"
+    fail_test "curl is required for opnsense-mcp-read-only URL preflight tests"
   fi
 }
 
@@ -588,7 +588,7 @@ test_install_manifest() {
   assert_file_executable "$INSTALL_DIR/bin/shimmy"
   assert_file_exists "$INSTALL_DIR/shims/jq"
   assert_file_exists "$INSTALL_DIR/profiles/default/config/shims/jq.conf"
-  assert_path_not_exists "$INSTALL_DIR/shims/opnsense-mcp-server"
+  assert_path_not_exists "$INSTALL_DIR/shims/opnsense-mcp-read-only"
   assert_dir_exists "$INSTALL_DIR/profiles/default/lib/shims"
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/scripts"
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/lib/repo"
@@ -598,7 +598,7 @@ test_install_manifest() {
   assert_file_exists "$INSTALL_DIR/libexec/shimmy/.agents/skills/shimmy-tool-jq/SKILL.md"
   assert_file_exists "$INSTALL_DIR/libexec/shimmy/.agents/skills/shimmy-tool-task/SKILL.md"
   assert_dir_exists "$INSTALL_DIR/libexec/shimmy/plugins/shimmy/skills"
-  assert_file_exists "$INSTALL_DIR/libexec/shimmy/shims/opnsense-mcp-server"
+  assert_file_exists "$INSTALL_DIR/libexec/shimmy/shims/opnsense-mcp-read-only"
   assert_file_exists "$HOME_DIR/.bashrc"
   assert_file_exists "$HOME_DIR/.bash_profile"
 
@@ -1353,7 +1353,7 @@ test_skills_install_repo_target() {
 test_installed_launcher_skills_install_includes_installed_shim_skills() {
   setup_scenario
 
-  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task --shim opnsense-mcp-server --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task --shim opnsense-mcp-read-only --no-startup --no-skills >/dev/null
 
   output=$(
     cd "$WORK_DIR"
@@ -2089,12 +2089,13 @@ test_installed_shim_install_adds_available_shim() {
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim opnsense-mcp-server 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim opnsense-mcp-read-only 2>&1
   )
 
-  assert_contains "$output" "Installed shim: opnsense-mcp-server"
+  assert_contains "$output" "Installed shim: opnsense-mcp-read-only"
   assert_file_exists "$INSTALL_DIR/shims/jq"
-  assert_file_exists "$INSTALL_DIR/shims/opnsense-mcp-server"
+  assert_file_exists "$INSTALL_DIR/shims/opnsense-mcp-read-only"
+  assert_dir_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only"
 
   output=$(
     cd "$WORK_DIR"
@@ -2107,16 +2108,16 @@ test_installed_shim_install_adds_available_shim() {
 
   output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim opnsense-mcp-server 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim opnsense-mcp-read-only 2>&1
   )
 
-  assert_contains "$output" "WARN: Shim already installed: opnsense-mcp-server; run shimmy update --shim opnsense-mcp-server to refresh it"
+  assert_contains "$output" "WARN: Shim already installed: opnsense-mcp-read-only; run shimmy update --shim opnsense-mcp-read-only to refresh it"
 
   manifest_contents=$(cat "$INSTALL_DIR/profiles/default/install-manifest.txt")
   assert_contains "$manifest_contents" "shim=jq"
-  assert_contains "$manifest_contents" "shim=opnsense-mcp-server"
+  assert_contains "$manifest_contents" "shim=opnsense-mcp-read-only"
   assert_contains "$manifest_contents" "shim=task"
-  opnsense_manifest_count=$(sed -n 's/^shim=opnsense-mcp-server$/shim/p' "$INSTALL_DIR/profiles/default/install-manifest.txt" | wc -l | tr -d ' ')
+  opnsense_manifest_count=$(sed -n 's/^shim=opnsense-mcp-read-only$/shim/p' "$INSTALL_DIR/profiles/default/install-manifest.txt" | wc -l | tr -d ' ')
   assert_equals "$opnsense_manifest_count" "1"
 
   available_output=$(
@@ -2125,10 +2126,21 @@ test_installed_shim_install_adds_available_shim() {
   )
 
   assert_contains "$available_output" "shimmy_profile_shim=jq"
-  assert_contains "$available_output" "shimmy_profile_shim=opnsense-mcp-server"
+  assert_contains "$available_output" "shimmy_profile_shim=opnsense-mcp-read-only"
   assert_contains "$available_output" "shimmy_profile_shim=task"
-  assert_not_contains "$available_output" "shimmy_available_shim=opnsense-mcp-server"
+  assert_not_contains "$available_output" "shimmy_available_shim=opnsense-mcp-read-only"
   assert_not_contains "$available_output" "shimmy_available_shim=task"
+
+  set +e
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim opnsense-mcp-server 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected removed opnsense-mcp-server shim to be unsupported"
+  assert_contains "$output" "ERROR: unsupported shim on posix-rewrite branch: opnsense-mcp-server"
 
   pass "installed shimmy installs available shims additively"
 }
@@ -2140,12 +2152,12 @@ test_installed_shim_install_rejects_positional_name() {
 
   if output=$(
     cd "$WORK_DIR"
-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install opnsense-mcp-server 2>&1
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install opnsense-mcp-read-only 2>&1
   ); then
     fail_test "expected installed shim install with positional shim name to fail"
   fi
 
-  assert_contains "$output" "ERROR: unknown argument: opnsense-mcp-server"
+  assert_contains "$output" "ERROR: unknown argument: opnsense-mcp-read-only"
 
   pass "installed shimmy install rejects positional shim names"
 }
@@ -2780,58 +2792,58 @@ test_nmap_shim_nmap_unprivileged_opt_in() {
   pass "nmap Nmap unprivileged opt-in wiring"
 }
 
-test_opnsense_mcp_server_shim_direct() {
+test_opnsense_mcp_read_only_shim_direct() {
   setup_scenario
 
   set +e
   output=$(
-    cd "$WORK_DIR" && "$ROOT_DIR/shims/opnsense-mcp-server" 2>&1
+    cd "$WORK_DIR" && "$ROOT_DIR/shims/opnsense-mcp-read-only" 2>&1
   )
   status=$?
   set -e
 
-  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-server to require configuration"
-  assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-server shim."
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-read-only to require configuration"
+  assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-read-only shim."
   assert_contains "$output" "Set OPNSENSE_URL to the OPNsense API base URL, including /api."
 
-  pass "opnsense-mcp-server requires OPNSENSE_URL before execution"
+  pass "opnsense-mcp-read-only requires OPNSENSE_URL before execution"
 }
 
-test_opnsense_mcp_server_shim_url_invalid() {
+test_opnsense_mcp_read_only_shim_url_invalid() {
   setup_scenario
 
   set +e
   output=$(
-    cd "$WORK_DIR" && OPNSENSE_URL=opnsense.local/api "$ROOT_DIR/shims/opnsense-mcp-server" 2>&1
+    cd "$WORK_DIR" && OPNSENSE_URL=opnsense.local/api "$ROOT_DIR/shims/opnsense-mcp-read-only" 2>&1
   )
   status=$?
   set -e
 
-  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-server to reject invalid OPNSENSE_URL"
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-read-only to reject invalid OPNSENSE_URL"
   assert_contains "$output" "ERROR: OPNSENSE_URL must be an http:// or https:// URL with a host: opnsense.local/api"
 
-  pass "opnsense-mcp-server rejects invalid OPNSENSE_URL"
+  pass "opnsense-mcp-read-only rejects invalid OPNSENSE_URL"
 }
 
-test_opnsense_mcp_server_shim_url_unreachable() {
+test_opnsense_mcp_read_only_shim_url_unreachable() {
   setup_scenario
   require_curl
 
   set +e
   output=$(
-    cd "$WORK_DIR" && OPNSENSE_URL=http://127.0.0.1:9/api "$ROOT_DIR/shims/opnsense-mcp-server" 2>&1
+    cd "$WORK_DIR" && OPNSENSE_URL=http://127.0.0.1:9/api "$ROOT_DIR/shims/opnsense-mcp-read-only" 2>&1
   )
   status=$?
   set -e
 
-  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-server to reject unreachable OPNSENSE_URL"
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-read-only to reject unreachable OPNSENSE_URL"
   assert_contains "$output" "ERROR: OPNSENSE_URL did not respond to curl: http://127.0.0.1:9/api"
   assert_contains "$output" "Confirm the URL, network path, firewall reachability, and OPNSENSE_VERIFY_SSL setting."
 
-  pass "opnsense-mcp-server rejects unreachable OPNSENSE_URL"
+  pass "opnsense-mcp-read-only rejects unreachable OPNSENSE_URL"
 }
 
-test_opnsense_mcp_server_shim_verify_ssl_default() {
+test_opnsense_mcp_read_only_shim_verify_ssl_default() {
   setup_scenario
 
   mkdir -p "$WORK_DIR/bin"
@@ -2849,12 +2861,12 @@ EOF
       PATH="$WORK_DIR/bin:$PATH" \
       SHIMMY_TEST_CURL_ARGS_FILE="$curl_args_file" \
       OPNSENSE_URL=https://opnsense.local/api \
-      "$ROOT_DIR/shims/opnsense-mcp-server" 2>&1
+      "$ROOT_DIR/shims/opnsense-mcp-read-only" 2>&1
   )
   status=$?
   set -e
 
-  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-server preflight to stop after failed curl"
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-read-only preflight to stop after failed curl"
   assert_contains "$output" "ERROR: OPNSENSE_URL did not respond to curl: https://opnsense.local/api"
   curl_args=$(cat "$curl_args_file")
   assert_contains "$curl_args" "--insecure"
@@ -2863,16 +2875,16 @@ EOF
   assert_contains "$curl_args" "--max-time"
   assert_contains "$curl_args" "20"
 
-  pass "opnsense-mcp-server defaults OPNSENSE_VERIFY_SSL to false"
+  pass "opnsense-mcp-read-only defaults OPNSENSE_VERIFY_SSL to false"
 }
 
-test_opnsense_mcp_server_shim_secret_selectors() {
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-server" 'SHIMMY_OPNSENSE_MCP_API_KEY=${SHIMMY_OPNSENSE_MCP_API_KEY:-opnsense_mcp_api_key}'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-server" 'SHIMMY_OPNSENSE_MCP_API_SECRET=${SHIMMY_OPNSENSE_MCP_API_SECRET:-opnsense_mcp_api_secret}'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-server" '--secret "$SHIMMY_OPNSENSE_MCP_API_KEY,type=env,target=OPNSENSE_API_KEY"'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-server" '--secret "$SHIMMY_OPNSENSE_MCP_API_SECRET,type=env,target=OPNSENSE_API_SECRET"'
+test_opnsense_mcp_read_only_shim_secret_selectors() {
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-read-only" 'SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY=${SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY:-opnsense_mcp_read_only_api_key}'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-read-only" 'SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET=${SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET:-opnsense_mcp_read_only_api_secret}'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-read-only" '--secret "$SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY,type=env,target=OPNSENSE_API_KEY"'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-read-only" '--secret "$SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET,type=env,target=OPNSENSE_API_SECRET"'
 
-  pass "opnsense-mcp-server secret selectors wire Podman secret names"
+  pass "opnsense-mcp-read-only secret selectors wire Podman secret names"
 }
 
 test_rg_shim_direct() {
@@ -3079,23 +3091,23 @@ test_installed_gcloud_shim() {
    pass "installed gcloud shim execution"
 }
 
-test_installed_opnsense_mcp_server_shim() {
+test_installed_opnsense_mcp_read_only_shim() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim opnsense-mcp-server >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim opnsense-mcp-read-only >/dev/null
 
   set +e
   output=$(
-    cd "$WORK_DIR" && "$INSTALL_DIR/shims/opnsense-mcp-server" 2>&1
+    cd "$WORK_DIR" && "$INSTALL_DIR/shims/opnsense-mcp-read-only" 2>&1
   )
   status=$?
   set -e
 
-  [ "$status" -ne 0 ] || fail_test "expected installed opnsense-mcp-server to require configuration"
-  assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-server shim."
+  [ "$status" -ne 0 ] || fail_test "expected installed opnsense-mcp-read-only to require configuration"
+  assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-read-only shim."
   assert_contains "$output" "Set OPNSENSE_URL to the OPNsense API base URL, including /api."
 
-  pass "installed opnsense-mcp-server requires OPNSENSE_URL before execution"
+  pass "installed opnsense-mcp-read-only requires OPNSENSE_URL before execution"
 }
 
 test_uninstall_requires_mode() {
@@ -3276,8 +3288,13 @@ main() {
   test_gcloud_shim_direct
   test_jq_shim_direct
   test_jq_shim_preview
+  test_opnsense_mcp_read_only_shim_direct
+  test_opnsense_mcp_read_only_shim_url_invalid
+  test_opnsense_mcp_read_only_shim_url_unreachable
+  test_opnsense_mcp_read_only_shim_verify_ssl_default
+  test_opnsense_mcp_read_only_shim_secret_selectors
   test_installed_upstream_jq_shim
-  test_installed_opnsense_mcp_server_shim
+  test_installed_opnsense_mcp_read_only_shim
   test_uninstall_requires_mode
   test_uninstall_mode_default_preserves_upstream
   test_uninstall_mode_invalid_environment_rejected

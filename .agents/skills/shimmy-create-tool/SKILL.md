@@ -61,7 +61,7 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 
 ## Tool Skill Rules
 
-- Name the skill directory `shimmy-tool-{toolname}` using the runtime shim name unless a shorter canonical tool name is clearer. Example: use `shimmy-tool-opnsense-mcp` for `shims/opnsense-mcp-server`.
+- Name the skill directory `shimmy-tool-{toolname}` using the runtime shim name unless a shorter canonical tool name is clearer. Example: use `shimmy-tool-opnsense-mcp-read-only` for `shims/opnsense-mcp-read-only`.
 - Use frontmatter `name: shimmy-tool-{toolname}` and a description that names the runtime shim plus its distinctive requirements.
 - Use this section order where it fits: `Files`, `Current Behavior`, `Change Rules`, `Validation`, `Learning Guidance`.
 - Derive `Current Behavior` from the runtime shim first, then reconcile it against `docs/shims/<tool>.md`, `scripts/test-shimmy.sh`, `scripts/install-shimmy.sh`, and `README.md`.

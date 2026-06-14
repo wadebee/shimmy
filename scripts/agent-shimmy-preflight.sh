@@ -111,8 +111,8 @@ shimmy_agent_smoke_args_render() {
     netcat)
       printf '%s\n' '--help'
       ;;
-    opnsense-mcp-server)
-      printf '%s\n' ''
+    opnsense-mcp-read-only)
+      printf '%s\n' '--help'
       ;;
     rg)
       printf '%s\n' '--version'
@@ -148,7 +148,7 @@ shimmy_agent_smoke_run() {
       printf 'smoke_status=ok\n'
     else
       case "$shim_name:$smoke_output" in
-        opnsense-mcp-server:*'Required environment variable(s) not set: OPNSENSE_URL, OPNSENSE_API_KEY, OPNSENSE_API_SECRET'*)
+        opnsense-mcp-read-only:*'ERROR: OPNSENSE_URL is required for the opnsense-mcp-read-only shim.'*)
           printf 'smoke_status=ok\n'
           return 0
           ;;
@@ -167,7 +167,7 @@ shimmy_agent_smoke_run() {
     printf 'smoke_status=ok\n'
   else
     case "$shim_name:$smoke_output" in
-      opnsense-mcp-server:*'Required environment variable(s) not set: OPNSENSE_URL, OPNSENSE_API_KEY, OPNSENSE_API_SECRET'*)
+      opnsense-mcp-read-only:*'ERROR: OPNSENSE_URL is required for the opnsense-mcp-read-only shim.'*)
         printf 'smoke_status=ok\n'
         return 0
         ;;

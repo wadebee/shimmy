@@ -150,8 +150,12 @@ describe_shim_image() {
     nmap)
       printf '%s\n' "${SHIMMY_NMAP_IMAGE:-docker.io/instrumentisto/nmap:7.98-r2}"
       ;;
-    opnsense-mcp-server)
-      printf '%s\n' "${SHIMMY_OPNSENSE_MCP_IMAGE:-docker.io/uhlenheide/opnsense-mcp-server}"
+    opnsense-mcp-read-only)
+      if [ -n "${SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE:-}" ]; then
+        printf '%s\n' "$SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE"
+      else
+        printf '%s\n' "$(local_image_ref "localhost/shimmy-opnsense-mcp-read-only" "$images_dir/opnsense-mcp-read-only")"
+      fi
       ;;
     rg)
       printf '%s\n' "${SHIMMY_RG_IMAGE:-docker.io/vszl/ripgrep:latest}"

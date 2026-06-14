@@ -34,3 +34,5 @@ Always operate in PLAN → REVIEW → ACT mode:
 - Before acting, read AGENTS.md and follow its execution model.
 - After approval, proceed through implementation, verification, and summary.
 - It is important that you use Shimmy tools when available. This requires Podman to be running. If anything prevents you from running a preferred tool with Shimmy backing, pause execution and prompt the user for a remediation plan.  
+# -----------
+./shimmy update --shim opnsense-mcp-read-only --build

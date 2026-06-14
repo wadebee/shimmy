@@ -1,16 +1,16 @@
 ---
 name: shimmy-tool-opnsense-mcp
-description: Guidance for using, changing, testing, and troubleshooting the OPNsense MCP server shim in this repository, including OPNsense API privileges, Podman secrets, read-only live checks, and MCP stdio smoke tests.
+description: Guidance for using, changing, testing, and troubleshooting the OPNsense MCP read-only shim in this repository, including OPNsense API privileges, Podman secrets, read-only live checks, and MCP stdio smoke tests.
 ---
 
-# OPNsense MCP Shim
+# OPNsense MCP Read-Only Shim
 
-Use this skill when working with `shims/opnsense-mcp-server`, its tests, its docs, or live read-only OPNsense MCP queries.
+Use this skill when working with `shims/opnsense-mcp-read-only`, its tests, its docs, or live read-only OPNsense MCP queries.
 
 ## Files
 
-- Runtime shim: `../../../shims/opnsense-mcp-server`
-- User docs: `../../../docs/shims/opnsense-mcp-server.md`
+- Runtime shim: `../../../shims/opnsense-mcp-read-only`
+- User docs: `../../../docs/shims/opnsense-mcp-read-only.md`
 - Tests: `../../../scripts/test-shimmy.sh`
 - Installer: `../../../scripts/install-shimmy.sh`
 - README: `../../../README.md`
@@ -23,12 +23,14 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Current Behavior
 
-- Default image: `docker.io/uhlenheide/opnsense-mcp-server`
-- Pull override: `SHIMMY_OPNSENSE_MCP_IMAGE_PULL=always`
-- Image override: `SHIMMY_OPNSENSE_MCP_IMAGE`
+- Default image: local build from `../../../images/opnsense-mcp-read-only/Containerfile`
+- Build override: `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE_BUILD=always`
+- Source ref override: `SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF`
+- Pull override for explicit image overrides: `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE_PULL=always`
+- Image override: `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE`
 - Podman secrets:
-  - `SHIMMY_OPNSENSE_MCP_API_KEY`, default `opnsense_mcp_api_key`, mounted as `OPNSENSE_API_KEY`
-  - `SHIMMY_OPNSENSE_MCP_API_SECRET`, default `opnsense_mcp_api_secret`, mounted as `OPNSENSE_API_SECRET`
+  - `SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY`, default `opnsense_mcp_read_only_api_key`, mounted as `OPNSENSE_API_KEY`
+  - `SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET`, default `opnsense_mcp_read_only_api_secret`, mounted as `OPNSENSE_API_SECRET`
 - Required upstream env: `OPNSENSE_URL`
 - Safe defaults:
   - `OPNSENSE_VERIFY_SSL=false`
@@ -79,7 +81,7 @@ If combined output is large, rerun individual tools and summarize locally from `
 When an OPNsense MCP call returns HTTP 403 or another authorization error:
 
 1. Stop. Do not try alternate endpoints, remove safety flags, enable writes, or work around the missing privilege.
-2. Identify the failed MCP tool and the likely OPNsense privilege `Name` from `../../../docs/shims/opnsense-mcp-server.md` when possible.
+2. Identify the failed MCP tool and the likely OPNsense privilege `Name` from `../../../docs/shims/opnsense-mcp-read-only.md` when possible.
 3. Ask the user to update the API user's group privileges before retrying.
 4. Tell the user to add the privilege in OPNsense at `System | Access | Groups | Edit Group | Privileges`.
 5. Include the security impact of the requested privilege:

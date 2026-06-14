@@ -181,7 +181,7 @@ installed_shim_skill_name_render() {
   shim_name=$1
 
   case "$shim_name" in
-    opnsense-mcp-server)
+    opnsense-mcp-read-only)
       printf 'shimmy-tool-opnsense-mcp\n'
       ;;
     *)

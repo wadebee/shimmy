@@ -1,22 +1,27 @@
-# OPNsense MCP Server Shim
+# OPNsense MCP Read-Only Shim
 
 ## Upstream
 
 - Source repo README: <https://github.com/lucamarien/opnsense-mcp-server>
 - PyPI package: <https://pypi.org/project/opnsense-mcp-server/>
-- Docker image: `docker.io/uhlenheide/opnsense-mcp-server`
+- Shim image: local build from `images/opnsense-mcp-read-only/Containerfile`
+- Pinned source ref: `8ddb99a2a99102abc084b5e605aaba1c05c2ff56`
 
 ## Upstream README Summary
 
-OPNsense MCP Server is a stdio Model Context Protocol server for managing OPNsense firewalls through AI assistants. The upstream package exposes tools across system, firewall, network, DNS, DHCP, VPN, HAProxy, services, diagnostics, and security domains. It is read-only by default; write operations require `OPNSENSE_ALLOW_WRITES=true`.
+OPNsense MCP Server is a stdio Model Context Protocol server for managing OPNsense firewalls through AI assistants. The upstream package exposes tools across system, firewall, network, DNS, DHCP, VPN, HAProxy, services, diagnostics, and security domains. Shimmy packages the Marien implementation as the read-only OPNsense default. It is read-only by default; write operations require `OPNSENSE_ALLOW_WRITES=true`.
 
 ## Top-Level Command Summary
 
 The container entrypoint starts the MCP server directly:
 
-- `opnsense-mcp-server` - start the stdio MCP server through Podman.
+- `opnsense-mcp-read-only` - start the stdio MCP server through Podman.
 
 The server is meant to be launched by an MCP-compatible client. It requires OPNsense API configuration before it can connect.
+
+Migration note: `opnsense-mcp-server` was removed and is not an alias. Install
+and configure `opnsense-mcp-read-only`, and create the new read-only Podman
+secrets below.
 
 ## Quick Start Setup
 
@@ -33,21 +38,30 @@ curl --insecure --silent --show-error --output /dev/null "$OPNSENSE_URL"
 Create Podman secrets for the OPNsense API key and secret:
 
 ```sh
-printf 'paste your api key' | podman secret create opnsense_mcp_api_key -
-printf 'paste your api secret' | podman secret create opnsense_mcp_api_secret -
+printf 'paste your api key' | podman secret create opnsense_mcp_read_only_api_key -
+printf 'paste your api secret' | podman secret create opnsense_mcp_read_only_api_secret -
 ```
 
 Run the shim from an MCP client with `OPNSENSE_URL` in the environment. `OPNSENSE_VERIFY_SSL=false` and `OPNSENSE_ALLOW_WRITES=false` are the defaults, so they only need to be set when overriding that behavior.
 
 Environment:
 
-- `SHIMMY_OPNSENSE_MCP_IMAGE` - override the container image. Default: `docker.io/uhlenheide/opnsense-mcp-server`.
-- `SHIMMY_OPNSENSE_MCP_IMAGE_PULL=always` - force pulling the configured image.
-- `SHIMMY_OPNSENSE_MCP_API_KEY` - Podman secret name mounted into the container as `OPNSENSE_API_KEY`. Default: `opnsense_mcp_api_key`.
-- `SHIMMY_OPNSENSE_MCP_API_SECRET` - Podman secret name mounted into the container as `OPNSENSE_API_SECRET`. Default: `opnsense_mcp_api_secret`.
+- `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE` - override the runtime image. When unset, Shimmy builds a local image from the pinned Marien source ref.
+- `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE_PULL=always` - pull an override image before running.
+- `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE_BUILD=always` - rebuild the local source image even when cached.
+- `SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF` - override the Marien git ref used for local builds.
+- `SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY` - Podman secret name mounted into the container as `OPNSENSE_API_KEY`. Default: `opnsense_mcp_read_only_api_key`.
+- `SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET` - Podman secret name mounted into the container as `OPNSENSE_API_SECRET`. Default: `opnsense_mcp_read_only_api_secret`.
 - `OPNSENSE_URL` - OPNsense API base URL, including `/api`.
 - `OPNSENSE_VERIFY_SSL` - defaults to `false` for self-signed lab certificates. Set `true` only when the host trusts the OPNsense certificate.
 - `OPNSENSE_ALLOW_WRITES` - defaults to `false` for read-only use. Set `true` only for explicit change windows.
+
+Local image build:
+
+- Shimmy builds `localhost/shimmy-opnsense-mcp-read-only:<context-hash>-<platform>` from `images/opnsense-mcp-read-only/Containerfile`.
+- The default source ref is `8ddb99a2a99102abc084b5e605aaba1c05c2ff56` from `lucamarien/opnsense-mcp-server`.
+- Use `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE_BUILD=always` to force a rebuild.
+- Use `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE` only when you want to run a separately managed image.
 
 Preflight checks:
 
@@ -116,7 +130,7 @@ MCP stdio smoke test:
   printf '%s\n' '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"opn_list_services","arguments":{}}}'
   printf '%s\n' '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"opn_gateway_status","arguments":{}}}'
   sleep 20
-) | OPNSENSE_URL=https://192.168.1.1/api opnsense-mcp-server
+) | OPNSENSE_URL=https://192.168.1.1/api opnsense-mcp-read-only
 ```
 
 FastMCP in this image accepts newline-delimited JSON over stdio. Use that format for manual smoke checks instead of `Content-Length` framing.
@@ -127,7 +141,7 @@ MCP client example:
 {
   "mcpServers": {
     "opnsense": {
-      "command": "opnsense-mcp-server",
+      "command": "opnsense-mcp-read-only",
       "env": {
         "OPNSENSE_URL": "https://192.168.1.1/api"
       }
@@ -142,13 +156,13 @@ Notes:
 - Start with a dedicated read-only OPNsense API user.
 - Confirm the `curl` preflight succeeds from the same shell or agent environment that will launch the MCP server.
 - Leave `OPNSENSE_ALLOW_WRITES=false` unless you intentionally want firewall-changing tools available.
-- The upstream documentation references `lucamarien/opnsense-mcp-server`; this Shimmy wrapper uses the actual image `uhlenheide/opnsense-mcp-server`.
+- The upstream documentation references `opnsense-mcp`; this Shimmy wrapper exposes `opnsense-mcp-read-only` and keeps API key material in Podman secrets.
 
 ## Quick-Start Prompts
 
 Read-only prompts:
 
-- Home labber: "Use the OPNsense MCP server to summarize WAN and dnsmasq status, then show detailed DHCP leases."
+- Home labber: "Use the OPNsense MCP read-only shim to summarize WAN and dnsmasq status, then show detailed DHCP leases."
 - Software dev: "Show my current host IP/subnet and inspect firewall aliases, interface assignments and rules that apply toit. Summarize effective inbound / outbound access and port forwards. Show floating rules and highlight externally exposed services."
 - Platform engineer: "Review VPN, HAProxy, and firewall rule status for production-facing services and list risks or stale entries."
 
