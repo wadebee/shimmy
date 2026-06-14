@@ -3098,10 +3098,24 @@ EOF
 test_opnsense_mcp_admin_shim_secret_selectors() {
   assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY=${SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY:-opnsense_mcp_admin_api_key}'
   assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET=${SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET:-opnsense_mcp_admin_api_secret}'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'shimmy_opnsense_mcp_admin_secret_preflight_require'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'secret inspect "$SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY"'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'secret inspect "$SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET"'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'missing Podman secret for opnsense-mcp-admin'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" "podman secret create %s -"
   assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" '--secret "$SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY,type=env,target=OPNSENSE_API_KEY"'
   assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" '--secret "$SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET,type=env,target=OPNSENSE_API_SECRET"'
 
   pass "opnsense-mcp-admin secret selectors wire Podman secret names"
+}
+
+test_opnsense_mcp_admin_docs_secret_guidance() {
+  assert_file_contains "$ROOT_DIR/docs/shims/opnsense-mcp-admin.md" "no secret with name or id \"opnsense_mcp_admin_api_key\""
+  assert_file_contains "$ROOT_DIR/docs/shims/opnsense-mcp-admin.md" "printf 'paste your admin api key' | podman secret create opnsense_mcp_admin_api_key -"
+  assert_file_contains "$ROOT_DIR/docs/shims/opnsense-mcp-admin.md" "printf 'paste your admin api secret' | podman secret create opnsense_mcp_admin_api_secret -"
+  assert_file_contains "$ROOT_DIR/README.md" "printf 'paste your admin api key' | podman secret create opnsense_mcp_admin_api_key -"
+
+  pass "opnsense-mcp-admin docs include Podman secret creation guidance"
 }
 
 test_opnsense_mcp_admin_shim_parent_podman_preflight() {
@@ -3550,6 +3564,7 @@ main() {
   test_opnsense_mcp_admin_shim_url_unreachable
   test_opnsense_mcp_admin_shim_verify_ssl_default
   test_opnsense_mcp_admin_shim_secret_selectors
+  test_opnsense_mcp_admin_docs_secret_guidance
   test_installed_upstream_jq_shim
   test_installed_opnsense_mcp_read_only_shim
   test_installed_opnsense_mcp_admin_shim

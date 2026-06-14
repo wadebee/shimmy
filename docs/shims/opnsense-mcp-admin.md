@@ -41,6 +41,11 @@ printf 'paste your admin api key' | podman secret create opnsense_mcp_admin_api_
 printf 'paste your admin api secret' | podman secret create opnsense_mcp_admin_api_secret -
 ```
 
+If Podman reports `no secret with name or id "opnsense_mcp_admin_api_key"` or
+`no secret with name or id "opnsense_mcp_admin_api_secret"`, create the missing
+secret from a trusted user shell with the matching command above. Do not reuse
+the read-only shim secrets for the admin shim.
+
 Run the shim from an MCP client with `OPNSENSE_URL` in the environment. Keep admin credentials separate from read-only credentials so the safer read-only path cannot accidentally inherit broader permissions.
 
 Environment:
@@ -67,6 +72,12 @@ Preflight checks:
 - Before starting the container, Shimmy runs a simple curl request against `OPNSENSE_URL`. HTTP authentication failures still prove the endpoint is reachable; DNS, TCP, timeout, and TLS failures stop the shim with guidance.
 - When `OPNSENSE_VERIFY_SSL` is unset or `false`, Shimmy passes `--insecure` to the preflight curl check.
 - The preflight uses a 10 second connect timeout and 20 second maximum request time to tolerate slower local DNS lookups.
+- Shimmy checks that the configured Podman secrets exist before container creation. If either secret is missing, create it with:
+
+```sh
+printf 'paste your admin api key' | podman secret create opnsense_mcp_admin_api_key -
+printf 'paste your admin api secret' | podman secret create opnsense_mcp_admin_api_secret -
+```
 
 Mounts:
 

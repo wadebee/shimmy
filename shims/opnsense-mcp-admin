@@ -47,6 +47,25 @@ shimmy_opnsense_mcp_admin_url_preflight_require() {
   fi
 }
 
+shimmy_opnsense_mcp_admin_secret_preflight_require() {
+  missing_secret=
+
+  if ! "$SHIMMY_PODMAN_BIN" secret inspect "$SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY" >/dev/null 2>&1; then
+    missing_secret=$SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY
+  elif ! "$SHIMMY_PODMAN_BIN" secret inspect "$SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET" >/dev/null 2>&1; then
+    missing_secret=$SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET
+  fi
+
+  [ -n "$missing_secret" ] || return 0
+
+  printf 'ERROR: missing Podman secret for opnsense-mcp-admin: %s\n' "$missing_secret" >&2
+  printf '%s\n' 'Create the required admin secrets from a trusted shell, then rerun the shim:' >&2
+  printf "  printf 'paste your admin api key' | podman secret create %s -\n" "$SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY" >&2
+  printf "  printf 'paste your admin api secret' | podman secret create %s -\n" "$SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET" >&2
+  printf '%s\n' 'Keep admin secrets separate from read-only OPNsense MCP secrets.' >&2
+  return 1
+}
+
 if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" >&2
   exit 1
@@ -92,6 +111,7 @@ fi
 if ! shimmy_podman_is_preview; then
   shimmy_opnsense_mcp_admin_url_preflight_require
   shimmy_podman_preflight_require "the opnsense-mcp-admin shim"
+  shimmy_opnsense_mcp_admin_secret_preflight_require
 fi
 
 if [ -n "${SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE:-}" ]; then

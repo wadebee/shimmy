@@ -194,6 +194,12 @@ eval "$(shimmy activate)"
 Create separate Podman secrets for each shim: `opnsense_mcp_read_only_api_key`
 and `opnsense_mcp_read_only_api_secret` for read-only, and
 `opnsense_mcp_admin_api_key` and `opnsense_mcp_admin_api_secret` for admin.
+For the admin shim, create the secrets from a trusted user shell:
+
+```sh
+printf 'paste your admin api key' | podman secret create opnsense_mcp_admin_api_key -
+printf 'paste your admin api secret' | podman secret create opnsense_mcp_admin_api_secret -
+```
 The removed `opnsense-mcp-server` command is not an alias for either new shim.
 
 ### Profiles and profile selection
