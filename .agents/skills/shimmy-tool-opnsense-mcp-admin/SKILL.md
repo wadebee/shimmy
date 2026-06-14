@@ -26,6 +26,7 @@ When this skill is installed outside the Shimmy checkout, prefer activated comma
 - Source ref: `eeccd8189dc2d80fd397b2a589b20683ec947266` from `floriangrousset/opnsense-mcp-server`
 - Build override: `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_BUILD=always`
 - Source ref override: `SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF`
+- MCP SDK build constraint: `SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION`, default `mcp[cli]<1.10.0`
 - Pull override for explicit image overrides: `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_PULL=always`
 - Image override: `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE`
 - Podman secrets:

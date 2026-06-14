@@ -200,6 +200,8 @@ For the admin shim, create the secrets from a trusted user shell:
 printf 'paste your admin api key' | podman secret create opnsense_mcp_admin_api_key -
 printf 'paste your admin api secret' | podman secret create opnsense_mcp_admin_api_secret -
 ```
+
+The admin image constrains the MCP Python SDK below `1.10.0` for compatibility with the current upstream `FastMCP(...)` call.
 The removed `opnsense-mcp-server` command is not an alias for either new shim.
 
 ### Profiles and profile selection

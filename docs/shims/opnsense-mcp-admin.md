@@ -54,6 +54,7 @@ Environment:
 - `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_PULL=always` - pull an override image before running.
 - `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_BUILD=always` - rebuild the local source image even when cached.
 - `SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF` - override the Grousset git ref used for local builds.
+- `SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION` - image build argument for the MCP Python SDK constraint. Default: `mcp[cli]<1.10.0`.
 - `SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY` - Podman secret name mounted into the container as `OPNSENSE_API_KEY`. Default: `opnsense_mcp_admin_api_key`.
 - `SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET` - Podman secret name mounted into the container as `OPNSENSE_API_SECRET`. Default: `opnsense_mcp_admin_api_secret`.
 - `OPNSENSE_URL` - OPNsense API base URL, including `/api`.
@@ -63,6 +64,7 @@ Local image build:
 
 - Shimmy builds `localhost/shimmy-opnsense-mcp-admin:<context-hash>-<platform>` from `images/opnsense-mcp-admin/Containerfile`.
 - The default source ref is `eeccd8189dc2d80fd397b2a589b20683ec947266` from `floriangrousset/opnsense-mcp-server`.
+- The image constrains `mcp[cli]` below `1.10.0` because the current upstream admin code still passes `description=` to `FastMCP(...)`, and newer MCP Python SDK releases reject that argument.
 - Use `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_BUILD=always` to force a rebuild.
 - Use `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE` only when you want to run a separately managed image.
 

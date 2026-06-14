@@ -3118,6 +3118,14 @@ test_opnsense_mcp_admin_docs_secret_guidance() {
   pass "opnsense-mcp-admin docs include Podman secret creation guidance"
 }
 
+test_opnsense_mcp_admin_image_pins_mcp_sdk() {
+  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/Containerfile" "ARG SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION='mcp[cli]<1.10.0'"
+  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/Containerfile" '"$SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION" /tmp/*.whl'
+  assert_file_contains "$ROOT_DIR/docs/shims/opnsense-mcp-admin.md" "newer MCP Python SDK releases reject that argument"
+
+  pass "opnsense-mcp-admin image constrains MCP SDK for upstream FastMCP compatibility"
+}
+
 test_opnsense_mcp_admin_shim_parent_podman_preflight() {
   shim_file=$ROOT_DIR/shims/opnsense-mcp-admin
   preflight_line=$(awk '/shimmy_podman_preflight_require "the opnsense-mcp-admin shim"/ { print NR; exit }' "$shim_file")
@@ -3565,6 +3573,7 @@ main() {
   test_opnsense_mcp_admin_shim_verify_ssl_default
   test_opnsense_mcp_admin_shim_secret_selectors
   test_opnsense_mcp_admin_docs_secret_guidance
+  test_opnsense_mcp_admin_image_pins_mcp_sdk
   test_installed_upstream_jq_shim
   test_installed_opnsense_mcp_read_only_shim
   test_installed_opnsense_mcp_admin_shim

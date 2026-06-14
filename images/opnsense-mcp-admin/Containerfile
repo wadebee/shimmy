@@ -18,8 +18,10 @@ RUN git init \
 
 FROM ${SHIMMY_OPNSENSE_MCP_ADMIN_BASE_IMAGE}
 
+ARG SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION='mcp[cli]<1.10.0'
+
 COPY --from=build /src/dist/*.whl /tmp/
-RUN python -m pip install --no-cache-dir /tmp/*.whl \
+RUN python -m pip install --no-cache-dir "$SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION" /tmp/*.whl \
     && rm /tmp/*.whl
 
 WORKDIR /work
