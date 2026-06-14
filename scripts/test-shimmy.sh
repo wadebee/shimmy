@@ -459,7 +459,7 @@ require_podman() {
 
 require_curl() {
   if ! command -v curl >/dev/null 2>&1; then
-    fail_test "curl is required for opnsense-mcp-read-only URL preflight tests"
+    fail_test "curl is required for OPNsense MCP URL preflight tests"
   fi
 }
 
@@ -2887,6 +2887,128 @@ test_opnsense_mcp_read_only_shim_secret_selectors() {
   pass "opnsense-mcp-read-only secret selectors wire Podman secret names"
 }
 
+test_opnsense_mcp_admin_shim_help() {
+  output=$(
+    "$ROOT_DIR/shims/opnsense-mcp-admin" --help 2>&1
+  )
+
+  assert_contains "$output" "Run the admin-capable OPNsense MCP server through Shimmy."
+  assert_contains "$output" "WARNING: opnsense-mcp-admin exposes change-capable OPNsense management tools."
+  assert_contains "$output" "SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF"
+
+  pass "opnsense-mcp-admin help warns about change-capable tooling"
+}
+
+test_opnsense_mcp_admin_shim_preview() {
+  setup_scenario
+
+  output=$(
+    cd "$WORK_DIR" && "$ROOT_DIR/shims/opnsense-mcp-admin" --preview-shim 2>&1
+  )
+
+  assert_contains "$output" "'run' '--rm'"
+  assert_contains "$output" "'localhost/shimmy-opnsense-mcp-admin:"
+  assert_contains "$output" "--secret"
+  assert_not_contains "$output" "ERROR: OPNSENSE_URL is required"
+
+  pass "opnsense-mcp-admin preview avoids URL and Podman side effects"
+}
+
+test_opnsense_mcp_admin_shim_direct() {
+  setup_scenario
+
+  set +e
+  output=$(
+    cd "$WORK_DIR" && "$ROOT_DIR/shims/opnsense-mcp-admin" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-admin to require configuration"
+  assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-admin shim."
+  assert_contains "$output" "Set OPNSENSE_URL to the OPNsense API base URL, including /api."
+
+  pass "opnsense-mcp-admin requires OPNSENSE_URL before execution"
+}
+
+test_opnsense_mcp_admin_shim_url_invalid() {
+  setup_scenario
+
+  set +e
+  output=$(
+    cd "$WORK_DIR" && OPNSENSE_URL=opnsense.local/api "$ROOT_DIR/shims/opnsense-mcp-admin" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-admin to reject invalid OPNSENSE_URL"
+  assert_contains "$output" "ERROR: OPNSENSE_URL must be an http:// or https:// URL with a host: opnsense.local/api"
+
+  pass "opnsense-mcp-admin rejects invalid OPNSENSE_URL"
+}
+
+test_opnsense_mcp_admin_shim_url_unreachable() {
+  setup_scenario
+  require_curl
+
+  set +e
+  output=$(
+    cd "$WORK_DIR" && OPNSENSE_URL=http://127.0.0.1:9/api "$ROOT_DIR/shims/opnsense-mcp-admin" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-admin to reject unreachable OPNSENSE_URL"
+  assert_contains "$output" "ERROR: OPNSENSE_URL did not respond to curl: http://127.0.0.1:9/api"
+  assert_contains "$output" "Confirm the URL, network path, firewall reachability, and OPNSENSE_VERIFY_SSL setting."
+
+  pass "opnsense-mcp-admin rejects unreachable OPNSENSE_URL"
+}
+
+test_opnsense_mcp_admin_shim_verify_ssl_default() {
+  setup_scenario
+
+  mkdir -p "$WORK_DIR/bin"
+  curl_args_file=$WORK_DIR/curl.args
+  cat > "$WORK_DIR/bin/curl" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" > "$SHIMMY_TEST_CURL_ARGS_FILE"
+exit 1
+EOF
+  chmod +x "$WORK_DIR/bin/curl"
+
+  set +e
+  output=$(
+    cd "$WORK_DIR" &&
+      PATH="$WORK_DIR/bin:$PATH" \
+      SHIMMY_TEST_CURL_ARGS_FILE="$curl_args_file" \
+      OPNSENSE_URL=https://opnsense.local/api \
+      "$ROOT_DIR/shims/opnsense-mcp-admin" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-admin preflight to stop after failed curl"
+  assert_contains "$output" "ERROR: OPNSENSE_URL did not respond to curl: https://opnsense.local/api"
+  curl_args=$(cat "$curl_args_file")
+  assert_contains "$curl_args" "--insecure"
+  assert_contains "$curl_args" "--connect-timeout"
+  assert_contains "$curl_args" "10"
+  assert_contains "$curl_args" "--max-time"
+  assert_contains "$curl_args" "20"
+
+  pass "opnsense-mcp-admin defaults OPNSENSE_VERIFY_SSL to false"
+}
+
+test_opnsense_mcp_admin_shim_secret_selectors() {
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY=${SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY:-opnsense_mcp_admin_api_key}'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET=${SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET:-opnsense_mcp_admin_api_secret}'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" '--secret "$SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY,type=env,target=OPNSENSE_API_KEY"'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" '--secret "$SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET,type=env,target=OPNSENSE_API_SECRET"'
+
+  pass "opnsense-mcp-admin secret selectors wire Podman secret names"
+}
+
 test_rg_shim_direct() {
   setup_scenario
   require_podman
@@ -3293,6 +3415,13 @@ main() {
   test_opnsense_mcp_read_only_shim_url_unreachable
   test_opnsense_mcp_read_only_shim_verify_ssl_default
   test_opnsense_mcp_read_only_shim_secret_selectors
+  test_opnsense_mcp_admin_shim_help
+  test_opnsense_mcp_admin_shim_preview
+  test_opnsense_mcp_admin_shim_direct
+  test_opnsense_mcp_admin_shim_url_invalid
+  test_opnsense_mcp_admin_shim_url_unreachable
+  test_opnsense_mcp_admin_shim_verify_ssl_default
+  test_opnsense_mcp_admin_shim_secret_selectors
   test_installed_upstream_jq_shim
   test_installed_opnsense_mcp_read_only_shim
   test_uninstall_requires_mode

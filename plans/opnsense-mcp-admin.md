@@ -231,36 +231,36 @@ Quality gate:
 
 ## Implementation Workstreams
 
-### 1. Rename Current Read-Only Shim
+### 1. Rename Current Read-Only Shim (Completed)
 
-- Move `shims/opnsense-mcp-server` to `shims/opnsense-mcp-read-only`.
-- Move `shims/opnsense-mcp-server.conf` to
+- (x) Move `shims/opnsense-mcp-server` to `shims/opnsense-mcp-read-only`.
+- (x) Move `shims/opnsense-mcp-server.conf` to
   `shims/opnsense-mcp-read-only.conf`.
-- Update shell function names and user-facing messages from
+- (x) Update shell function names and user-facing messages from
   `opnsense-mcp-server` to `opnsense-mcp-read-only`.
-- Rename env vars from `SHIMMY_OPNSENSE_MCP_*` to
+- (x) Rename env vars from `SHIMMY_OPNSENSE_MCP_*` to
   `SHIMMY_OPNSENSE_MCP_READ_ONLY_*`.
-- Rename default Podman secrets to the read-only names.
-- Add `images/opnsense-mcp-read-only/Containerfile` and rebuild the Marien
+- (x) Rename default Podman secrets to the read-only names.
+- (x) Add `images/opnsense-mcp-read-only/Containerfile` and rebuild the Marien
   implementation as a Shimmy-managed local image from a pinned source ref.
-- Use Shimmy's shared custom-image helper for the read-only image build.
-- Preserve POSIX shell, `set -eu`, shared Podman helper use, `$PWD:/work`,
+- (x) Use Shimmy's shared custom-image helper for the read-only image build.
+- (x) Preserve POSIX shell, `set -eu`, shared Podman helper use, `$PWD:/work`,
   `--preview-shim`, URL validation, SSL preflight behavior, and stdio-friendly
   `-i` runtime mode.
 
 ### 2. Add Admin Shim
 
-- Add `shims/opnsense-mcp-admin` as a separate wrapper.
-- Confirm Grousset runtime command, upstream env names, package manager, and
+- (x) Add `shims/opnsense-mcp-admin` as a separate wrapper.
+- (x) Confirm Grousset runtime command, upstream env names, package manager, and
   container entrypoint from the upstream repository.
-- Check for a suitable published image and supported platforms
+- (x) Check for a suitable published image and supported platforms
   (`linux/amd64` and `linux/arm64`).
-- If no suitable image is documented, add
+- (x) If no suitable image is documented, add
   `images/opnsense-mcp-admin/Containerfile` and build a local image from a
   pinned Grousset source ref using Shimmy's shared custom-image helper.
-- Use separate admin image, pull/build, and Podman secret env vars.
-- Keep URL preflight and Podman preflight before container startup.
-- Add admin-specific help text that warns it is change-capable tooling.
+- (x) Use separate admin image, pull/build, and Podman secret env vars.
+- (x) Keep URL preflight and Podman preflight before container startup.
+- (x) Add admin-specific help text that warns it is change-capable tooling.
 
 ### 3. Installer And Catalog
 

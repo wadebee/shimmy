@@ -1,0 +1,27 @@
+ARG SHIMMY_OPNSENSE_MCP_ADMIN_BASE_IMAGE=python:3.13-slim
+FROM ${SHIMMY_OPNSENSE_MCP_ADMIN_BASE_IMAGE} AS build
+
+ARG SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF=eeccd8189dc2d80fd397b2a589b20683ec947266
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+
+RUN git init \
+    && git remote add origin https://github.com/floriangrousset/opnsense-mcp-server.git \
+    && git fetch --depth 1 origin "${SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF}" \
+    && git checkout FETCH_HEAD \
+    && python -m pip install --no-cache-dir build \
+    && python -m build --wheel
+
+FROM ${SHIMMY_OPNSENSE_MCP_ADMIN_BASE_IMAGE}
+
+COPY --from=build /src/dist/*.whl /tmp/
+RUN python -m pip install --no-cache-dir /tmp/*.whl \
+    && rm /tmp/*.whl
+
+WORKDIR /work
+
+ENTRYPOINT ["opnsense-mcp-server"]
