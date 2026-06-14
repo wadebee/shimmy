@@ -2098,6 +2098,9 @@ test_installed_shim_install_adds_available_shim() {
   assert_file_exists "$INSTALL_DIR/shims/jq"
   assert_file_exists "$INSTALL_DIR/shims/opnsense-mcp-read-only"
   assert_dir_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only"
+  assert_file_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only/Containerfile"
+  assert_file_contains "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only/Containerfile" "SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF"
+  assert_file_contains "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only/Containerfile" "https://github.com/lucamarien/opnsense-mcp-server.git"
 
   output=$(
     cd "$WORK_DIR"
@@ -2108,6 +2111,9 @@ test_installed_shim_install_adds_available_shim() {
   assert_file_exists "$INSTALL_DIR/shims/opnsense-mcp-admin"
   assert_file_exists "$INSTALL_DIR/profiles/default/config/shims/opnsense-mcp-admin.conf"
   assert_dir_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin"
+  assert_file_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin/Containerfile"
+  assert_file_contains "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin/Containerfile" "SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF"
+  assert_file_contains "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin/Containerfile" "https://github.com/floriangrousset/opnsense-mcp-server.git"
 
   output=$(
     cd "$WORK_DIR"
@@ -3257,6 +3263,25 @@ test_installed_opnsense_mcp_read_only_shim() {
   pass "installed opnsense-mcp-read-only requires OPNSENSE_URL before execution"
 }
 
+test_installed_opnsense_mcp_admin_shim() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim opnsense-mcp-admin >/dev/null
+
+  set +e
+  output=$(
+    cd "$WORK_DIR" && "$INSTALL_DIR/shims/opnsense-mcp-admin" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected installed opnsense-mcp-admin to require configuration"
+  assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-admin shim."
+  assert_contains "$output" "Set OPNSENSE_URL to the OPNsense API base URL, including /api."
+
+  pass "installed opnsense-mcp-admin requires OPNSENSE_URL before execution"
+}
+
 test_uninstall_requires_mode() {
   setup_scenario
 
@@ -3449,6 +3474,7 @@ main() {
   test_opnsense_mcp_admin_shim_secret_selectors
   test_installed_upstream_jq_shim
   test_installed_opnsense_mcp_read_only_shim
+  test_installed_opnsense_mcp_admin_shim
   test_uninstall_requires_mode
   test_uninstall_mode_default_preserves_upstream
   test_uninstall_mode_invalid_environment_rejected

@@ -275,15 +275,15 @@ Quality gate:
 
 ### 4. Tests
 
-- Rename existing OPNsense preflight tests to target
+- (x) Rename existing OPNsense preflight tests to target
   `opnsense-mcp-read-only`.
-- Add matching admin preflight tests for required `OPNSENSE_URL`, invalid URL,
+- (x) Add matching admin preflight tests for required `OPNSENSE_URL`, invalid URL,
   unreachable URL, SSL default, and secret selector wiring.
-- Assert old `opnsense-mcp-server` is no longer supported by install/status
+- (x) Assert old `opnsense-mcp-server` is no longer supported by install/status
   flows.
-- Update installed-shim tests to install and validate the new names.
-- Add local image build tests for read-only and admin local image contexts.
-- Keep tests non-mutating. Use `--help`, `--preview-shim`, URL preflight
+- (x) Update installed-shim tests to install and validate the new names.
+- (x) Add local image build tests for read-only and admin local image contexts.
+- (x) Keep tests non-mutating. Use `--help`, `--preview-shim`, URL preflight
   failures, and file-content assertions unless an approved live smoke is needed.
 
 ### 5. Documentation
