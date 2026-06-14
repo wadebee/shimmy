@@ -2970,6 +2970,18 @@ test_opnsense_mcp_read_only_shim_secret_selectors() {
   pass "opnsense-mcp-read-only secret selectors wire Podman secret names"
 }
 
+test_opnsense_mcp_read_only_shim_parent_podman_preflight() {
+  shim_file=$ROOT_DIR/shims/opnsense-mcp-read-only
+  preflight_line=$(awk '/shimmy_podman_preflight_require "the opnsense-mcp-read-only shim"/ { print NR; exit }' "$shim_file")
+  local_image_line=$(awk '/shimmy_local_image_ensure/ { print NR; exit }' "$shim_file")
+
+  [ -n "$preflight_line" ] || fail_test "expected opnsense-mcp-read-only to run parent Podman preflight"
+  [ -n "$local_image_line" ] || fail_test "expected opnsense-mcp-read-only to ensure local image"
+  [ "$preflight_line" -lt "$local_image_line" ] || fail_test "expected opnsense-mcp-read-only parent Podman preflight before local image command substitution"
+
+  pass "opnsense-mcp-read-only initializes Podman in parent shell before local image selection"
+}
+
 test_opnsense_mcp_admin_shim_help() {
   output=$(
     "$ROOT_DIR/shims/opnsense-mcp-admin" --help 2>&1
@@ -3090,6 +3102,18 @@ test_opnsense_mcp_admin_shim_secret_selectors() {
   assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" '--secret "$SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET,type=env,target=OPNSENSE_API_SECRET"'
 
   pass "opnsense-mcp-admin secret selectors wire Podman secret names"
+}
+
+test_opnsense_mcp_admin_shim_parent_podman_preflight() {
+  shim_file=$ROOT_DIR/shims/opnsense-mcp-admin
+  preflight_line=$(awk '/shimmy_podman_preflight_require "the opnsense-mcp-admin shim"/ { print NR; exit }' "$shim_file")
+  local_image_line=$(awk '/shimmy_local_image_ensure/ { print NR; exit }' "$shim_file")
+
+  [ -n "$preflight_line" ] || fail_test "expected opnsense-mcp-admin to run parent Podman preflight"
+  [ -n "$local_image_line" ] || fail_test "expected opnsense-mcp-admin to ensure local image"
+  [ "$preflight_line" -lt "$local_image_line" ] || fail_test "expected opnsense-mcp-admin parent Podman preflight before local image command substitution"
+
+  pass "opnsense-mcp-admin initializes Podman in parent shell before local image selection"
 }
 
 test_rg_shim_direct() {

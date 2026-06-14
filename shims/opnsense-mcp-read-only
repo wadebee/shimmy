@@ -88,13 +88,11 @@ fi
 
 if ! shimmy_podman_is_preview; then
   shimmy_opnsense_mcp_read_only_url_preflight_require
+  shimmy_podman_preflight_require "the opnsense-mcp-read-only shim"
 fi
 
 if [ -n "${SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE:-}" ]; then
   SHIMMY_OPNSENSE_MCP_READ_ONLY_RUN_IMAGE=$SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE
-  if ! shimmy_podman_is_preview; then
-    shimmy_podman_preflight_require "the opnsense-mcp-read-only shim"
-  fi
 else
   if [ -n "${SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF:-}" ]; then
     SHIMMY_OPNSENSE_MCP_READ_ONLY_RUN_IMAGE=$(

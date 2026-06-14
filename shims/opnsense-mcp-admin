@@ -91,13 +91,11 @@ fi
 
 if ! shimmy_podman_is_preview; then
   shimmy_opnsense_mcp_admin_url_preflight_require
+  shimmy_podman_preflight_require "the opnsense-mcp-admin shim"
 fi
 
 if [ -n "${SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE:-}" ]; then
   SHIMMY_OPNSENSE_MCP_ADMIN_RUN_IMAGE=$SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE
-  if ! shimmy_podman_is_preview; then
-    shimmy_podman_preflight_require "the opnsense-mcp-admin shim"
-  fi
 else
   if [ -n "${SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF:-}" ]; then
     SHIMMY_OPNSENSE_MCP_ADMIN_RUN_IMAGE=$(
