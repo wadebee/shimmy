@@ -205,6 +205,8 @@ local_build_repo_for_shim() {
     netcat) printf 'localhost/shimmy-netcat\n' ;;
     task) printf 'localhost/shimmy-task\n' ;;
     textual) printf 'localhost/shimmy-textual\n' ;;
+    opnsense-mcp-admin) printf 'localhost/shimmy-opnsense-mcp-admin\n' ;;
+    opnsense-mcp-read-only) printf 'localhost/shimmy-opnsense-mcp-read-only\n' ;;
     *) return 1 ;;
   esac
 }
