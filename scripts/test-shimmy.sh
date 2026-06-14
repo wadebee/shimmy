@@ -1391,6 +1391,34 @@ test_installed_launcher_skills_install_includes_installed_shim_skills() {
   pass "installed launcher skills install includes installed shim skills"
 }
 
+test_opnsense_mcp_skills_supported_tool_inventories() {
+  read_only_skill_file=$ROOT_DIR/.agents/skills/shimmy-tool-opnsense-mcp-read-only/SKILL.md
+  admin_skill_file=$ROOT_DIR/.agents/skills/shimmy-tool-opnsense-mcp-admin/SKILL.md
+
+  assert_file_contains "$read_only_skill_file" "## Supported Tool Inventory"
+  assert_file_contains "$read_only_skill_file" 'Inventory source: Marien pinned ref `8ddb99a2a99102abc084b5e605aaba1c05c2ff56`'
+  assert_file_contains "$read_only_skill_file" '`tests/test_tools/test_registration.py` and `src/opnsense_mcp/tools/*`'
+  assert_file_contains "$read_only_skill_file" 'System and firmware: `opn_system_status`'
+  assert_file_contains "$read_only_skill_file" 'Firewall rules, aliases, NAT, states, and logs: read `opn_list_firewall_rules`'
+  assert_file_contains "$read_only_skill_file" 'write-capable but disabled by default `opn_add_firewall_rule`'
+  assert_file_contains "$read_only_skill_file" 'Use read-only tools first when a matching tool exists. Use admin only for missing coverage or explicit configuration changes.'
+
+  assert_file_contains "$admin_skill_file" "## Supported Tool Inventory"
+  assert_file_contains "$admin_skill_file" 'Inventory source: Grousset pinned ref `eeccd8189dc2d80fd397b2a589b20683ec947266`'
+  assert_file_contains "$admin_skill_file" '`src/opnsense_mcp/domains/*` FastMCP `@mcp.tool(name="...")` registrations'
+  assert_file_contains "$admin_skill_file" 'System and firmware: `get_system_status`'
+  assert_file_contains "$admin_skill_file" 'Firewall rules, aliases, NAT, states, and logs: `firewall_get_rules`, `firewall_add_rule`'
+  assert_file_contains "$admin_skill_file" 'Admin-only create/update/delete actions: firewall add/delete/toggle'
+  assert_file_contains "$admin_skill_file" 'Use read-only first when a matching tool exists. Use admin only for missing read-only coverage or explicit configuration changes.'
+
+  read_only_skill_contents=$(cat "$read_only_skill_file")
+  admin_skill_contents=$(cat "$admin_skill_file")
+  assert_not_contains "$read_only_skill_contents" "Admin-only create/update/delete actions"
+  assert_not_contains "$admin_skill_contents" "write-capable but disabled by default"
+
+  pass "OPNsense MCP skills include distinct supported tool inventories"
+}
+
 test_skills_update_repo_target() {
   setup_scenario
 
@@ -2381,6 +2409,17 @@ test_update_preserves_shimmy_manifest_fields() {
   fi
 
   pass "update preserves shimmy manifest lifecycle fields"
+}
+
+test_update_build_refresh_includes_opnsense_mcp_admin() {
+  update_script=$ROOT_DIR/scripts/update-shimmy.sh
+
+  assert_file_contains "$update_script" 'opnsense-mcp-admin)'
+  assert_file_contains "$update_script" '"localhost/shimmy-opnsense-mcp-admin"'
+  assert_file_contains "$update_script" '"$images_dir/opnsense-mcp-admin"'
+  assert_file_contains "$update_script" 'SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF'
+
+  pass "update --build includes opnsense-mcp-admin local image refresh"
 }
 
 test_update_mode_default_profile() {
@@ -3441,6 +3480,7 @@ main() {
   test_install_no_startup
   test_skills_install_repo_target
   test_installed_launcher_skills_install_includes_installed_shim_skills
+  test_opnsense_mcp_skills_supported_tool_inventories
   test_skills_update_repo_target
   test_skills_export_folder
   test_install_macos_podman_guidance
@@ -3464,6 +3504,7 @@ main() {
   test_update_shim_requires_installed_shim
   test_update_all_reinstalls_profile_shims
   test_update_preserves_shimmy_manifest_fields
+  test_update_build_refresh_includes_opnsense_mcp_admin
   test_update_mode_invalid_environment_rejected
   test_update_mode_upstream_profile
   test_aws_shim_direct

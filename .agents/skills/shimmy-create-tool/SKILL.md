@@ -13,6 +13,7 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 - Shared repo prompt: `../../../docs/prompt-shimmy-project.md`
 - Runtime shims: `../../../shims/`
 - Tool skills: `../../../.agents/skills/shimmy-tool-*/`
+- Supported shim catalog: `../../../lib/repo/shimmy-catalog.sh`
 - Tests: `../../../scripts/test-shimmy.sh`
 - Installer: `../../../scripts/install-shimmy.sh`
 - Docs: `../../../README.md`
@@ -21,9 +22,9 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 
 1. Read `../../../CONTRIBUTING.md` and `../../../docs/prompt-shimmy-project.md` before making changes.
 2. Identify the requested CLI tool, then run the dependency gate in `Required Checkpoints` before designing the shim.
-3. Inspect `../../../shims/`, `../../../scripts/install-shimmy.sh`, and `../../../scripts/test-shimmy.sh` so the new shim matches existing conventions.
+3. Inspect `../../../shims/`, `../../../lib/repo/shimmy-catalog.sh`, `../../../scripts/install-shimmy.sh`, and `../../../scripts/test-shimmy.sh` so the new shim matches existing conventions.
 4. Keep the skill-driven plan concise and actionable. Prefer a short default workflow over long narrative guidance.
-5. Update the runtime shim, installer, tests, and README together when behavior changes.
+5. Update the runtime shim, supported shim catalog, installer, tests, and README together when behavior changes.
 6. Create or update a matching tool skill at `../../../.agents/skills/shimmy-tool-{toolname}/SKILL.md` when adding or materially changing a shim.
 7. Share the new or updated tool skill before final verification with `./shimmy skills install --target repo shimmy-tool-{toolname}` from the Shimmy checkout unless the user chose `profile` or `plugin` as the target.
 8. When adding a shim to the `Included Shims` table in `README.md`, keep the table sorted alphabetically by Tool name.
@@ -58,6 +59,7 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 - Existing credential mount patterns may remain until a dedicated credential-handling change is planned.
 - End the shim with `exec podman run --rm ... "$IMAGE" "$@"`.
 - Keep runnable shell files executable.
+- Add new installable shim names to `../../../lib/repo/shimmy-catalog.sh` `SHIMMY_SUPPORTED_SHIMS`. `shimmy install --shim <tool>` validation and `shimmy status --available` both derive supported names from that catalog, then status filters out already installed profile shims.
 
 ## Tool Skill Rules
 
@@ -83,6 +85,7 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 - Update `../../../scripts/test-shimmy.sh` with non-mutating assertions and options for the new shim behavior.
 - Use Podman and non-mutating commands such as `--help` or `version` when validating container execution.
 - Update `../../../README.md` so image defaults, env vars, mounts, and examples stay aligned with the implementation.
+- Update `../../../scripts/status-shimmy.sh` image description logic when adding a new remote-image default, local build image, or image override env var so installed status output stays accurate.
 - Keep the `Included Shims` table in `../../../README.md` alphabetized by Tool name after README updates.
 
 ## Learning Guidance

@@ -308,6 +308,21 @@ run_build_refresh() {
         fi
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
+      opnsense-mcp-admin)
+        if [ -n "${SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF:-}" ]; then
+          shimmy_local_image_ensure \
+            "localhost/shimmy-opnsense-mcp-admin" \
+            "$images_dir/opnsense-mcp-admin" \
+            always \
+            --build-arg "SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF=$SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF" >/dev/null
+        else
+          shimmy_local_image_ensure \
+            "localhost/shimmy-opnsense-mcp-admin" \
+            "$images_dir/opnsense-mcp-admin" \
+            always >/dev/null
+        fi
+        cleanup_old_local_images "$shim_name" "$images_dir"
+        ;;
       gdrive)
         SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_GDRIVE_IMAGE_BUILD=always "$shim_dir/gdrive" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
