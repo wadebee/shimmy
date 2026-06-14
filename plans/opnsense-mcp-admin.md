@@ -288,17 +288,17 @@ Quality gate:
 
 ### 5. Documentation
 
-- Replace `docs/shims/opnsense-mcp-server.md` with
+- (x) Replace `docs/shims/opnsense-mcp-server.md` with
   `docs/shims/opnsense-mcp-read-only.md`.
-- Add `docs/shims/opnsense-mcp-admin.md`.
-- Update `README.md` Included Shims table alphabetically.
-- Document separate Podman secret creation commands for each shim.
-- Document the Shimmy-created Marien image rebuild for
+- (x) Add `docs/shims/opnsense-mcp-admin.md`.
+- (x) Update `README.md` Included Shims table alphabetically.
+- (x) Document separate Podman secret creation commands for each shim.
+- (x) Document the Shimmy-created Marien image rebuild for
   `opnsense-mcp-read-only`, including source ref, rebuild trigger, and image
   override behavior.
-- Document MCP client examples using explicit command names.
-- Include selection policy in both OPNsense docs and README.
-- Call out that `opnsense-mcp-server` was intentionally removed and is not an
+- (x) Document MCP client examples using explicit command names.
+- (x) Include selection policy in both OPNsense docs and README.
+- (x) Call out that `opnsense-mcp-server` was intentionally removed and is not an
   alias.
 
 ### 6. Agent Skills

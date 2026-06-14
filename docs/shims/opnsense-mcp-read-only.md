@@ -9,7 +9,9 @@
 
 ## Upstream README Summary
 
-OPNsense MCP Server is a stdio Model Context Protocol server for managing OPNsense firewalls through AI assistants. The upstream package exposes tools across system, firewall, network, DNS, DHCP, VPN, HAProxy, services, diagnostics, and security domains. Shimmy packages the Marien implementation as the read-only OPNsense default. It is read-only by default; write operations require `OPNSENSE_ALLOW_WRITES=true`.
+OPNsense MCP Server is a stdio Model Context Protocol server for managing OPNsense firewalls through AI assistants. The upstream package exposes tools across system, firewall, network, DNS, DHCP, VPN, HAProxy, services, diagnostics, and security domains. Shimmy packages the Marien implementation as the read-only OPNsense default. 
+
+Prefer this shim for inventory, status, diagnostics, inspection, policy review, and any prompt that does not explicitly require a configuration change. Use `opnsense-mcp-admin` only for explicit change-window work or for a capability that this read-only library does not expose. If a read-only call returns an OPNsense privilege error, prompt user to grant the needed read-only privilege instead of switching to admin as a workaround.
 
 ## Top-Level Command Summary
 
@@ -156,6 +158,7 @@ Notes:
 - Start with a dedicated read-only OPNsense API user.
 - Confirm the `curl` preflight succeeds from the same shell or agent environment that will launch the MCP server.
 - Leave `OPNSENSE_ALLOW_WRITES=false` unless you intentionally want firewall-changing tools available.
+- Keep read-only and admin credentials separate. The admin shim uses `opnsense_mcp_admin_api_key` and `opnsense_mcp_admin_api_secret`.
 - The upstream documentation references `opnsense-mcp`; this Shimmy wrapper exposes `opnsense-mcp-read-only` and keeps API key material in Podman secrets.
 
 ## Quick-Start Prompts
@@ -163,7 +166,7 @@ Notes:
 Read-only prompts:
 
 - Home labber: "Use the OPNsense MCP read-only shim to summarize WAN and dnsmasq status, then show detailed DHCP leases."
-- Software dev: "Show my current host IP/subnet and inspect firewall aliases, interface assignments and rules that apply toit. Summarize effective inbound / outbound access and port forwards. Show floating rules and highlight externally exposed services."
+- Software dev: "Show my current host IP/subnet and inspect firewall aliases, interface assignments and rules that apply to it. Summarize effective inbound / outbound access and port forwards. Show floating rules and highlight externally exposed services."
 - Platform engineer: "Review VPN, HAProxy, and firewall rule status for production-facing services and list risks or stale entries."
 
 Write-capable prompts:

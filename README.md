@@ -35,6 +35,7 @@ netcat --help --preview-shim
 | **jq** | JSON processor | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | TCP/UDP debugging client | [docs/shims/netcat.md](docs/shims/netcat.md) |
 | **nmap** | Network discovery and security scanner | [docs/shims/nmap.md](docs/shims/nmap.md) |
+| **opnsense-mcp-admin** | OPNsense firewall MCP server, admin-capable change tooling | [docs/shims/opnsense-mcp-admin.md](docs/shims/opnsense-mcp-admin.md) |
 | **opnsense-mcp-read-only** | OPNsense firewall MCP server, read-only default | [docs/shims/opnsense-mcp-read-only.md](docs/shims/opnsense-mcp-read-only.md) |
 | **rg** | Ripgrep search | [docs/shims/rg.md](docs/shims/rg.md) |
 | **task** | Taskfile task runner | [docs/shims/task.md](docs/shims/task.md) |
@@ -193,6 +194,7 @@ eval "$(shimmy activate)"
 Create separate Podman secrets for each shim: `opnsense_mcp_read_only_api_key`
 and `opnsense_mcp_read_only_api_secret` for read-only, and
 `opnsense_mcp_admin_api_key` and `opnsense_mcp_admin_api_secret` for admin.
+The removed `opnsense-mcp-server` command is not an alias for either new shim.
 
 ### Profiles and profile selection
 
@@ -285,6 +287,7 @@ explicitly:
 
 ```sh
 shimmy install --shim opnsense-mcp-read-only
+shimmy install --shim opnsense-mcp-admin
 ```
 
 Shim container image refresh is still explicit. Normal management-plane updates
@@ -470,6 +473,7 @@ gdrive --help
 jq . file.json
 netcat 198.51.100.10 443
 nmap --version
+opnsense-mcp-admin --help
 opnsense-mcp-read-only
 rg "pattern" .
 task --list
@@ -481,7 +485,7 @@ textual --help
 
 Each runtime shim has a focused quick-start document with upstream links, source summary, top-level command notes, Shimmy configuration, and example prompts.
 
-Some shims also document required setup checks. For example, `opnsense-mcp-read-only` requires `OPNSENSE_URL`, defaults to read-only/self-signed-lab behavior, validates that the endpoint responds to a local `curl` request before starting the container, and lists the OPNsense API privileges needed for common read-only MCP queries. The old `opnsense-mcp-server` command was removed and is not an alias.
+Some shims also document required setup checks. For example, `opnsense-mcp-read-only` and `opnsense-mcp-admin` require `OPNSENSE_URL`, default to self-signed-lab SSL preflight behavior, validate that the endpoint responds to a local `curl` request before starting the container, and use separate Podman secret defaults. Prefer `opnsense-mcp-read-only` for inventory, status, diagnostics, inspection, and policy review. Use `opnsense-mcp-admin` only for explicit configuration changes, approved change-window workflows, or capabilities missing from the read-only library. The old `opnsense-mcp-server` command was removed and is not an alias.
 
 | Tool | Quick start |
 |------|-------------|
@@ -492,6 +496,7 @@ Some shims also document required setup checks. For example, `opnsense-mcp-read-
 | **jq** | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | [docs/shims/netcat.md](docs/shims/netcat.md) |
 | **nmap** | [docs/shims/nmap.md](docs/shims/nmap.md) |
+| **opnsense-mcp-admin** | [docs/shims/opnsense-mcp-admin.md](docs/shims/opnsense-mcp-admin.md) |
 | **opnsense-mcp-read-only** | [docs/shims/opnsense-mcp-read-only.md](docs/shims/opnsense-mcp-read-only.md) |
 | **rg** | [docs/shims/rg.md](docs/shims/rg.md) |
 | **task** | [docs/shims/task.md](docs/shims/task.md) |
@@ -528,7 +533,7 @@ Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
 - install, activate, status, available-shim comparison, machine-readable manifest output, update, startup-file repair, and uninstall behavior for default and upstream profiles
 - Shimmy skill sharing, export, idempotent skills manifest updates, and install-time management skill sharing
-- live Podman execution for the supported shim set: `aws`, `go`, `gcloud`, `gdrive`, `jq`, `netcat`, `nmap`, `opnsense-mcp-read-only`, `rg`, `task`, `terraform`, and `textual`
+- live Podman execution for the supported shim set: `aws`, `go`, `gcloud`, `gdrive`, `jq`, `netcat`, `nmap`, `opnsense-mcp-admin`, `opnsense-mcp-read-only`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
 ```
@@ -542,6 +547,7 @@ shimmy/
 │   ├── jq
 │   ├── netcat
 │   ├── nmap
+│   ├── opnsense-mcp-admin
 │   ├── opnsense-mcp-read-only
 │   ├── rg
 │   ├── task
@@ -551,6 +557,7 @@ shimmy/
 ├── images/                       # Custom shim image build contexts
 │   ├── gdrive
 │   ├── netcat
+│   ├── opnsense-mcp-admin
 │   ├── opnsense-mcp-read-only
 │   ├── task
 │   ├── tessl
