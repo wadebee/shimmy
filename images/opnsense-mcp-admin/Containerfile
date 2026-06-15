@@ -24,6 +24,9 @@ COPY --from=build /src/dist/*.whl /tmp/
 RUN python -m pip install --no-cache-dir "$SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION" /tmp/*.whl \
     && rm /tmp/*.whl
 
+COPY entrypoint.sh /usr/local/bin/shimmy-opnsense-mcp-admin-entrypoint
+RUN chmod 755 /usr/local/bin/shimmy-opnsense-mcp-admin-entrypoint
+
 WORKDIR /work
 
-ENTRYPOINT ["opnsense-mcp-server"]
+ENTRYPOINT ["shimmy-opnsense-mcp-admin-entrypoint"]

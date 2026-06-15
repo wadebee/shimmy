@@ -31,7 +31,8 @@ When this skill is installed outside the Shimmy checkout, prefer activated comma
 - Podman secrets:
   - `SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY`, default `opnsense_mcp_read_only_api_key`, mounted as `OPNSENSE_API_KEY`
   - `SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET`, default `opnsense_mcp_read_only_api_secret`, mounted as `OPNSENSE_API_SECRET`
-- Required upstream env: `OPNSENSE_URL`
+- Required public env: `OPNSENSE_URL`
+- URL normalization: accepts a bare hostname, firewall root URL, or `/api` API URL; passes the API base URL ending in `/api` to upstream
 - Safe defaults: `OPNSENSE_VERIFY_SSL=false`, `OPNSENSE_ALLOW_WRITES=false`
 - Runtime mode: stdio-friendly via `podman run --rm -i`
 - Mount: `$PWD` to `/work`
@@ -54,7 +55,7 @@ When this skill is installed outside the Shimmy checkout, prefer activated comma
 
 ## Preflight
 
-The shim should fail before Podman when `OPNSENSE_URL` is unset, does not start with `http://` or `https://`, `curl` is unavailable, or the URL does not respond to curl. When `OPNSENSE_VERIFY_SSL` is unset or `false`, curl uses `--insecure`. Keep current timeouts at `--connect-timeout 10 --max-time 20` unless there is a tested reason to change them.
+The shim should fail before Podman when `OPNSENSE_URL` is unset, contains a URL path other than empty, `/`, or `/api`, `curl` is unavailable, or the normalized API base URL does not respond to curl. Bare hostnames are accepted and normalized with `https://`. Full `http://` and `https://` URLs are accepted. When `OPNSENSE_VERIFY_SSL` is unset or `false`, curl uses `--insecure`. Keep current timeouts at `--connect-timeout 10 --max-time 20` unless there is a tested reason to change them.
 
 ## Supported Tool Inventory
 

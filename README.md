@@ -194,6 +194,10 @@ eval "$(shimmy activate)"
 Create separate Podman secrets for each shim: `opnsense_mcp_read_only_api_key`
 and `opnsense_mcp_read_only_api_secret` for read-only, and
 `opnsense_mcp_admin_api_key` and `opnsense_mcp_admin_api_secret` for admin.
+Both shims use the same public `OPNSENSE_URL` setting: provide a bare hostname,
+a firewall root URL, or a URL ending in `/api`. Shimmy passes a firewall root URL
+to `opnsense-mcp-admin` and an API base URL ending in `/api` to
+`opnsense-mcp-read-only`.
 For the admin shim, create the secrets from a trusted user shell:
 
 ```sh
@@ -493,7 +497,7 @@ textual --help
 
 Each runtime shim has a focused quick-start document with upstream links, source summary, top-level command notes, Shimmy configuration, and example prompts.
 
-Some shims also document required setup checks. For example, `opnsense-mcp-read-only` and `opnsense-mcp-admin` require `OPNSENSE_URL`, default to self-signed-lab SSL preflight behavior, validate that the endpoint responds to a local `curl` request before starting the container, and use separate Podman secret defaults. Prefer `opnsense-mcp-read-only` for inventory, status, diagnostics, inspection, and policy review. Use `opnsense-mcp-admin` only for explicit configuration changes, approved change-window workflows, or capabilities missing from the read-only library. The old `opnsense-mcp-server` command was removed and is not an alias.
+Some shims also document required setup checks. For example, `opnsense-mcp-read-only` and `opnsense-mcp-admin` require `OPNSENSE_URL`, accept a bare hostname or firewall URL, default to self-signed-lab SSL preflight behavior, validate that the normalized endpoint responds to a local `curl` request before starting the container, and use separate Podman secret defaults. Prefer `opnsense-mcp-read-only` for inventory, status, diagnostics, inspection, and policy review. Use `opnsense-mcp-admin` only for explicit configuration changes, approved change-window workflows, or capabilities missing from the read-only library. The old `opnsense-mcp-server` command was removed and is not an alias.
 
 | Tool | Quick start |
 |------|-------------|

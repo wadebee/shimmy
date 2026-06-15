@@ -24,13 +24,27 @@ Install and configure `opnsense-mcp-admin` only when you need the admin-capable 
 
 ## Quick Start Setup
 
-Set the OPNsense API base URL and verify that the host can reach it:
+Set the OPNsense firewall URL and verify that the host can reach it:
 
 ```sh
-export OPNSENSE_URL=https://192.168.1.1/api
+export OPNSENSE_URL=https://192.168.1.1
 
 curl --insecure --silent --show-error --output /dev/null "$OPNSENSE_URL"
 ```
+
+`OPNSENSE_URL` is the single public URL setting shared by both OPNsense MCP
+shims. Shimmy accepts a bare hostname, a firewall root URL, or the same URL with
+`/api` appended:
+
+```sh
+export OPNSENSE_URL=firewall.home.arpa
+export OPNSENSE_URL=http://firewall.home.arpa
+export OPNSENSE_URL=http://firewall.home.arpa/api
+```
+
+For `opnsense-mcp-admin`, Shimmy normalizes that value to the firewall root URL
+before passing it to the Grousset server because the upstream admin server
+appends `/api` internally. Other URL paths are rejected before Podman starts.
 
 `OPNSENSE_VERIFY_SSL` defaults to `false`, so Shimmy's preflight uses `curl --insecure` unless you set `OPNSENSE_VERIFY_SSL=true`. If your OPNsense certificate is trusted by the host, set `OPNSENSE_VERIFY_SSL=true` and omit `--insecure` from the manual curl check.
 
@@ -57,7 +71,7 @@ Environment:
 - `SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION` - image build argument for the MCP Python SDK constraint. Default: `mcp[cli]<1.10.0`.
 - `SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY` - Podman secret name mounted into the container as `OPNSENSE_API_KEY`. Default: `opnsense_mcp_admin_api_key`.
 - `SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET` - Podman secret name mounted into the container as `OPNSENSE_API_SECRET`. Default: `opnsense_mcp_admin_api_secret`.
-- `OPNSENSE_URL` - OPNsense API base URL, including `/api`.
+- `OPNSENSE_URL` - OPNsense firewall host or root URL. Bare hostnames are normalized with `https://`; optional `/api` is accepted and stripped before the admin server sees it.
 - `OPNSENSE_VERIFY_SSL` - defaults to `false` for self-signed lab certificates. Set `true` only when the host trusts the OPNsense certificate.
 
 Local image build:
@@ -70,8 +84,10 @@ Local image build:
 
 Preflight checks:
 
-- `OPNSENSE_URL` must be set and must start with `http://` or `https://`.
-- Before starting the container, Shimmy runs a simple curl request against `OPNSENSE_URL`. HTTP authentication failures still prove the endpoint is reachable; DNS, TCP, timeout, and TLS failures stop the shim with guidance.
+- `OPNSENSE_URL` must be set to a bare hostname, an `http://` or `https://` firewall root URL, or the same URL ending in `/api`.
+- Bare hostnames are normalized with `https://`.
+- Any URL path other than empty, `/`, or `/api` is rejected.
+- Before starting the container, Shimmy runs a simple curl request against the normalized firewall root URL. HTTP authentication failures still prove the endpoint is reachable; DNS, TCP, timeout, and TLS failures stop the shim with guidance.
 - When `OPNSENSE_VERIFY_SSL` is unset or `false`, Shimmy passes `--insecure` to the preflight curl check.
 - The preflight uses a 10 second connect timeout and 20 second maximum request time to tolerate slower local DNS lookups.
 - Shimmy checks that the configured Podman secrets exist before container creation. If either secret is missing, create it with:
@@ -105,8 +121,10 @@ MCP stdio smoke test:
   printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}'
   printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
   sleep 20
-) | OPNSENSE_URL=https://192.168.1.1/api opnsense-mcp-admin
+) | OPNSENSE_URL=https://192.168.1.1 opnsense-mcp-admin
 ```
+
+FastMCP in this image accepts newline-delimited JSON over stdio. Use that format for manual smoke checks unless testing a specific framing change.
 
 MCP client example:
 
@@ -116,7 +134,7 @@ MCP client example:
     "opnsense-admin": {
       "command": "opnsense-mcp-admin",
       "env": {
-        "OPNSENSE_URL": "https://192.168.1.1/api"
+        "OPNSENSE_URL": "https://192.168.1.1"
       }
     }
   }
@@ -126,6 +144,7 @@ MCP client example:
 Notes:
 
 - Store API key material in Podman secrets, not project files or MCP config JSON.
+- The admin image writes a no-secret `~/.opnsense-mcp/config.json` profile stub at startup because upstream reads profile metadata even when credentials load from environment variables. The stub uses placeholder key values; real credentials come only from the `OPNSENSE_API_KEY` and `OPNSENSE_API_SECRET` Podman secrets.
 - Use a dedicated admin OPNsense API user or group, separate from the read-only account.
 - Confirm the `curl` preflight succeeds from the same shell or agent environment that will launch the MCP server.
 - Treat every admin session as change-capable. Record the intended boundary, approval, verification, and rollback path before changing firewall configuration.

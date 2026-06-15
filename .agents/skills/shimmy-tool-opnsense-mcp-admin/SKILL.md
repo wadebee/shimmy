@@ -32,8 +32,10 @@ When this skill is installed outside the Shimmy checkout, prefer activated comma
 - Podman secrets:
   - `SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY`, default `opnsense_mcp_admin_api_key`, mounted as `OPNSENSE_API_KEY`
   - `SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET`, default `opnsense_mcp_admin_api_secret`, mounted as `OPNSENSE_API_SECRET`
-- Required upstream env: `OPNSENSE_URL`
+- Required public env: `OPNSENSE_URL`
+- URL normalization: accepts a bare hostname, firewall root URL, or `/api` API URL; passes the firewall root URL to upstream because Grousset appends `/api` internally
 - SSL preflight default: `OPNSENSE_VERIFY_SSL=false`
+- Runtime profile stub: the image writes a no-secret `~/.opnsense-mcp/config.json` default profile from `OPNSENSE_URL` and `OPNSENSE_VERIFY_SSL`
 - Runtime mode: stdio-friendly via `podman run --rm -i`
 - Mount: `$PWD` to `/work`
 - Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
@@ -65,7 +67,7 @@ Approve this admin change window before I execute it.
 
 ## Preflight
 
-The shim should fail before Podman when `OPNSENSE_URL` is unset, does not start with `http://` or `https://`, `curl` is unavailable, or the URL does not respond to curl. When `OPNSENSE_VERIFY_SSL` is unset or `false`, curl uses `--insecure`. Keep current timeouts at `--connect-timeout 10 --max-time 20` unless there is a tested reason to change them.
+The shim should fail before Podman when `OPNSENSE_URL` is unset, contains a URL path other than empty, `/`, or `/api`, `curl` is unavailable, or the normalized firewall root URL does not respond to curl. Bare hostnames are accepted and normalized with `https://`. Full `http://` and `https://` URLs are accepted. When `OPNSENSE_VERIFY_SSL` is unset or `false`, curl uses `--insecure`. Keep current timeouts at `--connect-timeout 10 --max-time 20` unless there is a tested reason to change them.
 
 ## Supported Tool Inventory
 
@@ -94,3 +96,12 @@ Use read-only first when a matching tool exists. Use admin only for missing read
 - Prefer read-back verification through the least privileged matching tool after every admin action.
 - Do not put API key material in MCP config JSON, docs examples, shell history, or tests.
 - If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
+
+## Lessons Learned
+
+- Use one public `OPNSENSE_URL` contract across both OPNsense MCP shims.
+- Admin upstream expects the firewall root URL and appends `/api` internally.
+- Read-only upstream expects the API base URL including `/api`.
+- Admin upstream requires a config profile metadata file even when credentials load from env, so Shimmy provides a no-secret runtime stub.
+- Manual stdio smoke for these images should use newline-delimited JSON unless testing a specific framing change.
+- If direct tool calls fail after connection, distinguish shim connectivity from upstream endpoint bugs. For example, `get_system_status` may fail on `/core/system/info` while `exec_api_call` to `/core/firmware/status` proves auth/API connectivity.

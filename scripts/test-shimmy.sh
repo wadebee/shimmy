@@ -1402,6 +1402,7 @@ test_opnsense_mcp_skills_supported_tool_inventories() {
   assert_file_contains "$read_only_skill_file" 'Firewall rules, aliases, NAT, states, and logs: read `opn_list_firewall_rules`'
   assert_file_contains "$read_only_skill_file" 'write-capable but disabled by default `opn_add_firewall_rule`'
   assert_file_contains "$read_only_skill_file" 'Use read-only tools first when a matching tool exists. Use admin only for missing coverage or explicit configuration changes.'
+  assert_file_contains "$read_only_skill_file" 'URL normalization: accepts a bare hostname, firewall root URL, or `/api` API URL; passes the API base URL ending in `/api` to upstream'
 
   assert_file_contains "$admin_skill_file" "## Supported Tool Inventory"
   assert_file_contains "$admin_skill_file" 'Inventory source: Grousset pinned ref `eeccd8189dc2d80fd397b2a589b20683ec947266`'
@@ -1410,6 +1411,10 @@ test_opnsense_mcp_skills_supported_tool_inventories() {
   assert_file_contains "$admin_skill_file" 'Firewall rules, aliases, NAT, states, and logs: `firewall_get_rules`, `firewall_add_rule`'
   assert_file_contains "$admin_skill_file" 'Admin-only create/update/delete actions: firewall add/delete/toggle'
   assert_file_contains "$admin_skill_file" 'Use read-only first when a matching tool exists. Use admin only for missing read-only coverage or explicit configuration changes.'
+  assert_file_contains "$admin_skill_file" 'URL normalization: accepts a bare hostname, firewall root URL, or `/api` API URL; passes the firewall root URL to upstream because Grousset appends `/api` internally'
+  assert_file_contains "$admin_skill_file" 'Admin upstream requires a config profile metadata file even when credentials load from env, so Shimmy provides a no-secret runtime stub.'
+  assert_file_contains "$admin_skill_file" 'Manual stdio smoke for these images should use newline-delimited JSON unless testing a specific framing change.'
+  assert_file_contains "$admin_skill_file" 'get_system_status` may fail on `/core/system/info` while `exec_api_call` to `/core/firmware/status` proves auth/API connectivity.'
 
   read_only_skill_contents=$(cat "$read_only_skill_file")
   admin_skill_contents=$(cat "$admin_skill_file")
@@ -2887,7 +2892,7 @@ test_opnsense_mcp_read_only_shim_direct() {
 
   [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-read-only to require configuration"
   assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-read-only shim."
-  assert_contains "$output" "Set OPNSENSE_URL to the OPNsense API base URL, including /api."
+  assert_contains "$output" "Set OPNSENSE_URL to the OPNsense firewall host or root URL. A bare hostname is accepted."
 
   pass "opnsense-mcp-read-only requires OPNSENSE_URL before execution"
 }
@@ -2903,9 +2908,25 @@ test_opnsense_mcp_read_only_shim_url_invalid() {
   set -e
 
   [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-read-only to reject invalid OPNSENSE_URL"
-  assert_contains "$output" "ERROR: OPNSENSE_URL must be an http:// or https:// URL with a host: opnsense.local/api"
+  assert_contains "$output" "ERROR: OPNSENSE_URL bare host form must not include a path: opnsense.local/api"
 
   pass "opnsense-mcp-read-only rejects invalid OPNSENSE_URL"
+}
+
+test_opnsense_mcp_read_only_shim_url_path_rejected() {
+  setup_scenario
+
+  set +e
+  output=$(
+    cd "$WORK_DIR" && OPNSENSE_URL=http://opnsense.local/ui "$ROOT_DIR/shims/opnsense-mcp-read-only" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-read-only to reject unsupported OPNSENSE_URL path"
+  assert_contains "$output" "ERROR: OPNSENSE_URL path must be empty, /, or /api for opnsense-mcp-read-only: /ui"
+
+  pass "opnsense-mcp-read-only rejects unsupported OPNSENSE_URL paths"
 }
 
 test_opnsense_mcp_read_only_shim_url_unreachable() {
@@ -2924,6 +2945,37 @@ test_opnsense_mcp_read_only_shim_url_unreachable() {
   assert_contains "$output" "Confirm the URL, network path, firewall reachability, and OPNSENSE_VERIFY_SSL setting."
 
   pass "opnsense-mcp-read-only rejects unreachable OPNSENSE_URL"
+}
+
+test_opnsense_mcp_read_only_shim_url_bare_hostname_normalized() {
+  setup_scenario
+
+  mkdir -p "$WORK_DIR/bin"
+  curl_args_file=$WORK_DIR/curl.args
+  cat > "$WORK_DIR/bin/curl" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" > "$SHIMMY_TEST_CURL_ARGS_FILE"
+exit 1
+EOF
+  chmod +x "$WORK_DIR/bin/curl"
+
+  set +e
+  output=$(
+    cd "$WORK_DIR" &&
+      PATH="$WORK_DIR/bin:$PATH" \
+      SHIMMY_TEST_CURL_ARGS_FILE="$curl_args_file" \
+      OPNSENSE_URL=firewall.home.arpa \
+      "$ROOT_DIR/shims/opnsense-mcp-read-only" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-read-only preflight to stop after failed curl"
+  assert_contains "$output" "ERROR: OPNSENSE_URL did not respond to curl: https://firewall.home.arpa/api"
+  curl_args=$(cat "$curl_args_file")
+  assert_contains "$curl_args" "https://firewall.home.arpa/api"
+
+  pass "opnsense-mcp-read-only normalizes bare hostnames to API base URLs"
 }
 
 test_opnsense_mcp_read_only_shim_verify_ssl_default() {
@@ -2957,8 +3009,21 @@ EOF
   assert_contains "$curl_args" "10"
   assert_contains "$curl_args" "--max-time"
   assert_contains "$curl_args" "20"
+  assert_contains "$curl_args" "https://opnsense.local/api"
 
   pass "opnsense-mcp-read-only defaults OPNSENSE_VERIFY_SSL to false"
+}
+
+test_opnsense_mcp_read_only_shim_preview_url_normalized() {
+  setup_scenario
+
+  output=$(
+    cd "$WORK_DIR" && OPNSENSE_URL=http://firewall.home.arpa "$ROOT_DIR/shims/opnsense-mcp-read-only" --preview-shim 2>&1
+  )
+
+  assert_contains "$output" "OPNSENSE_URL=http://firewall.home.arpa/api"
+
+  pass "opnsense-mcp-read-only preview shows normalized API base URL"
 }
 
 test_opnsense_mcp_read_only_shim_secret_selectors() {
@@ -3021,7 +3086,7 @@ test_opnsense_mcp_admin_shim_direct() {
 
   [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-admin to require configuration"
   assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-admin shim."
-  assert_contains "$output" "Set OPNSENSE_URL to the OPNsense API base URL, including /api."
+  assert_contains "$output" "Set OPNSENSE_URL to the OPNsense firewall host or root URL. A bare hostname is accepted."
 
   pass "opnsense-mcp-admin requires OPNSENSE_URL before execution"
 }
@@ -3037,9 +3102,25 @@ test_opnsense_mcp_admin_shim_url_invalid() {
   set -e
 
   [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-admin to reject invalid OPNSENSE_URL"
-  assert_contains "$output" "ERROR: OPNSENSE_URL must be an http:// or https:// URL with a host: opnsense.local/api"
+  assert_contains "$output" "ERROR: OPNSENSE_URL bare host form must not include a path: opnsense.local/api"
 
   pass "opnsense-mcp-admin rejects invalid OPNSENSE_URL"
+}
+
+test_opnsense_mcp_admin_shim_url_path_rejected() {
+  setup_scenario
+
+  set +e
+  output=$(
+    cd "$WORK_DIR" && OPNSENSE_URL=http://opnsense.local/ui "$ROOT_DIR/shims/opnsense-mcp-admin" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-admin to reject unsupported OPNSENSE_URL path"
+  assert_contains "$output" "ERROR: OPNSENSE_URL path must be empty, /, or /api for opnsense-mcp-admin: /ui"
+
+  pass "opnsense-mcp-admin rejects unsupported OPNSENSE_URL paths"
 }
 
 test_opnsense_mcp_admin_shim_url_unreachable() {
@@ -3054,10 +3135,41 @@ test_opnsense_mcp_admin_shim_url_unreachable() {
   set -e
 
   [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-admin to reject unreachable OPNSENSE_URL"
-  assert_contains "$output" "ERROR: OPNSENSE_URL did not respond to curl: http://127.0.0.1:9/api"
+  assert_contains "$output" "ERROR: OPNSENSE_URL did not respond to curl: http://127.0.0.1:9"
   assert_contains "$output" "Confirm the URL, network path, firewall reachability, and OPNSENSE_VERIFY_SSL setting."
 
   pass "opnsense-mcp-admin rejects unreachable OPNSENSE_URL"
+}
+
+test_opnsense_mcp_admin_shim_url_bare_hostname_normalized() {
+  setup_scenario
+
+  mkdir -p "$WORK_DIR/bin"
+  curl_args_file=$WORK_DIR/curl.args
+  cat > "$WORK_DIR/bin/curl" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" > "$SHIMMY_TEST_CURL_ARGS_FILE"
+exit 1
+EOF
+  chmod +x "$WORK_DIR/bin/curl"
+
+  set +e
+  output=$(
+    cd "$WORK_DIR" &&
+      PATH="$WORK_DIR/bin:$PATH" \
+      SHIMMY_TEST_CURL_ARGS_FILE="$curl_args_file" \
+      OPNSENSE_URL=firewall.home.arpa \
+      "$ROOT_DIR/shims/opnsense-mcp-admin" 2>&1
+  )
+  status=$?
+  set -e
+
+  [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-admin preflight to stop after failed curl"
+  assert_contains "$output" "ERROR: OPNSENSE_URL did not respond to curl: https://firewall.home.arpa"
+  curl_args=$(cat "$curl_args_file")
+  assert_contains "$curl_args" "https://firewall.home.arpa"
+
+  pass "opnsense-mcp-admin normalizes bare hostnames to firewall root URLs"
 }
 
 test_opnsense_mcp_admin_shim_verify_ssl_default() {
@@ -3084,15 +3196,29 @@ EOF
   set -e
 
   [ "$status" -ne 0 ] || fail_test "expected opnsense-mcp-admin preflight to stop after failed curl"
-  assert_contains "$output" "ERROR: OPNSENSE_URL did not respond to curl: https://opnsense.local/api"
+  assert_contains "$output" "ERROR: OPNSENSE_URL did not respond to curl: https://opnsense.local"
   curl_args=$(cat "$curl_args_file")
   assert_contains "$curl_args" "--insecure"
   assert_contains "$curl_args" "--connect-timeout"
   assert_contains "$curl_args" "10"
   assert_contains "$curl_args" "--max-time"
   assert_contains "$curl_args" "20"
+  assert_contains "$curl_args" "https://opnsense.local"
 
   pass "opnsense-mcp-admin defaults OPNSENSE_VERIFY_SSL to false"
+}
+
+test_opnsense_mcp_admin_shim_preview_url_normalized() {
+  setup_scenario
+
+  output=$(
+    cd "$WORK_DIR" && OPNSENSE_URL=http://firewall.home.arpa/api "$ROOT_DIR/shims/opnsense-mcp-admin" --preview-shim 2>&1
+  )
+
+  assert_contains "$output" "OPNSENSE_URL=http://firewall.home.arpa"
+  assert_not_contains "$output" "OPNSENSE_URL=http://firewall.home.arpa/api"
+
+  pass "opnsense-mcp-admin preview shows normalized firewall root URL"
 }
 
 test_opnsense_mcp_admin_shim_secret_selectors() {
@@ -3121,9 +3247,13 @@ test_opnsense_mcp_admin_docs_secret_guidance() {
 test_opnsense_mcp_admin_image_pins_mcp_sdk() {
   assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/Containerfile" "ARG SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION='mcp[cli]<1.10.0'"
   assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/Containerfile" '"$SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION" /tmp/*.whl'
+  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/Containerfile" "COPY entrypoint.sh /usr/local/bin/shimmy-opnsense-mcp-admin-entrypoint"
+  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/entrypoint.sh" '"api_key": "environment-provided"'
+  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/entrypoint.sh" '"api_secret": "environment-provided"'
+  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/entrypoint.sh" "config_file.chmod(0o600)"
   assert_file_contains "$ROOT_DIR/docs/shims/opnsense-mcp-admin.md" "newer MCP Python SDK releases reject that argument"
 
-  pass "opnsense-mcp-admin image constrains MCP SDK for upstream FastMCP compatibility"
+  pass "opnsense-mcp-admin image constrains MCP SDK and writes no-secret profile stub"
 }
 
 test_opnsense_mcp_admin_shim_parent_podman_preflight() {
@@ -3356,7 +3486,7 @@ test_installed_opnsense_mcp_read_only_shim() {
 
   [ "$status" -ne 0 ] || fail_test "expected installed opnsense-mcp-read-only to require configuration"
   assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-read-only shim."
-  assert_contains "$output" "Set OPNSENSE_URL to the OPNsense API base URL, including /api."
+  assert_contains "$output" "Set OPNSENSE_URL to the OPNsense firewall host or root URL. A bare hostname is accepted."
 
   pass "installed opnsense-mcp-read-only requires OPNSENSE_URL before execution"
 }
@@ -3375,7 +3505,8 @@ test_installed_opnsense_mcp_admin_shim() {
 
   [ "$status" -ne 0 ] || fail_test "expected installed opnsense-mcp-admin to require configuration"
   assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-admin shim."
-  assert_contains "$output" "Set OPNSENSE_URL to the OPNsense API base URL, including /api."
+  assert_contains "$output" "Set OPNSENSE_URL to the OPNsense firewall host or root URL. A bare hostname is accepted."
+  assert_file_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin/entrypoint.sh"
 
   pass "installed opnsense-mcp-admin requires OPNSENSE_URL before execution"
 }
@@ -3562,15 +3693,21 @@ main() {
   test_jq_shim_preview
   test_opnsense_mcp_read_only_shim_direct
   test_opnsense_mcp_read_only_shim_url_invalid
+  test_opnsense_mcp_read_only_shim_url_path_rejected
   test_opnsense_mcp_read_only_shim_url_unreachable
+  test_opnsense_mcp_read_only_shim_url_bare_hostname_normalized
   test_opnsense_mcp_read_only_shim_verify_ssl_default
+  test_opnsense_mcp_read_only_shim_preview_url_normalized
   test_opnsense_mcp_read_only_shim_secret_selectors
   test_opnsense_mcp_admin_shim_help
   test_opnsense_mcp_admin_shim_preview
   test_opnsense_mcp_admin_shim_direct
   test_opnsense_mcp_admin_shim_url_invalid
+  test_opnsense_mcp_admin_shim_url_path_rejected
   test_opnsense_mcp_admin_shim_url_unreachable
+  test_opnsense_mcp_admin_shim_url_bare_hostname_normalized
   test_opnsense_mcp_admin_shim_verify_ssl_default
+  test_opnsense_mcp_admin_shim_preview_url_normalized
   test_opnsense_mcp_admin_shim_secret_selectors
   test_opnsense_mcp_admin_docs_secret_guidance
   test_opnsense_mcp_admin_image_pins_mcp_sdk

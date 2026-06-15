@@ -27,13 +27,27 @@ secrets below.
 
 ## Quick Start Setup
 
-Set the OPNsense API base URL and verify that the host can reach it:
+Set the OPNsense firewall URL and verify that the host can reach it:
 
 ```sh
-export OPNSENSE_URL=https://192.168.1.1/api
+export OPNSENSE_URL=https://192.168.1.1
 
 curl --insecure --silent --show-error --output /dev/null "$OPNSENSE_URL"
 ```
+
+`OPNSENSE_URL` is the single public URL setting shared by both OPNsense MCP
+shims. Shimmy accepts a bare hostname, a firewall root URL, or the same URL with
+`/api` appended:
+
+```sh
+export OPNSENSE_URL=firewall.home.arpa
+export OPNSENSE_URL=http://firewall.home.arpa
+export OPNSENSE_URL=http://firewall.home.arpa/api
+```
+
+For `opnsense-mcp-read-only`, Shimmy normalizes that value to the OPNsense API
+base URL ending in `/api` before passing it to the Marien server. Other URL paths
+are rejected before Podman starts.
 
 `OPNSENSE_VERIFY_SSL` defaults to `false`, so Shimmy's preflight uses `curl --insecure` unless you set `OPNSENSE_VERIFY_SSL=true`. If your OPNsense certificate is trusted by the host, set `OPNSENSE_VERIFY_SSL=true` and omit `--insecure` from the manual curl check.
 
@@ -54,7 +68,7 @@ Environment:
 - `SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF` - override the Marien git ref used for local builds.
 - `SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY` - Podman secret name mounted into the container as `OPNSENSE_API_KEY`. Default: `opnsense_mcp_read_only_api_key`.
 - `SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET` - Podman secret name mounted into the container as `OPNSENSE_API_SECRET`. Default: `opnsense_mcp_read_only_api_secret`.
-- `OPNSENSE_URL` - OPNsense API base URL, including `/api`.
+- `OPNSENSE_URL` - OPNsense firewall host or root URL. Bare hostnames are normalized with `https://`; `/api` is appended before the read-only server sees it.
 - `OPNSENSE_VERIFY_SSL` - defaults to `false` for self-signed lab certificates. Set `true` only when the host trusts the OPNsense certificate.
 - `OPNSENSE_ALLOW_WRITES` - defaults to `false` for read-only use. Set `true` only for explicit change windows.
 
@@ -67,8 +81,10 @@ Local image build:
 
 Preflight checks:
 
-- `OPNSENSE_URL` must be set and must start with `http://` or `https://`.
-- Before starting the container, Shimmy runs a simple curl request against `OPNSENSE_URL`. HTTP authentication failures still prove the endpoint is reachable; DNS, TCP, timeout, and TLS failures stop the shim with guidance.
+- `OPNSENSE_URL` must be set to a bare hostname, an `http://` or `https://` firewall root URL, or the same URL ending in `/api`.
+- Bare hostnames are normalized with `https://`.
+- Any URL path other than empty, `/`, or `/api` is rejected.
+- Before starting the container, Shimmy runs a simple curl request against the normalized API base URL ending in `/api`. HTTP authentication failures still prove the endpoint is reachable; DNS, TCP, timeout, and TLS failures stop the shim with guidance.
 - When `OPNSENSE_VERIFY_SSL` is unset or `false`, Shimmy passes `--insecure` to the preflight curl check.
 - The preflight uses a 10 second connect timeout and 20 second maximum request time to tolerate slower local DNS lookups.
 
@@ -132,7 +148,7 @@ MCP stdio smoke test:
   printf '%s\n' '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"opn_list_services","arguments":{}}}'
   printf '%s\n' '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"opn_gateway_status","arguments":{}}}'
   sleep 20
-) | OPNSENSE_URL=https://192.168.1.1/api opnsense-mcp-read-only
+) | OPNSENSE_URL=https://192.168.1.1 opnsense-mcp-read-only
 ```
 
 FastMCP in this image accepts newline-delimited JSON over stdio. Use that format for manual smoke checks instead of `Content-Length` framing.
@@ -145,7 +161,7 @@ MCP client example:
     "opnsense": {
       "command": "opnsense-mcp-read-only",
       "env": {
-        "OPNSENSE_URL": "https://192.168.1.1/api"
+        "OPNSENSE_URL": "https://192.168.1.1"
       }
     }
   }

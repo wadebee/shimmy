@@ -13,22 +13,89 @@ SHIMMY_OPNSENSE_MCP_READ_ONLY_PULL_ARG=
 OPNSENSE_VERIFY_SSL=${OPNSENSE_VERIFY_SSL:-false}
 OPNSENSE_ALLOW_WRITES=${OPNSENSE_ALLOW_WRITES:-false}
 
-shimmy_opnsense_mcp_read_only_url_preflight_require() {
+shimmy_opnsense_mcp_read_only_url_error_print() {
+  printf '%s\n' 'Set OPNSENSE_URL to the OPNsense firewall host or root URL. A bare hostname is accepted.' >&2
+  printf '%s\n' 'Supported forms: firewall.home.arpa, http://firewall.home.arpa, http://firewall.home.arpa/api' >&2
+}
+
+shimmy_opnsense_mcp_read_only_url_normalize_require() {
   if [ -z "${OPNSENSE_URL:-}" ]; then
     printf '%s\n' 'ERROR: OPNSENSE_URL is required for the opnsense-mcp-read-only shim.' >&2
-    printf '%s\n' 'Set OPNSENSE_URL to the OPNsense API base URL, including /api.' >&2
+    shimmy_opnsense_mcp_read_only_url_error_print
     return 1
   fi
 
   case "$OPNSENSE_URL" in
     http://?*|https://?*)
+      opnsense_url_input=$OPNSENSE_URL
+      ;;
+    *://*)
+      printf 'ERROR: OPNSENSE_URL must use http:// or https://: %s\n' "$OPNSENSE_URL" >&2
+      shimmy_opnsense_mcp_read_only_url_error_print
+      return 1
+      ;;
+    */*)
+      printf 'ERROR: OPNSENSE_URL bare host form must not include a path: %s\n' "$OPNSENSE_URL" >&2
+      shimmy_opnsense_mcp_read_only_url_error_print
+      return 1
       ;;
     *)
-      printf 'ERROR: OPNSENSE_URL must be an http:// or https:// URL with a host: %s\n' "$OPNSENSE_URL" >&2
+      opnsense_url_input=https://$OPNSENSE_URL
+      ;;
+  esac
+
+  case "$opnsense_url_input" in
+    *[\?\#]*)
+      printf 'ERROR: OPNSENSE_URL must not include a query string or fragment: %s\n' "$OPNSENSE_URL" >&2
+      shimmy_opnsense_mcp_read_only_url_error_print
       return 1
       ;;
   esac
 
+  case "$opnsense_url_input" in
+    http://*)
+      opnsense_url_scheme=http://
+      opnsense_url_host_path=${opnsense_url_input#http://}
+      ;;
+    https://*)
+      opnsense_url_scheme=https://
+      opnsense_url_host_path=${opnsense_url_input#https://}
+      ;;
+  esac
+
+  case "$opnsense_url_host_path" in
+    */*)
+      opnsense_url_host=${opnsense_url_host_path%%/*}
+      opnsense_url_path=/${opnsense_url_host_path#*/}
+      ;;
+    *)
+      opnsense_url_host=$opnsense_url_host_path
+      opnsense_url_path=
+      ;;
+  esac
+
+  if [ -z "$opnsense_url_host" ]; then
+    printf 'ERROR: OPNSENSE_URL must include a host: %s\n' "$OPNSENSE_URL" >&2
+    shimmy_opnsense_mcp_read_only_url_error_print
+    return 1
+  fi
+
+  case "$opnsense_url_path" in
+    ''|/)
+      OPNSENSE_URL=$opnsense_url_scheme$opnsense_url_host/api
+      ;;
+    /api|/api/)
+      OPNSENSE_URL=$opnsense_url_scheme$opnsense_url_host/api
+      ;;
+    *)
+      printf 'ERROR: OPNSENSE_URL path must be empty, /, or /api for opnsense-mcp-read-only: %s\n' "$opnsense_url_path" >&2
+      shimmy_opnsense_mcp_read_only_url_error_print
+      return 1
+      ;;
+  esac
+}
+
+shimmy_opnsense_mcp_read_only_url_preflight_require() {
   if ! command -v curl >/dev/null 2>&1; then
     printf '%s\n' 'ERROR: curl is required to validate OPNSENSE_URL before starting opnsense-mcp-read-only.' >&2
     return 1
@@ -87,8 +154,11 @@ if [ -n "${SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE:-}" ] && [ "${SHIMMY_OPNSENSE_MCP
 fi
 
 if ! shimmy_podman_is_preview; then
+  shimmy_opnsense_mcp_read_only_url_normalize_require
   shimmy_opnsense_mcp_read_only_url_preflight_require
   shimmy_podman_preflight_require "the opnsense-mcp-read-only shim"
+elif [ -n "${OPNSENSE_URL:-}" ]; then
+  shimmy_opnsense_mcp_read_only_url_normalize_require
 fi
 
 if [ -n "${SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE:-}" ]; then
