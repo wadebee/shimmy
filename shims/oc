@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+
+if [ -z "${SHIMMY_OC_VERSION:-}" ]; then
+  printf 'ERROR: SHIMMY_OC_VERSION is not set.\n' >&2
+  printf 'You must set SHIMMY_OC_VERSION (e.g., 4.20) before running oc.\n' >&2
+  exit 1
+fi
+
+case "$SHIMMY_OC_VERSION" in
+  4.18)
+    exec "$SCRIPT_DIR/oc_4_18" "$@"
+    ;;
+  4.20)
+    exec "$SCRIPT_DIR/oc_4_20" "$@"
+    ;;
+  4.22)
+    exec "$SCRIPT_DIR/oc_4_22" "$@"
+    ;;
+  *)
+    printf 'ERROR: Unsupported SHIMMY_OC_VERSION: %s\n' "$SHIMMY_OC_VERSION" >&2
+    printf 'Supported versions are: 4.18, 4.20, 4.22\n' >&2
+    exit 1
+    ;;
+esac

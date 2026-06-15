@@ -1,0 +1,46 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+SHIMMY_PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+
+SHIMMY_OC_4_22_IMAGE=${SHIMMY_OC_4_22_IMAGE:-docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.22}
+SHIMMY_OC_4_22_IMAGE_PULL=${SHIMMY_OC_4_22_IMAGE_PULL:-}
+SHIMMY_OC_4_22_CONFIG_DIR=
+SHIMMY_OC_4_22_PULL_ARG=
+SHIMMY_OC_4_22_TTY_ARG=
+
+if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
+  exit 1
+fi
+
+# shellcheck source=lib/shims/shimmy-podman.sh
+. "$SHIMMY_PODMAN_HELPER_FILE"
+
+shimmy_podman_preflight_or_preview_require "the oc_4_22 shim" "$@"
+
+if [ -n "${HOME:-}" ] && [ -d "$HOME/.kube" ]; then
+  SHIMMY_OC_4_22_CONFIG_DIR=$HOME/.kube
+fi
+
+if [ "$SHIMMY_OC_4_22_IMAGE_PULL" = "always" ]; then
+  SHIMMY_OC_4_22_PULL_ARG=--pull=always
+fi
+
+if [ -t 0 ] && [ -t 1 ]; then
+  SHIMMY_OC_4_22_TTY_ARG=-it
+fi
+
+shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
+  --platform "$SHIMMY_PODMAN_PLATFORM" \
+  ${SHIMMY_OC_4_22_PULL_ARG:+"$SHIMMY_OC_4_22_PULL_ARG"} \
+  ${SHIMMY_OC_4_22_TTY_ARG:+"$SHIMMY_OC_4_22_TTY_ARG"} \
+  -v "$PWD:/work" \
+  -w /work \
+  ${SHIMMY_OC_4_22_CONFIG_DIR:+"-v"} \
+  ${SHIMMY_OC_4_22_CONFIG_DIR:+"$SHIMMY_OC_4_22_CONFIG_DIR:/root/.kube:ro"} \
+  "$SHIMMY_OC_4_22_IMAGE" \
+  "$@"

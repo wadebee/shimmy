@@ -292,7 +292,7 @@ test_shim_smoke_run() {
 
   set +e
   command_output=$(
-    SHIMMY_PROFILE_ACTIVE=$SHIMMY_PROFILE_NAME "$shim_dispatcher_path" "$@" 2>&1
+    SHIMMY_OC_VERSION=${SHIMMY_OC_VERSION:-4.20} SHIMMY_PROFILE_ACTIVE=$SHIMMY_PROFILE_NAME "$shim_dispatcher_path" "$@" 2>&1
   )
   command_status=$?
   set -e
@@ -2546,6 +2546,61 @@ test_update_mode_upstream_profile() {
   pass "update upstream mode refreshes upstream profile"
 }
 
+test_oc_shim_preview() {
+  setup_scenario
+
+  # Test oc dispatcher fails if SHIMMY_OC_VERSION is unset
+  set +e
+  output=$(
+    cd "$WORK_DIR"
+    "$ROOT_DIR/shims/oc" --preview-shim version --client 2>&1
+  )
+  status=$?
+  set -e
+  assert_equals "$status" 1
+  assert_contains "$output" "SHIMMY_OC_VERSION is not set"
+
+  # Test oc dispatcher fails if SHIMMY_OC_VERSION is unsupported
+  set +e
+  output=$(
+    cd "$WORK_DIR"
+    SHIMMY_OC_VERSION=4.17 "$ROOT_DIR/shims/oc" --preview-shim version --client 2>&1
+  )
+  status=$?
+  set -e
+  assert_equals "$status" 1
+  assert_contains "$output" "Unsupported SHIMMY_OC_VERSION"
+
+  # Test oc dispatcher preview maps correctly to 4.18
+  output=$(
+    cd "$WORK_DIR"
+    SHIMMY_OC_VERSION=4.18 "$ROOT_DIR/shims/oc" --preview-shim version --client 2>&1
+  )
+  assert_contains "$output" "'run'"
+  assert_contains "$output" "'--platform'"
+  assert_contains "$output" "'-v'"
+  assert_contains "$output" "'$WORK_DIR:/work'"
+  assert_contains "$output" "'docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.18'"
+  assert_contains "$output" "'version'"
+  assert_contains "$output" "'--client'"
+
+  # Test oc dispatcher preview maps correctly to 4.20
+  output=$(
+    cd "$WORK_DIR"
+    SHIMMY_OC_VERSION=4.20 "$ROOT_DIR/shims/oc" --preview-shim version --client 2>&1
+  )
+  assert_contains "$output" "docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.20"
+
+  # Test oc dispatcher preview maps correctly to 4.22
+  output=$(
+    cd "$WORK_DIR"
+    SHIMMY_OC_VERSION=4.22 "$ROOT_DIR/shims/oc" --preview-shim version --client 2>&1
+  )
+  assert_contains "$output" "docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.22"
+
+  pass "oc dispatcher and versioned shim preview execution"
+}
+
 test_aws_shim_direct() {
   setup_scenario
   require_podman
@@ -3691,6 +3746,7 @@ main() {
   test_gcloud_shim_direct
   test_jq_shim_direct
   test_jq_shim_preview
+  test_oc_shim_preview
   test_opnsense_mcp_read_only_shim_direct
   test_opnsense_mcp_read_only_shim_url_invalid
   test_opnsense_mcp_read_only_shim_url_path_rejected
