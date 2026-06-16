@@ -1580,6 +1580,74 @@ EOF
   pass "AI Agent preflight reports upstream profile shims"
 }
 
+test_oc_dispatcher_version_selection() {
+  setup_scenario
+
+  checkout_dir=$SCENARIO_DIR/upstream-checkout
+  test_upstream_checkout_create "$checkout_dir"
+
+  cat > "$checkout_dir/shims/oc_4_18" <<'EOF'
+#!/bin/sh
+printf '%s\n' 'oc_4_18:' "$@"
+EOF
+  cat > "$checkout_dir/shims/oc_4_20" <<'EOF'
+#!/bin/sh
+printf '%s\n' 'oc_4_20:' "$@"
+EOF
+  cat > "$checkout_dir/shims/oc_4_22" <<'EOF'
+#!/bin/sh
+printf '%s\n' 'oc_4_22:' "$@"
+EOF
+  chmod +x "$checkout_dir/shims/oc_4_18" "$checkout_dir/shims/oc_4_20" "$checkout_dir/shims/oc_4_22"
+
+  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim oc --shim oc_4_18 --shim oc_4_20 --shim oc_4_22 --no-startup --no-skills >/dev/null
+
+  set +e
+  output_missing=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream oc version 2>&1
+  )
+  status_missing=$?
+  set -e
+
+  [ "$status_missing" -ne 0 ] || fail_test "expected missing SHIMMY_OC_VERSION to fail"
+  assert_contains "$output_missing" "SHIMMY_OC_VERSION is required for the oc shim."
+
+  output_418=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream SHIMMY_OC_VERSION=4.18 oc test-arg 2>&1
+  )
+  assert_contains "$output_418" "oc_4_18:"
+  assert_contains "$output_418" "test-arg"
+
+  output_420=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream SHIMMY_OC_VERSION=4.20 oc foo bar 2>&1
+  )
+  assert_contains "$output_420" "oc_4_20:"
+  assert_contains "$output_420" "foo bar"
+
+  output_422=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream SHIMMY_OC_VERSION=4.22 oc alpha 2>&1
+  )
+  assert_contains "$output_422" "oc_4_22:"
+  assert_contains "$output_422" "alpha"
+
+  set +e
+  output_unsupported=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream SHIMMY_OC_VERSION=4.17 oc version 2>&1
+  )
+  status_unsupported=$?
+  set -e
+
+  [ "$status_unsupported" -ne 0 ] || fail_test "expected unsupported SHIMMY_OC_VERSION to fail"
+  assert_contains "$output_unsupported" "unsupported SHIMMY_OC_VERSION: 4.17"
+
+  pass "oc dispatcher selects versioned shims and validates SHIMMY_OC_VERSION"
+}
+
 test_netinfo_help() {
   output=$(
     run_in_repo ./shimmy netinfo --help 2>&1

@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(\
+  cd -- "$(dirname -- "$0")" && pwd
+)
+
+if [ "${SHIMMY_OC_VERSION:-}" = "" ]; then
+  printf '%s\n' 'ERROR: SHIMMY_OC_VERSION is required for the oc shim.' >&2
+  printf '%s\n' 'Set SHIMMY_OC_VERSION to a supported major.minor (for example, 4.18, 4.20, 4.22).' >&2
+  exit 1
+fi
+
+shim_target=
+case "$SHIMMY_OC_VERSION" in
+  4.18)
+    shim_target=oc_4_18
+    ;;
+  4.20)
+    shim_target=oc_4_20
+    ;;
+  4.22)
+    shim_target=oc_4_22
+    ;;
+  *)
+    printf '%s\n' "ERROR: unsupported SHIMMY_OC_VERSION: $SHIMMY_OC_VERSION" >&2
+    printf '%s\n' 'Supported versions: 4.18, 4.20, 4.22.' >&2
+    exit 1
+    ;;
+
+esac
+
+exec "$SCRIPT_DIR/$shim_target" "$@"
