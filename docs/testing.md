@@ -70,3 +70,21 @@ install, update, profile, or dispatcher behavior.
 Live Podman checks should use non-mutating commands such as `--version`,
 `--help`, or preview rendering. Keep installed-live-smoke coverage
 representative rather than duplicating every direct shim smoke test.
+
+## Shim Smoke Config
+
+Shim config files under `shims/*.conf` drive installed smoke tests.
+
+Use one `smoke_arg=` entry per argv item:
+
+```text
+smoke_arg=version
+smoke_arg=--client
+```
+
+Do not write `smoke_arg=version --client`; the test runner treats that as one
+argument, not two.
+
+Use `smoke_env=KEY=value` only for non-secret selector or test-mode values
+needed by the smoke command, such as `SHIMMY_OC_VERSION=4.20`. Do not add
+tool-specific environment defaults directly to the generic smoke-test runner.

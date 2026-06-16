@@ -27,9 +27,13 @@ Use this as the starting point for a new shim skill or as a checklist for a one-
 
 - `../../../shims/<shim-name>`
 - `../../../shims/<shim-name>.conf`
-- `../../../scripts/install-shimmy.sh`
+- `../../../lib/repo/shimmy-catalog.sh`
+- `../../../scripts/status-shimmy.sh`
+- `../../../scripts/update-shimmy.sh`
 - `../../../scripts/test-shimmy.sh`
 - `../../../README.md`
+- `../../../docs/shims/<shim-name>.md`
+- `../../../.agents/skills/shimmy-tool-<shim-name>/SKILL.md` when the shim is new or materially changed
 
 ## Runtime Pattern
 
@@ -71,7 +75,7 @@ shim_name=<shim-name>
 smoke_arg=<non-mutating-arg>
 ```
 
-Use repeated `smoke_arg=` lines when the smoke command needs more than one argument. The smoke command must be non-mutating and must belong to the shim config rather than `scripts/test-shimmy.sh`.
+Use repeated `smoke_arg=` lines when the smoke command needs more than one argument. `shimmy test` does not shell-split a single `smoke_arg=` value. Use `smoke_env=KEY=value` only for non-secret selector or test-mode variables needed by the smoke command. The smoke command must be non-mutating and must belong to the shim config rather than `scripts/test-shimmy.sh`.
 
 ## Design Rules
 
@@ -89,7 +93,10 @@ Use repeated `smoke_arg=` lines when the smoke command needs more than one argum
 
 1. Add the shim to the supported shim catalog in `lib/repo/shimmy-catalog.sh`.
 2. Add a shim config with a non-mutating smoke command in `shims/<shim-name>.conf`.
-3. Add live Podman-backed tests in `scripts/test-shimmy.sh`.
-4. Document the tool in `README.md`.
-5. Keep executable bits on runnable shell files.
-6. If the tool differs materially from existing shims, add a shim-specific skill folder under `../../../.agents/skills/`.
+3. Use one `smoke_arg=` line per argv item and `smoke_env=KEY=value` only for non-secret selector variables.
+4. Add status image/dispatcher description logic in `scripts/status-shimmy.sh`.
+5. Add update pull/build refresh logic in `scripts/update-shimmy.sh` when the shim supports image pull or local build refresh.
+6. Add live Podman-backed or preview-based tests in `scripts/test-shimmy.sh`, including installed smoke config coverage when applicable.
+7. Document the tool in `README.md` and `docs/shims/<shim-name>.md`.
+8. Keep executable bits on runnable shell files.
+9. If the tool is new or materially changed, add a shim-specific skill folder under `../../../.agents/skills/` and install it into the repo skills manifest.
