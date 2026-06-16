@@ -1,0 +1,886 @@
+diff --git a/.agents/skills/.shimmy-skills-manifest.txt b/.agents/skills/.shimmy-skills-manifest.txt
+index 343a996..3e82af3 100644
+--- a/.agents/skills/.shimmy-skills-manifest.txt
++++ b/.agents/skills/.shimmy-skills-manifest.txt
+@@ -18,4 +18,3 @@ shimmy_skill=repo|shimmy-tool-gdrive|/Users/wade/Repos/Github/wadebee/shimmy/.ag
+ shimmy_skill=repo|shimmy-tool-gcloud|/Users/wade/Repos/Github/wadebee/shimmy/.agents/skills/shimmy-tool-gcloud|1820462930-39
+ shimmy_skill=repo|shimmy-tool-opnsense-mcp-admin|/Users/wade/Repos/Github/wadebee/shimmy/.agents/skills/shimmy-tool-opnsense-mcp-admin|1127900257-40
+ shimmy_skill=repo|shimmy-tool-opnsense-mcp-read-only|/Users/wade/Repos/Github/wadebee/shimmy/.agents/skills/shimmy-tool-opnsense-mcp-read-only|1316771520-39
+-shimmy_skill=repo|shimmy-tool-oc|/Users/wade/Repos/Github/wadebee/shimmy/.agents/skills/shimmy-tool-oc|2373723423-38
+diff --git a/.agents/skills/shimmy-tool-oc/SKILL.md b/.agents/skills/shimmy-tool-oc/SKILL.md
+deleted file mode 100644
+index 60cead4..0000000
+--- a/.agents/skills/shimmy-tool-oc/SKILL.md
++++ /dev/null
+@@ -1,85 +0,0 @@
+----
+-name: shimmy-tool-oc
+-description: Guidance for using, changing, testing, and troubleshooting the OpenShift oc dispatcher and minor-version shims in this repository.
+----
+-
+-# OpenShift CLI Shim
+-
+-Use this skill when working with `shims/oc`, `shims/oc_4_18`,
+-`shims/oc_4_20`, `shims/oc_4_22`, their tests, docs, installer wiring, or
+-OpenShift CLI usage through Shimmy.
+-
+-## Files
+-
+-- Dispatcher shim: `../../../shims/oc`
+-- Minor shims: `../../../shims/oc_4_18`, `../../../shims/oc_4_20`,
+-  `../../../shims/oc_4_22`
+-- Shim configs: `../../../shims/oc_4_18.conf`,
+-  `../../../shims/oc_4_20.conf`, `../../../shims/oc_4_22.conf`
+-- User docs: `../../../docs/shims/oc.md`
+-- Tests: `../../../scripts/test-shimmy.sh`
+-- Installer/status/update wiring: `../../../lib/repo/shimmy-catalog.sh`,
+-  `../../../scripts/status-shimmy.sh`, `../../../scripts/update-shimmy.sh`
+-- README: `../../../README.md`
+-- Contributor guidance: `../../../CONTRIBUTING.md`
+-- Shared prompt: `../../../docs/prompt-shimmy-project.md`
+-
+-## Installed Workflow
+-
+-When this skill is installed outside the Shimmy source checkout, prefer activated
+-commands such as `SHIMMY_OC_VERSION=4.20 oc version`, inspect selected profile
+-state with `shimmy status --format manifest`, and use
+-`SHIMMY_PROFILE_ACTIVE=upstream SHIMMY_OC_VERSION=4.20 oc version` when
+-validating the upstream profile. Use repo-local paths such as `./shims/oc_4_20`
+-only when intentionally editing or testing source files in the Shimmy checkout.
+-
+-## Current Behavior
+-
+-- User command: `oc`, which dispatches based on `SHIMMY_OC_VERSION`
+-- Supported versions: `4.18`, `4.20`, `4.22`
+-- Minor shim images:
+-  - `SHIMMY_OC_4_18_IMAGE`, default
+-    `docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.18`
+-  - `SHIMMY_OC_4_20_IMAGE`, default
+-    `docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.20`
+-  - `SHIMMY_OC_4_22_IMAGE`, default
+-    `docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.22`
+-- Pull overrides: `SHIMMY_OC_4_18_IMAGE_PULL=always`,
+-  `SHIMMY_OC_4_20_IMAGE_PULL=always`, `SHIMMY_OC_4_22_IMAGE_PULL=always`
+-- Runtime mode: `-i` by default, `-it` when stdin and stdout are terminals
+-- Mounts:
+-  - `$PWD` to `/work`
+-  - `$HOME/.kube` to `/root/.kube:ro` when present
+-  - `$HOME/.config/oc` to `/root/.config/oc:ro` when present
+-- Entrypoint: forced to `oc`
+-- Platform: shared Podman helper resolves `linux/amd64` on Linux and
+-  `linux/arm64` on macOS
+-
+-## Change Rules
+-
+-1. Keep `SHIMMY_OC_VERSION` version-agnostic; do not encode the major version in
+-   the selector env var name.
+-2. Add new minor tracks as `oc_<major>_<minor>` shims with matching `.conf`
+-   files and catalog/status/update/docs entries.
+-3. Preserve read-only kube/oc config mounts unless a task explicitly changes
+-   credential behavior.
+-4. Keep the dispatcher Podman-free; container invocation belongs in the minor
+-   shims.
+-5. Update runtime shims, configs, catalog/status/update wiring, docs, README,
+-   and tests together when behavior changes.
+-
+-## Validation
+-
+-- Dispatcher missing selector: `./shims/oc --preview-shim version`
+-- Dispatcher preview: `SHIMMY_OC_VERSION=4.20 ./shims/oc --preview-shim version`
+-- Direct minor preview: `./shims/oc_4_20 --preview-shim version`
+-- Live smoke, when the registry is reachable: `./shims/oc_4_20 version`
+-- Installed smoke: `shimmy test --shim oc_4_20`
+-
+-## Learning Guidance
+-
+-- The dispatcher maps any syntactically valid `major.minor` selector to
+-  `oc_<major>_<minor>` and then requires that executable to exist. This keeps
+-  future `5.x` support limited to adding the minor shim and its metadata.
+-- Use preview checks before live smoke because the configured image may live in
+-  a private registry and require host credentials or network access.
+diff --git a/README.md b/README.md
+index 744781c..335a164 100644
+--- a/README.md
++++ b/README.md
+@@ -35,10 +35,6 @@ netcat --help --preview-shim
+ | **jq** | JSON processor | [docs/shims/jq.md](docs/shims/jq.md) |
+ | **netcat** | TCP/UDP debugging client | [docs/shims/netcat.md](docs/shims/netcat.md) |
+ | **nmap** | Network discovery and security scanner | [docs/shims/nmap.md](docs/shims/nmap.md) |
+-| **oc** | OpenShift CLI dispatcher selected by `SHIMMY_OC_VERSION` | [docs/shims/oc.md](docs/shims/oc.md) |
+-| **oc_4_18** | OpenShift CLI 4.18 minor-track shim | [docs/shims/oc_4_18.md](docs/shims/oc_4_18.md) |
+-| **oc_4_20** | OpenShift CLI 4.20 minor-track shim | [docs/shims/oc_4_20.md](docs/shims/oc_4_20.md) |
+-| **oc_4_22** | OpenShift CLI 4.22 minor-track shim | [docs/shims/oc_4_22.md](docs/shims/oc_4_22.md) |
+ | **opnsense-mcp-admin** | OPNsense firewall MCP server, admin-capable change tooling | [docs/shims/opnsense-mcp-admin.md](docs/shims/opnsense-mcp-admin.md) |
+ | **opnsense-mcp-read-only** | OPNsense firewall MCP server, read-only default | [docs/shims/opnsense-mcp-read-only.md](docs/shims/opnsense-mcp-read-only.md) |
+ | **rg** | Ripgrep search | [docs/shims/rg.md](docs/shims/rg.md) |
+@@ -438,7 +434,7 @@ The root manifest records install-wide integration state:
+ - `profile` — installed profile name; repeated for each installed profile
+ - `startup_shell` and `startup_file` — managed startup-file state
+ 
+-The selected profile manifest is the source of truth for profile-specific shims, update, direct dispatch, and profile cleanup. It uses one `key=value` entry per line and repeated keys for lists. Each installed shim also has a config file under `<config_dir>/shims/<shim>.conf`; `shimmy test --shim` and `shimmy test --all` read repeated `smoke_arg=` entries and optional `smoke_env=` entries from that config instead of guessing a default command.
++The selected profile manifest is the source of truth for profile-specific shims, update, direct dispatch, and profile cleanup. It uses one `key=value` entry per line and repeated keys for lists. Each installed shim also has a config file under `<config_dir>/shims/<shim>.conf`; `shimmy test --shim` and `shimmy test --all` read repeated `smoke_arg=` entries from that config instead of guessing a default command.
+ 
+ Profile fields include:
+ - `shimmy_profile_manifest_version` — profile manifest format version
+diff --git a/docs/shims/oc.md b/docs/shims/oc.md
+index b3e775a..f726130 100644
+--- a/docs/shims/oc.md
++++ b/docs/shims/oc.md
+@@ -1,91 +1,81 @@
+-# OpenShift CLI Shim
++# OpenShift oc Multi-Version Shim
+ 
+ ## Upstream
+ 
+-- Official docs: <https://docs.redhat.com/en/documentation/openshift_container_platform>
+-- CLI docs: <https://docs.redhat.com/en/documentation/openshift_container_platform/latest/html/cli_tools/openshift-cli-oc>
++- Upstream docs: https://docs.openshift.com/container-platform/latest/cli_reference/openshift_cli/getting-started-cli.html
+ - Shim images:
+   - `docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.18`
+   - `docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.20`
+   - `docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.22`
+ 
+-## Upstream Summary
+-
+-`oc` is the OpenShift command-line interface. It exposes Kubernetes-compatible
+-commands plus OpenShift-specific workflows such as projects, routes, builds,
+-deployment configs, and cluster administration.
++Each tag is a floating minor tag that tracks the latest patch release for that minor.
+ 
+ ## Shimmy Usage
+ 
+-Install the dispatcher and at least one minor-version shim:
++The primary entrypoint is the dispatcher shim:
+ 
+ ```sh
+-shimmy install --shim oc --shim oc_4_20
+-SHIMMY_OC_VERSION=4.20 oc version
++export SHIMMY_OC_VERSION=4.20
++oc version
+ ```
+ 
+-Install all currently supported minor tracks when you want runtime switching:
++- `SHIMMY_OC_VERSION` selects the OpenShift CLI minor track at runtime.
++- Supported values in this repo:
++  - `4.18`
++  - `4.20`
++  - `4.22`
++
++The dispatcher maps `SHIMMY_OC_VERSION` to a version-specific shim:
++
++- `4.18` -> `oc_4_18`
++- `4.20` -> `oc_4_20`
++- `4.22` -> `oc_4_22`
++
++Each version-specific shim is also callable directly:
+ 
+ ```sh
+-shimmy install --shim oc --shim oc_4_18 --shim oc_4_20 --shim oc_4_22
+-SHIMMY_OC_VERSION=4.18 oc version
+-SHIMMY_OC_VERSION=4.20 oc get projects
+-SHIMMY_OC_VERSION=4.22 oc whoami
++oc_4_20 version
+ ```
+ 
+-The `oc` dispatcher does not run Podman directly. It reads
+-`SHIMMY_OC_VERSION`, maps the `major.minor` value to a matching minor shim, and
+-execs that shim.
++## Environment
+ 
+-Environment:
++Dispatcher selector:
+ 
+-- `SHIMMY_OC_VERSION` - required for the dispatcher; supported values are
+-  `4.18`, `4.20`, and `4.22`.
+-- `SHIMMY_OC_4_18_IMAGE` - override the 4.18 image.
+-- `SHIMMY_OC_4_18_IMAGE_PULL=always` - force pulling the configured 4.18 image.
+-- `SHIMMY_OC_4_20_IMAGE` - override the 4.20 image.
+-- `SHIMMY_OC_4_20_IMAGE_PULL=always` - force pulling the configured 4.20 image.
+-- `SHIMMY_OC_4_22_IMAGE` - override the 4.22 image.
+-- `SHIMMY_OC_4_22_IMAGE_PULL=always` - force pulling the configured 4.22 image.
++- `SHIMMY_OC_VERSION` (required for `oc`):
++  - Value is `major.minor` (for example, `4.18`, `4.20`, `4.22`).
++  - Future 5.x tracks can be added without changing the env var name.
+ 
+-Mounts:
++Per-track image configuration:
+ 
+-- `$PWD` -> `/work` read-write.
+-- `~/.kube` -> `/root/.kube` read-only when it exists.
+-- `~/.config/oc` -> `/root/.config/oc` read-only when it exists.
++- `SHIMMY_OC_4_18_IMAGE` – override `docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.18`.
++- `SHIMMY_OC_4_20_IMAGE` – override `docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.20`.
++- `SHIMMY_OC_4_22_IMAGE` – override `docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.22`.
+ 
+-Forwarded environment:
++Pull policy (per track):
+ 
+-- None by default. Use kubeconfig files in `~/.kube` or command flags such as
+-  `--server` and `--token` for explicit session configuration.
++- `SHIMMY_OC_4_18_IMAGE_PULL=always` – force image pull for the 4.18 shim.
++- `SHIMMY_OC_4_20_IMAGE_PULL=always`.
++- `SHIMMY_OC_4_22_IMAGE_PULL=always`.
+ 
+-Runtime platform:
++## Mounts
+ 
+-- Linux -> `linux/amd64`
+-- macOS -> `linux/arm64`
++Each version-specific shim uses the shared Podman helper and mounts:
+ 
+-## Version Selection
++- `$PWD` -> `/work` read-write.
++- `~/.kube` -> `/root/.kube` read-only when it exists.
++
++Runtime platform:
+ 
+-External shell logic can derive `SHIMMY_OC_VERSION` from context, for example:
++- Linux -> `linux/amd64`.
++- macOS -> `linux/arm64`.
+ 
+-```sh
+-case "${SLOT_CONTEXT_PATH:-}" in
+-  *ocp-4.18*) SHIMMY_OC_VERSION=4.18 ;;
+-  *ocp-4.20*) SHIMMY_OC_VERSION=4.20 ;;
+-  *ocp-4.22*) SHIMMY_OC_VERSION=4.22 ;;
+-esac
+-export SHIMMY_OC_VERSION
+-```
++## Smoke Tests
+ 
+-To add a future track such as `5.1`, add `shims/oc_5_1`,
+-`shims/oc_5_1.conf`, and install that shim. The dispatcher maps
+-`SHIMMY_OC_VERSION=5.1` to `oc_5_1` when that executable exists.
++Shim config files for `shimmy test`:
+ 
+-## Quick-Start Prompts
++- `oc_4_18.conf` – `smoke_arg=version`.
++- `oc_4_20.conf` – `smoke_arg=version`.
++- `oc_4_22.conf` – `smoke_arg=version`.
+ 
+-- Platform engineer: "Use `SHIMMY_OC_VERSION=4.20 oc version` to confirm my
+-  client version before I touch this cluster."
+-- SRE: "Use `oc get clusterversion` and summarize the current OpenShift update
+-  state without changing anything."
+-- Developer: "Use `oc status` and `oc get routes` to summarize how this project
+-  is exposed."
++These smoke tests are client-only and validate that the CLI starts without requiring
++cluster access.
+diff --git a/docs/shims/oc_4_18.md b/docs/shims/oc_4_18.md
+deleted file mode 100644
+index be5eacb..0000000
+--- a/docs/shims/oc_4_18.md
++++ /dev/null
+@@ -1,7 +0,0 @@
+-# OpenShift CLI 4.18 Shim
+-
+-`oc_4_18` runs `oc` from
+-`docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.18`.
+-
+-See [docs/shims/oc.md](oc.md) for dispatcher behavior, mounts, environment
+-variables, and examples.
+diff --git a/docs/shims/oc_4_20.md b/docs/shims/oc_4_20.md
+deleted file mode 100644
+index a0c18b9..0000000
+--- a/docs/shims/oc_4_20.md
++++ /dev/null
+@@ -1,7 +0,0 @@
+-# OpenShift CLI 4.20 Shim
+-
+-`oc_4_20` runs `oc` from
+-`docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.20`.
+-
+-See [docs/shims/oc.md](oc.md) for dispatcher behavior, mounts, environment
+-variables, and examples.
+diff --git a/docs/shims/oc_4_22.md b/docs/shims/oc_4_22.md
+deleted file mode 100644
+index 0ab7cc0..0000000
+--- a/docs/shims/oc_4_22.md
++++ /dev/null
+@@ -1,7 +0,0 @@
+-# OpenShift CLI 4.22 Shim
+-
+-`oc_4_22` runs `oc` from
+-`docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.22`.
+-
+-See [docs/shims/oc.md](oc.md) for dispatcher behavior, mounts, environment
+-variables, and examples.
+diff --git a/docs/templates/generic-shim/SKILL.md b/docs/templates/generic-shim/SKILL.md
+index b84bc1c..588effd 100644
+--- a/docs/templates/generic-shim/SKILL.md
++++ b/docs/templates/generic-shim/SKILL.md
+@@ -71,7 +71,7 @@ shim_name=<shim-name>
+ smoke_arg=<non-mutating-arg>
+ ```
+ 
+-Use repeated `smoke_arg=` lines when the smoke command needs more than one argument. Use `smoke_env=KEY=value` only when a shim needs a non-secret selector or test-mode variable for a non-mutating smoke command. The smoke command must be non-mutating and must belong to the shim config rather than `scripts/test-shimmy.sh`.
++Use repeated `smoke_arg=` lines when the smoke command needs more than one argument. The smoke command must be non-mutating and must belong to the shim config rather than `scripts/test-shimmy.sh`.
+ 
+ ## Design Rules
+ 
+diff --git a/docs/testing.md b/docs/testing.md
+index a53c949..e26898b 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -70,7 +70,3 @@ install, update, profile, or dispatcher behavior.
+ Live Podman checks should use non-mutating commands such as `--version`,
+ `--help`, or preview rendering. Keep installed-live-smoke coverage
+ representative rather than duplicating every direct shim smoke test.
+-
+-Shim config files use repeated `smoke_arg=` lines for smoke command arguments.
+-Use `smoke_env=KEY=value` only for non-secret environment needed to select a
+-non-mutating smoke path, such as a version dispatcher selector.
+diff --git a/scripts/status-shimmy.sh b/scripts/status-shimmy.sh
+index 4af2c5d..1215f7a 100755
+--- a/scripts/status-shimmy.sh
++++ b/scripts/status-shimmy.sh
+@@ -150,18 +150,6 @@ describe_shim_image() {
+     nmap)
+       printf '%s\n' "${SHIMMY_NMAP_IMAGE:-docker.io/instrumentisto/nmap:7.98-r2}"
+       ;;
+-    oc)
+-      printf '%s\n' 'dispatcher (set SHIMMY_OC_VERSION to 4.18, 4.20, or 4.22)'
+-      ;;
+-    oc_4_18)
+-      printf '%s\n' "${SHIMMY_OC_4_18_IMAGE:-docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.18}"
+-      ;;
+-    oc_4_20)
+-      printf '%s\n' "${SHIMMY_OC_4_20_IMAGE:-docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.20}"
+-      ;;
+-    oc_4_22)
+-      printf '%s\n' "${SHIMMY_OC_4_22_IMAGE:-docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.22}"
+-      ;;
+     opnsense-mcp-admin)
+       if [ -n "${SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE:-}" ]; then
+         printf '%s\n' "$SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE"
+diff --git a/scripts/test-shimmy.sh b/scripts/test-shimmy.sh
+index 447ee57..6d4171a 100755
+--- a/scripts/test-shimmy.sh
++++ b/scripts/test-shimmy.sh
+@@ -274,14 +274,9 @@ test_shim_smoke_run() {
+   [ -x "$shim_target_path" ] || fail_test "expected profile implementation to be executable: $shim_target_path"
+   [ -f "$shim_config_file" ] || fail_test "missing installed shim config: $shim_config_file"
+ 
+-  shim_smoke_env_args=
+   set --
+   while IFS= read -r shim_config_line || [ -n "$shim_config_line" ]; do
+     case "$shim_config_line" in
+-      smoke_env=*)
+-        shim_smoke_env_arg=${shim_config_line#smoke_env=}
+-        shim_smoke_env_args="$shim_smoke_env_args $shim_smoke_env_arg"
+-        ;;
+       smoke_arg=*)
+         set -- "$@" "${shim_config_line#smoke_arg=}"
+         ;;
+@@ -291,16 +286,13 @@ test_shim_smoke_run() {
+   [ "$#" -gt 0 ] || fail_test "missing smoke_arg in installed shim config: $shim_config_file"
+ 
+   printf '%s_test_shim=%s\n' "$test_scope" "$shim_name"
+-  for shim_smoke_env_arg in $shim_smoke_env_args; do
+-    printf '%s_test_shim_smoke_env=%s|%s\n' "$test_scope" "$shim_name" "$shim_smoke_env_arg"
+-  done
+   for shim_smoke_arg in "$@"; do
+     printf '%s_test_shim_smoke_arg=%s|%s\n' "$test_scope" "$shim_name" "$shim_smoke_arg"
+   done
+ 
+   set +e
+   command_output=$(
+-    env $shim_smoke_env_args SHIMMY_PROFILE_ACTIVE=$SHIMMY_PROFILE_NAME "$shim_dispatcher_path" "$@" 2>&1
++    SHIMMY_PROFILE_ACTIVE=$SHIMMY_PROFILE_NAME "$shim_dispatcher_path" "$@" 2>&1
+   )
+   command_status=$?
+   set -e
+@@ -1588,6 +1580,74 @@ EOF
+   pass "AI Agent preflight reports upstream profile shims"
+ }
+ 
++test_oc_dispatcher_version_selection() {
++  setup_scenario
++
++  checkout_dir=$SCENARIO_DIR/upstream-checkout
++  test_upstream_checkout_create "$checkout_dir"
++
++  cat > "$checkout_dir/shims/oc_4_18" <<'EOF'
++#!/bin/sh
++printf '%s\n' 'oc_4_18:' "$@"
++EOF
++  cat > "$checkout_dir/shims/oc_4_20" <<'EOF'
++#!/bin/sh
++printf '%s\n' 'oc_4_20:' "$@"
++EOF
++  cat > "$checkout_dir/shims/oc_4_22" <<'EOF'
++#!/bin/sh
++printf '%s\n' 'oc_4_22:' "$@"
++EOF
++  chmod +x "$checkout_dir/shims/oc_4_18" "$checkout_dir/shims/oc_4_20" "$checkout_dir/shims/oc_4_22"
++
++  HOME="$HOME_DIR" SHIMMY_UPSTREAM_CHECKOUT_DIR="$checkout_dir" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile upstream --shim oc --shim oc_4_18 --shim oc_4_20 --shim oc_4_22 --no-startup --no-skills >/dev/null
++
++  set +e
++  output_missing=$(
++    cd "$WORK_DIR"
++    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream oc version 2>&1
++  )
++  status_missing=$?
++  set -e
++
++  [ "$status_missing" -ne 0 ] || fail_test "expected missing SHIMMY_OC_VERSION to fail"
++  assert_contains "$output_missing" "SHIMMY_OC_VERSION is required for the oc shim."
++
++  output_418=$(
++    cd "$WORK_DIR"
++    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream SHIMMY_OC_VERSION=4.18 oc test-arg 2>&1
++  )
++  assert_contains "$output_418" "oc_4_18:"
++  assert_contains "$output_418" "test-arg"
++
++  output_420=$(
++    cd "$WORK_DIR"
++    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream SHIMMY_OC_VERSION=4.20 oc foo bar 2>&1
++  )
++  assert_contains "$output_420" "oc_4_20:"
++  assert_contains "$output_420" "foo bar"
++
++  output_422=$(
++    cd "$WORK_DIR"
++    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream SHIMMY_OC_VERSION=4.22 oc alpha 2>&1
++  )
++  assert_contains "$output_422" "oc_4_22:"
++  assert_contains "$output_422" "alpha"
++
++  set +e
++  output_unsupported=$(
++    cd "$WORK_DIR"
++    PATH="$INSTALL_DIR/shims:/usr/bin:/bin" SHIMMY_PROFILE_ACTIVE=upstream SHIMMY_OC_VERSION=4.17 oc version 2>&1
++  )
++  status_unsupported=$?
++  set -e
++
++  [ "$status_unsupported" -ne 0 ] || fail_test "expected unsupported SHIMMY_OC_VERSION to fail"
++  assert_contains "$output_unsupported" "unsupported SHIMMY_OC_VERSION: 4.17"
++
++  pass "oc dispatcher selects versioned shims and validates SHIMMY_OC_VERSION"
++}
++
+ test_netinfo_help() {
+   output=$(
+     run_in_repo ./shimmy netinfo --help 2>&1
+@@ -2435,19 +2495,6 @@ test_update_build_refresh_includes_opnsense_mcp_admin() {
+   pass "update --build includes opnsense-mcp-admin local image refresh"
+ }
+ 
+-test_update_pull_refresh_includes_oc_minor_shims() {
+-  update_script=$ROOT_DIR/scripts/update-shimmy.sh
+-
+-  assert_file_contains "$update_script" 'oc_4_18)'
+-  assert_file_contains "$update_script" 'SHIMMY_OC_4_18_IMAGE_PULL=always'
+-  assert_file_contains "$update_script" 'oc_4_20)'
+-  assert_file_contains "$update_script" 'SHIMMY_OC_4_20_IMAGE_PULL=always'
+-  assert_file_contains "$update_script" 'oc_4_22)'
+-  assert_file_contains "$update_script" 'SHIMMY_OC_4_22_IMAGE_PULL=always'
+-
+-  pass "update --pull includes oc minor shims"
+-}
+-
+ test_update_mode_default_profile() {
+   setup_scenario
+ 
+@@ -2686,113 +2733,6 @@ test_jq_shim_preview() {
+   pass "jq preview shim renders podman command"
+ }
+ 
+-test_oc_dispatcher_missing_version() {
+-  setup_scenario
+-
+-  set +e
+-  output=$(
+-    cd "$WORK_DIR"
+-    "$ROOT_DIR/shims/oc" --preview-shim version 2>&1
+-  )
+-  status_code=$?
+-  set -e
+-
+-  [ "$status_code" -ne 0 ] || fail_test "expected missing SHIMMY_OC_VERSION to fail"
+-  assert_contains "$output" "ERROR: SHIMMY_OC_VERSION must be set before running oc"
+-  assert_contains "$output" "Known OpenShift CLI versions: 4.18 4.20 4.22"
+-
+-  pass "oc dispatcher rejects missing version selector"
+-}
+-
+-test_oc_dispatcher_unsupported_version() {
+-  setup_scenario
+-
+-  set +e
+-  output=$(
+-    cd "$WORK_DIR"
+-    SHIMMY_OC_VERSION=4.17 "$ROOT_DIR/shims/oc" --preview-shim version 2>&1
+-  )
+-  status_code=$?
+-  set -e
+-
+-  [ "$status_code" -ne 0 ] || fail_test "expected unsupported SHIMMY_OC_VERSION to fail"
+-  assert_contains "$output" "ERROR: unsupported SHIMMY_OC_VERSION: 4.17"
+-  assert_contains "$output" "Known OpenShift CLI versions: 4.18 4.20 4.22"
+-
+-  pass "oc dispatcher rejects unsupported version selector"
+-}
+-
+-test_oc_dispatcher_preview() {
+-  setup_scenario
+-
+-  mkdir -p "$HOME_DIR/.kube" "$HOME_DIR/.config/oc"
+-
+-  output=$(
+-    cd "$WORK_DIR"
+-    HOME="$HOME_DIR" SHIMMY_OC_VERSION=4.20 SHIMMY_OC_4_20_IMAGE_PULL=always "$ROOT_DIR/shims/oc" --preview-shim version 2>&1
+-  )
+-
+-  assert_contains "$output" "'run'"
+-  assert_contains "$output" "'--platform'"
+-  assert_contains "$output" "'--pull=always'"
+-  assert_contains "$output" "'-v'"
+-  assert_contains "$output" "'$WORK_DIR:/work'"
+-  assert_contains "$output" "'$HOME_DIR/.kube:/root/.kube:ro'"
+-  assert_contains "$output" "'$HOME_DIR/.config/oc:/root/.config/oc:ro'"
+-  assert_contains "$output" "'--entrypoint'"
+-  assert_contains "$output" "'oc'"
+-  assert_contains "$output" "'docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.20'"
+-  assert_contains "$output" "'version'"
+-  assert_not_contains "$output" "--preview-shim"
+-
+-  output=$(
+-    cd "$WORK_DIR"
+-    SHIMMY_OC_VERSION=4.22 SHIMMY_OC_4_22_IMAGE=example.test/oc:4.22 "$ROOT_DIR/shims/oc" version --preview-shim 2>&1
+-  )
+-
+-  assert_contains "$output" "'example.test/oc:4.22'"
+-  assert_contains "$output" "'version'"
+-  assert_not_contains "$output" "--preview-shim"
+-
+-  pass "oc dispatcher renders selected minor shim preview"
+-}
+-
+-test_oc_install_and_smoke_config() {
+-  setup_scenario
+-
+-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim oc --shim oc_4_20 --no-startup --no-skills >/dev/null
+-
+-  assert_path_symlink "$INSTALL_DIR/shims/oc"
+-  assert_path_symlink "$INSTALL_DIR/shims/oc_4_20"
+-  assert_file_executable "$INSTALL_DIR/profiles/default/shims/oc"
+-  assert_file_executable "$INSTALL_DIR/profiles/default/shims/oc_4_20"
+-  assert_file_contains "$INSTALL_DIR/profiles/default/config/shims/oc.conf" "smoke_env=SHIMMY_OC_VERSION=4.20"
+-  assert_file_contains "$INSTALL_DIR/profiles/default/config/shims/oc_4_20.conf" "smoke_arg=version"
+-
+-  output=$(
+-    cd "$WORK_DIR"
+-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --profile default --shim oc 2>&1
+-  )
+-
+-  assert_contains "$output" "profile_test_shim=oc"
+-  assert_contains "$output" "profile_test_shim_smoke_env=oc|SHIMMY_OC_VERSION=4.20"
+-  assert_contains "$output" "profile_test_shim_smoke_arg=oc|--preview-shim"
+-  assert_contains "$output" "profile_test_shim_smoke_arg=oc|version"
+-  assert_contains "$output" "'docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.20'"
+-  assert_contains "$output" "profile_smoke_tests=1"
+-  assert_contains "$output" "profile_test=ok"
+-
+-  status_output=$(
+-    cd "$WORK_DIR"
+-    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status 2>&1
+-  )
+-
+-  assert_contains "$status_output" "oc: dispatcher (set SHIMMY_OC_VERSION to 4.18, 4.20, or 4.22)"
+-  assert_contains "$status_output" "oc_4_20: docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.20"
+-
+-  pass "oc install copies dispatcher and minor smoke config"
+-}
+-
+ test_installed_jq_shim() {
+   setup_scenario
+   require_podman
+@@ -3810,7 +3750,6 @@ main() {
+   test_update_all_reinstalls_profile_shims
+   test_update_preserves_shimmy_manifest_fields
+   test_update_build_refresh_includes_opnsense_mcp_admin
+-  test_update_pull_refresh_includes_oc_minor_shims
+   test_update_mode_invalid_environment_rejected
+   test_update_mode_upstream_profile
+   test_aws_shim_direct
+@@ -3820,10 +3759,6 @@ main() {
+   test_gcloud_shim_direct
+   test_jq_shim_direct
+   test_jq_shim_preview
+-  test_oc_dispatcher_missing_version
+-  test_oc_dispatcher_unsupported_version
+-  test_oc_dispatcher_preview
+-  test_oc_install_and_smoke_config
+   test_opnsense_mcp_read_only_shim_direct
+   test_opnsense_mcp_read_only_shim_url_invalid
+   test_opnsense_mcp_read_only_shim_url_path_rejected
+diff --git a/scripts/update-shimmy.sh b/scripts/update-shimmy.sh
+index 0ba9750..2b34cb5 100755
+--- a/scripts/update-shimmy.sh
++++ b/scripts/update-shimmy.sh
+@@ -266,15 +266,6 @@ run_pull_refresh() {
+       jq)
+         SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null </dev/null
+         ;;
+-      oc_4_18)
+-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_OC_4_18_IMAGE_PULL=always "$shim_dir/oc_4_18" version >/dev/null </dev/null
+-        ;;
+-      oc_4_20)
+-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_OC_4_20_IMAGE_PULL=always "$shim_dir/oc_4_20" version >/dev/null </dev/null
+-        ;;
+-      oc_4_22)
+-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_OC_4_22_IMAGE_PULL=always "$shim_dir/oc_4_22" version >/dev/null </dev/null
+-        ;;
+       rg)
+         SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_RG_IMAGE_PULL=always "$shim_dir/rg" --version >/dev/null </dev/null
+         ;;
+diff --git a/shims/oc b/shims/oc
+old mode 100755
+new mode 100644
+index a4a6f6f..4df9942
+--- a/shims/oc
++++ b/shims/oc
+@@ -1,41 +1,33 @@
+ #!/bin/sh
+ set -eu
+ 
+-SCRIPT_DIR=$(
++SCRIPT_DIR=$(\
+   cd -- "$(dirname -- "$0")" && pwd
+ )
+-SHIMMY_OC_KNOWN_VERSIONS='4.18 4.20 4.22'
+-SHIMMY_OC_VERSION=${SHIMMY_OC_VERSION:-}
+ 
+-if [ -z "$SHIMMY_OC_VERSION" ]; then
+-  printf '%s\n' 'ERROR: SHIMMY_OC_VERSION must be set before running oc, for example SHIMMY_OC_VERSION=4.20.' >&2
+-  printf 'Known OpenShift CLI versions: %s\n' "$SHIMMY_OC_KNOWN_VERSIONS" >&2
++if [ "${SHIMMY_OC_VERSION:-}" = "" ]; then
++  printf '%s\n' 'ERROR: SHIMMY_OC_VERSION is required for the oc shim.' >&2
++  printf '%s\n' 'Set SHIMMY_OC_VERSION to a supported major.minor (for example, 4.18, 4.20, 4.22).' >&2
+   exit 1
+ fi
+ 
++shim_target=
+ case "$SHIMMY_OC_VERSION" in
+-  *[!0123456789.]*|*.*.*|.*|*.)
+-    printf 'ERROR: unsupported SHIMMY_OC_VERSION: %s\n' "$SHIMMY_OC_VERSION" >&2
+-    printf 'Known OpenShift CLI versions: %s\n' "$SHIMMY_OC_KNOWN_VERSIONS" >&2
+-    exit 1
++  4.18)
++    shim_target=oc_4_18
++    ;;
++  4.20)
++    shim_target=oc_4_20
+     ;;
+-  *.*)
+-    SHIMMY_OC_MAJOR=${SHIMMY_OC_VERSION%%.*}
+-    SHIMMY_OC_MINOR=${SHIMMY_OC_VERSION#*.}
++  4.22)
++    shim_target=oc_4_22
+     ;;
+   *)
+-    printf 'ERROR: unsupported SHIMMY_OC_VERSION: %s\n' "$SHIMMY_OC_VERSION" >&2
+-    printf 'Known OpenShift CLI versions: %s\n' "$SHIMMY_OC_KNOWN_VERSIONS" >&2
++    printf '%s\n' "ERROR: unsupported SHIMMY_OC_VERSION: $SHIMMY_OC_VERSION" >&2
++    printf '%s\n' 'Supported versions: 4.18, 4.20, 4.22.' >&2
+     exit 1
+     ;;
+-esac
+-
+-SHIMMY_OC_SHIM=$SCRIPT_DIR/oc_${SHIMMY_OC_MAJOR}_${SHIMMY_OC_MINOR}
+ 
+-if [ ! -x "$SHIMMY_OC_SHIM" ]; then
+-  printf 'ERROR: unsupported SHIMMY_OC_VERSION: %s\n' "$SHIMMY_OC_VERSION" >&2
+-  printf 'Known OpenShift CLI versions: %s\n' "$SHIMMY_OC_KNOWN_VERSIONS" >&2
+-  exit 1
+-fi
++esac
+ 
+-exec "$SHIMMY_OC_SHIM" "$@"
++exec "$SCRIPT_DIR/$shim_target" "$@"
+diff --git a/shims/oc.conf b/shims/oc.conf
+deleted file mode 100644
+index cf26f06..0000000
+--- a/shims/oc.conf
++++ /dev/null
+@@ -1,5 +0,0 @@
+-shim_config_version=1
+-shim_name=oc
+-smoke_env=SHIMMY_OC_VERSION=4.20
+-smoke_arg=--preview-shim
+-smoke_arg=version
+diff --git a/shims/oc_4_18 b/shims/oc_4_18
+old mode 100755
+new mode 100644
+index f7d436a..c30e0cd
+--- a/shims/oc_4_18
++++ b/shims/oc_4_18
+@@ -1,17 +1,16 @@
+ #!/bin/sh
+ set -eu
+ 
+-SCRIPT_DIR=$(
++SCRIPT_DIR=$(\
+   cd -- "$(dirname -- "$0")" && pwd
+ )
+ SHIMMY_PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+ 
+-SHIMMY_OC_4_18_CONFIG_DIR=
+ SHIMMY_OC_4_18_IMAGE=${SHIMMY_OC_4_18_IMAGE:-docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.18}
+ SHIMMY_OC_4_18_IMAGE_PULL=${SHIMMY_OC_4_18_IMAGE_PULL:-}
+-SHIMMY_OC_4_18_KUBE_DIR=
+ SHIMMY_OC_4_18_PULL_ARG=
+-SHIMMY_OC_4_18_TTY_ARG=-i
++SHIMMY_OC_4_18_TTY_ARG=
++SHIMMY_OC_KUBECONFIG_DIR=
+ 
+ if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
+   printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
+@@ -24,11 +23,7 @@ fi
+ shimmy_podman_preflight_or_preview_require "the oc_4_18 shim" "$@"
+ 
+ if [ -n "${HOME:-}" ] && [ -d "$HOME/.kube" ]; then
+-  SHIMMY_OC_4_18_KUBE_DIR=$HOME/.kube
+-fi
+-
+-if [ -n "${HOME:-}" ] && [ -d "$HOME/.config/oc" ]; then
+-  SHIMMY_OC_4_18_CONFIG_DIR=$HOME/.config/oc
++  SHIMMY_OC_KUBECONFIG_DIR=$HOME/.kube
+ fi
+ 
+ if [ "$SHIMMY_OC_4_18_IMAGE_PULL" = "always" ]; then
+@@ -42,13 +37,10 @@ fi
+ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
+   --platform "$SHIMMY_PODMAN_PLATFORM" \
+   ${SHIMMY_OC_4_18_PULL_ARG:+"$SHIMMY_OC_4_18_PULL_ARG"} \
+-  "$SHIMMY_OC_4_18_TTY_ARG" \
++  ${SHIMMY_OC_4_18_TTY_ARG:+"$SHIMMY_OC_4_18_TTY_ARG"} \
+   -v "$PWD:/work" \
+   -w /work \
+-  ${SHIMMY_OC_4_18_KUBE_DIR:+"-v"} \
+-  ${SHIMMY_OC_4_18_KUBE_DIR:+"$SHIMMY_OC_4_18_KUBE_DIR:/root/.kube:ro"} \
+-  ${SHIMMY_OC_4_18_CONFIG_DIR:+"-v"} \
+-  ${SHIMMY_OC_4_18_CONFIG_DIR:+"$SHIMMY_OC_4_18_CONFIG_DIR:/root/.config/oc:ro"} \
+-  --entrypoint oc \
++  ${SHIMMY_OC_KUBECONFIG_DIR:+"-v"} \
++  ${SHIMMY_OC_KUBECONFIG_DIR:+"$SHIMMY_OC_KUBECONFIG_DIR:/root/.kube:ro"} \
+   "$SHIMMY_OC_4_18_IMAGE" \
+   "$@"
+diff --git a/shims/oc_4_20 b/shims/oc_4_20
+old mode 100755
+new mode 100644
+index 978eb35..8d842f5
+--- a/shims/oc_4_20
++++ b/shims/oc_4_20
+@@ -1,17 +1,16 @@
+ #!/bin/sh
+ set -eu
+ 
+-SCRIPT_DIR=$(
++SCRIPT_DIR=$(\
+   cd -- "$(dirname -- "$0")" && pwd
+ )
+ SHIMMY_PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+ 
+-SHIMMY_OC_4_20_CONFIG_DIR=
+ SHIMMY_OC_4_20_IMAGE=${SHIMMY_OC_4_20_IMAGE:-docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.20}
+ SHIMMY_OC_4_20_IMAGE_PULL=${SHIMMY_OC_4_20_IMAGE_PULL:-}
+-SHIMMY_OC_4_20_KUBE_DIR=
+ SHIMMY_OC_4_20_PULL_ARG=
+-SHIMMY_OC_4_20_TTY_ARG=-i
++SHIMMY_OC_4_20_TTY_ARG=
++SHIMMY_OC_KUBECONFIG_DIR=
+ 
+ if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
+   printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
+@@ -24,11 +23,7 @@ fi
+ shimmy_podman_preflight_or_preview_require "the oc_4_20 shim" "$@"
+ 
+ if [ -n "${HOME:-}" ] && [ -d "$HOME/.kube" ]; then
+-  SHIMMY_OC_4_20_KUBE_DIR=$HOME/.kube
+-fi
+-
+-if [ -n "${HOME:-}" ] && [ -d "$HOME/.config/oc" ]; then
+-  SHIMMY_OC_4_20_CONFIG_DIR=$HOME/.config/oc
++  SHIMMY_OC_KUBECONFIG_DIR=$HOME/.kube
+ fi
+ 
+ if [ "$SHIMMY_OC_4_20_IMAGE_PULL" = "always" ]; then
+@@ -42,13 +37,10 @@ fi
+ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
+   --platform "$SHIMMY_PODMAN_PLATFORM" \
+   ${SHIMMY_OC_4_20_PULL_ARG:+"$SHIMMY_OC_4_20_PULL_ARG"} \
+-  "$SHIMMY_OC_4_20_TTY_ARG" \
++  ${SHIMMY_OC_4_20_TTY_ARG:+"$SHIMMY_OC_4_20_TTY_ARG"} \
+   -v "$PWD:/work" \
+   -w /work \
+-  ${SHIMMY_OC_4_20_KUBE_DIR:+"-v"} \
+-  ${SHIMMY_OC_4_20_KUBE_DIR:+"$SHIMMY_OC_4_20_KUBE_DIR:/root/.kube:ro"} \
+-  ${SHIMMY_OC_4_20_CONFIG_DIR:+"-v"} \
+-  ${SHIMMY_OC_4_20_CONFIG_DIR:+"$SHIMMY_OC_4_20_CONFIG_DIR:/root/.config/oc:ro"} \
+-  --entrypoint oc \
++  ${SHIMMY_OC_KUBECONFIG_DIR:+"-v"} \
++  ${SHIMMY_OC_KUBECONFIG_DIR:+"$SHIMMY_OC_KUBECONFIG_DIR:/root/.kube:ro"} \
+   "$SHIMMY_OC_4_20_IMAGE" \
+   "$@"
+diff --git a/shims/oc_4_22 b/shims/oc_4_22
+old mode 100755
+new mode 100644
+index 964de1c..5ac6b21
+--- a/shims/oc_4_22
++++ b/shims/oc_4_22
+@@ -1,17 +1,16 @@
+ #!/bin/sh
+ set -eu
+ 
+-SCRIPT_DIR=$(
++SCRIPT_DIR=$(\
+   cd -- "$(dirname -- "$0")" && pwd
+ )
+ SHIMMY_PODMAN_HELPER_FILE=$SCRIPT_DIR/../lib/shims/shimmy-podman.sh
+ 
+-SHIMMY_OC_4_22_CONFIG_DIR=
+ SHIMMY_OC_4_22_IMAGE=${SHIMMY_OC_4_22_IMAGE:-docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.22}
+ SHIMMY_OC_4_22_IMAGE_PULL=${SHIMMY_OC_4_22_IMAGE_PULL:-}
+-SHIMMY_OC_4_22_KUBE_DIR=
+ SHIMMY_OC_4_22_PULL_ARG=
+-SHIMMY_OC_4_22_TTY_ARG=-i
++SHIMMY_OC_4_22_TTY_ARG=
++SHIMMY_OC_KUBECONFIG_DIR=
+ 
+ if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
+   printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
+@@ -24,11 +23,7 @@ fi
+ shimmy_podman_preflight_or_preview_require "the oc_4_22 shim" "$@"
+ 
+ if [ -n "${HOME:-}" ] && [ -d "$HOME/.kube" ]; then
+-  SHIMMY_OC_4_22_KUBE_DIR=$HOME/.kube
+-fi
+-
+-if [ -n "${HOME:-}" ] && [ -d "$HOME/.config/oc" ]; then
+-  SHIMMY_OC_4_22_CONFIG_DIR=$HOME/.config/oc
++  SHIMMY_OC_KUBECONFIG_DIR=$HOME/.kube
+ fi
+ 
+ if [ "$SHIMMY_OC_4_22_IMAGE_PULL" = "always" ]; then
+@@ -42,13 +37,10 @@ fi
+ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
+   --platform "$SHIMMY_PODMAN_PLATFORM" \
+   ${SHIMMY_OC_4_22_PULL_ARG:+"$SHIMMY_OC_4_22_PULL_ARG"} \
+-  "$SHIMMY_OC_4_22_TTY_ARG" \
++  ${SHIMMY_OC_4_22_TTY_ARG:+"$SHIMMY_OC_4_22_TTY_ARG"} \
+   -v "$PWD:/work" \
+   -w /work \
+-  ${SHIMMY_OC_4_22_KUBE_DIR:+"-v"} \
+-  ${SHIMMY_OC_4_22_KUBE_DIR:+"$SHIMMY_OC_4_22_KUBE_DIR:/root/.kube:ro"} \
+-  ${SHIMMY_OC_4_22_CONFIG_DIR:+"-v"} \
+-  ${SHIMMY_OC_4_22_CONFIG_DIR:+"$SHIMMY_OC_4_22_CONFIG_DIR:/root/.config/oc:ro"} \
+-  --entrypoint oc \
++  ${SHIMMY_OC_KUBECONFIG_DIR:+"-v"} \
++  ${SHIMMY_OC_KUBECONFIG_DIR:+"$SHIMMY_OC_KUBECONFIG_DIR:/root/.kube:ro"} \
+   "$SHIMMY_OC_4_22_IMAGE" \
+   "$@"
