@@ -48,7 +48,7 @@ shimmy_contains_profile_shim_other() {
   shim_name=$2
   skip_manifest_one=${3:-}
 
-  for manifest_file in "$install_dir"/p/*/install-manifest.txt; do
+  for manifest_file in "$install_dir"/profiles/*/install-manifest.txt; do
     [ -f "$manifest_file" ] || continue
     [ "$manifest_file" != "$skip_manifest_one" ] || continue
     if shimmy_contains_manifest_shim "$manifest_file" "$shim_name"; then
@@ -63,7 +63,7 @@ shimmy_count_profile_manifests() {
   install_dir=$1
   manifest_count=0
 
-  for manifest_file in "$install_dir"/p/*/install-manifest.txt; do
+  for manifest_file in "$install_dir"/profiles/*/install-manifest.txt; do
     [ -f "$manifest_file" ] || continue
     manifest_count=$((manifest_count + 1))
   done

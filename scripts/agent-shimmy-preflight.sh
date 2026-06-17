@@ -253,7 +253,7 @@ shimmy_agent_installed_shims_discover() {
   install_dir=$1
   shim_dir=$install_dir/bin
 
-  for manifest_file in "$install_dir"/p/default/install-manifest.txt "$install_dir"/p/upstream/install-manifest.txt "$install_dir"/install-manifest.txt; do
+  for manifest_file in "$install_dir"/profiles/default/install-manifest.txt "$install_dir"/profiles/upstream/install-manifest.txt "$install_dir"/install-manifest.txt; do
     [ -f "$manifest_file" ] || continue
     shimmy_agent_manifest_shims_discover "$install_dir" "$manifest_file"
   done

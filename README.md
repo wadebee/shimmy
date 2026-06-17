@@ -248,7 +248,7 @@ Direct tool commands such as `rg` and `jq` do not take `--profile`. They read `S
 `SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state. By default it is:
 
 ```text
-~/.config/shimmy/p/upstream
+~/.config/shimmy/profiles/upstream
 ```
 
 It is not the git checkout. To install upstream profile from a specific checkout, set `SHIMMY_UPSTREAM_CHECKOUT_DIR` for `shimmy install --profile upstream`; Shimmy records the resolved absolute checkout path in the upstream manifest.
@@ -418,8 +418,8 @@ Shimmy stores install state in POSIX-readable root and profile manifests:
 
 ```text
 ~/.config/shimmy/install-manifest.txt
-~/.config/shimmy/p/default/install-manifest.txt
-~/.config/shimmy/p/upstream/install-manifest.txt
+~/.config/shimmy/profiles/default/install-manifest.txt
+~/.config/shimmy/profiles/upstream/install-manifest.txt
 ```
 
 The root manifest records install-wide integration state:

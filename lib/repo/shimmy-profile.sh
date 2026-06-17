@@ -174,11 +174,11 @@ shimmy_profile_paths_resolve() {
 
   case "$SHIMMY_PROFILE_NAME" in
     default)
-      SHIMMY_PROFILE_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" p/default)
+      SHIMMY_PROFILE_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" profiles/default)
       SHIMMY_PROFILE_SOURCE_CHECKOUT=
       ;;
     upstream)
-      SHIMMY_PROFILE_DIR=$(shimmy_trim_path_trailing_slash "${SHIMMY_UPSTREAM_DIR:-$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" p/upstream)}")
+      SHIMMY_PROFILE_DIR=$(shimmy_trim_path_trailing_slash "${SHIMMY_UPSTREAM_DIR:-$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" profiles/upstream)}")
       upstream_checkout_dir=${SHIMMY_UPSTREAM_CHECKOUT_DIR:-$source_root_dir}
       SHIMMY_PROFILE_SOURCE_CHECKOUT=$(shimmy_resolve_path_absolute "$upstream_checkout_dir") || return 1
       ;;

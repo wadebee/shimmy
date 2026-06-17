@@ -647,7 +647,7 @@ write_manifest() {
 root_profile_list_resolve() {
   profile_names=
 
-  for manifest_file in "$SHIMMY_INSTALL_DIR"/p/*/install-manifest.txt; do
+  for manifest_file in "$SHIMMY_INSTALL_DIR"/profiles/*/install-manifest.txt; do
     [ -f "$manifest_file" ] || continue
     profile_name=$(basename "$(dirname "$manifest_file")")
     if ! shimmy_contains_line_list "$profile_names" "$profile_name"; then
@@ -946,8 +946,8 @@ remove_path_if_present() {
 }
 
 remove_empty_install_dirs() {
-  if [ -d "$SHIMMY_INSTALL_DIR/p" ]; then
-    rmdir "$SHIMMY_INSTALL_DIR/p" 2>/dev/null || true
+  if [ -d "$SHIMMY_INSTALL_DIR/profiles" ]; then
+    rmdir "$SHIMMY_INSTALL_DIR/profiles" 2>/dev/null || true
   fi
   if [ -d "$SHIMMY_INSTALL_DIR/bin" ]; then
     rmdir "$SHIMMY_INSTALL_DIR/bin" 2>/dev/null || true
@@ -980,7 +980,7 @@ write_root_manifest_existing_profiles() {
     for shim_name in $(shimmy_default_shim_list); do
       printf 'default_shim=%s\n' "$shim_name"
     done
-    for manifest_file in "$SHIMMY_INSTALL_DIR"/p/*/install-manifest.txt; do
+    for manifest_file in "$SHIMMY_INSTALL_DIR"/profiles/*/install-manifest.txt; do
       [ -f "$manifest_file" ] || continue
       printf 'profile=%s\n' "$(basename "$(dirname "$manifest_file")")"
     done

@@ -363,7 +363,7 @@ installed_profile_list() {
     profile_names=$(shimmy_read_manifest_values "$root_manifest_file" profile || true)
   fi
 
-  for profile_manifest_file in "$install_dir"/p/*/install-manifest.txt; do
+  for profile_manifest_file in "$install_dir"/profiles/*/install-manifest.txt; do
     [ -f "$profile_manifest_file" ] || continue
     profile_name=$(basename "$(dirname "$profile_manifest_file")")
     if ! shimmy_contains_line_list "$profile_names" "$profile_name"; then

@@ -38,7 +38,7 @@ SHIMMY_PROFILE_ACTIVE=upstream rg --version
 
 Use repo-local wrapper paths such as `./shims/rg` only when intentionally testing source files directly. For installed-state inspection, prefer `shimmy status --format manifest` over `command -v <tool>`: `command -v` shows the stable dispatcher entrypoint, while status shows the selected profile manifest, implementation directory, and upstream checkout.
 
-`SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state, defaulting under `$SHIMMY_INSTALL_DIR/p/upstream`. It is not the git checkout. Use `SHIMMY_UPSTREAM_CHECKOUT_DIR` only as an optional install-time override for `shimmy install --profile upstream`; Shimmy records that absolute checkout path in the upstream manifest.
+`SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state, defaulting under `$SHIMMY_INSTALL_DIR/profiles/upstream`. It is not the git checkout. Use `SHIMMY_UPSTREAM_CHECKOUT_DIR` only as an optional install-time override for `shimmy install --profile upstream`; Shimmy records that absolute checkout path in the upstream manifest.
 
 ## Naming Conventions
 

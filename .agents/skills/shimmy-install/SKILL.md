@@ -32,7 +32,7 @@ Before acting, inspect the target project and active Shimmy install:
 - In the Shimmy source checkout, use repo-root `./shimmy` for source-driven install, update, and test workflows.
 - Use documented scripts directly only when the wrapper is unavailable or the lower-level interface is explicitly needed: `scripts/install-shimmy.sh`, `scripts/status-shimmy.sh`, `scripts/update-shimmy.sh`, `scripts/test-shimmy.sh`, and `scripts/activate-shimmy.sh`.
 - Treat `shimmy status --format manifest` as the first inspection command. It reports the selected profile, profile manifest, public bin directory, profile implementation directory, and upstream checkout when applicable.
-- Treat the selected profile manifest as installed-state truth. Default profile state is normally under `$SHIMMY_INSTALL_DIR/p/default/install-manifest.txt`; upstream profile state is normally under `$SHIMMY_INSTALL_DIR/p/upstream/install-manifest.txt`. The install-root `install-manifest.txt` records install-wide integration state.
+- Treat the selected profile manifest as installed-state truth. Default profile state is normally under `$SHIMMY_INSTALL_DIR/profiles/default/install-manifest.txt`; upstream profile state is normally under `$SHIMMY_INSTALL_DIR/profiles/upstream/install-manifest.txt`. The install-root `install-manifest.txt` records install-wide integration state.
 - Treat an external pinned ref, release tag, commit SHA, or version constraint as stronger than `latest`.
 
 Never bypass the install, update, activate, status, test, or uninstall scripts when they exist and cover the requested action.
