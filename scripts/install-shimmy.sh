@@ -452,6 +452,18 @@ install_shim_dispatcher() {
   ln -s ../core/scripts/dispatch-shimmy.sh "$dispatcher_path"
 }
 
+companion_shim_list() {
+  primary_shim_name=$1
+
+  case "$primary_shim_name" in
+    oc_4_18|oc_4_20|oc_4_22)
+      printf '%s\n' oc
+      ;;
+    *)
+      ;;
+  esac
+}
+
 install_shim_upstream_exec_wrapper() {
   shim_name=$1
   wrapper_path=$SHIMMY_PROFILE_IMPLEMENTATION_DIR/$shim_name
@@ -792,6 +804,12 @@ perform_install() {
     install_shim_runtime_assets "$shim_name"
     install_shim_config_assets "$shim_name"
     install_shim_dispatcher "$shim_name"
+
+    for companion_shim in $(companion_shim_list "$shim_name"); do
+      install_shim_runtime_assets "$companion_shim"
+      install_shim_config_assets "$companion_shim"
+      install_shim_dispatcher "$companion_shim"
+    done
   done
 
   log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
@@ -852,6 +870,20 @@ perform_shim_install() {
 
     shims_to_append=$(shimmy_append_line_list "$shims_to_append" "$shim_name")
     log_info "Installed shim: $shim_name"
+
+    for companion_shim in $(companion_shim_list "$shim_name"); do
+      if shimmy_contains_line_list "$installed_shims" "$companion_shim" || shimmy_contains_line_list "$shims_to_append" "$companion_shim"; then
+        continue
+      fi
+
+      install_shim_runtime_assets "$companion_shim"
+      install_shim_config_assets "$companion_shim"
+      install_shim_dispatcher "$companion_shim"
+      install_shim_management_assets "$companion_shim"
+
+      shims_to_append=$(shimmy_append_line_list "$shims_to_append" "$companion_shim")
+      log_info "Installed shim: $companion_shim"
+    done
   done
 
   log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
@@ -910,6 +942,12 @@ perform_shim_refresh() {
     install_shim_runtime_assets "$shim_name"
     install_shim_config_assets "$shim_name"
     install_shim_dispatcher "$shim_name"
+
+    for companion_shim in $(companion_shim_list "$shim_name"); do
+      install_shim_runtime_assets "$companion_shim"
+      install_shim_config_assets "$companion_shim"
+      install_shim_dispatcher "$companion_shim"
+    done
   done
 
   log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"

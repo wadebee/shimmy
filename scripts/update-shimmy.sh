@@ -335,6 +335,18 @@ run_build_refresh() {
         SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
+      oc_4_18)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_OC_4_18_IMAGE_BUILD=always "$shim_dir/oc_4_18" version >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name" "$images_dir"
+        ;;
+      oc_4_20)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_OC_4_20_IMAGE_BUILD=always "$shim_dir/oc_4_20" version >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name" "$images_dir"
+        ;;
+      oc_4_22)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_OC_4_22_IMAGE_BUILD=always "$shim_dir/oc_4_22" version >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name" "$images_dir"
+        ;;
     esac
   done <<EOF
 $shim_list

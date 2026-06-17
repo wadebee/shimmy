@@ -176,6 +176,18 @@ describe_shim_image() {
     textual)
       printf '%s\n' "$(local_image_ref "localhost/shimmy-textual" "$images_dir/textual")"
       ;;
+    oc_4_18)
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-oc-4_18" "$images_dir/oc_4_18")"
+      ;;
+    oc_4_20)
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-oc-4_20" "$images_dir/oc_4_20")"
+      ;;
+    oc_4_22)
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-oc-4_22" "$images_dir/oc_4_22")"
+      ;;
+    oc)
+      printf '%s\n' 'dispatcher for oc_4_xx shims (uses SHIMMY_OC_VERSION at runtime)'
+      ;;
     *)
       printf 'unknown\n'
       ;;

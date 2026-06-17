@@ -29,6 +29,7 @@ netcat --help --preview-shim
 | Tool | Purpose | Quick start |
 |------|---------|-------------|
 | **aws** | AWS CLI | [docs/shims/aws.md](docs/shims/aws.md) |
+| **oc** | OpenShift CLI (multi-version dispatcher) | [docs/shims/oc.md](docs/shims/oc.md) |
 | **go** | Go toolchain CLI | [docs/shims/go.md](docs/shims/go.md) |
 | **gcloud** | Google Cloud CLI | [docs/shims/gcloud.md](docs/shims/gcloud.md) |
 | **gdrive** | MCP server for interacting with Google Drive and Sheets | [docs/shims/gdrive.md](docs/shims/gdrive.md) |
