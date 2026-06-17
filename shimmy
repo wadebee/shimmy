@@ -8,9 +8,9 @@ ROOT_DIR=$SCRIPT_DIR
 INSTALL_DIR=
 INSTALLED_LAUNCHER=0
 
-if [ -d "$SCRIPT_DIR/../libexec/shimmy/scripts" ]; then
+if [ -d "$SCRIPT_DIR/../core/scripts" ]; then
   ROOT_DIR=$(
-    cd -- "$SCRIPT_DIR/../libexec/shimmy" && pwd
+    cd -- "$SCRIPT_DIR/../core" && pwd
   )
   INSTALL_DIR=$(
     cd -- "$SCRIPT_DIR/.." && pwd

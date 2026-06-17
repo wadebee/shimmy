@@ -169,28 +169,26 @@ shimmy_profile_paths_resolve() {
 
   SHIMMY_PROFILE_NAME=$(shimmy_profile_name_resolve "$profile_name" "${SHIMMY_PROFILE_ACTIVE:-}") || return 1
   SHIMMY_PROFILE_INSTALL_DIR=$(shimmy_profile_install_dir_resolve "$requested_install_dir")
-  SHIMMY_PROFILE_DISPATCHER_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" shims)
-  SHIMMY_PROFILE_CONTROL_BIN_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" bin)
-  SHIMMY_PROFILE_CONTROL_LIBEXEC_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" libexec/shimmy)
+  SHIMMY_INSTALL_BIN_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" bin)
+  SHIMMY_INSTALL_CORE_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" core)
 
   case "$SHIMMY_PROFILE_NAME" in
     default)
-      SHIMMY_PROFILE_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" profiles/default)
+      SHIMMY_PROFILE_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" p/default)
       SHIMMY_PROFILE_SOURCE_CHECKOUT=
       ;;
     upstream)
-      SHIMMY_PROFILE_DIR=$(shimmy_trim_path_trailing_slash "${SHIMMY_UPSTREAM_DIR:-$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" profiles/upstream)}")
+      SHIMMY_PROFILE_DIR=$(shimmy_trim_path_trailing_slash "${SHIMMY_UPSTREAM_DIR:-$(shimmy_join_path "$SHIMMY_PROFILE_INSTALL_DIR" p/upstream)}")
       upstream_checkout_dir=${SHIMMY_UPSTREAM_CHECKOUT_DIR:-$source_root_dir}
       SHIMMY_PROFILE_SOURCE_CHECKOUT=$(shimmy_resolve_path_absolute "$upstream_checkout_dir") || return 1
       ;;
   esac
 
-  SHIMMY_PROFILE_BIN_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_DIR" shims)
   SHIMMY_PROFILE_CONFIG_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_DIR" config)
   SHIMMY_PROFILE_MANIFEST_PATH=$(shimmy_join_path "$SHIMMY_PROFILE_DIR" install-manifest.txt)
-  SHIMMY_PROFILE_IMPLEMENTATION_DIR=$SHIMMY_PROFILE_BIN_DIR
+  SHIMMY_PROFILE_IMPLEMENTATION_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_DIR" bin)
 
-  if [ "$SHIMMY_PROFILE_DISPATCHER_DIR" = "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" ]; then
+  if [ "$SHIMMY_INSTALL_BIN_DIR" = "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" ]; then
     return 1
   fi
 }

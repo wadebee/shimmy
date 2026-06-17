@@ -47,19 +47,10 @@ shimmy_contains_profile_shim_other() {
   install_dir=$1
   shim_name=$2
   skip_manifest_one=${3:-}
-  skip_manifest_two=${4:-}
-  legacy_manifest_file=${5:-}
 
-  if [ -n "$legacy_manifest_file" ] && [ -f "$legacy_manifest_file" ] && [ "$legacy_manifest_file" != "$skip_manifest_one" ] && [ "$legacy_manifest_file" != "$skip_manifest_two" ]; then
-    if shimmy_contains_manifest_shim "$legacy_manifest_file" "$shim_name"; then
-      return 0
-    fi
-  fi
-
-  for manifest_file in "$install_dir"/profiles/*/install-manifest.txt; do
+  for manifest_file in "$install_dir"/p/*/install-manifest.txt; do
     [ -f "$manifest_file" ] || continue
     [ "$manifest_file" != "$skip_manifest_one" ] || continue
-    [ "$manifest_file" != "$skip_manifest_two" ] || continue
     if shimmy_contains_manifest_shim "$manifest_file" "$shim_name"; then
       return 0
     fi
@@ -72,7 +63,7 @@ shimmy_count_profile_manifests() {
   install_dir=$1
   manifest_count=0
 
-  for manifest_file in "$install_dir"/profiles/*/install-manifest.txt; do
+  for manifest_file in "$install_dir"/p/*/install-manifest.txt; do
     [ -f "$manifest_file" ] || continue
     manifest_count=$((manifest_count + 1))
   done

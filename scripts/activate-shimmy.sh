@@ -41,13 +41,11 @@ resolve_install_dir() {
 }
 
 render_activate() {
-  control_bin_dir=$1
-  dispatcher_dir=$2
-  podman_dir=$3
-  mode_export_value=$4
+  bin_dir=$1
+  podman_dir=$2
+  mode_export_value=$3
 
-  quoted_control_bin_dir=$(shimmy_quote_shell_word "$control_bin_dir")
-  quoted_dispatcher_dir=$(shimmy_quote_shell_word "$dispatcher_dir")
+  quoted_bin_dir=$(shimmy_quote_shell_word "$bin_dir")
   quoted_podman_dir=$(shimmy_quote_shell_word "$podman_dir")
 
   if [ -n "$mode_export_value" ]; then
@@ -56,22 +54,14 @@ render_activate() {
     printf 'export SHIMMY_PROFILE_ACTIVE\n'
   fi
 
-  printf 'shimmy_activate_dispatcher_dir=%s\n' "$quoted_dispatcher_dir"
-  printf 'if [ -d "$shimmy_activate_dispatcher_dir" ]; then\n'
+  printf 'shimmy_activate_bin_dir=%s\n' "$quoted_bin_dir"
+  printf 'if [ -d "$shimmy_activate_bin_dir" ]; then\n'
   printf '  case ":${PATH:-}:" in\n'
-  printf '    *:"$shimmy_activate_dispatcher_dir":*) ;;\n'
-  printf '    *) PATH=$shimmy_activate_dispatcher_dir${PATH:+":$PATH"} ;;\n'
+  printf '    *:"$shimmy_activate_bin_dir":*) ;;\n'
+  printf '    *) PATH=$shimmy_activate_bin_dir${PATH:+":$PATH"} ;;\n'
   printf '  esac\n'
   printf 'fi\n'
-  printf 'unset shimmy_activate_dispatcher_dir\n'
-  printf 'shimmy_activate_control_bin_dir=%s\n' "$quoted_control_bin_dir"
-  printf 'if [ -d "$shimmy_activate_control_bin_dir" ]; then\n'
-  printf '  case ":${PATH:-}:" in\n'
-  printf '    *:"$shimmy_activate_control_bin_dir":*) ;;\n'
-  printf '    *) PATH=$shimmy_activate_control_bin_dir${PATH:+":$PATH"} ;;\n'
-  printf '  esac\n'
-  printf 'fi\n'
-  printf 'unset shimmy_activate_control_bin_dir\n'
+  printf 'unset shimmy_activate_bin_dir\n'
   printf 'shimmy_activate_podman_dir=%s\n' "$quoted_podman_dir"
   printf 'if [ -x "$shimmy_activate_podman_dir/podman" ]; then\n'
   printf '  case ":${PATH:-}:" in\n'
@@ -133,27 +123,21 @@ main() {
   profile_manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
   root_manifest_file=$install_dir/install-manifest.txt
   manifest_file=$profile_manifest_file
-  control_bin_dir=$SHIMMY_PROFILE_CONTROL_BIN_DIR
-  dispatcher_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
+  bin_dir=$SHIMMY_INSTALL_BIN_DIR
 
   if [ -f "$root_manifest_file" ]; then
     manifest_install_dir=$(shimmy_read_manifest_value "$root_manifest_file" install_dir || true)
     if [ -n "$manifest_install_dir" ]; then
       install_dir=$(shimmy_trim_path_trailing_slash "$manifest_install_dir")
       shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$install_dir" "$ROOT_DIR" || fail "unsupported Shimmy profile: ${SHIMMY_PROFILE_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
-      control_bin_dir=$install_dir/bin
-      dispatcher_dir=$install_dir/shims
+      bin_dir=$SHIMMY_INSTALL_BIN_DIR
       root_manifest_file=$install_dir/install-manifest.txt
       profile_manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
       manifest_file=$profile_manifest_file
     fi
-    manifest_control_bin=$(shimmy_read_manifest_value "$root_manifest_file" control_bin || true)
-    if [ -n "$manifest_control_bin" ]; then
-      control_bin_dir=$(dirname "$manifest_control_bin")
-    fi
-    manifest_dispatcher_dir=$(shimmy_read_manifest_value "$root_manifest_file" dispatcher_dir || true)
-    if [ -n "$manifest_dispatcher_dir" ]; then
-      dispatcher_dir=$manifest_dispatcher_dir
+    manifest_bin_dir=$(shimmy_read_manifest_value "$root_manifest_file" bin_dir || true)
+    if [ -n "$manifest_bin_dir" ]; then
+      bin_dir=$manifest_bin_dir
     fi
   fi
 
@@ -170,7 +154,7 @@ main() {
     fi
   fi
 
-  render_activate "$control_bin_dir" "$dispatcher_dir" /opt/podman/bin "$SHIMMY_PROFILE_NAME"
+  render_activate "$bin_dir" /opt/podman/bin "$SHIMMY_PROFILE_NAME"
 }
 
 main "$@"

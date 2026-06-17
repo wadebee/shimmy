@@ -84,7 +84,7 @@ case "$script_name" in
     shim_name=$1
     shift
     install_dir=$(
-      cd -- "$script_dir/../../.." && pwd -P
+      cd -- "$script_dir/../.." && pwd -P
     )
     ;;
   *)
@@ -97,9 +97,9 @@ esac
 
 shim_name_validate "$shim_name" || fail "invalid shim name for Shimmy dispatcher: $shim_name"
 
-common_helper=$install_dir/libexec/shimmy/lib/repo/shimmy-common.sh
-profile_helper=$install_dir/libexec/shimmy/lib/repo/shimmy-profile.sh
-central_dispatcher=$install_dir/libexec/shimmy/scripts/dispatch-shimmy.sh
+common_helper=$install_dir/core/lib/repo/shimmy-common.sh
+profile_helper=$install_dir/core/lib/repo/shimmy-profile.sh
+central_dispatcher=$install_dir/core/scripts/dispatch-shimmy.sh
 
 [ -f "$common_helper" ] || fail "missing Shimmy common helper: $common_helper"
 [ -f "$profile_helper" ] || fail "missing Shimmy profile helper: $profile_helper"
@@ -127,9 +127,9 @@ if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then
   fi
 fi
 
-target_dir=$(shimmy_read_manifest_value "$manifest_file" bin_dir || true)
+target_dir=$(shimmy_read_manifest_value "$manifest_file" profile_implementation_dir || true)
 if [ -z "$target_dir" ]; then
-  target_dir=$SHIMMY_PROFILE_BIN_DIR
+  target_dir=$SHIMMY_PROFILE_IMPLEMENTATION_DIR
 fi
 
 target_path=$target_dir/$shim_name

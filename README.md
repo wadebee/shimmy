@@ -248,7 +248,7 @@ Direct tool commands such as `rg` and `jq` do not take `--profile`. They read `S
 `SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state. By default it is:
 
 ```text
-~/.config/shimmy/profiles/upstream
+~/.config/shimmy/p/upstream
 ```
 
 It is not the git checkout. To install upstream profile from a specific checkout, set `SHIMMY_UPSTREAM_CHECKOUT_DIR` for `shimmy install --profile upstream`; Shimmy records the resolved absolute checkout path in the upstream manifest.
@@ -418,15 +418,15 @@ Shimmy stores install state in POSIX-readable root and profile manifests:
 
 ```text
 ~/.config/shimmy/install-manifest.txt
-~/.config/shimmy/profiles/default/install-manifest.txt
-~/.config/shimmy/profiles/upstream/install-manifest.txt
+~/.config/shimmy/p/default/install-manifest.txt
+~/.config/shimmy/p/upstream/install-manifest.txt
 ```
 
 The root manifest records install-wide integration state:
 
 - `shimmy_install_manifest_version` — root manifest format version
 - `install_dir` — active install root
-- `dispatcher_dir` — stable direct-command entrypoint directory
+- `bin_dir` — stable public command directory for `shimmy` and installed tool dispatchers
 - `control_bin` — installed `shimmy` management command
 - `activate_file` — generated activation script
 - `shimmy_profile_default` — default profile, currently `default`
@@ -440,7 +440,6 @@ Profile fields include:
 - `shimmy_profile_manifest_version` — profile manifest format version
 - `shimmy_profile_name` — selected profile name
 - `config_dir` — selected profile config directory
-- `bin_dir` — selected profile implementation directory
 - `profile_implementation_dir` — selected profile implementation directory
 - `shim_source` — `copied-source-shim` for default or `generated-exec-wrapper` for upstream
 - `source_checkout` — resolved upstream checkout path for upstream installs
