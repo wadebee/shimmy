@@ -239,13 +239,11 @@ $shim_name
 shimmy_agent_manifest_shims_discover() {
   install_dir=$1
   manifest_file=$2
-  dispatcher_dir=$(shimmy_agent_manifest_value "$manifest_file" dispatcher_dir || true)
-
-  [ -n "$dispatcher_dir" ] || dispatcher_dir=$install_dir/shims
+  bin_dir=$install_dir/bin
 
   while IFS= read -r shim_name; do
     [ -n "$shim_name" ] || continue
-    shimmy_agent_active_shim_consider "$shim_name" "$dispatcher_dir/$shim_name"
+    shimmy_agent_active_shim_consider "$shim_name" "$bin_dir/$shim_name"
   done <<EOF
 $(sed -n 's/^shim=//p' "$manifest_file")
 EOF
@@ -253,7 +251,7 @@ EOF
 
 shimmy_agent_installed_shims_discover() {
   install_dir=$1
-  shim_dir=$install_dir/shims
+  shim_dir=$install_dir/bin
 
   for manifest_file in "$install_dir"/profiles/default/install-manifest.txt "$install_dir"/profiles/upstream/install-manifest.txt "$install_dir"/install-manifest.txt; do
     [ -f "$manifest_file" ] || continue
@@ -265,6 +263,7 @@ shimmy_agent_installed_shims_discover() {
   for shim_path in "$shim_dir"/*; do
     [ -f "$shim_path" ] || continue
     [ -x "$shim_path" ] || continue
+    [ "$(basename "$shim_path")" != shimmy ] || continue
     shimmy_agent_active_shim_consider "$(basename "$shim_path")" "$shim_path"
   done
 }
@@ -276,11 +275,12 @@ shimmy_agent_path_shims_discover() {
     IFS=$old_ifs
     [ -n "$path_dir" ] || continue
     case "$path_dir" in
-      */shimmy/shims)
+      */shimmy/bin)
         [ -d "$path_dir" ] || continue
         for shim_path in "$path_dir"/*; do
           [ -f "$shim_path" ] || continue
           [ -x "$shim_path" ] || continue
+          [ "$(basename "$shim_path")" != shimmy ] || continue
           shimmy_agent_active_shim_consider "$(basename "$shim_path")" "$shim_path"
         done
         ;;

@@ -426,7 +426,7 @@ The root manifest records install-wide integration state:
 
 - `shimmy_install_manifest_version` — root manifest format version
 - `install_dir` — active install root
-- `dispatcher_dir` — stable direct-command entrypoint directory
+- `bin_dir` — stable public command directory for `shimmy` and installed tool dispatchers
 - `control_bin` — installed `shimmy` management command
 - `activate_file` — generated activation script
 - `shimmy_profile_default` — default profile, currently `default`
@@ -440,7 +440,6 @@ Profile fields include:
 - `shimmy_profile_manifest_version` — profile manifest format version
 - `shimmy_profile_name` — selected profile name
 - `config_dir` — selected profile config directory
-- `bin_dir` — selected profile implementation directory
 - `profile_implementation_dir` — selected profile implementation directory
 - `shim_source` — `copied-source-shim` for default or `generated-exec-wrapper` for upstream
 - `source_checkout` — resolved upstream checkout path for upstream installs

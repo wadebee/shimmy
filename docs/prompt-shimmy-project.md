@@ -28,7 +28,7 @@ Constraints:
 - Use `Containerfile` naming for custom image build contexts.
 - Keep image-build logic in the shared shim helper library so custom-image shims rebuild only when the build context changes.
 - End with `shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" ... "$IMAGE" "$@"`.
-- Update `scripts/install-shimmy.sh` because it enumerates shim names explicitly.
+- Add new installable shim names to `lib/repo/shimmy-catalog.sh` because `shimmy install --shim <tool>` validation and `shimmy status --available` derive supported names from that catalog.
 - Treat Podman as an explicit dependency. Do not add install or provisioning steps for it in Shimmy code, tests, or CI.
 - On macOS, account for the official Podman pkg installer path `/opt/podman/bin/podman` when documenting or validating the dependency.
 - When running repo commands from an AI Agent, invoke them directly with non-login shell execution such as `exec_command` `login=false` unless profile or startup-file behavior is explicitly under test. Do not use `bash -lc` or login shells for Shimmy commands unless needed.
@@ -36,19 +36,25 @@ Constraints:
 - For activated installed shims, invoke the normal tool name such as `rg` or `jq`; do not call the resolved installed shim path. Use `./shims/<tool>` only when intentionally testing the repo-local wrapper file.
 - In AI Agent environments, approvals are evaluated on the outer command. If `podman info` succeeds but a Shimmy wrapper still reports that Podman is unreachable, use the `shimmy-escalation` workflow. For availability smoke checks, request approval for the exact dry-run command prefix such as `["rg","--version"]` or `["./shims/rg","--version"]`; approval for `["podman", "info"]` alone is not enough.
 - Update `scripts/test-shimmy.sh` with live Podman-based assertions against prerequisite `podman` installation.
+- Add `shims/<tool>.conf` with a non-mutating smoke command. Use one `smoke_arg=` line per argv item; do not put multiple shell words on one line. Use `smoke_env=KEY=value` only for non-secret selector or test-mode values needed by the smoke command.
+- Update `scripts/status-shimmy.sh` so installed status shows the default image, dispatcher description, or local image reference instead of `unknown`.
+- Update `scripts/update-shimmy.sh` when adding a remote-image shim that supports `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` or a local-build shim that supports `SHIMMY_{TOOL_PREFIX}_IMAGE_BUILD=always`.
 - Update `README.md` so the default image, env vars, mounts, and examples stay accurate.
 - Keep the `Included Shims` table in `README.md` sorted alphabetically by Tool name whenever you add or rename entries.
+- Create or update `.agents/skills/shimmy-tool-<tool>/SKILL.md` for new or materially changed shims, then install it into the repo skills manifest with `./shimmy skills install --target repo shimmy-tool-<tool>` unless the user chooses another target.
 - Keep runnable shell files executable.
 
 Deliverables:
 
 1. The runtime shim.
 2. Any `images/<tool>/Containerfile` assets required for custom-built images.
-3. Installer updates if the shim set or shared shim helper assets changed.
-4. When creating container tests, use live Podman and non-mutating cli calls (eg: version or --help) to validate container.
-5. README updates.
-6. Quick-start setup guidance for required environment variables, secrets, and preflight checks.
-7. A short explanation of mounts, env forwarding, pull policy, and local image build behavior when applicable.
+3. Shim config with non-mutating smoke arguments and any non-secret smoke environment.
+4. Catalog, status, update, and installer/lifecycle updates when the shim set, image behavior, or shared helper assets changed.
+5. When creating container tests, use live Podman and non-mutating cli calls (eg: version or --help) to validate container.
+6. README and docs updates.
+7. Quick-start setup guidance for required environment variables, secrets, and preflight checks.
+8. A shim-specific agent skill for new or materially changed shims.
+9. A short explanation of mounts, env forwarding, pull policy, and local image build behavior when applicable.
 
 ## Repo Anatomy
 
@@ -57,11 +63,15 @@ Deliverables:
 - `lib/shims/` contains reusable installed helper scripts that shims source at runtime.
 - `lib/repo/` contains sourced helpers for repo-level wrapper and lifecycle scripts.
 - `.agents/skills/` contains shim-specific AI contributor guidance.
-- `scripts/install-shimmy.sh` installs a fixed list of shim names into a default XDG-style install root.
+- `lib/repo/shimmy-catalog.sh` defines supported and default shim names.
+- `scripts/install-shimmy.sh` installs requested catalog-supported shim names into a default XDG-style install root.
 - `scripts/test-shimmy.sh` runs live Podman-backed smoke tests against non-mutating CLI commands. Hard dependency on availability of Podman installation (outside Shimmy project)
+- `scripts/status-shimmy.sh` reports installed and available shims, including image descriptions.
+- `scripts/update-shimmy.sh` refreshes installed shims and handles remote image pulls or local image rebuilds.
 - `.github/workflows/test.yml` runs the shell test suite in CI.
 
 ## Known Findings From The Scan
 
 - Runnable shell files in `shims/` and `scripts/` are already executable; preserve those modes when adding or updating them.
 - The Terraform shim forwards `TF_VAR_*` alongside `AWS_*`. Keep tests and docs aligned if you change Terraform env forwarding.
+- Shim config `smoke_arg=` values are not shell-split by `shimmy test`. Use repeated `smoke_arg=` lines for multi-argument smoke commands, and use `smoke_env=KEY=value` only for non-secret selector variables.

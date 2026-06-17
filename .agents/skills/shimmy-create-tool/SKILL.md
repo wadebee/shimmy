@@ -16,6 +16,8 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 - Supported shim catalog: `../../../lib/repo/shimmy-catalog.sh`
 - Tests: `../../../scripts/test-shimmy.sh`
 - Installer: `../../../scripts/install-shimmy.sh`
+- Status command: `../../../scripts/status-shimmy.sh`
+- Update command: `../../../scripts/update-shimmy.sh`
 - Docs: `../../../README.md`
 
 ## Default Workflow
@@ -24,7 +26,7 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 2. Identify the requested CLI tool, then run the dependency gate in `Required Checkpoints` before designing the shim.
 3. Inspect `../../../shims/`, `../../../lib/repo/shimmy-catalog.sh`, `../../../scripts/install-shimmy.sh`, and `../../../scripts/test-shimmy.sh` so the new shim matches existing conventions.
 4. Keep the skill-driven plan concise and actionable. Prefer a short default workflow over long narrative guidance.
-5. Update the runtime shim, supported shim catalog, installer, tests, and README together when behavior changes.
+5. Update the runtime shim, shim config, supported shim catalog, lifecycle scripts, tests, docs, README, and tool skill together when behavior changes.
 6. Create or update a matching tool skill at `../../../.agents/skills/shimmy-tool-{toolname}/SKILL.md` when adding or materially changing a shim.
 7. Share the new or updated tool skill before final verification with `./shimmy skills install --target repo shimmy-tool-{toolname}` from the Shimmy checkout unless the user chose `profile` or `plugin` as the target.
 8. When adding a shim to the `Included Shims` table in `README.md`, keep the table sorted alphabetically by Tool name.
@@ -60,6 +62,26 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 - End the shim with `exec podman run --rm ... "$IMAGE" "$@"`.
 - Keep runnable shell files executable.
 - Add new installable shim names to `../../../lib/repo/shimmy-catalog.sh` `SHIMMY_SUPPORTED_SHIMS`. `shimmy install --shim <tool>` validation and `shimmy status --available` both derive supported names from that catalog, then status filters out already installed profile shims.
+- Add one `smoke_arg=` line per smoke-command argument in `../../../shims/<tool>.conf`. Do not put multiple shell words on one `smoke_arg=` line.
+- Use `smoke_env=KEY=value` only for non-secret selector or test-mode values needed by the smoke command. Do not hardcode tool-specific smoke defaults in the generic test runner.
+
+## Definition of Done
+
+Use this checklist before final verification for every new runtime shim:
+
+1. Runtime wrapper exists at `shims/<tool>` and is executable.
+2. If a shim has multiple-versions: create a generic dispatcher shim along with versioned shims (`shims/oc`, `shims/oc_4_18`, etc.)
+3. Shim config exists at `shims/<tool>.conf` with a non-mutating smoke command.
+4. Each smoke command argument uses its own `smoke_arg=` line; selector-only environment uses `smoke_env=KEY=value`.
+5. `lib/repo/shimmy-catalog.sh` includes the installable shim name in `SHIMMY_SUPPORTED_SHIMS`.
+6. `scripts/status-shimmy.sh` describes the image, dispatcher, or local build reference instead of returning `unknown`.
+7. `scripts/update-shimmy.sh` handles the shim when remote images need `--pull` refresh or local images need `--build` refresh.
+8. Top level `README.md` includes the shim in the sorted `Included Shims` table and links to shim docs.
+9. `docs/shims/<tool>.md` documents image defaults, env vars, mounts, examples, and any credential or config expectations.
+10. `.agents/skills/shimmy-tool-<tool>/SKILL.md` exists for new or materially changed shims and is included in the `.agents/skills/.shimmy-skills-manifest.txt`.
+11. `scripts/test-shimmy.sh` covers direct preview or smoke behavior, installed smoke config, status output, and update pull/build behavior when applicable.
+12. All tests pass
+13. A final `rg` scan for the shim name across `README.md`, `docs/`, `shims/`, `scripts/`, `lib/repo/`, and `.agents/skills/` confirms the feature is wired through the expected repo surfaces.
 
 ## Tool Skill Rules
 
@@ -86,6 +108,7 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 - Use Podman and non-mutating commands such as `--help` or `version` when validating container execution.
 - Update `../../../README.md` so image defaults, env vars, mounts, and examples stay aligned with the implementation.
 - Update `../../../scripts/status-shimmy.sh` image description logic when adding a new remote-image default, local build image, or image override env var so installed status output stays accurate.
+- Update `../../../scripts/update-shimmy.sh` refresh logic when adding a remote-image shim that supports `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` or a local-build shim that supports `SHIMMY_{TOOL_PREFIX}_IMAGE_BUILD=always`.
 - Keep the `Included Shims` table in `../../../README.md` alphabetized by Tool name after README updates.
 
 ## Learning Guidance
@@ -99,3 +122,4 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 - If `podman info` succeeds but a Shimmy wrapper reports Podman unreachable, treat it as the nested-wrapper approval case. Request approval for the exact repo-local or installed wrapper smoke command prefix before trying fallback tools.
 - When `./shimmy skills install --target repo shimmy-tool-<tool>` reports skill content is current but manifest writing fails due local filesystem metadata or permissions, note that the skill files may still be present while the manifest needs a targeted follow-up.
 - For image-backed shims, confirm the candidate image supports Shimmy's resolved platforms before selecting it: `linux/amd64` on Linux and `linux/arm64` on macOS. Prefer official image documentation or manifest inspection over Docker Hub assumptions, and avoid defaults that make Apple Silicon run amd64 images under emulation unless the user explicitly accepts that tradeoff.
+- `smoke_arg=` lines are not shell-split by `shimmy test`. Use repeated `smoke_arg=` entries for multi-argument commands, and use `smoke_env=KEY=value` for non-secret selector variables such as `SHIMMY_OC_VERSION=4.20`.

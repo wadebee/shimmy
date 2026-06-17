@@ -243,24 +243,24 @@ print_manifest_status() {
   shim_lib_dir=$5
   root_manifest_file=$6
 
-  root_dispatcher_dir=$SHIMMY_PROFILE_DISPATCHER_DIR
+  root_bin_dir=$SHIMMY_INSTALL_BIN_DIR
   root_control_bin=$install_dir/bin/shimmy
   root_activate_file=$install_dir/activate.sh
   root_profile_default=default
 
   if [ -f "$root_manifest_file" ]; then
-    manifest_dispatcher_dir=$(shimmy_read_manifest_value "$root_manifest_file" dispatcher_dir || true)
+    manifest_bin_dir=$(shimmy_read_manifest_value "$root_manifest_file" bin_dir || true)
     manifest_control_bin=$(shimmy_read_manifest_value "$root_manifest_file" control_bin || true)
     manifest_activate_file=$(shimmy_read_manifest_value "$root_manifest_file" activate_file || true)
     manifest_profile_default=$(shimmy_read_manifest_value "$root_manifest_file" shimmy_profile_default || true)
-    [ -z "$manifest_dispatcher_dir" ] || root_dispatcher_dir=$manifest_dispatcher_dir
+    [ -z "$manifest_bin_dir" ] || root_bin_dir=$manifest_bin_dir
     [ -z "$manifest_control_bin" ] || root_control_bin=$manifest_control_bin
     [ -z "$manifest_activate_file" ] || root_activate_file=$manifest_activate_file
     [ -z "$manifest_profile_default" ] || root_profile_default=$manifest_profile_default
   fi
 
   printf 'shimmy_install_dir=%s\n' "$install_dir"
-  printf 'shimmy_dispatcher_dir=%s\n' "$root_dispatcher_dir"
+  printf 'shimmy_bin_dir=%s\n' "$root_bin_dir"
   printf 'shimmy_control_bin=%s\n' "$root_control_bin"
   printf 'shimmy_activate_file=%s\n' "$root_activate_file"
   printf 'shimmy_profile_default=%s\n' "$root_profile_default"
@@ -270,7 +270,7 @@ print_manifest_status() {
   else
     printf 'shimmy_installed=no\n'
   fi
-  if path_contains "$root_dispatcher_dir"; then
+  if path_contains "$root_bin_dir"; then
     printf 'shimmy_path_active=yes\n'
   else
     printf 'shimmy_path_active=no\n'
@@ -281,11 +281,9 @@ print_manifest_status() {
   printf 'shimmy_profile_dir=%s\n' "$SHIMMY_PROFILE_DIR"
   printf 'shimmy_profile_manifest_path=%s\n' "$SHIMMY_PROFILE_MANIFEST_PATH"
   printf 'shimmy_profile_config_dir=%s\n' "$SHIMMY_PROFILE_CONFIG_DIR"
-  printf 'shimmy_profile_bin_dir=%s\n' "$SHIMMY_PROFILE_BIN_DIR"
   printf 'shimmy_profile_implementation_dir=%s\n' "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"
   printf 'shimmy_profile_images_dir=%s\n' "$images_dir"
   printf 'shimmy_profile_shim_lib_dir=%s\n' "$shim_lib_dir"
-  printf 'shimmy_profile_shim_dir=%s\n' "$shim_dir"
 
   if [ -f "$manifest_file" ]; then
     shim_source=$(shimmy_read_manifest_value "$manifest_file" shim_source || true)
@@ -375,7 +373,7 @@ main() {
   install_dir=$SHIMMY_PROFILE_INSTALL_DIR
   manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
   root_manifest_file=$install_dir/install-manifest.txt
-  shim_dir=$SHIMMY_PROFILE_BIN_DIR
+  shim_dir=$SHIMMY_PROFILE_IMPLEMENTATION_DIR
   images_dir=$SHIMMY_PROFILE_DIR/images
   shim_lib_dir=$SHIMMY_PROFILE_DIR/lib/shims
 
@@ -386,7 +384,7 @@ main() {
       shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$install_dir" "$ROOT_DIR" || fail "unsupported Shimmy profile: ${SHIMMY_PROFILE_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
       manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
       root_manifest_file=$install_dir/install-manifest.txt
-      shim_dir=$SHIMMY_PROFILE_BIN_DIR
+      shim_dir=$SHIMMY_PROFILE_IMPLEMENTATION_DIR
       images_dir=$SHIMMY_PROFILE_DIR/images
       shim_lib_dir=$SHIMMY_PROFILE_DIR/lib/shims
     fi
@@ -417,17 +415,15 @@ main() {
   printf 'install_dir=%s\n' "$install_dir"
   printf 'profile_dir=%s\n' "$SHIMMY_PROFILE_DIR"
   printf 'config_dir=%s\n' "$SHIMMY_PROFILE_CONFIG_DIR"
-  printf 'dispatcher_dir=%s\n' "$SHIMMY_PROFILE_DISPATCHER_DIR"
-  printf 'bin_dir=%s\n' "$SHIMMY_PROFILE_BIN_DIR"
+  printf 'bin_dir=%s\n' "$SHIMMY_INSTALL_BIN_DIR"
   printf 'manifest_path=%s\n' "$SHIMMY_PROFILE_MANIFEST_PATH"
   printf 'profile_implementation_dir=%s\n' "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"
   if [ -n "$SHIMMY_PROFILE_SOURCE_CHECKOUT" ]; then
     printf 'source_checkout=%s\n' "$SHIMMY_PROFILE_SOURCE_CHECKOUT"
   fi
-  printf 'shim_dir=%s\n' "$shim_dir"
   printf 'images_dir=%s\n' "$images_dir"
   printf 'shim_lib_dir=%s\n' "$shim_lib_dir"
-  if path_contains "$shim_dir"; then
+  if path_contains "$SHIMMY_INSTALL_BIN_DIR"; then
     printf 'path_active: yes\n'
   else
     printf 'path_active: no\n'

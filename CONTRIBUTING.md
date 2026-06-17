@@ -162,7 +162,7 @@ Examples:
 - `shim_name_requested`
 - `SHIMMY_AWS_IMAGE`
 - `SHIMMY_INSTALL_DIR`
-- `SHIMMY_SHIM_DIR`
+- `SHIMMY_PROFILE_ACTIVE`
 
 Avoid:
 

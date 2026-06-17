@@ -260,25 +260,19 @@ resolve_install_paths() {
 
   SHIMMY_PROFILE_RESOLVED=$SHIMMY_PROFILE_NAME
   SHIMMY_INSTALL_DIR=$SHIMMY_PROFILE_INSTALL_DIR
-  SHIMMY_DISPATCHER_DIR=$SHIMMY_PROFILE_DISPATCHER_DIR
+  SHIMMY_BIN_DIR=$SHIMMY_INSTALL_BIN_DIR
   SHIMMY_PROFILE_MANIFEST_FILE=$SHIMMY_PROFILE_MANIFEST_PATH
   SHIMMY_ROOT_MANIFEST_FILE=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" install-manifest.txt)
-  SHIMMY_LEGACY_MANIFEST_FILE=$SHIMMY_ROOT_MANIFEST_FILE
-  SHIMMY_LEGACY_SHIM_DIR=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" shims)
-  SHIMMY_LEGACY_IMAGES_DIR=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" images)
-  SHIMMY_LEGACY_SHIM_LIB_DIR=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" lib/shims)
-  SHIMMY_SHIM_DIR=$SHIMMY_PROFILE_BIN_DIR
   SHIMMY_IMAGES_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_DIR" images)
   SHIMMY_SHIM_LIB_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_DIR" lib/shims)
-  SHIMMY_CONTROL_BIN_DIR=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" bin)
-  SHIMMY_CONTROL_BIN=$(shimmy_join_path "$SHIMMY_CONTROL_BIN_DIR" shimmy)
-  SHIMMY_CONTROL_SOURCE_DIR=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" libexec/shimmy)
-  SHIMMY_CONTROL_SCRIPT_DIR=$(shimmy_join_path "$SHIMMY_CONTROL_SOURCE_DIR" scripts)
-  SHIMMY_CONTROL_DISPATCHER=$(shimmy_join_path "$SHIMMY_CONTROL_SCRIPT_DIR" dispatch-shimmy.sh)
-  SHIMMY_CONTROL_SHIMS_DIR=$(shimmy_join_path "$SHIMMY_CONTROL_SOURCE_DIR" shims)
-  SHIMMY_CONTROL_IMAGES_DIR=$(shimmy_join_path "$SHIMMY_CONTROL_SOURCE_DIR" images)
-  SHIMMY_CONTROL_REPO_LIB_DIR=$(shimmy_join_path "$SHIMMY_CONTROL_SOURCE_DIR" lib/repo)
-  SHIMMY_CONTROL_SHIM_LIB_DIR=$(shimmy_join_path "$SHIMMY_CONTROL_SOURCE_DIR" lib/shims)
+  SHIMMY_CONTROL_BIN=$(shimmy_join_path "$SHIMMY_BIN_DIR" shimmy)
+  SHIMMY_CORE_DIR=$SHIMMY_INSTALL_CORE_DIR
+  SHIMMY_CORE_SCRIPT_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" scripts)
+  SHIMMY_CORE_DISPATCHER=$(shimmy_join_path "$SHIMMY_CORE_SCRIPT_DIR" dispatch-shimmy.sh)
+  SHIMMY_CORE_SHIMS_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" shims)
+  SHIMMY_CORE_IMAGES_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" images)
+  SHIMMY_CORE_REPO_LIB_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" lib/repo)
+  SHIMMY_CORE_SHIM_LIB_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" lib/shims)
   SHIMMY_ACTIVATE_FILE=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" activate.sh)
   INSTALL_MANIFEST_FILE=$SHIMMY_PROFILE_MANIFEST_FILE
 }
@@ -295,22 +289,20 @@ load_install_root_from_manifest() {
 
   SHIMMY_INSTALL_DIR=$(shimmy_trim_path_trailing_slash "$manifest_install_dir")
   shimmy_profile_paths_resolve "$SHIMMY_PROFILE_RESOLVED" "$SHIMMY_INSTALL_DIR" "$ROOT_DIR" || return 1
+  SHIMMY_BIN_DIR=$SHIMMY_INSTALL_BIN_DIR
   SHIMMY_PROFILE_MANIFEST_FILE=$SHIMMY_PROFILE_MANIFEST_PATH
-  SHIMMY_SHIM_DIR=$SHIMMY_PROFILE_BIN_DIR
   SHIMMY_IMAGES_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_DIR" images)
   SHIMMY_SHIM_LIB_DIR=$(shimmy_join_path "$SHIMMY_PROFILE_DIR" lib/shims)
-  SHIMMY_CONTROL_BIN_DIR=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" bin)
-  SHIMMY_CONTROL_BIN=$(shimmy_join_path "$SHIMMY_CONTROL_BIN_DIR" shimmy)
-  SHIMMY_CONTROL_SOURCE_DIR=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" libexec/shimmy)
-  SHIMMY_CONTROL_SCRIPT_DIR=$(shimmy_join_path "$SHIMMY_CONTROL_SOURCE_DIR" scripts)
-  SHIMMY_CONTROL_DISPATCHER=$(shimmy_join_path "$SHIMMY_CONTROL_SCRIPT_DIR" dispatch-shimmy.sh)
-  SHIMMY_CONTROL_SHIMS_DIR=$(shimmy_join_path "$SHIMMY_CONTROL_SOURCE_DIR" shims)
-  SHIMMY_CONTROL_IMAGES_DIR=$(shimmy_join_path "$SHIMMY_CONTROL_SOURCE_DIR" images)
-  SHIMMY_CONTROL_REPO_LIB_DIR=$(shimmy_join_path "$SHIMMY_CONTROL_SOURCE_DIR" lib/repo)
-  SHIMMY_CONTROL_SHIM_LIB_DIR=$(shimmy_join_path "$SHIMMY_CONTROL_SOURCE_DIR" lib/shims)
+  SHIMMY_CONTROL_BIN=$(shimmy_join_path "$SHIMMY_BIN_DIR" shimmy)
+  SHIMMY_CORE_DIR=$SHIMMY_INSTALL_CORE_DIR
+  SHIMMY_CORE_SCRIPT_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" scripts)
+  SHIMMY_CORE_DISPATCHER=$(shimmy_join_path "$SHIMMY_CORE_SCRIPT_DIR" dispatch-shimmy.sh)
+  SHIMMY_CORE_SHIMS_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" shims)
+  SHIMMY_CORE_IMAGES_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" images)
+  SHIMMY_CORE_REPO_LIB_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" lib/repo)
+  SHIMMY_CORE_SHIM_LIB_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" lib/shims)
   SHIMMY_ACTIVATE_FILE=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" activate.sh)
   SHIMMY_ROOT_MANIFEST_FILE=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" install-manifest.txt)
-  SHIMMY_LEGACY_MANIFEST_FILE=$SHIMMY_ROOT_MANIFEST_FILE
   INSTALL_MANIFEST_FILE=$SHIMMY_PROFILE_MANIFEST_FILE
 }
 
@@ -343,7 +335,7 @@ install_directory_copy() {
 install_agent_skill_assets() {
   [ -d "$SOURCE_AGENT_SKILLS_DIR" ] || return 0
 
-  target_root=$SHIMMY_CONTROL_SOURCE_DIR/.agents/skills
+  target_root=$SHIMMY_CORE_DIR/.agents/skills
   mkdir -p "$target_root"
 
   for source_path in "$SOURCE_AGENT_SKILLS_DIR"/shimmy-*; do
@@ -356,14 +348,14 @@ install_agent_skill_assets() {
 install_shim_management_assets() {
   shim_name=$1
   source_path=$SOURCE_SHIMS_DIR/$shim_name
-  target_path=$SHIMMY_CONTROL_SHIMS_DIR/$shim_name
+  target_path=$SHIMMY_CORE_SHIMS_DIR/$shim_name
 
   [ -f "$source_path" ] || fail "missing shim source: $source_path"
   log_debug "Copying management source shim $shim_name to $target_path"
   install_file "$source_path" "$target_path"
 
   source_path=$SOURCE_SHIMS_DIR/$shim_name.conf
-  target_path=$SHIMMY_CONTROL_SHIMS_DIR/$shim_name.conf
+  target_path=$SHIMMY_CORE_SHIMS_DIR/$shim_name.conf
   if [ -f "$source_path" ]; then
     log_debug "Copying management source shim config $shim_name to $target_path"
     if [ "$source_path" != "$target_path" ]; then
@@ -374,7 +366,7 @@ install_shim_management_assets() {
   fi
 
   source_path=$SOURCE_IMAGES_DIR/$shim_name
-  target_path=$SHIMMY_CONTROL_IMAGES_DIR/$shim_name
+  target_path=$SHIMMY_CORE_IMAGES_DIR/$shim_name
   if [ -d "$source_path" ]; then
     log_debug "Copying management source image support for $shim_name to $target_path"
     install_directory_copy "$source_path" "$target_path"
@@ -389,7 +381,7 @@ install_shim_runtime_assets() {
       install_shim_upstream_exec_wrapper "$shim_name"
       ;;
     default)
-      install_shim_runtime_assets_to "$shim_name" "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR"
+      install_shim_runtime_assets_to "$shim_name" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" "$SHIMMY_IMAGES_DIR"
       ;;
   esac
 }
@@ -453,18 +445,18 @@ install_shim_image_assets_to() {
 
 install_shim_dispatcher() {
   shim_name=$1
-  dispatcher_path=$SHIMMY_DISPATCHER_DIR/$shim_name
+  dispatcher_path=$SHIMMY_BIN_DIR/$shim_name
 
-  mkdir -p "$SHIMMY_DISPATCHER_DIR"
+  mkdir -p "$SHIMMY_BIN_DIR"
   rm -f "$dispatcher_path"
-  ln -s ../libexec/shimmy/scripts/dispatch-shimmy.sh "$dispatcher_path"
+  ln -s ../core/scripts/dispatch-shimmy.sh "$dispatcher_path"
 }
 
 install_shim_upstream_exec_wrapper() {
   shim_name=$1
-  wrapper_path=$SHIMMY_SHIM_DIR/$shim_name
+  wrapper_path=$SHIMMY_PROFILE_IMPLEMENTATION_DIR/$shim_name
 
-  mkdir -p "$SHIMMY_SHIM_DIR"
+  mkdir -p "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"
   render_shim_upstream_exec_wrapper "$shim_name" > "$wrapper_path"
   chmod 755 "$wrapper_path"
 }
@@ -503,30 +495,30 @@ install_control_assets() {
   [ -d "$SOURCE_IMAGES_DIR" ] || fail "missing source image support directory: $SOURCE_IMAGES_DIR"
   [ -d "$SOURCE_REPO_LIB_DIR" ] || fail "missing source repo helper directory: $SOURCE_REPO_LIB_DIR"
 
-  if [ "$ROOT_DIR" != "$SHIMMY_CONTROL_SOURCE_DIR" ]; then
-    rm -rf "$SHIMMY_CONTROL_SOURCE_DIR"
+  if [ "$ROOT_DIR" != "$SHIMMY_CORE_DIR" ]; then
+    rm -rf "$SHIMMY_CORE_DIR"
   fi
 
-  mkdir -p "$SHIMMY_CONTROL_BIN_DIR" "$SHIMMY_CONTROL_SCRIPT_DIR" \
-    "$SHIMMY_CONTROL_SHIMS_DIR" "$SHIMMY_CONTROL_IMAGES_DIR" \
-    "$(dirname "$SHIMMY_CONTROL_REPO_LIB_DIR")"
+  mkdir -p "$SHIMMY_BIN_DIR" "$SHIMMY_CORE_SCRIPT_DIR" \
+    "$SHIMMY_CORE_SHIMS_DIR" "$SHIMMY_CORE_IMAGES_DIR" \
+    "$(dirname "$SHIMMY_CORE_REPO_LIB_DIR")"
 
   install_file "$SOURCE_CONTROL_FILE" "$SHIMMY_CONTROL_BIN"
-  install_file "$SOURCE_CONTROL_FILE" "$SHIMMY_CONTROL_SOURCE_DIR/shimmy"
+  install_file "$SOURCE_CONTROL_FILE" "$SHIMMY_CORE_DIR/shimmy"
 
   for script_name in activate-shimmy.sh dispatch-shimmy.sh install-shimmy.sh netinfo-shimmy.sh skills-shimmy.sh status-shimmy.sh test-shimmy.sh update-shimmy.sh; do
     source_path=$SOURCE_SCRIPT_DIR/$script_name
-    target_path=$SHIMMY_CONTROL_SCRIPT_DIR/$script_name
+    target_path=$SHIMMY_CORE_SCRIPT_DIR/$script_name
     [ -f "$source_path" ] || fail "missing management script source: $source_path"
     install_file "$source_path" "$target_path"
   done
 
-  install_directory_copy "$SOURCE_REPO_LIB_DIR" "$SHIMMY_CONTROL_REPO_LIB_DIR"
-  install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_CONTROL_SHIM_LIB_DIR"
-  install_directory_copy "$SOURCE_SHIMS_DIR" "$SHIMMY_CONTROL_SHIMS_DIR"
-  install_directory_copy "$SOURCE_IMAGES_DIR" "$SHIMMY_CONTROL_IMAGES_DIR"
+  install_directory_copy "$SOURCE_REPO_LIB_DIR" "$SHIMMY_CORE_REPO_LIB_DIR"
+  install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_CORE_SHIM_LIB_DIR"
+  install_directory_copy "$SOURCE_SHIMS_DIR" "$SHIMMY_CORE_SHIMS_DIR"
+  install_directory_copy "$SOURCE_IMAGES_DIR" "$SHIMMY_CORE_IMAGES_DIR"
   if [ -d "$SOURCE_PLUGIN_DIR" ]; then
-    install_directory_copy "$SOURCE_PLUGIN_DIR" "$SHIMMY_CONTROL_SOURCE_DIR/plugins"
+    install_directory_copy "$SOURCE_PLUGIN_DIR" "$SHIMMY_CORE_DIR/plugins"
   fi
   install_agent_skill_assets
 }
@@ -610,28 +602,19 @@ share_management_skills() {
 }
 
 write_activate_file() {
-  quoted_dispatcher_dir=$(shimmy_quote_shell_word "$SHIMMY_DISPATCHER_DIR")
-  quoted_control_bin_dir=$(shimmy_quote_shell_word "$SHIMMY_CONTROL_BIN_DIR")
+  quoted_bin_dir=$(shimmy_quote_shell_word "$SHIMMY_BIN_DIR")
 
   {
     printf "SHIMMY_PROFILE_ACTIVE='default'\n"
     printf 'export SHIMMY_PROFILE_ACTIVE\n'
-    printf 'shimmy_activate_dispatcher_dir=%s\n' "$quoted_dispatcher_dir"
-    printf 'if [ -d "$shimmy_activate_dispatcher_dir" ]; then\n'
+    printf 'shimmy_activate_bin_dir=%s\n' "$quoted_bin_dir"
+    printf 'if [ -d "$shimmy_activate_bin_dir" ]; then\n'
     printf '  case ":${PATH:-}:" in\n'
-    printf '    *:"$shimmy_activate_dispatcher_dir":*) ;;\n'
-    printf '    *) PATH=$shimmy_activate_dispatcher_dir${PATH:+":$PATH"} ;;\n'
+    printf '    *:"$shimmy_activate_bin_dir":*) ;;\n'
+    printf '    *) PATH=$shimmy_activate_bin_dir${PATH:+":$PATH"} ;;\n'
     printf '  esac\n'
     printf 'fi\n'
-    printf 'unset shimmy_activate_dispatcher_dir\n'
-    printf 'shimmy_activate_control_bin_dir=%s\n' "$quoted_control_bin_dir"
-    printf 'if [ -d "$shimmy_activate_control_bin_dir" ]; then\n'
-    printf '  case ":${PATH:-}:" in\n'
-    printf '    *:"$shimmy_activate_control_bin_dir":*) ;;\n'
-    printf '    *) PATH=$shimmy_activate_control_bin_dir${PATH:+":$PATH"} ;;\n'
-    printf '  esac\n'
-    printf 'fi\n'
-    printf 'unset shimmy_activate_control_bin_dir\n'
+    printf 'unset shimmy_activate_bin_dir\n'
     printf "shimmy_activate_podman_dir='/opt/podman/bin'\n"
     printf 'if [ -x "$shimmy_activate_podman_dir/podman" ]; then\n'
     printf '  case ":${PATH:-}:" in\n'
@@ -685,7 +668,7 @@ write_root_manifest_file() {
   {
     printf 'shimmy_install_manifest_version=1\n'
     printf 'install_dir=%s\n' "$SHIMMY_INSTALL_DIR"
-    printf 'dispatcher_dir=%s\n' "$SHIMMY_DISPATCHER_DIR"
+    printf 'bin_dir=%s\n' "$SHIMMY_BIN_DIR"
     printf 'control_bin=%s\n' "$SHIMMY_CONTROL_BIN"
     printf 'activate_file=%s\n' "$SHIMMY_ACTIVATE_FILE"
     printf 'shimmy_profile_default=default\n'
@@ -719,11 +702,10 @@ write_profile_manifest_file() {
   mkdir -p "$(dirname "$manifest_file")"
 
   {
-    printf 'shimmy_profile_manifest_version=1\n'
-    printf 'shimmy_profile_name=%s\n' "$SHIMMY_PROFILE_RESOLVED"
-    printf 'config_dir=%s\n' "$SHIMMY_PROFILE_CONFIG_DIR"
-    printf 'bin_dir=%s\n' "$SHIMMY_SHIM_DIR"
-    printf 'profile_implementation_dir=%s\n' "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"
+      printf 'shimmy_profile_manifest_version=1\n'
+      printf 'shimmy_profile_name=%s\n' "$SHIMMY_PROFILE_RESOLVED"
+      printf 'config_dir=%s\n' "$SHIMMY_PROFILE_CONFIG_DIR"
+      printf 'profile_implementation_dir=%s\n' "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"
     case "$SHIMMY_PROFILE_RESOLVED" in
       upstream)
         printf 'shim_source=generated-exec-wrapper\n'
@@ -799,17 +781,11 @@ perform_install() {
   log_info "Selected Shimmy profile: $SHIMMY_PROFILE_RESOLVED"
 
   mkdir -p "$SHIMMY_INSTALL_DIR"
-  rm -rf "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$SHIMMY_SHIM_LIB_DIR" "$SHIMMY_PROFILE_CONFIG_DIR"
-  if [ "$SHIMMY_PROFILE_RESOLVED" = default ]; then
-    rm -rf "$SHIMMY_LEGACY_SHIM_DIR"
-  fi
+  rm -rf "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" "$SHIMMY_IMAGES_DIR" "$SHIMMY_SHIM_LIB_DIR" "$SHIMMY_PROFILE_CONFIG_DIR"
   rm -f "$SHIMMY_CONTROL_BIN"
-  mkdir -p "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")" "$SHIMMY_PROFILE_CONFIG_DIR/shims" "$SHIMMY_DISPATCHER_DIR"
-  if [ "$SHIMMY_PROFILE_RESOLVED" = default ]; then
-    mkdir -p "$SHIMMY_LEGACY_SHIM_DIR"
-  fi
+  mkdir -p "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")" "$SHIMMY_PROFILE_CONFIG_DIR/shims" "$SHIMMY_BIN_DIR"
 
-  log_debug "Copying management command support to $SHIMMY_CONTROL_SOURCE_DIR"
+  log_debug "Copying management command support to $SHIMMY_CORE_DIR"
   install_control_assets
 
   for shim_name in $(selected_shim_list); do
@@ -857,8 +833,8 @@ perform_shim_install() {
   [ -d "$SOURCE_IMAGES_DIR" ] || fail "missing source image support directory: $SOURCE_IMAGES_DIR"
   [ -d "$SOURCE_SHIM_LIB_DIR" ] || fail "missing source shim helper directory: $SOURCE_SHIM_LIB_DIR"
 
-  mkdir -p "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")" "$SHIMMY_PROFILE_CONFIG_DIR/shims" "$SHIMMY_DISPATCHER_DIR" \
-    "$SHIMMY_CONTROL_SHIMS_DIR" "$SHIMMY_CONTROL_IMAGES_DIR"
+  mkdir -p "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")" "$SHIMMY_PROFILE_CONFIG_DIR/shims" "$SHIMMY_BIN_DIR" \
+    "$SHIMMY_CORE_SHIMS_DIR" "$SHIMMY_CORE_IMAGES_DIR"
 
   installed_shims=$(shimmy_read_manifest_shims "$INSTALL_MANIFEST_FILE" || true)
   shims_to_append=
@@ -925,9 +901,9 @@ perform_shim_refresh() {
   log_info "Refreshing shimmy assets in $SHIMMY_INSTALL_DIR"
   log_info "Selected Shimmy profile: $SHIMMY_PROFILE_RESOLVED"
 
-  mkdir -p "$SHIMMY_INSTALL_DIR" "$SHIMMY_SHIM_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")" "$SHIMMY_PROFILE_CONFIG_DIR/shims" "$SHIMMY_DISPATCHER_DIR"
+  mkdir -p "$SHIMMY_INSTALL_DIR" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")" "$SHIMMY_PROFILE_CONFIG_DIR/shims" "$SHIMMY_BIN_DIR"
 
-  log_debug "Copying management command support to $SHIMMY_CONTROL_SOURCE_DIR"
+  log_debug "Copying management command support to $SHIMMY_CORE_DIR"
   install_control_assets
 
   for shim_name in $(selected_shim_list); do
@@ -970,23 +946,14 @@ remove_path_if_present() {
 }
 
 remove_empty_install_dirs() {
-  if [ -d "$SHIMMY_INSTALL_DIR/lib" ]; then
-    rmdir "$SHIMMY_INSTALL_DIR/lib" 2>/dev/null || true
-  fi
   if [ -d "$SHIMMY_INSTALL_DIR/profiles" ]; then
     rmdir "$SHIMMY_INSTALL_DIR/profiles" 2>/dev/null || true
-  fi
-  if [ -d "$SHIMMY_INSTALL_DIR/images" ]; then
-    rmdir "$SHIMMY_INSTALL_DIR/images" 2>/dev/null || true
-  fi
-  if [ -d "$SHIMMY_INSTALL_DIR/shims" ]; then
-    rmdir "$SHIMMY_INSTALL_DIR/shims" 2>/dev/null || true
   fi
   if [ -d "$SHIMMY_INSTALL_DIR/bin" ]; then
     rmdir "$SHIMMY_INSTALL_DIR/bin" 2>/dev/null || true
   fi
-  if [ -d "$SHIMMY_INSTALL_DIR/libexec" ]; then
-    rmdir "$SHIMMY_INSTALL_DIR/libexec" 2>/dev/null || true
+  if [ -d "$SHIMMY_INSTALL_DIR/core" ]; then
+    rmdir "$SHIMMY_INSTALL_DIR/core" 2>/dev/null || true
   fi
 
   if [ -d "$SHIMMY_INSTALL_DIR" ]; then
@@ -1006,7 +973,7 @@ write_root_manifest_existing_profiles() {
   {
     printf 'shimmy_install_manifest_version=1\n'
     printf 'install_dir=%s\n' "$SHIMMY_INSTALL_DIR"
-    printf 'dispatcher_dir=%s\n' "$SHIMMY_DISPATCHER_DIR"
+    printf 'bin_dir=%s\n' "$SHIMMY_BIN_DIR"
     printf 'control_bin=%s\n' "$SHIMMY_CONTROL_BIN"
     printf 'activate_file=%s\n' "$SHIMMY_ACTIVATE_FILE"
     printf 'shimmy_profile_default=default\n'
@@ -1042,19 +1009,15 @@ perform_uninstall_profile() {
 
   shims_to_check=$(shimmy_read_manifest_shims "$uninstall_manifest_file" || true)
   startup_files_to_remove=$(shimmy_read_manifest_values "$uninstall_manifest_file" startup_file || true)
-  skip_manifest_two=
-  if [ "$SHIMMY_PROFILE_RESOLVED" = default ]; then
-    skip_manifest_two=$SHIMMY_LEGACY_MANIFEST_FILE
-  fi
 
   remove_path_if_present "$SHIMMY_PROFILE_DIR" "profile"
 
   while IFS= read -r shim_name; do
     [ -n "$shim_name" ] || continue
-    if shimmy_contains_profile_shim_other "$SHIMMY_INSTALL_DIR" "$shim_name" "$uninstall_manifest_file" "$skip_manifest_two" "$SHIMMY_LEGACY_MANIFEST_FILE"; then
+    if shimmy_contains_profile_shim_other "$SHIMMY_INSTALL_DIR" "$shim_name" "$uninstall_manifest_file"; then
       continue
     fi
-    remove_path_if_present "$SHIMMY_DISPATCHER_DIR/$shim_name" "dispatcher"
+    remove_path_if_present "$SHIMMY_BIN_DIR/$shim_name" "dispatcher"
   done <<EOF
 $shims_to_check
 EOF
@@ -1070,7 +1033,7 @@ $startup_files_to_remove
 EOF
     fi
     remove_path_if_present "$SHIMMY_CONTROL_BIN" "management command"
-    remove_path_if_present "$SHIMMY_CONTROL_SOURCE_DIR" "management support"
+    remove_path_if_present "$SHIMMY_CORE_DIR" "management support"
     remove_path_if_present "$SHIMMY_ACTIVATE_FILE" "activation"
     remove_path_if_present "$SHIMMY_ROOT_MANIFEST_FILE" "root manifest"
   else

@@ -1,0 +1,22 @@
+ .agents/skills/.shimmy-skills-manifest.txt         |   1 -
+ .agents/skills/shimmy-tool-oc/SKILL.md             |  85 ---------
+ .../skills/shimmy-tool-opnsense-mcp-admin/SKILL.md |   4 -
+ README.md                                          |   6 +-
+ docs/shims/oc.md                                   |  88 +++-------
+ docs/shims/oc_4_18.md                              |   7 -
+ docs/shims/oc_4_20.md                              |   7 -
+ docs/shims/oc_4_22.md                              |   7 -
+ docs/templates/generic-shim/SKILL.md               |   2 +-
+ docs/testing.md                                    |   4 -
+ scripts/status-shimmy.sh                           |  12 --
+ scripts/test-shimmy.sh                             | 191 ++++++---------------
+ scripts/update-shimmy.sh                           |   9 -
+ shims/oc                                           |  36 ++--
+ shims/oc.conf                                      |   4 +-
+ shims/oc_4_18                                      |  18 +-
+ shims/oc_4_18.conf                                 |   2 +-
+ shims/oc_4_20                                      |  18 +-
+ shims/oc_4_20.conf                                 |   2 +-
+ shims/oc_4_22                                      |  18 +-
+ shims/oc_4_22.conf                                 |   2 +-
+ 21 files changed, 116 insertions(+), 407 deletions(-)

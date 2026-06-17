@@ -109,7 +109,7 @@ is_installed_management_update() {
 
   [ -n "${SHIMMY_CONTROL_INSTALL_DIR:-}" ] || return 1
 
-  control_source_dir=$install_dir/libexec/shimmy
+  control_source_dir=$install_dir/core
   [ -d "$control_source_dir/scripts" ] || return 1
 
   root_dir_real=$(cd -- "$ROOT_DIR" && pwd) || return 1
@@ -439,11 +439,11 @@ EOF
 
   profile_paths_resolve "$install_dir"
   if [ "$PULL_IMAGES" -eq 1 ]; then
-    run_pull_refresh "$SHIMMY_PROFILE_DISPATCHER_DIR" "$profile_name" "$shim_list"
+    run_pull_refresh "$SHIMMY_INSTALL_BIN_DIR" "$profile_name" "$shim_list"
   fi
 
   if [ "$BUILD_IMAGES" -eq 1 ]; then
-    run_build_refresh "$SHIMMY_PROFILE_DISPATCHER_DIR" "$SHIMMY_PROFILE_DIR/images" "$profile_name" "$shim_list"
+    run_build_refresh "$SHIMMY_INSTALL_BIN_DIR" "$SHIMMY_PROFILE_DIR/images" "$profile_name" "$shim_list"
   fi
 }
 
