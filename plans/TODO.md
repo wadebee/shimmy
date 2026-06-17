@@ -59,3 +59,6 @@ The temp clones are present; the earlier rg failed because the Shimmy rg wrapper
 The install commands exposed a stale manifest issue: the repo skills manifest still tracks the removed old skill, and skills install <new-skill> combines requested skills with existing manifest entries before validating sources. I’m going to make the installer tolerate stale manifest entries whose source skill no longer exists, then rerun the mandated commands.
 
 Read a fileRead .shimmy Skills Manifest.txt skill
+
+# --------- JQ empty command
+When jq is called without params, it appears to hang in the UI. Possibly redirect to jq --help?
