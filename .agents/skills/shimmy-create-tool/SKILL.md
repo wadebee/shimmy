@@ -69,17 +69,19 @@ Use this skill when the user wants a new shim for a CLI tool that does not alrea
 
 Use this checklist before final verification for every new runtime shim:
 
-1. Runtime wrapper exists at `../../../shims/<tool>` and is executable.
-2. Shim config exists at `../../../shims/<tool>.conf` with a non-mutating smoke command.
-3. Each smoke command argument uses its own `smoke_arg=` line; selector-only environment uses `smoke_env=KEY=value`.
-4. `../../../lib/repo/shimmy-catalog.sh` includes the installable shim name in `SHIMMY_SUPPORTED_SHIMS`.
-5. `../../../scripts/status-shimmy.sh` describes the image, dispatcher, or local build reference instead of returning `unknown`.
-6. `../../../scripts/update-shimmy.sh` handles the shim when remote images need `--pull` refresh or local images need `--build` refresh.
-7. `../../../README.md` includes the shim in the sorted `Included Shims` table and links to shim docs.
-8. `../../../docs/shims/<tool>.md` documents image defaults, env vars, mounts, examples, and any credential or config expectations.
-9. `../../../.agents/skills/shimmy-tool-<tool>/SKILL.md` exists for new or materially changed shims and is installed into the repo skills manifest.
-10. `../../../scripts/test-shimmy.sh` covers direct preview or smoke behavior, installed smoke config, status output, and update pull/build behavior when applicable.
-11. A final `rg` scan for the shim name across `README.md`, `docs/`, `shims/`, `scripts/`, `lib/repo/`, and `.agents/skills/` confirms the feature is wired through the expected repo surfaces.
+1. Runtime wrapper exists at `shims/<tool>` and is executable.
+2. If a shim has multiple-versions: create a generic dispatcher shim along with versioned shims (`shims/oc`, `shims/oc_4_18`, etc.)
+3. Shim config exists at `shims/<tool>.conf` with a non-mutating smoke command.
+4. Each smoke command argument uses its own `smoke_arg=` line; selector-only environment uses `smoke_env=KEY=value`.
+5. `lib/repo/shimmy-catalog.sh` includes the installable shim name in `SHIMMY_SUPPORTED_SHIMS`.
+6. `scripts/status-shimmy.sh` describes the image, dispatcher, or local build reference instead of returning `unknown`.
+7. `scripts/update-shimmy.sh` handles the shim when remote images need `--pull` refresh or local images need `--build` refresh.
+8. Top level `README.md` includes the shim in the sorted `Included Shims` table and links to shim docs.
+9. `docs/shims/<tool>.md` documents image defaults, env vars, mounts, examples, and any credential or config expectations.
+10. `.agents/skills/shimmy-tool-<tool>/SKILL.md` exists for new or materially changed shims and is included in the `.agents/skills/.shimmy-skills-manifest.txt`.
+11. `scripts/test-shimmy.sh` covers direct preview or smoke behavior, installed smoke config, status output, and update pull/build behavior when applicable.
+12. All tests pass
+13. A final `rg` scan for the shim name across `README.md`, `docs/`, `shims/`, `scripts/`, `lib/repo/`, and `.agents/skills/` confirms the feature is wired through the expected repo surfaces.
 
 ## Tool Skill Rules
 
