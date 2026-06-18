@@ -10,6 +10,8 @@ Use this as the starting point for a new shim skill or as a checklist for a one-
 ## Replace These Tokens
 
 - `<shim-name>`
+- `<kind-name>`
+- `<version-name>` as `<kind-name>_<major>_<minor>`
 - `<tool_prefix>` for env vars such as `SHIMMY_<TOOL_PREFIX>_IMAGE`
 - `<default-image>`
 - `<interactive-flag>` as `-i` or `-it`
@@ -26,8 +28,10 @@ Use this as the starting point for a new shim skill or as a checklist for a one-
 
 ## Required Outputs
 
-- `../../../shims/<shim-name>`
-- `../../../shims/<shim-name>.conf`
+- `../../../shims/<kind-name>`
+- `../../../shims/<version-name>`
+- `../../../shims/<kind-name>.conf`
+- `../../../shims/<version-name>.conf`
 - `../../../lib/repo/shimmy-catalog.sh`
 - `../../../scripts/status-shimmy.sh`
 - `../../../scripts/update-shimmy.sh`
@@ -37,7 +41,20 @@ Use this as the starting point for a new shim skill or as a checklist for a one-
 - `../../../.agents/skills/shimmy-tool-<shim-name>/SKILL.md` when the shim is new or materially changed
 - `../../../.agents/skills/.shimmy-skills-manifest.txt` after installing or updating the tool skill
 
-## Runtime Pattern
+## Kind Dispatcher Pattern
+
+```sh
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(
+  cd -- "$(dirname -- "$0")" && pwd
+)
+
+exec "$SCRIPT_DIR/<version-name>" "$@"
+```
+
+## Version Runtime Pattern
 
 ```sh
 #!/bin/sh
@@ -60,7 +77,7 @@ fi
 # shellcheck source=lib/shims/shimmy-podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
 
-shimmy_podman_preflight_or_preview_require "the <shim-name> shim" "$@"
+shimmy_podman_preflight_or_preview_require "the <kind-name> shim" "$@"
 
 if [ "$SHIMMY_<TOOL_PREFIX>_IMAGE_PULL" = "always" ]; then
   SHIMMY_<TOOL_PREFIX>_PULL_ARG=--pull=always
@@ -73,7 +90,14 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_P
 
 ```text
 shim_config_version=1
-shim_name=<shim-name>
+shim_name=<kind-name>
+smoke_arg=--preview-shim
+smoke_arg=<non-mutating-arg>
+```
+
+```text
+shim_config_version=1
+shim_name=<version-name>
 smoke_arg=<non-mutating-arg>
 ```
 
@@ -89,14 +113,14 @@ Use repeated `smoke_arg=` lines when the smoke command needs more than one argum
 - Use `SHIMMY_` for every Shimmy-defined user-facing environment variable; reserve non-`SHIMMY_` env vars for upstream-defined pass-through configuration.
 - Choose a pinned image unless there is a strong reason to use `latest`.
 - Decide whether the shim uses a remote image or a local build context before implementation; do not silently switch an existing shim's strategy.
-- For local-build shims, add `images/<shim-name>/Containerfile`, use `shimmy_local_image_ensure`, pass documented base/source override env vars as `--build-arg` values, describe status local refs, and add update `--build` behavior.
+- For local-build version shims, add `images/<version-name>/Containerfile`, use `shimmy_local_image_ensure`, pass documented base/source override env vars as `--build-arg` values, describe status local refs, and add update `--build` behavior.
 - Treat Podman as an explicit dependency. On macOS, remember the official pkg installer may place it at `/opt/podman/bin/podman`.
 - Use the shared Podman helper's platform resolver; do not hardcode per-shim platform logic.
 
 ## Change Checklist
 
-1. Add the shim to the supported shim catalog in `lib/repo/shimmy-catalog.sh`.
-2. Add a shim config with a non-mutating smoke command in `shims/<shim-name>.conf`.
+1. Add the kind, concrete version, version label, and default version to `lib/repo/shimmy-catalog.sh`.
+2. Add kind and version shim configs with non-mutating smoke commands.
 3. Use one `smoke_arg=` line per argv item and `smoke_env=KEY=value` only for non-secret selector variables.
 4. Add status image/dispatcher description logic in `scripts/status-shimmy.sh`.
 5. Add update pull/build refresh logic in `scripts/update-shimmy.sh` when the shim supports image pull or local build refresh.
@@ -104,5 +128,5 @@ Use repeated `smoke_arg=` lines when the smoke command needs more than one argum
 7. Document the tool in `README.md` and `docs/shims/<shim-name>.md`.
 8. Keep executable bits on runnable shell files.
 9. If the tool is new or materially changed, add a shim-specific skill folder under `../../../.agents/skills/` and install it into the repo skills manifest.
-10. For multi-version dispatchers, add dispatcher and versioned shims/configs, selector `smoke_env`, companion install behavior, selector error tests, preview tests, status/update tests, and docs for adding new tracks.
+10. For selectors or additional versions, add selector `smoke_env`, selector error tests, preview tests, status/update tests, and docs for adding new tracks.
 11. Run `git diff --check`, inspect `git diff --summary`, and finish with an `rg` or `git grep` surface scan across docs, shims, scripts, catalog, and skills.

@@ -5,7 +5,7 @@
 - Source repo README: <https://github.com/go-task/task/blob/main/README.md>
 - Latest release: <https://github.com/go-task/task/releases/latest>
 - Docs: <https://taskfile.dev/>
-- Shim image: local build from `images/task/Containerfile`
+- Shim image: local build from `images/task_3_45/Containerfile`
 
 ## Upstream README Summary
 
@@ -38,7 +38,7 @@ Environment:
 
 Local image behavior:
 
-- Shimmy builds `localhost/shimmy-task:<context-hash>-<platform>` from `images/task/Containerfile`.
+- Shimmy builds `localhost/shimmy-task-3_45:<context-hash>-<platform>` from `images/task_3_45/Containerfile`.
 
 Mounts:
 

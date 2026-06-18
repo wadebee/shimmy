@@ -39,7 +39,7 @@ Never bypass the install, update, activate, status, test, or uninstall scripts w
 
 ## Manifest Contract
 
-Each profile has a Shimmy-owned lifecycle state file. Keep manifests POSIX-readable: one `key=value` entry per line, with repeated keys allowed for lists such as `shim=` and `startup_file=`.
+Each profile has a Shimmy-owned lifecycle state file. Keep manifests POSIX-readable: one `key=value` entry per line, with repeated keys allowed for lists such as `kind=`, `kind_version=`, and `startup_file=`.
 
 Required baseline fields:
 
@@ -54,11 +54,18 @@ shim_source=...
 activate_file=...
 startup_shell=...
 startup_file=...
-shim=...
+kind=...
+kind_version=<kind>|default|<kind>_<major>_<minor>
+kind_version=<kind>|<version-label>|<kind>_<major>_<minor>
 shimmy_manifest_version=1
 shimmy_source_url=...
 shimmy_source_ref=...
 ```
+
+Kinds are the stable user-facing commands installed on `PATH`. Concrete version
+shims hold runtime behavior. `kind_version=` entries must include a `default`
+label for each installed kind and may include additional version labels such as
+`oc|4.18|oc_4_18`.
 
 Upstream profile manifests additionally record:
 
@@ -122,9 +129,10 @@ Install flow:
 2. Read existing state and manifest, if any.
 3. If not installed, run `shimmy install` or `./shimmy install` with the requested `--profile`, `--install-dir`, `--shim`, `--shell`, `--startup-file`, or `--no-startup` arguments.
 4. If installed, rerun install only when the requested install options differ or repair is needed.
-5. Share Shimmy agent skills during install, including tool skills for installed shims, by asking the user for `repo`, `profile`, or `plugin`, or by passing `--skills-target <target>` for non-interactive command-line installs.
-6. Validate installed state.
-7. Persist lifecycle state through manifest-aware Shimmy commands. Do not create a separate state file.
+5. Treat `--shim <kind>` as the primary install interface. It installs the kind dispatcher plus the catalog default version. Use `--shim <kind>@<version-label>` for a non-default version, for example `shimmy install --shim oc@4.18`.
+6. Share Shimmy agent skills during install, including tool skills for installed kinds, by asking the user for `repo`, `profile`, or `plugin`, or by passing `--skills-target <target>` for non-interactive command-line installs.
+7. Validate installed state.
+8. Persist lifecycle state through manifest-aware Shimmy commands. Do not create a separate state file.
 
 Activation is a shell-session action. Report the exact activation command, usually `eval "$(shimmy activate)"` for installed workflows or `eval "$(./shimmy activate --profile upstream)"` for maintainer upstream workflows, but do not assume the agent can mutate the user's current shell.
 
@@ -154,7 +162,7 @@ Supported update policies:
 1. Run `shimmy status --format manifest` or `./shimmy status --format manifest`.
 2. Confirm the selected profile manifest exists when installed.
 3. Confirm activation script exists.
-4. Confirm installed shim files are executable.
+4. Confirm installed kind dispatcher files and concrete version shim files are executable.
 5. Confirm PATH activation when required by the workflow.
 6. Run `shimmy test`, `shimmy test --profile upstream`, or focused non-mutating shim smoke checks when live container execution is in scope.
 7. Emit machine-readable output with pass/fail checks and raw command references.

@@ -9,8 +9,9 @@ Use this skill when working with `shims/netcat`, its local image, its tests, its
 
 ## Files
 
-- Runtime shim: `../../../shims/netcat`
-- Local image: `../../../images/netcat/Containerfile`
+- Kind dispatcher: `../../../shims/netcat`
+- Version shim: `../../../shims/netcat_7_92`
+- Local image: `../../../images/netcat_7_92/Containerfile`
 - User docs: `../../../docs/shims/netcat.md`
 - Tests: `../../../scripts/test-shimmy.sh`
 - Installer: `../../../scripts/install-shimmy.sh`
@@ -24,7 +25,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Current Behavior
 
-- Default image: locally built `localhost/shimmy-netcat:<context-hash>-<platform>`
+- Default image: locally built `localhost/shimmy-netcat-7_92:<context-hash>-<platform>`
 - Image override: `SHIMMY_NETCAT_IMAGE`
 - Build override: `SHIMMY_NETCAT_IMAGE_BUILD=always`
 - Pull override for image overrides: `SHIMMY_NETCAT_IMAGE_PULL=always`
@@ -36,7 +37,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Change Rules
 
-1. Keep package installation inside `../../../images/netcat/Containerfile`, not the runtime shim.
+1. Keep package installation inside `../../../images/netcat_7_92/Containerfile`, not the kind dispatcher.
 2. Use `SHIMMY_NETCAT_IMAGE` only as a full runtime image override; local build args apply only to Shimmy-built images.
 3. Keep `SHIMMY_NETCAT_IMAGE_PULL=always` scoped to external image overrides.
 4. Treat network probes as potentially environment-specific. Prefer `netcat --help` for routine validation.

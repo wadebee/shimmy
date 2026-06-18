@@ -5,7 +5,7 @@
 - Source repo README: <https://github.com/isaacphi/mcp-gdrive/blob/master/README.md>
 - Current source ref: `5a94bdcb751975f9f6552d261da35314baf89c43`
 - Manual: <https://github.com/isaacphi/mcp-gdrive#readme>
-- Shim image: locally built `localhost/shimmy-gdrive:<context-hash>-<platform>` from `isaacphi/mcp-gdrive`
+- Shim image: locally built `localhost/shimmy-gdrive-0_2:<context-hash>-<platform>` from `images/gdrive_0_2/Containerfile` and `isaacphi/mcp-gdrive`
 
 ## Upstream README Summary
 

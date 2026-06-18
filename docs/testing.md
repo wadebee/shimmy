@@ -41,6 +41,7 @@ Do not create a separate `test/` tree.
 Group tests by behavioral layer:
 
 - helper/function checks for source-able shell helpers
+- catalog checks for kind lists, concrete versions, version labels, and default versions
 - command behavior checks for argument parsing and output rendering
 - install/profile integration checks for filesystem and manifest effects
 - live shim smoke checks for representative Podman-backed execution
@@ -71,9 +72,31 @@ Live Podman checks should use non-mutating commands such as `--version`,
 `--help`, or preview rendering. Keep installed-live-smoke coverage
 representative rather than duplicating every direct shim smoke test.
 
-## Shim Smoke Config
+## Kind And Version Smoke Config
 
-Shim config files under `shims/*.conf` drive installed smoke tests.
+Every installable tool has a kind dispatcher and at least one concrete version
+shim. Tests should assert both layers:
+
+- `shimmy_kind_list`, `shimmy_kind_version_list`, `shimmy_kind_default_version`,
+  `shimmy_version_kind`, and `shimmy_version_label` describe the catalog entry.
+- `shimmy install --shim <kind>` installs the kind dispatcher plus its default
+  concrete version.
+- `shimmy install --shim <kind>@<version-label>` installs the requested version
+  when the kind supports that label.
+- Profile manifests contain `kind=` and `kind_version=<kind>|<label>|<version>`
+  entries, including a `default` label for each installed kind.
+- Status output reports installed and available kinds, default versions, and
+  available version labels.
+- Runtime dispatcher tests prove that an unset selector uses the default version,
+  and unsupported selector values fail clearly when a selector exists.
+
+## Shim Config
+
+Shim config files under `shims/*.conf` drive installed smoke tests. Kind
+dispatchers and concrete version shims should both have config files. For a
+dispatcher, prefer preview-backed smoke args when the test only needs to prove
+dispatch. For a concrete version, use the tool's non-mutating command such as
+`--version`, `version`, or `--help`.
 
 Use one `smoke_arg=` entry per argv item:
 

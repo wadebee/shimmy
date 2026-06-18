@@ -9,9 +9,10 @@ Use this skill when working with `shims/opnsense-mcp-read-only`, its tests, its 
 
 ## Files
 
-- Runtime shim: `../../../shims/opnsense-mcp-read-only`
+- Kind dispatcher: `../../../shims/opnsense-mcp-read-only`
+- Version shim: `../../../shims/opnsense-mcp-read-only_0_4`
 - User docs: `../../../docs/shims/opnsense-mcp-read-only.md`
-- Image context: `../../../images/opnsense-mcp-read-only/Containerfile`
+- Image context: `../../../images/opnsense-mcp-read-only_0_4/Containerfile`
 - Tests: `../../../scripts/test-shimmy.sh`
 - Skill installer: `../../../scripts/skills-shimmy.sh`
 - README: `../../../README.md`
@@ -22,7 +23,7 @@ When this skill is installed outside the Shimmy checkout, prefer activated comma
 
 ## Current Behavior
 
-- Default image: local build from `../../../images/opnsense-mcp-read-only/Containerfile`
+- Default image: local build from `../../../images/opnsense-mcp-read-only_0_4/Containerfile`
 - Source ref: `8ddb99a2a99102abc084b5e605aaba1c05c2ff56` from `lucamarien/opnsense-mcp-server`
 - Build override: `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE_BUILD=always`
 - Source ref override: `SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF`

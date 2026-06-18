@@ -40,6 +40,18 @@ Use repo-local wrapper paths such as `./shims/rg` only when intentionally testin
 
 `SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state, defaulting under `$SHIMMY_INSTALL_DIR/profiles/upstream`. It is not the git checkout. Use `SHIMMY_UPSTREAM_CHECKOUT_DIR` only as an optional install-time override for `shimmy install --profile upstream`; Shimmy records that absolute checkout path in the upstream manifest.
 
+## Shim Kind Workflow
+
+Shimmy exposes logical tool kinds as the user-facing commands on `PATH`.
+Runtime behavior belongs in concrete major.minor version shims under those kinds.
+
+- Kind shims live at `shims/<kind>` and dispatch only. They select a default version when no selector is set, validate supported selectors, and exec a sibling version shim.
+- Version shims live at `shims/<kind>_<major>_<minor>` and contain the Podman, image, mount, credential, and local-build logic.
+- Every installable kind must have at least one concrete version and exactly one catalog default version.
+- `shimmy install --shim <kind>` installs the kind dispatcher plus its default version. Use `shimmy install --shim <kind>@<version-label>` when a non-default version is needed.
+- Profile manifests record `kind=` for installed user-facing commands and `kind_version=<kind>|<label>|<version>` for installed concrete versions.
+- Do not put tool-specific runtime behavior in a kind dispatcher. Add or update the relevant version shim instead.
+
 ## Naming Conventions
 
 Use these naming conventions for files, functions, and variables unless a stronger repo-specific rule already exists.

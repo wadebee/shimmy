@@ -201,12 +201,15 @@ EOF
 
 local_build_repo_for_shim() {
   case "$1" in
-    gdrive) printf 'localhost/shimmy-gdrive\n' ;;
-    netcat) printf 'localhost/shimmy-netcat\n' ;;
-    task) printf 'localhost/shimmy-task\n' ;;
-    textual) printf 'localhost/shimmy-textual\n' ;;
-    opnsense-mcp-admin) printf 'localhost/shimmy-opnsense-mcp-admin\n' ;;
-    opnsense-mcp-read-only) printf 'localhost/shimmy-opnsense-mcp-read-only\n' ;;
+    gdrive_0_2) printf 'localhost/shimmy-gdrive-0_2\n' ;;
+    netcat_7_92) printf 'localhost/shimmy-netcat-7_92\n' ;;
+    task_3_45) printf 'localhost/shimmy-task-3_45\n' ;;
+    textual_8_2) printf 'localhost/shimmy-textual-8_2\n' ;;
+    opnsense-mcp-admin_1_0) printf 'localhost/shimmy-opnsense-mcp-admin-1_0\n' ;;
+    opnsense-mcp-read-only_0_4) printf 'localhost/shimmy-opnsense-mcp-read-only-0_4\n' ;;
+    oc_4_18) printf 'localhost/shimmy-oc-4_18\n' ;;
+    oc_4_20) printf 'localhost/shimmy-oc-4_20\n' ;;
+    oc_4_22) printf 'localhost/shimmy-oc-4_22\n' ;;
     *) return 1 ;;
   esac
 }
@@ -257,20 +260,26 @@ run_pull_refresh() {
   while IFS= read -r shim_name; do
     [ -n "$shim_name" ] || continue
     case "$shim_name" in
-      aws)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_AWS_IMAGE_PULL=always "$shim_dir/aws" --version >/dev/null </dev/null
+      aws_2_31)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_AWS_IMAGE_PULL=always "$shim_dir/aws_2_31" --version >/dev/null </dev/null
         ;;
-      go)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_GO_IMAGE_PULL=always "$shim_dir/go" version >/dev/null </dev/null
+      go_1_26)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_GO_IMAGE_PULL=always "$shim_dir/go_1_26" version >/dev/null </dev/null
         ;;
-      jq)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_JQ_IMAGE_PULL=always "$shim_dir/jq" --version >/dev/null </dev/null
+      gcloud_573_0)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_GCLOUD_IMAGE_PULL=always "$shim_dir/gcloud_573_0" --version >/dev/null </dev/null
         ;;
-      rg)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_RG_IMAGE_PULL=always "$shim_dir/rg" --version >/dev/null </dev/null
+      jq_1_8)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_JQ_IMAGE_PULL=always "$shim_dir/jq_1_8" --version >/dev/null </dev/null
         ;;
-      terraform)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_TF_IMAGE_PULL=always "$shim_dir/terraform" version >/dev/null </dev/null
+      nmap_7_98)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_NMAP_IMAGE_PULL=always "$shim_dir/nmap_7_98" --version >/dev/null </dev/null
+        ;;
+      rg_15_1)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_RG_IMAGE_PULL=always "$shim_dir/rg_15_1" --version >/dev/null </dev/null
+        ;;
+      terraform_1_15)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_TF_IMAGE_PULL=always "$shim_dir/terraform_1_15" version >/dev/null </dev/null
         ;;
     esac
   done <<EOF
@@ -289,50 +298,50 @@ run_build_refresh() {
   while IFS= read -r shim_name; do
     [ -n "$shim_name" ] || continue
     case "$shim_name" in
-      netcat)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_NETCAT_IMAGE_BUILD=always "$shim_dir/netcat" --help >/dev/null </dev/null
+      netcat_7_92)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_NETCAT_IMAGE_BUILD=always "$shim_dir/netcat_7_92" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
-      opnsense-mcp-read-only)
+      opnsense-mcp-read-only_0_4)
         if [ -n "${SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF:-}" ]; then
           shimmy_local_image_ensure \
-            "localhost/shimmy-opnsense-mcp-read-only" \
-            "$images_dir/opnsense-mcp-read-only" \
+            "localhost/shimmy-opnsense-mcp-read-only-0_4" \
+            "$images_dir/opnsense-mcp-read-only_0_4" \
             always \
             --build-arg "SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF=$SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF" >/dev/null
         else
           shimmy_local_image_ensure \
-            "localhost/shimmy-opnsense-mcp-read-only" \
-            "$images_dir/opnsense-mcp-read-only" \
+            "localhost/shimmy-opnsense-mcp-read-only-0_4" \
+            "$images_dir/opnsense-mcp-read-only_0_4" \
             always >/dev/null
         fi
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
-      opnsense-mcp-admin)
+      opnsense-mcp-admin_1_0)
         if [ -n "${SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF:-}" ]; then
           shimmy_local_image_ensure \
-            "localhost/shimmy-opnsense-mcp-admin" \
-            "$images_dir/opnsense-mcp-admin" \
+            "localhost/shimmy-opnsense-mcp-admin-1_0" \
+            "$images_dir/opnsense-mcp-admin_1_0" \
             always \
             --build-arg "SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF=$SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF" >/dev/null
         else
           shimmy_local_image_ensure \
-            "localhost/shimmy-opnsense-mcp-admin" \
-            "$images_dir/opnsense-mcp-admin" \
+            "localhost/shimmy-opnsense-mcp-admin-1_0" \
+            "$images_dir/opnsense-mcp-admin_1_0" \
             always >/dev/null
         fi
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
-      gdrive)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_GDRIVE_IMAGE_BUILD=always "$shim_dir/gdrive" --help >/dev/null </dev/null
+      gdrive_0_2)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_GDRIVE_IMAGE_BUILD=always "$shim_dir/gdrive_0_2" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
-      task)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_TASK_IMAGE_BUILD=always "$shim_dir/task" --version >/dev/null </dev/null
+      task_3_45)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_TASK_IMAGE_BUILD=always "$shim_dir/task_3_45" --version >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
-      textual)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual" --help >/dev/null </dev/null
+      textual_8_2)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual_8_2" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
       oc_4_18)
@@ -353,18 +362,92 @@ $shim_list
 EOF
 }
 
-default_installed_shim_list() {
+installed_kind_version_names() {
   manifest_file=$1
-  installed_shims=$(shimmy_read_manifest_shims "$manifest_file")
-  default_installed_shims=
+  kind_filter=${2:-}
+  version_names=
 
-  for shim_name in $(shimmy_default_shim_list); do
-    if shimmy_contains_line_list "$installed_shims" "$shim_name"; then
-      default_installed_shims=$(shimmy_append_line_list "$default_installed_shims" "$shim_name")
+  while IFS= read -r kind_version_entry; do
+    [ -n "$kind_version_entry" ] || continue
+    kind_name=${kind_version_entry%%|*}
+    entry_remainder=${kind_version_entry#*|}
+    version_label=${entry_remainder%%|*}
+    version_name=${kind_version_entry##*|}
+    [ "$version_label" != default ] || continue
+    [ -z "$kind_filter" ] || [ "$kind_filter" = "$kind_name" ] || continue
+    if ! shimmy_contains_line_list "$version_names" "$version_name"; then
+      version_names=$(shimmy_append_line_list "$version_names" "$version_name")
+    fi
+  done <<EOF
+$(shimmy_read_manifest_kind_versions "$manifest_file" || true)
+EOF
+
+  printf '%s\n' "$version_names"
+}
+
+default_installed_kind_request_list() {
+  manifest_file=$1
+  installed_kinds=$(shimmy_read_manifest_kinds "$manifest_file")
+  default_installed_requests=
+
+  for kind_name in $(shimmy_default_kind_list); do
+    if shimmy_contains_line_list "$installed_kinds" "$kind_name"; then
+      default_installed_requests=$(shimmy_append_line_list "$default_installed_requests" "$kind_name")
+      for version_name in $(installed_kind_version_names "$manifest_file" "$kind_name"); do
+        default_installed_requests=$(shimmy_append_line_list "$default_installed_requests" "$version_name")
+      done
     fi
   done
 
-  printf '%s\n' "$default_installed_shims"
+  printf '%s\n' "$default_installed_requests"
+}
+
+request_version_label_validate() {
+  manifest_file=$1
+  kind_name=$2
+  version_label=$3
+  version_name=$(shimmy_kind_version_for_label "$kind_name" "$version_label" || true)
+  [ -n "$version_name" ] || fail "unsupported $kind_name version: $version_label"
+
+  expected_entry=$kind_name\|$version_label\|$version_name
+  if ! shimmy_contains_line_list "$(shimmy_read_manifest_kind_versions "$manifest_file" || true)" "$expected_entry"; then
+    fail "$kind_name@$version_label not installed; run shimmy install --shim $kind_name@$version_label"
+  fi
+
+  printf '%s\n' "$version_name"
+}
+
+refresh_requests_for_shim() {
+  manifest_file=$1
+  requested_shim=$2
+  installed_kinds=$(shimmy_read_manifest_kinds "$manifest_file" || true)
+
+  case "$requested_shim" in
+    *@*)
+      kind_name=${requested_shim%%@*}
+      version_label=${requested_shim#*@}
+      shimmy_is_kind "$kind_name" || fail "unsupported shim kind: $kind_name"
+      shimmy_contains_line_list "$installed_kinds" "$kind_name" || fail "$kind_name not installed; run shimmy install --shim $kind_name"
+      version_name=$(request_version_label_validate "$manifest_file" "$kind_name" "$version_label")
+      printf '%s\n%s\n' "$kind_name" "$version_name"
+      ;;
+    *)
+      if shimmy_is_kind "$requested_shim"; then
+        kind_name=$requested_shim
+        shimmy_contains_line_list "$installed_kinds" "$kind_name" || fail "$kind_name not installed; run shimmy install --shim $kind_name"
+        printf '%s\n' "$kind_name"
+        installed_kind_version_names "$manifest_file" "$kind_name"
+      elif shimmy_is_version "$requested_shim"; then
+        version_name=$requested_shim
+        kind_name=$(shimmy_version_kind "$version_name")
+        shimmy_contains_line_list "$installed_kinds" "$kind_name" || fail "$kind_name not installed; run shimmy install --shim $kind_name"
+        request_version_label_validate "$manifest_file" "$kind_name" "$(shimmy_version_label "$version_name")" >/dev/null
+        printf '%s\n%s\n' "$kind_name" "$version_name"
+      else
+        fail "unsupported shim kind: $requested_shim"
+      fi
+      ;;
+  esac
 }
 
 installed_profile_list() {
@@ -389,9 +472,10 @@ installed_profile_list() {
 profile_refresh_run() {
   profile_name=$1
   profile_manifest_file=$2
-  shim_list=$3
+  request_list=$3
+  version_list=$4
 
-  [ -n "$shim_list" ] || fail "no installed shims selected for profile $profile_name"
+  [ -n "$request_list" ] || fail "no installed shim kinds selected for profile $profile_name"
 
   PREVIOUS_SOURCE_REF=$(shimmy_read_manifest_value "$profile_manifest_file" shimmy_source_ref || true)
   UPDATE_SOURCE_CHECKOUT=
@@ -431,8 +515,8 @@ EOF
     fi
   fi
 
-  for shim_name in $shim_list; do
-    set -- "$@" --shim "$shim_name"
+  for requested_shim in $request_list; do
+    set -- "$@" --shim "$requested_shim"
   done
 
   if [ -n "$PREVIOUS_SOURCE_REF" ]; then
@@ -451,11 +535,11 @@ EOF
 
   profile_paths_resolve "$install_dir"
   if [ "$PULL_IMAGES" -eq 1 ]; then
-    run_pull_refresh "$SHIMMY_INSTALL_BIN_DIR" "$profile_name" "$shim_list"
+    run_pull_refresh "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" "$profile_name" "$version_list"
   fi
 
   if [ "$BUILD_IMAGES" -eq 1 ]; then
-    run_build_refresh "$SHIMMY_INSTALL_BIN_DIR" "$SHIMMY_PROFILE_DIR/images" "$profile_name" "$shim_list"
+    run_build_refresh "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" "$SHIMMY_PROFILE_DIR/images" "$profile_name" "$version_list"
   fi
 }
 
@@ -592,29 +676,49 @@ main() {
       profile_paths_resolve "$install_dir"
       profile_manifest_file=$(manifest_file_resolve)
       [ -f "$profile_manifest_file" ] || fail "no shimmy profile manifest found for profile $profile_name at $profile_manifest_file"
-      profile_shims=$(shimmy_read_manifest_shims "$profile_manifest_file")
-      profile_refresh_run "$profile_name" "$profile_manifest_file" "$profile_shims"
+      profile_requests=$(shimmy_read_manifest_kinds "$profile_manifest_file")
+      for version_name in $(installed_kind_version_names "$profile_manifest_file"); do
+        profile_requests=$(shimmy_append_line_list "$profile_requests" "$version_name")
+      done
+      profile_versions=$(installed_kind_version_names "$profile_manifest_file")
+      profile_refresh_run "$profile_name" "$profile_manifest_file" "$profile_requests" "$profile_versions"
     done <<EOF
 $(installed_profile_list "$root_manifest_file")
 EOF
     exit 0
   fi
 
-  installed_shims=$(shimmy_read_manifest_shims "$manifest_file")
   if [ -n "$REQUESTED_SHIMS" ]; then
-    for shim_name in $REQUESTED_SHIMS; do
-      if ! shimmy_contains_line_list "$installed_shims" "$shim_name"; then
-        warn "$shim_name not installed; run shimmy install --shim $shim_name"
-        exit 1
+    refresh_requests=
+    refresh_versions=
+    for requested_shim in $REQUESTED_SHIMS; do
+      resolved_requests=$(refresh_requests_for_shim "$manifest_file" "$requested_shim")
+      while IFS= read -r refresh_request; do
+        [ -n "$refresh_request" ] || continue
+        if ! shimmy_contains_line_list "$refresh_requests" "$refresh_request"; then
+          refresh_requests=$(shimmy_append_line_list "$refresh_requests" "$refresh_request")
+        fi
+        if shimmy_is_version "$refresh_request" && ! shimmy_contains_line_list "$refresh_versions" "$refresh_request"; then
+          refresh_versions=$(shimmy_append_line_list "$refresh_versions" "$refresh_request")
+        fi
+      done <<EOF
+$resolved_requests
+EOF
+    done
+    shims_to_refresh=$refresh_requests
+    versions_to_refresh=$refresh_versions
+  else
+    shims_to_refresh=$(default_installed_kind_request_list "$manifest_file")
+    versions_to_refresh=
+    for refresh_request in $shims_to_refresh; do
+      if shimmy_is_version "$refresh_request" && ! shimmy_contains_line_list "$versions_to_refresh" "$refresh_request"; then
+        versions_to_refresh=$(shimmy_append_line_list "$versions_to_refresh" "$refresh_request")
       fi
     done
-    shims_to_refresh=$REQUESTED_SHIMS
-  else
-    shims_to_refresh=$(default_installed_shim_list "$manifest_file")
-    [ -n "$shims_to_refresh" ] || fail "no default shims are installed in profile $SHIMMY_PROFILE_NAME; run ./shimmy install first"
+    [ -n "$shims_to_refresh" ] || fail "no default shim kinds are installed in profile $SHIMMY_PROFILE_NAME; run ./shimmy install first"
   fi
 
-  profile_refresh_run "$SHIMMY_PROFILE_NAME" "$manifest_file" "$shims_to_refresh"
+  profile_refresh_run "$SHIMMY_PROFILE_NAME" "$manifest_file" "$shims_to_refresh" "$versions_to_refresh"
 }
 
 main "$@"

@@ -142,17 +142,17 @@ test_root_manifest_resolve() {
   printf '%s/install-manifest.txt\n' "$SHIMMY_PROFILE_INSTALL_DIR"
 }
 
-test_root_default_shim_contains() {
+test_root_default_kind_contains() {
   root_manifest_file=$1
-  shim_name_expected=$2
+  kind_name_expected=$2
 
-  while IFS= read -r default_shim_name; do
-    [ -n "$default_shim_name" ] || continue
-    if [ "$default_shim_name" = "$shim_name_expected" ]; then
+  while IFS= read -r default_kind_name; do
+    [ -n "$default_kind_name" ] || continue
+    if [ "$default_kind_name" = "$kind_name_expected" ]; then
       return 0
     fi
   done <<EOF
-$(shimmy_read_manifest_values "$root_manifest_file" default_shim || true)
+$(shimmy_read_manifest_values "$root_manifest_file" default_kind || true)
 EOF
 
   return 1
@@ -162,26 +162,26 @@ test_root_shim_resolve() {
   root_manifest_file=$1
 
   if [ -n "$REQUESTED_TEST_SHIM" ]; then
-    if test_root_default_shim_contains "$root_manifest_file" "$REQUESTED_TEST_SHIM"; then
+    if test_root_default_kind_contains "$root_manifest_file" "$REQUESTED_TEST_SHIM"; then
       printf '%s\n' "$REQUESTED_TEST_SHIM"
     fi
     return 0
   fi
 
-  shimmy_read_manifest_values "$root_manifest_file" default_shim || true
+  shimmy_read_manifest_values "$root_manifest_file" default_kind || true
 }
 
-test_manifest_shim_contains() {
+test_manifest_kind_contains() {
   manifest_file=$1
-  shim_name_expected=$2
+  kind_name_expected=$2
 
-  while IFS= read -r shim_name; do
-    [ -n "$shim_name" ] || continue
-    if [ "$shim_name" = "$shim_name_expected" ]; then
+  while IFS= read -r kind_name; do
+    [ -n "$kind_name" ] || continue
+    if [ "$kind_name" = "$kind_name_expected" ]; then
       return 0
     fi
   done <<EOF
-$(shimmy_read_manifest_values "$manifest_file" shim || true)
+$(shimmy_read_manifest_values "$manifest_file" kind || true)
 EOF
 
   return 1
@@ -194,9 +194,9 @@ test_root_manifest_validate() {
   root_install_dir=$(shimmy_read_manifest_value "$root_manifest_file" install_dir || true)
   [ -n "$root_install_dir" ] || fail_test "root manifest missing install_dir: $root_manifest_file"
 
-  for shim_name in $(shimmy_default_shim_list); do
-    if ! test_root_default_shim_contains "$root_manifest_file" "$shim_name"; then
-      fail_test "root manifest missing default_shim=$shim_name: $root_manifest_file"
+  for kind_name in $(shimmy_default_kind_list); do
+    if ! test_root_default_kind_contains "$root_manifest_file" "$kind_name"; then
+      fail_test "root manifest missing default_kind=$kind_name: $root_manifest_file"
     fi
   done
 }
@@ -236,7 +236,7 @@ test_profile_shim_resolve() {
   root_manifest_file=$2
 
   if [ -n "$REQUESTED_TEST_SHIM" ]; then
-    if ! test_root_default_shim_contains "$root_manifest_file" "$REQUESTED_TEST_SHIM"; then
+    if ! test_root_default_kind_contains "$root_manifest_file" "$REQUESTED_TEST_SHIM"; then
       printf '%s\n' "$REQUESTED_TEST_SHIM"
     fi
     return 0
@@ -248,11 +248,11 @@ test_profile_shim_resolve() {
 
   while IFS= read -r shim_name; do
     [ -n "$shim_name" ] || continue
-    if ! test_root_default_shim_contains "$root_manifest_file" "$shim_name"; then
+    if ! test_root_default_kind_contains "$root_manifest_file" "$shim_name"; then
       printf '%s\n' "$shim_name"
     fi
   done <<EOF
-$(shimmy_read_manifest_values "$manifest_file" shim || true)
+$(shimmy_read_manifest_values "$manifest_file" kind || true)
 EOF
 }
 
@@ -264,7 +264,7 @@ test_shim_smoke_run() {
   profile_implementation_dir=$5
   config_dir=$6
 
-  test_manifest_shim_contains "$manifest_file" "$shim_name" || fail_test "shim not recorded in Shimmy profile manifest: $shim_name"
+  test_manifest_kind_contains "$manifest_file" "$shim_name" || fail_test "kind not recorded in Shimmy profile manifest: $shim_name"
 
   shim_dispatcher_path=$public_bin_dir/$shim_name
   shim_target_path=$profile_implementation_dir/$shim_name
@@ -426,16 +426,16 @@ test_source_remote_commit_jq_pull_marker() {
   source_repo=$1
   pull_log=$2
 
-  cat > "$source_repo/shims/jq" <<EOF
+  cat > "$source_repo/shims/jq_1_8" <<EOF
 #!/bin/sh
 if [ "\${SHIMMY_JQ_IMAGE_PULL:-}" = always ]; then
   printf '%s\n' pulled > "$pull_log"
 fi
 exit 0
 EOF
-  chmod 755 "$source_repo/shims/jq"
+  chmod 755 "$source_repo/shims/jq_1_8"
 
-  git -C "$source_repo" add shims/jq
+  git -C "$source_repo" add shims/jq_1_8
   git -C "$source_repo" commit -q -m "test jq pull marker"
   git -C "$source_repo" push -q origin main
 }
@@ -518,6 +518,23 @@ test_podman_preview_helpers() {
   pass "Podman preview helpers strip and quote preview commands"
 }
 
+test_catalog_kind_helpers() {
+  kind_list=$(shimmy_kind_list)
+  assert_contains "$kind_list" "jq"
+  assert_contains "$kind_list" "oc"
+  assert_contains "$kind_list" "terraform"
+
+  assert_equals "$(shimmy_kind_version_list oc)" "oc_4_18 oc_4_20 oc_4_22"
+  assert_equals "$(shimmy_kind_default_version oc)" "oc_4_20"
+  assert_equals "$(shimmy_kind_selector_env oc)" "SHIMMY_OC_VERSION"
+  assert_equals "$(shimmy_kind_default_version jq)" "jq_1_8"
+  assert_equals "$(shimmy_version_kind jq_1_8)" "jq"
+  assert_equals "$(shimmy_version_label jq_1_8)" "1.8"
+  assert_equals "$(shimmy_kind_version_for_label oc 4.18)" "oc_4_18"
+
+  pass "catalog kind/version helpers"
+}
+
 test_podman_unreachable_guidance_agent() {
   output=$(
     /bin/sh -c '. "$1"; shimmy_podman_failure_print_unreachable "the rg shim" "/opt/podman/bin/podman"' sh "$SHIMMY_PODMAN_HELPER_FILE" 2>&1
@@ -595,7 +612,11 @@ test_install_manifest() {
   assert_file_exists "$INSTALL_DIR/activate.sh"
   assert_file_executable "$INSTALL_DIR/bin/shimmy"
   assert_file_exists "$INSTALL_DIR/bin/jq"
+  assert_path_not_exists "$INSTALL_DIR/bin/jq_1_8"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/jq"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/jq_1_8"
   assert_file_exists "$INSTALL_DIR/profiles/default/config/shims/jq.conf"
+  assert_file_exists "$INSTALL_DIR/profiles/default/config/shims/jq_1_8.conf"
   assert_path_not_exists "$INSTALL_DIR/bin/opnsense-mcp-read-only"
   assert_dir_exists "$INSTALL_DIR/profiles/default/lib/shims"
   assert_dir_exists "$INSTALL_DIR/core/scripts"
@@ -619,8 +640,8 @@ test_install_manifest() {
   assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.bashrc"
   assert_contains "$manifest_contents" "startup_file=$HOME_DIR/.bash_profile"
   assert_contains "$manifest_contents" "profile=default"
-  assert_contains "$manifest_contents" "default_shim=jq"
-  assert_contains "$manifest_contents" "default_shim=rg"
+  assert_contains "$manifest_contents" "default_kind=jq"
+  assert_contains "$manifest_contents" "default_kind=rg"
   assert_contains "$manifest_contents" "shimmy_install_manifest_version=1"
   assert_no_line_with_prefix "$manifest_contents" "shim="
   assert_not_contains "$manifest_contents" "shimmy_skill="
@@ -630,7 +651,9 @@ test_install_manifest() {
   profile_contents=$(cat "$INSTALL_DIR/profiles/default/install-manifest.txt")
   assert_contains "$profile_contents" "shimmy_profile_manifest_version=1"
   assert_contains "$profile_contents" "shimmy_profile_name=default"
-  assert_contains "$profile_contents" "shim=jq"
+  assert_contains "$profile_contents" "kind=jq"
+  assert_contains "$profile_contents" "kind_version=jq|default|jq_1_8"
+  assert_contains "$profile_contents" "kind_version=jq|1.8|jq_1_8"
   assert_contains "$profile_contents" "shimmy_source_url="
   assert_contains "$profile_contents" "shimmy_source_ref="
   assert_not_contains "$profile_contents" "install_dir="
@@ -652,17 +675,60 @@ test_install_default_shims() {
   root_manifest_contents=$(cat "$INSTALL_DIR/install-manifest.txt")
   profile_manifest_contents=$(cat "$INSTALL_DIR/profiles/default/install-manifest.txt")
 
-  assert_contains "$root_manifest_contents" "default_shim=jq"
-  assert_contains "$root_manifest_contents" "default_shim=rg"
-  assert_contains "$profile_manifest_contents" "shim=jq"
-  assert_contains "$profile_manifest_contents" "shim=rg"
+  assert_contains "$root_manifest_contents" "default_kind=jq"
+  assert_contains "$root_manifest_contents" "default_kind=rg"
+  assert_contains "$profile_manifest_contents" "kind=jq"
+  assert_contains "$profile_manifest_contents" "kind=rg"
+  assert_contains "$profile_manifest_contents" "kind_version=jq|default|jq_1_8"
+  assert_contains "$profile_manifest_contents" "kind_version=rg|default|rg_15_1"
   assert_path_symlink "$INSTALL_DIR/bin/jq"
   assert_path_symlink "$INSTALL_DIR/bin/rg"
+  assert_path_not_exists "$INSTALL_DIR/bin/jq_1_8"
+  assert_path_not_exists "$INSTALL_DIR/bin/rg_15_1"
   assert_file_exists "$INSTALL_DIR/profiles/default/config/shims/jq.conf"
+  assert_file_exists "$INSTALL_DIR/profiles/default/config/shims/jq_1_8.conf"
   assert_file_exists "$INSTALL_DIR/profiles/default/config/shims/rg.conf"
+  assert_file_exists "$INSTALL_DIR/profiles/default/config/shims/rg_15_1.conf"
   assert_path_not_exists "$INSTALL_DIR/bin/aws"
 
   pass "bare install uses default jq and rg shims"
+}
+
+test_install_kind_version_selector() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim oc@4.18 --no-startup --no-skills >/dev/null
+
+  manifest_contents=$(cat "$INSTALL_DIR/profiles/default/install-manifest.txt")
+  assert_contains "$manifest_contents" "kind=oc"
+  assert_contains "$manifest_contents" "kind_version=oc|default|oc_4_20"
+  assert_contains "$manifest_contents" "kind_version=oc|4.18|oc_4_18"
+  assert_contains "$manifest_contents" "kind_version=oc|4.20|oc_4_20"
+  assert_path_symlink "$INSTALL_DIR/bin/oc"
+  assert_path_not_exists "$INSTALL_DIR/bin/oc_4_18"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/oc"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/oc_4_18"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/oc_4_20"
+
+  pass "install resolves kind version selector"
+}
+
+test_install_kind_version_selector_rejects_unknown() {
+  setup_scenario
+
+  set +e
+  output=$(
+    HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim oc@4.19 --no-startup --no-skills 2>&1
+  )
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "expected unsupported oc version selector to fail"
+  assert_contains "$output" "unsupported oc version: 4.19"
+  assert_contains "$output" "Available oc versions: 4.18, 4.20, 4.22"
+  assert_contains "$output" "Default oc version: 4.20"
+
+  pass "install rejects unsupported kind version selector"
 }
 
 test_install_mode_default_profile_manifest() {
@@ -686,8 +752,8 @@ test_install_mode_default_profile_manifest() {
   assert_contains "$root_contents" "install_dir=$INSTALL_DIR"
   assert_contains "$root_contents" "bin_dir=$INSTALL_DIR/bin"
   assert_contains "$root_contents" "profile=default"
-  assert_contains "$root_contents" "default_shim=jq"
-  assert_contains "$root_contents" "default_shim=rg"
+  assert_contains "$root_contents" "default_kind=jq"
+  assert_contains "$root_contents" "default_kind=rg"
   assert_not_contains "$root_contents" "shim_source=copied-source-shim"
   assert_no_line_with_prefix "$root_contents" "shim="
   assert_contains "$profile_contents" "shimmy_profile_manifest_version=1"
@@ -703,7 +769,8 @@ test_install_mode_default_profile_manifest() {
   assert_contains "$status_output" "shimmy_installed=yes"
   assert_contains "$status_output" "shimmy_profile_manifest_path=$profile_manifest"
   assert_contains "$status_output" "shimmy_profile_implementation_dir=$INSTALL_DIR/profiles/default/bin"
-  assert_contains "$status_output" "shimmy_profile_shim=jq"
+  assert_contains "$status_output" "shimmy_profile_kind=jq"
+  assert_contains "$status_output" "shimmy_profile_kind_version=jq|default|jq_1_8"
 
   pass "install default mode writes profile manifest"
 }
@@ -756,11 +823,14 @@ test_install_mode_upstream_profile_manifest() {
   assert_path_symlink "$INSTALL_DIR/bin/jq"
   assert_file_executable "$INSTALL_DIR/bin/jq"
   assert_file_executable "$INSTALL_DIR/profiles/upstream/bin/jq"
+  assert_file_executable "$INSTALL_DIR/profiles/upstream/bin/jq_1_8"
   assert_file_exists "$INSTALL_DIR/profiles/upstream/config/shims/jq.conf"
+  assert_file_exists "$INSTALL_DIR/profiles/upstream/config/shims/jq_1_8.conf"
   assert_file_exists "$INSTALL_DIR/install-manifest.txt"
   dispatch_target=$(readlink "$INSTALL_DIR/bin/jq")
   assert_equals "$dispatch_target" "../core/scripts/dispatch-shimmy.sh"
   assert_file_contains "$INSTALL_DIR/profiles/upstream/bin/jq" "shimmy_upstream_checkout='$upstream_checkout_real'"
+  assert_file_contains "$INSTALL_DIR/profiles/upstream/bin/jq_1_8" "shimmy_upstream_checkout='$upstream_checkout_real'"
 
   profile_contents=$(cat "$profile_manifest")
   assert_contains "$profile_contents" "shimmy_profile_name=upstream"
@@ -768,7 +838,8 @@ test_install_mode_upstream_profile_manifest() {
   assert_contains "$profile_contents" "profile_implementation_dir=$INSTALL_DIR/profiles/upstream/bin"
   assert_contains "$profile_contents" "source_checkout=$upstream_checkout_real"
   assert_contains "$profile_contents" "shim_source=generated-exec-wrapper"
-  assert_contains "$profile_contents" "shim=jq"
+  assert_contains "$profile_contents" "kind=jq"
+  assert_contains "$profile_contents" "kind_version=jq|default|jq_1_8"
 
   status_output=$(
     HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --profile upstream --format manifest 2>&1
@@ -776,7 +847,7 @@ test_install_mode_upstream_profile_manifest() {
   assert_contains "$status_output" "shimmy_installed=yes"
   assert_contains "$status_output" "shimmy_profile_manifest_path=$profile_manifest"
   assert_contains "$status_output" "shimmy_profile_source_checkout=$upstream_checkout_real"
-  assert_contains "$status_output" "shimmy_profile_shim=jq"
+  assert_contains "$status_output" "shimmy_profile_kind=jq"
 
   pass "install upstream mode writes profile manifest"
 }
@@ -1953,9 +2024,11 @@ test_status_reports_install() {
   assert_contains "$output" "installed: yes"
   assert_contains "$output" "install_dir=$INSTALL_DIR"
   assert_contains "$output" "profile_implementation_dir=$INSTALL_DIR/profiles/default/bin"
-  assert_contains "$output" "- jq: ghcr.io/jqlang/jq:1.8.1"
-  assert_contains "$output" "- task: localhost/shimmy-task:"
-  assert_contains "$output" "-linux-arm64"
+  assert_contains "$output" "installed_kinds:"
+  assert_contains "$output" "- jq:"
+  assert_contains "$output" "default: 1.8 (jq_1_8)"
+  assert_contains "$output" "- task:"
+  assert_contains "$output" "default: 3.45 (task_3_45)"
 
   pass "status reports installed shim details"
 }
@@ -1969,14 +2042,15 @@ test_status_available_reports_remaining_shims() {
     HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --available 2>&1
   )
 
-  assert_contains "$output" "installed_shims:"
-  assert_contains "$output" "- jq: ghcr.io/jqlang/jq:1.8.1"
-  assert_contains "$output" "- task: localhost/shimmy-task:"
-  assert_contains "$output" "available_shims:"
-  assert_contains "$output" "- aws"
-  assert_contains "$output" "- go"
-  assert_contains "$output" "- nmap"
-  assert_contains "$output" "- textual"
+  assert_contains "$output" "installed_kinds:"
+  assert_contains "$output" "- jq:"
+  assert_contains "$output" "- task:"
+  assert_contains "$output" "available_kinds:"
+  assert_contains "$output" "- aws:"
+  assert_contains "$output" "default: 2.31 (aws_2_31)"
+  assert_contains "$output" "- go:"
+  assert_contains "$output" "- nmap:"
+  assert_contains "$output" "- textual:"
   assert_not_contains "$output" "- tessl"
 
   pass "status available reports remaining installable shims"
@@ -1997,12 +2071,13 @@ test_status_manifest_format() {
   assert_contains "$output" "shimmy_profile_implementation_dir=$INSTALL_DIR/profiles/default/bin"
   assert_contains "$output" "shimmy_path_active=no"
   assert_contains "$output" "shimmy_activate_file=$INSTALL_DIR/activate.sh"
-  assert_contains "$output" "shimmy_profile_shim=jq"
+  assert_contains "$output" "shimmy_profile_kind=jq"
+  assert_contains "$output" "shimmy_profile_kind_version=jq|default|jq_1_8"
   assert_contains "$output" "shimmy_profile_source_ref="
   assert_no_line_with_prefix "$output" "installed="
   assert_no_line_with_prefix "$output" "manifest_path="
   assert_not_contains "$output" "Shimmy Status"
-  assert_not_contains "$output" "installed_shims:"
+  assert_not_contains "$output" "installed_kinds:"
 
   pass "status manifest format is machine-readable"
 }
@@ -2017,16 +2092,17 @@ test_status_available_manifest_format() {
   )
 
   assert_contains "$output" "shimmy_installed=yes"
-  assert_contains "$output" "shimmy_profile_shim=jq"
-  assert_contains "$output" "shimmy_profile_shim=task"
-  assert_contains "$output" "shimmy_available_shim=aws"
-  assert_contains "$output" "shimmy_available_shim=go"
-  assert_contains "$output" "shimmy_available_shim=nmap"
-  assert_contains "$output" "shimmy_available_shim=textual"
-  assert_not_contains "$output" "shimmy_available_shim=jq"
-  assert_not_contains "$output" "shimmy_available_shim=task"
-  assert_not_contains "$output" "shimmy_available_shim=tessl"
-  assert_not_contains "$output" "available_shims:"
+  assert_contains "$output" "shimmy_profile_kind=jq"
+  assert_contains "$output" "shimmy_profile_kind=task"
+  assert_contains "$output" "shimmy_available_kind=aws"
+  assert_contains "$output" "shimmy_available_kind_default=aws|2.31|aws_2_31"
+  assert_contains "$output" "shimmy_available_kind=go"
+  assert_contains "$output" "shimmy_available_kind=nmap"
+  assert_contains "$output" "shimmy_available_kind=textual"
+  assert_not_contains "$output" "shimmy_available_kind=jq"
+  assert_not_contains "$output" "shimmy_available_kind=task"
+  assert_not_contains "$output" "shimmy_available_kind=tessl"
+  assert_not_contains "$output" "available_kinds:"
 
   pass "status available manifest format is machine-readable"
 }
@@ -2132,17 +2208,17 @@ test_installed_shimmy_management_command() {
   assert_contains "$status_output" "shimmy_installed=yes"
   assert_contains "$status_output" "shimmy_install_dir=$INSTALL_DIR"
   assert_contains "$status_output" "shimmy_control_bin=$INSTALL_DIR/bin/shimmy"
-  assert_contains "$status_output" "shimmy_profile_shim=jq"
+  assert_contains "$status_output" "shimmy_profile_kind=jq"
 
   available_output=$(
     cd "$WORK_DIR"
     PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status --available --format manifest 2>&1
   )
 
-  assert_contains "$available_output" "shimmy_available_shim=aws"
-  assert_contains "$available_output" "shimmy_available_shim=task"
-  assert_not_contains "$available_output" "shimmy_available_shim=jq"
-  assert_not_contains "$available_output" "shimmy_available_shim=tessl"
+  assert_contains "$available_output" "shimmy_available_kind=aws"
+  assert_contains "$available_output" "shimmy_available_kind=task"
+  assert_not_contains "$available_output" "shimmy_available_kind=jq"
+  assert_not_contains "$available_output" "shimmy_available_kind=tessl"
 
   netinfo_output=$(
     cd "$WORK_DIR"
@@ -2172,51 +2248,57 @@ test_installed_shim_install_adds_available_shim() {
     PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim opnsense-mcp-read-only 2>&1
   )
 
-  assert_contains "$output" "Installed shim: opnsense-mcp-read-only"
+  assert_contains "$output" "Installed shim kind: opnsense-mcp-read-only"
   assert_file_exists "$INSTALL_DIR/bin/jq"
   assert_file_exists "$INSTALL_DIR/bin/opnsense-mcp-read-only"
-  assert_dir_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only"
-  assert_file_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only/Containerfile"
-  assert_file_contains "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only/Containerfile" "SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF"
-  assert_file_contains "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only/Containerfile" "https://github.com/lucamarien/opnsense-mcp-server.git"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/opnsense-mcp-read-only_0_4"
+  assert_dir_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only_0_4"
+  assert_file_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only_0_4/Containerfile"
+  assert_file_contains "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only_0_4/Containerfile" "SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF"
+  assert_file_contains "$INSTALL_DIR/profiles/default/images/opnsense-mcp-read-only_0_4/Containerfile" "https://github.com/lucamarien/opnsense-mcp-server.git"
 
   output=$(
     cd "$WORK_DIR"
     PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim opnsense-mcp-admin 2>&1
   )
 
-  assert_contains "$output" "Installed shim: opnsense-mcp-admin"
+  assert_contains "$output" "Installed shim kind: opnsense-mcp-admin"
   assert_file_exists "$INSTALL_DIR/bin/opnsense-mcp-admin"
   assert_file_exists "$INSTALL_DIR/profiles/default/config/shims/opnsense-mcp-admin.conf"
-  assert_dir_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin"
-  assert_file_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin/Containerfile"
-  assert_file_contains "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin/Containerfile" "SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF"
-  assert_file_contains "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin/Containerfile" "https://github.com/floriangrousset/opnsense-mcp-server.git"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/opnsense-mcp-admin_1_0"
+  assert_dir_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin_1_0"
+  assert_file_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin_1_0/Containerfile"
+  assert_file_contains "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin_1_0/Containerfile" "SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF"
+  assert_file_contains "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin_1_0/Containerfile" "https://github.com/floriangrousset/opnsense-mcp-server.git"
 
   output=$(
     cd "$WORK_DIR"
     PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim task 2>&1
   )
 
-  assert_contains "$output" "Installed shim: task"
+  assert_contains "$output" "Installed shim kind: task"
   assert_file_exists "$INSTALL_DIR/bin/task"
-  assert_dir_exists "$INSTALL_DIR/profiles/default/images/task"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/task_3_45"
+  assert_dir_exists "$INSTALL_DIR/profiles/default/images/task_3_45"
 
   output=$(
     cd "$WORK_DIR"
     PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim opnsense-mcp-read-only 2>&1
   )
 
-  assert_contains "$output" "WARN: Shim already installed: opnsense-mcp-read-only; run shimmy update --shim opnsense-mcp-read-only to refresh it"
+  assert_contains "$output" "WARN: Shim kind already installed: opnsense-mcp-read-only; run shimmy update --shim opnsense-mcp-read-only to refresh it"
 
   manifest_contents=$(cat "$INSTALL_DIR/profiles/default/install-manifest.txt")
-  assert_contains "$manifest_contents" "shim=jq"
-  assert_contains "$manifest_contents" "shim=opnsense-mcp-admin"
-  assert_contains "$manifest_contents" "shim=opnsense-mcp-read-only"
-  assert_contains "$manifest_contents" "shim=task"
-  opnsense_admin_manifest_count=$(sed -n 's/^shim=opnsense-mcp-admin$/shim/p' "$INSTALL_DIR/profiles/default/install-manifest.txt" | wc -l | tr -d ' ')
+  assert_contains "$manifest_contents" "kind=jq"
+  assert_contains "$manifest_contents" "kind=opnsense-mcp-admin"
+  assert_contains "$manifest_contents" "kind=opnsense-mcp-read-only"
+  assert_contains "$manifest_contents" "kind=task"
+  assert_contains "$manifest_contents" "kind_version=opnsense-mcp-admin|1.0|opnsense-mcp-admin_1_0"
+  assert_contains "$manifest_contents" "kind_version=opnsense-mcp-read-only|0.4|opnsense-mcp-read-only_0_4"
+  assert_contains "$manifest_contents" "kind_version=task|3.45|task_3_45"
+  opnsense_admin_manifest_count=$(sed -n 's/^kind=opnsense-mcp-admin$/kind/p' "$INSTALL_DIR/profiles/default/install-manifest.txt" | wc -l | tr -d ' ')
   assert_equals "$opnsense_admin_manifest_count" "1"
-  opnsense_manifest_count=$(sed -n 's/^shim=opnsense-mcp-read-only$/shim/p' "$INSTALL_DIR/profiles/default/install-manifest.txt" | wc -l | tr -d ' ')
+  opnsense_manifest_count=$(sed -n 's/^kind=opnsense-mcp-read-only$/kind/p' "$INSTALL_DIR/profiles/default/install-manifest.txt" | wc -l | tr -d ' ')
   assert_equals "$opnsense_manifest_count" "1"
 
   available_output=$(
@@ -2224,21 +2306,23 @@ test_installed_shim_install_adds_available_shim() {
     PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status --available --format manifest 2>&1
   )
 
-  assert_contains "$available_output" "shimmy_profile_shim=jq"
-  assert_contains "$available_output" "shimmy_profile_shim=opnsense-mcp-admin"
-  assert_contains "$available_output" "shimmy_profile_shim=opnsense-mcp-read-only"
-  assert_contains "$available_output" "shimmy_profile_shim=task"
-  assert_not_contains "$available_output" "shimmy_available_shim=opnsense-mcp-admin"
-  assert_not_contains "$available_output" "shimmy_available_shim=opnsense-mcp-read-only"
-  assert_not_contains "$available_output" "shimmy_available_shim=task"
+  assert_contains "$available_output" "shimmy_profile_kind=jq"
+  assert_contains "$available_output" "shimmy_profile_kind=opnsense-mcp-admin"
+  assert_contains "$available_output" "shimmy_profile_kind=opnsense-mcp-read-only"
+  assert_contains "$available_output" "shimmy_profile_kind=task"
+  assert_not_contains "$available_output" "shimmy_available_kind=opnsense-mcp-admin"
+  assert_not_contains "$available_output" "shimmy_available_kind=opnsense-mcp-read-only"
+  assert_not_contains "$available_output" "shimmy_available_kind=task"
 
   status_output=$(
     cd "$WORK_DIR"
     PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status 2>&1
   )
 
-  assert_contains "$status_output" "opnsense-mcp-admin: localhost/shimmy-opnsense-mcp-admin:"
-  assert_contains "$status_output" "opnsense-mcp-read-only: localhost/shimmy-opnsense-mcp-read-only:"
+  assert_contains "$status_output" "- opnsense-mcp-admin:"
+  assert_contains "$status_output" "default: 1.0 (opnsense-mcp-admin_1_0)"
+  assert_contains "$status_output" "- opnsense-mcp-read-only:"
+  assert_contains "$status_output" "default: 0.4 (opnsense-mcp-read-only_0_4)"
 
   set +e
   output=$(
@@ -2249,7 +2333,7 @@ test_installed_shim_install_adds_available_shim() {
   set -e
 
   [ "$status" -ne 0 ] || fail_test "expected removed opnsense-mcp-server shim to be unsupported"
-  assert_contains "$output" "ERROR: unsupported shim on posix-rewrite branch: opnsense-mcp-server"
+  assert_contains "$output" "ERROR: unsupported shim kind: opnsense-mcp-server"
 
   pass "installed shimmy installs available shims additively"
 }
@@ -2360,7 +2444,7 @@ test_installed_update_requires_pull_for_image_refresh() {
   pass "installed update forwards --pull for explicit image refresh"
 }
 
-test_update_reinstalls_default_shims_only() {
+test_update_reinstalls_default_kinds_only() {
   setup_scenario
 
   HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task >/dev/null
@@ -2371,9 +2455,9 @@ test_update_reinstalls_default_shims_only() {
 
   assert_file_exists "$INSTALL_DIR/bin/jq"
   assert_path_not_exists "$INSTALL_DIR/bin/task"
-  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "shim=task"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "kind=task"
 
-  pass "update reinstalls default shims only"
+  pass "update reinstalls default kinds only"
 }
 
 test_update_shim_reinstalls_selected_shim() {
@@ -2402,7 +2486,7 @@ test_update_shim_requires_installed_shim() {
     fail_test "expected update --shim for missing shim to fail"
   fi
 
-  assert_contains "$output" "WARN: task not installed; run shimmy install --shim task"
+  assert_contains "$output" "ERROR: task not installed; run shimmy install --shim task"
 
   pass "update --shim rejects missing shims"
 }
@@ -2451,9 +2535,9 @@ test_update_preserves_shimmy_manifest_fields() {
 test_update_build_refresh_includes_opnsense_mcp_admin() {
   update_script=$ROOT_DIR/scripts/update-shimmy.sh
 
-  assert_file_contains "$update_script" 'opnsense-mcp-admin)'
-  assert_file_contains "$update_script" '"localhost/shimmy-opnsense-mcp-admin"'
-  assert_file_contains "$update_script" '"$images_dir/opnsense-mcp-admin"'
+  assert_file_contains "$update_script" 'opnsense-mcp-admin_1_0)'
+  assert_file_contains "$update_script" '"localhost/shimmy-opnsense-mcp-admin-1_0"'
+  assert_file_contains "$update_script" '"$images_dir/opnsense-mcp-admin_1_0"'
   assert_file_contains "$update_script" 'SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF'
 
   pass "update --build includes opnsense-mcp-admin local image refresh"
@@ -2710,22 +2794,18 @@ test_jq_shim_preview() {
   pass "jq preview shim renders podman command"
 }
 
-test_oc_dispatcher_missing_version() {
+test_oc_dispatcher_default_version() {
   setup_scenario
 
-  set +e
   output=$(
     cd "$WORK_DIR"
     "$ROOT_DIR/shims/oc" --preview-shim version 2>&1
   )
-  status_code=$?
-  set -e
 
-  [ "$status_code" -ne 0 ] || fail_test "expected missing SHIMMY_OC_VERSION to fail"
-  assert_contains "$output" "ERROR: SHIMMY_OC_VERSION is required for the oc shim."
-  assert_contains "$output" "Set SHIMMY_OC_VERSION to a supported major.minor"
+  assert_contains "$output" "'localhost/shimmy-oc-4_20:"
+  assert_contains "$output" "'version'"
 
-  pass "oc dispatcher rejects missing version selector"
+  pass "oc dispatcher uses default version when selector is unset"
 }
 
 test_oc_dispatcher_unsupported_version() {
@@ -2741,7 +2821,8 @@ test_oc_dispatcher_unsupported_version() {
 
   [ "$status_code" -ne 0 ] || fail_test "expected unsupported SHIMMY_OC_VERSION to fail"
   assert_contains "$output" "ERROR: unsupported SHIMMY_OC_VERSION value: 4.17"
-  assert_contains "$output" "Supported values: 4.18, 4.20, 4.22."
+  assert_contains "$output" "Available oc versions: 4.18, 4.20, 4.22"
+  assert_contains "$output" "Default oc version: 4.20"
 
   pass "oc dispatcher rejects unsupported version selector"
 }
@@ -2783,12 +2864,12 @@ test_oc_dispatcher_preview() {
 test_oc_install_and_smoke_config() {
   setup_scenario
 
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim oc --shim oc_4_18 --shim oc_4_20 --shim oc_4_22 --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim oc --shim oc@4.18 --shim oc@4.22 --no-startup --no-skills >/dev/null
 
   assert_path_symlink "$INSTALL_DIR/bin/oc"
-  assert_path_symlink "$INSTALL_DIR/bin/oc_4_18"
-  assert_path_symlink "$INSTALL_DIR/bin/oc_4_20"
-  assert_path_symlink "$INSTALL_DIR/bin/oc_4_22"
+  assert_path_not_exists "$INSTALL_DIR/bin/oc_4_18"
+  assert_path_not_exists "$INSTALL_DIR/bin/oc_4_20"
+  assert_path_not_exists "$INSTALL_DIR/bin/oc_4_22"
   assert_file_executable "$INSTALL_DIR/profiles/default/bin/oc"
   assert_file_executable "$INSTALL_DIR/profiles/default/bin/oc_4_18"
   assert_file_executable "$INSTALL_DIR/profiles/default/bin/oc_4_20"
@@ -2802,6 +2883,11 @@ test_oc_install_and_smoke_config() {
   assert_file_exists "$INSTALL_DIR/profiles/default/images/oc_4_18/Containerfile"
   assert_file_exists "$INSTALL_DIR/profiles/default/images/oc_4_20/Containerfile"
   assert_file_exists "$INSTALL_DIR/profiles/default/images/oc_4_22/Containerfile"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "kind=oc"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "kind_version=oc|default|oc_4_20"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "kind_version=oc|4.18|oc_4_18"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "kind_version=oc|4.20|oc_4_20"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "kind_version=oc|4.22|oc_4_22"
 
   output=$(
     cd "$WORK_DIR"
@@ -2821,10 +2907,11 @@ test_oc_install_and_smoke_config() {
     PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status 2>&1
   )
 
-  assert_contains "$status_output" "oc: dispatcher for oc_4_xx shims (uses SHIMMY_OC_VERSION at runtime)"
-  assert_contains "$status_output" "oc_4_18: localhost/shimmy-oc-4_18:"
-  assert_contains "$status_output" "oc_4_20: localhost/shimmy-oc-4_20:"
-  assert_contains "$status_output" "oc_4_22: localhost/shimmy-oc-4_22:"
+  assert_contains "$status_output" "- oc:"
+  assert_contains "$status_output" "default: 4.20 (oc_4_20)"
+  assert_contains "$status_output" "- 4.18 (oc_4_18)"
+  assert_contains "$status_output" "- 4.20 (oc_4_20)"
+  assert_contains "$status_output" "- 4.22 (oc_4_22)"
 
   pass "oc install copies dispatcher and minor smoke config"
 }
@@ -2910,7 +2997,7 @@ test_netcat_shim_preview() {
 
   assert_contains "$output" "'run'"
   assert_contains "$output" "'--platform'"
-  assert_contains "$output" "'localhost/shimmy-netcat:"
+  assert_contains "$output" "'localhost/shimmy-netcat-7_92:"
   assert_contains "$output" "'--help'"
   assert_not_contains "$output" "--preview-shim"
   assert_not_contains "$output" "Building local shim image"
@@ -3191,16 +3278,16 @@ test_opnsense_mcp_read_only_shim_preview_url_normalized() {
 }
 
 test_opnsense_mcp_read_only_shim_secret_selectors() {
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-read-only" 'SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY=${SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY:-opnsense_mcp_read_only_api_key}'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-read-only" 'SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET=${SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET:-opnsense_mcp_read_only_api_secret}'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-read-only" '--secret "$SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY,type=env,target=OPNSENSE_API_KEY"'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-read-only" '--secret "$SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET,type=env,target=OPNSENSE_API_SECRET"'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-read-only_0_4" 'SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY=${SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY:-opnsense_mcp_read_only_api_key}'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-read-only_0_4" 'SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET=${SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET:-opnsense_mcp_read_only_api_secret}'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-read-only_0_4" '--secret "$SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY,type=env,target=OPNSENSE_API_KEY"'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-read-only_0_4" '--secret "$SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET,type=env,target=OPNSENSE_API_SECRET"'
 
   pass "opnsense-mcp-read-only secret selectors wire Podman secret names"
 }
 
 test_opnsense_mcp_read_only_shim_parent_podman_preflight() {
-  shim_file=$ROOT_DIR/shims/opnsense-mcp-read-only
+  shim_file=$ROOT_DIR/shims/opnsense-mcp-read-only_0_4
   preflight_line=$(awk '/shimmy_podman_preflight_require "the opnsense-mcp-read-only shim"/ { print NR; exit }' "$shim_file")
   local_image_line=$(awk '/shimmy_local_image_ensure/ { print NR; exit }' "$shim_file")
 
@@ -3231,7 +3318,7 @@ test_opnsense_mcp_admin_shim_preview() {
   )
 
   assert_contains "$output" "'run' '--rm'"
-  assert_contains "$output" "'localhost/shimmy-opnsense-mcp-admin:"
+  assert_contains "$output" "'localhost/shimmy-opnsense-mcp-admin-1_0:"
   assert_contains "$output" "--secret"
   assert_not_contains "$output" "ERROR: OPNSENSE_URL is required"
 
@@ -3386,15 +3473,15 @@ test_opnsense_mcp_admin_shim_preview_url_normalized() {
 }
 
 test_opnsense_mcp_admin_shim_secret_selectors() {
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY=${SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY:-opnsense_mcp_admin_api_key}'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET=${SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET:-opnsense_mcp_admin_api_secret}'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'shimmy_opnsense_mcp_admin_secret_preflight_require'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'secret inspect "$SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY"'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'secret inspect "$SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET"'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" 'missing Podman secret for opnsense-mcp-admin'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" "podman secret create %s -"
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" '--secret "$SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY,type=env,target=OPNSENSE_API_KEY"'
-  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin" '--secret "$SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET,type=env,target=OPNSENSE_API_SECRET"'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin_1_0" 'SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY=${SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY:-opnsense_mcp_admin_api_key}'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin_1_0" 'SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET=${SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET:-opnsense_mcp_admin_api_secret}'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin_1_0" 'shimmy_opnsense_mcp_admin_secret_preflight_require'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin_1_0" 'secret inspect "$SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY"'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin_1_0" 'secret inspect "$SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET"'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin_1_0" 'missing Podman secret for opnsense-mcp-admin'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin_1_0" "podman secret create %s -"
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin_1_0" '--secret "$SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY,type=env,target=OPNSENSE_API_KEY"'
+  assert_file_contains "$ROOT_DIR/shims/opnsense-mcp-admin_1_0" '--secret "$SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET,type=env,target=OPNSENSE_API_SECRET"'
 
   pass "opnsense-mcp-admin secret selectors wire Podman secret names"
 }
@@ -3409,19 +3496,19 @@ test_opnsense_mcp_admin_docs_secret_guidance() {
 }
 
 test_opnsense_mcp_admin_image_pins_mcp_sdk() {
-  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/Containerfile" "ARG SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION='mcp[cli]<1.10.0'"
-  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/Containerfile" '"$SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION" /tmp/*.whl'
-  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/Containerfile" "COPY entrypoint.sh /usr/local/bin/shimmy-opnsense-mcp-admin-entrypoint"
-  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/entrypoint.sh" '"api_key": "environment-provided"'
-  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/entrypoint.sh" '"api_secret": "environment-provided"'
-  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin/entrypoint.sh" "config_file.chmod(0o600)"
+  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin_1_0/Containerfile" "ARG SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION='mcp[cli]<1.10.0'"
+  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin_1_0/Containerfile" '"$SHIMMY_OPNSENSE_MCP_ADMIN_MCP_VERSION" /tmp/*.whl'
+  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin_1_0/Containerfile" "COPY entrypoint.sh /usr/local/bin/shimmy-opnsense-mcp-admin-entrypoint"
+  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin_1_0/entrypoint.sh" '"api_key": "environment-provided"'
+  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin_1_0/entrypoint.sh" '"api_secret": "environment-provided"'
+  assert_file_contains "$ROOT_DIR/images/opnsense-mcp-admin_1_0/entrypoint.sh" "config_file.chmod(0o600)"
   assert_file_contains "$ROOT_DIR/docs/shims/opnsense-mcp-admin.md" "newer MCP Python SDK releases reject that argument"
 
   pass "opnsense-mcp-admin image constrains MCP SDK and writes no-secret profile stub"
 }
 
 test_opnsense_mcp_admin_shim_parent_podman_preflight() {
-  shim_file=$ROOT_DIR/shims/opnsense-mcp-admin
+  shim_file=$ROOT_DIR/shims/opnsense-mcp-admin_1_0
   preflight_line=$(awk '/shimmy_podman_preflight_require "the opnsense-mcp-admin shim"/ { print NR; exit }' "$shim_file")
   local_image_line=$(awk '/shimmy_local_image_ensure/ { print NR; exit }' "$shim_file")
 
@@ -3670,7 +3757,7 @@ test_installed_opnsense_mcp_admin_shim() {
   [ "$status" -ne 0 ] || fail_test "expected installed opnsense-mcp-admin to require configuration"
   assert_contains "$output" "ERROR: OPNSENSE_URL is required for the opnsense-mcp-admin shim."
   assert_contains "$output" "Set OPNSENSE_URL to the OPNsense firewall host or root URL. A bare hostname is accepted."
-  assert_file_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin/entrypoint.sh"
+  assert_file_exists "$INSTALL_DIR/profiles/default/images/opnsense-mcp-admin_1_0/entrypoint.sh"
 
   pass "installed opnsense-mcp-admin requires OPNSENSE_URL before execution"
 }
@@ -3793,10 +3880,13 @@ main() {
   test_podman_platform_resolves_host_os
   test_podman_platform_tag_render
   test_podman_preview_helpers
+  test_catalog_kind_helpers
   test_podman_unreachable_guidance_agent
   test_dash_parse
   test_profile_rejects_mode_flag
   test_install_manifest
+  test_install_kind_version_selector
+  test_install_kind_version_selector_rejects_unknown
   test_install_mode_default_profile_manifest
   test_install_mode_invalid_environment_rejected
   test_install_mode_upstream_profile_manifest
@@ -3857,7 +3947,7 @@ main() {
   test_gcloud_shim_direct
   test_jq_shim_direct
   test_jq_shim_preview
-  test_oc_dispatcher_missing_version
+  test_oc_dispatcher_default_version
   test_oc_dispatcher_unsupported_version
   test_oc_dispatcher_preview
   test_oc_install_and_smoke_config

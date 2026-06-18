@@ -1,9 +1,9 @@
 ---
 name: shimmy-tool-oc
-description: Guidance for using, changing, testing, and troubleshooting the multi-version OpenShift CLI (oc) shims in this repository, including SHIMMY_OC_VERSION dispatch, per-track local-build images, and KUBECONFIG forwarding.
+description: Guidance for using, changing, testing, and troubleshooting the OpenShift CLI (oc) kind dispatcher and concrete version shims in this repository, including default 4.20 dispatch, SHIMMY_OC_VERSION selection, per-track local-build images, and KUBECONFIG forwarding.
 ---
 
-# OpenShift CLI (oc) Multi-Version Shim
+# OpenShift CLI (oc) Kind Shim
 
 Use this skill when working with `shims/oc`, the versioned `oc_4_xx` shims, their tests, docs, or oc usage through Shimmy.
 
@@ -28,9 +28,10 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 ## Current Behavior
 
 - Dispatcher command: `oc`
-  - Reads `SHIMMY_OC_VERSION` (required, `major.minor` such as `4.18`, `4.20`, `4.22`).
+  - Reads optional `SHIMMY_OC_VERSION` (`major.minor` such as `4.18`, `4.20`, `4.22`).
+  - Uses default `4.20` and execs `oc_4_20` when `SHIMMY_OC_VERSION` is unset.
   - Maps `4.18` → `oc_4_18`, `4.20` → `oc_4_20`, `4.22` → `oc_4_22`.
-  - Prints a clear error when `SHIMMY_OC_VERSION` is missing or unsupported.
+  - Prints a clear error when `SHIMMY_OC_VERSION` is unsupported, including available values and the default.
   - Has `shims/oc.conf` with `smoke_env=SHIMMY_OC_VERSION=4.20` and preview smoke args.
 - Versioned shims (per-track local-build images):
   - `oc_4_18`: builds a local image from `images/oc_4_18/Containerfile` using `shimmy_local_image_ensure`, with optional `SHIMMY_OC_4_18_IMAGE` override, `SHIMMY_OC_4_18_IMAGE_BUILD` (`auto`/`always`), and `SHIMMY_OC_4_18_BASE_IMAGE` build arg.
@@ -47,7 +48,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 1. Preserve the `SHIMMY_OC_VERSION` selector contract; do not change the variable name when adding new tracks.
 2. Keep per-track image env vars (`SHIMMY_OC_4_xx_IMAGE`, `SHIMMY_OC_4_xx_IMAGE_BUILD`, `SHIMMY_OC_4_xx_BASE_IMAGE`) and local-build behavior aligned between shims, docs, status, and update scripts.
 3. Avoid adding implicit kubeconfig mounts beyond `KUBECONFIG` forwarding unless the task explicitly calls for them.
-4. When extending to new tracks (for example, `5.1`), add a new `oc_5_1` shim, `.conf`, image build context, dispatcher mapping, catalog entry, status description, update `--build` behavior, docs, tests, and README coverage together.
+4. When extending to new tracks (for example, `5.1`), add a new `oc_5_1` shim, `.conf`, image build context, dispatcher mapping, catalog kind/version entry, status description, update `--build` behavior, docs, tests, and README coverage together.
 5. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
 6. Update the runtime shims, docs, tests, installer behavior, status/update scripts, README, skill manifest, and executable bits together when behavior changes.
 
@@ -58,18 +59,19 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
   - `./shims/oc_4_18 version`
   - `./shims/oc_4_22 version`
 - Dispatcher smoke (from an activated profile):
-  - `export SHIMMY_OC_VERSION=4.20; oc version`
+  - `oc version`
+  - `SHIMMY_OC_VERSION=4.18 oc version`
 - Preview mode (no Podman engine contact):
-  - `export SHIMMY_OC_VERSION=4.20; oc --preview-shim version`
+  - `./shims/oc --preview-shim version`
+  - `SHIMMY_OC_VERSION=4.18 ./shims/oc --preview-shim version`
 - Shimmy tests:
-  - Install dispatcher smoke: `./shimmy install --shim oc --shim oc_4_20 && ./shimmy test --shim oc`
-  - `./scripts/test-shimmy.sh --shim oc_4_20`
-  - `./scripts/test-shimmy.sh --shim oc_4_18`
-  - `./scripts/test-shimmy.sh --shim oc_4_22`
+  - Install default: `./shimmy install --shim oc && ./shimmy test --shim oc`
+  - Install selector: `./shimmy install --shim oc@4.18`
+  - Source suite: `./scripts/test-shimmy.sh`
 
 ## Learning Guidance
 
 - Capture oc-specific lessons here when they affect version dispatch, image selection, or KUBECONFIG usage.
-- Promote reusable multi-version shim design lessons to `../shimmy-create-tool/SKILL.md` under `Learning Guidance`.
+- Promote reusable kind/version design lessons to `../shimmy-create-tool/SKILL.md` under `Learning Guidance`.
 - Preserve the explicit local-build image strategy unless a task calls for a strategy change; do not silently replace it with a remote-image default.
 - Dispatcher smoke belongs in `shims/oc.conf` with `smoke_env=SHIMMY_OC_VERSION=4.20` and preview args, while versioned shims keep direct `version` smoke commands.

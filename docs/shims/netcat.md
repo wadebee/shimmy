@@ -5,7 +5,7 @@
 - Ncat project page: <https://nmap.org/ncat/>
 - Nmap source repo README: <https://github.com/nmap/nmap/blob/master/README.md>
 - Latest Nmap/Ncat downloads: <https://nmap.org/download.html>
-- Shim image: local build from `images/netcat/Containerfile`
+- Shim image: local build from `images/netcat_7_92/Containerfile`
 
 ## Upstream README Summary
 
@@ -37,7 +37,7 @@ Environment:
 
 Local image behavior:
 
-- Shimmy builds `localhost/shimmy-netcat:<context-hash>-<platform>` from `images/netcat/Containerfile`.
+- Shimmy builds `localhost/shimmy-netcat-7_92:<context-hash>-<platform>` from `images/netcat_7_92/Containerfile`.
 - The image installs the `nmap-ncat` package.
 
 Mounts:

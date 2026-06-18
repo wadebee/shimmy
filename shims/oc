@@ -5,13 +5,8 @@ SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
 
-SHIMMY_OC_VERSION_VALUE=${SHIMMY_OC_VERSION:-}
-
-if [ -z "$SHIMMY_OC_VERSION_VALUE" ]; then
-  printf 'ERROR: SHIMMY_OC_VERSION is required for the oc shim.\n' >&2
-  printf '%s\n' 'Set SHIMMY_OC_VERSION to a supported major.minor (for example: 4.18, 4.20, 4.22).' >&2
-  exit 1
-fi
+SHIMMY_OC_DEFAULT_VERSION=4.20
+SHIMMY_OC_VERSION_VALUE=${SHIMMY_OC_VERSION:-$SHIMMY_OC_DEFAULT_VERSION}
 
 shim_name=
 case "$SHIMMY_OC_VERSION_VALUE" in
@@ -26,7 +21,13 @@ case "$SHIMMY_OC_VERSION_VALUE" in
     ;;
   *)
     printf 'ERROR: unsupported SHIMMY_OC_VERSION value: %s\n' "$SHIMMY_OC_VERSION_VALUE" >&2
-    printf '%s\n' 'Supported values: 4.18, 4.20, 4.22.' >&2
+    printf '%s\n' 'Available oc versions: 4.18, 4.20, 4.22' >&2
+    printf 'Default oc version: %s\n' "$SHIMMY_OC_DEFAULT_VERSION" >&2
+    printf '%s\n' 'Run one of:' >&2
+    printf '%s\n' '  shimmy install --shim oc' >&2
+    printf '%s\n' '  shimmy install --shim oc@4.18' >&2
+    printf '%s\n' '  shimmy install --shim oc@4.20' >&2
+    printf '%s\n' '  shimmy install --shim oc@4.22' >&2
     exit 1
     ;;
 esac

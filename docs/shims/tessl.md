@@ -61,7 +61,7 @@ Runtime platform:
 
 Status:
 
-- `shims/tessl` exists in the repository, but `tessl` is not currently listed in the installer's supported shim set.
+- `shims/tessl` exists in the repository, but `tessl` is not currently listed in the installer's supported kind set.
 
 ## Quick-Start Prompts
 

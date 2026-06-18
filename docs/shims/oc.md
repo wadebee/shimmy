@@ -2,7 +2,9 @@
 
 ## Overview
 
-The `oc` shim provides a single user-facing command that dispatches to one of several versioned OpenShift CLI shims at runtime. The active minor version is selected by the `SHIMMY_OC_VERSION` environment variable.
+The `oc` shim is the user-facing kind dispatcher for several concrete
+OpenShift CLI version shims. When no selector is set, `oc` dispatches to the
+catalog default version `oc_4_20`.
 
 Supported minor tracks (initial set):
 
@@ -14,26 +16,26 @@ Future 5.x tracks can be added without changing the selector variable name.
 
 ## Commands
 
-- `oc` – dispatcher that reads `SHIMMY_OC_VERSION` and execs the matching `oc_4_xx` shim.
+- `oc` - dispatcher that reads optional `SHIMMY_OC_VERSION` and execs the matching `oc_4_xx` shim.
 - `oc_4_18`, `oc_4_20`, `oc_4_22` – version-specific shims that run a locally built `ose-cli` image for the corresponding minor track.
 
 ## Version Selection
 
 Shimmy uses a version-agnostic selector:
 
-- `SHIMMY_OC_VERSION` – required, value is `major.minor` (for example, `4.18`, `4.20`, `4.22`).
+- `SHIMMY_OC_VERSION` - optional, value is `major.minor` (for example, `4.18`, `4.20`, `4.22`).
 
 Dispatcher behavior:
 
-- If `SHIMMY_OC_VERSION` is unset or empty, `oc` prints an error explaining that `SHIMMY_OC_VERSION` must be set to a supported `major.minor` and exits non-zero.
+- If `SHIMMY_OC_VERSION` is unset or empty, `oc` uses the default `4.20` selector and execs `oc_4_20`.
 - If `SHIMMY_OC_VERSION` is set to an unsupported value, `oc` prints an error listing the supported values and exits non-zero.
 - For supported values, `oc` resolves the matching versioned shim in the same directory and `exec`s it.
 
 Example:
 
 ```sh
-export SHIMMY_OC_VERSION=4.20
 oc version
+SHIMMY_OC_VERSION=4.18 oc version
 oc get pods -A
 ```
 
@@ -80,8 +82,8 @@ Note: The shim does **not** automatically mount `$HOME/.kube`. Ensure that any p
 All versioned shims support Shimmy's `--preview-shim` behavior via the shared Podman helper:
 
 ```sh
-export SHIMMY_OC_VERSION=4.20
 oc --preview-shim version
+SHIMMY_OC_VERSION=4.18 oc --preview-shim version
 ```
 
 With `--preview-shim`, Shimmy prints the shell-quoted `podman run` command and exits without contacting the Podman engine, pulling images, or starting a container.
@@ -95,7 +97,7 @@ The dispatcher and each versioned shim have corresponding config files used by `
 - `shims/oc_4_20.conf`
 - `shims/oc_4_22.conf`
 
-The dispatcher config uses a selector-only smoke environment and preview mode so it can validate dispatch without contacting Podman:
+The dispatcher config uses preview mode and a non-secret selector pinned to the default track, so installed smoke tests can validate dispatch without contacting Podman:
 
 - `smoke_env=SHIMMY_OC_VERSION=4.20`
 - `smoke_arg=--preview-shim`
@@ -108,7 +110,8 @@ The versioned configs use a single-token smoke command:
 Examples:
 
 ```sh
-./shimmy install --shim oc --shim oc_4_18 --shim oc_4_20 --shim oc_4_22
+./shimmy install --shim oc
+./shimmy install --shim oc@4.18
 ./shimmy test --shim oc
 ./shimmy test --shim oc_4_20
 ./shimmy test --shim oc_4_18
@@ -119,23 +122,28 @@ Examples:
 
 The oc shims are wired into Shimmy's catalog and installer:
 
-- Supported shims include `oc`, `oc_4_18`, `oc_4_20`, and `oc_4_22`.
-- Installing any versioned shim implicitly installs the `oc` dispatcher for that profile.
-- Install the dispatcher plus at least one matching versioned shim when you want the generic `oc` command to run a selected minor track.
+- Supported kind: `oc`.
+- Supported concrete versions: `oc_4_18`, `oc_4_20`, and `oc_4_22`.
+- Default version: `oc_4_20`.
+- `shimmy install --shim oc` installs the `oc` dispatcher and default `oc_4_20`.
+- `shimmy install --shim oc@4.18` installs the `oc` dispatcher, default `oc_4_20`, and selected `oc_4_18`.
 
 Examples:
 
 ```sh
-# Install upstream profile and oc 4.20
-./shimmy install --profile upstream --shim oc_4_20
+# Install upstream profile and the default oc 4.20
+./shimmy install --profile upstream --shim oc
 
-# In an activated upstream shell
+# Install the 4.18 selector as an additional concrete version
+./shimmy install --profile upstream --shim oc@4.18
+
+# In an activated upstream shell, unset selector uses 4.20
 eval "$(./shimmy activate --profile upstream)"
-export SHIMMY_OC_VERSION=4.20
 oc version
+SHIMMY_OC_VERSION=4.18 oc version
 ```
 
-`shimmy status` reports `oc` as a dispatcher and reports each installed `oc_4_xx` shim as a local image reference derived from its checked-in build context. `shimmy update --build` refreshes the oc_4_xx images by rebuilding the local images for the selected profile and cleaning up older context versions.
+`shimmy status` reports `oc` as an installed kind, the default version, and each installed version label. `shimmy update --shim oc --build` refreshes the dispatcher and installed `oc_4_xx` local images for the selected profile. `shimmy update --shim oc@4.18 --build` refreshes only the selected concrete version plus the required dispatcher.
 
 ## Extending to New Tracks
 
@@ -144,5 +152,5 @@ To add a new minor track in the future (for example, `5.1`):
 - Add a versioned shim such as `shims/oc_5_1` with its own local-build configuration and `SHIMMY_OC_5_1_IMAGE` / `SHIMMY_OC_5_1_IMAGE_BUILD` env vars.
 - Add `shims/oc_5_1.conf` with `shim_name=oc_5_1` and `smoke_arg=version`.
 - Extend the `oc` dispatcher to map `SHIMMY_OC_VERSION=5.1` to `oc_5_1`.
-- Update the catalog, status, and update scripts to include the new shim.
-- Update `shims/oc.conf` if the default dispatcher smoke version should change.
+- Update the catalog kind metadata, status, and update scripts to include the new concrete version.
+- Update the catalog default and `shims/oc.conf` only if the default dispatcher smoke version should change.

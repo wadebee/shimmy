@@ -4,56 +4,5 @@ set -eu
 SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
-SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$SCRIPT_DIR/../lib/shims/custom-image.sh
 
-SHIMMY_TEXTUAL_IMAGES_DIR=$SCRIPT_DIR/../images/textual
-SHIMMY_TEXTUAL_PULL_ARG=
-SHIMMY_TEXTUAL_TTY_ARG=
-
-if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
-  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" >&2
-  exit 1
-fi
-
-# shellcheck source=lib/shims/custom-image.sh
-. "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
-
-shimmy_podman_preflight_or_preview_require "the textual shim" "$@"
-
-if [ -n "${SHIMMY_TEXTUAL_IMAGE:-}" ]; then
-  SHIMMY_TEXTUAL_RUN_IMAGE=$SHIMMY_TEXTUAL_IMAGE
-else
-  if [ -n "${SHIMMY_TEXTUAL_BASE_IMAGE:-}" ]; then
-    SHIMMY_TEXTUAL_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-textual" \
-        "$SHIMMY_TEXTUAL_IMAGES_DIR" \
-        "${SHIMMY_TEXTUAL_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_TEXTUAL_BASE_IMAGE=$SHIMMY_TEXTUAL_BASE_IMAGE"
-    )
-  else
-    SHIMMY_TEXTUAL_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-textual" \
-        "$SHIMMY_TEXTUAL_IMAGES_DIR" \
-        "${SHIMMY_TEXTUAL_IMAGE_BUILD:-auto}"
-    )
-  fi
-fi
-
-if [ -n "${SHIMMY_TEXTUAL_IMAGE:-}" ] && [ "${SHIMMY_TEXTUAL_IMAGE_PULL:-}" = "always" ]; then
-  SHIMMY_TEXTUAL_PULL_ARG=--pull=always
-fi
-
-if [ -t 0 ] && [ -t 1 ]; then
-  SHIMMY_TEXTUAL_TTY_ARG=-it
-fi
-
-shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
-  --platform "$SHIMMY_PODMAN_PLATFORM" \
-  ${SHIMMY_TEXTUAL_TTY_ARG:+"$SHIMMY_TEXTUAL_TTY_ARG"} \
-  ${SHIMMY_TEXTUAL_PULL_ARG:+"$SHIMMY_TEXTUAL_PULL_ARG"} \
-  -v "$PWD:/work:rw" \
-  -w /work \
-  "$SHIMMY_TEXTUAL_RUN_IMAGE" \
-  "$@"
+exec "$SCRIPT_DIR/textual_8_2" "$@"
