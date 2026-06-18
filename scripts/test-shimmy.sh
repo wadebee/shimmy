@@ -1553,6 +1553,31 @@ test_skills_update_repo_target() {
   pass "skills update refreshes manifest-tracked repo skills idempotently"
 }
 
+test_skills_uninstall_repo_target() {
+  setup_scenario
+
+  (
+    cd "$WORK_DIR"
+    "$ROOT_DIR/shimmy" skills install --target repo >/dev/null
+  )
+  mkdir -p "$WORK_DIR/.agents/skills/unmanaged"
+  printf '%s\n' 'unmanaged' > "$WORK_DIR/.agents/skills/unmanaged/SKILL.md"
+
+  output=$(
+    cd "$WORK_DIR"
+    "$ROOT_DIR/shimmy" skills uninstall --target repo 2>&1
+  )
+
+  assert_contains "$output" "Removed skill: shimmy-install"
+  assert_contains "$output" "Removed skills manifest: $WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt"
+  assert_path_not_exists "$WORK_DIR/.agents/skills/shimmy-install"
+  assert_path_not_exists "$WORK_DIR/.agents/skills/shimmy-init"
+  assert_path_not_exists "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt"
+  assert_file_exists "$WORK_DIR/.agents/skills/unmanaged/SKILL.md"
+
+  pass "skills uninstall removes manifest-tracked repo skills only"
+}
+
 test_skills_export_folder() {
   setup_scenario
 
@@ -3846,6 +3871,60 @@ test_uninstall_mode_upstream_last_profile_cleanup() {
   pass "uninstall upstream mode removes install when last profile"
 }
 
+test_uninstall_last_profile_removes_root_remnants() {
+  setup_scenario
+
+  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-skills >/dev/null
+  ln -s ../core/scripts/dispatch-shimmy.sh "$INSTALL_DIR/bin/stale-shim"
+  rm -f "$INSTALL_DIR/profiles/default/install-manifest.txt"
+  {
+    printf '# >>> shimmy shell init >>>\n'
+    printf 'legacy shimmy startup\n'
+    printf '# <<< shimmy shell init <<<\n'
+  } >> "$HOME_DIR/.bashrc"
+
+  output=$(
+    HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" --profile default 2>&1
+  )
+
+  assert_contains "$output" "Removed managed Shimmy startup block from: $HOME_DIR/.bashrc"
+  assert_path_not_exists "$INSTALL_DIR"
+  bashrc_contents=$(cat "$HOME_DIR/.bashrc")
+  bash_profile_contents=$(cat "$HOME_DIR/.bash_profile")
+  assert_not_contains "$bashrc_contents" "# >>> shimmy onboarding >>>"
+  assert_not_contains "$bashrc_contents" "$INSTALL_DIR/activate.sh"
+  assert_not_contains "$bashrc_contents" "# >>> shimmy shell init >>>"
+  assert_not_contains "$bashrc_contents" "legacy shimmy startup"
+  assert_not_contains "$bash_profile_contents" "# >>> shimmy onboarding >>>"
+  assert_not_contains "$bash_profile_contents" "$INSTALL_DIR/activate.sh"
+
+  pass "uninstall final cleanup removes startup and root remnants"
+}
+
+test_installed_uninstall_removes_requested_skills_target() {
+  setup_scenario
+
+  (
+    cd "$WORK_DIR"
+    HOME="$HOME_DIR" "$ROOT_DIR/shimmy" install --install-dir "$INSTALL_DIR" --profile default --shim jq --no-startup --skills-target repo >/dev/null
+  )
+
+  assert_file_exists "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt"
+  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-install/SKILL.md"
+
+  output=$(
+    cd "$WORK_DIR"
+    HOME="$HOME_DIR" PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy uninstall --profile default --skills-target repo 2>&1
+  )
+
+  assert_contains "$output" "Removed skill: shimmy-install"
+  assert_path_not_exists "$INSTALL_DIR"
+  assert_path_not_exists "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt"
+  assert_path_not_exists "$WORK_DIR/.agents/skills/shimmy-install"
+
+  pass "installed uninstall removes requested skills target before core cleanup"
+}
+
 test_uninstall_mode_upstream_preserves_default() {
   setup_scenario
 
@@ -3914,6 +3993,7 @@ main() {
   test_skills_public_manifests_are_portable
   test_opnsense_mcp_skills_supported_tool_inventories
   test_skills_update_repo_target
+  test_skills_uninstall_repo_target
   test_skills_export_folder
   test_install_macos_podman_guidance
   test_agent_shimmy_preflight_reports_approvals
@@ -3978,6 +4058,9 @@ main() {
   test_uninstall_mode_default_preserves_upstream
   test_uninstall_mode_invalid_environment_rejected
   test_uninstall_mode_upstream_last_profile_cleanup
+  test_uninstall_last_profile_removes_root_remnants
+  test_installed_uninstall_removes_requested_skills_target
+  test_uninstall_mode_upstream_preserves_default
   test_netcat_shim_preview
 
   printf 'All %s shim tests passed.\n' "$TEST_COUNT"

@@ -99,6 +99,7 @@ Shimmy skills can be shared beyond the default project repo and into your user p
 ./shimmy skills install --target repo
 ./shimmy skills install --target profile
 ./shimmy skills update --target plugin
+./shimmy skills uninstall --target repo
 ./shimmy skills install --export ./shimmy-skills
 ./shimmy skills install --export ./shimmy-skills.zip
 ```
@@ -187,7 +188,7 @@ Use the repo-root `shimmy` wrapper to install and manage Shimmy from a source ch
 ./shimmy update --pull --build
 ./shimmy test
 ./shimmy test --profile upstream
-./shimmy uninstall
+./shimmy uninstall --profile default
 ```
 
 The wrapper delegates to script-based interfaces in `scripts/`.
@@ -209,6 +210,7 @@ shimmy netinfo
 shimmy skills update --target repo
 shimmy update --all --pull --build
 shimmy test
+shimmy uninstall --profile default
 eval "$(shimmy activate)"
 ```
 
@@ -431,6 +433,26 @@ With no explicit `--shim`, install creates or completes the default external-use
 
 During an interactive install, Shimmy asks where to share Shimmy agent skills: `repo`, `profile`, `plugin`, or `none`. For non-interactive installs, pass `--skills-target <repo|profile|plugin>` or run `shimmy skills install` later.
 
+Uninstall is profile-scoped and explicit:
+
+```sh
+./shimmy uninstall --profile default
+./shimmy uninstall --profile upstream
+```
+
+When removing the last installed profile, Shimmy removes managed startup blocks,
+the activation file, root manifest, management support files, Shimmy-owned public
+dispatcher symlinks, and empty install directories. It also tolerates partially
+removed profile state so a rerun can clean stale install-root remnants.
+
+Agent skills are target-local and tracked by each target's
+`.shimmy-skills-manifest.txt`. Remove them explicitly when desired:
+
+```sh
+./shimmy skills uninstall --target repo
+./shimmy uninstall --profile default --skills-target repo
+```
+
 #### Option: Direct script workflow
 
 Use the underlying scripts directly when you want the lower-level interfaces explicitly:
@@ -481,7 +503,7 @@ Profile fields include:
 - `kind_version` — installed concrete version mapping as `<kind>|<label>|<version>`; repeated for defaults and installed version labels
 - `shimmy_source_url`, `shimmy_source_ref`, and `shimmy_previous_source_ref` — profile lifecycle source metadata
 
-Root and profile manifests do not own generated skill audit state. Each skills target gets a local `.shimmy-skills-manifest.txt` under the target skills directory, and that file is the durable owner of repeated `shimmy_skill=` entries. `shimmy skills update` reads that manifest to refresh the same skill set idempotently, so generated `shimmy-tool-*` skills can be audited and updated without duplicate entries.
+Root and profile manifests do not own generated skill audit state. Each skills target gets a local `.shimmy-skills-manifest.txt` under the target skills directory, and that file is the durable owner of repeated `shimmy_skill=` entries. `shimmy skills update` reads that manifest to refresh the same skill set idempotently, and `shimmy skills uninstall` removes only the manifest-tracked skill directories, so generated `shimmy-tool-*` skills can be audited, updated, and cleaned up without duplicate entries or broad deletes.
 
 For machine-readable inspection, `shimmy status --format manifest` emits a normalized view with `shimmy_` install/status keys and `shimmy_profile_` selected-profile keys. It reports derived paths and incomplete-profile diagnostics without treating the root manifest as a default-profile substitute.
 

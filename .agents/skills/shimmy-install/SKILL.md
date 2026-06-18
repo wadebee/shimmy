@@ -105,7 +105,7 @@ shimmy_skill=profile|shimmy-install|$HOME/.agents/skills/shimmy-install|fingerpr
 
 Do not edit the manifest directly when a Shimmy script supports the action. If a script rewrites the manifest, it must preserve unknown `shimmy_*` fields unless it intentionally owns and refreshes that key.
 
-Generated or shared agent skills are tracked with repeated `shimmy_skill=` entries. Use `./shimmy skills install` or `./shimmy skills update` to rewrite those entries idempotently instead of hand-editing them.
+Generated or shared agent skills are tracked with repeated `shimmy_skill=` entries. Use `./shimmy skills install`, `./shimmy skills update`, or `./shimmy skills uninstall` to rewrite or remove those entries idempotently instead of hand-editing them.
 
 Every capability must produce machine-readable output for the action. Prefer `shimmy status --format manifest`, `shimmy status --profile upstream --format manifest`, or equivalent `key=value` output over JSON so bootstrap, activation, and recovery do not depend on JSON tooling.
 
@@ -184,8 +184,9 @@ If no previous known-good ref exists, stop and ask for a target ref. Do not gues
 
 1. Read the selected profile manifest.
 2. Run `shimmy uninstall --profile <profile>` or `./shimmy uninstall --profile <profile>`.
-3. Validate removal with `./shimmy status` or by confirming the manifest, activation file, shims, and managed startup blocks are gone.
-4. Emit final machine-readable output showing `installed=no`, timestamp, and removed paths.
+3. If target-local agent skills should be removed too, pass `--skills-target <repo|profile|plugin>` or run `shimmy skills uninstall --target <target>`.
+4. Validate removal with `./shimmy status` or by confirming the manifest, activation file, shims, managed startup blocks, and Shimmy-owned public dispatcher symlinks are gone.
+5. Emit final machine-readable output showing `installed=no`, timestamp, and removed paths.
 
 ## Version Resolution
 

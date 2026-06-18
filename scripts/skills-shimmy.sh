@@ -52,11 +52,12 @@ log_info() {
 
 usage() {
   cat <<'EOF'
-Install, update, or export Shimmy agent skills.
+Install, update, uninstall, or export Shimmy agent skills.
 
 Usage:
   scripts/skills-shimmy.sh install [options] [skill...]
   scripts/skills-shimmy.sh update [options] [skill...]
+  scripts/skills-shimmy.sh uninstall [options]
 
 Options:
   --target repo       Write skills to .agents/skills in the current directory
@@ -71,6 +72,7 @@ With no explicit skill names, install writes the core Shimmy management skills
 plus tool skills for kinds recorded in the install manifest.
 Update refreshes manifest-tracked skills for the target, falling back to the
 core management and installed-kind skills when no target manifest exists yet.
+Uninstall removes skills recorded in the selected target manifest.
 EOF
 }
 
@@ -174,6 +176,34 @@ skill_manifest_skill_names_read() {
         skill_name=${skill_entry%%|*}
         [ -n "$skill_name" ] || continue
         skill_source_exists "$skill_name" || continue
+        if ! shimmy_contains_line_list "$skill_names" "$skill_name"; then
+          skill_names=$(shimmy_append_line_list "$skill_names" "$skill_name")
+        fi
+        ;;
+    esac
+  done < "$skills_manifest_file"
+
+  if [ -n "$skill_names" ]; then
+    printf '%s\n' "$skill_names"
+  fi
+}
+
+skill_manifest_skill_names_read_all() {
+  skills_manifest_file=$1
+  skill_names=
+
+  if [ ! -f "$skills_manifest_file" ]; then
+    return 0
+  fi
+
+  while IFS= read -r manifest_line; do
+    case "$manifest_line" in
+      shimmy_skill=*)
+        skill_entry=${manifest_line#shimmy_skill=}
+        skill_entry=${skill_entry#*|}
+        skill_name=${skill_entry%%|*}
+        [ -n "$skill_name" ] || continue
+        skill_name_validate "$skill_name"
         if ! shimmy_contains_line_list "$skill_names" "$skill_name"; then
           skill_names=$(shimmy_append_line_list "$skill_names" "$skill_name")
         fi
@@ -468,6 +498,38 @@ skills_target_sync() {
   log_info "Skills manifest: $target_root/$SKILLS_MANIFEST_NAME"
 }
 
+skills_target_uninstall() {
+  target_name_validate "$REQUESTED_TARGET"
+  if [ -n "$REQUESTED_SKILLS" ]; then
+    fail "skills uninstall removes the manifest-tracked target; explicit skill names are not supported"
+  fi
+
+  target_root=$(target_root_resolve "$REQUESTED_TARGET")
+  target_manifest_file=$target_root/$SKILLS_MANIFEST_NAME
+  ensure_safe_root "$target_root"
+
+  if [ ! -f "$target_manifest_file" ]; then
+    log_info "No Shimmy skills manifest found: $target_manifest_file"
+    return 0
+  fi
+
+  skill_names=$(skill_manifest_skill_names_read_all "$target_manifest_file")
+  while IFS= read -r skill_name; do
+    [ -n "$skill_name" ] || continue
+    skill_name_validate "$skill_name"
+    rm -rf "$target_root/$skill_name"
+    log_info "Removed skill: $skill_name"
+  done <<EOF
+$skill_names
+EOF
+
+  rm -f "$target_manifest_file"
+  if rmdir "$target_root" 2>/dev/null; then
+    log_info "Removed empty skills root: $target_root"
+  fi
+  log_info "Removed skills manifest: $target_manifest_file"
+}
+
 export_zip_create() {
   export_path=$1
   export_source_dir=$2
@@ -534,7 +596,7 @@ EOF
 
 main() {
   case "$ACTION" in
-    install|update)
+    install|update|uninstall)
       shift
       ;;
     help|-h|--help)
@@ -584,7 +646,13 @@ main() {
   done
 
   if [ -n "$EXPORT_PATH" ]; then
+    [ "$ACTION" != uninstall ] || fail "--export is not supported with skills uninstall"
     skills_export
+    exit 0
+  fi
+
+  if [ "$ACTION" = uninstall ]; then
+    skills_target_uninstall
     exit 0
   fi
 
