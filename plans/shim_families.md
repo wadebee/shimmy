@@ -298,17 +298,7 @@ Rules:
 - If a non-default version is installed, keep its version label too.
 - Avoid storing only concrete versions without kind context.
 - Update `status --format manifest`, install, update, test, and uninstall together.
-
-Open implementation question:
-
-- If the default version is also installed under its version label, decide whether to emit both:
-
-```text
-kind_version=oc|default|oc_4_20
-kind_version=oc|4.20|oc_4_20
-```
-
-Recommendation: emit both. It makes "what is default?" and "which version labels are installed?" independently parseable.
+- If the default version is also installed under its version label emit both so that "what is default?" and "which version labels are installed?" are independently parseable.
 
 ## Status Behavior
 
@@ -348,7 +338,7 @@ shimmy_available_kind_version=oc|4.20|oc_4_20
 shimmy_available_kind_version=oc|4.22|oc_4_22
 ```
 
-Since compatibility is not required, existing `shimmy_available_shim=` keys may be removed, but update README, tests, and skills in the same change.
+Since compatibility is not required, existing `shimmy_available_shim=` keys may be removed, but update README, tests, and skills in the same change.  
 
 ## Test Behavior
 
@@ -407,6 +397,7 @@ Required docs:
   - Explain that every user-facing command is a kind dispatcher.
   - Explain concrete versions and default versions.
   - Show `shimmy install --shim oc`, `shimmy install --shim oc@4.18`, and unset-selector default dispatch.
+  - Document Update behavior with examples.
   - Document the new manifest fields.
 - `docs/prompt-shimmy-project.md`
   - Replace flat supported-shim guidance with kind/version guidance.
@@ -454,6 +445,7 @@ After skill edits, run the repo skill installer for the changed skills. If it ac
 ```
 
 ## Implementation Sequence
+Stop and prompt if any step surfaces decision points important to final implementation. 
 
 1. Inventory current catalog shims and determine major.minor versions for all current one-version tools.
 2. Design final version names and record discovery evidence.
