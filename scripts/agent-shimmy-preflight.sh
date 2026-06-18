@@ -99,31 +99,46 @@ shimmy_agent_smoke_args_render() {
   shim_name=$1
 
   case "$shim_name" in
-    aws)
+    aws|aws_2_31)
       printf '%s\n' '--version'
       ;;
-    go)
+    go|go_1_26)
       printf '%s\n' 'version'
       ;;
-    jq)
+    gcloud|gcloud_573_0)
       printf '%s\n' '--version'
       ;;
-    netcat)
+    gdrive|gdrive_0_2)
       printf '%s\n' '--help'
       ;;
-    opnsense-mcp-read-only)
+    jq|jq_1_8)
+      printf '%s\n' '--version'
+      ;;
+    netcat|netcat_7_92)
       printf '%s\n' '--help'
       ;;
-    rg)
+    nmap|nmap_7_98)
       printf '%s\n' '--version'
       ;;
-    task)
+    opnsense-mcp-admin|opnsense-mcp-admin_1_0)
+      printf '%s\n' '--help'
+      ;;
+    opnsense-mcp-read-only|opnsense-mcp-read-only_0_4)
+      printf '%s\n' '--help'
+      ;;
+    oc|oc_4_18|oc_4_20|oc_4_22)
+      printf '%s\n' '--preview-shim version'
+      ;;
+    rg|rg_15_1)
       printf '%s\n' '--version'
       ;;
-    terraform)
+    task|task_3_45)
+      printf '%s\n' '--version'
+      ;;
+    terraform|terraform_1_15)
       printf '%s\n' 'version'
       ;;
-    textual)
+    textual|textual_8_2)
       printf '%s\n' '--version'
       ;;
     *)
@@ -245,7 +260,7 @@ shimmy_agent_manifest_shims_discover() {
     [ -n "$shim_name" ] || continue
     shimmy_agent_active_shim_consider "$shim_name" "$bin_dir/$shim_name"
   done <<EOF
-$(sed -n 's/^shim=//p' "$manifest_file")
+$(sed -n 's/^kind=//p' "$manifest_file")
 EOF
 }
 

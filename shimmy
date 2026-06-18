@@ -30,7 +30,7 @@ Usage:
 
 Commands:
   install [args...]     Install missing shims into this environment
-  uninstall [args...]   Remove this installed environment
+  uninstall [args...]   Remove a profile from this installed environment
   activate [args...]    Print shell code that activates the installed shim paths now
   netinfo [args...]     Run scripts/netinfo-shimmy.sh
   skills [args...]      Run scripts/skills-shimmy.sh
@@ -42,7 +42,7 @@ Commands:
 Examples:
   eval "$(shimmy activate)"
   shimmy install --shim opnsense-mcp-read-only
-  shimmy uninstall
+  shimmy uninstall --profile default
   shimmy netinfo
   shimmy skills install --target repo
   shimmy status
@@ -73,7 +73,7 @@ Commands:
 Examples:
   ./shimmy install
   eval "$(./shimmy activate)"
-  ./shimmy uninstall
+  ./shimmy uninstall --profile default
   ./shimmy netinfo
   ./shimmy skills install --target repo
   ./shimmy status

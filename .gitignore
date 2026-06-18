@@ -4,6 +4,7 @@ Thumbs.db
 
 # Editor directories and files
 .vscode/
+.windsurf/
 .idea/
 *.swp
 *~

@@ -9,8 +9,9 @@ Use this skill when working with `shims/gdrive`, its local image, its tests, its
 
 ## Files
 
-- Runtime shim: `../../../shims/gdrive`
-- Local image: `../../../images/gdrive/Containerfile`
+- Kind dispatcher: `../../../shims/gdrive`
+- Version shim: `../../../shims/gdrive_0_2`
+- Local image: `../../../images/gdrive_0_2/Containerfile`
 - User docs: `../../../docs/shims/gdrive.md`
 - Tests: `../../../scripts/test-shimmy.sh`
 - Installer: `../../../scripts/install-shimmy.sh`
@@ -24,7 +25,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Current Behavior
 
-- Default image: locally built `localhost/shimmy-gdrive:<context-hash>-<platform>` from `isaacphi/mcp-gdrive`
+- Default image: locally built `localhost/shimmy-gdrive-0_2:<context-hash>-<platform>` from `isaacphi/mcp-gdrive`
 - Source ref: `SHIMMY_GDRIVE_SOURCE_REF`, default `5a94bdcb751975f9f6552d261da35314baf89c43`
 - Image override: `SHIMMY_GDRIVE_IMAGE`
 - Build override: `SHIMMY_GDRIVE_IMAGE_BUILD=always`
@@ -48,7 +49,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 ## Change Rules
 
 1. Keep OAuth credentials in a host directory mounted through `GDRIVE_CREDS_DIR`; do not bake credentials into the image.
-2. Keep package installation and source checkout in `../../../images/gdrive/Containerfile`, not the runtime shim.
+2. Keep package installation and source checkout in `../../../images/gdrive_0_2/Containerfile`, not the kind dispatcher.
 3. Use `SHIMMY_GDRIVE_IMAGE` only as a full runtime image override; local build args apply only to Shimmy-built images.
 4. Keep `--help` wrapper-level so smoke tests do not start browser OAuth.
 5. Preserve first-time auth port publishing unless upstream stops using a localhost browser callback.

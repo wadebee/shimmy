@@ -9,8 +9,9 @@ Use this skill when working with `shims/textual`, its local image, its tests, it
 
 ## Files
 
-- Runtime shim: `../../../shims/textual`
-- Local image: `../../../images/textual/Containerfile`
+- Kind dispatcher: `../../../shims/textual`
+- Version shim: `../../../shims/textual_8_2`
+- Local image: `../../../images/textual_8_2/Containerfile`
 - User docs: `../../../docs/shims/textual.md`
 - Tests: `../../../scripts/test-shimmy.sh`
 - Installer: `../../../scripts/install-shimmy.sh`
@@ -24,11 +25,12 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Current Behavior
 
-- Default image: locally built `localhost/shimmy-textual:<context-hash>-<platform>`
+- Default image: locally built `localhost/shimmy-textual-8_2:<context-hash>-<platform>`
 - Image override: `SHIMMY_TEXTUAL_IMAGE`
 - Build override: `SHIMMY_TEXTUAL_IMAGE_BUILD=always`
 - Pull override for image overrides: `SHIMMY_TEXTUAL_IMAGE_PULL=always`
-- Base image override: `TEXTUAL_BASE_IMAGE`
+- Base image override: `SHIMMY_TEXTUAL_BASE_IMAGE`
+- Textual version override: `SHIMMY_TEXTUAL_VERSION`
 - Default base image: `python:3.13-slim-bookworm`
 - Runtime mode: TTY only when stdin and stdout are terminals
 - Mount: `$PWD` to `/work:rw`
@@ -36,7 +38,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Change Rules
 
-1. Keep package installation inside `../../../images/textual/Containerfile`, not the runtime shim.
+1. Keep package installation inside `../../../images/textual_8_2/Containerfile`, not the kind dispatcher.
 2. Preserve TTY detection; Textual apps often need a terminal, while scripted help checks should remain clean.
 3. Use `SHIMMY_TEXTUAL_IMAGE` only as a full runtime image override; local build args apply only to Shimmy-built images.
 4. Treat `textual run` and `textual serve` as interactive or potentially long-running commands.

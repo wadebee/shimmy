@@ -9,8 +9,9 @@ Use this skill when working with `shims/task`, its local image, its tests, its d
 
 ## Files
 
-- Runtime shim: `../../../shims/task`
-- Local image: `../../../images/task/Containerfile`
+- Kind dispatcher: `../../../shims/task`
+- Version shim: `../../../shims/task_3_45`
+- Local image: `../../../images/task_3_45/Containerfile`
 - User docs: `../../../docs/shims/task.md`
 - Tests: `../../../scripts/test-shimmy.sh`
 - Installer: `../../../scripts/install-shimmy.sh`
@@ -24,7 +25,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Current Behavior
 
-- Default image: locally built `localhost/shimmy-task:<context-hash>-<platform>`
+- Default image: locally built `localhost/shimmy-task-3_45:<context-hash>-<platform>`
 - Image override: `SHIMMY_TASK_IMAGE`
 - Build override: `SHIMMY_TASK_IMAGE_BUILD=always`
 - Pull override for image overrides: `SHIMMY_TASK_IMAGE_PULL=always`
@@ -47,7 +48,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 1. Preserve the `$PWD` to `$PWD` mount and working directory behavior; Taskfiles often expect host-relative paths.
 2. Treat `$HOME`, `/tmp`, and `CONTAINER_HOST` forwarding as deliberate host-coupling. Keep tests and docs aligned if changed.
-3. Keep package installation inside `../../../images/task/Containerfile`, not the runtime shim.
+3. Keep package installation inside `../../../images/task_3_45/Containerfile`, not the kind dispatcher.
 4. Use `SHIMMY_TASK_IMAGE` only as a full runtime image override; local build args apply only to Shimmy-built images.
 5. Use non-mutating smoke checks such as `task --version` or `task --list`.
 6. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.

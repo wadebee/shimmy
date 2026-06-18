@@ -40,7 +40,8 @@ STARTUP_SHELL=
 PRESERVED_STARTUP_FILE_PATHS=
 PRESERVED_STARTUP_SHELL=
 PRESERVED_SHIMMY_MANIFEST_LINES=
-PROFILE_MANIFEST_SHIMS=
+PROFILE_MANIFEST_KIND_VERSIONS=
+PROFILE_MANIFEST_KINDS=
 UNINSTALL=0
 
 LOG_LEVEL=${LOG_LEVEL:-info}
@@ -143,8 +144,8 @@ Options:
   --install-dir <dir>    Base install directory. Default: ~/.config/shimmy
   --profile <name>          Install profile: default or upstream
   --shim <name>          Install the named shim if missing. Repeatable.
-  --skills-target <name> Share Shimmy agent skills to repo, profile, or plugin
-  --no-skills            Do not prompt for or share Shimmy agent skills
+  --skills-target <name> Share or remove Shimmy agent skills in repo, profile, or plugin
+  --no-skills            Do not prompt for, share, or remove Shimmy agent skills
   --shell <name>         Override shell detection for startup-file updates
   --startup-file <path>  Override startup file updates. Repeatable.
   --no-startup           Skip persistent startup-file updates during install
@@ -159,13 +160,129 @@ selected_shim_list() {
     return 0
   fi
 
-  shimmy_default_shim_list
+  shimmy_default_kind_list
+}
+
+version_label_list_render() {
+  kind_name=$1
+  separator=
+
+  for version_label in $(shimmy_kind_version_label_list "$kind_name"); do
+    printf '%s%s' "$separator" "$version_label"
+    separator=', '
+  done
+  printf '\n'
+}
+
+kind_list_render() {
+  separator=
+
+  for kind_name in $(shimmy_kind_list); do
+    printf '%s%s' "$separator" "$kind_name"
+    separator=', '
+  done
+  printf '\n'
+}
+
+kind_version_entry_print() {
+  entry_kind_name=$1
+  entry_version_label=$2
+  entry_version_name=$3
+
+  printf '%s|%s|%s\n' "$entry_kind_name" "$entry_version_label" "$entry_version_name"
+}
+
+request_kind_version_entries_resolve() {
+  requested_shim=$1
+
+  case "$requested_shim" in
+    *@*)
+      kind_name=${requested_shim%%@*}
+      version_label=${requested_shim#*@}
+      shimmy_is_kind "$kind_name" || fail "unsupported shim kind: $kind_name. Available kinds: $(kind_list_render)"
+      version_name=$(shimmy_kind_version_for_label "$kind_name" "$version_label" || true)
+      if [ -z "$version_name" ]; then
+        fail "unsupported $kind_name version: $version_label. Available $kind_name versions: $(version_label_list_render "$kind_name"). Default $kind_name version: $(shimmy_version_label "$(shimmy_kind_default_version "$kind_name")")"
+      fi
+      default_version=$(shimmy_kind_default_version "$kind_name")
+      kind_version_entry_print "$kind_name" default "$default_version"
+      kind_version_entry_print "$kind_name" "$(shimmy_version_label "$default_version")" "$default_version"
+      kind_version_entry_print "$kind_name" "$version_label" "$version_name"
+      ;;
+    *)
+      if shimmy_is_kind "$requested_shim"; then
+        kind_name=$requested_shim
+        default_version=$(shimmy_kind_default_version "$kind_name")
+        kind_version_entry_print "$kind_name" default "$default_version"
+        kind_version_entry_print "$kind_name" "$(shimmy_version_label "$default_version")" "$default_version"
+      elif shimmy_is_version "$requested_shim"; then
+        version_name=$requested_shim
+        kind_name=$(shimmy_version_kind "$version_name")
+        default_version=$(shimmy_kind_default_version "$kind_name")
+        kind_version_entry_print "$kind_name" default "$default_version"
+        kind_version_entry_print "$kind_name" "$(shimmy_version_label "$default_version")" "$default_version"
+        kind_version_entry_print "$kind_name" "$(shimmy_version_label "$version_name")" "$version_name"
+      else
+        fail "unsupported shim kind: $requested_shim. Available kinds: $(kind_list_render)"
+      fi
+      ;;
+  esac
+}
+
+selected_kind_version_entries() {
+  selected_entries=
+
+  for requested_shim in $(selected_shim_list); do
+    requested_entries=$(request_kind_version_entries_resolve "$requested_shim") || return 1
+    while IFS= read -r kind_version_entry; do
+      [ -n "$kind_version_entry" ] || continue
+      if ! shimmy_contains_line_list "$selected_entries" "$kind_version_entry"; then
+        selected_entries=$(shimmy_append_line_list "$selected_entries" "$kind_version_entry")
+      fi
+    done <<EOF
+$requested_entries
+EOF
+  done
+
+  printf '%s\n' "$selected_entries"
+}
+
+kind_list_from_entries() {
+  kind_version_entries=$1
+  kind_names=
+
+  while IFS= read -r kind_version_entry; do
+    [ -n "$kind_version_entry" ] || continue
+    kind_name=${kind_version_entry%%|*}
+    if ! shimmy_contains_line_list "$kind_names" "$kind_name"; then
+      kind_names=$(shimmy_append_line_list "$kind_names" "$kind_name")
+    fi
+  done <<EOF
+$kind_version_entries
+EOF
+
+  printf '%s\n' "$kind_names"
+}
+
+version_list_from_entries() {
+  kind_version_entries=$1
+  version_names=
+
+  while IFS= read -r kind_version_entry; do
+    [ -n "$kind_version_entry" ] || continue
+    version_name=${kind_version_entry##*|}
+    if ! shimmy_contains_line_list "$version_names" "$version_name"; then
+      version_names=$(shimmy_append_line_list "$version_names" "$version_name")
+    fi
+  done <<EOF
+$kind_version_entries
+EOF
+
+  printf '%s\n' "$version_names"
 }
 
 validate_requested_shims() {
-  for requested_shim in $(selected_shim_list); do
-    shimmy_is_supported_shim "$requested_shim" || fail "unsupported shim on posix-rewrite branch: $requested_shim"
-  done
+  selected_kind_version_entries >/dev/null
 }
 
 validate_skills_target() {
@@ -210,9 +327,10 @@ manifest_shimmy_lines_preserve() {
   done < "$manifest_file"
 }
 
-manifest_shims_append() {
+manifest_kind_state_append() {
   manifest_file=$1
-  shim_list=$2
+  kind_list=$2
+  kind_version_entry_list=$3
   manifest_tmp=$manifest_file.tmp.$$
 
   {
@@ -220,24 +338,40 @@ manifest_shims_append() {
       printf '%s\n' "$manifest_line"
     done < "$manifest_file"
 
-    while IFS= read -r shim_name; do
-      [ -n "$shim_name" ] || continue
-      printf 'shim=%s\n' "$shim_name"
+    while IFS= read -r kind_name; do
+      [ -n "$kind_name" ] || continue
+      printf 'kind=%s\n' "$kind_name"
     done <<EOF
-$shim_list
+$kind_list
+EOF
+
+    while IFS= read -r kind_version_entry; do
+      [ -n "$kind_version_entry" ] || continue
+      printf 'kind_version=%s\n' "$kind_version_entry"
+    done <<EOF
+$kind_version_entry_list
 EOF
   } > "$manifest_tmp"
 
   mv "$manifest_tmp" "$manifest_file"
 }
 
-profile_manifest_shim_list() {
-  if [ -n "$PROFILE_MANIFEST_SHIMS" ]; then
-    printf '%s\n' "$PROFILE_MANIFEST_SHIMS"
+profile_manifest_kind_list() {
+  if [ -n "$PROFILE_MANIFEST_KINDS" ]; then
+    printf '%s\n' "$PROFILE_MANIFEST_KINDS"
     return 0
   fi
 
-  selected_shim_list
+  kind_list_from_entries "$(selected_kind_version_entries)"
+}
+
+profile_manifest_kind_version_list() {
+  if [ -n "$PROFILE_MANIFEST_KIND_VERSIONS" ]; then
+    printf '%s\n' "$PROFILE_MANIFEST_KIND_VERSIONS"
+    return 0
+  fi
+
+  selected_kind_version_entries
 }
 
 source_ref_resolve() {
@@ -672,8 +806,8 @@ write_root_manifest_file() {
     printf 'control_bin=%s\n' "$SHIMMY_CONTROL_BIN"
     printf 'activate_file=%s\n' "$SHIMMY_ACTIVATE_FILE"
     printf 'shimmy_profile_default=default\n'
-    for shim_name in $(shimmy_default_shim_list); do
-      printf 'default_shim=%s\n' "$shim_name"
+    for kind_name in $(shimmy_default_kind_list); do
+      printf 'default_kind=%s\n' "$kind_name"
     done
     while IFS= read -r profile_name; do
       [ -n "$profile_name" ] || continue
@@ -717,8 +851,11 @@ write_profile_manifest_file() {
     if [ -n "$SHIMMY_PROFILE_SOURCE_CHECKOUT" ]; then
       printf 'source_checkout=%s\n' "$SHIMMY_PROFILE_SOURCE_CHECKOUT"
     fi
-    for shim_name in $(profile_manifest_shim_list); do
-      printf 'shim=%s\n' "$shim_name"
+    for kind_name in $(profile_manifest_kind_list); do
+      printf 'kind=%s\n' "$kind_name"
+    done
+    for kind_version_entry in $(profile_manifest_kind_version_list); do
+      printf 'kind_version=%s\n' "$kind_version_entry"
     done
     if [ -n "$shimmy_source_url" ]; then
       printf 'shimmy_source_url=%s\n' "$shimmy_source_url"
@@ -788,10 +925,15 @@ perform_install() {
   log_debug "Copying management command support to $SHIMMY_CORE_DIR"
   install_control_assets
 
-  for shim_name in $(selected_shim_list); do
-    install_shim_runtime_assets "$shim_name"
-    install_shim_config_assets "$shim_name"
-    install_shim_dispatcher "$shim_name"
+  selected_kind_version_entries_value=$(selected_kind_version_entries)
+  for kind_name in $(kind_list_from_entries "$selected_kind_version_entries_value"); do
+    install_shim_runtime_assets "$kind_name"
+    install_shim_config_assets "$kind_name"
+    install_shim_dispatcher "$kind_name"
+  done
+  for version_name in $(version_list_from_entries "$selected_kind_version_entries_value"); do
+    install_shim_runtime_assets "$version_name"
+    install_shim_config_assets "$version_name"
   done
 
   log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
@@ -836,29 +978,48 @@ perform_shim_install() {
   mkdir -p "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" "$SHIMMY_IMAGES_DIR" "$(dirname "$SHIMMY_SHIM_LIB_DIR")" "$SHIMMY_PROFILE_CONFIG_DIR/shims" "$SHIMMY_BIN_DIR" \
     "$SHIMMY_CORE_SHIMS_DIR" "$SHIMMY_CORE_IMAGES_DIR"
 
-  installed_shims=$(shimmy_read_manifest_shims "$INSTALL_MANIFEST_FILE" || true)
-  shims_to_append=
+  installed_kinds=$(shimmy_read_manifest_kinds "$INSTALL_MANIFEST_FILE" || true)
+  installed_kind_versions=$(shimmy_read_manifest_kind_versions "$INSTALL_MANIFEST_FILE" || true)
+  selected_kind_version_entries_value=$(selected_kind_version_entries)
+  kinds_to_append=
+  kind_versions_to_append=
 
-  for shim_name in $(selected_shim_list); do
-    if shimmy_contains_line_list "$installed_shims" "$shim_name" || shimmy_contains_line_list "$shims_to_append" "$shim_name"; then
-      log_warn "Shim already installed: $shim_name; run shimmy update --shim $shim_name to refresh it"
+  for kind_name in $(kind_list_from_entries "$selected_kind_version_entries_value"); do
+    install_shim_runtime_assets "$kind_name"
+    install_shim_config_assets "$kind_name"
+    install_shim_dispatcher "$kind_name"
+    install_shim_management_assets "$kind_name"
+
+    if shimmy_contains_line_list "$installed_kinds" "$kind_name" || shimmy_contains_line_list "$kinds_to_append" "$kind_name"; then
+      log_warn "Shim kind already installed: $kind_name; run shimmy update --shim $kind_name to refresh it"
+    else
+      kinds_to_append=$(shimmy_append_line_list "$kinds_to_append" "$kind_name")
+      log_info "Installed shim kind: $kind_name"
+    fi
+  done
+
+  for version_name in $(version_list_from_entries "$selected_kind_version_entries_value"); do
+    install_shim_runtime_assets "$version_name"
+    install_shim_config_assets "$version_name"
+    install_shim_management_assets "$version_name"
+  done
+
+  while IFS= read -r kind_version_entry; do
+    [ -n "$kind_version_entry" ] || continue
+    if shimmy_contains_line_list "$installed_kind_versions" "$kind_version_entry" || shimmy_contains_line_list "$kind_versions_to_append" "$kind_version_entry"; then
       continue
     fi
-
-    install_shim_runtime_assets "$shim_name"
-    install_shim_config_assets "$shim_name"
-    install_shim_dispatcher "$shim_name"
-    install_shim_management_assets "$shim_name"
-
-    shims_to_append=$(shimmy_append_line_list "$shims_to_append" "$shim_name")
-    log_info "Installed shim: $shim_name"
-  done
+    kind_versions_to_append=$(shimmy_append_line_list "$kind_versions_to_append" "$kind_version_entry")
+    log_info "Installed shim version: $kind_version_entry"
+  done <<EOF
+$selected_kind_version_entries_value
+EOF
 
   log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
   install_directory_copy "$SOURCE_SHIM_LIB_DIR" "$SHIMMY_SHIM_LIB_DIR"
 
-  if [ -n "$shims_to_append" ]; then
-    manifest_shims_append "$INSTALL_MANIFEST_FILE" "$shims_to_append"
+  if [ -n "$kinds_to_append" ] || [ -n "$kind_versions_to_append" ]; then
+    manifest_kind_state_append "$INSTALL_MANIFEST_FILE" "$kinds_to_append" "$kind_versions_to_append"
   fi
 }
 
@@ -871,14 +1032,32 @@ perform_shim_refresh() {
   load_install_root_from_manifest || true
   validate_requested_shims
 
-  installed_shims=$(shimmy_read_manifest_shims "$INSTALL_MANIFEST_FILE" || true)
-  for shim_name in $(selected_shim_list); do
-    if ! shimmy_contains_line_list "$installed_shims" "$shim_name"; then
-      fail "$shim_name not installed; run shimmy install --shim $shim_name"
+  installed_kinds=$(shimmy_read_manifest_kinds "$INSTALL_MANIFEST_FILE" || true)
+  installed_kind_versions=$(shimmy_read_manifest_kind_versions "$INSTALL_MANIFEST_FILE" || true)
+  selected_kind_version_entries_value=$(selected_kind_version_entries)
+
+  for kind_name in $(kind_list_from_entries "$selected_kind_version_entries_value"); do
+    if ! shimmy_contains_line_list "$installed_kinds" "$kind_name"; then
+      fail "$kind_name not installed; run shimmy install --shim $kind_name"
     fi
   done
 
-  PROFILE_MANIFEST_SHIMS=$installed_shims
+  while IFS= read -r kind_version_entry; do
+    [ -n "$kind_version_entry" ] || continue
+    if ! shimmy_contains_line_list "$installed_kind_versions" "$kind_version_entry"; then
+      kind_name=${kind_version_entry%%|*}
+      version_label=${kind_version_entry#*|}
+      version_label=${version_label%%|*}
+      if [ "$version_label" != default ]; then
+        fail "$kind_name@$version_label not installed; run shimmy install --shim $kind_name@$version_label"
+      fi
+    fi
+  done <<EOF
+$selected_kind_version_entries_value
+EOF
+
+  PROFILE_MANIFEST_KINDS=$installed_kinds
+  PROFILE_MANIFEST_KIND_VERSIONS=$installed_kind_versions
 
   if [ -f "$SHIMMY_ROOT_MANIFEST_FILE" ]; then
     PRESERVED_STARTUP_SHELL=$(shimmy_read_manifest_value "$SHIMMY_ROOT_MANIFEST_FILE" startup_shell || true)
@@ -906,10 +1085,14 @@ perform_shim_refresh() {
   log_debug "Copying management command support to $SHIMMY_CORE_DIR"
   install_control_assets
 
-  for shim_name in $(selected_shim_list); do
-    install_shim_runtime_assets "$shim_name"
-    install_shim_config_assets "$shim_name"
-    install_shim_dispatcher "$shim_name"
+  for kind_name in $(kind_list_from_entries "$selected_kind_version_entries_value"); do
+    install_shim_runtime_assets "$kind_name"
+    install_shim_config_assets "$kind_name"
+    install_shim_dispatcher "$kind_name"
+  done
+  for version_name in $(version_list_from_entries "$selected_kind_version_entries_value"); do
+    install_shim_runtime_assets "$version_name"
+    install_shim_config_assets "$version_name"
   done
 
   log_debug "Copying shared shim helper support to $SHIMMY_SHIM_LIB_DIR"
@@ -936,7 +1119,7 @@ remove_path_if_present() {
   path_value=$1
   description=$2
 
-  if [ ! -e "$path_value" ]; then
+  if [ ! -e "$path_value" ] && [ ! -L "$path_value" ]; then
     return 0
   fi
 
@@ -977,8 +1160,8 @@ write_root_manifest_existing_profiles() {
     printf 'control_bin=%s\n' "$SHIMMY_CONTROL_BIN"
     printf 'activate_file=%s\n' "$SHIMMY_ACTIVATE_FILE"
     printf 'shimmy_profile_default=default\n'
-    for shim_name in $(shimmy_default_shim_list); do
-      printf 'default_shim=%s\n' "$shim_name"
+    for kind_name in $(shimmy_default_kind_list); do
+      printf 'default_kind=%s\n' "$kind_name"
     done
     for manifest_file in "$SHIMMY_INSTALL_DIR"/profiles/*/install-manifest.txt; do
       [ -f "$manifest_file" ] || continue
@@ -996,33 +1179,97 @@ EOF
   } > "$SHIMMY_ROOT_MANIFEST_FILE"
 }
 
-perform_uninstall_profile() {
-  [ "$SKIP_SKILLS" -eq 0 ] || fail "--no-skills is not supported with --uninstall"
-  [ -z "$REQUESTED_SKILLS_TARGET" ] || fail "--skills-target is not supported with --uninstall"
+is_shimmy_public_dispatcher() {
+  dispatcher_path=$1
 
+  [ -L "$dispatcher_path" ] || return 1
+  command -v readlink >/dev/null 2>&1 || return 1
+
+  dispatcher_target=$(readlink "$dispatcher_path" 2>/dev/null || true)
+  [ "$dispatcher_target" = ../core/scripts/dispatch-shimmy.sh ] && return 0
+  [ "$dispatcher_target" = "$SHIMMY_CORE_DISPATCHER" ] && return 0
+
+  return 1
+}
+
+remove_shimmy_public_dispatchers() {
+  [ -d "$SHIMMY_BIN_DIR" ] || return 0
+
+  for dispatcher_path in "$SHIMMY_BIN_DIR"/*; do
+    [ -e "$dispatcher_path" ] || [ -L "$dispatcher_path" ] || continue
+    [ "$(basename "$dispatcher_path")" != shimmy ] || continue
+    if is_shimmy_public_dispatcher "$dispatcher_path"; then
+      remove_path_if_present "$dispatcher_path" "public dispatcher"
+    fi
+  done
+}
+
+uninstall_skills_target_remove() {
+  [ "$SKIP_SKILLS" -eq 0 ] || return 0
+  [ -n "$REQUESTED_SKILLS_TARGET" ] || return 0
+
+  if [ ! -x "$SKILLS_SCRIPT" ]; then
+    fail "missing skills helper: $SKILLS_SCRIPT"
+  fi
+
+  "$SKILLS_SCRIPT" uninstall --target "$REQUESTED_SKILLS_TARGET"
+}
+
+uninstall_startup_file_list_resolve() {
+  profile_manifest_file=$1
+  startup_file_paths=
+
+  if [ -f "$SHIMMY_ROOT_MANIFEST_FILE" ]; then
+    while IFS= read -r startup_file_path; do
+      [ -n "$startup_file_path" ] || continue
+      if ! shimmy_contains_line_list "$startup_file_paths" "$startup_file_path"; then
+        startup_file_paths=$(shimmy_append_line_list "$startup_file_paths" "$startup_file_path")
+      fi
+    done <<EOF
+$(shimmy_read_manifest_values "$SHIMMY_ROOT_MANIFEST_FILE" startup_file || true)
+EOF
+  fi
+
+  if [ -f "$profile_manifest_file" ]; then
+    while IFS= read -r startup_file_path; do
+      [ -n "$startup_file_path" ] || continue
+      if ! shimmy_contains_line_list "$startup_file_paths" "$startup_file_path"; then
+        startup_file_paths=$(shimmy_append_line_list "$startup_file_paths" "$startup_file_path")
+      fi
+    done <<EOF
+$(shimmy_read_manifest_values "$profile_manifest_file" startup_file || true)
+EOF
+  fi
+
+  printf '%s\n' "$startup_file_paths"
+}
+
+perform_uninstall_profile() {
   uninstall_manifest_file=$SHIMMY_PROFILE_MANIFEST_FILE
   if [ ! -f "$uninstall_manifest_file" ] && [ ! -d "$SHIMMY_PROFILE_DIR" ]; then
-    fail "no shimmy profile found for profile $SHIMMY_PROFILE_RESOLVED at $uninstall_manifest_file"
+    log_info "No shimmy $SHIMMY_PROFILE_RESOLVED profile found at $SHIMMY_PROFILE_DIR; checking install root cleanup"
   fi
 
   log_info "Removing shimmy $SHIMMY_PROFILE_RESOLVED profile rooted at $SHIMMY_PROFILE_DIR"
 
-  shims_to_check=$(shimmy_read_manifest_shims "$uninstall_manifest_file" || true)
-  startup_files_to_remove=$(shimmy_read_manifest_values "$uninstall_manifest_file" startup_file || true)
+  kinds_to_check=$(shimmy_read_manifest_kinds "$uninstall_manifest_file" || true)
+  startup_files_to_remove=$(uninstall_startup_file_list_resolve "$uninstall_manifest_file")
 
+  uninstall_skills_target_remove
   remove_path_if_present "$SHIMMY_PROFILE_DIR" "profile"
 
-  while IFS= read -r shim_name; do
-    [ -n "$shim_name" ] || continue
-    if shimmy_contains_profile_shim_other "$SHIMMY_INSTALL_DIR" "$shim_name" "$uninstall_manifest_file"; then
+  while IFS= read -r kind_name; do
+    [ -n "$kind_name" ] || continue
+    if shimmy_contains_profile_kind_other "$SHIMMY_INSTALL_DIR" "$kind_name" "$uninstall_manifest_file"; then
       continue
     fi
-    remove_path_if_present "$SHIMMY_BIN_DIR/$shim_name" "dispatcher"
+    remove_path_if_present "$SHIMMY_BIN_DIR/$kind_name" "dispatcher"
   done <<EOF
-$shims_to_check
+$kinds_to_check
 EOF
 
   if [ "$(shimmy_count_profile_manifests "$SHIMMY_INSTALL_DIR")" -eq 0 ]; then
+    remove_shimmy_public_dispatchers
     if [ -n "$startup_files_to_remove" ]; then
       while IFS= read -r startup_file_to_remove; do
         [ -n "$startup_file_to_remove" ] || continue

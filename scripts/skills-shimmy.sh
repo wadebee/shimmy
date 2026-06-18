@@ -52,25 +52,27 @@ log_info() {
 
 usage() {
   cat <<'EOF'
-Install, update, or export Shimmy agent skills.
+Install, update, uninstall, or export Shimmy agent skills.
 
 Usage:
   scripts/skills-shimmy.sh install [options] [skill...]
   scripts/skills-shimmy.sh update [options] [skill...]
+  scripts/skills-shimmy.sh uninstall [options]
 
 Options:
   --target repo       Write skills to .agents/skills in the current directory
   --target profile    Write skills to ~/.agents/skills
   --target plugin     Write skills to the packaged Shimmy plugin skill bundle
   --export <path>     Export a portable skills folder, or a .zip archive
-  --install-dir <dir> Read installed shims from <dir>/profiles/<profile>/install-manifest.txt
-  --manifest <path>   Read installed shims from the given profile manifest if present
+  --install-dir <dir> Read installed kinds from <dir>/profiles/<profile>/install-manifest.txt
+  --manifest <path>   Read installed kinds from the given profile manifest if present
   -h, --help          Show help
 
 With no explicit skill names, install writes the core Shimmy management skills
-plus tool skills for shims recorded in the install manifest.
+plus tool skills for kinds recorded in the install manifest.
 Update refreshes manifest-tracked skills for the target, falling back to the
-core management and installed-shim skills when no target manifest exists yet.
+core management and installed-kind skills when no target manifest exists yet.
+Uninstall removes skills recorded in the selected target manifest.
 EOF
 }
 
@@ -186,10 +188,38 @@ skill_manifest_skill_names_read() {
   fi
 }
 
-installed_shim_skill_name_render() {
-  shim_name=$1
+skill_manifest_skill_names_read_all() {
+  skills_manifest_file=$1
+  skill_names=
 
-  case "$shim_name" in
+  if [ ! -f "$skills_manifest_file" ]; then
+    return 0
+  fi
+
+  while IFS= read -r manifest_line; do
+    case "$manifest_line" in
+      shimmy_skill=*)
+        skill_entry=${manifest_line#shimmy_skill=}
+        skill_entry=${skill_entry#*|}
+        skill_name=${skill_entry%%|*}
+        [ -n "$skill_name" ] || continue
+        skill_name_validate "$skill_name"
+        if ! shimmy_contains_line_list "$skill_names" "$skill_name"; then
+          skill_names=$(shimmy_append_line_list "$skill_names" "$skill_name")
+        fi
+        ;;
+    esac
+  done < "$skills_manifest_file"
+
+  if [ -n "$skill_names" ]; then
+    printf '%s\n' "$skill_names"
+  fi
+}
+
+installed_kind_skill_name_render() {
+  kind_name=$1
+
+  case "$kind_name" in
     opnsense-mcp-admin)
       printf 'shimmy-tool-opnsense-mcp-admin\n'
       ;;
@@ -197,12 +227,12 @@ installed_shim_skill_name_render() {
       printf 'shimmy-tool-opnsense-mcp-read-only\n'
       ;;
     *)
-      printf 'shimmy-tool-%s\n' "$shim_name"
+      printf 'shimmy-tool-%s\n' "$kind_name"
       ;;
   esac
 }
 
-installed_shim_skill_names_read() {
+installed_kind_skill_names_read() {
   manifest_file=$(install_manifest_file_resolve || true)
   skill_names=
 
@@ -211,10 +241,10 @@ installed_shim_skill_names_read() {
 
   while IFS= read -r manifest_line; do
     case "$manifest_line" in
-      shim=*)
-        shim_name=${manifest_line#shim=}
-        [ -n "$shim_name" ] || continue
-        skill_name=$(installed_shim_skill_name_render "$shim_name")
+      kind=*)
+        kind_name=${manifest_line#kind=}
+        [ -n "$kind_name" ] || continue
+        skill_name=$(installed_kind_skill_name_render "$kind_name")
         [ -n "$skill_name" ] || continue
         if ! shimmy_contains_line_list "$skill_names" "$skill_name"; then
           skill_names=$(shimmy_append_line_list "$skill_names" "$skill_name")
@@ -230,7 +260,7 @@ installed_shim_skill_names_read() {
 
 default_skill_names_resolve() {
   default_skills=$CORE_SKILLS
-  installed_skill_names=$(installed_shim_skill_names_read)
+  installed_skill_names=$(installed_kind_skill_names_read)
 
   while IFS= read -r installed_skill_name; do
     [ -n "$installed_skill_name" ] || continue
@@ -333,24 +363,70 @@ skill_dir_install() {
   log_info "Installed skill: $skill_name"
 }
 
+skills_manifest_root_render() {
+  target_name=$1
+  target_root=$2
+
+  case "$target_name" in
+    repo)
+      printf '%s\n' '.agents/skills'
+      ;;
+    export)
+      printf '%s\n' '.'
+      ;;
+    profile)
+      printf '%s\n' '$HOME/.agents/skills'
+      ;;
+    plugin)
+      case "$target_root" in
+        "$ROOT_DIR"/*)
+          printf '%s\n' "${target_root#"$ROOT_DIR"/}"
+          ;;
+        *)
+          printf '%s\n' "$target_root"
+          ;;
+      esac
+      ;;
+    *)
+      printf '%s\n' "$target_root"
+      ;;
+  esac
+}
+
+skills_manifest_skill_path_render() {
+  manifest_root=$1
+  skill_name=$2
+
+  case "$manifest_root" in
+    .)
+      printf '%s\n' "$skill_name"
+      ;;
+    *)
+      printf '%s/%s\n' "$manifest_root" "$skill_name"
+      ;;
+  esac
+}
+
 skills_manifest_write() {
   target_name=$1
   target_root=$2
   skill_names=$3
   manifest_file=$target_root/$SKILLS_MANIFEST_NAME
   manifest_tmp=$manifest_file.tmp.$$
+  manifest_root=$(skills_manifest_root_render "$target_name" "$target_root")
 
   mkdir -p "$target_root"
 
   {
     printf 'shimmy_skills_manifest_version=1\n'
     printf 'shimmy_skills_target=%s\n' "$target_name"
-    printf 'shimmy_skills_root=%s\n' "$target_root"
+    printf 'shimmy_skills_root=%s\n' "$manifest_root"
     while IFS= read -r skill_name; do
       [ -n "$skill_name" ] || continue
       skill_dir=$target_root/$skill_name
+      manifest_skill_path=$(skills_manifest_skill_path_render "$manifest_root" "$skill_name")
       fingerprint=$(skill_fingerprint_render "$skill_dir")
-      printf 'shimmy_skill=%s|%s|%s|%s\n' "$target_name" "$skill_name" "$skill_dir" "$fingerprint"
+      printf 'shimmy_skill=%s|%s|%s|%s\n' "$target_name" "$skill_name" "$manifest_skill_path" "$fingerprint"
     done <<EOF
 $skill_names
 EOF
@@ -422,6 +498,38 @@ skills_target_sync() {
   log_info "Skills manifest: $target_root/$SKILLS_MANIFEST_NAME"
 }
 
+skills_target_uninstall() {
+  target_name_validate "$REQUESTED_TARGET"
+  if [ -n "$REQUESTED_SKILLS" ]; then
+    fail "skills uninstall removes the manifest-tracked target; explicit skill names are not supported"
+  fi
+
+  target_root=$(target_root_resolve "$REQUESTED_TARGET")
+  target_manifest_file=$target_root/$SKILLS_MANIFEST_NAME
+  ensure_safe_root "$target_root"
+
+  if [ ! -f "$target_manifest_file" ]; then
+    log_info "No Shimmy skills manifest found: $target_manifest_file"
+    return 0
+  fi
+
+  skill_names=$(skill_manifest_skill_names_read_all "$target_manifest_file")
+  while IFS= read -r skill_name; do
+    [ -n "$skill_name" ] || continue
+    skill_name_validate "$skill_name"
+    rm -rf "$target_root/$skill_name"
+    log_info "Removed skill: $skill_name"
+  done <<EOF
+$skill_names
+EOF
+
+  rm -f "$target_manifest_file"
+  if rmdir "$target_root" 2>/dev/null; then
+    log_info "Removed empty skills root: $target_root"
+  fi
+  log_info "Removed skills manifest: $target_manifest_file"
+}
+
 export_zip_create() {
   export_path=$1
   export_source_dir=$2
@@ -488,7 +596,7 @@ EOF
 
 main() {
   case "$ACTION" in
-    install|update)
+    install|update|uninstall)
       shift
       ;;
     help|-h|--help)
@@ -538,7 +646,13 @@ main() {
   done
 
   if [ -n "$EXPORT_PATH" ]; then
+    [ "$ACTION" != uninstall ] || fail "--export is not supported with skills uninstall"
     skills_export
+    exit 0
+  fi
+
+  if [ "$ACTION" = uninstall ]; then
+    skills_target_uninstall
     exit 0
   fi
 

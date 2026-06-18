@@ -3,7 +3,7 @@
 ## Upstream
 
 - Source repo README: <https://github.com/floriangrousset/opnsense-mcp-server>
-- Shim image: local build from `images/opnsense-mcp-admin/Containerfile`
+- Shim image: local build from `images/opnsense-mcp-admin_1_0/Containerfile`
 - Pinned source ref: `eeccd8189dc2d80fd397b2a589b20683ec947266`
 
 ## Upstream README Summary
@@ -76,7 +76,7 @@ Environment:
 
 Local image build:
 
-- Shimmy builds `localhost/shimmy-opnsense-mcp-admin:<context-hash>-<platform>` from `images/opnsense-mcp-admin/Containerfile`.
+- Shimmy builds `localhost/shimmy-opnsense-mcp-admin-1_0:<context-hash>-<platform>` from `images/opnsense-mcp-admin_1_0/Containerfile`.
 - The default source ref is `eeccd8189dc2d80fd397b2a589b20683ec947266` from `floriangrousset/opnsense-mcp-server`.
 - The image constrains `mcp[cli]` below `1.10.0` because the current upstream admin code still passes `description=` to `FastMCP(...)`, and newer MCP Python SDK releases reject that argument.
 - Use `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_BUILD=always` to force a rebuild.

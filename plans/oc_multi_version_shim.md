@@ -99,9 +99,9 @@ For each supported minor track, create a dedicated shim using the same shape as
 
 - Default images (floating minor tags):
 
-  - `SHIMMY_OC_4_18_IMAGE=${SHIMMY_OC_4_18_IMAGE:-docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.18}`
-  - `SHIMMY_OC_4_20_IMAGE=${SHIMMY_OC_4_20_IMAGE:-docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.20}`
-  - `SHIMMY_OC_4_22_IMAGE=${SHIMMY_OC_4_22_IMAGE:-docker-redhat-proxy.northgrum.com/openshift4/ose-cli:4.22}`
+  - `SHIMMY_OC_4_18_IMAGE=${SHIMMY_OC_4_18_IMAGE:-openshift4/ose-cli:4.18}`
+  - `SHIMMY_OC_4_20_IMAGE=${SHIMMY_OC_4_20_IMAGE:-openshift4/ose-cli:4.20}`
+  - `SHIMMY_OC_4_22_IMAGE=${SHIMMY_OC_4_22_IMAGE:-openshift4/ose-cli:4.22}`
 
   These tags are expected to float to the latest patch in each minor line.
 
@@ -175,7 +175,7 @@ and the CLI is responsive without mutating cluster state.
 - To add a new major/minor track (for example, 5.1):
 
   - Add `shims/oc_5_1` using the same pattern with a default image, e.g.
-    `SHIMMY_OC_5_1_IMAGE=${SHIMMY_OC_5_1_IMAGE:-docker-redhat-proxy.northgrum.com/openshift5/ose-cli:5.1}`
+    `SHIMMY_OC_5_1_IMAGE=${SHIMMY_OC_5_1_IMAGE:-openshift5/ose-cli:5.1}`
     (adjust registry path as needed).
   - Add `shims/oc_5_1.conf` with `shim_name=oc_5_1`.
   - Extend the `oc` dispatcher to map `SHIMMY_OC_VERSION=5.1` to `oc_5_1`.
@@ -196,5 +196,3 @@ and the CLI is responsive without mutating cluster state.
   - Or use `./shimmy install --profile default|upstream` to install a profile.
   - Shell integration is managed via startup files (`~/.bashrc`, `~/.zshrc`, etc.).
 - **Activation**: Use `eval "$(./shimmy activate --profile upstream)"` to activate a profile in your shell.
-
-You’re asking for a new Shimmy shim ose_cli_4_20 that wraps the upstream image docker-redhat-proxy.northgrum.com/openshift4/ose-cli, pinned to the latest 4.20.x tag, wired into the upstream profile.

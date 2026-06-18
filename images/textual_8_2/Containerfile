@@ -1,0 +1,14 @@
+ARG SHIMMY_TEXTUAL_BASE_IMAGE=python:3.13-slim-bookworm
+FROM ${SHIMMY_TEXTUAL_BASE_IMAGE}
+
+ARG SHIMMY_TEXTUAL_VERSION=8.2.7
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir "textual==${SHIMMY_TEXTUAL_VERSION}" textual-dev
+
+WORKDIR /work
+
+ENTRYPOINT ["textual"]

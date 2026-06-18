@@ -56,47 +56,58 @@ install_dir_resolve() {
   printf '%s\n' "$(shimmy_trim_path_trailing_slash "$DEFAULT_INSTALL_DIR")"
 }
 
-installed_shim_list() {
+installed_kind_list() {
   manifest_file=$1
   shim_dir=$2
 
   if [ -f "$manifest_file" ]; then
-    shimmy_read_manifest_shims "$manifest_file" || true
+    shimmy_read_manifest_kinds "$manifest_file" || true
     return 0
   fi
 
   if [ -d "$shim_dir" ]; then
     find "$shim_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) | sort | while IFS= read -r shim_path; do
       [ -n "$shim_path" ] || continue
-      basename "$shim_path"
+      shim_name=$(basename "$shim_path")
+      if shimmy_is_kind "$shim_name"; then
+        printf '%s\n' "$shim_name"
+      fi
     done
   fi
 }
 
-is_installed_shim() {
-  shim_name=$1
+installed_kind_version_entry_list() {
+  manifest_file=$1
+
+  if [ -f "$manifest_file" ]; then
+    shimmy_read_manifest_kind_versions "$manifest_file" || true
+  fi
+}
+
+is_installed_kind() {
+  kind_name=$1
   manifest_file=$2
   shim_dir=$3
 
-  while IFS= read -r installed_shim; do
-    [ -n "$installed_shim" ] || continue
-    if [ "$installed_shim" = "$shim_name" ]; then
+  while IFS= read -r installed_kind; do
+    [ -n "$installed_kind" ] || continue
+    if [ "$installed_kind" = "$kind_name" ]; then
       return 0
     fi
   done <<EOF
-$(installed_shim_list "$manifest_file" "$shim_dir")
+$(installed_kind_list "$manifest_file" "$shim_dir")
 EOF
 
   return 1
 }
 
-available_shim_list() {
+available_kind_list() {
   manifest_file=$1
   shim_dir=$2
 
-  for supported_shim in $(shimmy_supported_shim_list); do
-    if ! is_installed_shim "$supported_shim" "$manifest_file" "$shim_dir"; then
-      printf '%s\n' "$supported_shim"
+  for kind_name in $(shimmy_kind_list); do
+    if ! is_installed_kind "$kind_name" "$manifest_file" "$shim_dir"; then
+      printf '%s\n' "$kind_name"
     fi
   done
 }
@@ -130,51 +141,66 @@ local_image_ref() {
   printf '%s\n' "$image_repo"
 }
 
-describe_shim_image() {
-  shim_name=$1
+describe_version_image() {
+  version_name=$1
   images_dir=$2
 
-  case "$shim_name" in
-    aws)
+  case "$version_name" in
+    aws_2_31)
       printf '%s\n' "${SHIMMY_AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}"
       ;;
-    go)
-      printf '%s\n' "${SHIMMY_GO_IMAGE:-docker.io/library/golang:latest}"
+    go_1_26)
+      printf '%s\n' "${SHIMMY_GO_IMAGE:-docker.io/library/golang:1.26.4}"
       ;;
-    jq)
+    gcloud_573_0)
+      printf '%s\n' "${SHIMMY_GCLOUD_IMAGE:-gcr.io/google.com/cloudsdktool/google-cloud-cli:573.0.0-stable}"
+      ;;
+    gdrive_0_2)
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-gdrive-0_2" "$images_dir/gdrive_0_2")"
+      ;;
+    jq_1_8)
       printf '%s\n' "${SHIMMY_JQ_IMAGE:-ghcr.io/jqlang/jq:1.8.1}"
       ;;
-    netcat)
-      printf '%s\n' "$(local_image_ref "localhost/shimmy-netcat" "$images_dir/netcat")"
+    netcat_7_92)
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-netcat-7_92" "$images_dir/netcat_7_92")"
       ;;
-    nmap)
+    nmap_7_98)
       printf '%s\n' "${SHIMMY_NMAP_IMAGE:-docker.io/instrumentisto/nmap:7.98-r2}"
       ;;
-    opnsense-mcp-admin)
+    opnsense-mcp-admin_1_0)
       if [ -n "${SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE:-}" ]; then
         printf '%s\n' "$SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE"
       else
-        printf '%s\n' "$(local_image_ref "localhost/shimmy-opnsense-mcp-admin" "$images_dir/opnsense-mcp-admin")"
+        printf '%s\n' "$(local_image_ref "localhost/shimmy-opnsense-mcp-admin-1_0" "$images_dir/opnsense-mcp-admin_1_0")"
       fi
       ;;
-    opnsense-mcp-read-only)
+    opnsense-mcp-read-only_0_4)
       if [ -n "${SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE:-}" ]; then
         printf '%s\n' "$SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE"
       else
-        printf '%s\n' "$(local_image_ref "localhost/shimmy-opnsense-mcp-read-only" "$images_dir/opnsense-mcp-read-only")"
+        printf '%s\n' "$(local_image_ref "localhost/shimmy-opnsense-mcp-read-only-0_4" "$images_dir/opnsense-mcp-read-only_0_4")"
       fi
       ;;
-    rg)
+    rg_15_1)
       printf '%s\n' "${SHIMMY_RG_IMAGE:-docker.io/vszl/ripgrep:latest}"
       ;;
-    task)
-      printf '%s\n' "$(local_image_ref "localhost/shimmy-task" "$images_dir/task")"
+    task_3_45)
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-task-3_45" "$images_dir/task_3_45")"
       ;;
-    terraform)
-      printf '%s\n' "${SHIMMY_TF_IMAGE:-docker.io/hashicorp/terraform:latest}"
+    terraform_1_15)
+      printf '%s\n' "${SHIMMY_TF_IMAGE:-docker.io/hashicorp/terraform:1.15.6}"
       ;;
-    textual)
-      printf '%s\n' "$(local_image_ref "localhost/shimmy-textual" "$images_dir/textual")"
+    textual_8_2)
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-textual-8_2" "$images_dir/textual_8_2")"
+      ;;
+    oc_4_18)
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-oc-4_18" "$images_dir/oc_4_18")"
+      ;;
+    oc_4_20)
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-oc-4_20" "$images_dir/oc_4_20")"
+      ;;
+    oc_4_22)
+      printf '%s\n' "$(local_image_ref "localhost/shimmy-oc-4_22" "$images_dir/oc_4_22")"
       ;;
     *)
       printf 'unknown\n'
@@ -182,20 +208,69 @@ describe_shim_image() {
   esac
 }
 
-print_installed_shims() {
+entry_kind() {
+  kind_version_entry=$1
+  printf '%s\n' "${kind_version_entry%%|*}"
+}
+
+entry_label() {
+  kind_version_entry=$1
+  entry_remainder=${kind_version_entry#*|}
+  printf '%s\n' "${entry_remainder%%|*}"
+}
+
+entry_version() {
+  kind_version_entry=$1
+  printf '%s\n' "${kind_version_entry##*|}"
+}
+
+installed_kind_default_entry() {
+  manifest_file=$1
+  kind_name=$2
+
+  while IFS= read -r kind_version_entry; do
+    [ -n "$kind_version_entry" ] || continue
+    if [ "$(entry_kind "$kind_version_entry")" = "$kind_name" ] && [ "$(entry_label "$kind_version_entry")" = default ]; then
+      printf '%s\n' "$kind_version_entry"
+      return 0
+    fi
+  done <<EOF
+$(installed_kind_version_entry_list "$manifest_file")
+EOF
+
+  default_version=$(shimmy_kind_default_version "$kind_name" || true)
+  [ -n "$default_version" ] || return 1
+  printf '%s|default|%s\n' "$kind_name" "$default_version"
+}
+
+print_installed_kinds() {
   manifest_file=$1
   shim_dir=$2
-  images_dir=$3
   printed_any=0
 
-  printf 'installed_shims:\n'
+  printf 'installed_kinds:\n'
 
-  while IFS= read -r shim_name; do
-    [ -n "$shim_name" ] || continue
+  while IFS= read -r kind_name; do
+    [ -n "$kind_name" ] || continue
     printed_any=1
-    printf -- '- %s: %s\n' "$shim_name" "$(describe_shim_image "$shim_name" "$images_dir")"
+    default_entry=$(installed_kind_default_entry "$manifest_file" "$kind_name" || true)
+    default_version=$(entry_version "$default_entry")
+    default_label=$(shimmy_version_label "$default_version")
+    printf -- '- %s:\n' "$kind_name"
+    printf '  default: %s (%s)\n' "$default_label" "$default_version"
+    printf '  installed_versions:\n'
+    while IFS= read -r kind_version_entry; do
+      [ -n "$kind_version_entry" ] || continue
+      [ "$(entry_kind "$kind_version_entry")" = "$kind_name" ] || continue
+      version_label=$(entry_label "$kind_version_entry")
+      [ "$version_label" != default ] || continue
+      version_name=$(entry_version "$kind_version_entry")
+      printf '  - %s (%s)\n' "$version_label" "$version_name"
+    done <<EOF
+$(installed_kind_version_entry_list "$manifest_file")
+EOF
   done <<EOF
-$(installed_shim_list "$manifest_file" "$shim_dir")
+$(installed_kind_list "$manifest_file" "$shim_dir")
 EOF
 
   if [ "$printed_any" -eq 0 ]; then
@@ -203,19 +278,30 @@ EOF
   fi
 }
 
-print_available_shims() {
+print_available_kinds() {
   manifest_file=$1
   shim_dir=$2
   printed_any=0
 
-  printf 'available_shims:\n'
+  printf 'available_kinds:\n'
 
-  while IFS= read -r shim_name; do
-    [ -n "$shim_name" ] || continue
+  while IFS= read -r kind_name; do
+    [ -n "$kind_name" ] || continue
     printed_any=1
-    printf -- '- %s\n' "$shim_name"
+    default_version=$(shimmy_kind_default_version "$kind_name")
+    default_label=$(shimmy_version_label "$default_version")
+    separator=
+    versions=
+    for version_name in $(shimmy_kind_version_list "$kind_name"); do
+      version_label=$(shimmy_version_label "$version_name")
+      versions=$versions$separator$version_label
+      separator=', '
+    done
+    printf -- '- %s:\n' "$kind_name"
+    printf '  default: %s (%s)\n' "$default_label" "$default_version"
+    printf '  versions: %s\n' "$versions"
   done <<EOF
-$(available_shim_list "$manifest_file" "$shim_dir")
+$(available_kind_list "$manifest_file" "$shim_dir")
 EOF
 
   if [ "$printed_any" -eq 0 ]; then
@@ -223,15 +309,21 @@ EOF
   fi
 }
 
-print_manifest_available_shims() {
+print_manifest_available_kinds() {
   manifest_file=$1
   shim_dir=$2
 
-  while IFS= read -r shim_name; do
-    [ -n "$shim_name" ] || continue
-    printf 'shimmy_available_shim=%s\n' "$shim_name"
+  while IFS= read -r kind_name; do
+    [ -n "$kind_name" ] || continue
+    default_version=$(shimmy_kind_default_version "$kind_name")
+    default_label=$(shimmy_version_label "$default_version")
+    printf 'shimmy_available_kind=%s\n' "$kind_name"
+    printf 'shimmy_available_kind_default=%s|%s|%s\n' "$kind_name" "$default_label" "$default_version"
+    for version_name in $(shimmy_kind_version_list "$kind_name"); do
+      printf 'shimmy_available_kind_version=%s|%s|%s\n' "$kind_name" "$(shimmy_version_label "$version_name")" "$version_name"
+    done
   done <<EOF
-$(available_shim_list "$manifest_file" "$shim_dir")
+$(available_kind_list "$manifest_file" "$shim_dir")
 EOF
 }
 
@@ -296,11 +388,17 @@ print_manifest_status() {
     [ -z "$source_url" ] || printf 'shimmy_profile_source_url=%s\n' "$source_url"
     [ -z "$source_ref" ] || printf 'shimmy_profile_source_ref=%s\n' "$source_ref"
     [ -z "$previous_source_ref" ] || printf 'shimmy_profile_previous_source_ref=%s\n' "$previous_source_ref"
-    while IFS= read -r shim_name; do
-      [ -n "$shim_name" ] || continue
-      printf 'shimmy_profile_shim=%s\n' "$shim_name"
+    while IFS= read -r kind_name; do
+      [ -n "$kind_name" ] || continue
+      printf 'shimmy_profile_kind=%s\n' "$kind_name"
     done <<EOF
-$(shimmy_read_manifest_shims "$manifest_file" || true)
+$(shimmy_read_manifest_kinds "$manifest_file" || true)
+EOF
+    while IFS= read -r kind_version_entry; do
+      [ -n "$kind_version_entry" ] || continue
+      printf 'shimmy_profile_kind_version=%s\n' "$kind_version_entry"
+    done <<EOF
+$(shimmy_read_manifest_kind_versions "$manifest_file" || true)
 EOF
   fi
 
@@ -400,7 +498,7 @@ main() {
   if [ "$OUTPUT_FORMAT" = manifest ]; then
     print_manifest_status "$manifest_file" "$install_dir" "$shim_dir" "$images_dir" "$shim_lib_dir" "$root_manifest_file"
     if [ "$SHOW_AVAILABLE" -eq 1 ]; then
-      print_manifest_available_shims "$manifest_file" "$shim_dir"
+      print_manifest_available_kinds "$manifest_file" "$shim_dir"
     fi
     return 0
   fi
@@ -428,9 +526,9 @@ main() {
   else
     printf 'path_active: no\n'
   fi
-  print_installed_shims "$manifest_file" "$shim_dir" "$images_dir"
+  print_installed_kinds "$manifest_file" "$shim_dir"
   if [ "$SHOW_AVAILABLE" -eq 1 ]; then
-    print_available_shims "$manifest_file" "$shim_dir"
+    print_available_kinds "$manifest_file" "$shim_dir"
   fi
 }
 

@@ -241,7 +241,7 @@ shimmy test --profile upstream
 SHIMMY_PROFILE_ACTIVE=upstream rg --version
 ```
 
-`shimmy test` uses live Podman execution for supported shims. It is a stronger
+`shimmy test` uses live Podman execution for supported kinds. It is a stronger
 check than `podman info` because it verifies that Shimmy's wrappers can actually
 start the tool containers.
 

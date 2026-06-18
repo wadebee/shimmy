@@ -9,9 +9,10 @@ Use this skill when working with `shims/opnsense-mcp-admin`, its tests, its docs
 
 ## Files
 
-- Runtime shim: `../../../shims/opnsense-mcp-admin`
+- Kind dispatcher: `../../../shims/opnsense-mcp-admin`
+- Version shim: `../../../shims/opnsense-mcp-admin_1_0`
 - User docs: `../../../docs/shims/opnsense-mcp-admin.md`
-- Image context: `../../../images/opnsense-mcp-admin/Containerfile`
+- Image context: `../../../images/opnsense-mcp-admin_1_0/Containerfile`
 - Tests: `../../../scripts/test-shimmy.sh`
 - Skill installer: `../../../scripts/skills-shimmy.sh`
 - README: `../../../README.md`
@@ -22,7 +23,7 @@ When this skill is installed outside the Shimmy checkout, prefer activated comma
 
 ## Current Behavior
 
-- Default image: local build from `../../../images/opnsense-mcp-admin/Containerfile`
+- Default image: local build from `../../../images/opnsense-mcp-admin_1_0/Containerfile`
 - Source ref: `eeccd8189dc2d80fd397b2a589b20683ec947266` from `floriangrousset/opnsense-mcp-server`
 - Build override: `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_BUILD=always`
 - Source ref override: `SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF`

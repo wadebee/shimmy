@@ -4,7 +4,7 @@
 
 - Source repo README: <https://github.com/lucamarien/opnsense-mcp-server>
 - PyPI package: <https://pypi.org/project/opnsense-mcp-server/>
-- Shim image: local build from `images/opnsense-mcp-read-only/Containerfile`
+- Shim image: local build from `images/opnsense-mcp-read-only_0_4/Containerfile`
 - Pinned source ref: `8ddb99a2a99102abc084b5e605aaba1c05c2ff56`
 
 ## Upstream README Summary
@@ -74,7 +74,7 @@ Environment:
 
 Local image build:
 
-- Shimmy builds `localhost/shimmy-opnsense-mcp-read-only:<context-hash>-<platform>` from `images/opnsense-mcp-read-only/Containerfile`.
+- Shimmy builds `localhost/shimmy-opnsense-mcp-read-only-0_4:<context-hash>-<platform>` from `images/opnsense-mcp-read-only_0_4/Containerfile`.
 - The default source ref is `8ddb99a2a99102abc084b5e605aaba1c05c2ff56` from `lucamarien/opnsense-mcp-server`.
 - Use `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE_BUILD=always` to force a rebuild.
 - Use `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE` only when you want to run a separately managed image.

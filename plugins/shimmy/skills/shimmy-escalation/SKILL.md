@@ -27,8 +27,8 @@ connect to the local Podman socket without escalation.
    - Prefer `SHIMMY_INSTALL_DIR` when it is set.
    - Otherwise use `$HOME/.config/shimmy`.
 3. Discover activated shims:
-   - Prefer `shimmy status --format manifest` for the active profile or `shimmy status --profile upstream --format manifest` for the upstream profile, then read `shim=` entries.
-   - If the status command is unavailable, inspect `$SHIMMY_INSTALL_DIR/profiles/default/install-manifest.txt`, `$SHIMMY_INSTALL_DIR/profiles/upstream/install-manifest.txt`, then `$SHIMMY_INSTALL_DIR/install-manifest.txt`.
+   - Prefer `shimmy status --format manifest` for the active profile or `shimmy status --profile upstream --format manifest` for the upstream profile, then read `shimmy_profile_kind=` entries or profile manifest `kind=` entries.
+   - If the status command is unavailable, inspect `$SHIMMY_INSTALL_DIR/profiles/default/install-manifest.txt` or `$SHIMMY_INSTALL_DIR/profiles/upstream/install-manifest.txt`.
    - If the manifest is missing, inspect `$SHIMMY_INSTALL_DIR/bin`.
    - If that is unavailable, inspect every executable in `PATH` directories whose path ends in `/shimmy/bin`.
 4. Keep only executable shim names that resolve through the active shell with `command -v <name>`. Remember that `command -v <name>` shows the stable dispatcher; use `shimmy status` for the selected profile implementation path.

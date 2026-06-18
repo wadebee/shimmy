@@ -5,7 +5,7 @@
 - Source repo README: <https://github.com/Textualize/textual/blob/main/README.md>
 - Latest release: <https://github.com/Textualize/textual/releases/latest>
 - Docs: <https://textual.textualize.io/>
-- Shim image: local build from `images/textual/Containerfile`
+- Shim image: local build from `images/textual_8_2/Containerfile`
 
 ## Upstream README Summary
 
@@ -33,12 +33,13 @@ Environment:
 - `SHIMMY_TEXTUAL_IMAGE` - override the runtime image entirely.
 - `SHIMMY_TEXTUAL_IMAGE_BUILD=always` - rebuild the local image even when cached.
 - `SHIMMY_TEXTUAL_IMAGE_PULL=always` - force pulling `SHIMMY_TEXTUAL_IMAGE` when using an override.
-- `TEXTUAL_BASE_IMAGE` - override the Containerfile base image. Default: `python:3.13-slim-bookworm`.
+- `SHIMMY_TEXTUAL_BASE_IMAGE` - override the Containerfile base image. Default: `python:3.13-slim-bookworm`.
+- `SHIMMY_TEXTUAL_VERSION` - override the Textual package version for local builds. Default: `8.2.7`.
 
 Local image behavior:
 
-- Shimmy builds `localhost/shimmy-textual:<context-hash>-<platform>` from `images/textual/Containerfile`.
-- The image installs `textual` and `textual-dev`.
+- Shimmy builds `localhost/shimmy-textual-8_2:<context-hash>-<platform>` from `images/textual_8_2/Containerfile`.
+- The image installs `textual==8.2.7` by default and `textual-dev`.
 
 Mounts:
 

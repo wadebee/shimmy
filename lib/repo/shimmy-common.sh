@@ -25,38 +25,46 @@ EOF
   return 1
 }
 
-shimmy_contains_manifest_shim() {
+shimmy_contains_manifest_kind() {
   manifest_file=$1
-  shim_name=$2
+  kind_name=$2
 
   [ -f "$manifest_file" ] || return 1
 
-  while IFS= read -r manifest_shim_name; do
-    [ -n "$manifest_shim_name" ] || continue
-    if [ "$manifest_shim_name" = "$shim_name" ]; then
+  while IFS= read -r manifest_kind_name; do
+    [ -n "$manifest_kind_name" ] || continue
+    if [ "$manifest_kind_name" = "$kind_name" ]; then
       return 0
     fi
   done <<EOF
-$(shimmy_read_manifest_shims "$manifest_file")
+$(shimmy_read_manifest_kinds "$manifest_file")
 EOF
 
   return 1
 }
 
-shimmy_contains_profile_shim_other() {
+shimmy_contains_manifest_shim() {
+  shimmy_contains_manifest_kind "$@"
+}
+
+shimmy_contains_profile_kind_other() {
   install_dir=$1
-  shim_name=$2
+  kind_name=$2
   skip_manifest_one=${3:-}
 
   for manifest_file in "$install_dir"/profiles/*/install-manifest.txt; do
     [ -f "$manifest_file" ] || continue
     [ "$manifest_file" != "$skip_manifest_one" ] || continue
-    if shimmy_contains_manifest_shim "$manifest_file" "$shim_name"; then
+    if shimmy_contains_manifest_kind "$manifest_file" "$kind_name"; then
       return 0
     fi
   done
 
   return 1
+}
+
+shimmy_contains_profile_shim_other() {
+  shimmy_contains_profile_kind_other "$@"
 }
 
 shimmy_count_profile_manifests() {
@@ -82,10 +90,22 @@ shimmy_quote_shell_word() {
   printf "%s" "$1" | sed "s/'/'\\\\''/g; 1s/^/'/; \$s/\$/'/"
 }
 
+shimmy_read_manifest_kind_versions() {
+  manifest_file=$1
+
+  shimmy_read_manifest_values "$manifest_file" kind_version
+}
+
+shimmy_read_manifest_kinds() {
+  manifest_file=$1
+
+  shimmy_read_manifest_values "$manifest_file" kind
+}
+
 shimmy_read_manifest_shims() {
   manifest_file=$1
 
-  shimmy_read_manifest_values "$manifest_file" shim
+  shimmy_read_manifest_kinds "$manifest_file"
 }
 
 shimmy_read_manifest_value() {
