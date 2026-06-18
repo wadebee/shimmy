@@ -44,12 +44,15 @@ Each minor track has its own image environment variables and local-build behavio
 - `oc_4_18`
   - `SHIMMY_OC_4_18_IMAGE` – optional override. When set, the shim runs this image directly.
   - `SHIMMY_OC_4_18_IMAGE_BUILD` – `auto` (default) or `always` when building the local image.
+  - `SHIMMY_OC_4_18_BASE_IMAGE` – optional base image override for local builds.
 - `oc_4_20`
   - `SHIMMY_OC_4_20_IMAGE` – optional override.
   - `SHIMMY_OC_4_20_IMAGE_BUILD` – `auto` (default) or `always`.
+  - `SHIMMY_OC_4_20_BASE_IMAGE` – optional base image override for local builds.
 - `oc_4_22`
   - `SHIMMY_OC_4_22_IMAGE` – optional override.
   - `SHIMMY_OC_4_22_IMAGE_BUILD` – `auto` (default) or `always`.
+  - `SHIMMY_OC_4_22_BASE_IMAGE` – optional base image override for local builds.
 
 When `SHIMMY_OC_4_xx_IMAGE` is **not** set, Shimmy uses a local image built from the corresponding `images/oc_4_xx/Containerfile` context:
 
@@ -61,7 +64,7 @@ Each Containerfile uses an unqualified base image short name so that Podman can 
 
 - `ARG SHIMMY_OC_4_20_BASE_IMAGE=openshift4/ose-cli:4.20`
 
-You can override the base image used for local builds by setting the corresponding `SHIMMY_OC_4_xx_BASE_IMAGE` build argument via environment variable, or by customizing your Podman `registries.conf` to control how the short name is resolved.
+You can override the base image used for local builds by setting the corresponding `SHIMMY_OC_4_xx_BASE_IMAGE` environment variable; the versioned shim passes it to Podman as a `--build-arg`. If a local image for the same build context was already cached, set the matching `SHIMMY_OC_4_xx_IMAGE_BUILD=always` once to force a rebuild with the new base image. You can also customize your Podman `registries.conf` to control how the short name is resolved.
 
 Runtime behavior for each versioned shim:
 
@@ -85,22 +88,31 @@ With `--preview-shim`, Shimmy prints the shell-quoted `podman run` command and e
 
 ## Smoke Tests
 
-Each versioned shim has a corresponding config file used by `shimmy test`:
+The dispatcher and each versioned shim have corresponding config files used by `shimmy test`:
 
+- `shims/oc.conf`
 - `shims/oc_4_18.conf`
 - `shims/oc_4_20.conf`
 - `shims/oc_4_22.conf`
 
-These configs use a single-token smoke command:
+The dispatcher config uses a selector-only smoke environment and preview mode so it can validate dispatch without contacting Podman:
+
+- `smoke_env=SHIMMY_OC_VERSION=4.20`
+- `smoke_arg=--preview-shim`
+- `smoke_arg=version`
+
+The versioned configs use a single-token smoke command:
 
 - `smoke_arg=version`
 
 Examples:
 
 ```sh
-./scripts/test-shimmy.sh --shim oc_4_20
-./scripts/test-shimmy.sh --shim oc_4_18
-./scripts/test-shimmy.sh --shim oc_4_22
+./shimmy install --shim oc --shim oc_4_18 --shim oc_4_20 --shim oc_4_22
+./shimmy test --shim oc
+./shimmy test --shim oc_4_20
+./shimmy test --shim oc_4_18
+./shimmy test --shim oc_4_22
 ```
 
 ## Installation and Profiles
@@ -109,6 +121,7 @@ The oc shims are wired into Shimmy's catalog and installer:
 
 - Supported shims include `oc`, `oc_4_18`, `oc_4_20`, and `oc_4_22`.
 - Installing any versioned shim implicitly installs the `oc` dispatcher for that profile.
+- Install the dispatcher plus at least one matching versioned shim when you want the generic `oc` command to run a selected minor track.
 
 Examples:
 
@@ -122,7 +135,7 @@ export SHIMMY_OC_VERSION=4.20
 oc version
 ```
 
-`shimmy update --build` refreshes the oc_4_xx images by rebuilding the local images for the selected profile and cleaning up older context versions.
+`shimmy status` reports `oc` as a dispatcher and reports each installed `oc_4_xx` shim as a local image reference derived from its checked-in build context. `shimmy update --build` refreshes the oc_4_xx images by rebuilding the local images for the selected profile and cleaning up older context versions.
 
 ## Extending to New Tracks
 
@@ -132,3 +145,4 @@ To add a new minor track in the future (for example, `5.1`):
 - Add `shims/oc_5_1.conf` with `shim_name=oc_5_1` and `smoke_arg=version`.
 - Extend the `oc` dispatcher to map `SHIMMY_OC_VERSION=5.1` to `oc_5_1`.
 - Update the catalog, status, and update scripts to include the new shim.
+- Update `shims/oc.conf` if the default dispatcher smoke version should change.

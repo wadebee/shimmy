@@ -333,24 +333,70 @@ skill_dir_install() {
   log_info "Installed skill: $skill_name"
 }
 
+skills_manifest_root_render() {
+  target_name=$1
+  target_root=$2
+
+  case "$target_name" in
+    repo)
+      printf '%s\n' '.agents/skills'
+      ;;
+    export)
+      printf '%s\n' '.'
+      ;;
+    profile)
+      printf '%s\n' '$HOME/.agents/skills'
+      ;;
+    plugin)
+      case "$target_root" in
+        "$ROOT_DIR"/*)
+          printf '%s\n' "${target_root#"$ROOT_DIR"/}"
+          ;;
+        *)
+          printf '%s\n' "$target_root"
+          ;;
+      esac
+      ;;
+    *)
+      printf '%s\n' "$target_root"
+      ;;
+  esac
+}
+
+skills_manifest_skill_path_render() {
+  manifest_root=$1
+  skill_name=$2
+
+  case "$manifest_root" in
+    .)
+      printf '%s\n' "$skill_name"
+      ;;
+    *)
+      printf '%s/%s\n' "$manifest_root" "$skill_name"
+      ;;
+  esac
+}
+
 skills_manifest_write() {
   target_name=$1
   target_root=$2
   skill_names=$3
   manifest_file=$target_root/$SKILLS_MANIFEST_NAME
   manifest_tmp=$manifest_file.tmp.$$
+  manifest_root=$(skills_manifest_root_render "$target_name" "$target_root")
 
   mkdir -p "$target_root"
 
   {
     printf 'shimmy_skills_manifest_version=1\n'
     printf 'shimmy_skills_target=%s\n' "$target_name"
-    printf 'shimmy_skills_root=%s\n' "$target_root"
+    printf 'shimmy_skills_root=%s\n' "$manifest_root"
     while IFS= read -r skill_name; do
       [ -n "$skill_name" ] || continue
       skill_dir=$target_root/$skill_name
+      manifest_skill_path=$(skills_manifest_skill_path_render "$manifest_root" "$skill_name")
       fingerprint=$(skill_fingerprint_render "$skill_dir")
-      printf 'shimmy_skill=%s|%s|%s|%s\n' "$target_name" "$skill_name" "$skill_dir" "$fingerprint"
+      printf 'shimmy_skill=%s|%s|%s|%s\n' "$target_name" "$skill_name" "$manifest_skill_path" "$fingerprint"
     done <<EOF
 $skill_names
 EOF

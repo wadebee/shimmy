@@ -15,6 +15,7 @@ Use this as the starting point for a new shim skill or as a checklist for a one-
 - `<interactive-flag>` as `-i` or `-it`
 - `<extra-mounts>`
 - `<env-forwarding>`
+- `<image-strategy>` as `remote-image` or `local-build`
 
 ## Read First
 
@@ -34,6 +35,7 @@ Use this as the starting point for a new shim skill or as a checklist for a one-
 - `../../../README.md`
 - `../../../docs/shims/<shim-name>.md`
 - `../../../.agents/skills/shimmy-tool-<shim-name>/SKILL.md` when the shim is new or materially changed
+- `../../../.agents/skills/.shimmy-skills-manifest.txt` after installing or updating the tool skill
 
 ## Runtime Pattern
 
@@ -86,6 +88,8 @@ Use repeated `smoke_arg=` lines when the smoke command needs more than one argum
 - Support `--preview-shim` as a global Shimmy flag through the shared Podman helper.
 - Use `SHIMMY_` for every Shimmy-defined user-facing environment variable; reserve non-`SHIMMY_` env vars for upstream-defined pass-through configuration.
 - Choose a pinned image unless there is a strong reason to use `latest`.
+- Decide whether the shim uses a remote image or a local build context before implementation; do not silently switch an existing shim's strategy.
+- For local-build shims, add `images/<shim-name>/Containerfile`, use `shimmy_local_image_ensure`, pass documented base/source override env vars as `--build-arg` values, describe status local refs, and add update `--build` behavior.
 - Treat Podman as an explicit dependency. On macOS, remember the official pkg installer may place it at `/opt/podman/bin/podman`.
 - Use the shared Podman helper's platform resolver; do not hardcode per-shim platform logic.
 
@@ -100,3 +104,5 @@ Use repeated `smoke_arg=` lines when the smoke command needs more than one argum
 7. Document the tool in `README.md` and `docs/shims/<shim-name>.md`.
 8. Keep executable bits on runnable shell files.
 9. If the tool is new or materially changed, add a shim-specific skill folder under `../../../.agents/skills/` and install it into the repo skills manifest.
+10. For multi-version dispatchers, add dispatcher and versioned shims/configs, selector `smoke_env`, companion install behavior, selector error tests, preview tests, status/update tests, and docs for adding new tracks.
+11. Run `git diff --check`, inspect `git diff --summary`, and finish with an `rg` or `git grep` surface scan across docs, shims, scripts, catalog, and skills.

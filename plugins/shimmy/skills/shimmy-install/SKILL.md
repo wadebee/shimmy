@@ -78,7 +78,22 @@ shimmy_update_interval_hours=12
 shimmy_last_checked=2026-05-04T00:00:00Z
 shimmy_previous_source_ref=...
 shimmy_validation_status=ok
-shimmy_skill=repo|shimmy-install|/path/to/.agents/skills/shimmy-install|fingerprint
+```
+
+Skills manifests are target-local. A repo target manifest records portable repo-relative skill paths:
+
+```text
+shimmy_skills_target=repo
+shimmy_skills_root=.agents/skills
+shimmy_skill=repo|shimmy-install|.agents/skills/shimmy-install|fingerprint
+```
+
+A profile target manifest is generated under the user's profile skills directory and records `$HOME`-relative paths:
+
+```text
+shimmy_skills_target=profile
+shimmy_skills_root=$HOME/.agents/skills
+shimmy_skill=profile|shimmy-install|$HOME/.agents/skills/shimmy-install|fingerprint
 ```
 
 Do not edit the manifest directly when a Shimmy script supports the action. If a script rewrites the manifest, it must preserve unknown `shimmy_*` fields unless it intentionally owns and refreshes that key.

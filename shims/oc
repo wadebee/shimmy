@@ -29,6 +29,6 @@ case "$SHIMMY_OC_VERSION_VALUE" in
     printf '%s\n' 'Supported values: 4.18, 4.20, 4.22.' >&2
     exit 1
     ;;
-fi
+esac
 
 exec "$SCRIPT_DIR/$shim_name" "$@"

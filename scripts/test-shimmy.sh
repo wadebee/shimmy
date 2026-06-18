@@ -274,9 +274,14 @@ test_shim_smoke_run() {
   [ -x "$shim_target_path" ] || fail_test "expected profile implementation to be executable: $shim_target_path"
   [ -f "$shim_config_file" ] || fail_test "missing installed shim config: $shim_config_file"
 
+  shim_smoke_env_args=
   set --
   while IFS= read -r shim_config_line || [ -n "$shim_config_line" ]; do
     case "$shim_config_line" in
+      smoke_env=*)
+        shim_smoke_env_arg=${shim_config_line#smoke_env=}
+        shim_smoke_env_args="$shim_smoke_env_args $shim_smoke_env_arg"
+        ;;
       smoke_arg=*)
         set -- "$@" "${shim_config_line#smoke_arg=}"
         ;;
@@ -286,13 +291,16 @@ test_shim_smoke_run() {
   [ "$#" -gt 0 ] || fail_test "missing smoke_arg in installed shim config: $shim_config_file"
 
   printf '%s_test_shim=%s\n' "$test_scope" "$shim_name"
+  for shim_smoke_env_arg in $shim_smoke_env_args; do
+    printf '%s_test_shim_smoke_env=%s|%s\n' "$test_scope" "$shim_name" "$shim_smoke_env_arg"
+  done
   for shim_smoke_arg in "$@"; do
     printf '%s_test_shim_smoke_arg=%s|%s\n' "$test_scope" "$shim_name" "$shim_smoke_arg"
   done
 
   set +e
   command_output=$(
-    SHIMMY_PROFILE_ACTIVE=$SHIMMY_PROFILE_NAME "$shim_dispatcher_path" "$@" 2>&1
+    env $shim_smoke_env_args SHIMMY_PROFILE_ACTIVE=$SHIMMY_PROFILE_NAME "$shim_dispatcher_path" "$@" 2>&1
   )
   command_status=$?
   set -e
@@ -1342,8 +1350,10 @@ test_skills_install_repo_target() {
   manifest_contents=$(cat "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt")
   assert_contains "$manifest_contents" "shimmy_skills_manifest_version=1"
   assert_contains "$manifest_contents" "shimmy_skills_target=repo"
-  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-install|$WORK_DIR/.agents/skills/shimmy-install|"
-  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-escalation|$WORK_DIR/.agents/skills/shimmy-escalation|"
+  assert_contains "$manifest_contents" "shimmy_skills_root=.agents/skills"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-install|.agents/skills/shimmy-install|"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-escalation|.agents/skills/shimmy-escalation|"
+  assert_not_contains "$manifest_contents" "$WORK_DIR"
 
   pass "skills install writes core skills to repo target"
 }
@@ -1369,10 +1379,12 @@ test_installed_launcher_skills_install_includes_installed_shim_skills() {
   assert_file_exists "$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp-admin/SKILL.md"
 
   manifest_contents=$(cat "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt")
-  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-jq|$WORK_DIR/.agents/skills/shimmy-tool-jq|"
-  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-task|$WORK_DIR/.agents/skills/shimmy-tool-task|"
-  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-opnsense-mcp-read-only|$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp-read-only|"
-  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-opnsense-mcp-admin|$WORK_DIR/.agents/skills/shimmy-tool-opnsense-mcp-admin|"
+  assert_contains "$manifest_contents" "shimmy_skills_root=.agents/skills"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-jq|.agents/skills/shimmy-tool-jq|"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-task|.agents/skills/shimmy-tool-task|"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-opnsense-mcp-read-only|.agents/skills/shimmy-tool-opnsense-mcp-read-only|"
+  assert_contains "$manifest_contents" "shimmy_skill=repo|shimmy-tool-opnsense-mcp-admin|.agents/skills/shimmy-tool-opnsense-mcp-admin|"
+  assert_not_contains "$manifest_contents" "$WORK_DIR"
 
   profile_output=$(
     cd "$WORK_DIR"
@@ -1383,10 +1395,33 @@ test_installed_launcher_skills_install_includes_installed_shim_skills() {
   assert_contains "$profile_output" "Installed skill: shimmy-tool-opnsense-mcp-admin"
   assert_file_exists "$HOME_DIR/.agents/skills/shimmy-tool-opnsense-mcp-read-only/SKILL.md"
   assert_file_exists "$HOME_DIR/.agents/skills/shimmy-tool-opnsense-mcp-admin/SKILL.md"
-  assert_file_contains "$HOME_DIR/.agents/skills/.shimmy-skills-manifest.txt" "shimmy_skill=profile|shimmy-tool-opnsense-mcp-read-only|$HOME_DIR/.agents/skills/shimmy-tool-opnsense-mcp-read-only|"
-  assert_file_contains "$HOME_DIR/.agents/skills/.shimmy-skills-manifest.txt" "shimmy_skill=profile|shimmy-tool-opnsense-mcp-admin|$HOME_DIR/.agents/skills/shimmy-tool-opnsense-mcp-admin|"
+  profile_manifest_contents=$(cat "$HOME_DIR/.agents/skills/.shimmy-skills-manifest.txt")
+  assert_contains "$profile_manifest_contents" 'shimmy_skills_root=$HOME/.agents/skills'
+  assert_contains "$profile_manifest_contents" 'shimmy_skill=profile|shimmy-tool-opnsense-mcp-read-only|$HOME/.agents/skills/shimmy-tool-opnsense-mcp-read-only|'
+  assert_contains "$profile_manifest_contents" 'shimmy_skill=profile|shimmy-tool-opnsense-mcp-admin|$HOME/.agents/skills/shimmy-tool-opnsense-mcp-admin|'
+  assert_not_contains "$profile_manifest_contents" "$HOME_DIR"
 
   pass "installed launcher skills install includes installed shim skills"
+}
+
+test_skills_public_manifests_are_portable() {
+  repo_manifest=$ROOT_DIR/.agents/skills/.shimmy-skills-manifest.txt
+  plugin_manifest=$ROOT_DIR/plugins/shimmy/skills/.shimmy-skills-manifest.txt
+
+  assert_file_exists "$repo_manifest"
+  assert_file_exists "$plugin_manifest"
+
+  repo_manifest_contents=$(cat "$repo_manifest")
+  plugin_manifest_contents=$(cat "$plugin_manifest")
+
+  assert_contains "$repo_manifest_contents" "shimmy_skills_root=.agents/skills"
+  assert_contains "$plugin_manifest_contents" "shimmy_skills_root=plugins/shimmy/skills"
+  assert_not_contains "$repo_manifest_contents" "shimmy_skills_root=/"
+  assert_not_contains "$plugin_manifest_contents" "shimmy_skills_root=/"
+  assert_not_contains "$repo_manifest_contents" "|/"
+  assert_not_contains "$plugin_manifest_contents" "|/"
+
+  pass "public skills manifests use portable paths"
 }
 
 test_opnsense_mcp_skills_supported_tool_inventories() {
@@ -1484,9 +1519,11 @@ test_install_shares_management_skills_explicit_target() {
   skills_manifest_contents=$(cat "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt")
   assert_not_contains "$root_manifest_contents" "shimmy_skill="
   assert_not_contains "$profile_manifest_contents" "shimmy_skill="
-  assert_contains "$skills_manifest_contents" "shimmy_skill=repo|shimmy-install|$WORK_DIR/.agents/skills/shimmy-install|"
-  assert_contains "$skills_manifest_contents" "shimmy_skill=repo|shimmy-create-tool|$WORK_DIR/.agents/skills/shimmy-create-tool|"
-  assert_contains "$skills_manifest_contents" "shimmy_skill=repo|shimmy-tool-jq|$WORK_DIR/.agents/skills/shimmy-tool-jq|"
+  assert_contains "$skills_manifest_contents" "shimmy_skills_root=.agents/skills"
+  assert_contains "$skills_manifest_contents" "shimmy_skill=repo|shimmy-install|.agents/skills/shimmy-install|"
+  assert_contains "$skills_manifest_contents" "shimmy_skill=repo|shimmy-create-tool|.agents/skills/shimmy-create-tool|"
+  assert_contains "$skills_manifest_contents" "shimmy_skill=repo|shimmy-tool-jq|.agents/skills/shimmy-tool-jq|"
+  assert_not_contains "$skills_manifest_contents" "$WORK_DIR"
 
   pass "install shares management and installed shim skills with explicit target"
 }
@@ -2422,6 +2459,19 @@ test_update_build_refresh_includes_opnsense_mcp_admin() {
   pass "update --build includes opnsense-mcp-admin local image refresh"
 }
 
+test_update_build_refresh_includes_oc_minor_shims() {
+  update_script=$ROOT_DIR/scripts/update-shimmy.sh
+
+  assert_file_contains "$update_script" 'oc_4_18)'
+  assert_file_contains "$update_script" 'SHIMMY_OC_4_18_IMAGE_BUILD=always'
+  assert_file_contains "$update_script" 'oc_4_20)'
+  assert_file_contains "$update_script" 'SHIMMY_OC_4_20_IMAGE_BUILD=always'
+  assert_file_contains "$update_script" 'oc_4_22)'
+  assert_file_contains "$update_script" 'SHIMMY_OC_4_22_IMAGE_BUILD=always'
+
+  pass "update --build includes oc minor local image refresh"
+}
+
 test_update_mode_default_profile() {
   setup_scenario
 
@@ -2658,6 +2708,125 @@ test_jq_shim_preview() {
   assert_not_contains "$output" "jq-1.8.1"
 
   pass "jq preview shim renders podman command"
+}
+
+test_oc_dispatcher_missing_version() {
+  setup_scenario
+
+  set +e
+  output=$(
+    cd "$WORK_DIR"
+    "$ROOT_DIR/shims/oc" --preview-shim version 2>&1
+  )
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "expected missing SHIMMY_OC_VERSION to fail"
+  assert_contains "$output" "ERROR: SHIMMY_OC_VERSION is required for the oc shim."
+  assert_contains "$output" "Set SHIMMY_OC_VERSION to a supported major.minor"
+
+  pass "oc dispatcher rejects missing version selector"
+}
+
+test_oc_dispatcher_unsupported_version() {
+  setup_scenario
+
+  set +e
+  output=$(
+    cd "$WORK_DIR"
+    SHIMMY_OC_VERSION=4.17 "$ROOT_DIR/shims/oc" --preview-shim version 2>&1
+  )
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "expected unsupported SHIMMY_OC_VERSION to fail"
+  assert_contains "$output" "ERROR: unsupported SHIMMY_OC_VERSION value: 4.17"
+  assert_contains "$output" "Supported values: 4.18, 4.20, 4.22."
+
+  pass "oc dispatcher rejects unsupported version selector"
+}
+
+test_oc_dispatcher_preview() {
+  setup_scenario
+
+  output=$(
+    cd "$WORK_DIR"
+    KUBECONFIG=/work/kubeconfig SHIMMY_OC_VERSION=4.20 "$ROOT_DIR/shims/oc" --preview-shim version 2>&1
+  )
+
+  assert_contains "$output" "'run'"
+  assert_contains "$output" "'--platform'"
+  assert_contains "$output" "'-v'"
+  assert_contains "$output" "'$WORK_DIR:/work'"
+  assert_contains "$output" "'-w'"
+  assert_contains "$output" "'/work'"
+  assert_contains "$output" "'-e'"
+  assert_contains "$output" "'KUBECONFIG'"
+  assert_contains "$output" "'localhost/shimmy-oc-4_20:"
+  assert_contains "$output" "'version'"
+  assert_not_contains "$output" "--preview-shim"
+  assert_not_contains "$output" "Building local shim image"
+
+  output=$(
+    cd "$WORK_DIR"
+    SHIMMY_OC_VERSION=4.22 SHIMMY_OC_4_22_IMAGE=example.test/oc:4.22 SHIMMY_OC_4_22_IMAGE_PULL=always "$ROOT_DIR/shims/oc" version --preview-shim 2>&1
+  )
+
+  assert_contains "$output" "'--pull=always'"
+  assert_contains "$output" "'example.test/oc:4.22'"
+  assert_contains "$output" "'version'"
+  assert_not_contains "$output" "--preview-shim"
+
+  pass "oc dispatcher renders selected minor shim preview"
+}
+
+test_oc_install_and_smoke_config() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --profile default --shim oc --shim oc_4_18 --shim oc_4_20 --shim oc_4_22 --no-startup --no-skills >/dev/null
+
+  assert_path_symlink "$INSTALL_DIR/bin/oc"
+  assert_path_symlink "$INSTALL_DIR/bin/oc_4_18"
+  assert_path_symlink "$INSTALL_DIR/bin/oc_4_20"
+  assert_path_symlink "$INSTALL_DIR/bin/oc_4_22"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/oc"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/oc_4_18"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/oc_4_20"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/oc_4_22"
+  assert_file_contains "$INSTALL_DIR/profiles/default/config/shims/oc.conf" "smoke_env=SHIMMY_OC_VERSION=4.20"
+  assert_file_contains "$INSTALL_DIR/profiles/default/config/shims/oc.conf" "smoke_arg=--preview-shim"
+  assert_file_contains "$INSTALL_DIR/profiles/default/config/shims/oc.conf" "smoke_arg=version"
+  assert_file_contains "$INSTALL_DIR/profiles/default/config/shims/oc_4_18.conf" "smoke_arg=version"
+  assert_file_contains "$INSTALL_DIR/profiles/default/config/shims/oc_4_20.conf" "smoke_arg=version"
+  assert_file_contains "$INSTALL_DIR/profiles/default/config/shims/oc_4_22.conf" "smoke_arg=version"
+  assert_file_exists "$INSTALL_DIR/profiles/default/images/oc_4_18/Containerfile"
+  assert_file_exists "$INSTALL_DIR/profiles/default/images/oc_4_20/Containerfile"
+  assert_file_exists "$INSTALL_DIR/profiles/default/images/oc_4_22/Containerfile"
+
+  output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy test --profile default --shim oc 2>&1
+  )
+
+  assert_contains "$output" "profile_test_shim=oc"
+  assert_contains "$output" "profile_test_shim_smoke_env=oc|SHIMMY_OC_VERSION=4.20"
+  assert_contains "$output" "profile_test_shim_smoke_arg=oc|--preview-shim"
+  assert_contains "$output" "profile_test_shim_smoke_arg=oc|version"
+  assert_contains "$output" "'localhost/shimmy-oc-4_20:"
+  assert_contains "$output" "profile_smoke_tests=1"
+  assert_contains "$output" "profile_test=ok"
+
+  status_output=$(
+    cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status 2>&1
+  )
+
+  assert_contains "$status_output" "oc: dispatcher for oc_4_xx shims (uses SHIMMY_OC_VERSION at runtime)"
+  assert_contains "$status_output" "oc_4_18: localhost/shimmy-oc-4_18:"
+  assert_contains "$status_output" "oc_4_20: localhost/shimmy-oc-4_20:"
+  assert_contains "$status_output" "oc_4_22: localhost/shimmy-oc-4_22:"
+
+  pass "oc install copies dispatcher and minor smoke config"
 }
 
 test_installed_jq_shim() {
@@ -3652,6 +3821,7 @@ main() {
   test_install_no_startup
   test_skills_install_repo_target
   test_installed_launcher_skills_install_includes_installed_shim_skills
+  test_skills_public_manifests_are_portable
   test_opnsense_mcp_skills_supported_tool_inventories
   test_skills_update_repo_target
   test_skills_export_folder
@@ -3677,6 +3847,7 @@ main() {
   test_update_all_reinstalls_profile_shims
   test_update_preserves_shimmy_manifest_fields
   test_update_build_refresh_includes_opnsense_mcp_admin
+  test_update_build_refresh_includes_oc_minor_shims
   test_update_mode_invalid_environment_rejected
   test_update_mode_upstream_profile
   test_aws_shim_direct
@@ -3686,6 +3857,10 @@ main() {
   test_gcloud_shim_direct
   test_jq_shim_direct
   test_jq_shim_preview
+  test_oc_dispatcher_missing_version
+  test_oc_dispatcher_unsupported_version
+  test_oc_dispatcher_preview
+  test_oc_install_and_smoke_config
   test_opnsense_mcp_read_only_shim_direct
   test_opnsense_mcp_read_only_shim_url_invalid
   test_opnsense_mcp_read_only_shim_url_path_rejected

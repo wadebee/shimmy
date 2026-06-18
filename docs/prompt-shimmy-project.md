@@ -25,8 +25,10 @@ Constraints:
 - Forward env vars with `-e PREFIX_*` patterns only when the tool needs them.
 - Add small preflight checks for required upstream configuration when a missing or unreachable value would otherwise fail inside the container. For URL-based services, validate the URL shape and document a non-mutating reachability check such as `curl`.
 - Support the global self-contained `--preview-shim` flag by using the shared Podman helper's preview-aware preflight and final run helpers. The flag may appear anywhere in the tool arguments, is consumed by Shimmy, and prints the shell-quoted `podman run` command without contacting Podman, pulling images, building images, or running a container.
+- Decide and state the image strategy before implementation: remote image or local build context. Preserve the existing strategy when refining a shim unless there is a concrete defect or the user explicitly asks to switch.
 - Use `Containerfile` naming for custom image build contexts.
 - Keep image-build logic in the shared shim helper library so custom-image shims rebuild only when the build context changes.
+- For local-build shims, pass documented base/source override environment variables as `--build-arg` values to `shimmy_local_image_ensure`, document when `SHIMMY_{TOOL_PREFIX}_IMAGE_BUILD=always` is needed, and wire status/update to local image refs and `--build`.
 - End with `shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm --platform "$SHIMMY_PODMAN_PLATFORM" ... "$IMAGE" "$@"`.
 - Add new installable shim names to `lib/repo/shimmy-catalog.sh` because `shimmy install --shim <tool>` validation and `shimmy status --available` derive supported names from that catalog.
 - Treat Podman as an explicit dependency. Do not add install or provisioning steps for it in Shimmy code, tests, or CI.
@@ -37,12 +39,14 @@ Constraints:
 - In AI Agent environments, approvals are evaluated on the outer command. If `podman info` succeeds but a Shimmy wrapper still reports that Podman is unreachable, use the `shimmy-escalation` workflow. For availability smoke checks, request approval for the exact dry-run command prefix such as `["rg","--version"]` or `["./shims/rg","--version"]`; approval for `["podman", "info"]` alone is not enough.
 - Update `scripts/test-shimmy.sh` with live Podman-based assertions against prerequisite `podman` installation.
 - Add `shims/<tool>.conf` with a non-mutating smoke command. Use one `smoke_arg=` line per argv item; do not put multiple shell words on one line. Use `smoke_env=KEY=value` only for non-secret selector or test-mode values needed by the smoke command.
+- For multi-version dispatchers, add the dispatcher shim and `.conf`, each versioned companion shim and `.conf`, companion install behavior, selector error tests, dispatcher preview tests, installed smoke-config/status tests, and update pull/build assertions for the versioned shims.
 - Update `scripts/status-shimmy.sh` so installed status shows the default image, dispatcher description, or local image reference instead of `unknown`.
 - Update `scripts/update-shimmy.sh` when adding a remote-image shim that supports `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` or a local-build shim that supports `SHIMMY_{TOOL_PREFIX}_IMAGE_BUILD=always`.
 - Update `README.md` so the default image, env vars, mounts, and examples stay accurate.
 - Keep the `Included Shims` table in `README.md` sorted alphabetically by Tool name whenever you add or rename entries.
 - Create or update `.agents/skills/shimmy-tool-<tool>/SKILL.md` for new or materially changed shims, then install it into the repo skills manifest with `./shimmy skills install --target repo shimmy-tool-<tool>` unless the user chooses another target.
 - Keep runnable shell files executable.
+- Before finishing, run `git diff --check`, inspect `git diff --summary` for executable-bit and deletion surprises, run focused tests, and do a final `rg` or `git grep` scan over `README.md`, `docs/`, `shims/`, `scripts/`, `lib/repo/`, and `.agents/skills/`.
 
 Deliverables:
 
@@ -55,6 +59,7 @@ Deliverables:
 7. Quick-start setup guidance for required environment variables, secrets, and preflight checks.
 8. A shim-specific agent skill for new or materially changed shims.
 9. A short explanation of mounts, env forwarding, pull policy, and local image build behavior when applicable.
+10. For multi-version shims, the dispatcher/versioned-shim integration checklist should be complete: dispatcher config, smoke env, companion install behavior, status/update behavior, tests, docs, skill manifest, and executable bits.
 
 ## Repo Anatomy
 

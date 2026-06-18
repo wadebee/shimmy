@@ -23,12 +23,22 @@ shimmy_podman_preflight_or_preview_require "the oc 4.18 shim" "$@"
 if [ -n "${SHIMMY_OC_4_18_IMAGE:-}" ]; then
   SHIMMY_OC_4_18_RUN_IMAGE=$SHIMMY_OC_4_18_IMAGE
 else
-  SHIMMY_OC_4_18_RUN_IMAGE=$(
-    shimmy_local_image_ensure \
-      "localhost/shimmy-oc-4_18" \
-      "$SHIMMY_OC_4_18_IMAGES_DIR" \
-      "${SHIMMY_OC_4_18_IMAGE_BUILD:-auto}"
-  )
+  if [ -n "${SHIMMY_OC_4_18_BASE_IMAGE:-}" ]; then
+    SHIMMY_OC_4_18_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-oc-4_18" \
+        "$SHIMMY_OC_4_18_IMAGES_DIR" \
+        "${SHIMMY_OC_4_18_IMAGE_BUILD:-auto}" \
+        --build-arg "SHIMMY_OC_4_18_BASE_IMAGE=$SHIMMY_OC_4_18_BASE_IMAGE"
+    )
+  else
+    SHIMMY_OC_4_18_RUN_IMAGE=$(
+      shimmy_local_image_ensure \
+        "localhost/shimmy-oc-4_18" \
+        "$SHIMMY_OC_4_18_IMAGES_DIR" \
+        "${SHIMMY_OC_4_18_IMAGE_BUILD:-auto}"
+    )
+  fi
 fi
 
 if [ -n "${SHIMMY_OC_4_18_IMAGE:-}" ] && [ "${SHIMMY_OC_4_18_IMAGE_PULL:-}" = "always" ]; then

@@ -29,13 +29,13 @@ netcat --help --preview-shim
 | Tool | Purpose | Quick start |
 |------|---------|-------------|
 | **aws** | AWS CLI | [docs/shims/aws.md](docs/shims/aws.md) |
-| **oc** | OpenShift CLI (multi-version dispatcher) | [docs/shims/oc.md](docs/shims/oc.md) |
-| **go** | Go toolchain CLI | [docs/shims/go.md](docs/shims/go.md) |
 | **gcloud** | Google Cloud CLI | [docs/shims/gcloud.md](docs/shims/gcloud.md) |
 | **gdrive** | MCP server for interacting with Google Drive and Sheets | [docs/shims/gdrive.md](docs/shims/gdrive.md) |
+| **go** | Go toolchain CLI | [docs/shims/go.md](docs/shims/go.md) |
 | **jq** | JSON processor | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | TCP/UDP debugging client | [docs/shims/netcat.md](docs/shims/netcat.md) |
 | **nmap** | Network discovery and security scanner | [docs/shims/nmap.md](docs/shims/nmap.md) |
+| **oc** | OpenShift CLI (multi-version dispatcher) | [docs/shims/oc.md](docs/shims/oc.md) |
 | **opnsense-mcp-admin** | OPNsense firewall MCP server, admin-capable change tooling | [docs/shims/opnsense-mcp-admin.md](docs/shims/opnsense-mcp-admin.md) |
 | **opnsense-mcp-read-only** | OPNsense firewall MCP server, read-only default | [docs/shims/opnsense-mcp-read-only.md](docs/shims/opnsense-mcp-read-only.md) |
 | **rg** | Ripgrep search | [docs/shims/rg.md](docs/shims/rg.md) |
@@ -479,12 +479,13 @@ Once shims are in your PATH, use tools naturally:
 
 ```sh
 aws sts get-caller-identity
-go test ./...
 gcloud auth list
 gdrive --help
+go test ./...
 jq . file.json
 netcat 198.51.100.10 443
 nmap --version
+SHIMMY_OC_VERSION=4.20 oc version
 opnsense-mcp-admin --help
 opnsense-mcp-read-only
 rg "pattern" .
@@ -502,12 +503,13 @@ Some shims also document required setup checks. For example, `opnsense-mcp-read-
 | Tool | Quick start |
 |------|-------------|
 | **aws** | [docs/shims/aws.md](docs/shims/aws.md) |
-| **go** | [docs/shims/go.md](docs/shims/go.md) |
 | **gcloud** | [docs/shims/gcloud.md](docs/shims/gcloud.md) |
 | **gdrive** | [docs/shims/gdrive.md](docs/shims/gdrive.md) |
+| **go** | [docs/shims/go.md](docs/shims/go.md) |
 | **jq** | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | [docs/shims/netcat.md](docs/shims/netcat.md) |
 | **nmap** | [docs/shims/nmap.md](docs/shims/nmap.md) |
+| **oc** | [docs/shims/oc.md](docs/shims/oc.md) |
 | **opnsense-mcp-admin** | [docs/shims/opnsense-mcp-admin.md](docs/shims/opnsense-mcp-admin.md) |
 | **opnsense-mcp-read-only** | [docs/shims/opnsense-mcp-read-only.md](docs/shims/opnsense-mcp-read-only.md) |
 | **rg** | [docs/shims/rg.md](docs/shims/rg.md) |
@@ -545,7 +547,7 @@ Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope shims
 - install, activate, status, available-shim comparison, machine-readable manifest output, update, startup-file repair, and uninstall behavior for default and upstream profiles
 - Shimmy skill sharing, export, idempotent skills manifest updates, and install-time management skill sharing
-- live Podman execution for the supported shim set: `aws`, `go`, `gcloud`, `gdrive`, `jq`, `netcat`, `nmap`, `opnsense-mcp-admin`, `opnsense-mcp-read-only`, `rg`, `task`, `terraform`, and `textual`
+- live Podman or preview-backed execution for the supported shim set: `aws`, `gcloud`, `gdrive`, `go`, `jq`, `netcat`, `nmap`, `oc`, `opnsense-mcp-admin`, `opnsense-mcp-read-only`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
 ```
@@ -559,6 +561,10 @@ shimmy/
 │   ├── jq
 │   ├── netcat
 │   ├── nmap
+│   ├── oc
+│   ├── oc_4_18
+│   ├── oc_4_20
+│   ├── oc_4_22
 │   ├── opnsense-mcp-admin
 │   ├── opnsense-mcp-read-only
 │   ├── rg
@@ -569,6 +575,9 @@ shimmy/
 ├── images/                       # Custom shim image build contexts
 │   ├── gdrive
 │   ├── netcat
+│   ├── oc_4_18
+│   ├── oc_4_20
+│   ├── oc_4_22
 │   ├── opnsense-mcp-admin
 │   ├── opnsense-mcp-read-only
 │   ├── task
