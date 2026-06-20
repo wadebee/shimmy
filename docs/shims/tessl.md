@@ -43,7 +43,8 @@ Environment:
 
 Local image behavior:
 
-- Shimmy builds `localhost/shimmy-tessl:<context-hash>-<platform>` from `images/tessl/Containerfile`.
+- Shimmy builds `localhost/shimmy-tessl-0_1:<context-hash>-<platform>` from `images/tessl_0_1/Containerfile`.
+- Shimmy version `0.1` preserves the existing unpinned `@tessl/cli` installation: each image build installs the current package version published by npm.
 
 Mounts:
 
@@ -58,10 +59,6 @@ Runtime platform:
 
 - Linux -> `linux/amd64`
 - macOS -> `linux/arm64`
-
-Status:
-
-- `shims/tessl` exists in the repository, but `tessl` is not currently listed in the installer's supported kind set.
 
 ## Quick-Start Prompts
 

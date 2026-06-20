@@ -1,4 +1,4 @@
-# Hardened Image at dhi.io/node:25-dev 
+# Hardened Image at dhi.io/node:25-dev
 ARG SHIMMY_TESSL_BASE_IMAGE=node:25 
 FROM ${SHIMMY_TESSL_BASE_IMAGE}
 EXPOSE 8888
