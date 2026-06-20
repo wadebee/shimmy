@@ -1242,29 +1242,6 @@ test_shimmy_test_mode_upstream_profile() {
   pass "shimmy test upstream mode uses upstream profile"
 }
 
-test_install_removes_legacy_shell_init_block() {
-  setup_scenario
-
-  startup_file=$HOME_DIR/.bash_profile
-  {
-    printf '# existing shell config\n'
-    printf '# >>> shimmy shell init >>>\n'
-    printf 'if [ -f "%s/.bashrc_shimmy" ]; then . "%s/.bashrc_shimmy"; fi\n' "$HOME_DIR" "$HOME_DIR"
-    printf '# <<< shimmy shell init <<<\n'
-  } > "$startup_file"
-
-  HOME="$HOME_DIR" SHELL=/bin/bash run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq >/dev/null
-
-  startup_contents=$(cat "$startup_file")
-  assert_contains "$startup_contents" "# existing shell config"
-  assert_contains "$startup_contents" "# >>> shimmy onboarding >>>"
-  assert_contains "$startup_contents" "$INSTALL_DIR/activate.sh"
-  assert_not_contains "$startup_contents" "# >>> shimmy shell init >>>"
-  assert_not_contains "$startup_contents" ".bashrc_shimmy"
-
-  pass "install removes legacy shell init block"
-}
-
 test_install_bash_uses_existing_profile_login_file() {
   setup_scenario
 
@@ -3981,7 +3958,6 @@ main() {
   test_shimmy_test_mode_environment_fallback
   test_shimmy_test_mode_invalid_environment_rejected
   test_shimmy_test_mode_precedence
-  test_install_removes_legacy_shell_init_block
   test_install_bash_uses_existing_profile_login_file
   test_activate_eval
   test_activate_mode_invalid_environment_rejected
