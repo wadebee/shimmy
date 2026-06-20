@@ -522,6 +522,7 @@ test_catalog_kind_helpers() {
   kind_list=$(shimmy_kind_list)
   assert_contains "$kind_list" "jq"
   assert_contains "$kind_list" "oc"
+  assert_contains "$kind_list" "tessl"
   assert_contains "$kind_list" "terraform"
 
   assert_equals "$(shimmy_kind_version_list oc)" "oc_4_18 oc_4_20 oc_4_22"
@@ -530,6 +531,9 @@ test_catalog_kind_helpers() {
   assert_equals "$(shimmy_kind_default_version jq)" "jq_1_8"
   assert_equals "$(shimmy_version_kind jq_1_8)" "jq"
   assert_equals "$(shimmy_version_label jq_1_8)" "1.8"
+  assert_equals "$(shimmy_kind_default_version tessl)" "tessl_0_1"
+  assert_equals "$(shimmy_version_kind tessl_0_1)" "tessl"
+  assert_equals "$(shimmy_version_label tessl_0_1)" "0.1"
   assert_equals "$(shimmy_kind_version_for_label oc 4.18)" "oc_4_18"
 
   pass "catalog kind/version helpers"
@@ -2076,7 +2080,8 @@ test_status_available_reports_remaining_shims() {
   assert_contains "$output" "- go:"
   assert_contains "$output" "- nmap:"
   assert_contains "$output" "- textual:"
-  assert_not_contains "$output" "- tessl"
+  assert_contains "$output" "- tessl:"
+  assert_contains "$output" "default: 0.1 (tessl_0_1)"
 
   pass "status available reports remaining installable shims"
 }
@@ -2126,7 +2131,8 @@ test_status_available_manifest_format() {
   assert_contains "$output" "shimmy_available_kind=textual"
   assert_not_contains "$output" "shimmy_available_kind=jq"
   assert_not_contains "$output" "shimmy_available_kind=task"
-  assert_not_contains "$output" "shimmy_available_kind=tessl"
+  assert_contains "$output" "shimmy_available_kind=tessl"
+  assert_contains "$output" "shimmy_available_kind_default=tessl|0.1|tessl_0_1"
   assert_not_contains "$output" "available_kinds:"
 
   pass "status available manifest format is machine-readable"
@@ -2243,7 +2249,7 @@ test_installed_shimmy_management_command() {
   assert_contains "$available_output" "shimmy_available_kind=aws"
   assert_contains "$available_output" "shimmy_available_kind=task"
   assert_not_contains "$available_output" "shimmy_available_kind=jq"
-  assert_not_contains "$available_output" "shimmy_available_kind=tessl"
+  assert_contains "$available_output" "shimmy_available_kind=tessl"
 
   netinfo_output=$(
     cd "$WORK_DIR"
@@ -2308,6 +2314,17 @@ test_installed_shim_install_adds_available_shim() {
 
   output=$(
     cd "$WORK_DIR"
+    PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim tessl 2>&1
+  )
+
+  assert_contains "$output" "Installed shim kind: tessl"
+  assert_file_exists "$INSTALL_DIR/bin/tessl"
+  assert_file_executable "$INSTALL_DIR/profiles/default/bin/tessl_0_1"
+  assert_dir_exists "$INSTALL_DIR/profiles/default/images/tessl_0_1"
+  assert_file_exists "$INSTALL_DIR/profiles/default/images/tessl_0_1/Containerfile"
+
+  output=$(
+    cd "$WORK_DIR"
     PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy install --shim opnsense-mcp-read-only 2>&1
   )
 
@@ -2318,9 +2335,11 @@ test_installed_shim_install_adds_available_shim() {
   assert_contains "$manifest_contents" "kind=opnsense-mcp-admin"
   assert_contains "$manifest_contents" "kind=opnsense-mcp-read-only"
   assert_contains "$manifest_contents" "kind=task"
+  assert_contains "$manifest_contents" "kind=tessl"
   assert_contains "$manifest_contents" "kind_version=opnsense-mcp-admin|1.0|opnsense-mcp-admin_1_0"
   assert_contains "$manifest_contents" "kind_version=opnsense-mcp-read-only|0.4|opnsense-mcp-read-only_0_4"
   assert_contains "$manifest_contents" "kind_version=task|3.45|task_3_45"
+  assert_contains "$manifest_contents" "kind_version=tessl|0.1|tessl_0_1"
   opnsense_admin_manifest_count=$(sed -n 's/^kind=opnsense-mcp-admin$/kind/p' "$INSTALL_DIR/profiles/default/install-manifest.txt" | wc -l | tr -d ' ')
   assert_equals "$opnsense_admin_manifest_count" "1"
   opnsense_manifest_count=$(sed -n 's/^kind=opnsense-mcp-read-only$/kind/p' "$INSTALL_DIR/profiles/default/install-manifest.txt" | wc -l | tr -d ' ')
@@ -2335,9 +2354,11 @@ test_installed_shim_install_adds_available_shim() {
   assert_contains "$available_output" "shimmy_profile_kind=opnsense-mcp-admin"
   assert_contains "$available_output" "shimmy_profile_kind=opnsense-mcp-read-only"
   assert_contains "$available_output" "shimmy_profile_kind=task"
+  assert_contains "$available_output" "shimmy_profile_kind=tessl"
   assert_not_contains "$available_output" "shimmy_available_kind=opnsense-mcp-admin"
   assert_not_contains "$available_output" "shimmy_available_kind=opnsense-mcp-read-only"
   assert_not_contains "$available_output" "shimmy_available_kind=task"
+  assert_not_contains "$available_output" "shimmy_available_kind=tessl"
 
   status_output=$(
     cd "$WORK_DIR"
@@ -2348,6 +2369,8 @@ test_installed_shim_install_adds_available_shim() {
   assert_contains "$status_output" "default: 1.0 (opnsense-mcp-admin_1_0)"
   assert_contains "$status_output" "- opnsense-mcp-read-only:"
   assert_contains "$status_output" "default: 0.4 (opnsense-mcp-read-only_0_4)"
+  assert_contains "$status_output" "- tessl:"
+  assert_contains "$status_output" "default: 0.1 (tessl_0_1)"
 
   set +e
   output=$(
@@ -2817,6 +2840,24 @@ test_jq_shim_preview() {
   assert_not_contains "$output" "jq-1.8.1"
 
   pass "jq preview shim renders podman command"
+}
+
+test_tessl_dispatcher_preview() {
+  setup_scenario
+
+  output=$(
+    cd "$WORK_DIR"
+    "$ROOT_DIR/shims/tessl" --preview-shim --help 2>&1
+  )
+
+  assert_contains "$output" "'run'"
+  assert_contains "$output" "'--platform'"
+  assert_contains "$output" "'$WORK_DIR:/work:rw'"
+  assert_contains "$output" "'localhost/shimmy-tessl-0_1:"
+  assert_contains "$output" "'--help'"
+  assert_not_contains "$output" "--preview-shim"
+
+  pass "tessl dispatcher renders the 0.1 runtime command"
 }
 
 test_oc_dispatcher_default_version() {
@@ -4027,6 +4068,7 @@ main() {
   test_gcloud_shim_direct
   test_jq_shim_direct
   test_jq_shim_preview
+  test_tessl_dispatcher_preview
   test_oc_dispatcher_default_version
   test_oc_dispatcher_unsupported_version
   test_oc_dispatcher_preview

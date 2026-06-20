@@ -41,7 +41,7 @@ netcat --help --preview-shim
 | **rg** | Ripgrep search | [docs/shims/rg.md](docs/shims/rg.md) |
 | **task** | Taskfile task runner | [docs/shims/task.md](docs/shims/task.md) |
 | **terraform** | Infrastructure as Code | [docs/shims/terraform.md](docs/shims/terraform.md) |
-| **tessl** | Tessl CLI, present as a repo shim but not installed by default | [docs/shims/tessl.md](docs/shims/tessl.md) |
+| **tessl** | Tessl CLI | [docs/shims/tessl.md](docs/shims/tessl.md) |
 | **textual** | Textual developer CLI | [docs/shims/textual.md](docs/shims/textual.md) |
 
 ## Shim Kinds And Versions
@@ -586,8 +586,6 @@ Some shims also document required setup checks. For example, `opnsense-mcp-read-
 | **tessl** | [docs/shims/tessl.md](docs/shims/tessl.md) |
 | **textual** | [docs/shims/textual.md](docs/shims/textual.md) |
 
-`shims/tessl` exists in the repository but is not currently listed in the installer supported kind set. Its quick-start doc notes that status explicitly.
-
 ## Testing
 
 Run the test suite to validate that shim containers run via Podman:
@@ -649,6 +647,7 @@ shimmy/
 │   ├── task
 │   ├── task_3_45
 │   ├── tessl
+│   ├── tessl_0_1
 │   ├── textual
 │   ├── textual_8_2
 │   ├── terraform
@@ -662,7 +661,7 @@ shimmy/
 │   ├── opnsense-mcp-admin_1_0
 │   ├── opnsense-mcp-read-only_0_4
 │   ├── task_3_45
-│   ├── tessl
+│   ├── tessl_0_1
 │   └── textual_8_2
 ├── docs/
 │   ├── podman.md                 # Podman setup, verification, troubleshooting, and hygiene

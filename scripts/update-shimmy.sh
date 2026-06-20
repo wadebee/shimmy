@@ -204,6 +204,7 @@ local_build_repo_for_shim() {
     gdrive_0_2) printf 'localhost/shimmy-gdrive-0_2\n' ;;
     netcat_7_92) printf 'localhost/shimmy-netcat-7_92\n' ;;
     task_3_45) printf 'localhost/shimmy-task-3_45\n' ;;
+    tessl_0_1) printf 'localhost/shimmy-tessl-0_1\n' ;;
     textual_8_2) printf 'localhost/shimmy-textual-8_2\n' ;;
     opnsense-mcp-admin_1_0) printf 'localhost/shimmy-opnsense-mcp-admin-1_0\n' ;;
     opnsense-mcp-read-only_0_4) printf 'localhost/shimmy-opnsense-mcp-read-only-0_4\n' ;;
@@ -338,6 +339,10 @@ run_build_refresh() {
         ;;
       task_3_45)
         SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_TASK_IMAGE_BUILD=always "$shim_dir/task_3_45" --version >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name" "$images_dir"
+        ;;
+      tessl_0_1)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_TESSL_IMAGE_BUILD=always "$shim_dir/tessl_0_1" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
       textual_8_2)

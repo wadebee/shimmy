@@ -138,6 +138,9 @@ shimmy_agent_smoke_args_render() {
     terraform|terraform_1_15)
       printf '%s\n' 'version'
       ;;
+    tessl|tessl_0_1)
+      printf '%s\n' '--help'
+      ;;
     textual|textual_8_2)
       printf '%s\n' '--version'
       ;;
