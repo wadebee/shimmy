@@ -33,11 +33,9 @@ netcat --help --preview-shim
 | **gcloud** | Google Cloud CLI | [docs/shims/gcloud.md](docs/shims/gcloud.md) |
 | **gdrive** | MCP server for interacting with Google Drive and Sheets | [docs/shims/gdrive.md](docs/shims/gdrive.md) |
 | **go** | Go toolchain CLI | [docs/shims/go.md](docs/shims/go.md) |
-| **go** | Go toolchain CLI | [docs/shims/go.md](docs/shims/go.md) |
 | **jq** | JSON processor | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | TCP/UDP debugging client | [docs/shims/netcat.md](docs/shims/netcat.md) |
 | **nmap** | Network discovery and security scanner | [docs/shims/nmap.md](docs/shims/nmap.md) |
-| **oc** | OpenShift CLI kind dispatcher, defaulting to 4.20 | [docs/shims/oc.md](docs/shims/oc.md) |
 | **oc** | OpenShift CLI kind dispatcher, defaulting to 4.20 | [docs/shims/oc.md](docs/shims/oc.md) |
 | **opnsense-mcp-admin** | OPNsense firewall MCP server, admin-capable change tooling | [docs/shims/opnsense-mcp-admin.md](docs/shims/opnsense-mcp-admin.md) |
 | **opnsense-mcp-read-only** | OPNsense firewall MCP server, read-only default | [docs/shims/opnsense-mcp-read-only.md](docs/shims/opnsense-mcp-read-only.md) |
@@ -46,28 +44,6 @@ netcat --help --preview-shim
 | **terraform** | Infrastructure as Code | [docs/shims/terraform.md](docs/shims/terraform.md) |
 | **tessl** | Tessl CLI | [docs/shims/tessl.md](docs/shims/tessl.md) |
 | **textual** | Textual developer CLI | [docs/shims/textual.md](docs/shims/textual.md) |
-
-## Shim Kinds And Versions
-
-Shimmy exposes stable user-facing commands as shim kinds. A kind such as `jq`,
-`rg`, or `oc` is the command placed on `PATH`. The kind shim is only a
-dispatcher: it chooses a concrete version shim and execs it.
-
-Concrete version shims use major.minor names such as `jq_1_8`, `rg_15_1`, and
-`oc_4_20`. Version shims contain the Podman runtime behavior, image selection,
-mounts, credentials, and local-build logic. Every kind has a catalog default
-version, so installing or running a kind is deterministic.
-
-```sh
-shimmy install --shim jq       # installs jq plus jq_1_8
-shimmy install --shim oc       # installs oc plus default oc_4_20
-shimmy install --shim oc@4.18  # installs oc, default oc_4_20, and oc_4_18
-```
-
-Kind dispatchers use their default version when no selector is set. Multi-version
-kinds may also document selector variables. For `oc`, leaving
-`SHIMMY_OC_VERSION` unset dispatches to `oc_4_20`; setting
-`SHIMMY_OC_VERSION=4.18` dispatches to `oc_4_18`.
 
 ## Shim Kinds And Versions
 
@@ -124,7 +100,6 @@ Shimmy skills can be shared beyond the default project repo and into your user p
 ./shimmy skills install --target repo
 ./shimmy skills install --target profile
 ./shimmy skills update --target plugin
-./shimmy skills uninstall --target repo
 ./shimmy skills uninstall --target repo
 ./shimmy skills install --export ./shimmy-skills
 ./shimmy skills install --export ./shimmy-skills.zip
@@ -215,7 +190,6 @@ Use the repo-root `shimmy` wrapper to install and manage Shimmy from a source ch
 ./shimmy test
 ./shimmy test --profile upstream
 ./shimmy uninstall --profile default
-./shimmy uninstall --profile default
 ```
 
 The wrapper delegates to script-based interfaces in `scripts/`.
@@ -237,7 +211,6 @@ shimmy netinfo
 shimmy skills update --target repo
 shimmy update --all --pull --build
 shimmy test
-shimmy uninstall --profile default
 shimmy uninstall --profile default
 eval "$(shimmy activate)"
 ```
@@ -348,23 +321,11 @@ require the user to keep a Shimmy source checkout open.
 
 Both workflows preserve the currently installed kind list from the manifest.
 Newly available kinds are not added automatically during update; install them
-Both workflows preserve the currently installed kind list from the manifest.
-Newly available kinds are not added automatically during update; install them
 explicitly:
 
 ```sh
 shimmy install --shim opnsense-mcp-read-only
 shimmy install --shim opnsense-mcp-admin
-```
-
-Use `--shim <kind>` to refresh one installed kind and all installed versions for
-that kind, or `--shim <kind>@<version-label>` to refresh one installed version
-plus the required kind dispatcher:
-
-```sh
-shimmy update --shim oc
-shimmy update --shim oc@4.18 --build
-shimmy update --shim jq --pull
 ```
 
 Use `--shim <kind>` to refresh one installed kind and all installed versions for
@@ -466,34 +427,12 @@ Common install arguments still pass through to the installer:
 ./shimmy install --install-dir "$HOME/.local/share/shimmy"
 ./shimmy install --shim aws --shim terraform
 ./shimmy install --shim oc@4.18
-./shimmy install --shim oc@4.18
 ./shimmy install --skills-target repo
 ```
 
 With no explicit `--shim`, install creates or completes the default external-user profile with `jq` and `rg`. Repeated `--shim` flags add missing kinds to the selected profile. If a kind is already installed, install leaves it alone and points you to `shimmy update --shim <kind>` for refresh behavior.
-With no explicit `--shim`, install creates or completes the default external-user profile with `jq` and `rg`. Repeated `--shim` flags add missing kinds to the selected profile. If a kind is already installed, install leaves it alone and points you to `shimmy update --shim <kind>` for refresh behavior.
 
 During an interactive install, Shimmy asks where to share Shimmy agent skills: `repo`, `profile`, `plugin`, or `none`. For non-interactive installs, pass `--skills-target <repo|profile|plugin>` or run `shimmy skills install` later.
-
-Uninstall is profile-scoped and explicit:
-
-```sh
-./shimmy uninstall --profile default
-./shimmy uninstall --profile upstream
-```
-
-When removing the last installed profile, Shimmy removes managed startup blocks,
-the activation file, root manifest, management support files, Shimmy-owned public
-dispatcher symlinks, and empty install directories. It also tolerates partially
-removed profile state so a rerun can clean stale install-root remnants.
-
-Agent skills are target-local and tracked by each target's
-`.shimmy-skills-manifest.txt`. Remove them explicitly when desired:
-
-```sh
-./shimmy skills uninstall --target repo
-./shimmy uninstall --profile default --skills-target repo
-```
 
 Uninstall is profile-scoped and explicit:
 
@@ -549,11 +488,9 @@ The root manifest records install-wide integration state:
 - `activate_file` — generated activation script
 - `shimmy_profile_default` — default profile, currently `default`
 - `default_kind` — baseline kind name for a bare install; currently repeated for `jq` and `rg`
-- `default_kind` — baseline kind name for a bare install; currently repeated for `jq` and `rg`
 - `profile` — installed profile name; repeated for each installed profile
 - `startup_shell` and `startup_file` — managed startup-file state
 
-The selected profile manifest is the source of truth for profile-specific kinds, concrete versions, update, direct dispatch, and profile cleanup. It uses one `key=value` entry per line and repeated keys for lists. Each installed kind and version also has a config file under `<config_dir>/shims/<name>.conf`; `shimmy test --shim` and `shimmy test --all` read repeated `smoke_arg=` entries from that config instead of guessing a default command.
 The selected profile manifest is the source of truth for profile-specific kinds, concrete versions, update, direct dispatch, and profile cleanup. It uses one `key=value` entry per line and repeated keys for lists. Each installed kind and version also has a config file under `<config_dir>/shims/<name>.conf`; `shimmy test --shim` and `shimmy test --all` read repeated `smoke_arg=` entries from that config instead of guessing a default command.
 
 Profile fields include:
@@ -565,11 +502,8 @@ Profile fields include:
 - `source_checkout` — resolved upstream checkout path for upstream installs
 - `kind` — installed user-facing kind; repeated for each installed tool command
 - `kind_version` — installed concrete version mapping as `<kind>|<label>|<version>`; repeated for defaults and installed version labels
-- `kind` — installed user-facing kind; repeated for each installed tool command
-- `kind_version` — installed concrete version mapping as `<kind>|<label>|<version>`; repeated for defaults and installed version labels
 - `shimmy_source_url`, `shimmy_source_ref`, and `shimmy_previous_source_ref` — profile lifecycle source metadata
 
-Root and profile manifests do not own generated skill audit state. Each skills target gets a local `.shimmy-skills-manifest.txt` under the target skills directory, and that file is the durable owner of repeated `shimmy_skill=` entries. `shimmy skills update` reads that manifest to refresh the same skill set idempotently, and `shimmy skills uninstall` removes only the manifest-tracked skill directories, so generated `shimmy-tool-*` skills can be audited, updated, and cleaned up without duplicate entries or broad deletes.
 Root and profile manifests do not own generated skill audit state. Each skills target gets a local `.shimmy-skills-manifest.txt` under the target skills directory, and that file is the durable owner of repeated `shimmy_skill=` entries. `shimmy skills update` reads that manifest to refresh the same skill set idempotently, and `shimmy skills uninstall` removes only the manifest-tracked skill directories, so generated `shimmy-tool-*` skills can be audited, updated, and cleaned up without duplicate entries or broad deletes.
 
 For machine-readable inspection, `shimmy status --format manifest` emits a normalized view with `shimmy_` install/status keys and `shimmy_profile_` selected-profile keys. It reports derived paths and incomplete-profile diagnostics without treating the root manifest as a default-profile substitute.
@@ -602,18 +536,6 @@ shimmy_available_kind_default=terraform|1.15|terraform_1_15
 
 To compare installed kinds with the supported kinds still available to install, use:
 
-Manifest status emits normalized kind fields such as:
-
-```text
-shimmy_profile_kind=oc
-shimmy_profile_kind_version=oc|default|oc_4_20
-shimmy_profile_kind_version=oc|4.18|oc_4_18
-shimmy_available_kind=terraform
-shimmy_available_kind_default=terraform|1.15|terraform_1_15
-```
-
-To compare installed kinds with the supported kinds still available to install, use:
-
 ```sh
 shimmy status --available
 shimmy status --available --format manifest
@@ -628,12 +550,9 @@ aws sts get-caller-identity
 gcloud auth list
 gdrive --help
 go test ./...
-go test ./...
 jq . file.json
 netcat 198.51.100.10 443
 nmap --version
-oc version
-SHIMMY_OC_VERSION=4.18 oc version
 oc version
 SHIMMY_OC_VERSION=4.18 oc version
 opnsense-mcp-admin --help
@@ -656,11 +575,9 @@ Some shims also document required setup checks. For example, `opnsense-mcp-read-
 | **gcloud** | [docs/shims/gcloud.md](docs/shims/gcloud.md) |
 | **gdrive** | [docs/shims/gdrive.md](docs/shims/gdrive.md) |
 | **go** | [docs/shims/go.md](docs/shims/go.md) |
-| **go** | [docs/shims/go.md](docs/shims/go.md) |
 | **jq** | [docs/shims/jq.md](docs/shims/jq.md) |
 | **netcat** | [docs/shims/netcat.md](docs/shims/netcat.md) |
 | **nmap** | [docs/shims/nmap.md](docs/shims/nmap.md) |
-| **oc** | [docs/shims/oc.md](docs/shims/oc.md) |
 | **oc** | [docs/shims/oc.md](docs/shims/oc.md) |
 | **opnsense-mcp-admin** | [docs/shims/opnsense-mcp-admin.md](docs/shims/opnsense-mcp-admin.md) |
 | **opnsense-mcp-read-only** | [docs/shims/opnsense-mcp-read-only.md](docs/shims/opnsense-mcp-read-only.md) |
@@ -670,10 +587,6 @@ Some shims also document required setup checks. For example, `opnsense-mcp-read-
 | **tessl** | [docs/shims/tessl.md](docs/shims/tessl.md) |
 | **textual** | [docs/shims/textual.md](docs/shims/textual.md) |
 
-`shims/tessl` exists in the repository but is not currently listed in the installer supported kind set. Its quick-start doc notes that status explicitly.
-
-=======
->>>>>>> main
 ## Testing
 
 Run the test suite to validate that shim containers run via Podman:
@@ -696,15 +609,11 @@ SHIMMY_PROFILE_ACTIVE=upstream rg --version
 ```
 
 When a profile is selected, `shimmy test` validates the root manifest and selected profile structure, then smoke-tests root default kinds such as `jq` and `rg`. Use `--shim <kind>` to test one installed kind in its owning output section. Use `--all` to test root default kinds plus profile-owned non-default kinds, with root and profile smoke results reported separately.
-When a profile is selected, `shimmy test` validates the root manifest and selected profile structure, then smoke-tests root default kinds such as `jq` and `rg`. Use `--shim <kind>` to test one installed kind in its owning output section. Use `--all` to test root default kinds plus profile-owned non-default kinds, with root and profile smoke results reported separately.
 
 Tests verify:
 - `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope kinds
 - install, activate, status, available-kind comparison, machine-readable manifest output, update, startup-file repair, and uninstall behavior for default and upstream profiles
-- `/bin/sh` parser compatibility for the repo wrapper, shared shim helpers, repo lifecycle scripts, and all supported in-scope kinds
-- install, activate, status, available-kind comparison, machine-readable manifest output, update, startup-file repair, and uninstall behavior for default and upstream profiles
 - Shimmy skill sharing, export, idempotent skills manifest updates, and install-time management skill sharing
-- live Podman or preview-backed execution for the supported kind set: `aws`, `gcloud`, `gdrive`, `go`, `jq`, `netcat`, `nmap`, `oc`, `opnsense-mcp-admin`, `opnsense-mcp-read-only`, `rg`, `task`, `terraform`, and `textual`
 - live Podman or preview-backed execution for the supported kind set: `aws`, `gcloud`, `gdrive`, `go`, `jq`, `netcat`, `nmap`, `oc`, `opnsense-mcp-admin`, `opnsense-mcp-read-only`, `rg`, `task`, `terraform`, and `textual`
 
 ## Directory Structure
@@ -714,22 +623,17 @@ shimmy/
 ├── shims/                        # OCI wrapper scripts
 │   ├── aws                       # kind dispatcher
 │   ├── aws_2_31                  # concrete version shim
-│   ├── aws                       # kind dispatcher
-│   ├── aws_2_31                  # concrete version shim
+│   ├── gh
+│   ├── gh_2_94
 │   ├── go
-│   ├── go_1_26
 │   ├── go_1_26
 │   ├── gcloud
 │   ├── gcloud_573_0
-│   ├── gcloud_573_0
 │   ├── gdrive
-│   ├── gdrive_0_2
 │   ├── gdrive_0_2
 │   ├── jq
 │   ├── jq_1_8
-│   ├── jq_1_8
 │   ├── netcat
-│   ├── netcat_7_92
 │   ├── netcat_7_92
 │   ├── nmap
 │   ├── nmap_7_98
@@ -737,29 +641,17 @@ shimmy/
 │   ├── oc_4_18
 │   ├── oc_4_20
 │   ├── oc_4_22
-│   ├── nmap_7_98
-│   ├── oc
-│   ├── oc_4_18
-│   ├── oc_4_20
-│   ├── oc_4_22
 │   ├── opnsense-mcp-admin
-│   ├── opnsense-mcp-admin_1_0
 │   ├── opnsense-mcp-admin_1_0
 │   ├── opnsense-mcp-read-only
 │   ├── opnsense-mcp-read-only_0_4
-│   ├── opnsense-mcp-read-only_0_4
 │   ├── rg
 │   ├── rg_15_1
-│   ├── rg_15_1
 │   ├── task
-│   ├── task_3_45
 │   ├── task_3_45
 │   ├── tessl
 │   ├── tessl_0_1
 │   ├── textual
-│   ├── textual_8_2
-│   ├── terraform
-│   └── terraform_1_15
 │   ├── textual_8_2
 │   ├── terraform
 │   └── terraform_1_15

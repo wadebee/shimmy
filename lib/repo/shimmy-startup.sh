@@ -111,7 +111,7 @@ shimmy_startup_file_update() {
     : > "$startup_file"
   fi
 
-  shimmy_startup_block_remove "$startup_file"
+  shimmy_startup_block_remove "$startup_file" "$SHIMMY_STARTUP_BLOCK_START" "$SHIMMY_STARTUP_BLOCK_END"
   if [ -s "$startup_file" ] && ! tail -n 1 "$startup_file" | grep '^$' >/dev/null 2>&1; then
     printf '\n' >> "$startup_file"
   fi

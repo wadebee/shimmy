@@ -100,10 +100,8 @@ shimmy_agent_smoke_args_render() {
 
   case "$shim_name" in
     aws|aws_2_31)
-    aws|aws_2_31)
       printf '%s\n' '--version'
       ;;
-    go|go_1_26)
     go|go_1_26)
       printf '%s\n' 'version'
       ;;
@@ -120,26 +118,11 @@ shimmy_agent_smoke_args_render() {
       printf '%s\n' '--help'
       ;;
     nmap|nmap_7_98)
-    gcloud|gcloud_573_0)
-      printf '%s\n' '--version'
-      ;;
-    gdrive|gdrive_0_2)
-      printf '%s\n' '--help'
-      ;;
-    jq|jq_1_8)
-      printf '%s\n' '--version'
-      ;;
-    netcat|netcat_7_92)
-      printf '%s\n' '--help'
-      ;;
-    nmap|nmap_7_98)
       printf '%s\n' '--version'
       ;;
     opnsense-mcp-admin|opnsense-mcp-admin_1_0)
-    opnsense-mcp-admin|opnsense-mcp-admin_1_0)
       printf '%s\n' '--help'
       ;;
-    opnsense-mcp-read-only|opnsense-mcp-read-only_0_4)
     opnsense-mcp-read-only|opnsense-mcp-read-only_0_4)
       printf '%s\n' '--help'
       ;;
@@ -147,17 +130,11 @@ shimmy_agent_smoke_args_render() {
       printf '%s\n' '--preview-shim version'
       ;;
     rg|rg_15_1)
-    oc|oc_4_18|oc_4_20|oc_4_22)
-      printf '%s\n' '--preview-shim version'
-      ;;
-    rg|rg_15_1)
       printf '%s\n' '--version'
       ;;
     task|task_3_45)
-    task|task_3_45)
       printf '%s\n' '--version'
       ;;
-    terraform|terraform_1_15)
     terraform|terraform_1_15)
       printf '%s\n' 'version'
       ;;

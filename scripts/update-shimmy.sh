@@ -211,16 +211,7 @@ local_build_repo_for_shim() {
     oc_4_18) printf 'localhost/shimmy-oc-4_18\n' ;;
     oc_4_20) printf 'localhost/shimmy-oc-4_20\n' ;;
     oc_4_22) printf 'localhost/shimmy-oc-4_22\n' ;;
-    gdrive_0_2) printf 'localhost/shimmy-gdrive-0_2\n' ;;
-    netcat_7_92) printf 'localhost/shimmy-netcat-7_92\n' ;;
-    task_3_45) printf 'localhost/shimmy-task-3_45\n' ;;
     tessl_0_1) printf 'localhost/shimmy-tessl-0_1\n' ;;
-    textual_8_2) printf 'localhost/shimmy-textual-8_2\n' ;;
-    opnsense-mcp-admin_1_0) printf 'localhost/shimmy-opnsense-mcp-admin-1_0\n' ;;
-    opnsense-mcp-read-only_0_4) printf 'localhost/shimmy-opnsense-mcp-read-only-0_4\n' ;;
-    oc_4_18) printf 'localhost/shimmy-oc-4_18\n' ;;
-    oc_4_20) printf 'localhost/shimmy-oc-4_20\n' ;;
-    oc_4_22) printf 'localhost/shimmy-oc-4_22\n' ;;
     *) return 1 ;;
   esac
 }
@@ -343,8 +334,8 @@ run_build_refresh() {
         fi
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
-      gdrive_0_2_0_2)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_GDRIVE_IMAGE_BUILD=always "$shim_dir/gdrive_0_2_0_2" --help >/dev/null </dev/null
+      gdrive_0_2)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_GDRIVE_IMAGE_BUILD=always "$shim_dir/gdrive_0_2" --help >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
       gh_2_94)
@@ -363,20 +354,8 @@ run_build_refresh() {
         SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_OC_4_18_IMAGE_BUILD=always "$shim_dir/oc_4_18" version >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
-      task_3_45)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_TASK_IMAGE_BUILD=always "$shim_dir/task_3_45" --version >/dev/null </dev/null
-        cleanup_old_local_images "$shim_name" "$images_dir"
-        ;;
       tessl_0_1)
         SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_TESSL_IMAGE_BUILD=always "$shim_dir/tessl_0_1" --help >/dev/null </dev/null
-        cleanup_old_local_images "$shim_name" "$images_dir"
-        ;;
-      textual_8_2)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_TEXTUAL_IMAGE_BUILD=always "$shim_dir/textual_8_2" --help >/dev/null </dev/null
-        cleanup_old_local_images "$shim_name" "$images_dir"
-        ;;
-      oc_4_18)
-        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_OC_4_18_IMAGE_BUILD=always "$shim_dir/oc_4_18" version >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
       oc_4_20)

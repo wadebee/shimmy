@@ -143,7 +143,6 @@ test_root_manifest_resolve() {
 }
 
 test_root_default_kind_contains() {
-test_root_default_kind_contains() {
   root_manifest_file=$1
   kind_name_expected=$2
 
@@ -3688,7 +3687,7 @@ test_gdrive_shim_requires_config() {
       cd "$WORK_DIR"
       PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/gdrive" 2>&1
     )
-    status=$%
+    status=$?
     set -e
 
     [ "$status" -ne 0 ] || fail_test "expected gdrive to require configuration"

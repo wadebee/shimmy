@@ -57,7 +57,6 @@ install_dir_resolve() {
 }
 
 installed_kind_list() {
-installed_kind_list() {
   manifest_file=$1
   shim_dir=$2
 
@@ -201,17 +200,6 @@ describe_version_image() {
     tessl_0_1)
       printf '%s\n' "$(local_image_ref "localhost/shimmy-tessl-0_1" "$images_dir/tessl_0_1")"
       ;;
-    textual_8_2)
-      printf '%s\n' "$(local_image_ref "localhost/shimmy-textual-8_2" "$images_dir/textual_8_2")"
-      ;;
-    oc_4_18)
-      printf '%s\n' "$(local_image_ref "localhost/shimmy-oc-4_18" "$images_dir/oc_4_18")"
-      ;;
-    oc_4_20)
-      printf '%s\n' "$(local_image_ref "localhost/shimmy-oc-4_20" "$images_dir/oc_4_20")"
-      ;;
-    oc_4_22)
-      printf '%s\n' "$(local_image_ref "localhost/shimmy-oc-4_22" "$images_dir/oc_4_22")"
     textual_8_2)
       printf '%s\n' "$(local_image_ref "localhost/shimmy-textual-8_2" "$images_dir/textual_8_2")"
       ;;

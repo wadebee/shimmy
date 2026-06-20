@@ -1,4 +1,4 @@
-SHIMMY_KINDS='aws gh go gcloud gdrive jq netcat nmap oc opnsense-mcp-admin opnsense-mcp-read-only rg task terraform textual'
+SHIMMY_KINDS='aws gh go gcloud gdrive jq netcat nmap oc opnsense-mcp-admin opnsense-mcp-read-only rg task terraform tessl textual'
 SHIMMY_DEFAULT_KINDS='jq rg'
 
 shimmy_default_kind_list() {
@@ -45,6 +45,7 @@ shimmy_kind_default_version() {
     rg) printf '%s\n' rg_15_1 ;;
     task) printf '%s\n' task_3_45 ;;
     terraform) printf '%s\n' terraform_1_15 ;;
+    tessl) printf '%s\n' tessl_0_1 ;;
     textual) printf '%s\n' textual_8_2 ;;
     *) return 1 ;;
   esac
@@ -103,6 +104,7 @@ shimmy_kind_version_list() {
     rg) printf '%s\n' rg_15_1 ;;
     task) printf '%s\n' task_3_45 ;;
     terraform) printf '%s\n' terraform_1_15 ;;
+    tessl) printf '%s\n' tessl_0_1 ;;
     textual) printf '%s\n' textual_8_2 ;;
     *) return 1 ;;
   esac
@@ -126,6 +128,7 @@ shimmy_version_kind() {
     rg_15_1) printf '%s\n' rg ;;
     task_3_45) printf '%s\n' task ;;
     terraform_1_15) printf '%s\n' terraform ;;
+    tessl_0_1) printf '%s\n' tessl ;;
     textual_8_2) printf '%s\n' textual ;;
     *) return 1 ;;
   esac
@@ -151,6 +154,7 @@ shimmy_version_label() {
     rg_15_1) printf '%s\n' 15.1 ;;
     task_3_45) printf '%s\n' 3.45 ;;
     terraform_1_15) printf '%s\n' 1.15 ;;
+    tessl_0_1) printf '%s\n' 0.1 ;;
     textual_8_2) printf '%s\n' 8.2 ;;
     *) return 1 ;;
   esac

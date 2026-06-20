@@ -1273,7 +1273,7 @@ EOF
     if [ -n "$startup_files_to_remove" ]; then
       while IFS= read -r startup_file_to_remove; do
         [ -n "$startup_file_to_remove" ] || continue
-        shimmy_startup_block_remove "$startup_file_to_remove"
+        shimmy_startup_block_remove "$startup_file_to_remove" "$SHIMMY_STARTUP_BLOCK_START" "$SHIMMY_STARTUP_BLOCK_END"
         log_info "Removed managed Shimmy startup block from: $startup_file_to_remove"
       done <<EOF
 $startup_files_to_remove
