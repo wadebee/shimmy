@@ -149,6 +149,13 @@ describe_version_image() {
     aws_2_31)
       printf '%s\n' "${SHIMMY_AWS_IMAGE:-public.ecr.aws/aws-cli/aws-cli:2.31.21}"
       ;;
+    gh_2_94)
+      if [ -n "${SHIMMY_GH_IMAGE:-}" ]; then
+        printf '%s\n' "$SHIMMY_GH_IMAGE"
+      else
+        printf '%s\n' "$(local_image_ref "localhost/shimmy-gh-2_94" "$images_dir/gh_2_94")"
+      fi
+      ;;
     go_1_26)
       printf '%s\n' "${SHIMMY_GO_IMAGE:-docker.io/library/golang:1.26.4}"
       ;;

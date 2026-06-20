@@ -1,4 +1,4 @@
-SHIMMY_KINDS='aws go gcloud gdrive jq netcat nmap oc opnsense-mcp-admin opnsense-mcp-read-only rg task terraform textual'
+SHIMMY_KINDS='aws gh go gcloud gdrive jq netcat nmap oc opnsense-mcp-admin opnsense-mcp-read-only rg task terraform textual'
 SHIMMY_DEFAULT_KINDS='jq rg'
 
 shimmy_default_kind_list() {
@@ -32,6 +32,7 @@ shimmy_kind_default_version() {
 
   case "$kind_name" in
     aws) printf '%s\n' aws_2_31 ;;
+    gh) printf '%s\n' gh_2_94 ;;
     go) printf '%s\n' go_1_26 ;;
     gcloud) printf '%s\n' gcloud_573_0 ;;
     gdrive) printf '%s\n' gdrive_0_2 ;;
@@ -89,6 +90,7 @@ shimmy_kind_version_list() {
 
   case "$kind_name" in
     aws) printf '%s\n' aws_2_31 ;;
+    gh) printf '%s\n' gh_2_94 ;;
     go) printf '%s\n' go_1_26 ;;
     gcloud) printf '%s\n' gcloud_573_0 ;;
     gdrive) printf '%s\n' gdrive_0_2 ;;
@@ -111,6 +113,7 @@ shimmy_version_kind() {
 
   case "$version_name" in
     aws_2_31) printf '%s\n' aws ;;
+    gh_2_94) printf '%s\n' gh ;;
     go_1_26) printf '%s\n' go ;;
     gcloud_573_0) printf '%s\n' gcloud ;;
     gdrive_0_2) printf '%s\n' gdrive ;;
@@ -133,6 +136,7 @@ shimmy_version_label() {
 
   case "$version_name" in
     aws_2_31) printf '%s\n' 2.31 ;;
+    gh_2_94) printf '%s\n' 2.94 ;;
     go_1_26) printf '%s\n' 1.26 ;;
     gcloud_573_0) printf '%s\n' 573.0 ;;
     gdrive_0_2) printf '%s\n' 0.2 ;;

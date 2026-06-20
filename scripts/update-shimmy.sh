@@ -202,6 +202,7 @@ EOF
 local_build_repo_for_shim() {
   case "$1" in
     gdrive_0_2) printf 'localhost/shimmy-gdrive-0_2\n' ;;
+    gh_2_94) printf 'localhost/shimmy-gh-2_94\n' ;;
     netcat_7_92) printf 'localhost/shimmy-netcat-7_92\n' ;;
     task_3_45) printf 'localhost/shimmy-task-3_45\n' ;;
     textual_8_2) printf 'localhost/shimmy-textual-8_2\n' ;;
@@ -334,6 +335,10 @@ run_build_refresh() {
         ;;
       gdrive_0_2)
         SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_GDRIVE_IMAGE_BUILD=always "$shim_dir/gdrive_0_2" --help >/dev/null </dev/null
+        cleanup_old_local_images "$shim_name" "$images_dir"
+        ;;
+      gh_2_94)
+        SHIMMY_PROFILE_ACTIVE=$profile_name SHIMMY_GH_IMAGE_BUILD=always "$shim_dir/gh_2_94" --version >/dev/null </dev/null
         cleanup_old_local_images "$shim_name" "$images_dir"
         ;;
       task_3_45)

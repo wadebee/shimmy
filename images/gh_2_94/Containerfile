@@ -1,0 +1,20 @@
+ARG SHIMMY_GH_BASE_IMAGE=alpine:3.22
+FROM ${SHIMMY_GH_BASE_IMAGE}
+
+ARG SHIMMY_GH_VERSION=2.94.0
+
+RUN apk add --no-cache ca-certificates curl git tar \
+    && case "$(uname -m)" in \
+         x86_64) gh_arch='amd64' ;; \
+         aarch64) gh_arch='arm64' ;; \
+         *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;; \
+       esac \
+    && gh_archive="gh_${SHIMMY_GH_VERSION}_linux_${gh_arch}.tar.gz" \
+    && curl -fsSL -o "/tmp/${gh_archive}" "https://github.com/cli/cli/releases/download/v${SHIMMY_GH_VERSION}/${gh_archive}" \
+    && tar -xzf "/tmp/${gh_archive}" -C /tmp \
+    && install "/tmp/gh_${SHIMMY_GH_VERSION}_linux_${gh_arch}/bin/gh" /usr/local/bin/gh \
+    && rm -rf /tmp/gh_*
+
+WORKDIR /work
+
+ENTRYPOINT ["gh"]

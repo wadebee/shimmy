@@ -521,6 +521,7 @@ test_podman_preview_helpers() {
 test_catalog_kind_helpers() {
   kind_list=$(shimmy_kind_list)
   assert_contains "$kind_list" "jq"
+  assert_contains "$kind_list" "gh"
   assert_contains "$kind_list" "oc"
   assert_contains "$kind_list" "terraform"
 
@@ -528,6 +529,10 @@ test_catalog_kind_helpers() {
   assert_equals "$(shimmy_kind_default_version oc)" "oc_4_20"
   assert_equals "$(shimmy_kind_selector_env oc)" "SHIMMY_OC_VERSION"
   assert_equals "$(shimmy_kind_default_version jq)" "jq_1_8"
+  assert_equals "$(shimmy_kind_default_version gh)" "gh_2_94"
+  assert_equals "$(shimmy_kind_version_list gh)" "gh_2_94"
+  assert_equals "$(shimmy_version_kind gh_2_94)" "gh"
+  assert_equals "$(shimmy_version_label gh_2_94)" "2.94"
   assert_equals "$(shimmy_version_kind jq_1_8)" "jq"
   assert_equals "$(shimmy_version_label jq_1_8)" "1.8"
   assert_equals "$(shimmy_kind_version_for_label oc 4.18)" "oc_4_18"
@@ -2691,6 +2696,46 @@ test_aws_shim_direct() {
   pass "aws direct shim execution"
 }
 
+test_gh_shim_preview() {
+  setup_scenario
+
+  output=$(
+    cd "$WORK_DIR"
+    HOME="$HOME_DIR" "$ROOT_DIR/shims/gh" --preview-shim --version 2>&1
+  )
+
+  assert_contains "$output" "localhost/shimmy-gh-2_94:"
+  assert_contains "$output" "$HOME_DIR/.config/gh:/home/gh/.config/gh:rw"
+  assert_contains "$output" "GH_CONFIG_DIR=/home/gh/.config/gh"
+  assert_path_not_exists "$HOME_DIR/.config/gh"
+
+  pass "gh preview preserves config mount behavior"
+}
+
+test_gh_shim_direct() {
+  setup_scenario
+  require_podman
+
+  output=$(
+    cd "$WORK_DIR"
+    HOME="$HOME_DIR" PATH="$(dirname "$PODMAN_BIN"):$PATH" "$ROOT_DIR/shims/gh" --version 2>&1
+  )
+
+  assert_contains "$output" "gh version 2.94.0"
+  assert_dir_exists "$HOME_DIR/.config/gh"
+
+  pass "gh direct shim execution"
+}
+
+test_gh_lifecycle_integration() {
+  assert_file_contains "$ROOT_DIR/scripts/status-shimmy.sh" 'gh_2_94)'
+  assert_file_contains "$ROOT_DIR/scripts/status-shimmy.sh" 'localhost/shimmy-gh-2_94'
+  assert_file_contains "$ROOT_DIR/scripts/update-shimmy.sh" 'SHIMMY_GH_IMAGE_BUILD=always'
+  assert_file_contains "$ROOT_DIR/scripts/update-shimmy.sh" 'cleanup_old_local_images "$shim_name" "$images_dir"'
+
+  pass "gh status and update integration"
+}
+
 test_go_shim_direct() {
   setup_scenario
   require_podman
@@ -3725,6 +3770,25 @@ test_installed_gcloud_shim() {
    pass "installed gcloud shim execution"
 }
 
+test_installed_gh_shim() {
+  setup_scenario
+  require_podman
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim gh >/dev/null
+
+  output=$(
+    cd "$WORK_DIR"
+    HOME="$HOME_DIR" PATH="$(dirname "$PODMAN_BIN"):$PATH" "$INSTALL_DIR/bin/gh" --version 2>&1
+  )
+
+  assert_contains "$output" "gh version 2.94.0"
+  assert_dir_exists "$HOME_DIR/.config/gh"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "kind=gh"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "kind_version=gh|2.94|gh_2_94"
+
+  pass "installed gh shim execution"
+}
+
 test_installed_opnsense_mcp_read_only_shim() {
   setup_scenario
 
@@ -3997,6 +4061,9 @@ main() {
   test_update_mode_invalid_environment_rejected
   test_update_mode_upstream_profile
   test_aws_shim_direct
+  test_gh_shim_preview
+  test_gh_shim_direct
+  test_gh_lifecycle_integration
   test_go_shim_direct
   test_gcloud_shim_config_help_missing_paths
   test_gcloud_shim_config_help_cloudsdk_config_override
@@ -4028,6 +4095,7 @@ main() {
   test_opnsense_mcp_admin_docs_secret_guidance
   test_opnsense_mcp_admin_image_pins_mcp_sdk
   test_installed_upstream_jq_shim
+  test_installed_gh_shim
   test_installed_opnsense_mcp_read_only_shim
   test_installed_opnsense_mcp_admin_shim
   test_uninstall_requires_mode
