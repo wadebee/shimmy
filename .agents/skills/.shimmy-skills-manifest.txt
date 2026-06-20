@@ -20,3 +20,4 @@ shimmy_skill=repo|shimmy-tool-opnsense-mcp-admin|.agents/skills/shimmy-tool-opns
 shimmy_skill=repo|shimmy-tool-opnsense-mcp-read-only|.agents/skills/shimmy-tool-opnsense-mcp-read-only|2956705995-39
 shimmy_skill=repo|shimmy-tool-oc|.agents/skills/shimmy-tool-oc|2309735837-39
 shimmy_skill=repo|shimmy-tool-local-build|.agents/skills/shimmy-tool-local-build|1417145591-39
+shimmy_skill=repo|shimmy-tool-gh|.agents/skills/shimmy-tool-gh|2465891269-37

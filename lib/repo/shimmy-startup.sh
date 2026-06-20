@@ -1,7 +1,5 @@
 #!/bin/sh
 
-SHIMMY_LEGACY_STARTUP_BLOCK_END='# <<< shimmy shell init <<<'
-SHIMMY_LEGACY_STARTUP_BLOCK_START='# >>> shimmy shell init >>>'
 SHIMMY_STARTUP_BLOCK_END='# <<< shimmy onboarding <<<'
 SHIMMY_STARTUP_BLOCK_START='# >>> shimmy onboarding >>>'
 
@@ -78,13 +76,6 @@ shimmy_startup_file_path_list_resolve() {
 }
 
 shimmy_startup_block_remove() {
-  startup_file=${1:?startup file path is required}
-
-  shimmy_startup_marked_block_remove "$startup_file" "$SHIMMY_STARTUP_BLOCK_START" "$SHIMMY_STARTUP_BLOCK_END"
-  shimmy_startup_marked_block_remove "$startup_file" "$SHIMMY_LEGACY_STARTUP_BLOCK_START" "$SHIMMY_LEGACY_STARTUP_BLOCK_END"
-}
-
-shimmy_startup_marked_block_remove() {
   startup_file=${1:?startup file path is required}
   start_marker=${2:?start marker is required}
   end_marker=${3:?end marker is required}
