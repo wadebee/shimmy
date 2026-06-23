@@ -11,7 +11,8 @@ The suite is POSIX shell and validates:
 - the complete `CONTEXT.md` tree and parent-to-child links, including every
   source-bearing canonical-skill, test-module, and container directory;
 - metadata-derived tool kinds, versions, defaults, and selectors;
-- preview rendering for every tool without contacting Podman;
+- preview rendering for every tool and every concrete runtime through its
+  declared smoke argument, without contacting Podman;
 - shared Podman platform and preview helpers plus POSIX syntax;
 - disposable layout-version-2 default and upstream profile installs, installed
   command dispatch, status, update, legacy-layout rejection, and uninstall;
