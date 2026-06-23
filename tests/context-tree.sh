@@ -30,6 +30,12 @@ for child_dir in agent commands core tools tests; do
   context_link_require "$ROOT_DIR/CONTEXT.md" "$child_file"
 done
 
+for child_dir in core commands; do
+  child_file=$ROOT_DIR/tests/$child_dir/CONTEXT.md
+  context_require "$child_file"
+  context_link_require "$ROOT_DIR/tests/CONTEXT.md" "$child_file"
+done
+
 for child_dir in catalog common profile runtime startup; do
   child_file=$ROOT_DIR/core/$child_dir/CONTEXT.md
   context_require "$child_file"

@@ -87,6 +87,9 @@ You may split this work into smaller iterations as needed to keep your context w
 
 ## Checklist
 
+- [x] Segment 1: Rebuild the test runner as sourceable core and management
+  modules, covering metadata, previews, runtime helpers, lifecycle, profiles,
+  skills, netinfo, and layout-version rejection against disposable installs.
 - [ ] Recover and modularize the complete behavioral test suite before further
   runtime refactors; run it after each subsequent segment.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.

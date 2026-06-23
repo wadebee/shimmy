@@ -128,12 +128,15 @@ shimmy_test_cleanup() {
 }
 
 tracked_shell_file_list() {
-  git -C "$ROOT_DIR" ls-files | while IFS= read -r tracked_path; do
-    case "$tracked_path" in
-      shimmy|commands/*.sh|core/*/*.sh|tools/*/versions/*/run.sh|tests/*.sh)
-        [ -f "$ROOT_DIR/$tracked_path" ] || continue
-        printf '%s\n' "$ROOT_DIR/$tracked_path"
-        ;;
-    esac
+  for shell_file in \
+    "$ROOT_DIR/shimmy" \
+    "$ROOT_DIR"/commands/*.sh \
+    "$ROOT_DIR"/core/*/*.sh \
+    "$ROOT_DIR"/tests/*.sh \
+    "$ROOT_DIR"/tests/*/*.sh \
+    "$ROOT_DIR"/tools/*/versions/*/run.sh
+  do
+    [ -f "$shell_file" ] || continue
+    printf '%s\n' "$shell_file"
   done
 }

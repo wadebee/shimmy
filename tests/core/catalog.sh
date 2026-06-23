@@ -1,0 +1,72 @@
+#!/bin/sh
+# Metadata and source-dispatch behavior tests.
+
+test_core_catalog_context_tree() {
+  "$ROOT_DIR/tests/context-tree.sh"
+  pass "CONTEXT tree"
+}
+
+test_core_catalog_discovery() {
+  # shellcheck source=core/catalog/catalog.sh
+  . "$ROOT_DIR/core/catalog/catalog.sh"
+
+  kinds=$(shimmy_kind_list)
+  assert_contains "$kinds" jq
+  assert_contains "$kinds" opnsense-mcp-admin
+  assert_equals "$(shimmy_kind_default_version oc)" oc_4_20
+  assert_equals "$(shimmy_kind_version_for_label oc 4.18)" oc_4_18
+  assert_equals "$(shimmy_version_kind rg_15_1)" rg
+  assert_equals "$(shimmy_version_label gcloud_573_0)" 573.0
+  pass "metadata-driven catalog discovery"
+}
+
+test_core_catalog_preview_dispatch() {
+  jq_preview=$("$ROOT_DIR/commands/run-tool.sh" jq --preview-shim --version)
+  assert_contains "$jq_preview" ghcr.io/jqlang/jq:1.8.1
+
+  oc_preview=$(SHIMMY_OC_VERSION=4.18 "$ROOT_DIR/commands/run-tool.sh" oc --preview-shim version)
+  assert_contains "$oc_preview" shimmy-oc-4_18
+  pass "generic tool dispatch and version selection"
+}
+
+test_core_catalog_all_previews() {
+  # shellcheck source=core/catalog/catalog.sh
+  . "$ROOT_DIR/core/catalog/catalog.sh"
+
+  for kind_name in $(shimmy_kind_list); do
+    case "$kind_name" in
+      gdrive|opnsense-mcp-admin|opnsense-mcp-read-only)
+        output=$("$ROOT_DIR/commands/run-tool.sh" "$kind_name" --preview-shim 2>&1)
+        ;;
+      *)
+        output=$("$ROOT_DIR/commands/run-tool.sh" "$kind_name" --preview-shim --help 2>&1)
+        ;;
+    esac
+    assert_not_empty "$output"
+  done
+  pass "all tool preview paths"
+}
+
+test_core_catalog_metadata_complete() {
+  for tool_file in "$ROOT_DIR"/tools/*/tool.conf; do
+    [ -f "$tool_file" ] || continue
+    tool_dir=$(dirname "$tool_file")
+    assert_file_contains "$tool_file" tool_default_version=
+
+    for version_dir in "$tool_dir"/versions/*; do
+      [ -d "$version_dir" ] || continue
+      assert_file_exists "$version_dir/smoke.conf"
+      assert_file_executable "$version_dir/run.sh"
+      assert_file_contains "$version_dir/smoke.conf" shim_name=
+    done
+  done
+  pass "tool metadata and concrete runtimes are complete"
+}
+
+test_core_catalog_run() {
+  test_core_catalog_context_tree
+  test_core_catalog_discovery
+  test_core_catalog_preview_dispatch
+  test_core_catalog_all_previews
+  test_core_catalog_metadata_complete
+}

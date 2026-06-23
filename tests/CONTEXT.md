@@ -6,3 +6,8 @@ non-mutating commands; preview rendering is preferred where it proves the
 same behavior.
 
 `context-tree.sh` validates the repository's hierarchical context links.
+
+## Child contexts
+
+- [core behavior](core/CONTEXT.md)
+- [management commands](commands/CONTEXT.md)
