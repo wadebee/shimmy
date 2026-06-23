@@ -8,7 +8,7 @@ ROOT_DIR=$SCRIPT_DIR
 INSTALL_DIR=
 INSTALLED_LAUNCHER=0
 
-if [ -d "$SCRIPT_DIR/../core/scripts" ]; then
+if [ -d "$SCRIPT_DIR/../core/commands" ]; then
   ROOT_DIR=$(
     cd -- "$SCRIPT_DIR/../core" && pwd
   )
@@ -32,11 +32,11 @@ Commands:
   install [args...]     Install missing shims into this environment
   uninstall [args...]   Remove a profile from this installed environment
   activate [args...]    Print shell code that activates the installed shim paths now
-  netinfo [args...]     Run scripts/netinfo-shimmy.sh
-  skills [args...]      Run scripts/skills-shimmy.sh
-  status [args...]      Run scripts/status-shimmy.sh
-  test [args...]        Run scripts/test-shimmy.sh
-  update [args...]      Run scripts/update-shimmy.sh
+  netinfo [args...]     Run commands/netinfo.sh
+  skills [args...]      Run commands/skills.sh
+  status [args...]      Run commands/status.sh
+  test [args...]        Run tests/test.sh
+  update [args...]      Run commands/update.sh
   help                  Show this help (default action if no command is given)
 
 Examples:
@@ -60,14 +60,14 @@ Usage:
   shimmy <command> [options]
 
 Commands:
-  install [args...]     Run scripts/install-shimmy.sh
-  uninstall [args...]   Run scripts/install-shimmy.sh --uninstall
+  install [args...]     Run commands/install.sh
+  uninstall [args...]   Run commands/install.sh --uninstall
   activate [args...]    Print shell code that activates the installed shim paths now
-  netinfo [args...]     Run scripts/netinfo-shimmy.sh
-  skills [args...]      Run scripts/skills-shimmy.sh
-  status [args...]      Run scripts/status-shimmy.sh
-  update [args...]      Run scripts/update-shimmy.sh
-  test [args...]        Run scripts/test-shimmy.sh
+  netinfo [args...]     Run commands/netinfo.sh
+  skills [args...]      Run commands/skills.sh
+  status [args...]      Run commands/status.sh
+  update [args...]      Run commands/update.sh
+  test [args...]        Run tests/test.sh
   help                  Show this help (default action if no command is given)
 
 Examples:
@@ -108,35 +108,35 @@ main() {
       ;;
     install)
       shift
-      run_repo_script "$ROOT_DIR/scripts/install-shimmy.sh" "$@"
+      run_repo_script "$ROOT_DIR/commands/install.sh" "$@"
       ;;
     uninstall)
       shift
-      run_repo_script "$ROOT_DIR/scripts/install-shimmy.sh" --uninstall "$@"
+      run_repo_script "$ROOT_DIR/commands/install.sh" --uninstall "$@"
       ;;
     activate)
       shift
-      run_repo_script "$ROOT_DIR/scripts/activate-shimmy.sh" "$@"
+      run_repo_script "$ROOT_DIR/commands/activate.sh" "$@"
       ;;
     netinfo)
       shift
-      run_repo_script "$ROOT_DIR/scripts/netinfo-shimmy.sh" "$@"
+      run_repo_script "$ROOT_DIR/commands/netinfo.sh" "$@"
       ;;
     skills)
       shift
-      run_repo_script "$ROOT_DIR/scripts/skills-shimmy.sh" "$@"
+      run_repo_script "$ROOT_DIR/commands/skills.sh" "$@"
       ;;
     status)
       shift
-      run_repo_script "$ROOT_DIR/scripts/status-shimmy.sh" "$@"
+      run_repo_script "$ROOT_DIR/commands/status.sh" "$@"
       ;;
     update)
       shift
-      run_repo_script "$ROOT_DIR/scripts/update-shimmy.sh" "$@"
+      run_repo_script "$ROOT_DIR/commands/update.sh" "$@"
       ;;
     test)
       shift
-      run_repo_script "$ROOT_DIR/scripts/test-shimmy.sh" "$@"
+      run_repo_script "$ROOT_DIR/tests/test.sh" "$@"
       ;;
     *)
       fail "unknown command: $command_name"

@@ -1,0 +1,96 @@
+#!/bin/sh
+# Local image build and cache helpers.
+
+SHIMMY_CUSTOM_IMAGE_LIB_DIR=${SHIMMY_RUNTIME_DIR:-}
+
+if [ -z "$SHIMMY_CUSTOM_IMAGE_LIB_DIR" ]; then
+  printf '%s\n' 'ERROR: SHIMMY_RUNTIME_DIR is required when sourcing core/runtime/image.sh.' >&2
+  exit 1
+fi
+
+# shellcheck source=core/runtime/log.sh
+. "$SHIMMY_CUSTOM_IMAGE_LIB_DIR/log.sh"
+# shellcheck source=core/runtime/podman.sh
+. "$SHIMMY_CUSTOM_IMAGE_LIB_DIR/podman.sh"
+
+shimmy_context_hash_render() {
+  context_dir=$1
+
+  [ -d "$context_dir" ] || shimmy_custom_image_fail "missing image build context: $context_dir"
+  [ -f "$context_dir/Containerfile" ] || shimmy_custom_image_fail "missing Containerfile: $context_dir/Containerfile"
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    (
+      cd -- "$context_dir"
+      find . -type f | LC_ALL=C sort | while IFS= read -r context_file; do
+        [ -n "$context_file" ] || continue
+        printf 'FILE %s\n' "$context_file"
+        cat "$context_file"
+        printf '\n'
+      done
+    ) | sha256sum | awk '{print substr($1, 1, 12)}'
+    return 0
+  fi
+
+  if command -v shasum >/dev/null 2>&1; then
+    (
+      cd -- "$context_dir"
+      find . -type f | LC_ALL=C sort | while IFS= read -r context_file; do
+        [ -n "$context_file" ] || continue
+        printf 'FILE %s\n' "$context_file"
+        cat "$context_file"
+        printf '\n'
+      done
+    ) | shasum -a 256 | awk '{print substr($1, 1, 12)}'
+    return 0
+  fi
+
+  shimmy_custom_image_fail "missing hash helper for image build context: sha256sum or shasum"
+}
+
+shimmy_custom_image_fail() {
+  shimmy_log_error "$*"
+  exit 1
+}
+
+shimmy_local_image_ensure() {
+  image_repo=$1
+  context_dir=$2
+  build_mode=$3
+  shift 3
+
+  case "$build_mode" in
+    auto|always)
+      ;;
+    *)
+      shimmy_custom_image_fail "unsupported image build mode: $build_mode"
+      ;;
+  esac
+
+  context_hash=$(shimmy_context_hash_render "$context_dir")
+  shimmy_podman_platform_resolve
+  platform_tag=$(shimmy_podman_platform_tag_render "$SHIMMY_PODMAN_PLATFORM")
+  image_ref=${image_repo}:${context_hash}-${platform_tag}
+
+  if shimmy_podman_is_preview; then
+    printf '%s\n' "$image_ref"
+    return 0
+  fi
+
+  shimmy_podman_preflight_require "local shim image builds" || return 1
+
+  if [ "$build_mode" = "always" ] || ! "$SHIMMY_PODMAN_BIN" image exists "$image_ref" >/dev/null 2>&1; then
+    shimmy_log_info "Building local shim image: $image_ref"
+    "$SHIMMY_PODMAN_BIN" build \
+      --platform "$SHIMMY_PODMAN_PLATFORM" \
+      --label "io.wadebee.shimmy.image-repo=${image_repo}" \
+      --label "io.wadebee.shimmy.context-hash=${context_hash}" \
+      --label "io.wadebee.shimmy.platform=${SHIMMY_PODMAN_PLATFORM}" \
+      -f "$context_dir/Containerfile" \
+      -t "$image_ref" \
+      "$@" \
+      "$context_dir" >&2
+  fi
+
+  printf '%s\n' "$image_ref"
+}
