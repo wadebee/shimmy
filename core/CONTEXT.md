@@ -10,6 +10,9 @@ do not add tool-specific behavior here.
 - [profiles](profile/CONTEXT.md)
 - [runtime](runtime/CONTEXT.md)
 - [startup](startup/CONTEXT.md)
+- [network information](netinfo/CONTEXT.md)
+- [installation lifecycle](install/CONTEXT.md)
+- [update lifecycle](update/CONTEXT.md)
 
-`netinfo` remains invoked through `commands/netinfo.sh` until its host-probing
-functions are split into sourceable modules.
+The public `commands/netinfo.sh` entrypoint sources the host-network
+implementation from `netinfo/`.

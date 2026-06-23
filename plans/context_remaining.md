@@ -90,6 +90,11 @@ You may split this work into smaller iterations as needed to keep your context w
 - [x] Segment 1: Rebuild the test runner as sourceable core and management
   modules, covering metadata, previews, runtime helpers, lifecycle, profiles,
   skills, netinfo, and layout-version rejection against disposable installs.
+- [x] Segment 2a: Move the install, update, and netinfo implementations into
+  sourceable `core/` entry modules and retain thin public command entrypoints.
+- [ ] Segment 2b: Split those core entry modules into their planned narrow
+  request, manifest, profile, runtime-refresh, platform-discovery, and
+  rendering modules.
 - [ ] Recover and modularize the complete behavioral test suite before further
   runtime refactors; run it after each subsequent segment.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.

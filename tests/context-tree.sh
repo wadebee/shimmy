@@ -36,7 +36,7 @@ for child_dir in core commands; do
   context_link_require "$ROOT_DIR/tests/CONTEXT.md" "$child_file"
 done
 
-for child_dir in catalog common profile runtime startup; do
+for child_dir in catalog common install netinfo profile runtime startup update; do
   child_file=$ROOT_DIR/core/$child_dir/CONTEXT.md
   context_require "$child_file"
   context_link_require "$ROOT_DIR/core/CONTEXT.md" "$child_file"
