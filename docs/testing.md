@@ -16,7 +16,9 @@ The suite is POSIX shell and validates:
 - disposable layout-version-2 default and upstream profile installs, installed
   command dispatch, status, update, legacy-layout rejection, and uninstall;
 - activation, canonical skill export/removal, netinfo input rendering, and
-  management-command argument validation.
+  management-command argument validation;
+- profile selection precedence, profile-isolated uninstalls, status
+  availability, and profile-specific repair guidance.
 
 Use live Podman only for non-mutating commands such as `--version`, `version`,
 or `--help`. Prefer `--preview-shim` whenever it proves the intended runtime

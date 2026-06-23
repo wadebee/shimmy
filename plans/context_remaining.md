@@ -97,6 +97,9 @@ You may split this work into smaller iterations as needed to keep your context w
   rendering modules.
 - [ ] Recover and modularize the complete behavioral test suite before further
   runtime refactors; run it after each subsequent segment.
+- [x] Segment 3a: Restore profile selection, status availability,
+  profile-isolated uninstall, and repair-guidance coverage with disposable
+  installs.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
 - [ ] Complete agent-skill canonicalization and adapter/export behavior.

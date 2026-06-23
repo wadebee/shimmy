@@ -8,3 +8,5 @@ installation or shell startup files.
 
 - `lifecycle.sh` covers install, dispatch, status, update, and uninstall.
 - `management.sh` covers activation, skills, and netinfo command behavior.
+- `profiles.sh` covers profile precedence, profile-isolated uninstalls, status
+  availability, and profile error guidance.
