@@ -26,6 +26,8 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/commands/management.sh"
 # shellcheck source=tests/commands/profiles.sh
 . "$SCRIPT_DIR/commands/profiles.sh"
+# shellcheck source=tests/commands/update.sh
+. "$SCRIPT_DIR/commands/update.sh"
 
 trap shimmy_test_cleanup EXIT HUP INT TERM
 
@@ -36,6 +38,7 @@ main() {
   test_commands_management_run
   test_commands_lifecycle_complete
   test_commands_profiles_run
+  test_commands_update_run
   printf 'All %s Shimmy tests passed.\n' "$TEST_COUNT"
 }
 

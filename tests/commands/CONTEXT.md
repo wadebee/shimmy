@@ -10,3 +10,5 @@ installation or shell startup files.
 - `management.sh` covers activation, skills, and netinfo command behavior.
 - `profiles.sh` covers profile precedence, profile-isolated uninstalls, status
   availability, and profile error guidance.
+- `update.sh` covers selected-shim and all-profile refresh behavior, manifest
+  preservation, and update request validation.
