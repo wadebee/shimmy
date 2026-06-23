@@ -11,6 +11,90 @@ capabilities.
 
 You may split this work into smaller iterations as needed to keep your context window manageable and to prevent truncation  of work when token usage budget is exceeded. Use this plan to maintain a section marked "Checklist" and place your work segments there marking each as done and allowing user review before continuing.
 
+## Handoff context
+
+### Current repository state
+
+- The current checked-out commit is `b057923` (`feat(context): add
+  comprehensive plan for context-first Shimmy reorganization`), and the
+  worktree was clean when this handoff plan was updated.
+- The source layout has already moved from `lib/`, `scripts/`, `shims/`, and
+  `images/` into `core/`, `commands/`, `tools/`, and `tests/`.
+- `commands/run-tool.sh <kind> ...` is the generic source dispatcher. It reads
+  `tools/<kind>/tool.conf`, resolves the optional selector, and executes
+  `tools/<kind>/versions/<major.minor>/run.sh`.
+- Tool metadata currently uses `shim_name=`, `tool_default_version=`, and
+  `tool_selector_env=` in `tool.conf`; concrete versions retain `shim_name=`
+  and smoke arguments in `smoke.conf`. There are 16 tool kinds and 18 concrete
+  versions, including the three `oc` tracks.
+- Default and upstream profile installs use manifest layout version 2. The
+  installer intentionally rejects a version-1 root manifest and tells the
+  user to uninstall/reinstall; verify that every command handles this path
+  consistently.
+- `commands/status.sh` and `core/catalog/catalog.sh` have already been
+  rewritten around tool-local metadata. `commands/update.sh` has not: its
+  explicit tool/version refresh cases are the principal remaining centralized
+  behavior.
+
+### Known shortcuts that must be corrected
+
+- `commands/install.sh` is still 1,375 lines, `commands/update.sh` is 737
+  lines, and `commands/netinfo.sh` is 944 lines. Their target decomposition is
+  described below; do not treat the current folder move as a completed module
+  split.
+- `tests/test.sh` is only a 94-line focused smoke suite. The prior 4,151-line
+  behavioral suite was removed rather than migrated, so its coverage must be
+  recovered and split before declaring the migration complete.
+- Historical source is available from Git. The most useful recovery point is
+  `git show 836ae00:scripts/test-shimmy.sh`; older behavior can be traced with
+  `git log --all -- scripts/test-shimmy.sh` and `git log --all -- shims/jq`.
+- `tests/context-tree.sh` checks root/core/tool/version contexts but does not
+  yet enforce contexts for every source-bearing agent, test, or container
+  subtree.
+- `agent/` and `tools/<kind>/agent/` contain canonical copies created during
+  the migration, but core skill text and the read-only `.agents/` adapter have
+  not been fully reconciled with the new paths.
+
+### Environment and permission constraints
+
+- `.git` is read-only to agents in this workspace. `git mv` and commits fail
+  because Git cannot create `index.lock`; use `apply_patch` for edits and let
+  the user perform staging/committing.
+- `.agents/` is read-only. Do not overwrite its existing skills; treat it as
+  an externally managed distribution adapter and update canonical sources plus
+  `commands/skills.sh` instead.
+- Podman is installed and works only with narrow escalation for this agent
+  environment. `podman info` needs the `['podman', 'info']` approval, and a
+  live generic jq smoke succeeded with the outer prefix
+  `['./commands/run-tool.sh', 'jq', '--version']`.
+- The user may have a pre-existing layout-version-1 installation under their
+  normal Shimmy install root. Use disposable `/tmp` install roots for tests;
+  do not alter the user's installation while validating migration behavior.
+
+### Verification already performed
+
+- `./shimmy test` passed, but it currently covers only context integrity,
+  catalog/default discovery, preview paths, and a clean default-profile
+  install/dispatch/uninstall flow.
+- POSIX syntax checks were run over `shimmy`, commands, core modules, concrete
+  version runtimes, and test scripts.
+- Fresh default and upstream profile installs successfully dispatched jq
+  previews; `shimmy update --shim jq` completed against a disposable install.
+- Skills export worked from the new tool-local canonical jq skill, and a live
+  `./commands/run-tool.sh jq --version` Podman smoke returned `jq-1.8.1`.
+- A stale-path scan found no retired source-root references outside the
+  read-only `.agents/` adapter and normal paths inside container build files.
+
+## Checklist
+
+- [ ] Recover and modularize the complete behavioral test suite before further
+  runtime refactors; run it after each subsequent segment.
+- [ ] Split install, update, and netinfo into the planned `core/` submodules.
+- [ ] Replace update cases with version-local refresh/status hooks.
+- [ ] Complete agent-skill canonicalization and adapter/export behavior.
+- [ ] Extend contexts and context validation to every source-bearing subtree.
+- [ ] Execute the full acceptance verification matrix and obtain user review.
+
 ## Core and lifecycle modularization
 
 - Split `commands/install.sh` into sourceable `core/install/` modules for
