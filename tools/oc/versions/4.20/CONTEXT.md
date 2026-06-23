@@ -2,3 +2,7 @@
 
 This is the metadata default version. `run.sh` builds from `container/` unless
 overridden.
+
+## Child contexts
+
+- [container build context](container/CONTEXT.md)

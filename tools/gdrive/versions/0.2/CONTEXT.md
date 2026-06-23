@@ -2,3 +2,7 @@
 
 `run.sh` validates OAuth configuration and builds from `container/` unless an
 image override is selected.
+
+## Child contexts
+
+- [container build context](container/CONTEXT.md)

@@ -5,4 +5,5 @@ Its guide and agent skill document the required first-run authentication flow.
 
 ## Child contexts
 
+- [agent guidance](agent/CONTEXT.md)
 - [version 0.2](versions/0.2/CONTEXT.md)

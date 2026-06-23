@@ -5,6 +5,7 @@ selector, the tool metadata default is 4.20.
 
 ## Child contexts
 
+- [agent guidance](agent/CONTEXT.md)
 - [version 4.18](versions/4.18/CONTEXT.md)
 - [version 4.20](versions/4.20/CONTEXT.md)
 - [version 4.22](versions/4.22/CONTEXT.md)

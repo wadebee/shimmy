@@ -5,4 +5,5 @@ tool-specific config or credential mounts.
 
 ## Child contexts
 
+- [agent guidance](agent/CONTEXT.md)
 - [version 1.8](versions/1.8/CONTEXT.md)

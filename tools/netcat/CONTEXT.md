@@ -5,4 +5,5 @@ behavior.
 
 ## Child contexts
 
+- [agent guidance](agent/CONTEXT.md)
 - [version 7.92](versions/7.92/CONTEXT.md)

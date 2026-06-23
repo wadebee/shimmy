@@ -8,7 +8,8 @@ Run the repository suite from the root:
 
 The suite is POSIX shell and validates:
 
-- the complete `CONTEXT.md` tree and parent-to-child links;
+- the complete `CONTEXT.md` tree and parent-to-child links, including every
+  source-bearing canonical-skill, test-module, and container directory;
 - metadata-derived tool kinds, versions, defaults, and selectors;
 - preview rendering for every tool without contacting Podman;
 - shared Podman platform and preview helpers plus POSIX syntax;

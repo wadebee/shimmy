@@ -5,4 +5,5 @@ and uses its distinct named Podman secrets.
 
 ## Child contexts
 
+- [agent guidance](agent/CONTEXT.md)
 - [version 0.4](versions/0.4/CONTEXT.md)

@@ -5,4 +5,5 @@ mounting.
 
 ## Child contexts
 
+- [agent guidance](agent/CONTEXT.md)
 - [version 1.26](versions/1.26/CONTEXT.md)

@@ -5,4 +5,5 @@ The runtime manages Cloud SDK state, optional kubeconfig mounting, and
 
 ## Child contexts
 
+- [agent guidance](agent/CONTEXT.md)
 - [version 573.0](versions/573.0/CONTEXT.md)

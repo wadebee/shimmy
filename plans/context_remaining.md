@@ -48,9 +48,9 @@ You may split this work into smaller iterations as needed to keep your context w
 - Historical source is available from Git. The most useful recovery point is
   `git show 836ae00:scripts/test-shimmy.sh`; older behavior can be traced with
   `git log --all -- scripts/test-shimmy.sh` and `git log --all -- shims/jq`.
-- `tests/context-tree.sh` checks root/core/tool/version contexts but does not
-  yet enforce contexts for every source-bearing agent, test, or container
-  subtree.
+- `tests/context-tree.sh` now enforces linked contexts for every source-bearing
+  directory below `agent/`, `commands/`, `core/`, `tools/`, and `tests/`,
+  including canonical skills, test modules, and local container contexts.
 - `agent/` and `tools/<kind>/agent/` contain canonical copies created during
   the migration, but core skill text and the read-only `.agents/` adapter have
   not been fully reconciled with the new paths.
@@ -100,7 +100,7 @@ You may split this work into smaller iterations as needed to keep your context w
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
 - [ ] Complete agent-skill canonicalization and adapter/export behavior.
-- [ ] Extend contexts and context validation to every source-bearing subtree.
+- [x] Extend contexts and context validation to every source-bearing subtree.
 - [ ] Execute the full acceptance verification matrix and obtain user review.
 
 ## Core and lifecycle modularization

@@ -2,3 +2,7 @@
 
 `run.sh` builds from `container/` unless a version-specific image override is
 provided.
+
+## Child contexts
+
+- [container build context](container/CONTEXT.md)

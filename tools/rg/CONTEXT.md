@@ -6,4 +6,5 @@ version runtime.
 
 ## Child contexts
 
+- [agent guidance](agent/CONTEXT.md)
 - [version 15.1](versions/15.1/CONTEXT.md)

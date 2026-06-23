@@ -5,4 +5,5 @@ configuration.
 
 ## Child contexts
 
+- [agent guidance](agent/CONTEXT.md)
 - [version 0.1](versions/0.1/CONTEXT.md)
