@@ -21,7 +21,8 @@ The suite is POSIX shell and validates:
 - profile selection precedence, profile-isolated uninstalls, status
   availability, and profile-specific repair guidance;
 - selected-shim and all-profile update refreshes, manifest lifecycle-field
-  preservation, and update request validation.
+  preservation, and update request validation;
+- idempotent activation and explicit managed startup-block install and repair.
 
 Use live Podman only for non-mutating commands such as `--version`, `version`,
 or `--help`. Prefer `--preview-shim` whenever it proves the intended runtime

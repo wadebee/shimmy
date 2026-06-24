@@ -12,3 +12,5 @@ installation or shell startup files.
   availability, and profile error guidance.
 - `update.sh` covers selected-shim and all-profile refresh behavior, manifest
   preservation, and update request validation.
+- `startup.sh` covers activation idempotence and managed startup-block install
+  and repair behavior.
