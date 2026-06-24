@@ -1,113 +1,61 @@
 # Testing
 
-Shimmy tests are POSIX shell scripts. Do not add test dependencies such as
-`bats`, `jq`, `yq`, or coverage tools.
-
-## Runner
-
-Run the default source-checkout suite from the repository root:
+Run the repository suite from the root:
 
 ```sh
-./scripts/test-shimmy.sh
+./shimmy test
 ```
 
-Installed profile smoke checks use the same runner with profile flags:
+To smoke an installed profile through its real wrappers, use:
 
 ```sh
-./scripts/test-shimmy.sh --profile default
-./scripts/test-shimmy.sh --profile upstream --shim jq
-./scripts/test-shimmy.sh --profile default --all
+shimmy test --profile default
+shimmy test --profile upstream --all
+shimmy test --profile default --shim oc@4.18
 ```
 
-## Shared Helpers
+The profile mode validates the selected install manifests. By default it runs
+each installed public kind; `--all` also runs every installed concrete version.
+Those commands use live Podman only for the version-owned non-mutating smoke
+arguments.
 
-Tests source `lib/repo/shimmy-test.sh` for assertions, scenario setup, cleanup,
-and repository command execution. Keep common test behavior there instead of
-copying assertion or temp-directory logic into individual tests.
+The suite is POSIX shell and validates:
 
-The shared helpers intentionally stay POSIX-only and use only standard Unix
-commands already required by the repository.
+- the complete `CONTEXT.md` tree and parent-to-child links, including every
+  source-bearing canonical-skill, test-module, and container directory;
+- metadata-derived tool kinds, versions, defaults, and selectors;
+- preview rendering for every tool and every concrete runtime through its
+  declared smoke argument, without contacting Podman;
+- shared Podman platform and preview helpers plus POSIX syntax;
+- disposable layout-version-2 default and upstream profile installs, installed
+  command dispatch, status, update, legacy-layout rejection across management
+  commands, and uninstall;
+- activation, canonical skill export/removal, netinfo input rendering, and
+  management-command argument validation;
+- profile selection precedence, profile-isolated uninstalls, status
+  availability, and profile-specific repair guidance;
+- selected-shim and all-profile update refreshes, manifest lifecycle-field
+  preservation, request validation, and installed-management source refresh;
+- idempotent activation and explicit managed startup-block install and repair.
+- canonical skill-source export, portable manifests, installed-kind selection,
+  refresh, and manifest-tracked cleanup.
+- source and installed dispatcher validation, including selector, profile, and
+  recursion protections.
+- deterministic netinfo CIDR rendering, explicit-host precedence, help, and
+  malformed-input rejection.
+- tool-owned Nmap preview coverage for explicit LAN, network, capability, and
+  privilege controls.
+- tool-owned OPNsense MCP preview coverage for URL normalization, read-only and
+  admin secret separation, no-write defaults, and change-window guidance.
+- additive install behavior, explicit uninstall-profile requests, and macOS
+  Podman dependency guidance.
 
-## Structure
+Use live Podman only for non-mutating commands such as `--version`, `version`,
+or `--help`. Prefer `--preview-shim` whenever it proves the intended runtime
+shape without pulling, building, or running a container.
 
-Keep tests in existing repository locations:
-
-- `scripts/test-shimmy.sh` is the canonical test entry point.
-- `lib/repo/shimmy-test.sh` contains shared test utilities.
-- `docs/testing.md` documents test conventions.
-
-Do not create a separate `test/` tree.
-
-Group tests by behavioral layer:
-
-- helper/function checks for source-able shell helpers
-- catalog checks for kind lists, concrete versions, version labels, and default versions
-- command behavior checks for argument parsing and output rendering
-- install/profile integration checks for filesystem and manifest effects
-- live shim smoke checks for representative Podman-backed execution
-
-Prefer one canonical test per behavior per layer. Avoid repeating a full install
-only to assert a nearby variant that is already covered by another layer.
-
-## Assertions
-
-Every test must assert meaningful behavior beyond exit status. Prefer checking:
-
-- exact manifest keys
-- expected files, directories, symlinks, and executable bits
-- important stdout or stderr text
-- both success and failure paths for each major command family
-
-Use `assert_contains`, `assert_not_contains`, `assert_equals`,
-`assert_file_exists`, `assert_file_contains`, `assert_path_symlink`,
-`assert_path_not_exists`, and related helpers from `lib/repo/shimmy-test.sh`.
-
-## Performance
-
-Use one temp root per runner execution and one scenario directory per test that
-needs isolation. Avoid repeated full installs unless they validate distinct
-install, update, profile, or dispatcher behavior.
-
-Live Podman checks should use non-mutating commands such as `--version`,
-`--help`, or preview rendering. Keep installed-live-smoke coverage
-representative rather than duplicating every direct shim smoke test.
-
-## Kind And Version Smoke Config
-
-Every installable tool has a kind dispatcher and at least one concrete version
-shim. Tests should assert both layers:
-
-- `shimmy_kind_list`, `shimmy_kind_version_list`, `shimmy_kind_default_version`,
-  `shimmy_version_kind`, and `shimmy_version_label` describe the catalog entry.
-- `shimmy install --shim <kind>` installs the kind dispatcher plus its default
-  concrete version.
-- `shimmy install --shim <kind>@<version-label>` installs the requested version
-  when the kind supports that label.
-- Profile manifests contain `kind=` and `kind_version=<kind>|<label>|<version>`
-  entries, including a `default` label for each installed kind.
-- Status output reports installed and available kinds, default versions, and
-  available version labels.
-- Runtime dispatcher tests prove that an unset selector uses the default version,
-  and unsupported selector values fail clearly when a selector exists.
-
-## Shim Config
-
-Shim config files under `shims/*.conf` drive installed smoke tests. Kind
-dispatchers and concrete version shims should both have config files. For a
-dispatcher, prefer preview-backed smoke args when the test only needs to prove
-dispatch. For a concrete version, use the tool's non-mutating command such as
-`--version`, `version`, or `--help`.
-
-Use one `smoke_arg=` entry per argv item:
-
-```text
-smoke_arg=version
-smoke_arg=--client
-```
-
-Do not write `smoke_arg=version --client`; the test runner treats that as one
-argument, not two.
-
-Use `smoke_env=KEY=value` only for non-secret selector or test-mode values
-needed by the smoke command, such as `SHIMMY_OC_VERSION=4.20`. Do not add
-tool-specific environment defaults directly to the generic smoke-test runner.
+The runner in `tests/test.sh` sources shared assertions from
+`tests/support.sh`, core coverage from `tests/core/`, and management-command
+coverage from `tests/commands/`. Tool-specific coverage belongs beside the
+tool in `tools/<kind>/`. Keep one assertion-focused scenario per behavior and
+preserve executable bits on shell entrypoints.

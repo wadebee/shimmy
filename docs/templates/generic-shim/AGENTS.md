@@ -1,15 +1,13 @@
 ## Scope
 
-This directory holds the generic authoring template for a Shimmy shim skill.
+This template describes one context-first Shimmy tool directory.
 
 ## Instructions
 
-- Read `SKILL.md` in this directory first.
-- Read `../../../CONTRIBUTING.md` for repo-wide contributor guidance.
-- Use `../../../docs/prompt-shimmy-project.md` for repo-wide constraints.
-- Replace placeholder tokens before copying this template for a real shim.
-- Runtime shims belong in `../../../shims/`.
-- Installer changes belong in `../../../scripts/install-shimmy.sh`.
-- Behavioral tests belong in `../../../scripts/test-shimmy.sh`.
-- User-facing docs belong in `../../../README.md`.
-- Keep runnable shell files executable.
+- Read this directory's `SKILL.md`, root `CONTEXT.md`, and `tools/CONTEXT.md`.
+- Create `tools/<kind>/tool.conf`, `CONTEXT.md`, `guide.md`, and `agent/SKILL.md`.
+- Put each concrete runtime at `versions/<major.minor>/run.sh` with a sibling
+  `smoke.conf` and `CONTEXT.md`.
+- Put local build assets in that version's `container/` directory.
+- Keep runtime wrappers POSIX shell, executable, and `SHIMMY_`-prefixed for
+  Shimmy-defined environment variables.

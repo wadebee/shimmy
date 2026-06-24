@@ -1,8 +1,0 @@
-#!/bin/sh
-set -eu
-
-SCRIPT_DIR=$(
-  cd -- "$(dirname -- "$0")" && pwd
-)
-
-exec "$SCRIPT_DIR/terraform_1_15" "$@"

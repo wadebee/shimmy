@@ -1,7 +1,7 @@
 shimmy_skills_manifest_version=1
 shimmy_skills_target=plugin
 shimmy_skills_root=plugins/shimmy/skills
-shimmy_skill=plugin|shimmy-install|plugins/shimmy/skills/shimmy-install|3355614374-40
+shimmy_skill=plugin|shimmy-install|plugins/shimmy/skills/shimmy-install|3130729036-38
 shimmy_skill=plugin|shimmy-init|plugins/shimmy/skills/shimmy-init|4140166472-39
-shimmy_skill=plugin|shimmy-create-tool|plugins/shimmy/skills/shimmy-create-tool|2568857058-40
-shimmy_skill=plugin|shimmy-escalation|plugins/shimmy/skills/shimmy-escalation|1954959069-38
+shimmy_skill=plugin|shimmy-create-tool|plugins/shimmy/skills/shimmy-create-tool|3930811131-39
+shimmy_skill=plugin|shimmy-escalation|plugins/shimmy/skills/shimmy-escalation|1334344266-39

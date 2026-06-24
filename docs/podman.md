@@ -298,21 +298,21 @@ rg --version
 From a source checkout:
 
 ```sh
-./shims/jq --version
-./shims/rg --version
+./commands/run-tool.sh jq --version
+./commands/run-tool.sh rg --version
 ```
 
 In AI Agent environments, command approvals are often evaluated on the outer
 command. Approving `podman info` only proves the engine works; it may not
 approve nested Podman access through a Shimmy wrapper. Approve the exact dry-run
 shim command prefix the agent needs, such as `["rg","--version"]` for an
-activated shim or `["./shims/rg","--version"]` for a repo-local shim.
+activated shim or `["./commands/run-tool.sh","rg","--version"]` for a repo-local runtime.
 
 The source checkout includes a preflight helper that prints useful approval
 prefixes and smoke commands:
 
 ```sh
-./scripts/agent-shimmy-preflight.sh
+./commands/agent-preflight.sh
 ```
 
 Use `--smoke` from a normal shell when you want the script to run those checks

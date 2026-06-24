@@ -7,6 +7,7 @@ Use it as the source of truth for repository contribution guidance that should b
 ## Contributor Workflow
 
 - Keep runtime shims small and readable.
+- Read root `CONTEXT.md` and the relevant child context before changing a module.
 - Update related implementation, tests, installer behavior, and user-facing docs together when behavior changes.
 - Reuse established repo patterns before introducing new structure or naming.
 - Keep runnable shell files executable.
@@ -36,7 +37,7 @@ shimmy test --profile upstream
 SHIMMY_PROFILE_ACTIVE=upstream rg --version
 ```
 
-Use repo-local wrapper paths such as `./shims/rg` only when intentionally testing source files directly. For installed-state inspection, prefer `shimmy status --format manifest` over `command -v <tool>`: `command -v` shows the stable dispatcher entrypoint, while status shows the selected profile manifest, implementation directory, and upstream checkout.
+For repo-local previews, use `./commands/run-tool.sh rg --preview-shim --version` or the concrete runtime listed in `tools/rg/CONTEXT.md`. For installed-state inspection, prefer `shimmy status --format manifest` over `command -v <tool>`: `command -v` shows the stable dispatcher entrypoint, while status shows the selected profile manifest and upstream checkout.
 
 `SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state, defaulting under `$SHIMMY_INSTALL_DIR/profiles/upstream`. It is not the git checkout. Use `SHIMMY_UPSTREAM_CHECKOUT_DIR` only as an optional install-time override for `shimmy install --profile upstream`; Shimmy records that absolute checkout path in the upstream manifest.
 
@@ -45,8 +46,8 @@ Use repo-local wrapper paths such as `./shims/rg` only when intentionally testin
 Shimmy exposes logical tool kinds as the user-facing commands on `PATH`.
 Runtime behavior belongs in concrete major.minor version shims under those kinds.
 
-- Kind shims live at `shims/<kind>` and dispatch only. They select a default version when no selector is set, validate supported selectors, and exec a sibling version shim.
-- Version shims live at `shims/<kind>_<major>_<minor>` and contain the Podman, image, mount, credential, and local-build logic.
+- Tool kinds live at `tools/<kind>/tool.conf`; generic dispatch selects their default or selected version.
+- Concrete version runtimes live at `tools/<kind>/versions/<major.minor>/run.sh` and contain Podman, image, mount, credential, and local-build logic.
 - Every installable kind must have at least one concrete version and exactly one catalog default version.
 - `shimmy install --shim <kind>` installs the kind dispatcher plus its default version. Use `shimmy install --shim <kind>@<version-label>` when a non-default version is needed.
 - Profile manifests record `kind=` for installed user-facing commands and `kind_version=<kind>|<label>|<version>` for installed concrete versions.
@@ -98,17 +99,16 @@ Avoid:
 
 Use names that communicate role first, then scope.
 
-- Runtime shims in `shims/` should keep the CLI command name with no extension.
-- Executable repo scripts in `scripts/` should use lowercase kebab-case and end in `.sh`.
-- Shared shell libraries in `lib/` should use lowercase kebab-case and end in `.sh`.
+- Public installed commands keep the CLI command name with no extension; source runtime entrypoints use `run.sh` below their version directory.
+- Executable management commands in `commands/` and shared shell modules in `core/` use lowercase kebab-case and end in `.sh`.
 - Contributor-facing Markdown documents should use uppercase conventional names when they are standard repo entrypoints such as `README.md`, `AGENTS.md`, and `CONTRIBUTING.md`.
 - Other documentation files should use lowercase kebab-case.
 
 Examples:
 
-- `shims/aws`
-- `scripts/install-shimmy.sh`
-- `lib/repo/shimmy-startup.sh`
+- `tools/aws/versions/2.31/run.sh`
+- `commands/install.sh`
+- `core/startup/startup.sh`
 - `docs/prompt-shimmy-project.md`
 
 ### Function Naming

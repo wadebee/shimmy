@@ -7,6 +7,23 @@ description: Guidance for building a new Shimmy CLI tool wrapper in this reposit
 
 Use this skill when the user wants a new shim for a CLI tool that does not already exist in this repo.
 
+## Execution Model
+
+Always operate in PLAN -> REVIEW -> ACT mode:
+
+- Always produce a plan first.
+  - The one exception is if the prompt is a question or a request for information that only requires non-mutating actions such as search.
+- When planning:
+  - If uncertain, ask clarifying questions instead of guessing.
+  - Identify risks, assumptions, and best practices you embrace.
+  - Revise the plan if feedback is provided.
+- When planning is complete, request user approval to execute the plan, using the harness approval button when available.
+- NEVER ACT without user approval.
+- Do not deviate from an approved plan without re-review.
+- If the user explicitly says to implement, fix, run, or proceed, that counts as plan approval so you may ACT; however, you may NEVER commit files immediately.
+- Before acting, read this `AGENTS.md` and follow this execution model.
+- After approval, proceed through implementation, verification, and summary.
+
 ## Files
 
 - Skill file: `SKILL.md`

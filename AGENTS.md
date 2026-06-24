@@ -2,40 +2,31 @@
 
 This repository packages and makes common CLI tools available to your shell as small wrappers that call `podman run`.
 
-## Execution Model
+## Personality
 
-Always operate in PLAN -> REVIEW -> ACT mode:
+Drop all affect, be objective, succinct and provide practical advice.
 
-- Always produce a plan first.
-  - The one exception is if the prompt is a question or a request for information that only requires non-mutating actions such as search.
-- When planning:
-  - If uncertain, ask clarifying questions instead of guessing.
-  - Identify risks, assumptions, and best practices you embrace.
-  - Revise the plan if feedback is provided.
-- When planning is complete, request user approval to execute the plan, using the harness approval button when available.
-- NEVER ACT without user approval.
-- Do not deviate from an approved plan without re-review.
-- If the user explicitly says to implement, fix, run, or proceed, that counts as plan approval so you may ACT; however, you may NEVER modify files immediately.
-- Before acting, read this `AGENTS.md` and follow this execution model.
-- After approval, proceed through implementation, verification, and summary.
+Question requests that materially differ from your training of best practices by:
+1. Searching the web for information added after your knowledge cutoff using your search tools. Synthesize any such responses explicitly citing your sources.
+2. Challenging the user to adopt a different approach that more closely aligns with standards.
 
 ## Project Map
 
-- Runtime shims live in `shims/`.
-- Shared repo helpers live in `lib/repo/`.
-- Installed shim helper libraries live in `lib/shims/`.
-- Installation logic lives in `scripts/install-shimmy.sh`.
-- Behavioral tests live in `scripts/test-shimmy.sh`.
+- Read `CONTEXT.md` and every child context on the path to a changed file.
+- Tool runtime, metadata, guides, and concrete versions live in `tools/<kind>/`.
+- Shared modules live in `core/`.
+- Management entrypoints live in `commands/`.
+- Behavioral tests live in `tests/`.
 - Contributor guidance lives in `CONTRIBUTING.md`.
 - The reusable project prompt lives in `docs/prompt-shimmy-project.md`.
 
 ## Available Shim Skills
 
 - Generic shim template: `docs/templates/generic-shim/`
-- AWS shim: `shims/aws/`
-- jq shim: `shims/jq/`
-- ripgrep shim: `shims/rg/`
-- Terraform shim: `shims/terraform/`
+- AWS tool: `tools/aws/`
+- jq tool: `tools/jq/`
+- ripgrep tool: `tools/rg/`
+- Terraform tool: `tools/terraform/`
 
 ## Working Rules
 
@@ -54,6 +45,6 @@ Always operate in PLAN -> REVIEW -> ACT mode:
 - Ensure runnable shell files keep executable bits.
 - It is important that you use Shimmy tools when available. This requires Podman to be running.
 - If a Shimmy-backed tool exists for a task and the wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, do not silently fall back to host tools for the same capability. Use the `shimmy-escalation` workflow and request approval for the exact outer wrapper command prefix. For search or listing work, if `rg` is available as a Shimmy shim and fails, request approval for the needed `rg` wrapper prefix before using alternatives such as `find`, `grep`, or host-installed search tools. Use a non-shim fallback only after the user explicitly approves it, preferably with the phrase `fallback approved`.
-- For activated installed shims, invoke the normal tool name such as `rg` or `jq`; do not call the resolved installed shim path. Use `./shims/<tool>` only when intentionally testing the repo-local wrapper file.
+- For activated installed shims, invoke the normal tool name such as `rg` or `jq`; do not call the resolved installed shim path. For source previews, use `./commands/run-tool.sh <tool> --preview-shim ...` or the concrete version runtime named by that tool's context.
 - When running repo commands, invoke them directly with `exec_command` `login=false` unless profile or startup-file behavior is explicitly under test. Do not use `bash -lc` or login shells for Shimmy commands unless needed.
-- In AI Agent environments, approvals are evaluated on the outer command. If `podman info` succeeds but a Shimmy-backed tool still reports Podman-unreachable or sandbox-permission symptoms, use the `shimmy-escalation` workflow before asking the user for a Podman remediation plan. For availability smoke checks, request approval for the exact dry-run command prefix such as `["rg","--version"]`, `["jq","--version"]`, or `["./shims/rg","--version"]`; approval for `["podman", "info"]` alone does not approve nested Podman access through a wrapper.
+- In AI Agent environments, approvals are evaluated on the outer command. If `podman info` succeeds but a Shimmy-backed tool still reports Podman-unreachable or sandbox-permission symptoms, use the `shimmy-escalation` workflow before asking the user for a Podman remediation plan. For availability smoke checks, request approval for the exact dry-run command prefix such as `["rg","--version"]`, `["jq","--version"]`, or `["./commands/run-tool.sh","rg","--version"]`; approval for `["podman", "info"]` alone does not approve nested Podman access through a wrapper.

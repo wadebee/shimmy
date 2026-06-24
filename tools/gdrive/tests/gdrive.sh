@@ -1,0 +1,21 @@
+#!/bin/sh
+# Google Drive MCP preview-contract tests.
+
+test_tools_gdrive_preview_contract() {
+  setup_scenario
+  credentials_dir=$SCENARIO_DIR/gdrive-creds
+  mkdir -p "$credentials_dir"
+
+  output=$(CLIENT_ID=client-id CLIENT_SECRET=client-secret GDRIVE_CREDS_DIR="$credentials_dir" SHIMMY_GDRIVE_IMAGE=example.invalid/shimmy/gdrive:test SHIMMY_GDRIVE_IMAGE_PULL=always run_in_repo ./commands/run-tool.sh gdrive --preview-shim)
+
+  assert_contains "$output" "'--pull=always'"
+  assert_contains "$output" "'$credentials_dir:$credentials_dir:rw'"
+  assert_contains "$output" "'CLIENT_ID=client-id'"
+  assert_contains "$output" "'CLIENT_SECRET=client-secret'"
+  assert_contains "$output" "'example.invalid/shimmy/gdrive:test'"
+  pass "gdrive preview preserves OAuth credential forwarding"
+}
+
+test_tools_gdrive_run() {
+  test_tools_gdrive_preview_contract
+}
