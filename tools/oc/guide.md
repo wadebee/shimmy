@@ -34,8 +34,8 @@ Dispatcher behavior:
 Example:
 
 ```sh
-oc version
-SHIMMY_OC_VERSION=4.18 oc version
+oc version --client
+SHIMMY_OC_VERSION=4.18 oc version --client
 oc get pods -A
 ```
 
@@ -62,9 +62,12 @@ When `SHIMMY_OC_4_xx_IMAGE` is **not** set, Shimmy uses a local image built from
 - `versions/4.20/container/Containerfile`
 - `versions/4.22/container/Containerfile`
 
-Each Containerfile uses an unqualified base image short name so that Podman can resolve it via `/etc/containers/registries.conf`. For example, `versions/4.20/container/Containerfile` defaults to:
+Each Containerfile selects a version-appropriate base image. When the image is
+published for multiple architectures, use the publisher's fully qualified
+manifest-list digest rather than an architecture-specific tag or digest. For
+example, `versions/4.20/container/Containerfile` defaults to:
 
-- `ARG SHIMMY_OC_4_20_BASE_IMAGE=openshift4/ose-cli:4.20`
+- `ARG SHIMMY_OC_4_20_BASE_IMAGE=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:61136a31003a378aae4039be61cfe10f3d2b60399f08a5325233826deb569383`
 
 You can override the base image used for local builds by setting the corresponding `SHIMMY_OC_4_xx_BASE_IMAGE` environment variable; the versioned shim passes it to Podman as a `--build-arg`. If a local image for the same build context was already cached, set the matching `SHIMMY_OC_4_xx_IMAGE_BUILD=always` once to force a rebuild with the new base image. You can also customize your Podman `registries.conf` to control how the short name is resolved.
 
@@ -102,6 +105,7 @@ The dispatcher config uses preview mode and a non-secret selector pinned to the 
 - `smoke_env=SHIMMY_OC_VERSION=4.20`
 - `smoke_arg=--preview-shim`
 - `smoke_arg=version`
+- `smoke_arg=--client`
 
 The versioned configs use a single-token smoke command:
 

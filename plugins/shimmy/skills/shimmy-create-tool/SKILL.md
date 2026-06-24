@@ -39,6 +39,12 @@ Mount `$PWD` at `/work` unless the tool's context documents an exception. Use
 the shared Podman helper for platform selection. Shimmy-defined environment
 variables must start with `SHIMMY_`.
 
+When an image must work on both Linux `amd64` and macOS `arm64`, prefer a
+fully qualified manifest-list digest supplied by the image publisher. Do not
+pin an architecture-specific image digest or tag as the default: Podman must
+select the matching platform image while the shared runtime helper retains
+responsibility for `--platform`.
+
 ## Dependency and safety gate
 
 Before adding a tool, identify required companion CLIs, plugins, credentials,

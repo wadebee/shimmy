@@ -1,7 +1,9 @@
 # OpenShift CLI
 
 `SHIMMY_OC_VERSION` selects one of the supported local-build tracks; absent a
-selector, the tool metadata default is 4.20.
+selector, the tool metadata default is 4.20. Version defaults that must run on
+both supported platforms use publisher-supplied multi-architecture manifest
+lists rather than architecture-specific image references.
 
 ## Child contexts
 

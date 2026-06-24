@@ -178,11 +178,14 @@ You may split this work into smaller iterations as needed to keep your context w
 - [x] Segment 5a: Complete static acceptance: context links, POSIX parsing,
   metadata-driven preflight, retired-layout scan, executable test modules,
   and disposable default/upstream profile coverage.
-- [ ] Segment 5b: Complete live acceptance. Podman is reachable, but eleven
-  local-build images and the Terraform image are absent (build/pull not
-  authorized); exact-approved AWS and jq wrapper smokes timed out without
-  leaving containers. Retry after explicit image-refresh authority and
-  wrapper-timeout remediation.
+- [x] Segment 5b.1: Build or pull all non-OC images and run exact-approved
+  live smokes successfully for the remaining 15 concrete versions.
+- [x] Segment 5b.2: Pin OC 4.20 to the supplied Red Hat multi-architecture
+  CLI manifest-list digest and make OC smoke metadata client-only.
+- [ ] Segment 5b.3: Complete OC live acceptance. Supply separate Red Hat
+  manifest-list digests for the 4.18 and 4.22 tracks; then retry the three
+  client-only smokes after resolving the current Podman runtime stall, which
+  prevents even a minimal local container from starting.
 - [x] Split install, update, and netinfo into the planned `core/` submodules.
 - [x] Replace update cases with version-local refresh/status hooks.
 - [x] Complete agent-skill canonicalization and adapter/export behavior.
