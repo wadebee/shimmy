@@ -117,6 +117,8 @@ You may split this work into smaller iterations as needed to keep your context w
   install, update, activate, and status while retaining the uninstall path.
 - [x] Segment 3i: Add Nmap-owned preview tests for explicit LAN, network,
   capability, and privilege safety controls.
+- [x] Segment 3j: Add read-only and admin OPNsense MCP-owned tests for URL
+  normalization, secret separation, no-write defaults, and admin guidance.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
 - [ ] Complete agent-skill canonicalization and adapter/export behavior.

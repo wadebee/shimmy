@@ -32,6 +32,8 @@ The suite is POSIX shell and validates:
   malformed-input rejection.
 - tool-owned Nmap preview coverage for explicit LAN, network, capability, and
   privilege controls.
+- tool-owned OPNsense MCP preview coverage for URL normalization, read-only and
+  admin secret separation, no-write defaults, and change-window guidance.
 
 Use live Podman only for non-mutating commands such as `--version`, `version`,
 or `--help`. Prefer `--preview-shim` whenever it proves the intended runtime
