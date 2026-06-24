@@ -14,3 +14,5 @@ installation or shell startup files.
   preservation, and update request validation.
 - `startup.sh` covers activation idempotence and managed startup-block install
   and repair behavior.
+- `skills.sh` covers canonical skill sources, portable manifests, exported
+  folders, installed-kind selection, refresh, and manifest-tracked cleanup.

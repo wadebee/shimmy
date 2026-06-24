@@ -107,6 +107,8 @@ You may split this work into smaller iterations as needed to keep your context w
   path against the version-owned smoke metadata without contacting Podman.
 - [x] Segment 3d: Restore activation idempotence and explicit startup-block
   install and repair coverage with disposable home directories.
+- [x] Segment 3e: Restore canonical skill-source, portable-manifest, export,
+  installed-kind, refresh, and manifest-tracked cleanup coverage.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
 - [ ] Complete agent-skill canonicalization and adapter/export behavior.
