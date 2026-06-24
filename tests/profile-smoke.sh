@@ -153,8 +153,8 @@ test_profile_smoke_command_run() {
   smoke_name=$6
 
   assert_file_executable "$target_path"
-  assert_file_exists "$smoke_env_file"
-  assert_file_exists "$smoke_arg_file"
+  [ -f "$smoke_env_file" ] || fail_test "missing installed shim config: $smoke_env_file"
+  [ -f "$smoke_arg_file" ] || fail_test "missing installed shim config: $smoke_arg_file"
 
   set --
   while IFS= read -r smoke_config_line || [ -n "$smoke_config_line" ]; do

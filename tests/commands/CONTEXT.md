@@ -24,5 +24,6 @@ installation or shell startup files.
   precedence, help output, and request validation.
 - `install.sh` covers additive installed-kind requests, uninstall request
   validation, and macOS Podman guidance.
-- `test.sh` covers installed-profile test request validation and help output
-  without running live containers.
+- `test.sh` covers installed-profile test request, metadata validation,
+  profile selection, public-dispatch, and concrete-version orchestration with
+  disposable wrapper fixtures rather than live containers.
