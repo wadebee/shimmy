@@ -32,6 +32,8 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/commands/startup.sh"
 # shellcheck source=tests/commands/skills.sh
 . "$SCRIPT_DIR/commands/skills.sh"
+# shellcheck source=tests/commands/dispatcher.sh
+. "$SCRIPT_DIR/commands/dispatcher.sh"
 
 trap shimmy_test_cleanup EXIT HUP INT TERM
 
@@ -45,6 +47,7 @@ main() {
   test_commands_update_run
   test_commands_startup_run
   test_commands_skills_run
+  test_commands_dispatcher_run
   printf 'All %s Shimmy tests passed.\n' "$TEST_COUNT"
 }
 

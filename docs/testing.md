@@ -25,6 +25,8 @@ The suite is POSIX shell and validates:
 - idempotent activation and explicit managed startup-block install and repair.
 - canonical skill-source export, portable manifests, installed-kind selection,
   refresh, and manifest-tracked cleanup.
+- source and installed dispatcher validation, including selector, profile, and
+  recursion protections.
 
 Use live Podman only for non-mutating commands such as `--version`, `version`,
 or `--help`. Prefer `--preview-shim` whenever it proves the intended runtime

@@ -16,3 +16,5 @@ installation or shell startup files.
   and repair behavior.
 - `skills.sh` covers canonical skill sources, portable manifests, exported
   folders, installed-kind selection, refresh, and manifest-tracked cleanup.
+- `dispatcher.sh` covers source dispatcher validation and installed dispatcher
+  profile and recursion protections.
