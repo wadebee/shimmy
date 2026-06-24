@@ -15,7 +15,8 @@ The suite is POSIX shell and validates:
   declared smoke argument, without contacting Podman;
 - shared Podman platform and preview helpers plus POSIX syntax;
 - disposable layout-version-2 default and upstream profile installs, installed
-  command dispatch, status, update, legacy-layout rejection, and uninstall;
+  command dispatch, status, update, legacy-layout rejection across management
+  commands, and uninstall;
 - activation, canonical skill export/removal, netinfo input rendering, and
   management-command argument validation;
 - profile selection precedence, profile-isolated uninstalls, status
@@ -29,6 +30,8 @@ The suite is POSIX shell and validates:
   recursion protections.
 - deterministic netinfo CIDR rendering, explicit-host precedence, help, and
   malformed-input rejection.
+- tool-owned Nmap preview coverage for explicit LAN, network, capability, and
+  privilege controls.
 
 Use live Podman only for non-mutating commands such as `--version`, `version`,
 or `--help`. Prefer `--preview-shim` whenever it proves the intended runtime

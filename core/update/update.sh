@@ -653,6 +653,8 @@ shimmy_update_run() {
   manifest_file=$(manifest_file_resolve)
   root_manifest_file=$install_dir/install-manifest.txt
 
+  shimmy_install_layout_validate "$root_manifest_file" || fail "legacy Shimmy install layout detected; uninstall and reinstall"
+
   manifest_install_dir=$(shimmy_read_manifest_value "$root_manifest_file" install_dir || true)
   if [ -n "$manifest_install_dir" ]; then
     install_dir=$(shimmy_trim_path_trailing_slash "$manifest_install_dir")

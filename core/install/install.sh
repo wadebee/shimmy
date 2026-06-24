@@ -882,20 +882,9 @@ resolve_startup_settings() {
   fi
 }
 
-installed_layout_validate() {
-  manifest_file=$1
-
-  [ -f "$manifest_file" ] || return 0
-  layout_version=$(shimmy_read_manifest_value "$manifest_file" shimmy_install_manifest_version || true)
-  [ -n "$layout_version" ] || return 0
-  if [ "$layout_version" != 2 ]; then
-    fail "legacy Shimmy install layout detected at $manifest_file; uninstall it and run shimmy install to create a layout-version-2 installation"
-  fi
-}
-
 perform_install() {
   validate_requested_shims
-  installed_layout_validate "$SHIMMY_ROOT_MANIFEST_FILE"
+  shimmy_install_layout_validate "$SHIMMY_ROOT_MANIFEST_FILE" || fail "legacy Shimmy install layout detected; uninstall and reinstall"
   if [ -f "$SHIMMY_ROOT_MANIFEST_FILE" ]; then
     PRESERVED_STARTUP_SHELL=$(shimmy_read_manifest_value "$SHIMMY_ROOT_MANIFEST_FILE" startup_shell || true)
     PRESERVED_STARTUP_FILE_PATHS=$(shimmy_read_manifest_values "$SHIMMY_ROOT_MANIFEST_FILE" startup_file || true)
@@ -965,7 +954,7 @@ perform_shim_install() {
   [ -z "$REQUESTED_SHELL" ] || fail "--shell is not supported when installing shims into an existing environment"
   [ -z "$REQUESTED_STARTUP_FILES" ] || fail "--startup-file is not supported when installing shims into an existing environment"
   [ -f "$INSTALL_MANIFEST_FILE" ] || fail "no shimmy install manifest found at $INSTALL_MANIFEST_FILE; run ./shimmy install first"
-  installed_layout_validate "$SHIMMY_ROOT_MANIFEST_FILE"
+  shimmy_install_layout_validate "$SHIMMY_ROOT_MANIFEST_FILE" || fail "legacy Shimmy install layout detected; uninstall and reinstall"
 
   load_install_root_from_manifest || true
   validate_requested_shims
@@ -1023,7 +1012,7 @@ perform_shim_refresh() {
   [ "$UNINSTALL" -eq 0 ] || fail "--refresh-shims cannot be combined with --uninstall"
   [ -z "$REQUESTED_SKILLS_TARGET" ] || fail "--skills-target is not supported when refreshing shims"
   [ -f "$INSTALL_MANIFEST_FILE" ] || fail "no shimmy profile manifest found at $INSTALL_MANIFEST_FILE; run ./shimmy install first"
-  installed_layout_validate "$SHIMMY_ROOT_MANIFEST_FILE"
+  shimmy_install_layout_validate "$SHIMMY_ROOT_MANIFEST_FILE" || fail "legacy Shimmy install layout detected; uninstall and reinstall"
 
   load_install_root_from_manifest || true
   validate_requested_shims

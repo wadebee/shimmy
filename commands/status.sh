@@ -36,13 +36,6 @@ install_dir_resolve() {
   shimmy_profile_install_dir_resolve ""
 }
 
-layout_validate() {
-  manifest_file=$1
-  [ -f "$manifest_file" ] || return 0
-  layout_version=$(shimmy_read_manifest_value "$manifest_file" shimmy_install_manifest_version || true)
-  [ -z "$layout_version" ] || [ "$layout_version" = 2 ] || fail "legacy Shimmy install layout detected; uninstall and reinstall"
-}
-
 kind_installed() {
   manifest_file=$1
   kind_name=$2
@@ -143,7 +136,7 @@ main() {
   shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$(install_dir_resolve)" "$ROOT_DIR" || fail "unsupported Shimmy profile"
   install_dir=$SHIMMY_PROFILE_INSTALL_DIR
   root_manifest_file=$install_dir/install-manifest.txt
-  layout_validate "$root_manifest_file"
+  shimmy_install_layout_validate "$root_manifest_file" || fail "legacy Shimmy install layout detected; uninstall and reinstall"
   print_status "$install_dir" "$SHIMMY_PROFILE_MANIFEST_PATH"
 }
 

@@ -113,6 +113,10 @@ You may split this work into smaller iterations as needed to keep your context w
   profile, and recursion-protection coverage.
 - [x] Segment 3g: Restore deterministic netinfo CIDR, explicit-host
   precedence, help, and malformed-input coverage.
+- [x] Segment 3h: Enforce and verify consistent version-1 layout rejection for
+  install, update, activate, and status while retaining the uninstall path.
+- [x] Segment 3i: Add Nmap-owned preview tests for explicit LAN, network,
+  capability, and privilege safety controls.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
 - [ ] Complete agent-skill canonicalization and adapter/export behavior.

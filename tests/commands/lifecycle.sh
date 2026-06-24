@@ -64,13 +64,25 @@ test_commands_lifecycle_legacy_layout_rejected() {
   mv "$manifest_tmp" "$manifest_file"
 
   set +e
-  output=$(HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --format manifest 2>&1)
+  status_output=$(HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR" --format manifest 2>&1)
   status_code=$?
+  activate_output=$(HOME="$HOME_DIR" run_in_repo ./shimmy activate --install-dir "$INSTALL_DIR" 2>&1)
+  activate_code=$?
+  update_output=$(HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" 2>&1)
+  update_code=$?
+  install_output=$(HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --no-startup --no-skills 2>&1)
+  install_code=$?
   set -e
 
-  [ "$status_code" -ne 0 ] || fail_test "legacy layout was accepted"
-  assert_contains "$output" "legacy Shimmy install layout detected; uninstall and reinstall"
-  pass "legacy layout version is rejected consistently"
+  [ "$status_code" -ne 0 ] || fail_test "status accepted a legacy layout"
+  [ "$activate_code" -ne 0 ] || fail_test "activate accepted a legacy layout"
+  [ "$update_code" -ne 0 ] || fail_test "update accepted a legacy layout"
+  [ "$install_code" -ne 0 ] || fail_test "install accepted a legacy layout"
+  assert_contains "$status_output" "legacy Shimmy install layout detected; uninstall and reinstall"
+  assert_contains "$activate_output" "legacy Shimmy install layout detected; uninstall and reinstall"
+  assert_contains "$update_output" "legacy Shimmy install layout detected; uninstall and reinstall"
+  assert_contains "$install_output" "legacy Shimmy install layout detected; uninstall and reinstall"
+  pass "management commands reject legacy layouts consistently"
 }
 
 test_commands_lifecycle_update_refresh() {

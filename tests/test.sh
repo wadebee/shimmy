@@ -36,6 +36,8 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/commands/dispatcher.sh"
 # shellcheck source=tests/commands/netinfo.sh
 . "$SCRIPT_DIR/commands/netinfo.sh"
+# shellcheck source=tools/nmap/tests/nmap.sh
+. "$ROOT_DIR/tools/nmap/tests/nmap.sh"
 
 trap shimmy_test_cleanup EXIT HUP INT TERM
 
@@ -51,6 +53,7 @@ main() {
   test_commands_skills_run
   test_commands_dispatcher_run
   test_commands_netinfo_run
+  test_tools_nmap_run
   printf 'All %s Shimmy tests passed.\n' "$TEST_COUNT"
 }
 

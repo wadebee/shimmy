@@ -134,6 +134,7 @@ tracked_shell_file_list() {
     "$ROOT_DIR"/core/*/*.sh \
     "$ROOT_DIR"/tests/*.sh \
     "$ROOT_DIR"/tests/*/*.sh \
+    "$ROOT_DIR"/tools/*/tests/*.sh \
     "$ROOT_DIR"/tools/*/versions/*/run.sh
   do
     [ -f "$shell_file" ] || continue

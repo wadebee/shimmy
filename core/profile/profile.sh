@@ -12,6 +12,22 @@ shimmy_profile_install_hint() {
   esac
 }
 
+shimmy_install_layout_validate() {
+  root_manifest_file=$1
+
+  [ -f "$root_manifest_file" ] || return 0
+  layout_version=$(shimmy_read_manifest_value "$root_manifest_file" shimmy_install_manifest_version || true)
+
+  case "$layout_version" in
+    ''|2)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 shimmy_profile_repair_hint_print() {
   profile_name=$1
 

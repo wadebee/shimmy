@@ -6,4 +6,5 @@ capabilities remain explicit `SHIMMY_` opt-ins.
 ## Child contexts
 
 - [agent guidance](agent/CONTEXT.md)
+- [tool tests](tests/CONTEXT.md)
 - [version 7.98](versions/7.98/CONTEXT.md)

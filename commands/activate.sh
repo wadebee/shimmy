@@ -126,6 +126,8 @@ main() {
   manifest_file=$profile_manifest_file
   bin_dir=$SHIMMY_INSTALL_BIN_DIR
 
+  shimmy_install_layout_validate "$root_manifest_file" || fail "legacy Shimmy install layout detected; uninstall and reinstall"
+
   if [ -f "$root_manifest_file" ]; then
     manifest_install_dir=$(shimmy_read_manifest_value "$root_manifest_file" install_dir || true)
     if [ -n "$manifest_install_dir" ]; then
