@@ -119,6 +119,8 @@ You may split this work into smaller iterations as needed to keep your context w
   capability, and privilege safety controls.
 - [x] Segment 3j: Add read-only and admin OPNsense MCP-owned tests for URL
   normalization, secret separation, no-write defaults, and admin guidance.
+- [x] Segment 3k: Restore additive install, explicit uninstall-profile, and
+  macOS Podman guidance coverage.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
 - [ ] Complete agent-skill canonicalization and adapter/export behavior.

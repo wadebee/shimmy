@@ -20,3 +20,5 @@ installation or shell startup files.
   profile and recursion protections.
 - `netinfo.sh` covers deterministic CIDR rendering, explicit host-LAN
   precedence, help output, and request validation.
+- `install.sh` covers additive installed-kind requests, uninstall request
+  validation, and macOS Podman guidance.

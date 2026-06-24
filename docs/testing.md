@@ -34,6 +34,8 @@ The suite is POSIX shell and validates:
   privilege controls.
 - tool-owned OPNsense MCP preview coverage for URL normalization, read-only and
   admin secret separation, no-write defaults, and change-window guidance.
+- additive install behavior, explicit uninstall-profile requests, and macOS
+  Podman dependency guidance.
 
 Use live Podman only for non-mutating commands such as `--version`, `version`,
 or `--help`. Prefer `--preview-shim` whenever it proves the intended runtime

@@ -42,6 +42,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/tools/opnsense-mcp-admin/tests/opnsense-mcp-admin.sh"
 # shellcheck source=tools/opnsense-mcp-read-only/tests/opnsense-mcp-read-only.sh
 . "$ROOT_DIR/tools/opnsense-mcp-read-only/tests/opnsense-mcp-read-only.sh"
+# shellcheck source=tests/commands/install.sh
+. "$SCRIPT_DIR/commands/install.sh"
 
 trap shimmy_test_cleanup EXIT HUP INT TERM
 
@@ -60,6 +62,7 @@ main() {
   test_tools_nmap_run
   test_tools_opnsense_mcp_read_only_run
   test_tools_opnsense_mcp_admin_run
+  test_commands_install_run
   printf 'All %s Shimmy tests passed.\n' "$TEST_COUNT"
 }
 
