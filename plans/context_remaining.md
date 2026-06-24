@@ -15,39 +15,30 @@ You may split this work into smaller iterations as needed to keep your context w
 
 ### Current repository state
 
-- The current checked-out commit is `b057923` (`feat(context): add
-  comprehensive plan for context-first Shimmy reorganization`), and the
-  worktree was clean when this handoff plan was updated.
+- Latest validated commit: `0fccc9d` (`test(gcloud): add gcloud context test
+  files, update test script`). The worktree was clean when this handoff was
+  refreshed. The user commits bounded segments; do not commit as the agent.
 - The source layout has already moved from `lib/`, `scripts/`, `shims/`, and
   `images/` into `core/`, `commands/`, `tools/`, and `tests/`.
 - `commands/run-tool.sh <kind> ...` is the generic source dispatcher. It reads
   `tools/<kind>/tool.conf`, resolves the optional selector, and executes
   `tools/<kind>/versions/<major.minor>/run.sh`.
-- Tool metadata currently uses `shim_name=`, `tool_default_version=`, and
-  `tool_selector_env=` in `tool.conf`; concrete versions retain `shim_name=`
-  and smoke arguments in `smoke.conf`. There are 16 tool kinds and 18 concrete
-  versions, including the three `oc` tracks.
+- There are 16 tool kinds and 18 concrete versions, including the three `oc`
+  tracks. Every version now owns `run.sh`, `refresh.sh`, `smoke.conf`, and
+  `status.conf`; update and status have no command-level tool/version case
+  lists.
 - Default and upstream profile installs use manifest layout version 2. The
-  installer intentionally rejects a version-1 root manifest and tells the
-  user to uninstall/reinstall; verify that every command handles this path
-  consistently.
-- `commands/status.sh` and `core/catalog/catalog.sh` have already been
-  rewritten around tool-local metadata. `commands/update.sh` has not: its
-  explicit tool/version refresh cases are the principal remaining centralized
-  behavior.
-
-### Known shortcuts that must be corrected
-
-- `commands/install.sh` is still 1,375 lines, `commands/update.sh` is 737
-  lines, and `commands/netinfo.sh` is 944 lines. Their target decomposition is
-  described below; do not treat the current folder move as a completed module
-  split.
-- `tests/test.sh` is only a 94-line focused smoke suite. The prior 4,151-line
-  behavioral suite was removed rather than migrated, so its coverage must be
-  recovered and split before declaring the migration complete.
-- Historical source is available from Git. The most useful recovery point is
-  `git show 836ae00:scripts/test-shimmy.sh`; older behavior can be traced with
-  `git log --all -- scripts/test-shimmy.sh` and `git log --all -- shims/jq`.
+- installer intentionally rejects a version-1 root manifest and all active
+  management paths have coverage for that rejection.
+- `core/install/`, `core/update/`, and `core/netinfo/` are decomposed into
+  narrow sourceable modules. `commands/` remains thin public entrypoints.
+- `tests/test.sh` now loads sourceable core, command, and tool-local modules.
+  It also provides installed-profile smoke mode: `--install-dir`, `--profile`,
+  `--shim <kind>[@<version>]`, and `--all`. Segments 3m and 3n cover that mode
+  with disposable fixtures; no live wrapper smoke has been run through it.
+- Tool-local tests currently exist for Nmap, both OPNsense MCP variants, and
+  gcloud configuration diagnostics. The gcloud diagnostic tests use the
+  non-mutating `--shimmy-config-help` path and never create host config state.
 - `tests/context-tree.sh` now enforces linked contexts for every source-bearing
   directory below `agent/`, `commands/`, `core/`, `tools/`, and `tests/`,
   including canonical skills, test modules, and local container contexts.
@@ -57,33 +48,69 @@ You may split this work into smaller iterations as needed to keep your context w
 
 ### Environment and permission constraints
 
-- `.git` is read-only to agents in this workspace. `git mv` and commits fail
-  because Git cannot create `index.lock`; use `apply_patch` for edits and let
-  the user perform staging/committing.
+- Use `apply_patch` for all repository edits. Do not commit; the user stages
+  and commits completed segments.
 - `.agents/` is read-only. Do not overwrite its existing skills; treat it as
   an externally managed distribution adapter and update canonical sources plus
   `commands/skills.sh` instead.
-- Podman is installed and works only with narrow escalation for this agent
-  environment. `podman info` needs the `['podman', 'info']` approval, and a
-  live generic jq smoke succeeded with the outer prefix
-  `['./commands/run-tool.sh', 'jq', '--version']`.
+- Podman live checks must be non-mutating. If an image is unavailable, do not
+  silently pull or build it; report the missing authority because refresh is
+  mutating. For every live wrapper smoke, request approval for the exact outer
+  wrapper prefix through the Shimmy escalation workflow. Do not fall back to a
+  host tool.
 - The user may have a pre-existing layout-version-1 installation under their
-  normal Shimmy install root. Use disposable `/tmp` install roots for tests;
-  do not alter the user's installation while validating migration behavior.
+  normal Shimmy install root. Use disposable `/private/tmp` install roots for
+  tests; do not alter the user's installation.
 
-### Verification already performed
+### Recent verification
 
-- `./shimmy test` passed, but it currently covers only context integrity,
-  catalog/default discovery, preview paths, and a clean default-profile
-  install/dispatch/uninstall flow.
-- POSIX syntax checks were run over `shimmy`, commands, core modules, concrete
-  version runtimes, and test scripts.
-- Fresh default and upstream profile installs successfully dispatched jq
-  previews; `shimmy update --shim jq` completed against a disposable install.
-- Skills export worked from the new tool-local canonical jq skill, and a live
-  `./commands/run-tool.sh jq --version` Podman smoke returned `jq-1.8.1`.
-- A stale-path scan found no retired source-root references outside the
-  read-only `.agents/` adapter and normal paths inside container build files.
+- After every completed segment, the relevant `dash -n` checks,
+  `./tests/context-tree.sh`, `git diff --check`, and `./shimmy test` passed.
+- A prior live `./commands/run-tool.sh jq --version` smoke succeeded. It does
+  not satisfy the final per-version live-smoke requirement.
+
+### Next-window execution plan
+
+1. Close test-recovery coverage.
+   - Compare the current suite with `git show 33c0240:scripts/test-shimmy.sh`.
+     The previously suggested `836ae00:scripts/test-shimmy.sh` path is absent;
+     use `git log --all -- scripts/test-shimmy.sh` if another historical point
+     is needed.
+   - Restore only still-intended, distinct behaviors that are not already
+     covered: likely candidates are remaining Podman-preflight guidance and
+     tool-specific configuration/error paths. Put tool behavior in
+     `tools/<kind>/tests/` with linked contexts. Read the canonical tool skill
+     and every path context before changing a tool.
+   - The acceptance criterion requires every kind to own tests. Only gcloud,
+     Nmap, and the two OPNsense MCP kinds currently have tool-local test
+     directories; add a focused non-Podman module for every remaining kind,
+     even when the assertion is a version-owned preview contract.
+   - Document consciously retired behavior rather than reintroducing legacy
+     layout assumptions. Leave the high-level recovery checkbox unchecked
+     until the comparison is explicitly closed.
+
+2. Complete static acceptance.
+   - Scan runtime, lifecycle, documentation, canonical skills, templates, and
+     guides for retired `lib/`, `scripts/`, `shims/`, and `images/` source-root
+     references. Exclude the read-only `.agents/` compatibility adapter and
+     legitimate container build-context paths only when documented.
+   - Verify no command-level tool/version catalog, status-image, or refresh
+     cases remain. Check executable bits, all shell syntax, contexts, and the
+     full test suite. Exercise default/upstream installs only under disposable
+     roots.
+   - Do not run mutating pull/build refreshes as live checks without new user
+     authority; retain preview and hook-contract coverage for those actions.
+
+3. Complete live acceptance and request review.
+   - Use temporary install roots and execute a non-mutating smoke for every
+     concrete version: `--version`, `version`, or `--help` from its
+     `smoke.conf`. Cover all three `oc` tracks explicitly.
+   - Request exact outer-wrapper approval before each live Shimmy invocation.
+     Use installed/public wrappers where appropriate and the concrete runtime
+     only where required to address a non-default installed version. Record
+     the result for all 18 versions.
+   - Re-run the documented matrix, report any unavailable local-build image as
+     an authority blocker rather than building it, then obtain user review.
 
 ## Checklist
 
