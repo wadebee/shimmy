@@ -131,6 +131,8 @@ You may split this work into smaller iterations as needed to keep your context w
   platform-discovery, and rendering modules while preserving its public command.
 - [x] Segment 2b.2: Split update request parsing and installed-profile/version
   selection into narrow sourceable core modules.
+- [x] Segment 2b.3: Split update installed-management and profile-refresh
+  lifecycle units into sourceable core modules.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
 - [x] Complete agent-skill canonicalization and adapter/export behavior.
