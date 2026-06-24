@@ -22,7 +22,7 @@ The suite is POSIX shell and validates:
 - profile selection precedence, profile-isolated uninstalls, status
   availability, and profile-specific repair guidance;
 - selected-shim and all-profile update refreshes, manifest lifecycle-field
-  preservation, and update request validation;
+  preservation, request validation, and installed-management source refresh;
 - idempotent activation and explicit managed startup-block install and repair.
 - canonical skill-source export, portable manifests, installed-kind selection,
   refresh, and manifest-tracked cleanup.

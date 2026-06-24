@@ -121,6 +121,8 @@ You may split this work into smaller iterations as needed to keep your context w
   normalization, secret separation, no-write defaults, and admin guidance.
 - [x] Segment 3k: Restore additive install, explicit uninstall-profile, and
   macOS Podman guidance coverage.
+- [x] Segment 3l: Restore installed-management update coverage against a
+  disposable manifest-recorded Git source.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
 - [ ] Complete agent-skill canonicalization and adapter/export behavior.

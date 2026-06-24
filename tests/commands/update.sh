@@ -37,6 +37,45 @@ test_commands_update_invalid_active_profile() {
   pass "update rejects unsupported active profiles"
 }
 
+test_commands_update_installed_management_source() {
+  setup_scenario
+  source_repo=$SCENARIO_DIR/source
+  remote_repo=$SCENARIO_DIR/remote.git
+  marker_line=shimmy_test_remote_update_marker=present
+
+  mkdir -p "$source_repo"
+  cp -R "$ROOT_DIR/." "$source_repo"
+  rm -rf "$source_repo/.git"
+  git init -q "$source_repo"
+  git -C "$source_repo" config user.name "Shimmy Test"
+  git -C "$source_repo" config user.email "shimmy-test@example.invalid"
+  git -C "$source_repo" add .
+  git -C "$source_repo" commit -q -m "test source"
+  git -C "$source_repo" branch -M main
+  git init --bare -q "$remote_repo"
+  git -C "$remote_repo" symbolic-ref HEAD refs/heads/main
+  git -C "$source_repo" remote add origin "$remote_repo"
+  git -C "$source_repo" push -q -u origin main
+
+  printf "\nprintf '%%s\\n' '%s'\n" "$marker_line" >> "$source_repo/commands/status.sh"
+  git -C "$source_repo" add commands/status.sh
+  git -C "$source_repo" commit -q -m "test status marker"
+  git -C "$source_repo" push -q origin main
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup --no-skills >/dev/null
+  manifest_file=$INSTALL_DIR/profiles/default/install-manifest.txt
+  manifest_tmp=$manifest_file.tmp
+  sed "s|^shimmy_source_url=.*|shimmy_source_url=$remote_repo|" "$manifest_file" > "$manifest_tmp"
+  mv "$manifest_tmp" "$manifest_file"
+
+  update_output=$(cd "$WORK_DIR" && HOME="$HOME_DIR" PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy update 2>&1)
+  status_output=$(cd "$WORK_DIR" && HOME="$HOME_DIR" PATH="$INSTALL_DIR/bin:/usr/bin:/bin" shimmy status --format manifest 2>&1)
+
+  assert_contains "$update_output" "Fetching Shimmy management updates from $remote_repo"
+  assert_contains "$status_output" "$marker_line"
+  pass "installed management update refreshes from its manifest source"
+}
+
 test_commands_update_missing_shim() {
   setup_scenario
 
@@ -90,6 +129,7 @@ test_commands_update_selected_shim() {
 test_commands_update_run() {
   test_commands_update_all_profiles
   test_commands_update_invalid_active_profile
+  test_commands_update_installed_management_source
   test_commands_update_missing_shim
   test_commands_update_preserves_manifest_fields
   test_commands_update_selected_shim
