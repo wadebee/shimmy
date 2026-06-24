@@ -6,4 +6,5 @@ behavior through its documented wrapper.
 ## Child contexts
 
 - [agent guidance](agent/CONTEXT.md)
+- [tool tests](tests/CONTEXT.md)
 - [version 8.2](versions/8.2/CONTEXT.md)

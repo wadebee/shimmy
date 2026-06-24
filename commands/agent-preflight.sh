@@ -9,6 +9,8 @@ ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
 SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/core/runtime/podman.sh
+SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
+CATALOG_HELPER_FILE=$ROOT_DIR/core/catalog/catalog.sh
 RUN_SMOKE=no
 PREFLIGHT_STATUS=0
 ACTIVE_SHIM_SEEN=
@@ -51,8 +53,15 @@ if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
   exit 1
 fi
 
+if [ ! -f "$CATALOG_HELPER_FILE" ]; then
+  printf 'ERROR: missing catalog helper: %s\n' "$CATALOG_HELPER_FILE" >&2
+  exit 1
+fi
+
 # shellcheck source=core/runtime/podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
+# shellcheck source=core/catalog/catalog.sh
+. "$CATALOG_HELPER_FILE"
 
 shimmy_agent_json_string_print() {
   json_value=$1
@@ -99,56 +108,40 @@ shimmy_agent_manifest_value() {
 shimmy_agent_smoke_args_render() {
   shim_name=$1
 
-  case "$shim_name" in
-    aws|aws_2_31)
+  if shimmy_is_kind "$shim_name"; then
+    version_name=$(shimmy_kind_default_version "$shim_name") || {
       printf '%s\n' '--version'
-      ;;
-    go|go_1_26)
-      printf '%s\n' 'version'
-      ;;
-    gcloud|gcloud_573_0)
-      printf '%s\n' '--version'
-      ;;
-    gdrive|gdrive_0_2)
-      printf '%s\n' '--help'
-      ;;
-    jq|jq_1_8)
-      printf '%s\n' '--version'
-      ;;
-    netcat|netcat_7_92)
-      printf '%s\n' '--help'
-      ;;
-    nmap|nmap_7_98)
-      printf '%s\n' '--version'
-      ;;
-    opnsense-mcp-admin|opnsense-mcp-admin_1_0)
-      printf '%s\n' '--help'
-      ;;
-    opnsense-mcp-read-only|opnsense-mcp-read-only_0_4)
-      printf '%s\n' '--help'
-      ;;
-    oc|oc_4_18|oc_4_20|oc_4_22)
-      printf '%s\n' '--preview-shim version'
-      ;;
-    rg|rg_15_1)
-      printf '%s\n' '--version'
-      ;;
-    task|task_3_45)
-      printf '%s\n' '--version'
-      ;;
-    terraform|terraform_1_15)
-      printf '%s\n' 'version'
-      ;;
-    tessl|tessl_0_1)
-      printf '%s\n' '--help'
-      ;;
-    textual|textual_8_2)
-      printf '%s\n' '--version'
-      ;;
-    *)
-      printf '%s\n' '--version'
-      ;;
-  esac
+      return 0
+    }
+  elif shimmy_is_version "$shim_name"; then
+    version_name=$shim_name
+  else
+    printf '%s\n' '--version'
+    return 0
+  fi
+
+  kind_name=$(shimmy_version_kind "$version_name") || {
+    printf '%s\n' '--version'
+    return 0
+  }
+  version_label=$(shimmy_version_label "$version_name") || {
+    printf '%s\n' '--version'
+    return 0
+  }
+  version_dir=$ROOT_DIR/tools/$kind_name/versions/$version_label
+  smoke_file=$version_dir/smoke.conf
+  status_file=$version_dir/status.conf
+
+  if [ -f "$status_file" ] && [ "$(sed -n 's/^status_image=//p' "$status_file" | sed -n '1p')" = local-build:container ]; then
+    printf '%s\n' '--preview-shim'
+  fi
+
+  if [ ! -f "$smoke_file" ]; then
+    printf '%s\n' '--version'
+    return 0
+  fi
+
+  sed -n 's/^smoke_arg=//p' "$smoke_file"
 }
 
 shimmy_agent_smoke_run() {
@@ -166,12 +159,6 @@ shimmy_agent_smoke_run() {
     ); then
       printf 'smoke_status=ok\n'
     else
-      case "$shim_name:$smoke_output" in
-        opnsense-mcp-read-only:*'ERROR: OPNSENSE_URL is required for the opnsense-mcp-read-only shim.'*)
-          printf 'smoke_status=ok\n'
-          return 0
-          ;;
-      esac
       printf 'smoke_status=failed\n'
       printf 'smoke_output=%s\n' "$smoke_output"
       PREFLIGHT_STATUS=1
@@ -185,12 +172,6 @@ shimmy_agent_smoke_run() {
   ); then
     printf 'smoke_status=ok\n'
   else
-    case "$shim_name:$smoke_output" in
-      opnsense-mcp-read-only:*'ERROR: OPNSENSE_URL is required for the opnsense-mcp-read-only shim.'*)
-        printf 'smoke_status=ok\n'
-        return 0
-        ;;
-    esac
     printf 'smoke_status=failed\n'
     printf 'smoke_output=%s\n' "$smoke_output"
     PREFLIGHT_STATUS=1
@@ -203,6 +184,7 @@ shimmy_agent_shim_print() {
   command_prefix=$3
   shim_path=$4
   smoke_args=$(shimmy_agent_smoke_args_render "$shim_name")
+  smoke_args_display=$(printf '%s\n' "$smoke_args" | tr '\n' ' ' | sed 's/ $//')
 
   case "$shim_kind" in
     active)
@@ -219,7 +201,7 @@ shimmy_agent_shim_print() {
   printf 'agent_prefix_rule='
   # shellcheck disable=SC2086
   shimmy_agent_prefix_rule_print "$command_prefix" $smoke_args
-  printf 'smoke_command=%s %s\n' "$command_prefix" "$smoke_args"
+  printf 'smoke_command=%s %s\n' "$command_prefix" "$smoke_args_display"
 
   if [ "$RUN_SMOKE" = yes ]; then
     shimmy_agent_smoke_run "$shim_kind" "$shim_name" "$command_prefix"
@@ -333,12 +315,13 @@ $shim_name
 "
     REPO_SHIM_COUNT=$((REPO_SHIM_COUNT + 1))
     smoke_args=$(shimmy_agent_smoke_args_render "$shim_name")
+    smoke_args_display=$(printf '%s\n' "$smoke_args" | tr '\n' ' ' | sed 's/ $//')
     printf 'repo_shim=%s\n' "$shim_name"
     printf 'path=%s\n' "$tool_dir"
     printf 'agent_prefix_rule='
     # shellcheck disable=SC2086
     shimmy_agent_prefix_rule_print "./commands/run-tool.sh" "$shim_name" $smoke_args
-    printf 'smoke_command=./commands/run-tool.sh %s %s\n' "$shim_name" "$smoke_args"
+    printf 'smoke_command=./commands/run-tool.sh %s %s\n' "$shim_name" "$smoke_args_display"
     if [ "$RUN_SMOKE" = yes ]; then
       if smoke_output=$(cd "$ROOT_DIR" && "$ROOT_DIR/commands/run-tool.sh" "$shim_name" $smoke_args 2>&1); then
         printf 'smoke_status=ok\n'

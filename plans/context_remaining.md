@@ -122,7 +122,7 @@ You may split this work into smaller iterations as needed to keep your context w
 - [x] Segment 2b: Split those core entry modules into their planned narrow
   request, manifest, profile, runtime-refresh, platform-discovery, and
   rendering modules.
-- [ ] Recover and modularize the complete behavioral test suite before further
+- [x] Recover and modularize the complete behavioral test suite before further
   runtime refactors; run it after each subsequent segment.
 - [x] Segment 3a: Restore profile selection, status availability,
   profile-isolated uninstall, and repair-guidance coverage with disposable
@@ -172,6 +172,17 @@ You may split this work into smaller iterations as needed to keep your context w
   selection, metadata errors, and profile precedence with disposable fixtures.
 - [x] Segment 3o: Restore gcloud configuration-diagnostic coverage for
   missing, overridden, and present host configuration paths.
+- [x] Segment 3p: Add tool-owned preview-contract tests for every remaining
+  kind, restore Podman-unreachable approval guidance coverage, and replace
+  command-level agent-preflight smoke cases with concrete-version metadata.
+- [x] Segment 5a: Complete static acceptance: context links, POSIX parsing,
+  metadata-driven preflight, retired-layout scan, executable test modules,
+  and disposable default/upstream profile coverage.
+- [ ] Segment 5b: Complete live acceptance. Podman is reachable, but eleven
+  local-build images and the Terraform image are absent (build/pull not
+  authorized); exact-approved AWS and jq wrapper smokes timed out without
+  leaving containers. Retry after explicit image-refresh authority and
+  wrapper-timeout remediation.
 - [x] Split install, update, and netinfo into the planned `core/` submodules.
 - [x] Replace update cases with version-local refresh/status hooks.
 - [x] Complete agent-skill canonicalization and adapter/export behavior.

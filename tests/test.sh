@@ -28,6 +28,8 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/core/runtime.sh"
 # shellcheck source=tests/core/update.sh
 . "$SCRIPT_DIR/core/update.sh"
+# shellcheck source=tests/commands/agent-preflight.sh
+. "$SCRIPT_DIR/commands/agent-preflight.sh"
 # shellcheck source=tests/commands/lifecycle.sh
 . "$SCRIPT_DIR/commands/lifecycle.sh"
 # shellcheck source=tests/commands/management.sh
@@ -44,14 +46,38 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/commands/dispatcher.sh"
 # shellcheck source=tests/commands/netinfo.sh
 . "$SCRIPT_DIR/commands/netinfo.sh"
+# shellcheck source=tools/aws/tests/aws.sh
+. "$ROOT_DIR/tools/aws/tests/aws.sh"
 # shellcheck source=tools/gcloud/tests/gcloud.sh
 . "$ROOT_DIR/tools/gcloud/tests/gcloud.sh"
+# shellcheck source=tools/gdrive/tests/gdrive.sh
+. "$ROOT_DIR/tools/gdrive/tests/gdrive.sh"
+# shellcheck source=tools/gh/tests/gh.sh
+. "$ROOT_DIR/tools/gh/tests/gh.sh"
+# shellcheck source=tools/go/tests/go.sh
+. "$ROOT_DIR/tools/go/tests/go.sh"
+# shellcheck source=tools/jq/tests/jq.sh
+. "$ROOT_DIR/tools/jq/tests/jq.sh"
+# shellcheck source=tools/netcat/tests/netcat.sh
+. "$ROOT_DIR/tools/netcat/tests/netcat.sh"
 # shellcheck source=tools/nmap/tests/nmap.sh
 . "$ROOT_DIR/tools/nmap/tests/nmap.sh"
+# shellcheck source=tools/oc/tests/oc.sh
+. "$ROOT_DIR/tools/oc/tests/oc.sh"
 # shellcheck source=tools/opnsense-mcp-admin/tests/opnsense-mcp-admin.sh
 . "$ROOT_DIR/tools/opnsense-mcp-admin/tests/opnsense-mcp-admin.sh"
 # shellcheck source=tools/opnsense-mcp-read-only/tests/opnsense-mcp-read-only.sh
 . "$ROOT_DIR/tools/opnsense-mcp-read-only/tests/opnsense-mcp-read-only.sh"
+# shellcheck source=tools/rg/tests/rg.sh
+. "$ROOT_DIR/tools/rg/tests/rg.sh"
+# shellcheck source=tools/task/tests/task.sh
+. "$ROOT_DIR/tools/task/tests/task.sh"
+# shellcheck source=tools/terraform/tests/terraform.sh
+. "$ROOT_DIR/tools/terraform/tests/terraform.sh"
+# shellcheck source=tools/tessl/tests/tessl.sh
+. "$ROOT_DIR/tools/tessl/tests/tessl.sh"
+# shellcheck source=tools/textual/tests/textual.sh
+. "$ROOT_DIR/tools/textual/tests/textual.sh"
 # shellcheck source=tests/commands/install.sh
 . "$SCRIPT_DIR/commands/install.sh"
 # shellcheck source=tests/commands/test.sh
@@ -70,6 +96,7 @@ main() {
   test_core_catalog_run
   test_core_runtime_run
   test_core_update_run
+  test_commands_agent_preflight_run
   test_commands_lifecycle_prepare
   test_commands_management_run
   test_commands_lifecycle_complete
@@ -79,10 +106,22 @@ main() {
   test_commands_skills_run
   test_commands_dispatcher_run
   test_commands_netinfo_run
+  test_tools_aws_run
   test_tools_gcloud_run
+  test_tools_gdrive_run
+  test_tools_gh_run
+  test_tools_go_run
+  test_tools_jq_run
+  test_tools_netcat_run
   test_tools_nmap_run
+  test_tools_oc_run
   test_tools_opnsense_mcp_read_only_run
   test_tools_opnsense_mcp_admin_run
+  test_tools_rg_run
+  test_tools_task_run
+  test_tools_terraform_run
+  test_tools_tessl_run
+  test_tools_textual_run
   test_commands_install_run
   test_commands_test_run
   printf 'All %s Shimmy tests passed.\n' "$TEST_COUNT"

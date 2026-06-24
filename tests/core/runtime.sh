@@ -37,8 +37,19 @@ test_core_runtime_posix_syntax() {
   pass "dash parse checks"
 }
 
+test_core_runtime_unreachable_guidance() {
+  helper_file=$ROOT_DIR/core/runtime/podman.sh
+  output=$(/bin/sh -c '. "$1"; shimmy_podman_failure_print_unreachable "the rg shim" "/opt/podman/bin/podman"' sh "$helper_file" 2>&1)
+
+  assert_contains "$output" 'AI Agent note: if `podman info` succeeds but this shim still fails'
+  assert_contains "$output" '["rg","--version"] or ["./commands/run-tool.sh","rg","--version"]'
+  assert_contains "$output" 'Approving `podman info` alone does not approve Podman access through a Shimmy wrapper.'
+  pass "Podman unreachable guidance includes exact wrapper approval hints"
+}
+
 test_core_runtime_run() {
   test_core_runtime_platform
   test_core_runtime_preview_helpers
   test_core_runtime_posix_syntax
+  test_core_runtime_unreachable_guidance
 }

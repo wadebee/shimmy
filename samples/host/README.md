@@ -86,7 +86,7 @@ parent defaults.
 Render the effective bundle:
 
 ```sh
-../../shims/go run . config render --system aws --stage dev --slot 1
+../../commands/run-tool.sh go run . config render --system aws --stage dev --slot 1
 ```
 
 Commands that require a subcommand or tuple parameters print usage when those
@@ -113,8 +113,8 @@ without uncommenting policy blocks does not enforce anything.
 The cloud commands require a fully qualified tuple:
 
 ```sh
-../../shims/go run . whoami --system aws --stage dev --slot 1
-../../shims/go run . login --system aws --stage dev --slot 1
+../../commands/run-tool.sh go run . whoami --system aws --stage dev --slot 1
+../../commands/run-tool.sh go run . login --system aws --stage dev --slot 1
 ```
 
 The commands use the rendered bundle, then print stubbed Shimmy-backed AWS
@@ -126,5 +126,5 @@ Run the sample unit tests through Shimmy's Go shim:
 
 ```sh
 cd samples/host
-../../shims/go test ./...
+../../commands/run-tool.sh go test ./...
 ```

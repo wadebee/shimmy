@@ -27,3 +27,5 @@ installation or shell startup files.
 - `test.sh` covers installed-profile test request, metadata validation,
   profile selection, public-dispatch, and concrete-version orchestration with
   disposable wrapper fixtures rather than live containers.
+- `agent-preflight.sh` covers metadata-driven approval smoke commands without
+  requiring a live Podman engine.
