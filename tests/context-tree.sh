@@ -100,6 +100,7 @@ for version_dir in "$ROOT_DIR"/tools/*/versions/*; do
   [ -x "$version_dir/run.sh" ] || fail "missing executable runtime: ${version_dir#$ROOT_DIR/}/run.sh"
   [ -x "$version_dir/refresh.sh" ] || fail "missing executable refresh hook: ${version_dir#$ROOT_DIR/}/refresh.sh"
   [ -f "$version_dir/smoke.conf" ] || fail "missing smoke config: ${version_dir#$ROOT_DIR/}/smoke.conf"
+  [ -f "$version_dir/status.conf" ] || fail "missing status metadata: ${version_dir#$ROOT_DIR/}/status.conf"
 done
 
 printf 'PASS: CONTEXT tree is complete and linked\n'

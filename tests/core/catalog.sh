@@ -90,8 +90,13 @@ test_core_catalog_metadata_complete() {
     for version_dir in "$tool_dir"/versions/*; do
       [ -d "$version_dir" ] || continue
       assert_file_exists "$version_dir/smoke.conf"
+      assert_file_exists "$version_dir/status.conf"
       assert_file_executable "$version_dir/run.sh"
       assert_file_contains "$version_dir/smoke.conf" shim_name=
+      assert_file_contains "$version_dir/status.conf" shim_status_version=1
+      assert_file_contains "$version_dir/status.conf" status_image=
+      status_image=$(sed -n 's/^status_image=//p' "$version_dir/status.conf" | sed -n '1p')
+      assert_not_empty "$status_image"
     done
   done
   pass "tool metadata and concrete runtimes are complete"

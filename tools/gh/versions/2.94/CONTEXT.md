@@ -5,6 +5,8 @@
 without bypassing an image override. `smoke.conf` defines installed smoke
 behavior.
 
+`status.conf` supplies the local-build description rendered by `shimmy status`.
+
 ## Child contexts
 
 - [container build context](container/CONTEXT.md)

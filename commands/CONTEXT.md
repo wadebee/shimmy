@@ -9,8 +9,9 @@ belongs in `../core/`.
 - `install.sh` manages profile installation and removal.
 - `dispatch-tool.sh` dispatches stable installed tool commands to profiles.
 - `run-tool.sh` resolves tool metadata and a concrete version.
-- `status.sh`, `update.sh`, `skills.sh`, `activate.sh`, and `netinfo.sh` retain
-  their corresponding public capabilities.
+- `status.sh` reads concrete-version status metadata; `update.sh`, `skills.sh`,
+  `activate.sh`, and `netinfo.sh` retain their corresponding public
+  capabilities.
 
 ## Related contexts
 

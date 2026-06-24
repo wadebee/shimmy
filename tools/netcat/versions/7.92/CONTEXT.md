@@ -4,6 +4,8 @@
 and cleans stale local images for `shimmy update --build` unless an image
 override is selected.
 
+`status.conf` supplies the local-build description rendered by `shimmy status`.
+
 ## Child contexts
 
 - [container build context](container/CONTEXT.md)

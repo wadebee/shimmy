@@ -3,3 +3,5 @@
 `run.sh` owns opt-in LAN, network, privilege, and capability controls.
 `refresh.sh` pulls its effective image for `shimmy update --pull` using the
 declared smoke command.
+
+`status.conf` supplies the image description rendered by `shimmy status`.

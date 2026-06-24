@@ -92,7 +92,7 @@ You may split this work into smaller iterations as needed to keep your context w
   skills, netinfo, and layout-version rejection against disposable installs.
 - [x] Segment 2a: Move the install, update, and netinfo implementations into
   sourceable `core/` entry modules and retain thin public command entrypoints.
-- [ ] Segment 2b: Split those core entry modules into their planned narrow
+- [x] Segment 2b: Split those core entry modules into their planned narrow
   request, manifest, profile, runtime-refresh, platform-discovery, and
   rendering modules.
 - [ ] Recover and modularize the complete behavioral test suite before further
@@ -137,8 +137,10 @@ You may split this work into smaller iterations as needed to keep your context w
   concrete-version `refresh.sh` hooks and generic hook dispatch.
 - [x] Segment 2b.5: Split install lifecycle request, manifest, profile-asset,
   startup, and uninstall responsibilities into sourceable core modules.
-- [ ] Split install, update, and netinfo into the planned `core/` submodules.
-- [ ] Replace update cases with version-local refresh/status hooks.
+- [x] Segment 2b.6: Move status image descriptions into concrete-version
+  `status.conf` metadata and remove status runtime-image inspection.
+- [x] Split install, update, and netinfo into the planned `core/` submodules.
+- [x] Replace update cases with version-local refresh/status hooks.
 - [x] Complete agent-skill canonicalization and adapter/export behavior.
 - [x] Extend contexts and context validation to every source-bearing subtree.
 - [ ] Execute the full acceptance verification matrix and obtain user review.

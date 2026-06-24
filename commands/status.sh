@@ -42,30 +42,25 @@ kind_installed() {
   shimmy_contains_manifest_kind "$manifest_file" "$kind_name"
 }
 
-version_runtime_path() {
-  kind_name=$1
-  version_name=$2
-  version_label=$(shimmy_version_label "$version_name")
-  printf '%s/tools/%s/versions/%s/run.sh\n' "$ROOT_DIR" "$kind_name" "$version_label"
-}
-
 version_image_description() {
   kind_name=$1
   version_name=$2
   version_label=$(shimmy_version_label "$version_name")
   version_dir=$ROOT_DIR/tools/$kind_name/versions/$version_label
+  status_file=$version_dir/status.conf
 
-  if [ -d "$version_dir/container" ]; then
-    printf 'local-build:%s\n' "$version_dir/container"
-    return 0
-  fi
+  [ -f "$status_file" ] || fail "missing version status metadata: $status_file"
+  image_value=$(sed -n 's/^status_image=//p' "$status_file" | sed -n '1p')
+  [ -n "$image_value" ] || fail "missing status_image in version status metadata: $status_file"
 
-  image_value=$(sed -n 's/^SHIMMY_[A-Z0-9_]*_IMAGE=${[^}]*:-\([^}]*\)}$/\1/p' "$version_dir/run.sh" | sed -n '1p')
-  if [ -n "$image_value" ]; then
-    printf '%s\n' "$image_value"
-  else
-    printf 'runtime:%s\n' "$version_dir/run.sh"
-  fi
+  case "$image_value" in
+    local-build:container)
+      printf 'local-build:%s\n' "$version_dir/container"
+      ;;
+    *)
+      printf '%s\n' "$image_value"
+      ;;
+  esac
 }
 
 print_kind_human() {

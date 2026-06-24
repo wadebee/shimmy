@@ -71,6 +71,17 @@ test_commands_profiles_status_available() {
   pass "status distinguishes installed and available tool kinds"
 }
 
+test_commands_profiles_status_image_descriptions() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --shim task --no-startup --no-skills >/dev/null
+  status_output=$(HOME="$HOME_DIR" run_in_repo ./shimmy status --install-dir "$INSTALL_DIR")
+
+  assert_contains "$status_output" "version: 1.8 (jq_1_8) ghcr.io/jqlang/jq:1.8.1"
+  assert_contains "$status_output" "version: 3.45 (task_3_45) local-build:$ROOT_DIR/tools/task/versions/3.45/container"
+  pass "status renders version-owned image metadata"
+}
+
 test_commands_profiles_uninstall_isolation() {
   setup_commands_profiles_both
 
@@ -93,5 +104,6 @@ test_commands_profiles_run() {
   test_commands_profiles_invalid_active_profile
   test_commands_profiles_precedence
   test_commands_profiles_status_available
+  test_commands_profiles_status_image_descriptions
   test_commands_profiles_uninstall_isolation
 }
