@@ -143,6 +143,8 @@ You may split this work into smaller iterations as needed to keep your context w
   manifest validation, and version-owned non-mutating smoke orchestration.
 - [x] Segment 3n: Cover installed-profile test dispatch, concrete-version
   selection, metadata errors, and profile precedence with disposable fixtures.
+- [x] Segment 3o: Restore gcloud configuration-diagnostic coverage for
+  missing, overridden, and present host configuration paths.
 - [x] Split install, update, and netinfo into the planned `core/` submodules.
 - [x] Replace update cases with version-local refresh/status hooks.
 - [x] Complete agent-skill canonicalization and adapter/export behavior.

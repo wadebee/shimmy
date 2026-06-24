@@ -44,6 +44,8 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/commands/dispatcher.sh"
 # shellcheck source=tests/commands/netinfo.sh
 . "$SCRIPT_DIR/commands/netinfo.sh"
+# shellcheck source=tools/gcloud/tests/gcloud.sh
+. "$ROOT_DIR/tools/gcloud/tests/gcloud.sh"
 # shellcheck source=tools/nmap/tests/nmap.sh
 . "$ROOT_DIR/tools/nmap/tests/nmap.sh"
 # shellcheck source=tools/opnsense-mcp-admin/tests/opnsense-mcp-admin.sh
@@ -77,6 +79,7 @@ main() {
   test_commands_skills_run
   test_commands_dispatcher_run
   test_commands_netinfo_run
+  test_tools_gcloud_run
   test_tools_nmap_run
   test_tools_opnsense_mcp_read_only_run
   test_tools_opnsense_mcp_admin_run
