@@ -14,5 +14,8 @@ The entrypoint supplies the source-root paths before calling
   concrete version selections.
 - `management.sh` refreshes management assets from an installed source URL.
 - `profile.sh` discovers installed profiles and refreshes their assets.
-- `update.sh` currently retains image-refresh orchestration pending version-
-  local refresh hooks.
+- `refresh.sh` locates and invokes an installed concrete version's executable
+  refresh hook. Hooks accept `pull` or `build`; they own image override
+  handling, their safe runtime invocation where applicable, and local-image
+  cleanup.
+- `update.sh` retains setup and lifecycle orchestration only.

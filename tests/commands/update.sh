@@ -76,6 +76,16 @@ test_commands_update_installed_management_source() {
   pass "installed management update refreshes from its manifest source"
 }
 
+test_commands_update_irrelevant_image_actions() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim gdrive --shim jq --no-startup --no-skills >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --shim gdrive --pull >/dev/null
+  HOME="$HOME_DIR" run_in_repo ./shimmy update --install-dir "$INSTALL_DIR" --shim jq --build >/dev/null
+
+  pass "update skips irrelevant version-local image refresh actions"
+}
+
 test_commands_update_missing_shim() {
   setup_scenario
 
@@ -130,6 +140,7 @@ test_commands_update_run() {
   test_commands_update_all_profiles
   test_commands_update_invalid_active_profile
   test_commands_update_installed_management_source
+  test_commands_update_irrelevant_image_actions
   test_commands_update_missing_shim
   test_commands_update_preserves_manifest_fields
   test_commands_update_selected_shim

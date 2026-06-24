@@ -1,7 +1,9 @@
 # OPNsense admin MCP 1.0 runtime
 
 `run.sh` validates the firewall URL and secret selectors before starting the
-local-build MCP image.
+local-build MCP image. `refresh.sh` rebuilds and cleans stale local images for
+`shimmy update --build` without requiring endpoint credentials or bypassing an
+image override.
 
 ## Child contexts
 

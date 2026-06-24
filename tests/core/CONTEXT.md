@@ -8,3 +8,5 @@ fixtures and assertions.
 
 - `catalog.sh` validates metadata discovery and preview dispatch.
 - `runtime.sh` validates the shared Podman platform and preview helpers.
+- `update.sh` validates generic dispatch to version-local refresh hooks and the
+  shared `pull`/`build` contract.

@@ -133,6 +133,8 @@ You may split this work into smaller iterations as needed to keep your context w
   selection into narrow sourceable core modules.
 - [x] Segment 2b.3: Split update installed-management and profile-refresh
   lifecycle units into sourceable core modules.
+- [x] Segment 2b.4: Replace centralized update image refresh cases with
+  concrete-version `refresh.sh` hooks and generic hook dispatch.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
 - [x] Complete agent-skill canonicalization and adapter/export behavior.

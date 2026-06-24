@@ -20,6 +20,8 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/core/catalog.sh"
 # shellcheck source=tests/core/runtime.sh
 . "$SCRIPT_DIR/core/runtime.sh"
+# shellcheck source=tests/core/update.sh
+. "$SCRIPT_DIR/core/update.sh"
 # shellcheck source=tests/commands/lifecycle.sh
 . "$SCRIPT_DIR/commands/lifecycle.sh"
 # shellcheck source=tests/commands/management.sh
@@ -50,6 +52,7 @@ trap shimmy_test_cleanup EXIT HUP INT TERM
 main() {
   test_core_catalog_run
   test_core_runtime_run
+  test_core_update_run
   test_commands_lifecycle_prepare
   test_commands_management_run
   test_commands_lifecycle_complete

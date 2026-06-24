@@ -2,8 +2,9 @@
 
 Each child directory is a self-contained tool kind. `tool.conf` declares its
 default version and optional selector environment; concrete versions live in
-`versions/<major.minor>/`. A tool directory also owns its guide and canonical
-agent skill.
+`versions/<major.minor>/`. Each concrete version owns `run.sh`, `refresh.sh`,
+and `smoke.conf`. A tool directory also owns its guide and canonical agent
+skill.
 
 ## Child contexts
 

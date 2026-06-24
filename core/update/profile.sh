@@ -86,10 +86,10 @@ EOF
 
   shimmy_update_profile_paths_resolve "$install_dir"
   if [ "$PULL_IMAGES" -eq 1 ]; then
-    run_pull_refresh "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" "$profile_name" "$version_list"
+    shimmy_update_refresh_hooks_run pull "$profile_name" "$version_list"
   fi
 
   if [ "$BUILD_IMAGES" -eq 1 ]; then
-    run_build_refresh "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" "$SHIMMY_PROFILE_DIR/images" "$profile_name" "$version_list"
+    shimmy_update_refresh_hooks_run build "$profile_name" "$version_list"
   fi
 }

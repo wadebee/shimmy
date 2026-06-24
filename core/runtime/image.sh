@@ -94,3 +94,33 @@ shimmy_local_image_ensure() {
 
   printf '%s\n' "$image_ref"
 }
+
+shimmy_local_image_stale_cleanup() {
+  image_repo=$1
+  context_dir=$2
+
+  current_hash=$(shimmy_context_hash_render "$context_dir" 2>/dev/null || true)
+  [ -n "$current_hash" ] || return 0
+
+  shimmy_podman_preflight_require "local shim image cleanup" || return 1
+  platform_tag=$(shimmy_podman_platform_tag_render "$SHIMMY_PODMAN_PLATFORM")
+  current_ref=${image_repo}:${current_hash}-${platform_tag}
+
+  "$SHIMMY_PODMAN_BIN" images \
+    --filter "label=io.wadebee.shimmy.image-repo=${image_repo}" \
+    --format '{{.Repository}}:{{.Tag}}' | sort -u | while IFS= read -r image_ref; do
+      [ -n "$image_ref" ] || continue
+      case "$image_ref" in
+        "<none>:<none>"|"<none>:"*|*":<none>")
+          continue
+          ;;
+      esac
+      [ "$image_ref" != "$current_ref" ] || continue
+
+      if "$SHIMMY_PODMAN_BIN" image rm "$image_ref" >/dev/null 2>&1; then
+        shimmy_log_warn "Removed stale shim image: $image_ref"
+      else
+        shimmy_log_warn "Unable to remove stale shim image (possibly in use): $image_ref"
+      fi
+    done
+}

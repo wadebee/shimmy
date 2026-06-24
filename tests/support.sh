@@ -135,7 +135,7 @@ tracked_shell_file_list() {
     "$ROOT_DIR"/tests/*.sh \
     "$ROOT_DIR"/tests/*/*.sh \
     "$ROOT_DIR"/tools/*/tests/*.sh \
-    "$ROOT_DIR"/tools/*/versions/*/run.sh
+    "$ROOT_DIR"/tools/*/versions/*/*.sh
   do
     [ -f "$shell_file" ] || continue
     printf '%s\n' "$shell_file"

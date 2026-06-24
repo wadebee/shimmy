@@ -98,6 +98,7 @@ done
 for version_dir in "$ROOT_DIR"/tools/*/versions/*; do
   [ -d "$version_dir" ] || continue
   [ -x "$version_dir/run.sh" ] || fail "missing executable runtime: ${version_dir#$ROOT_DIR/}/run.sh"
+  [ -x "$version_dir/refresh.sh" ] || fail "missing executable refresh hook: ${version_dir#$ROOT_DIR/}/refresh.sh"
   [ -f "$version_dir/smoke.conf" ] || fail "missing smoke config: ${version_dir#$ROOT_DIR/}/smoke.conf"
 done
 
