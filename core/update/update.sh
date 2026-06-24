@@ -17,17 +17,7 @@ SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/core/runtime/image.sh
 SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/core/runtime/podman.sh
 SHIMMY_RUNTIME_DIR=$ROOT_DIR/core/runtime
 DEFAULT_INSTALL_DIR=${SHIMMY_INSTALL_DIR:-${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}}
-REQUESTED_INSTALL_DIR=
-SHIMMY_PROFILE_REQUESTED=
-REQUESTED_SHIMS=
-REQUESTED_SHELL=
-REQUESTED_STARTUP_FILES=
-PULL_IMAGES=0
-BUILD_IMAGES=0
-REPAIR_STARTUP=0
-UPDATE_ALL=0
 PREVIOUS_SOURCE_REF=
-SHIMMY_PROFILE_ACTIVATED=0
 UPDATE_SOURCE_CHECKOUT=
 
 fail() {
@@ -75,37 +65,10 @@ fi
 . "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 # shellcheck source=core/runtime/podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
-
-install_dir_resolve() {
-  if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    printf '%s\n' "$(shimmy_trim_path_trailing_slash "$REQUESTED_INSTALL_DIR")"
-    return 0
-  fi
-
-  printf '%s\n' "$(shimmy_trim_path_trailing_slash "$DEFAULT_INSTALL_DIR")"
-}
-
-manifest_file_resolve() {
-  printf '%s\n' "$SHIMMY_PROFILE_MANIFEST_PATH"
-}
-
-profile_paths_resolve() {
-  install_dir=$1
-
-  if ! shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$install_dir" "$ROOT_DIR"; then
-    fail "unsupported Shimmy profile: ${SHIMMY_PROFILE_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
-  fi
-}
-
-requested_shim_append() {
-  requested_shim=$1
-
-  if [ -n "$REQUESTED_SHIMS" ]; then
-    REQUESTED_SHIMS="$REQUESTED_SHIMS $requested_shim"
-  else
-    REQUESTED_SHIMS=$requested_shim
-  fi
-}
+# shellcheck source=core/update/request.sh
+. "$ROOT_DIR/core/update/request.sh"
+# shellcheck source=core/update/selection.sh
+. "$ROOT_DIR/core/update/selection.sh"
 
 is_installed_management_update() {
   install_dir=$1
@@ -375,94 +338,6 @@ $shim_list
 EOF
 }
 
-installed_kind_version_names() {
-  manifest_file=$1
-  kind_filter=${2:-}
-  version_names=
-
-  while IFS= read -r kind_version_entry; do
-    [ -n "$kind_version_entry" ] || continue
-    kind_name=${kind_version_entry%%|*}
-    entry_remainder=${kind_version_entry#*|}
-    version_label=${entry_remainder%%|*}
-    version_name=${kind_version_entry##*|}
-    [ "$version_label" != default ] || continue
-    [ -z "$kind_filter" ] || [ "$kind_filter" = "$kind_name" ] || continue
-    if ! shimmy_contains_line_list "$version_names" "$version_name"; then
-      version_names=$(shimmy_append_line_list "$version_names" "$version_name")
-    fi
-  done <<EOF
-$(shimmy_read_manifest_kind_versions "$manifest_file" || true)
-EOF
-
-  printf '%s\n' "$version_names"
-}
-
-default_installed_kind_request_list() {
-  manifest_file=$1
-  installed_kinds=$(shimmy_read_manifest_kinds "$manifest_file")
-  default_installed_requests=
-
-  for kind_name in $(shimmy_default_kind_list); do
-    if shimmy_contains_line_list "$installed_kinds" "$kind_name"; then
-      default_installed_requests=$(shimmy_append_line_list "$default_installed_requests" "$kind_name")
-      for version_name in $(installed_kind_version_names "$manifest_file" "$kind_name"); do
-        default_installed_requests=$(shimmy_append_line_list "$default_installed_requests" "$version_name")
-      done
-    fi
-  done
-
-  printf '%s\n' "$default_installed_requests"
-}
-
-request_version_label_validate() {
-  manifest_file=$1
-  kind_name=$2
-  version_label=$3
-  version_name=$(shimmy_kind_version_for_label "$kind_name" "$version_label" || true)
-  [ -n "$version_name" ] || fail "unsupported $kind_name version: $version_label"
-
-  expected_entry=$kind_name\|$version_label\|$version_name
-  if ! shimmy_contains_line_list "$(shimmy_read_manifest_kind_versions "$manifest_file" || true)" "$expected_entry"; then
-    fail "$kind_name@$version_label not installed; run shimmy install --shim $kind_name@$version_label"
-  fi
-
-  printf '%s\n' "$version_name"
-}
-
-refresh_requests_for_shim() {
-  manifest_file=$1
-  requested_shim=$2
-  installed_kinds=$(shimmy_read_manifest_kinds "$manifest_file" || true)
-
-  case "$requested_shim" in
-    *@*)
-      kind_name=${requested_shim%%@*}
-      version_label=${requested_shim#*@}
-      shimmy_is_kind "$kind_name" || fail "unsupported shim kind: $kind_name"
-      shimmy_contains_line_list "$installed_kinds" "$kind_name" || fail "$kind_name not installed; run shimmy install --shim $kind_name"
-      version_name=$(request_version_label_validate "$manifest_file" "$kind_name" "$version_label")
-      printf '%s\n%s\n' "$kind_name" "$version_name"
-      ;;
-    *)
-      if shimmy_is_kind "$requested_shim"; then
-        kind_name=$requested_shim
-        shimmy_contains_line_list "$installed_kinds" "$kind_name" || fail "$kind_name not installed; run shimmy install --shim $kind_name"
-        printf '%s\n' "$kind_name"
-        installed_kind_version_names "$manifest_file" "$kind_name"
-      elif shimmy_is_version "$requested_shim"; then
-        version_name=$requested_shim
-        kind_name=$(shimmy_version_kind "$version_name")
-        shimmy_contains_line_list "$installed_kinds" "$kind_name" || fail "$kind_name not installed; run shimmy install --shim $kind_name"
-        request_version_label_validate "$manifest_file" "$kind_name" "$(shimmy_version_label "$version_name")" >/dev/null
-        printf '%s\n%s\n' "$kind_name" "$version_name"
-      else
-        fail "unsupported shim kind: $requested_shim"
-      fi
-      ;;
-  esac
-}
-
 installed_profile_list() {
   root_manifest_file=$1
   profile_names=
@@ -546,7 +421,7 @@ EOF
     fi
   fi
 
-  profile_paths_resolve "$install_dir"
+  shimmy_update_profile_paths_resolve "$install_dir"
   if [ "$PULL_IMAGES" -eq 1 ]; then
     run_pull_refresh "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" "$profile_name" "$version_list"
   fi
@@ -556,86 +431,7 @@ EOF
   fi
 }
 
-usage() {
-  cat <<'EOF'
-Refresh an existing shimmy installation.
-
-Usage:
-  commands/update.sh [--install-dir <dir>] [--profile default|upstream] [--shim <name>] [--all] [--pull] [--build] [--repair-startup]
-
-When run from a source checkout, update refreshes the install from that checkout.
-When run through an installed shimmy command, update fetches the recorded
-shimmy_source_url and refreshes the management plane from that source.
-
-Options:
-  --install-dir <dir>   Base install directory. Default: ~/.config/shimmy
-  --profile <name>         Update profile: default or upstream
-  --shim <name>         Refresh one installed shim in the selected profile. Repeatable.
-  --all                 Refresh root assets and every installed profile shim.
-  --pull                Pull newer remote images for installed remote-image shims.
-  --build               Rebuild local images for installed local-build shims.
-  --repair-startup      Rewrite the managed Shimmy startup block after reinstalling
-  --shell <name>        Override shell detection for startup-file repair
-  --startup-file <path> Override startup files used during repair. Repeatable.
-  -h, --help
-EOF
-}
-
-shimmy_update_run() {
-  while [ "$#" -gt 0 ]; do
-    case "$1" in
-      --install-dir)
-        [ "$#" -ge 2 ] || fail "missing value for --install-dir"
-        REQUESTED_INSTALL_DIR=$2
-        shift 2
-        ;;
-      --profile)
-        [ "$#" -ge 2 ] || fail "missing value for --profile"
-        SHIMMY_PROFILE_REQUESTED=$2
-        SHIMMY_PROFILE_ACTIVATED=1
-        shift 2
-        ;;
-      --shim)
-        [ "$#" -ge 2 ] || fail "missing value for --shim"
-        requested_shim_append "$2"
-        shift 2
-        ;;
-      --all)
-        UPDATE_ALL=1
-        shift
-        ;;
-      --pull)
-        PULL_IMAGES=1
-        shift
-        ;;
-      --build)
-        BUILD_IMAGES=1
-        shift
-        ;;
-      --repair-startup)
-        REPAIR_STARTUP=1
-        shift
-        ;;
-      --shell)
-        [ "$#" -ge 2 ] || fail "missing value for --shell"
-        REQUESTED_SHELL=$2
-        shift 2
-        ;;
-      --startup-file)
-        [ "$#" -ge 2 ] || fail "missing value for --startup-file"
-        REQUESTED_STARTUP_FILES=$(shimmy_append_line_list "$REQUESTED_STARTUP_FILES" "$2")
-        shift 2
-        ;;
-      -h|--help)
-        usage
-        exit 0
-        ;;
-      *)
-        fail "unknown argument: $1"
-        ;;
-    esac
-  done
-
+shimmy_update_orchestration_run() {
   if [ -n "${SHIMMY_PROFILE_ACTIVE:-}" ]; then
     SHIMMY_PROFILE_ACTIVATED=1
   fi
@@ -644,13 +440,13 @@ shimmy_update_run() {
     fail "--all cannot be combined with --shim"
   fi
 
-  install_dir=$(install_dir_resolve)
+  install_dir=$(shimmy_update_install_dir_resolve)
   if [ "$UPDATE_ALL" -eq 1 ]; then
     SHIMMY_PROFILE_REQUESTED=default
   fi
-  profile_paths_resolve "$install_dir"
+  shimmy_update_profile_paths_resolve "$install_dir"
   install_dir=$SHIMMY_PROFILE_INSTALL_DIR
-  manifest_file=$(manifest_file_resolve)
+  manifest_file=$(shimmy_update_manifest_file_resolve)
   root_manifest_file=$install_dir/install-manifest.txt
 
   shimmy_install_layout_validate "$root_manifest_file" || fail "legacy Shimmy install layout detected; uninstall and reinstall"
@@ -658,8 +454,8 @@ shimmy_update_run() {
   manifest_install_dir=$(shimmy_read_manifest_value "$root_manifest_file" install_dir || true)
   if [ -n "$manifest_install_dir" ]; then
     install_dir=$(shimmy_trim_path_trailing_slash "$manifest_install_dir")
-    profile_paths_resolve "$install_dir"
-    manifest_file=$(manifest_file_resolve)
+    shimmy_update_profile_paths_resolve "$install_dir"
+    manifest_file=$(shimmy_update_manifest_file_resolve)
     root_manifest_file=$install_dir/install-manifest.txt
   fi
 
@@ -668,8 +464,8 @@ shimmy_update_run() {
     first_profile_name=$(installed_profile_list "$root_manifest_file" | sed -n '1p')
     [ -n "$first_profile_name" ] || fail "no shimmy profiles found under $install_dir; run ./shimmy install first"
     SHIMMY_PROFILE_REQUESTED=$first_profile_name
-    profile_paths_resolve "$install_dir"
-    manifest_file=$(manifest_file_resolve)
+    shimmy_update_profile_paths_resolve "$install_dir"
+    manifest_file=$(shimmy_update_manifest_file_resolve)
   fi
 
   if [ ! -f "$manifest_file" ]; then
@@ -688,14 +484,14 @@ shimmy_update_run() {
     while IFS= read -r profile_name; do
       [ -n "$profile_name" ] || continue
       SHIMMY_PROFILE_REQUESTED=$profile_name
-      profile_paths_resolve "$install_dir"
-      profile_manifest_file=$(manifest_file_resolve)
+      shimmy_update_profile_paths_resolve "$install_dir"
+      profile_manifest_file=$(shimmy_update_manifest_file_resolve)
       [ -f "$profile_manifest_file" ] || fail "no shimmy profile manifest found for profile $profile_name at $profile_manifest_file"
       profile_requests=$(shimmy_read_manifest_kinds "$profile_manifest_file")
-      for version_name in $(installed_kind_version_names "$profile_manifest_file"); do
+  for version_name in $(shimmy_update_installed_kind_version_names "$profile_manifest_file"); do
         profile_requests=$(shimmy_append_line_list "$profile_requests" "$version_name")
       done
-      profile_versions=$(installed_kind_version_names "$profile_manifest_file")
+      profile_versions=$(shimmy_update_installed_kind_version_names "$profile_manifest_file")
       profile_refresh_run "$profile_name" "$profile_manifest_file" "$profile_requests" "$profile_versions"
     done <<EOF
 $(installed_profile_list "$root_manifest_file")
@@ -707,7 +503,7 @@ EOF
     refresh_requests=
     refresh_versions=
     for requested_shim in $REQUESTED_SHIMS; do
-      resolved_requests=$(refresh_requests_for_shim "$manifest_file" "$requested_shim")
+      resolved_requests=$(shimmy_update_refresh_requests_for_shim "$manifest_file" "$requested_shim")
       while IFS= read -r refresh_request; do
         [ -n "$refresh_request" ] || continue
         if ! shimmy_contains_line_list "$refresh_requests" "$refresh_request"; then
@@ -723,7 +519,7 @@ EOF
     shims_to_refresh=$refresh_requests
     versions_to_refresh=$refresh_versions
   else
-    shims_to_refresh=$(default_installed_kind_request_list "$manifest_file")
+    shims_to_refresh=$(shimmy_update_default_installed_kind_request_list "$manifest_file")
     versions_to_refresh=
     for refresh_request in $shims_to_refresh; do
       if shimmy_is_version "$refresh_request" && ! shimmy_contains_line_list "$versions_to_refresh" "$refresh_request"; then
@@ -734,4 +530,10 @@ EOF
   fi
 
   profile_refresh_run "$SHIMMY_PROFILE_NAME" "$manifest_file" "$shims_to_refresh" "$versions_to_refresh"
+}
+
+shimmy_update_run() {
+  shimmy_update_request_reset
+  shimmy_update_request_parse "$@"
+  shimmy_update_orchestration_run
 }

@@ -127,6 +127,10 @@ You may split this work into smaller iterations as needed to keep your context w
   command, core, tool, test, and local-build layout.
 - [x] Segment 4b: Reconcile all canonical tool skills and make skill export
   source only canonical `agent/` and `tools/<kind>/agent/` directories.
+- [x] Segment 2b.1: Split netinfo orchestration into sourceable request, CIDR,
+  platform-discovery, and rendering modules while preserving its public command.
+- [x] Segment 2b.2: Split update request parsing and installed-profile/version
+  selection into narrow sourceable core modules.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
 - [x] Complete agent-skill canonicalization and adapter/export behavior.
