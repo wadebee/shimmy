@@ -16,18 +16,21 @@ test_tools_oc_preview_contract() {
 }
 
 test_tools_oc_manifest_list_default() {
-  base_image=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:61136a31003a378aae4039be61cfe10f3d2b60399f08a5325233826deb569383
+  base_image_4_18=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:16c25aadbd5f564a7c5f1508470f734d676a411b89bd98b307001619d1a5338f
+  base_image_4_20=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:61136a31003a378aae4039be61cfe10f3d2b60399f08a5325233826deb569383
+  base_image_4_22=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:83541f26b665963dea277a7f893725f4a1812b0550d07404f1429ed8da6b3bb2
 
-  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.20/container/Containerfile" "$base_image"
-  assert_not_contains "$base_image" x86_64
-  assert_not_contains "$base_image" aarch64
-  pass "oc 4.20 defaults to the Red Hat multi-architecture manifest list"
+  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.18/container/Containerfile" "$base_image_4_18"
+  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.20/container/Containerfile" "$base_image_4_20"
+  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.22/container/Containerfile" "$base_image_4_22"
+  assert_not_contains "$base_image_4_18$base_image_4_20$base_image_4_22" x86_64
+  assert_not_contains "$base_image_4_18$base_image_4_20$base_image_4_22" aarch64
+  pass "oc defaults to Red Hat multi-architecture manifest lists"
 }
 
-test_tools_oc_smoke_client_only() {
+test_tools_oc_smoke_help() {
   for smoke_file in "$ROOT_DIR"/tools/oc/versions/*/smoke.conf; do
-    assert_file_contains "$smoke_file" 'smoke_arg=version'
-    assert_file_contains "$smoke_file" 'smoke_arg=--client'
+    assert_file_contains "$smoke_file" 'smoke_arg=--help'
   done
   pass "oc smoke metadata avoids cluster network access"
 }
@@ -35,5 +38,5 @@ test_tools_oc_smoke_client_only() {
 test_tools_oc_run() {
   test_tools_oc_manifest_list_default
   test_tools_oc_preview_contract
-  test_tools_oc_smoke_client_only
+  test_tools_oc_smoke_help
 }

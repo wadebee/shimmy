@@ -1,7 +1,6 @@
-# Default base image is an unqualified short name so Podman can resolve it via
-# /etc/containers/registries.conf. Override with SHIMMY_OC_4_18_BASE_IMAGE to
-# point at a different short name or registry as needed.
-ARG SHIMMY_OC_4_18_BASE_IMAGE=openshift4/ose-cli:4.18
+# The Red Hat-supplied manifest-list digest selects the matching supported
+# architecture. Override only with another fully qualified compatible image.
+ARG SHIMMY_OC_4_18_BASE_IMAGE=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:16c25aadbd5f564a7c5f1508470f734d676a411b89bd98b307001619d1a5338f
 FROM ${SHIMMY_OC_4_18_BASE_IMAGE}
 
 WORKDIR /work

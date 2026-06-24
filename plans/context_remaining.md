@@ -1,5 +1,10 @@
 # Remaining Context-first Shimmy Reorganization
 
+> Status: complete. This file retains the implementation record and the
+> evidence needed to review the finished migration. Use
+> [context-handoff.md](context-handoff.md) as the prompt for any fresh review
+> or follow-up session.
+
 ## Goal
 
 Complete the context-first migration without reducing Shimmy behavior coverage.
@@ -14,6 +19,21 @@ You may split this work into smaller iterations as needed to keep your context w
 ## Handoff context
 
 ### Current repository state
+
+#### Completion status
+
+- The context-first migration is complete: runtime, lifecycle, skills,
+  contexts, documentation, and tests use `commands/`, `core/`, `tools/`, and
+  `tests/` rather than the retired source roots.
+- Every tool kind owns a test module. The complete source suite passes when
+  run with `SHIMMY_PROFILE_ACTIVE` unset so it does not target a user's
+  installed profile.
+- All 18 concrete versions have an exact-approved, live non-mutating smoke
+  result. The three OC tracks use Red Hat multi-architecture manifest-list
+  digests and `oc --help` to avoid network-dependent version checks.
+- The user owns commits. Do not assume that locally built or pulled images
+  remain available in a later environment; obtain explicit authority before
+  refreshing them again.
 
 - Latest validated commit: `0fccc9d` (`test(gcloud): add gcloud context test
   files, update test script`). The worktree was clean when this handoff was
@@ -69,7 +89,7 @@ You may split this work into smaller iterations as needed to keep your context w
 - A prior live `./commands/run-tool.sh jq --version` smoke succeeded. It does
   not satisfy the final per-version live-smoke requirement.
 
-### Next-window execution plan
+### Historical execution plan (complete)
 
 1. Close test-recovery coverage.
    - Compare the current suite with `git show 33c0240:scripts/test-shimmy.sh`.
@@ -181,16 +201,15 @@ You may split this work into smaller iterations as needed to keep your context w
 - [x] Segment 5b.1: Build or pull all non-OC images and run exact-approved
   live smokes successfully for the remaining 15 concrete versions.
 - [x] Segment 5b.2: Pin OC 4.20 to the supplied Red Hat multi-architecture
-  CLI manifest-list digest and make OC smoke metadata client-only.
-- [ ] Segment 5b.3: Complete OC live acceptance. Supply separate Red Hat
-  manifest-list digests for the 4.18 and 4.22 tracks; then retry the three
-  client-only smokes after resolving the current Podman runtime stall, which
-  prevents even a minimal local container from starting.
+  CLI manifest-list digest and make OC smoke metadata non-network.
+- [x] Segment 5b.3: Pin the supplied Red Hat manifest-list digests for the
+  4.18 and 4.22 tracks, rebuild all three OC local images, and complete the
+  exact-approved `oc --help` live smokes.
 - [x] Split install, update, and netinfo into the planned `core/` submodules.
 - [x] Replace update cases with version-local refresh/status hooks.
 - [x] Complete agent-skill canonicalization and adapter/export behavior.
 - [x] Extend contexts and context validation to every source-bearing subtree.
-- [ ] Execute the full acceptance verification matrix and obtain user review.
+- [x] Execute the full acceptance verification matrix and obtain user review.
 
 ## Core and lifecycle modularization
 
@@ -264,3 +283,11 @@ You may split this work into smaller iterations as needed to keep your context w
   context where applicable.
 - The complete restored suite passes, and every concrete version has a live
   non-mutating Podman smoke result.
+
+## Fresh-prompt handoff
+
+Start a follow-up session with [context-handoff.md](context-handoff.md). It
+sets the current scope to review and follow-up work instead of replaying the
+completed migration. The separate
+[multi-architecture-manifest.md](multi-architecture-manifest.md) plan records
+future research into reusable manifest-list defaults for local-build tools.
