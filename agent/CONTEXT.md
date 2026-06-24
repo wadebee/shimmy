@@ -1,8 +1,9 @@
 # Canonical agent guidance
 
 Canonical management skills live in `core/`; each tool's canonical skill is
-co-located at `../tools/<kind>/agent/SKILL.md`. The read-only `.agents/` tree
-is a distribution adapter for existing local agent sessions.
+co-located at `../tools/<kind>/agent/SKILL.md`. `commands/skills.sh` exports
+only from those canonical sources. The read-only `.agents/` tree is an
+externally managed compatibility distribution adapter for existing sessions.
 
 ## Child contexts
 

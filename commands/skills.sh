@@ -155,12 +155,7 @@ skill_source_dir_resolve() {
       ;;
   esac
 
-  if [ -f "$ROOT_DIR/.agents/skills/$skill_name/SKILL.md" ]; then
-    printf '%s/.agents/skills/%s\n' "$ROOT_DIR" "$skill_name"
-    return 0
-  fi
-
-  fail "missing source skill: $skill_name"
+  fail "missing canonical source skill: $skill_name"
 }
 
 skill_source_exists() {

@@ -12,6 +12,7 @@ test_commands_skills_export_folder() {
   assert_file_exists "$export_dir/shimmy-init/SKILL.md"
   assert_file_exists "$export_dir/.shimmy-skills-manifest.txt"
   assert_file_contains "$export_dir/.shimmy-skills-manifest.txt" "shimmy_skills_target=export"
+  diff -qr "$ROOT_DIR/agent/core/shimmy-install" "$export_dir/shimmy-install" >/dev/null
   pass "skills export writes a portable folder"
 }
 

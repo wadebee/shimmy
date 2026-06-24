@@ -51,9 +51,9 @@ You may split this work into smaller iterations as needed to keep your context w
 - `tests/context-tree.sh` now enforces linked contexts for every source-bearing
   directory below `agent/`, `commands/`, `core/`, `tools/`, and `tests/`,
   including canonical skills, test modules, and local container contexts.
-- `agent/` and `tools/<kind>/agent/` contain canonical copies created during
-  the migration. Core skills now use the context-first paths; tool skills and
-  the read-only `.agents/` adapter still need full reconciliation.
+- `agent/` and `tools/<kind>/agent/` are the sole canonical skill sources.
+  `commands/skills.sh` exports from them without falling back to the read-only
+  `.agents/` compatibility adapter.
 
 ### Environment and permission constraints
 
@@ -125,9 +125,11 @@ You may split this work into smaller iterations as needed to keep your context w
   disposable manifest-recorded Git source.
 - [x] Segment 4a: Reconcile canonical core skills with the context-first
   command, core, tool, test, and local-build layout.
+- [x] Segment 4b: Reconcile all canonical tool skills and make skill export
+  source only canonical `agent/` and `tools/<kind>/agent/` directories.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
-- [ ] Complete agent-skill canonicalization and adapter/export behavior.
+- [x] Complete agent-skill canonicalization and adapter/export behavior.
 - [x] Extend contexts and context validation to every source-bearing subtree.
 - [ ] Execute the full acceptance verification matrix and obtain user review.
 
