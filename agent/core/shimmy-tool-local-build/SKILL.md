@@ -1,28 +1,44 @@
-# shimmy-tool-local-build
+---
+name: shimmy-tool-local-build
+description: Create, change, test, or troubleshoot a Shimmy concrete version that builds a local Podman image from a tool-owned container context.
+---
 
-## Purpose
-Provides guidance for enabling and managing local image builds for Shimmy concrete version shims that require directory-based container construction.
+# Shimmy Local Image Builds
 
-## Usage
-1. **For new version shims**: Add to `local_build_repo_for_shim` in `scripts/update-shimmy.sh` with format:
-   ```sh
-   <kind>_<major>_<minor>) printf 'localhost/shimmy-<kind>-<major>_<minor>\n' ;;
-   ```
-2. **Containerfile requirements**: Ensure version shims have a valid `images/<kind>_<major>_<minor>/Containerfile`.
-3. **Cleanup automation**: New version shims should participate in `cleanup_old_local_images` cleanup logic through their versioned local image repo.
+## Layout
 
-## Example
-For opnsense-mcp version shims:
-```sh
-# In scripts/update-shimmy.sh
-local_build_repo_for_shim() {
-  case "$1" in
-    # ... existing cases ...
-    opnsense-mcp-admin_1_0) printf 'localhost/shimmy-opnsense-mcp-admin-1_0\n' ;;
-    opnsense-mcp-read-only_0_4) printf 'localhost/shimmy-opnsense-mcp-read-only-0_4\n' ;;
-  esac
-}
+A local-build concrete version owns its build context:
+
+```text
+tools/<kind>/versions/<major.minor>/
+  run.sh
+  smoke.conf
+  container/Containerfile
 ```
 
+`run.sh` uses `core/runtime/image.sh` to build or reuse the local image. Keep
+image naming, hash labels, and platform selection in the shared helper; do not
+copy image-cache logic into a tool runtime.
+
+## Rules
+
+- Keep every build argument and image override under the `SHIMMY_` prefix.
+- Default to the cached local image; use a documented
+  `SHIMMY_<TOOL>_IMAGE_BUILD=always` opt-in for rebuilds.
+- Place tool-specific source or base-image overrides in the version runtime
+  and document them in the guide and tool skill.
+- Keep `Containerfile` dependencies pinned where reproducibility matters.
+- Preserve `$PWD:/work`, shared platform resolution, and non-mutating preview
+  behavior.
+
 ## Validation
-Run `cleanup_old_local_images opnsense-mcp-admin_1_0` to verify cleanup targets are generated.
+
+Use preview first:
+
+```sh
+./commands/run-tool.sh <kind> --preview-shim --help
+```
+
+Use a live build only with explicit user authorization and a running Podman
+engine. Exercise it with a non-mutating tool command, then run `./shimmy test`
+and `git diff --check`.

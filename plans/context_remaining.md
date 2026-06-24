@@ -52,8 +52,8 @@ You may split this work into smaller iterations as needed to keep your context w
   directory below `agent/`, `commands/`, `core/`, `tools/`, and `tests/`,
   including canonical skills, test modules, and local container contexts.
 - `agent/` and `tools/<kind>/agent/` contain canonical copies created during
-  the migration, but core skill text and the read-only `.agents/` adapter have
-  not been fully reconciled with the new paths.
+  the migration. Core skills now use the context-first paths; tool skills and
+  the read-only `.agents/` adapter still need full reconciliation.
 
 ### Environment and permission constraints
 
@@ -123,6 +123,8 @@ You may split this work into smaller iterations as needed to keep your context w
   macOS Podman guidance coverage.
 - [x] Segment 3l: Restore installed-management update coverage against a
   disposable manifest-recorded Git source.
+- [x] Segment 4a: Reconcile canonical core skills with the context-first
+  command, core, tool, test, and local-build layout.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
 - [ ] Complete agent-skill canonicalization and adapter/export behavior.
