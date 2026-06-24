@@ -16,6 +16,12 @@ TEST_COUNT=0
 
 # shellcheck source=tests/support.sh
 . "$SCRIPT_DIR/support.sh"
+# shellcheck source=core/common/common.sh
+. "$ROOT_DIR/core/common/common.sh"
+# shellcheck source=core/profile/profile.sh
+. "$ROOT_DIR/core/profile/profile.sh"
+# shellcheck source=tests/profile-smoke.sh
+. "$SCRIPT_DIR/profile-smoke.sh"
 # shellcheck source=tests/core/catalog.sh
 . "$SCRIPT_DIR/core/catalog.sh"
 # shellcheck source=tests/core/runtime.sh
@@ -46,10 +52,19 @@ TEST_COUNT=0
 . "$ROOT_DIR/tools/opnsense-mcp-read-only/tests/opnsense-mcp-read-only.sh"
 # shellcheck source=tests/commands/install.sh
 . "$SCRIPT_DIR/commands/install.sh"
+# shellcheck source=tests/commands/test.sh
+. "$SCRIPT_DIR/commands/test.sh"
 
 trap shimmy_test_cleanup EXIT HUP INT TERM
 
 main() {
+  test_profile_mode_parse "$@"
+  if [ "$TEST_PROFILE_RUN" -eq 1 ]; then
+    test_profile_smoke_run
+    printf 'All %s Shimmy tests passed.\n' "$TEST_COUNT"
+    return 0
+  fi
+
   test_core_catalog_run
   test_core_runtime_run
   test_core_update_run
@@ -66,6 +81,7 @@ main() {
   test_tools_opnsense_mcp_read_only_run
   test_tools_opnsense_mcp_admin_run
   test_commands_install_run
+  test_commands_test_run
   printf 'All %s Shimmy tests passed.\n' "$TEST_COUNT"
 }
 

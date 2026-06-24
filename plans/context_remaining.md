@@ -139,6 +139,8 @@ You may split this work into smaller iterations as needed to keep your context w
   startup, and uninstall responsibilities into sourceable core modules.
 - [x] Segment 2b.6: Move status image descriptions into concrete-version
   `status.conf` metadata and remove status runtime-image inspection.
+- [x] Segment 3m: Restore `shimmy test` installed-profile request parsing,
+  manifest validation, and version-owned non-mutating smoke orchestration.
 - [x] Split install, update, and netinfo into the planned `core/` submodules.
 - [x] Replace update cases with version-local refresh/status hooks.
 - [x] Complete agent-skill canonicalization and adapter/export behavior.

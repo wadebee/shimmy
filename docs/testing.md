@@ -6,6 +6,19 @@ Run the repository suite from the root:
 ./shimmy test
 ```
 
+To smoke an installed profile through its real wrappers, use:
+
+```sh
+shimmy test --profile default
+shimmy test --profile upstream --all
+shimmy test --profile default --shim oc@4.18
+```
+
+The profile mode validates the selected install manifests. By default it runs
+each installed public kind; `--all` also runs every installed concrete version.
+Those commands use live Podman only for the version-owned non-mutating smoke
+arguments.
+
 The suite is POSIX shell and validates:
 
 - the complete `CONTEXT.md` tree and parent-to-child links, including every
