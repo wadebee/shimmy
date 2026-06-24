@@ -111,6 +111,8 @@ You may split this work into smaller iterations as needed to keep your context w
   installed-kind, refresh, and manifest-tracked cleanup coverage.
 - [x] Segment 3f: Restore source and installed dispatcher request-validation,
   profile, and recursion-protection coverage.
+- [x] Segment 3g: Restore deterministic netinfo CIDR, explicit-host
+  precedence, help, and malformed-input coverage.
 - [ ] Split install, update, and netinfo into the planned `core/` submodules.
 - [ ] Replace update cases with version-local refresh/status hooks.
 - [ ] Complete agent-skill canonicalization and adapter/export behavior.

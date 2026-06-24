@@ -18,3 +18,5 @@ installation or shell startup files.
   folders, installed-kind selection, refresh, and manifest-tracked cleanup.
 - `dispatcher.sh` covers source dispatcher validation and installed dispatcher
   profile and recursion protections.
+- `netinfo.sh` covers deterministic CIDR rendering, explicit host-LAN
+  precedence, help output, and request validation.

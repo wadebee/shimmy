@@ -27,6 +27,8 @@ The suite is POSIX shell and validates:
   refresh, and manifest-tracked cleanup.
 - source and installed dispatcher validation, including selector, profile, and
   recursion protections.
+- deterministic netinfo CIDR rendering, explicit-host precedence, help, and
+  malformed-input rejection.
 
 Use live Podman only for non-mutating commands such as `--version`, `version`,
 or `--help`. Prefer `--preview-shim` whenever it proves the intended runtime
