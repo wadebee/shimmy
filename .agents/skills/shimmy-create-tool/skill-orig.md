@@ -1,0 +1,180 @@
+---
+name: shimmy-create-tool
+description: Guidance for building a new Shimmy CLI tool wrapper in this repository, including required companion-tool dependency checks before implementation.
+---
+
+# Shimmy Tool Creation
+
+Use this skill when the user wants a new shim for a CLI tool that does not already exist in this repo.
+
+## Execution Model
+
+Always operate in PLAN -> REVIEW -> ACT mode:
+
+- Always produce a plan first.
+  - The one exception is if the prompt is a question or a request for information that only requires non-mutating actions such as search.
+- When planning:
+  - If uncertain, ask clarifying questions instead of guessing.
+  - Identify risks, assumptions, and best practices you embrace.
+  - Revise the plan if feedback is provided.
+- When planning is complete, request user approval to execute the plan, using the harness approval button when available.
+- NEVER ACT without user approval.
+- Do not deviate from an approved plan without re-review.
+- If the user explicitly says to implement, fix, run, or proceed, that counts as plan approval so you may ACT; however, you may NEVER commit files immediately.
+- Before acting, read this `AGENTS.md` and follow this execution model.
+- After approval, proceed through implementation, verification, and summary.
+
+## Files
+
+- Skill file: `SKILL.md`
+- Shared repo prompt: `../../../docs/prompt-shimmy-project.md`
+- Runtime shims: `../../../shims/`
+- Tool skills: `../../../.agents/skills/shimmy-tool-*/`
+- Kind/version catalog: `../../../lib/repo/shimmy-catalog.sh`
+- Tests: `../../../scripts/test-shimmy.sh`
+- Installer: `../../../scripts/install-shimmy.sh`
+- Status command: `../../../scripts/status-shimmy.sh`
+- Update command: `../../../scripts/update-shimmy.sh`
+- Docs: `../../../README.md`
+
+## Default Workflow
+
+1. Read `../../../CONTRIBUTING.md` and `../../../docs/prompt-shimmy-project.md` before making changes.
+2. Identify the requested CLI tool, then run the dependency gate in `Required Checkpoints` before designing the shim.
+3. Inspect `../../../shims/`, `../../../lib/repo/shimmy-catalog.sh`, `../../../scripts/install-shimmy.sh`, and `../../../scripts/test-shimmy.sh` so the new shim matches existing conventions.
+4. Decide and state the image strategy before implementation: remote image or local build context. Do not silently switch strategies while refining existing work.
+5. Determine the tool's real major.minor version before naming the first concrete version shim.
+6. Keep the skill-driven plan concise and actionable. Prefer a short default workflow over long narrative guidance.
+7. Update the kind dispatcher, concrete version shim, shim configs, catalog metadata, lifecycle scripts, tests, docs, README, and tool skill together when behavior changes.
+8. Create or update a matching tool skill at `../../../.agents/skills/shimmy-tool-{toolname}/SKILL.md` when adding or materially changing a shim.
+9. Share the new or updated tool skill before final verification with `./shimmy skills install --target repo shimmy-tool-{toolname}` from the Shimmy checkout unless the user chose `profile` or `plugin` as the target.
+10. When adding a shim to the `Included Shims` table in `README.md`, keep the table sorted alphabetically by Tool name.
+
+## Kind And Version Model
+
+- Kind: the stable user-facing command installed on `PATH`, such as `jq`, `rg`, or `oc`.
+- Version: the concrete major.minor implementation shim, such as `jq_1_8`, `rg_15_1`, or `oc_4_20`.
+- Default version: the catalog mapping used when `shimmy install --shim <kind>` is run and when a kind dispatcher has no selector.
+
+Do not use Family or Variant for this dispatch model. Those words are reserved for possible future dimensions.
+
+Every new tool must add:
+
+1. `shims/<kind>` as a small dispatcher.
+2. `shims/<kind>_<major>_<minor>` as the concrete runtime wrapper.
+3. `shims/<kind>.conf` and `shims/<kind>_<major>_<minor>.conf`.
+4. Catalog entries for the kind, concrete version, version label, and default version.
+5. Tests proving default dispatch, install manifest `kind=` and `kind_version=`, status output, and update behavior.
+
+## Required Checkpoints
+
+1. If the user asks for a new shim but does not name the CLI tool, stop and ask for the tool name.
+2. After the tool is identified, inspect official upstream docs and candidate container image docs for required companion tools, plugins, or CLIs before designing the shim.
+3. If a required companion tool is not already available as a native tool or Shimmy shim, and is not documented as bundled in the selected container image, stop before implementation and summarize:
+   - dependency name,
+   - why it is required,
+   - official source links supporting the requirement,
+   - whether `../../../shims/<dependency>` exists,
+   - whether `../../../.agents/skills/shimmy-tool-<dependency>/SKILL.md` exists,
+   - recommended next steps.
+4. Default the recommended next step to creating the missing dependency shim first. Use a composite image strategy only after the user explicitly chooses it.
+5. Treat optional integrations as non-blocking unless the user's requested use case depends on them.
+6. Try to find a containerized version of the requested tool before designing the shim.
+7. If there are multiple credible container repositories, multiple tags, or multiple image/version strategies, stop and ask the user which option should be used.
+8. Do not silently choose between materially different images such as official vs community images, `latest` vs pinned tags, or Alpine vs full images when that choice affects behavior or maintenance.
+9. If a containerized version of the tool is not available create one using a compatible base image and tooling dependencies. Discover base image options and present them to the user for decision on which to use. Preference to base image options should be given to latest stable versions coming from hardened registries or with a scanning pipeline.
+
+## Implementation Rules
+
+- Keep runtime shims as small POSIX shell wrappers with `#!/bin/sh` and `set -eu`.
+- Mount `$PWD` to `/work` unless the tool has a documented reason not to.
+- Use `SHIMMY_{TOOL_PREFIX}_IMAGE` for image override and `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` for pull policy.
+- Choose `-it` for interactive CLIs and `-i` for filter-style CLIs.
+- Add extra mounts and env forwarding only when the tool actually needs them, and document why.
+- Do not make a shim silently rely on host-installed companion CLIs. Required companion tools must be provided by the selected image, a dependency shim, or an explicitly chosen composite image.
+- Surface credential requirements and whether the requested tool and dependency share credential state. Shimmy's preferred future direction is `podman secret` for tool credentials because Podman is already required, but do not implement a new Podman-secret credential flow unless the user explicitly requests it.
+- Existing credential mount patterns may remain until a dedicated credential-handling change is planned.
+- End concrete version shims with `shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm ... "$IMAGE" "$@"`.
+- Keep kind dispatchers small: resolve the default or selected version and `exec` the sibling version shim. Do not put image, mount, credential, or Podman logic in the dispatcher.
+- Keep runnable shell files executable.
+- For local-build shims, keep image build logic in `../../../lib/shims/custom-image.sh`, add `images/<kind>_<major>_<minor>/Containerfile`, and pass documented base/source override env vars as `--build-arg` values to `shimmy_local_image_ensure`.
+- Add new installable kind and concrete version metadata to `../../../lib/repo/shimmy-catalog.sh`. `shimmy install --shim <kind>` validation and `shimmy status --available` both derive supported names from that catalog, then status filters out already installed profile kinds.
+- Add one `smoke_arg=` line per smoke-command argument in the kind and version config files. Do not put multiple shell words on one `smoke_arg=` line.
+- Use `smoke_env=KEY=value` only for non-secret selector or test-mode values needed by the smoke command. Do not hardcode tool-specific smoke defaults in the generic test runner.
+
+## Definition of Done
+
+Use this checklist before final verification for every new runtime shim:
+
+1. Kind dispatcher exists at `shims/<kind>` and is executable.
+2. Concrete version shim exists at `shims/<kind>_<major>_<minor>` and is executable.
+3. Image strategy is explicit and preserved: remote-image versions document/pull remote refs, while local-build versions include `images/<kind>_<major>_<minor>/Containerfile`, build args, status local refs, and update `--build` behavior.
+4. Kind and version configs exist with non-mutating smoke commands.
+5. Each smoke command argument uses its own `smoke_arg=` line; selector-only environment uses `smoke_env=KEY=value`.
+6. `lib/repo/shimmy-catalog.sh` includes the installable kind, concrete version, version label, and default version.
+7. `scripts/status-shimmy.sh` describes the kind default, concrete versions, image, dispatcher, or local build reference instead of returning `unknown`.
+8. `scripts/update-shimmy.sh` handles the kind and version when remote images need `--pull` refresh or local images need `--build` refresh.
+9. Top level `README.md` includes the shim in the sorted `Included Shims` table and links to shim docs.
+10. `docs/shims/<tool>.md` documents image defaults, env vars, mounts, examples, and any credential or config expectations.
+11. `.agents/skills/shimmy-tool-<tool>/SKILL.md` exists for new or materially changed shims and is included in the `.agents/skills/.shimmy-skills-manifest.txt`.
+12. `scripts/test-shimmy.sh` covers direct preview or smoke behavior, installed smoke config, status output, and update pull/build behavior when applicable.
+13. `git diff --summary` confirms runnable shims have executable bits and no accidental mode loss.
+14. `git diff --check` is clean.
+15. All tests pass.
+16. A final `rg` or `git grep` scan for the shim name across `README.md`, `docs/`, `shims/`, `scripts/`, `lib/repo/`, and `.agents/skills/` confirms the feature is wired through the expected repo surfaces.
+
+## Kind/Version Dispatcher Checklist
+
+Use this for every tool kind, including one-version tools:
+
+- Add the kind dispatcher, concrete version shim, and both `.conf` files.
+- Put non-secret selector defaults such as `SHIMMY_OC_VERSION=4.20` in the dispatcher `.conf` with `smoke_env=`, not in the generic test runner.
+- Ensure `shimmy install --shim <kind>` installs the kind dispatcher and default concrete version.
+- If a non-default label exists, ensure `shimmy install --shim <kind>@<label>` installs the requested version plus the required default mapping.
+- Add dispatcher tests for unset-selector default behavior, unsupported selector values when a selector exists, and preview dispatch to a selected version shim.
+- Add install/smoke-config/status tests proving dispatcher config, version config, executable bits, manifest `kind=`/`kind_version=`, and status output.
+- Add update pull/build assertions for the concrete version shims according to the chosen image strategy.
+- Document how to add a new version track in the tool docs and tool skill.
+
+## Tool Skill Rules
+
+- Name the skill directory `shimmy-tool-{toolname}` using the runtime shim name unless a shorter canonical tool name is clearer. Example: use `shimmy-tool-opnsense-mcp-read-only` for `shims/opnsense-mcp-read-only`.
+- Use frontmatter `name: shimmy-tool-{toolname}` and a description that names the runtime shim plus its distinctive requirements.
+- Use this section order where it fits: `Files`, `Current Behavior`, `Change Rules`, `Validation`, `Learning Guidance`.
+- Derive `Current Behavior` from the runtime shim first, then reconcile it against `docs/shims/<tool>.md`, `scripts/test-shimmy.sh`, `scripts/install-shimmy.sh`, and `README.md`.
+- Preserve tool-specific fidelity: mounts, env forwarding, local image build args, secrets, safe defaults, TTY/stdin mode, network privileges, and known mismatches.
+- Document required companion-tool relationships in the tool skill, including shared credential state when applicable.
+- Keep old tool-specific lessons when renaming existing skills into the `shimmy-tool-*` convention.
+- After creating or updating a `shimmy-tool-*` skill, run `./shimmy skills install --target <repo|profile|plugin> shimmy-tool-{toolname}` from the Shimmy checkout so the generated skill is tracked in Shimmy's skills manifest and can be updated idempotently.
+
+## Decision Guidance
+
+- Reuse established repo patterns instead of inventing a new shim shape.
+- Prefer shallow context gathering: read only the files needed to match an existing shim pattern.
+- Make assumptions explicit when they are low risk; checkpoint with the user when image selection or runtime behavior is ambiguous.
+- When proposing an image choice, explain the tradeoff briefly: source, tag strategy, vulnerability scanning, and any expected mounts or env vars.
+- Do not downgrade a missing required dependency into an optional follow-up unless the official docs or selected image docs support that choice.
+
+## Validation
+
+- Update `../../../scripts/test-shimmy.sh` with non-mutating assertions and options for the new shim behavior.
+- Use Podman and non-mutating commands such as `--help` or `version` when validating container execution.
+- Update `../../../README.md` so image defaults, env vars, mounts, and examples stay aligned with the implementation.
+- Update `../../../scripts/status-shimmy.sh` image description logic when adding a new remote-image default, local build image, or image override env var so installed status output stays accurate.
+- Update `../../../scripts/update-shimmy.sh` refresh logic when adding a remote-image shim that supports `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` or a local-build shim that supports `SHIMMY_{TOOL_PREFIX}_IMAGE_BUILD=always`.
+- Verify `shimmy install --shim <kind>`, `shimmy status --format manifest`, and `shimmy status --available --format manifest` show the expected `kind=` and `kind_version=` data.
+- Keep the `Included Shims` table in `../../../README.md` alphabetized by Tool name after README updates.
+- Run `git diff --check`, `git diff --summary`, focused tests, mode checks for new shims, and a final feature-surface scan before summarizing.
+
+## Learning Guidance
+
+- After creating or exercising a tool shim, add tool-specific lessons to that tool's `Learning Guidance` section.
+- If a lesson applies across tools, promote it here so future shim creation benefits from it.
+- When a generated tool skill exposes a mismatch between runtime, docs, tests, or README, record the mismatch in the tool skill and either fix it in the same change or make the follow-up explicit.
+- Prefer precise lessons about behavior and validation over broad reminders, for example: "rootless Podman cannot run raw Nmap host discovery without an explicit privileged opt-in."
+- After changing a repo-local shim, verify whether the user is invoking an installed profile copy. Check `command -v <tool>` and `shimmy status --format manifest`; repo-local `./shims/<tool>` validation does not prove the bare command on PATH has been refreshed.
+- For source-built Node shims, inspect `package.json` lifecycle scripts and whether built artifacts such as `dist/` are committed. Avoid expensive or fragile build-time lifecycle scripts when a pinned upstream source ref already contains the intended runtime artifact.
+- If `podman info` succeeds but a Shimmy wrapper reports Podman unreachable, treat it as the nested-wrapper approval case. Request approval for the exact repo-local or installed wrapper smoke command prefix before trying fallback tools.
+- When `./shimmy skills install --target repo shimmy-tool-<tool>` reports skill content is current but manifest writing fails due local filesystem metadata or permissions, note that the skill files may still be present while the manifest needs a targeted follow-up.
+- For image-backed shims, confirm the candidate image supports Shimmy's resolved platforms before selecting it: `linux/amd64` on Linux and `linux/arm64` on macOS. Prefer official image documentation or manifest inspection over Docker Hub assumptions, and avoid defaults that make Apple Silicon run amd64 images under emulation unless the user explicitly accepts that tradeoff.
+- `smoke_arg=` lines are not shell-split by `shimmy test`. Use repeated `smoke_arg=` entries for multi-argument commands, and use `smoke_env=KEY=value` for non-secret selector variables such as `SHIMMY_OC_VERSION=4.20`.

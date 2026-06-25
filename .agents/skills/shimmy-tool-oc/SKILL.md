@@ -1,77 +1,51 @@
 ---
 name: shimmy-tool-oc
-description: Guidance for using, changing, testing, and troubleshooting the OpenShift CLI (oc) kind dispatcher and concrete version shims in this repository, including default 4.20 dispatch, SHIMMY_OC_VERSION selection, per-track local-build images, and KUBECONFIG forwarding.
+description: Use and maintain the context-first OpenShift CLI Shimmy tool.
 ---
 
-# OpenShift CLI (oc) Kind Shim
+# OpenShift CLI Shim
 
-Use this skill when working with `shims/oc`, the versioned `oc_4_xx` shims, their tests, docs, or oc usage through Shimmy.
+Read `../../../CONTEXT.md`, `../CONTEXT.md`, and the selected version context.
+`SHIMMY_OC_VERSION` selects a supported local-build version; metadata defaults
+to 4.20. Preserve publisher-supplied multi-architecture manifest-list digests
+for default CLI images so the shared runtime helper can select the host platform.
+Use `oc --help` for non-network smoke checks across supported versions.
 
-## Files
+## Corporate / proxy / airgapped environments
 
-- Dispatcher shim: `../../../shims/oc`
-- Versioned shims: `../../../shims/oc_4_18`, `../../../shims/oc_4_20`, `../../../shims/oc_4_22`
-- Shim configs: `../../../shims/oc.conf`, `../../../shims/oc_4_18.conf`, `../../../shims/oc_4_20.conf`, `../../../shims/oc_4_22.conf`
-- Image build contexts: `../../../images/oc_4_18`, `../../../images/oc_4_20`, `../../../images/oc_4_22`
-- User docs: `../../../docs/shims/oc.md`
-- Tests: `../../../scripts/test-shimmy.sh`
-- Installer: `../../../scripts/install-shimmy.sh`
-- Status and update: `../../../scripts/status-shimmy.sh`, `../../../scripts/update-shimmy.sh`
-- README: `../../../README.md`
-- Contributor guidance: `../../../CONTRIBUTING.md`
-- Shared prompt: `../../../docs/prompt-shimmy-project.md`
+- **Use a working `registries.conf` mirror for `registry.redhat.io`.** Corporate
+  registry mirrors must be configured in `/etc/containers/registries.conf` so
+  Podman pulls the oc image from the proxy registry instead of the upstream
+  Red Hat registry.
+- **Mirror images and signatures together where possible.** If the mirror does
+  not contain Red Hat signatures, a permissive `policy.json` entry is required
+  for the mirror host. A minimal example:
 
-## Installed Workflow
+  ```json
+  {
+    "default": [{ "type": "insecureAcceptAnything" }],
+    "transports": {
+      "docker": {
+        "your-mirror-host": [{ "type": "insecureAcceptAnything" }]
+      }
+    }
+  }
+  ```
 
-When this skill is installed outside the Shimmy source checkout, do not rely on the repo-relative `Files` paths above. Prefer activated commands such as `oc version`, inspect selected profile state with `shimmy status --format manifest`, and use `SHIMMY_PROFILE_ACTIVE=upstream oc version` when validating the upstream profile. Use repo-local paths such as `./shims/oc_4_20` only when intentionally editing or testing source files in the Shimmy checkout.
+- **Be aware of Podman mirror fallback.** If the mirror is misconfigured or
+  missing blobs, Podman may fall back to the upstream registry, which can be
+  blocked by strict signature policy.
+- **Manually validate mirror pulls before relying on the shim.** Use explicit
+  pulls such as `podman --log-level=debug pull mirror-host/path/to/image@sha256:…`
+  to confirm that the mirror is used and that blobs and signatures are present.
+- **If oc image pulls fail from an Agent, inspect registry and policy errors.**
+  Check Podman logs for signature or policy failures and verify that the
+  corporate mirror contains the required image digests and signatures.
+- **Coordinate with registry administrators.** Ensure that required oc images
+  and signatures are mirrored for long-term secure use in proxy or airgapped
+  environments.
 
-## Current Behavior
-
-- Dispatcher command: `oc`
-  - Reads optional `SHIMMY_OC_VERSION` (`major.minor` such as `4.18`, `4.20`, `4.22`).
-  - Uses default `4.20` and execs `oc_4_20` when `SHIMMY_OC_VERSION` is unset.
-  - Maps `4.18` → `oc_4_18`, `4.20` → `oc_4_20`, `4.22` → `oc_4_22`.
-  - Prints a clear error when `SHIMMY_OC_VERSION` is unsupported, including available values and the default.
-  - Has `shims/oc.conf` with `smoke_env=SHIMMY_OC_VERSION=4.20` and preview smoke args.
-- Versioned shims (per-track local-build images):
-  - `oc_4_18`: builds a local image from `images/oc_4_18/Containerfile` using `shimmy_local_image_ensure`, with optional `SHIMMY_OC_4_18_IMAGE` override, `SHIMMY_OC_4_18_IMAGE_BUILD` (`auto`/`always`), and `SHIMMY_OC_4_18_BASE_IMAGE` build arg.
-  - `oc_4_20`: builds from `images/oc_4_20/Containerfile`, optional `SHIMMY_OC_4_20_IMAGE` override, `SHIMMY_OC_4_20_IMAGE_BUILD`, and `SHIMMY_OC_4_20_BASE_IMAGE`.
-  - `oc_4_22`: builds from `images/oc_4_22/Containerfile`, optional `SHIMMY_OC_4_22_IMAGE` override, `SHIMMY_OC_4_22_IMAGE_BUILD`, and `SHIMMY_OC_4_22_BASE_IMAGE`.
-- Runtime mode:
-  - Uses Shimmy's shared Podman helper for platform selection and `--preview-shim` support.
-  - Mounts `$PWD` to `/work` and uses `-w /work`.
-  - Adds `-it` only when stdin and stdout are terminals.
-  - Forwards `KUBECONFIG` into the container when set.
-
-## Change Rules
-
-1. Preserve the `SHIMMY_OC_VERSION` selector contract; do not change the variable name when adding new tracks.
-2. Keep per-track image env vars (`SHIMMY_OC_4_xx_IMAGE`, `SHIMMY_OC_4_xx_IMAGE_BUILD`, `SHIMMY_OC_4_xx_BASE_IMAGE`) and local-build behavior aligned between shims, docs, status, and update scripts.
-3. Avoid adding implicit kubeconfig mounts beyond `KUBECONFIG` forwarding unless the task explicitly calls for them.
-4. When extending to new tracks (for example, `5.1`), add a new `oc_5_1` shim, `.conf`, image build context, dispatcher mapping, catalog kind/version entry, status description, update `--build` behavior, docs, tests, and README coverage together.
-5. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
-6. Update the runtime shims, docs, tests, installer behavior, status/update scripts, README, skill manifest, and executable bits together when behavior changes.
-
-## Validation
-
-- Direct smoke for versioned shims:
-  - `./shims/oc_4_20 version`
-  - `./shims/oc_4_18 version`
-  - `./shims/oc_4_22 version`
-- Dispatcher smoke (from an activated profile):
-  - `oc version`
-  - `SHIMMY_OC_VERSION=4.18 oc version`
-- Preview mode (no Podman engine contact):
-  - `./shims/oc --preview-shim version`
-  - `SHIMMY_OC_VERSION=4.18 ./shims/oc --preview-shim version`
-- Shimmy tests:
-  - Install default: `./shimmy install --shim oc && ./shimmy test --shim oc`
-  - Install selector: `./shimmy install --shim oc@4.18`
-  - Source suite: `./scripts/test-shimmy.sh`
-
-## Learning Guidance
-
-- Capture oc-specific lessons here when they affect version dispatch, image selection, or KUBECONFIG usage.
-- Promote reusable kind/version design lessons to `../shimmy-create-tool/SKILL.md` under `Learning Guidance`.
-- Preserve the explicit local-build image strategy unless a task calls for a strategy change; do not silently replace it with a remote-image default.
-- Dispatcher smoke belongs in `shims/oc.conf` with `smoke_env=SHIMMY_OC_VERSION=4.20` and preview args, while versioned shims keep direct `version` smoke commands.
+The oc skill should surface mirror and signature-policy issues when image pulls
+fail and offer actionable diagnostics (for example: suggest checking
+`registries.conf`, testing a direct mirror pull with debug logging, and
+reviewing `policy.json` for the mirror host).
