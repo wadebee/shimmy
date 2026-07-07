@@ -8,7 +8,7 @@ overrides through `SHIMMY_*` environment variables.
 ## Context-first layout
 
 Read [CONTEXT.md](CONTEXT.md) before changing the repository. Source code and
-its operational context now share a hierarchy:
+its operational context share the same hierarchy:
 
 ```text
 commands/  management entrypoints
@@ -20,6 +20,9 @@ tests/     POSIX validation and context-tree verification
 Each tool directory owns its guide, version metadata, concrete runtime,
 container context, test guidance, and agent skill. `tool.conf` defines the
 default version and optional selector; `commands/run-tool.sh` resolves it.
+This keeps the context an AI agent needs close to the files it may change,
+reduces repository-wide scanning, and makes tool-specific guidance installable
+from the canonical source tree.
 
 ## Requirements
 
