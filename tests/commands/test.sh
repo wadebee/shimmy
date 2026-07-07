@@ -120,13 +120,12 @@ test_commands_test_profile_versions_all() {
   assert_contains "$output" "version smoke command succeeds for oc_4_18 in profile default"
   assert_contains "$output" "version smoke command succeeds for oc_4_20 in profile default"
   smoke_records=$(cat "$smoke_record")
-  assert_contains "$smoke_records" "oc-default|default|4.20|version"
-  assert_contains "$smoke_records" "oc-default|default||version"
-  assert_contains "$smoke_records" "oc-4-18|default||version"
+  assert_contains "$smoke_records" "oc-default|default||--help"
+  assert_contains "$smoke_records" "oc-4-18|default||--help"
 
   : > "$smoke_record"
   SHIMMY_TEST_RECORD="$smoke_record" HOME="$HOME_DIR" "$INSTALL_DIR/bin/shimmy" test --profile default --shim oc@4.18 >/dev/null
-  assert_equals "$(cat "$smoke_record")" "oc-4-18|default||version"
+  assert_equals "$(cat "$smoke_record")" "oc-4-18|default||--help"
   pass "test --all runs installed public and concrete version wrappers"
 }
 

@@ -202,8 +202,6 @@ perform_install() {
 perform_shim_install() {
   [ "$UNINSTALL" -eq 0 ] || fail "--shim cannot be combined with --uninstall"
   [ -z "$REQUESTED_SKILLS_TARGET" ] || fail "--skills-target is not supported when installing shims into an existing environment"
-  [ -z "$REQUESTED_SHELL" ] || fail "--shell is not supported when installing shims into an existing environment"
-  [ -z "$REQUESTED_STARTUP_FILES" ] || fail "--startup-file is not supported when installing shims into an existing environment"
   [ -f "$INSTALL_MANIFEST_FILE" ] || fail "no shimmy install manifest found at $INSTALL_MANIFEST_FILE; run ./shimmy install first"
   shimmy_install_layout_validate "$SHIMMY_ROOT_MANIFEST_FILE" || fail "legacy Shimmy install layout detected; uninstall and reinstall"
 
@@ -253,6 +251,17 @@ EOF
 
   if [ -n "$kinds_to_append" ] || [ -n "$kind_versions_to_append" ]; then
     manifest_kind_state_append "$INSTALL_MANIFEST_FILE" "$kinds_to_append" "$kind_versions_to_append"
+  fi
+
+  if [ "$SKIP_STARTUP" -eq 0 ] && { [ -n "$REQUESTED_SHELL" ] || [ -n "$REQUESTED_STARTUP_FILES" ]; }; then
+    if [ -f "$SHIMMY_ROOT_MANIFEST_FILE" ]; then
+      PRESERVED_STARTUP_SHELL=$(shimmy_read_manifest_value "$SHIMMY_ROOT_MANIFEST_FILE" startup_shell || true)
+      PRESERVED_STARTUP_FILE_PATHS=$(shimmy_read_manifest_values "$SHIMMY_ROOT_MANIFEST_FILE" startup_file || true)
+    fi
+    resolve_startup_settings
+    write_activate_file
+    shimmy_install_startup_update
+    write_root_manifest_file
   fi
 }
 

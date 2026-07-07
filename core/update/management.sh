@@ -6,13 +6,16 @@ shimmy_update_is_installed_management() {
 
   [ -n "${SHIMMY_CONTROL_INSTALL_DIR:-}" ] || return 1
 
-  control_source_dir=$install_dir/core
-  [ -d "$control_source_dir/scripts" ] || return 1
+  installed_control_dir=$install_dir/core
+  [ -x "$installed_control_dir/shimmy" ] || return 1
+  [ -d "$installed_control_dir/commands" ] || return 1
+  [ -d "$installed_control_dir/core" ] || return 1
+  [ -d "$installed_control_dir/tools" ] || return 1
 
   root_dir_real=$(cd -- "$ROOT_DIR" && pwd) || return 1
-  control_source_dir_real=$(cd -- "$control_source_dir" && pwd) || return 1
+  installed_control_dir_real=$(cd -- "$installed_control_dir" && pwd) || return 1
 
-  [ "$root_dir_real" = "$control_source_dir_real" ]
+  [ "$root_dir_real" = "$installed_control_dir_real" ]
 }
 
 shimmy_update_management_run() {

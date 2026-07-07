@@ -33,6 +33,8 @@ test_commands_startup_install_idempotent() {
   assert_file_contains "$startup_file" "# user configuration"
   assert_file_contains "$startup_file" "# >>> shimmy onboarding >>>"
   assert_file_contains "$startup_file" "# <<< shimmy onboarding <<<"
+  assert_file_contains "$INSTALL_DIR/install-manifest.txt" "startup_shell=zsh"
+  assert_file_contains "$INSTALL_DIR/install-manifest.txt" "startup_file=$startup_file"
   marker_count=$(grep -F "# >>> shimmy onboarding >>>" "$startup_file" | wc -l | tr -d ' ')
   assert_equals "$marker_count" 1
   pass "install writes one managed startup block to an explicit file"
@@ -47,7 +49,7 @@ test_commands_startup_update_repair() {
 
   assert_file_contains "$startup_file" "# >>> shimmy onboarding >>>"
   assert_file_contains "$startup_file" "# <<< shimmy onboarding <<<"
-  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "startup_file=$startup_file"
+  assert_file_contains "$INSTALL_DIR/install-manifest.txt" "startup_file=$startup_file"
   pass "update --repair-startup restores explicit startup integration"
 }
 
