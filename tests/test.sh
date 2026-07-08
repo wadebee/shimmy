@@ -70,6 +70,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/tools/opnsense-mcp-read-only/tests/opnsense-mcp-read-only.sh"
 # shellcheck source=tools/rg/tests/rg.sh
 . "$ROOT_DIR/tools/rg/tests/rg.sh"
+# shellcheck source=tools/skopeo/tests/skopeo.sh
+. "$ROOT_DIR/tools/skopeo/tests/skopeo.sh"
 # shellcheck source=tools/task/tests/task.sh
 . "$ROOT_DIR/tools/task/tests/task.sh"
 # shellcheck source=tools/terraform/tests/terraform.sh
@@ -118,6 +120,7 @@ main() {
   test_tools_opnsense_mcp_read_only_run
   test_tools_opnsense_mcp_admin_run
   test_tools_rg_run
+  test_tools_skopeo_run
   test_tools_task_run
   test_tools_terraform_run
   test_tools_tessl_run

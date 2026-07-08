@@ -20,6 +20,7 @@ canonical agent skill.
 - [opnsense-mcp-admin](opnsense-mcp-admin/CONTEXT.md)
 - [opnsense-mcp-read-only](opnsense-mcp-read-only/CONTEXT.md)
 - [rg](rg/CONTEXT.md)
+- [skopeo](skopeo/CONTEXT.md)
 - [task](task/CONTEXT.md)
 - [terraform](terraform/CONTEXT.md)
 - [tessl](tessl/CONTEXT.md)

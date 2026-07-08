@@ -85,6 +85,7 @@ oc --preview-shim version
 | opnsense-mcp-admin | [tools/opnsense-mcp-admin/guide.md](tools/opnsense-mcp-admin/guide.md) |
 | opnsense-mcp-read-only | [tools/opnsense-mcp-read-only/guide.md](tools/opnsense-mcp-read-only/guide.md) |
 | rg | [tools/rg/guide.md](tools/rg/guide.md) |
+| skopeo | [tools/skopeo/guide.md](tools/skopeo/guide.md) |
 | task | [tools/task/guide.md](tools/task/guide.md) |
 | terraform | [tools/terraform/guide.md](tools/terraform/guide.md) |
 | tessl | [tools/tessl/guide.md](tools/tessl/guide.md) |
