@@ -173,19 +173,22 @@ a recursively replaceable bundle.
   Create them as needed, never replace them, and remove them only with
   `rmdir` after a profile uninstall.
 - A fresh profile install may proceed only when the profile root is absent or
-  empty. A non-empty profile root without a compatible manifest is unmanaged
-  and must be rejected before mutation.
-- Within a compatible profile, `commands`, `config`, `implementations`, `lib`,
-  `tools`, `tests`, `plugins`, and `agent` are replace-owned root assets.
+  empty. A non-empty profile root without a valid current-schema manifest is
+  unmanaged and must be rejected before mutation.
+- Within a profile with a valid current-schema manifest, `commands`, `config`,
+  `implementations`, `lib`, `tools`, `tests`, `plugins`, and `agent` are
+  replace-owned root assets.
 - `activate.sh` and `install-manifest.txt` are individually owned regular
   files. Write them with same-directory temporary files and atomic renames.
 - Replace each claimed path independently. Remove a displaced symlink itself;
   never follow it, and reject symlinks in the profile-root parent chain.
-- `bin/` is merge-owned within the profile. Replace or remove only compatible-
-  manifest-owned entries; never replace the directory as a whole. Reject a
-  new dispatcher collision until the requested command is recorded as owned.
+- `bin/` is merge-owned within the profile. Replace or remove only entries
+  derived from the fixed schema and validated installed-kind identifiers;
+  never treat an arbitrary manifest path as owned and never replace the
+  directory as a whole. Reject a new dispatcher collision until the requested
+  command is recorded as owned.
 - Preserve unknown siblings during additive install, refresh, self-update, and
-  uninstall of a compatible profile.
+  uninstall of a profile with a valid current-schema manifest.
 - Profile uninstall removes only that profile's verified owned paths and uses
   `rmdir` for `bin/`, the profile root, profiles root, and Shimmy config root so
   unmanaged content and sibling profiles survive.
@@ -223,26 +226,31 @@ a recursively replaceable bundle.
 - Install exactly one executable regular launcher at
   `<profile-root>/bin/shimmy`; do not create `<profile-root>/shimmy`, a shared
   launcher above profile roots, or a launcher symlink.
-- The launcher resolves its profile root as the parent of `bin/`, requires
-  that root to equal the canonical XDG path for the manifest's profile name,
-  and uses only control/runtime assets in that installed profile. It never
-  consumes a manifest field or environment variable as a location override.
-- A compatible profile manifest is mandatory before installed paths are
-  loaded. A missing or incompatible manifest reports a damaged profile; the
-  launcher never falls back to repository or source mode.
+- The launcher resolves its profile root as the parent of `bin/`, derives the
+  profile name from that root's basename, validates that name as a supported
+  profile, and requires its root to equal the canonical XDG path for that
+  derived name before reading the manifest. The directory is authoritative;
+  no manifest field or environment variable can select or redirect a profile.
+- A valid current-schema profile manifest is mandatory before installed paths
+  are loaded. Its recorded profile name must equal the directory-derived name.
+  A missing, malformed, unsupported, or mismatched manifest reports a damaged
+  profile; the launcher never falls back to repository or source mode.
 - The launcher has no mode or profile detection machinery. Its location is
   its profile identity, and `--profile` is not part of any installed command.
 - With no profile manifest, reject any existing `<profile-root>/bin/shimmy`,
-  including a symlink, before mutation. With a compatible profile manifest,
-  require the path to equal its recorded managed launcher before replacement.
+  including a symlink, before mutation. With a valid current-schema manifest,
+  the schema owns only the fixed relative launcher path `bin/shimmy`; require
+  the existing path to be a regular non-symlink file before replacement.
 - Install or refresh the launcher through a temporary regular file in the
   same directory, set mode `0755`, then atomically rename it. Failure must
   leave the prior launcher and all siblings unchanged.
-- Record `control_bin=<profile-root>/bin/shimmy` as a validated assertion in
-  the profile manifest; it never redirects execution.
+- Do not record `control_bin` or another launcher-path field. The launcher path
+  is always the schema-defined `<profile-root>/bin/shimmy`; duplicating it in
+  the manifest would add a conflicting path authority and validation burden.
 - Self-update validates and invokes `<fetched-source>/install.sh --profile
-  <manifest-profile-name>` and refreshes only the invoking profile's complete
-  control/runtime payload. Within merge-owned `bin/`, it refreshes only that
+  <directory-derived-profile-name>` and refreshes only the invoking profile's
+  complete control/runtime payload. It must not forward a caller-supplied or
+  manifest-selected profile. Within merge-owned `bin/`, it refreshes only that
   installed launcher and its owned dispatchers.
 - Activation puts the invoking `<profile-root>/bin` on `PATH`. For example:
 
@@ -253,7 +261,7 @@ a recursively replaceable bundle.
   This switches the shell to the upstream profile without a selector
   variable.
 
-### Manifest compatibility contract
+### Profile manifest validation contract
 
 - Each profile has exactly one manifest at
   `<profile-root>/install-manifest.txt`; there is no shared root manifest or
@@ -261,19 +269,38 @@ a recursively replaceable bundle.
 - Profile manifests use `shimmy_install_manifest_version=3`,
   `shimmy_install_layout=profile-flat-root`,
   `shimmy_profile_manifest_version=3`, and the exact
-  `shimmy_profile_name=<profile-name>`.
+  `shimmy_profile_name=<directory-derived-profile-name>`.
 - Omit the ambiguous unscoped `shimmy_layout` key and redundant location
   fields such as `install_dir`, `bin_dir`, `config_dir`, and
-  `profile_implementation_dir`.
-- Validate all identity fields together, reject duplicate identity keys, and
-  validate `control_bin` against the derived canonical path before consuming
-  any remaining metadata.
+  `profile_implementation_dir`, including `control_bin`.
+- Treat the enclosing canonical directory as profile identity. Validate all
+  manifest identity fields together and require
+  `shimmy_profile_name=<directory-derived-profile-name>` before consuming any
+  remaining metadata.
+- Parse the manifest strictly as data; never source it or evaluate its values
+  as shell. Require every singleton identity key exactly once and reject
+  duplicate, missing, malformed, or unknown identity fields.
+- Manifest records do not grant ownership of arbitrary filesystem paths.
+  Fixed profile assets come from the schema. Validate each `kind` and
+  `kind_version` value against its expected token grammar, reject duplicates
+  and contradictory entries, and derive dispatcher paths only as safe direct
+  children of `<profile-root>/bin`.
+- Validate any remaining path-valued operational metadata for its specific
+  purpose before use. In particular, `source_checkout` is upstream-only,
+  absolute, and must pass source-checkout validation. Startup-file metadata
+  may authorize removal of Shimmy's exact managed marker block only; it never
+  authorizes deleting the containing file.
+- Separate identity/ownership validation from operational-shape validation.
+  Every mutating command requires valid identity and safe ownership data.
+  Status, activation, and dispatch additionally require the assets they use.
+  Uninstall may remove the remaining schema-owned assets from a partial
+  profile, but must refuse mutation when identity or ownership is invalid.
 - Apply this contract to bootstrap install, additive install, refresh, update,
   status, activation, dispatch, and uninstall. Remove installed profile
   enumeration and cross-profile selection machinery.
 - An absent profile manifest is a fresh-install candidate only when the
-  profile root is absent or empty. An existing manifest with missing or
-  different identity fields is incompatible.
+  profile root is absent or empty. An existing manifest with invalid identity
+  or ownership fields is unsupported or damaged and must fail closed.
 - Bootstrap resolves exactly the requested canonical profile, while an
   installed command resolves exactly its enclosing profile. Neither scans
   sibling directories to choose an operational target.
@@ -286,10 +313,10 @@ a recursively replaceable bundle.
   install canonical v3 profiles.
 - Do not migrate, alias, or automatically delete version-2 installations.
 
-Profile incompatibility must fail before mutation with:
+An invalid or unsupported profile manifest must fail before mutation with:
 
 ```text
-incompatible Shimmy profile install layout at <manifest-path> (expected shimmy_install_manifest_version=3, shimmy_install_layout=profile-flat-root, shimmy_profile_manifest_version=3, and shimmy_profile_name=<profile-name>); uninstall it with the Shimmy version that created it, then reinstall the selected profile
+invalid or unsupported Shimmy profile manifest at <manifest-path> (expected shimmy_install_manifest_version=3, shimmy_install_layout=profile-flat-root, shimmy_profile_manifest_version=3, and shimmy_profile_name=<directory-derived-profile-name>); inspect or uninstall it with the Shimmy version that created it, then reinstall that profile
 ```
 
 ### Naming and scope
@@ -482,7 +509,8 @@ links and runner paths required for a passing repository must be updated here.
   and unmanaged siblings through additive install, refresh, and self-update.
 - Profile uninstall removes only the selected profile's verified owned assets.
 - Stage and validate replacement assets before mutation, commit the manifest
-  last, and retain or restore the prior compatible profile after a failure.
+  last, and retain or restore the prior valid current-schema profile after a
+  failure.
 - Add disposable unmanaged profile-root and sibling-profile sentinels to
   install, refresh, self-update, and uninstall coverage.
 
@@ -513,7 +541,9 @@ links and runner paths required for a passing repository must be updated here.
       `SHIMMY_PROFILE_ACTIVE`, and cannot select, update, or uninstall a
       sibling profile.
 - [ ] An unmanaged or symlinked pre-existing `bin/shimmy` is rejected before
-      mutation; a managed launcher must match `control_bin` before replacement.
+      mutation; an existing launcher in a valid profile must be a regular
+      non-symlink file at the schema-defined `bin/shimmy` path before
+      replacement.
 - [ ] Dispatcher symlinks target exactly `../commands/dispatch-tool.sh`, load
       helpers from `<profile-root>/lib`, and are neither broken nor recursive.
 - [ ] Fresh installs reject non-empty unmanaged profile roots and all unmanaged
@@ -525,11 +555,18 @@ links and runner paths required for a passing repository must be updated here.
 - [ ] Profile uninstall removes owned assets and uses `rmdir`, never recursive
       profile-root or config-root deletion.
 - [ ] Each profile manifest contains both version `3` fields,
-      `profile-flat-root`, the exact profile name, and exact `control_bin`, and
-      contains no `shimmy_layout` or redundant location fields.
+      `profile-flat-root`, and the exact directory-derived profile name, and
+      contains no `shimmy_layout`, `control_bin`, or other redundant location
+      fields.
 - [ ] Missing or duplicate identity fields, version 2, unknown versions, wrong
-      layout label, wrong profile name, and malformed manifests fail before
-      mutation with the specified remediation message.
+      layout label, wrong profile name, malformed values, unsafe kind tokens,
+      duplicate ownership entries, and contradictory kind/version records
+      fail before mutation with the specified remediation message.
+- [ ] Manifest values are never sourced or evaluated as shell, cannot claim
+      arbitrary filesystem paths, and cannot redirect update or uninstall
+      outside the directory-derived profile root.
+- [ ] A partial profile with valid identity and ownership data can be safely
+      uninstalled; invalid identity or ownership data fails before mutation.
 - [ ] A canonical version-2 shared installation blocks v3 profile creation
       before mutation and reports removal guidance.
 - [ ] No `SHIMMY_INSTALL_CORE_DIR`, `SHIMMY_CORE_DIR`,
@@ -610,8 +647,12 @@ tests, and provide exhaustive regression coverage for the recorded contracts.
 - Prove launcher refresh changes only owned entries within that profile's
   `bin/` and does not mutate sibling profile launchers or dispatchers.
 - Cover malformed, missing, duplicate-key, version-2, unknown-version,
-  wrong-label, and wrong-profile manifests, with unchanged profile assets
-  after rejection.
+  wrong-label, copied wrong-profile, unsafe kind, duplicate ownership,
+  contradictory kind/version, shell-syntax payload, and invalid
+  source-checkout manifests, with unchanged profile assets after rejection.
+- Cover partial installed shapes separately: status, activation, and dispatch
+  report the missing assets, while uninstall safely removes only the remaining
+  schema-owned assets when identity and ownership remain valid.
 - Cover unset, empty, absolute, and relative `XDG_CONFIG_HOME` and prove that
   the removed CLI option and Shimmy location variables cannot relocate state.
 - Verify source-checkout validation requires `install.sh`, `commands/`,
@@ -635,7 +676,8 @@ tests, and provide exhaustive regression coverage for the recorded contracts.
       and cannot manage a sibling; activation switches profiles through
       `PATH` only.
 - [ ] Collision, symlink-safety, sentinel-preservation, launcher, dispatcher,
-      and manifest rejection cases pass.
+      strict manifest parsing, safe ownership, partial-profile, and manifest
+      rejection cases pass.
 - [ ] XDG fallback, absolute override, relative-path rejection, removed-option,
       removed-variable, and removed-profile-selector cases pass.
 - [ ] Profile smoke and context-tree tests pass.
@@ -783,6 +825,12 @@ finds a missed migration reference or verification defect.
 - [ ] Each profile has exactly one regular executable `bin/shimmy`; no shared
       or repository launcher exists, and neither launcher can manage the other
       profile.
+- [ ] The directory-derived profile name is authoritative; copying one
+      profile's manifest into the other is rejected, and manifests contain no
+      `control_bin` or arbitrary owned-path field.
+- [ ] Strict manifest parsing rejects duplicate identity, unsafe ownership,
+      shell-evaluation payload, and invalid path-metadata cases before
+      mutation; valid partial profiles remain safely uninstallable.
 - [ ] Additive install, management refresh, and self-update work without
       changing unmanaged or sibling-profile sentinels.
 - [ ] Removing either profile preserves the other; removing the last profile
@@ -837,14 +885,16 @@ pass, no removed path override remains, and no legacy path can be recreated.
 5. **Merge-owned `bin/` collisions** — Replacing `bin/`, following a launcher
    symlink, or accepting an unproven launcher could destroy or hijack managed
    dispatch.
-6. **Manifest identity validation** — Partial, duplicate, or mismatched profile
-   schemas must be rejected before any metadata is trusted or any asset is
-   changed.
+6. **Manifest identity and ownership validation** — Partial, duplicate, or
+   mismatched identity, unsafe kind tokens, and path-like ownership values
+   must be rejected before operational metadata is trusted or any asset is
+   changed. Manifest data must never become an arbitrary deletion target.
 7. **Dispatcher target integrity** — A stale central target can produce broken
    or recursive symlinks.
-8. **Update handoff** — An installed launcher must pass its manifest profile
-   name to the fetched source's bootstrap without accepting a caller-selected
-   target. Weak fetched-source or profile checks can refresh the wrong root.
+8. **Update handoff** — An installed launcher must pass its validated
+   directory-derived profile name to the fetched source's bootstrap without
+   accepting a caller- or manifest-selected target. Weak fetched-source or
+   profile checks can refresh the wrong root.
 9. **Versioned runtime paths** — One missed `core/runtime` reference causes a
    tool-specific failure that broad lifecycle tests may not expose.
 
@@ -885,6 +935,9 @@ the fixed design decisions above.
   equivalent Shimmy location environment variables are removed together.
 - Disposable tests do not need a private path override; an absolute temporary
   `XDG_CONFIG_HOME` provides standards-aligned isolation.
+- A profile-local manifest confirms schema, identity, and safe ownership; it
+  does not select a profile or provide launcher and deletion paths. The
+  canonical enclosing directory remains authoritative.
 
 ### Chunk 1
 
