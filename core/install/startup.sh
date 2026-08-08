@@ -63,7 +63,7 @@ write_activate_file() {
     printf 'if [ -d "$shimmy_activate_bin_dir" ]; then\n'
     printf '  case ":${PATH:-}:" in\n'
     printf '    *:"$shimmy_activate_bin_dir":*) ;;\n'
-    printf '    *) PATH=$shimmy_activate_bin_dir${PATH:+":"$PATH"} ;;\n'
+    printf '    *) PATH=$shimmy_activate_bin_dir${PATH:+":$PATH"} ;;\n'
     printf '  esac\n'
     printf 'fi\n'
     printf 'unset shimmy_activate_bin_dir\n'

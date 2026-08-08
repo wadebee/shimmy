@@ -14,6 +14,7 @@ canonical agent skill.
 - [gh](gh/CONTEXT.md)
 - [go](go/CONTEXT.md)
 - [jq](jq/CONTEXT.md)
+- [logmine](logmine/CONTEXT.md)
 - [netcat](netcat/CONTEXT.md)
 - [nmap](nmap/CONTEXT.md)
 - [oc](oc/CONTEXT.md)
