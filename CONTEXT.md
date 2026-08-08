@@ -1,8 +1,6 @@
 # Shimmy
 
-Shimmy exposes common CLI tools through small POSIX shell wrappers that run
-Podman containers. Read this file first, then the `CONTEXT.md` files on the
-path to the code being changed.
+Shimmy exposes common CLI tools through small POSIX shell wrappers that run Podman containers. Read this file first, then the `CONTEXT.md` files on the path to the code being changed.
 
 ## Architecture
 

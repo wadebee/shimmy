@@ -1,5 +1,5 @@
 # Context-first Shimmy reorganization
-
+Based on work described here --> https://developer.webex.com/blog/boosting-ai-performance-the-power-of-llm-friendly-content-in-markdown 
 ## Goal
 
 Make context modular, hierarchical, and local to the code it describes while
