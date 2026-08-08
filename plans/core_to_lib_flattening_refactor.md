@@ -36,6 +36,9 @@ These are the verified facts that future sessions should treat as ground truth:
 3. The installed launcher currently treats `../core` as the installed root payload.
 4. Self-update logic currently detects installed management by checking `<install>/core/...`.
 5. The repo architecture and contexts currently describe `core/` as the shared-module directory, so docs and context-tree tests must change too.
+6. The current installer copies the same repository-root `shimmy` launcher to
+   both `<install>/bin/shimmy` and `<install>/core/shimmy`; they are two copies
+   of one logical management command.
 
 ## Target end state
 
@@ -44,22 +47,23 @@ These are the verified facts that future sessions should treat as ground truth:
 ```text
 shimmy/
   agent/
+  bin/
+    shimmy
   commands/
   lib/
   plugins/
   tests/
   tools/
-  shimmy
 ```
 
 ## Installed layout
 
 ```text
 ~/.config/shimmy/
-  shimmy
   activate.sh
   install-manifest.txt
   bin/
+    shimmy
   commands/
   lib/
   plugins/
@@ -77,6 +81,7 @@ and is intentionally not implied by this diagram.
 ## Naming model
 
 - `lib/` = shared shell modules
+- `bin/shimmy` = the sole repository and installed management launcher
 - install root = installed control/runtime root
 - no separate installed `core/` bundle
 - remove `SHIMMY_*CORE*` variables and replace them with names that reflect the flattened layout
@@ -85,10 +90,16 @@ and is intentionally not implied by this diagram.
 
 - Treat the install root as a container of individually owned paths, not as a
   recursively replaceable bundle.
+- Treat the claimed root asset paths `commands`, `lib`, `tools`, `tests`,
+  `plugins`, and `agent` as replace-owned by Shimmy. Installation and refresh
+  may replace pre-existing entries at those exact paths because the install
+  root is wholly Shimmy-owned for those names.
 - Never translate the current `rm -rf "$SHIMMY_CORE_DIR"` behavior into an
   equivalent recursive removal of the install root.
 - Refresh and additive install flows must preserve `profiles/`, manifests, and
-  unknown or unmanaged files at the install root.
+  unknown sibling paths at the install root.
+- Treat `<install>/bin` as a merge-owned directory: replace only
+  manifest-owned entries, never the directory as a whole.
 - Final-profile uninstall must remove each Shimmy-owned root asset explicitly
   and remove the install root only when it is empty.
 - Add a disposable unmanaged sentinel file to install, refresh, update, and
@@ -101,6 +112,8 @@ and is intentionally not implied by this diagram.
 - Preserve unrelated uses of `core`, including upstream API paths such as
   OPNsense `/core/...` endpoints. Cleanup searches require review, not blind
   replacement.
+- Rewrite persistent historical plan documents to use the post-refactor paths.
+  Do not retain stale shared-module `core/` paths as archival exceptions.
 
 # Human-in-the-loop execution model
 
@@ -145,6 +158,18 @@ Seed this block before any implementation starts, then append after each chunk.
 - Retain `agent/core/` as the canonical source location for management skills
   during this refactor. Reconciling it with the cross-client
   `.agents/skills/` distribution and plugin copies is a separate effort.
+- Rename the shared-library test grouping from `tests/core/` to `tests/lib/`
+  and rename its `test_core_*` functions to `test_lib_*`.
+- Relocate the repository launcher from `<repo>/shimmy` to
+  `<repo>/bin/shimmy`; install only `<install>/bin/shimmy`, with no root copy
+  or launcher symlink.
+- The install root is wholly Shimmy-owned for the claimed root asset names
+  `commands`, `lib`, `tools`, `tests`, `plugins`, and `agent`. Replace
+  pre-existing entries at those exact paths; preserve unknown sibling paths,
+  profile state, manifests, and the merge-owned `bin/` directory.
+- Rewrite path references in persistent historical plans to the current
+  `lib/`, `tests/lib/`, and flattened install layout; do not allowlist stale
+  paths merely because a plan predates the refactor.
 
 ## Chunk 1 lessons learned
 
@@ -181,6 +206,13 @@ It distinguishes known migration touchpoints from unrelated uses of `core`.
   - `lib/runtime/image.sh`
   - `lib/update/update.sh`
 - Update source-checkout structural validation in `lib/profile/profile.sh`.
+
+## Management launcher
+
+- Move `<repo>/shimmy` to `<repo>/bin/shimmy` and retain its executable bit.
+- Add `<repo>/bin/CONTEXT.md` and link it from the root context.
+- Update source bootstrap, installed-mode detection, self-update validation,
+  documentation, tests, and skills to invoke the new source path.
 
 ## Versioned runtime and refresh files
 
@@ -262,9 +294,11 @@ This establishes the new conceptual model for maintainers and reduces ambiguity 
 
 - all files currently under `<repo>/core/**/*.sh`, after rename under `<repo>/lib/**/*.sh`
 
-### Update repo launcher and any root-level helpers that reference `core/`
+### Relocate and update the repository launcher
 
-- `<repo>/shimmy`
+- `<repo>/shimmy` -> `<repo>/bin/shimmy`
+- `<repo>/bin/CONTEXT.md`
+- update launcher root resolution so its source root is the parent of `bin/`
 
 ### Update tool runtime references to shared runtime helpers
 
@@ -274,9 +308,12 @@ Use the exact runtime and refresh inventory in **Confirmed scrub inventory**.
 
 - `<repo>/tests/test.sh`
 - `<repo>/tests/support.sh`
-- `<repo>/tests/core/catalog.sh`
-- `<repo>/tests/core/runtime.sh`
-- `<repo>/tests/core/update.sh`
+- `<repo>/tests/core/catalog.sh` (renamed to `<repo>/tests/lib/catalog.sh` in
+  Chunk 3)
+- `<repo>/tests/core/runtime.sh` (renamed to `<repo>/tests/lib/runtime.sh` in
+  Chunk 3)
+- `<repo>/tests/core/update.sh` (renamed to `<repo>/tests/lib/update.sh` in
+  Chunk 3)
 - `<repo>/tests/context-tree.sh`
 
 ### Deliverable
@@ -319,7 +356,7 @@ This is the highest-risk behavioral change and should happen only after the sour
 
 ### Installed launcher
 
-- `<repo>/shimmy`
+- `<repo>/bin/shimmy`
 
 ### Dispatcher
 
@@ -346,18 +383,36 @@ This is the highest-risk behavioral change and should happen only after the sour
   - `<install>/core/core`
   - `<install>/core/tools`
 - replace dispatcher symlink target `../core/commands/dispatch-tool.sh` with `../commands/dispatch-tool.sh`
-- install `shimmy` at `<install>/shimmy`
+- install the sole management launcher at `<install>/bin/shimmy`
+- do not install `<install>/shimmy` and do not create a launcher symlink
+- create `<install>/bin` if needed but never recursively replace it; it also
+  contains generated tool dispatchers and may contain unmanaged entries
+- when no root manifest exists, reject any existing
+  `<install>/bin/shimmy`; when a compatible root manifest exists, require that
+  path to be the recorded managed launcher before replacing it; do not
+  overwrite an unmanaged file or follow a symlink
+- install or refresh `bin/shimmy` through a temporary regular file in the same
+  directory, set mode `0755`, then atomically rename it into place
+- record `<install>/bin/shimmy` as the root manifest's `control_bin`
 - install commands at `<install>/commands`
 - install shared library at `<install>/lib`
 - install tools/tests/plugins/agent directly at install root
-- replace managed root assets individually; do not recursively delete or
-  replace `<install>` as a single directory
-- preserve `<install>/profiles`, all existing profile manifests, the root manifest, and
-  unmanaged root entries during additive install, refresh, and self-update
+- treat `commands`, `lib`, `tools`, `tests`, `plugins`, and `agent` as claimed,
+  replace-owned root asset names; replace any pre-existing entry at each exact
+  path during install or refresh because the install root is wholly
+  Shimmy-owned for those names
+- replace claimed root assets individually without following a displaced
+  symlink; do not recursively delete or replace `<install>` as a single
+  directory
+- preserve `<install>/profiles`, all existing profile manifests, the root
+  manifest, and unknown sibling paths during additive install, refresh, and
+  self-update
 - on final-profile uninstall, remove only verified Shimmy-owned paths and use
   `rmdir` for the install root so unmanaged content is preserved
 - keep source checkout validation synchronized with the required
-  `commands/`, `lib/`, and `tools/` source structure
+  `bin/shimmy`, `commands/`, `lib/`, and `tools/` source structure
+- make self-update validate and invoke `<fetched-source>/bin/shimmy`, not a
+  repository-root launcher
 - make installed-layout detection validate the flattened paths rather than
   merely checking that the install directory exists
 - write `shimmy_install_manifest_version=3` and
@@ -388,7 +443,8 @@ A fresh install produces the flattened layout with no `core/` subtree.
 Confirm:
 
 - the resulting install tree is easy to understand
-- no accidental path collisions were introduced at install root
+- claimed root asset collisions are replaced and unknown sibling paths remain
+  preserved
 - manifest semantics still make sense
 - refresh and additive install cannot erase profile or unmanaged state
 - final-profile uninstall removes owned assets without recursively deleting the install root
@@ -415,13 +471,12 @@ Update all tests and test infrastructure to validate the new `lib/` source layou
 - `<repo>/tests/commands/netinfo.sh`
 - `<repo>/tests/commands/agent-preflight.sh`
 
-### Shared/core-now-lib tests
+### Shared-library tests
 
-- `<repo>/tests/core/catalog.sh`
-- `<repo>/tests/core/runtime.sh`
-- `<repo>/tests/core/update.sh`
-- apply the recorded decision from **Unresolved: Shared-library test directory
-  name**
+- rename `<repo>/tests/core/` to `<repo>/tests/lib/`
+- `<repo>/tests/lib/catalog.sh`
+- `<repo>/tests/lib/runtime.sh`
+- `<repo>/tests/lib/update.sh`
 
 ### Test runner and support
 
@@ -434,8 +489,9 @@ Update all tests and test infrastructure to validate the new `lib/` source layou
 
 - replace installed assertions such as `$INSTALL_DIR/core/tools/...` with `$INSTALL_DIR/tools/...`
 - update any env vars or helper names referencing `CORE`
-- implement the recorded `tests/core/` naming decision consistently in paths,
-  context links, shellcheck comments, and test function names
+- use `tests/lib/` consistently in runner paths, context links, shellcheck
+  comments, and test function names
+- rename `test_core_*` functions in this grouping to `test_lib_*`
 - rename test helper variables and functions that encode the old installed-core
   model; do not retain `SHIMMY_INSTALL_CORE_DIR`, `install_core_dir`, or
   equivalent aliases
@@ -443,6 +499,8 @@ Update all tests and test infrastructure to validate the new `lib/` source layou
 - verify additive install and management refresh preserve both profiles
 - verify removing one profile preserves the other profile and shared assets
 - verify removing the final profile removes all owned root assets
+- verify fresh install and refresh replace pre-existing files, directories, and
+  symlinks at each claimed root asset path without following symlinks
 - verify an unmanaged install-root sentinel survives install, refresh,
   self-update, and uninstall
 - verify exact dispatcher symlink targets and reject broken or recursive links
@@ -488,9 +546,10 @@ chunk to redesign or reconcile the agent-skill source and distribution trees.
 
 ### Context files
 
+- `<repo>/bin/CONTEXT.md`
 - `<repo>/commands/CONTEXT.md`
 - `<repo>/tests/CONTEXT.md`
-- `<repo>/tests/core/CONTEXT.md`
+- `<repo>/tests/lib/CONTEXT.md`
 - all context files currently under `<repo>/core/**/CONTEXT.md`, after rename under `<repo>/lib/**/CONTEXT.md`
 - `<repo>/agent/CONTEXT.md`
 - `<repo>/agent/core/CONTEXT.md`
@@ -510,12 +569,13 @@ chunk to redesign or reconcile the agent-skill source and distribution trees.
 - no canonical tool-local agent skill currently contains a shared-module
   `core/` path; repeat the scrub after implementation and review any new match
 
-### Other docs and plans with hardcoded `core/`
+### Other docs and historical plans with hardcoded `core/`
 
 - `<repo>/docs/prompt-shimmy-project.md`
 - `<repo>/docs/testing.md`
 - `<repo>/docs/templates/generic-shim/SKILL.md`
-- plan/history docs that are intended to remain accurate:
+- rewrite all persistent historical plan docs containing migrated path
+  references:
   - `<repo>/plans/context.md`
   - `<repo>/plans/context_remaining.md`
   - `<repo>/plans/multi-architecture-manifest.md`
@@ -534,6 +594,12 @@ chunk to redesign or reconcile the agent-skill source and distribution trees.
 - make only migration-required path and terminology edits in canonical,
   plugin, and `.agents` skill files; do not resolve unrelated pre-existing
   content divergence between those trees in this plan
+- rewrite migrated source, test, launcher, and installed-layout paths in the
+  listed historical plans to the post-refactor model; do not preserve stale
+  paths with archival notices or cleanup-search allowlists
+- preserve intentional unrelated `core` references in historical plans only
+  when they still name a different concept, such as `agent/core/` or an
+  upstream API path
 
 ### Deliverable
 
@@ -602,14 +668,29 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 ## Chunk 2 verification
 
 - [ ] Fresh install no longer creates `<install>/core`
-- [ ] Fresh install places `shimmy`, `commands/`, `lib/`, `tools/`, `tests/`, `plugins/`, `agent/` at install root
+- [ ] Fresh install places `bin/shimmy`, `commands/`, `lib/`, `tools/`,
+      `tests/`, `plugins/`, and `agent/` in the flattened layout
 - [ ] Dispatcher symlinks point to `../commands/dispatch-tool.sh`
-- [ ] Installed launcher resolves install root directly
+- [ ] `<repo>/bin/shimmy` and `<install>/bin/shimmy` resolve their respective
+      roots as the parent of `bin/`
+- [ ] No `<install>/shimmy` launcher copy or launcher symlink exists
+- [ ] Launcher installation preserves existing dispatcher and unmanaged
+      entries in `<install>/bin`
+- [ ] A conflicting unmanaged or symlinked `<install>/bin/shimmy` is rejected
+      before mutation
+- [ ] Launcher refresh uses same-directory temporary-file replacement and
+      leaves an executable regular file with mode `0755`
+- [ ] Root manifest `control_bin` is exactly `<install>/bin/shimmy`
 - [ ] Dispatcher loads helpers from `<install>/lib/...`
 - [ ] Update logic no longer checks `<install>/core/...`
 - [ ] Uninstall removes flattened install layout correctly
 - [ ] No `SHIMMY_INSTALL_CORE_DIR` or `SHIMMY_CORE_DIR` remain
 - [ ] Additive install and refresh preserve both profile trees and manifests
+- [ ] Fresh install and refresh replace pre-existing entries at the exact
+      claimed root paths `commands`, `lib`, `tools`, `tests`, `plugins`, and
+      `agent`
+- [ ] Replacement tests cover files, directories, and symlinks at claimed
+      root paths and prove that displaced symlinks are not followed
 - [ ] An unmanaged install-root sentinel is preserved
 - [ ] No code path recursively removes the install root
 - [ ] Installed-layout validation rejects the previous incompatible layout
@@ -625,7 +706,8 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 ## Chunk 3 verification
 
 - [ ] Command tests updated for flat install layout
-- [ ] Shared-library tests updated for `lib/...`
+- [ ] Shared-library tests live under `tests/lib/`, use `test_lib_*` names, and
+      exercise `lib/...`
 - [ ] Context-tree tests pass with renamed source directory
 - [ ] Profile smoke behavior still works
 - [ ] No tests assert old installed paths
@@ -634,6 +716,10 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 - [ ] Removing the final profile removes owned assets but preserves an
       unmanaged sentinel
 - [ ] Dispatcher symlinks have the exact agreed target and are not broken
+- [ ] Tests invoke the source launcher as `./bin/shimmy` and the installed
+      launcher as `<install>/bin/shimmy`
+- [ ] Tests prove launcher refresh changes only `bin/shimmy` and preserves
+      other managed and unmanaged `bin/` entries
 - [ ] Required runnable files retain executable bits
 - Notes:
 
@@ -647,7 +733,10 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 - [ ] Migration-related `core/` -> `lib/` guidance is consistent in every
       affected canonical, plugin, and `.agents` skill file
 - [ ] No skill tree was moved or broadly reconciled as part of this refactor
-- [ ] Any persistent historical plan docs were either updated or intentionally left as historical artifacts with justification
+- [ ] All persistent historical plan docs use the post-refactor source, test,
+      launcher, and installed-layout paths
+- [ ] Cleanup searches do not allowlist stale migrated paths solely because
+      they occur in historical plans
 - Notes:
 
 ## Chunk 5 verification
@@ -669,14 +758,14 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 
 Adjust as needed per chunk:
 
-- [ ] `./shimmy test`
+- [ ] `./bin/shimmy test`
 - [ ] `./tests/context-tree.sh`
-- [ ] disposable install with `./shimmy install --install-dir <tmpdir> --no-startup --no-skills`
+- [ ] disposable install with `./bin/shimmy install --install-dir <tmpdir> --no-startup --no-skills`
 - [ ] inspect the complete install tree, including hidden paths
-- [ ] `./shimmy activate --install-dir <tmpdir>`
+- [ ] `./bin/shimmy activate --install-dir <tmpdir>`
 - [ ] installed command smoke check from `<tmpdir>/bin/<shim> --version`
-- [ ] `./shimmy update --install-dir <tmpdir>`
-- [ ] `./shimmy uninstall --install-dir <tmpdir> --profile default`
+- [ ] `./bin/shimmy update --install-dir <tmpdir>`
+- [ ] `./bin/shimmy uninstall --install-dir <tmpdir> --profile default`
 - Notes:
 
 # Risk callouts
@@ -690,38 +779,50 @@ Adjust as needed per chunk:
      must operate on individually validated owned paths.
 
 2. **Installed launcher path resolution**
-   - If `shimmy` root detection is wrong, every installed command path becomes unreliable.
+   - Both source and installed launchers live under `bin/` and must resolve the
+     parent directory correctly. The presence of a root manifest identifies
+     an installed-layout candidate; the launcher must validate it before
+     loading installed paths and must reject incompatibility. Without a root
+     manifest, the launcher operates from a validated source checkout.
 
-3. **Dispatcher recursion or broken symlink targets**
+3. **Installed `bin/` destructive replacement or launcher collision**
+   - Installed `bin/` combines the management launcher, generated tool
+     dispatchers, and potentially unmanaged entries. Never replace it as a
+     directory. Refuse an unproven pre-existing `bin/shimmy`, and update a
+     managed launcher with same-directory atomic replacement.
+
+4. **Dispatcher recursion or broken symlink targets**
    - The dispatcher currently protects against recursion and assumes specific central paths.
 
-4. **Update/self-update detection**
+5. **Update/self-update detection**
    - Installed-management detection is tightly coupled to current layout and can silently misclassify environments if partially updated.
 
-5. **Manifest layout identification**
+6. **Manifest layout identification**
    - The incompatible flat layout must not be accepted as the existing layout.
      The recorded decision is root manifest version `3`, profile manifest
      version `3`, and root layout label `flat-root`, with strict validation of
      all identity fields before mutation.
 
-6. **Tool runtime helper paths**
+7. **Tool runtime helper paths**
    - Many versioned tool runtimes hardcode `core/runtime/...`; missing even one will create fragmented failures.
 
 ## Medium risk
 
-7. **Context-tree and shellcheck source comments**
+8. **Context-tree and shellcheck source comments**
    - These are easy to miss and can create noisy failures late in the process.
 
-8. **Test naming and folder semantics**
-   - `tests/core/` may become misleading once source `core/` is gone. Decide explicitly whether to rename it or document it as a legacy grouping.
+9. **Test rename coordination**
+   - Rename `tests/core/` to `tests/lib/` together with test-runner paths,
+     function names, shellcheck comments, and context links so no test is
+     silently omitted from the default suite.
 
-9. **Installed skill compatibility assets**
+10. **Installed skill compatibility assets**
    - The installer currently writes `.agents/skills` inside the bundled control
      tree. Its flat-layout ownership and cleanup contract must be explicit.
 
 ## Low risk
 
-10. **Contributor/skill docs drift**
+11. **Contributor/skill docs drift**
    - Easy to fix, but if skipped, future AI sessions will reintroduce stale assumptions.
 
 # Unresolved
@@ -812,23 +913,71 @@ broadly synchronize skill trees.
 
 ## 4. Shared-library test directory name
 
-Decide whether `tests/core/` and `test_core_*` names become `tests/lib/` and
-`test_lib_*`, or remain a behavioral grouping with documented meaning.
+Decision: **resolved**.
 
-Decision: _pending_
+- Rename `tests/core/` to `tests/lib/`.
+- Rename `test_core_*` functions in that grouping to `test_lib_*`.
+- Rename its context file with the directory and update the parent context
+  link, test runner paths, shellcheck source comments, and documentation.
+- Do not retain `tests/core/` as a compatibility path or legacy grouping.
+
+Rationale: these tests exercise the shared shell modules whose canonical
+source directory becomes `lib/`. Matching the test grouping and function
+prefix to that source concept makes test ownership discoverable and prevents
+the old `core` name from continuing to imply a second shared-module model.
 
 ## 5. Installed launcher contract
 
-The target includes both `<install>/shimmy` and `<install>/bin/shimmy`.
-Decide whether `bin/shimmy` is:
+Decision: **resolved**.
 
-- a relative symlink to `../shimmy`; or
-- a separately installed copy.
+- Relocate the repository launcher from `<repo>/shimmy` to
+  `<repo>/bin/shimmy`.
+- Install exactly one launcher at `<install>/bin/shimmy`. Do not install
+  `<install>/shimmy`, and do not create a launcher symlink.
+- The launcher resolves its repository or installation root as the parent of
+  its `bin/` directory. A root manifest identifies an installed-layout
+  candidate and must pass compatibility validation before installed paths are
+  loaded. Without one, the launcher requires a valid source-checkout structure
+  and operates in source mode; directory shape alone does not establish an
+  installed layout.
+- First-time installation is bootstrapped with `./bin/shimmy install`.
+  The source launcher dispatches to `<repo>/commands/install.sh` before any
+  install manifest exists.
+- `<install>/bin` is a merged ownership boundary because it contains the
+  launcher and generated tool dispatchers. Installation, refresh, and update
+  must never replace or recursively delete the directory.
+- When no root manifest exists, installation must refuse any existing
+  `<install>/bin/shimmy`, including a symlink. When a compatible root manifest
+  exists, that path must match the recorded managed launcher before it may be
+  replaced. Other existing `bin/` entries must remain untouched.
+- Install and refresh copy only the launcher, using a temporary regular file
+  in `<install>/bin`, mode `0755`, followed by atomic rename. A failed copy or
+  validation must leave the previous managed launcher and all sibling entries
+  unchanged.
+- The root manifest records `control_bin=<install>/bin/shimmy`. Self-update
+  validates and invokes `<fetched-source>/bin/shimmy` and refreshes only the
+  installed launcher file.
+- Final-profile uninstall removes the verified managed launcher and managed
+  dispatchers individually, then uses `rmdir` on `bin/` only if it is empty.
+  Unmanaged entries must survive.
+- Tests must assert that the source and installed launchers both work, the
+  installed launcher is an executable regular file rather than a symlink, no
+  `<install>/shimmy` exists, `control_bin` is exact, conflicting launchers are
+  rejected before mutation, refresh changes only the launcher, and uninstall
+  preserves unmanaged `bin/` entries.
+- The upstream profile continues to expose `<install>/bin` on `PATH` because
+  that directory contains the stable generated tool dispatchers. Repository
+  `bin/` is not a replacement PATH for upstream tool execution.
 
-Document the authoritative launcher, refresh behavior, uninstall behavior, and
-the exact assertions tests must make.
+Rationale: using `bin/shimmy` in both layouts gives the management launcher a
+consistent semantic location and keeps all public installed commands on one
+PATH entry. A single installed regular file avoids duplicate launcher copies
+and symlink resolution while preserving the existing dispatcher architecture.
+File-level ownership is required because repository and installed `bin/`
+directories do not have identical contents.
 
-Decision: _pending_
+This launcher-specific exception remains distinct from the replace-owned root
+asset policy recorded under **Unresolved 7**.
 
 ## 6. Installed `.agents/skills` ownership
 
@@ -856,7 +1005,36 @@ custom root:
 Regardless of this decision, unknown paths outside the claimed asset names
 must not be recursively deleted.
 
-Decision: _pending_
+Decision: **resolved**.
+
+- The install root is considered wholly Shimmy-owned for the exact claimed
+  root asset names `commands`, `lib`, `tools`, `tests`, `plugins`, and `agent`.
+- Fresh install, additive install, refresh, and self-update replace any
+  pre-existing entry at those exact paths. A pre-existing file, directory, or
+  symlink at one of those names is not treated as an unmanaged collision and
+  does not require proof from an earlier manifest.
+- Replacement must operate on each exact claimed path independently. If an
+  existing claimed path is a symlink, remove the symlink itself without
+  following it before installing the replacement asset.
+- This ownership rule does not authorize recursive replacement or deletion of
+  the install root. Unknown sibling paths remain unmanaged and must survive
+  install, refresh, self-update, and final-profile uninstall.
+- The separately defined merge-owned policy for `<install>/bin` remains in
+  force: only manifest-owned entries may be replaced or removed there.
+  Profiles and manifests also retain their existing preservation and
+  validation rules.
+- `<install>/.agents/skills` is excluded from this decision until
+  **Unresolved 6** determines whether it is part of the flat installed layout
+  and defines its ownership boundary.
+- Final-profile uninstall removes the claimed root assets that Shimmy placed
+  at these names, then removes the install root only with `rmdir` when it is
+  empty.
+
+Rationale: a custom install root is a Shimmy installation boundary, so these
+canonical asset names must deterministically represent the current Shimmy
+payload. Limiting replacement to an explicit name set preserves unrelated
+sibling content and avoids translating bundle replacement into recursive
+install-root deletion.
 
 ## 8. Historical plan treatment
 
@@ -865,7 +1043,32 @@ remain unchanged with an archival notice, or be rewritten to current paths.
 Rewriting them may make their historical descriptions inaccurate; leaving them
 unchanged requires cleanup searches to allowlist them explicitly.
 
-Decision: _pending_
+Decision: **resolved**.
+
+- Rewrite migrated path references in persistent historical plans to the
+  post-refactor model.
+- This includes source `core/` -> `lib/`, shared-library tests
+  `tests/core/` -> `tests/lib/`, the launcher relocation to `bin/shimmy`, and
+  installed paths flattened out of `<install>/core/` wherever those concepts
+  occur.
+- Do not retain stale migrated paths behind archival notices and do not
+  allowlist historical plans in final cleanup searches merely because they
+  predate this refactor.
+- Preserve a historical plan's goals, decisions, completion state, and other
+  non-path content. Adjust nearby terminology only as needed for the rewritten
+  paths to read coherently.
+- Continue to preserve intentional unrelated uses of `core`, including
+  `agent/core/` and upstream API paths, after reviewing each match.
+- The currently identified historical files are `<repo>/plans/context.md`,
+  `<repo>/plans/context_remaining.md`, and
+  `<repo>/plans/multi-architecture-manifest.md`. Repeat the repository-wide
+  scrub during Chunk 4 and add any other persistent historical plan containing
+  migrated paths to that chunk's file list.
+
+Rationale: persistent plans are reused as working context by maintainers and
+AI sessions. Keeping their actionable paths aligned with the current tree is
+more valuable than preserving obsolete path spelling as a historical record;
+version control retains the original text when needed.
 
 # Recommended session bootstrap for future AI runs
 
