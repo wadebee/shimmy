@@ -214,6 +214,9 @@ perform_shim_install() {
   mkdir -p "$SHIMMY_PROFILE_IMPLEMENTATION_DIR" "$SHIMMY_PROFILE_CONFIG_DIR/shims" "$SHIMMY_BIN_DIR" \
     "$SHIMMY_CORE_TOOLS_DIR"
 
+  log_debug "Copying management command support to $SHIMMY_CORE_DIR"
+  install_control_assets
+
   installed_kinds=$(shimmy_read_manifest_kinds "$INSTALL_MANIFEST_FILE" || true)
   installed_kind_versions=$(shimmy_read_manifest_kind_versions "$INSTALL_MANIFEST_FILE" || true)
   selected_kind_version_entries_value=$(selected_kind_version_entries)

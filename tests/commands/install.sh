@@ -14,6 +14,20 @@ test_commands_install_additive_kinds() {
   pass "additive install preserves previously installed tool kinds"
 }
 
+test_commands_install_additive_kind_refreshes_control_assets() {
+  setup_scenario
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup --no-skills >/dev/null
+  rm -rf "$INSTALL_DIR/core/tools/logmine"
+
+  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim logmine --no-startup --no-skills >/dev/null
+
+  [ -f "$INSTALL_DIR/core/tools/logmine/tool.conf" ] || fail_test "additive install did not refresh installed tool metadata for logmine"
+  assert_path_symlink "$INSTALL_DIR/bin/logmine"
+  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "kind=logmine"
+  pass "additive install refreshes installed control assets for newly added kinds"
+}
+
 test_commands_install_macos_podman_guidance() {
   setup_scenario
 
@@ -39,6 +53,7 @@ test_commands_install_uninstall_requires_profile() {
 
 test_commands_install_run() {
   test_commands_install_additive_kinds
+  test_commands_install_additive_kind_refreshes_control_assets
   test_commands_install_macos_podman_guidance
   test_commands_install_uninstall_requires_profile
 }
