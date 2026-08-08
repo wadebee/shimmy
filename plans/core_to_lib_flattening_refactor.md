@@ -142,6 +142,9 @@ Seed this block before any implementation starts, then append after each chunk.
   `shimmy_install_layout=flat-root`. Both manifest types require exact-version
   validation; an existing version-2 or mixed-version install must be rejected
   before any installed asset is changed.
+- Retain `agent/core/` as the canonical source location for management skills
+  during this refactor. Reconciling it with the cross-client
+  `.agents/skills/` distribution and plugin copies is a separate effort.
 
 ## Chunk 1 lessons learned
 
@@ -469,7 +472,9 @@ Confirm:
 
 ### Goal
 
-Update all maintainer-facing and AI-facing documentation to the new terminology and layout.
+Update maintainer-facing and AI-facing documentation only where the shared
+shell-module rename or flattened installed layout requires it. Do not use this
+chunk to redesign or reconcile the agent-skill source and distribution trees.
 
 ### Files to modify
 
@@ -525,8 +530,10 @@ Update all maintainer-facing and AI-facing documentation to the new terminology 
   shared source directory as `core/`
 - audit the complete canonical agent context subtree and keep every parent-child
   context link valid
-- update the canonical skill source first, then keep the plugin and `.agents`
-  distribution copies synchronized with it
+- retain `agent/core/` and its current meaning of “core management skills”
+- make only migration-required path and terminology edits in canonical,
+  plugin, and `.agents` skill files; do not resolve unrelated pre-existing
+  content divergence between those trees in this plan
 
 ### Deliverable
 
@@ -637,7 +644,9 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 - [ ] AI skill docs no longer advise `core/` paths
 - [ ] `agent/CONTEXT.md`, its management-skill child context, and all five leaf
       contexts are explicitly reviewed
-- [ ] Canonical, plugin, and `.agents` skill copies are synchronized
+- [ ] Migration-related `core/` -> `lib/` guidance is consistent in every
+      affected canonical, plugin, and `.agents` skill file
+- [ ] No skill tree was moved or broadly reconciled as part of this refactor
 - [ ] Any persistent historical plan docs were either updated or intentionally left as historical artifacts with justification
 - Notes:
 
@@ -782,10 +791,24 @@ directory being renamed. Keeping it is valid but leaves two meanings of
 “core”; renaming it affects skill discovery, tests, contexts, plugin copies,
 and installed agent assets.
 
-Decide whether to retain `agent/core/` with explicit terminology or rename it,
-for example to `agent/management/`.
+Decision: Retain `agent/core/` unchanged for this refactor and use “core
+management skills” when its meaning needs to be explicit. Do not rename it to
+`agent/management/` as part of the source `core/` -> `lib/` migration.
 
-Decision: _pending_
+Rationale: the repository currently treats `agent/core/` as the canonical
+authoring source for management skills, while `commands/skills.sh` exports
+those sources to `.agents/skills/` and the plugin bundle. `.agents/skills/` is
+the cross-client discovery surface, but the Agent Skills format does not
+require it to be the authoring source. The existing trees also contain
+pre-existing content differences, so changing canonical ownership or
+reconciling copies is a distinct design and migration effort.
+
+Follow-up outside this plan: inventory `agent/core/`, tool-local `agent/`,
+`.agents/skills/`, and `plugins/shimmy/skills/`; choose one canonical ownership
+model; define generation, collision, and drift checks; then reconcile the
+trees deliberately. Until that work is accepted, this plan may update
+migration-related `core/...` references in place but must not relocate or
+broadly synchronize skill trees.
 
 ## 4. Shared-library test directory name
 
