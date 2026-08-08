@@ -6,7 +6,10 @@ Make the following non-backward-compatible layout change consistently across
 implementation, tests, documentation, contexts, and skills:
 
 - rename the repository shared-module directory from `core/` to `lib/`
-- relocate the repository management launcher from `shimmy` to `bin/shimmy`
+- replace the repository management launcher with one minimal root
+  `install.sh` bootstrap
+- install one self-contained `bin/shimmy` launcher in each installed profile;
+  the repository contains no runnable `shimmy` launcher
 - install each profile's control, runtime, configuration, and manifest assets
   directly in that profile's canonical XDG-rooted directory instead of below
   a shared bundled `core/` directory
@@ -16,9 +19,9 @@ implementation, tests, documentation, contexts, and skills:
 - remove all shared-module and installed-layout `core` variables and paths
 
 The work is divided into reviewable chunks for execution across fresh AI
-sessions. Every accepted chunk must leave source and installed dispatch
-operational. Backward compatibility and in-place migration from the version-2
-layout are explicitly out of scope.
+sessions. Every accepted chunk must leave repository bootstrap and installed
+profile dispatch operational. Backward compatibility and in-place migration
+from the version-2 layout are explicitly out of scope.
 
 ## Target layout and terminology
 
@@ -26,11 +29,12 @@ layout are explicitly out of scope.
 
 ```text
 shimmy/
+  install.sh
   agent/
-  bin/
-    shimmy
   commands/
   lib/
+    install/
+      launcher-template.sh
   plugins/
   tests/
   tools/
@@ -99,11 +103,16 @@ Terminology used throughout this plan:
 - `lib/` means shared POSIX shell modules.
 - `agent/core/` means core management skills and is unrelated to the renamed
   shared-module tree.
-- `bin/shimmy` is the sole repository and installed management launcher.
+- `install.sh` is the repository's minimal first-install and profile-bootstrap
+  entrypoint. It is not a general management launcher.
+- `bin/shimmy` exists only inside an installed profile. It is self-contained
+  with that profile's payload, is bound to that profile root, and never
+  depends on a repository launcher or a sibling profile.
 - A profile root is the complete installed control/runtime root for exactly
   one profile; there is no shared install root or installed `core/` bundle.
-- Profile selection chooses a canonical location. It never accepts a caller-
-  supplied filesystem path.
+- Bootstrap profile selection chooses a canonical location. An installed
+  launcher has no profile-selection surface because its enclosing profile is
+  its identity. Neither mechanism accepts a caller-supplied filesystem path.
 
 ## Recorded design decisions
 
@@ -112,12 +121,13 @@ implementation.
 
 ### Atomic transition
 
-The source rename, profile-local installed flattening, launcher relocation,
-XDG path resolution, removal of public location overrides, dispatcher change,
-manifest schema change, and minimum lifecycle tests form one atomic first
-chunk. They span both path models and cannot be split into independently
-operational states without temporary compatibility machinery that this
-refactor does not need.
+The source rename, profile-local installed flattening, repository-launcher
+removal, minimal bootstrap introduction, per-profile launcher installation,
+XDG path resolution, removal of public location and profile-selection
+overrides, dispatcher change, manifest schema change, and minimum lifecycle
+tests form one atomic first chunk. They span both path models and cannot be
+split into independently operational states without temporary compatibility
+machinery that this refactor does not need.
 
 ### Canonical XDG path and profile selection
 
@@ -127,26 +137,32 @@ refactor does not need.
   reinterpret it relative to the current working directory.
 - Keep the supported profile names `default` and `upstream`. Future built-in
   profiles must use the same `<profiles-root>/<profile-name>` convention.
-- Preserve profile selection precedence: explicit `--profile`, then
-  `SHIMMY_PROFILE_ACTIVE`, then `default`.
-- Retain `SHIMMY_PROFILE_ACTIVE` as a profile-name selector, not a filesystem
-  override. Activation prepends the selected profile's `bin/` and exports the
-  matching name. A direct installed tool dispatcher is bound to its enclosing
-  profile root and must reject a conflicting active-profile value with
-  guidance to activate the intended profile; it never jumps to a sibling
-  profile through an environment-derived path.
+- Accept `--profile default|upstream` only on the repository `install.sh`
+  bootstrap. Omission selects `default`.
+- Remove `SHIMMY_PROFILE_ACTIVE` and all environment- or argument-driven
+  profile selection from installed management and dispatch. An installed
+  launcher and every dispatcher derive their profile root from their own
+  installed location.
+- Activation prepends only the invoking launcher's `<profile-root>/bin` to
+  `PATH`; it does not export a Shimmy profile selector. Switch profiles by
+  invoking the desired profile's launcher by absolute path and evaluating its
+  activation output.
+- An installed launcher must reject `--profile` before mutation. It manages
+  only its enclosing profile and never discovers, selects, updates, or removes
+  a sibling profile.
 - Remove `--install-dir` from install, uninstall, activate, status, update,
   test, skills, agent-preflight, and any internal forwarding path. Passing it
   must fail as an unknown argument without mutation.
 - Remove `SHIMMY_INSTALL_DIR`, `SHIMMY_CONTROL_INSTALL_DIR`, and
-  `SHIMMY_UPSTREAM_DIR` as public or internal location inputs. If any legacy
-  variable is non-empty, fail with guidance to unset it and select a profile;
-  do not silently honor or ignore it.
+  `SHIMMY_UPSTREAM_DIR` as public or internal location inputs. Because
+  backward compatibility is out of scope, implementation must not inspect
+  these retired names; setting one has no Shimmy semantics and cannot change
+  behavior or relocate state.
 - Retain `SHIMMY_UPSTREAM_CHECKOUT_DIR`: it selects the source checkout
   recorded by an upstream profile and does not relocate installed state.
 - Repository tests isolate installations by setting an absolute disposable
   `XDG_CONFIG_HOME`; no private install-directory override replaces the public
-  option.
+  option that this refactor removes.
 
 ### Ownership boundaries
 
@@ -176,25 +192,46 @@ a recursively replaceable bundle.
 - Never translate the current `rm -rf "$SHIMMY_CORE_DIR"` behavior into
   recursive removal of a profile root, profiles root, or Shimmy config root.
 
-### Launcher contract
+### Repository bootstrap contract
 
-- Move `<repo>/shimmy` to `<repo>/profiles/default/bin/shimmy` and preserve its executable bit.
-- Install one executable regular launcher at `<profile-root>/bin/shimmy`; do
-  not create `<profile-root>/shimmy` or a launcher symlink.
-- Both source and installed launchers resolve their root as the parent of
-  `bin/`.
-- An installed launcher derives its profile root from its own location and
-  requires that root to equal the canonical XDG path for the manifest's
-  profile name. It never consumes a manifest path as a location override.
-- A profile manifest identifies an installed-layout candidate and must pass
-  compatibility validation before installed paths are loaded. Without one,
-  an installed launcher reports a damaged profile; it never falls back to
-  source mode.
-- Source mode requires a source-only repository marker that is not copied into
-  profile installations in addition to the required repository structure.
-  Use the repository-root `CONTEXT.md` and `CONTRIBUTING.md` together for this
-  distinction; neither file is part of a profile payload.
-- Bootstrap a first install with `./bin/shimmy install`.
+- Remove `<repo>/shimmy`; do not add `<repo>/bin/shimmy`, a repository
+  `shimmy` symlink, or another general-purpose repository launcher.
+- Add one executable POSIX shell bootstrap at `<repo>/install.sh`. Keep it
+  limited to validating repository source, resolving the canonical XDG root,
+  and creating or refreshing the profile selected by its bootstrap-only
+  `--profile default|upstream` option.
+- The bootstrap may accept shim selection plus startup- and skill-installation
+  choices required to construct that profile. Status, activation, dispatch,
+  testing, uninstall, and general installed management remain outside its
+  surface.
+- `./install.sh` bootstraps `default`; `./install.sh --profile upstream`
+  bootstraps `upstream` and records the intended maintainer checkout. There is
+  no source-launcher mode to discover.
+- Keep the installed launcher source as a non-user-facing repository asset at
+  `<repo>/lib/install/launcher-template.sh`. It is copied or rendered by the
+  bootstrap and is not runnable as the repository's management interface.
+- Do not copy root `install.sh` into a profile. Once bootstrap completes, that
+  profile's launcher and installed payload are sufficient for its normal
+  commands. Update may stage fetched source explicitly, but the source
+  checkout is not a standing operational launcher dependency.
+- Repository-only maintenance uses explicit entrypoints such as
+  `./tests/test.sh`, `./tests/context-tree.sh`, and
+  `./commands/run-tool.sh`; it never depends on an uninstalled `shimmy`.
+
+### Installed launcher contract
+
+- Install exactly one executable regular launcher at
+  `<profile-root>/bin/shimmy`; do not create `<profile-root>/shimmy`, a shared
+  launcher above profile roots, or a launcher symlink.
+- The launcher resolves its profile root as the parent of `bin/`, requires
+  that root to equal the canonical XDG path for the manifest's profile name,
+  and uses only control/runtime assets in that installed profile. It never
+  consumes a manifest field or environment variable as a location override.
+- A compatible profile manifest is mandatory before installed paths are
+  loaded. A missing or incompatible manifest reports a damaged profile; the
+  launcher never falls back to repository or source mode.
+- The launcher has no mode or profile detection machinery. Its location is
+  its profile identity, and `--profile` is not part of any installed command.
 - With no profile manifest, reject any existing `<profile-root>/bin/shimmy`,
   including a symlink, before mutation. With a compatible profile manifest,
   require the path to equal its recorded managed launcher before replacement.
@@ -203,11 +240,18 @@ a recursively replaceable bundle.
   leave the prior launcher and all siblings unchanged.
 - Record `control_bin=<profile-root>/bin/shimmy` as a validated assertion in
   the profile manifest; it never redirects execution.
-- Self-update validates and invokes `<fetched-source>/bin/shimmy` and refreshes
-  the selected profile's complete control/runtime payload. Within merge-owned
-  `bin/`, it refreshes only the installed launcher and owned dispatchers.
-- Activation puts the selected `<profile-root>/bin` on `PATH`. Repository
-  `/profiles/default/bin/` is not an installed tool PATH.
+- Self-update validates and invokes `<fetched-source>/install.sh --profile
+  <manifest-profile-name>` and refreshes only the invoking profile's complete
+  control/runtime payload. Within merge-owned `bin/`, it refreshes only that
+  installed launcher and its owned dispatchers.
+- Activation puts the invoking `<profile-root>/bin` on `PATH`. For example:
+
+  ```sh
+  eval "$("${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy" activate)"
+  ```
+
+  This switches the shell to the upstream profile without a selector
+  variable.
 
 ### Manifest compatibility contract
 
@@ -224,14 +268,15 @@ a recursively replaceable bundle.
 - Validate all identity fields together, reject duplicate identity keys, and
   validate `control_bin` against the derived canonical path before consuming
   any remaining metadata.
-- Apply this contract to install, additive install, refresh, update, status,
-  activation, dispatch, profile enumeration, and uninstall.
+- Apply this contract to bootstrap install, additive install, refresh, update,
+  status, activation, dispatch, and uninstall. Remove installed profile
+  enumeration and cross-profile selection machinery.
 - An absent profile manifest is a fresh-install candidate only when the
   profile root is absent or empty. An existing manifest with missing or
   different identity fields is incompatible.
-- Profile enumeration scans only direct children of the canonical profiles
-  root, validates supported profile names, and validates each manifest before
-  reporting or using it.
+- Bootstrap resolves exactly the requested canonical profile, while an
+  installed command resolves exactly its enclosing profile. Neither scans
+  sibling directories to choose an operational target.
 - Before installing any v3 profile, detect the canonical version-2 shared
   manifest at `<shimmy-config-root>/install-manifest.txt` and fail before
   mutation with version-2 removal guidance.
@@ -256,6 +301,12 @@ incompatible Shimmy profile install layout at <manifest-path> (expected shimmy_i
   `SHIMMY_CONTROL_INSTALL_DIR`, `SHIMMY_UPSTREAM_DIR`, and equivalent install-
   location aliases from implementation, tests, documentation, contexts, and
   skills. Do not remove `SHIMMY_UPSTREAM_CHECKOUT_DIR`.
+- Eliminate `SHIMMY_PROFILE_ACTIVE`, installed `--profile` parsing, all
+  profile-selection precedence, and source-versus-installed launcher mode
+  detection. Retain `--profile` only on the repository bootstrap.
+- Eliminate repository `shimmy` and `bin/shimmy` entrypoints. The only
+  repository entrypoint that creates an installed launcher is `install.sh`;
+  the launcher template under `lib/install/` is not a public command.
 - Rename `tests/core/` to `tests/lib/` and `test_core_*` functions in that
   grouping to `test_lib_*`.
 - Retain `agent/core/` as the canonical source for core management skills.
@@ -285,8 +336,10 @@ incompatible Shimmy profile install layout at <manifest-path> (expected shimmy_i
 
 ### Management surface
 
-- Move `<repo>/shimmy` to `<repo>/bin/shimmy`.
-- Add `<repo>/bin/CONTEXT.md` and link it from the root context.
+- Remove `<repo>/shimmy` without replacement by another repository `shimmy`.
+- Add the minimal `<repo>/install.sh` bootstrap.
+- Add the non-user-facing `<repo>/lib/install/launcher-template.sh` used to
+  create each profile-local launcher.
 - Update these command entrypoints:
   - `commands/activate.sh`
   - `commands/agent-preflight.sh`
@@ -357,16 +410,18 @@ across workstations and sessions.
 
 ### Goal
 
-Atomically rename the source library, relocate the launcher, move every
-installation into a canonical XDG profile root, remove public location
-overrides, introduce the version-3 manifest contract, and update enough
-lifecycle tests to leave source and installed dispatch operational.
+Atomically rename the source library, replace the repository launcher with a
+minimal bootstrap, install one profile-bound launcher per canonical XDG
+profile root, remove public location and profile-selection overrides,
+introduce the version-3 manifest contract, and update enough lifecycle tests
+to leave bootstrap and installed dispatch operational.
 
 ### Files
 
 - rename `core/` to `lib/`
-- move `shimmy` to `bin/shimmy`
-- add `bin/CONTEXT.md`
+- remove `shimmy`
+- add root `install.sh`
+- add `lib/install/launcher-template.sh`
 - all command entrypoints listed in **Management surface**
 - all files under the renamed `lib/` tree, with primary behavior changes in:
   - `lib/profile/profile.sh`
@@ -394,9 +449,9 @@ lifecycle tests to leave source and installed dispatch operational.
   - `tests/commands/dispatcher.sh`
   - `tests/commands/management.sh`
 
-Mechanically update any additional test that invokes the old source launcher
-or a renamed module path when required to keep the default suite operational;
-defer the test-directory and function-name cleanup to Chunk 2.
+Mechanically update any additional test that invokes the old repository
+launcher or a renamed module path when required to keep the default suite
+operational; defer the test-directory and function-name cleanup to Chunk 2.
 
 Files may move before their context documents are rewritten in Chunk 3, but
 links and runner paths required for a passing repository must be updated here.
@@ -408,13 +463,19 @@ links and runner paths required for a passing repository must be updated here.
   `XDG_CONFIG_HOME`, `$HOME`, and the profile name.
 - Remove `--install-dir` parsing and forwarding and remove the three legacy
   Shimmy location variables named in the canonical-path contract.
+- Restrict `--profile` parsing to root `install.sh`; remove
+  `SHIMMY_PROFILE_ACTIVE` and make every installed management command and
+  dispatcher derive its only profile from its own location.
 - Install `commands`, `config`, `implementations`, `lib`, `tools`, `tests`,
   `plugins`, and `agent` directly under the selected profile root using the
   ownership rules above.
 - Do not copy the repository `.agents/skills` tree into a profile root.
 - Change dispatcher symlinks to `../commands/dispatch-tool.sh`; retain the
   existing recursion and broken-target protections.
-- Implement the launcher and manifest contracts exactly as recorded above.
+- Implement the bootstrap, installed-launcher, and manifest contracts exactly
+  as recorded above. Repository validation requires `install.sh`, `commands/`,
+  `lib/`, `tools/`, and the launcher template; it never requires a repository
+  `shimmy`.
 - Validate the complete profile-local installed shape instead of treating
   directory existence as proof of an installation.
 - Preserve sibling profiles, the selected manifest, generated dispatchers,
@@ -429,22 +490,28 @@ links and runner paths required for a passing repository must be updated here.
 
 - [ ] `core/` is renamed to `lib/`; all direct source references and shellcheck
       comments use `lib/`.
-- [ ] `bin/shimmy` is the executable source launcher and resolves the repository
-      root as the parent of `bin/`.
+- [ ] Root `install.sh` is the only repository bootstrap, and the repository
+      contains no `shimmy`, `bin/shimmy`, or equivalent management launcher.
+- [ ] `./install.sh` bootstraps `default`, and `./install.sh --profile
+      upstream` bootstraps `upstream` from the intended maintainer checkout.
 - [ ] Unset or empty `XDG_CONFIG_HOME` resolves profiles below
       `$HOME/.config/shimmy/profiles`; an absolute value resolves them below
       `$XDG_CONFIG_HOME/shimmy/profiles`; a relative value fails before
       mutation.
 - [ ] No management command accepts or forwards `--install-dir`, and the
-      removed Shimmy location variables fail with targeted guidance rather
-      than changing a path.
+      removed Shimmy location variables are not read and cannot change a path
+      or any other behavior.
 - [ ] Fresh install creates `activate.sh`, `install-manifest.txt`,
       `bin/shimmy`, `commands/`, `config/`, `implementations/`, `lib/`,
       `tools/`, `tests/`, `plugins/`, and `agent/` below the selected profile
       root, with no `<profile-root>/core`, `<profile-root>/shimmy`, or
       `<profile-root>/.agents/skills`.
 - [ ] Installed launcher is an executable regular file, uses same-directory
-      atomic replacement, and preserves all `bin/` siblings.
+      atomic replacement, preserves all `bin/` siblings, and depends only on
+      its own installed profile payload.
+- [ ] Installed launchers reject `--profile`, do not inspect
+      `SHIMMY_PROFILE_ACTIVE`, and cannot select, update, or uninstall a
+      sibling profile.
 - [ ] An unmanaged or symlinked pre-existing `bin/shimmy` is rejected before
       mutation; a managed launcher must match `control_bin` before replacement.
 - [ ] Dispatcher symlinks target exactly `../commands/dispatch-tool.sh`, load
@@ -467,15 +534,17 @@ links and runner paths required for a passing repository must be updated here.
       before mutation and reports removal guidance.
 - [ ] No `SHIMMY_INSTALL_CORE_DIR`, `SHIMMY_CORE_DIR`,
       `SHIMMY_INSTALL_DIR`, `SHIMMY_CONTROL_INSTALL_DIR`,
-      `SHIMMY_UPSTREAM_DIR`, `core/core`, old dispatcher target, or
-      `--install-dir` remains in implementation.
-- [ ] Minimum source, fresh-install, dispatch, refresh, update, and uninstall
-      tests pass at the review gate.
+      `SHIMMY_UPSTREAM_DIR`, `SHIMMY_PROFILE_ACTIVE`, repository `shimmy`,
+      `core/core`, old dispatcher target, or `--install-dir` remains in
+      implementation.
+- [ ] Minimum bootstrap, fresh-install, dispatch, refresh, update, and
+      uninstall tests pass at the review gate.
 - Notes:
 
 ### Human review gate
 
-Confirm the repository is operational, canonical profile roots and their flat
+Confirm the repository bootstrap is minimal, every operational launcher is
+owned by exactly one installed profile, canonical profile roots and their flat
 trees are understandable, manifest failures occur before mutation, and no
 owned-path operation can erase sibling-profile or unmanaged state.
 
@@ -517,14 +586,22 @@ tests, and provide exhaustive regression coverage for the recorded contracts.
 
 - Use `tests/lib/`, `test_lib_*`, and `lib/` consistently in runner paths,
   function names, shellcheck comments, helper names, and documentation.
-- Invoke the source launcher as `./bin/shimmy` and installed launcher as
-  `<profile-root>/bin/shimmy`.
+- Invoke `./install.sh` only for repository bootstrap work and invoke
+  `<profile-root>/bin/shimmy` for all management of an installed profile.
+  Invoke repository tests and source previews through their explicit scripts;
+  there is no source launcher.
 - Give every lifecycle scenario an absolute disposable `XDG_CONFIG_HOME` and
   derive expected default and upstream profile roots from it.
 - Cover default-only, upstream-only, and combined-profile installs.
-- Verify activation switches `PATH` and `SHIMMY_PROFILE_ACTIVE` together and a
-  dispatcher refuses a conflicting active-profile value without crossing into
-  a sibling root.
+- Verify activation prepends the invoking profile's `bin/` to `PATH` without
+  exporting a profile selector. Verify an installed launcher and its
+  dispatchers remain bound to their enclosing profile even when a sibling is
+  installed.
+- Verify `--profile` is accepted by `./install.sh` and rejected by every
+  installed launcher command before mutation. Verify
+  `SHIMMY_PROFILE_ACTIVE` has no implementation semantics.
+- Remove profile selection from repository and installed smoke-test harnesses;
+  run profile-specific smoke behavior through the launcher being tested.
 - Prove installing, refreshing, updating, and removing one profile never
   mutates the sibling profile. Removing the last profile may remove only empty
   merge-owned container directories.
@@ -537,10 +614,12 @@ tests, and provide exhaustive regression coverage for the recorded contracts.
   after rejection.
 - Cover unset, empty, absolute, and relative `XDG_CONFIG_HOME` and prove that
   the removed CLI option and Shimmy location variables cannot relocate state.
-- Verify source-checkout validation requires `bin/shimmy`, `commands/`,
-  `lib/`, and `tools/` and rejects stale `core/` layouts.
+- Verify source-checkout validation requires `install.sh`, `commands/`,
+  `lib/`, `tools/`, and `lib/install/launcher-template.sh`, rejects stale
+  `core/` layouts, and does not require a repository `shimmy`.
 - Verify executable bits on launchers, command and library entrypoints,
-  version runtimes, and refresh hooks.
+  root `install.sh`, version runtimes, and refresh hooks. The launcher template
+  is not a public executable; installation writes its copy with mode `0755`.
 
 ### Verification
 
@@ -548,12 +627,17 @@ tests, and provide exhaustive regression coverage for the recorded contracts.
 - [ ] Shared-library tests live under `tests/lib/`, use `test_lib_*`, and run in
       the default suite.
 - [ ] Default-only, upstream-only, and combined-profile scenarios pass.
+- [ ] Repository bootstrap is the only source-side installation surface;
+      repository tests and previews work without a repository `shimmy`.
 - [ ] Profile isolation, profile removal, and empty-container cleanup obey the
       ownership contract.
+- [ ] Each installed launcher is bound to one profile, rejects `--profile`,
+      and cannot manage a sibling; activation switches profiles through
+      `PATH` only.
 - [ ] Collision, symlink-safety, sentinel-preservation, launcher, dispatcher,
       and manifest rejection cases pass.
 - [ ] XDG fallback, absolute override, relative-path rejection, removed-option,
-      and removed-variable cases pass.
+      removed-variable, and removed-profile-selector cases pass.
 - [ ] Profile smoke and context-tree tests pass.
 - [ ] No test asserts legacy installed paths or uses installed-core aliases.
 - [ ] No test uses a private install-root override; isolation is achieved with
@@ -582,7 +666,6 @@ source and installed layouts without redesigning skill ownership.
   - `AGENTS.md`
   - `commands/README.md`
 - context tree:
-  - `bin/CONTEXT.md`
   - `commands/CONTEXT.md`
   - `tests/CONTEXT.md`
   - `tests/lib/CONTEXT.md`
@@ -617,13 +700,18 @@ source and installed layouts without redesigning skill ownership.
 
 - Describe `lib/` as the shared library, the canonical XDG path resolver, and
   each profile root as a complete flat control/runtime installation.
+- Describe the minimal root `install.sh` bootstrap, the absence of a
+  repository `shimmy`, and the one-launcher-per-installed-profile model.
 - Remove `--install-dir`, `SHIMMY_INSTALL_DIR`,
   `SHIMMY_CONTROL_INSTALL_DIR`, and `SHIMMY_UPSTREAM_DIR` from all current
   guidance. Retain and clearly distinguish `SHIMMY_UPSTREAM_CHECKOUT_DIR`.
+- Remove `SHIMMY_PROFILE_ACTIVE` and installed-command `--profile` guidance.
+  Document bootstrap-time profile choice and absolute profile-launcher
+  activation as the only profile-switching mechanisms.
 - Explain that disposable validation uses an absolute temporary
   `XDG_CONFIG_HOME`, not an installation-directory override.
-- Link `bin/CONTEXT.md` from the root context and keep all renamed context-tree
-  links valid.
+- Remove any root-context link to a repository `bin/` launcher and keep all
+  renamed context-tree links valid.
 - Explicitly audit `agent/CONTEXT.md`, `agent/core/CONTEXT.md`, and all five
   leaf contexts while retaining the `agent/core/` name.
 - Update only migration-related advice in canonical, plugin, and `.agents`
@@ -634,12 +722,14 @@ source and installed layouts without redesigning skill ownership.
 
 ### Verification
 
-- [ ] Root and contributor docs accurately describe `lib/`, `bin/shimmy`, XDG
+- [ ] Root and contributor docs accurately describe `lib/`, root `install.sh`,
+      the absence of a repository `shimmy`, profile-local `bin/shimmy`, XDG
       resolution, and independent profile-flat installations.
 - [ ] All context links and paths are valid; the context-tree test passes.
 - [ ] AI skill guidance contains no migrated `core/` path advice.
 - [ ] User, contributor, and AI guidance contains no removed install-location
-      option or Shimmy environment override.
+      option, installed profile-selection option, or Shimmy environment
+      override.
 - [ ] The canonical management-skill context subtree was explicitly reviewed
       and remains at `agent/core/`.
 - [ ] No skill tree was moved or broadly reconciled.
@@ -668,22 +758,31 @@ finds a missed migration reference or verification defect.
 
 - [ ] Repository-wide search finds no unintended `core/core`,
       `SHIMMY_INSTALL_CORE_DIR`, `SHIMMY_CORE_DIR`, old dispatcher target,
-      `<repo>/shimmy`, or migrated source `core/` paths.
+      `<repo>/shimmy`, `<repo>/bin/shimmy`, source-launcher mode, or migrated
+      source `core/` paths.
 - [ ] Active implementation, tests, documentation, contexts, and skills contain
       no `--install-dir`, `SHIMMY_INSTALL_DIR`,
-      `SHIMMY_CONTROL_INSTALL_DIR`, `SHIMMY_UPSTREAM_DIR`, or equivalent
-      location alias. Historical removal references in this plan are
-      classified, and intentional `SHIMMY_UPSTREAM_CHECKOUT_DIR` uses remain.
+      `SHIMMY_CONTROL_INSTALL_DIR`, `SHIMMY_UPSTREAM_DIR`,
+      `SHIMMY_PROFILE_ACTIVE`, installed-command `--profile`, or equivalent
+      location/profile alias. Historical removal references in this plan are
+      classified; bootstrap `--profile` and intentional
+      `SHIMMY_UPSTREAM_CHECKOUT_DIR` uses remain.
 - [ ] Every remaining `core` match is reviewed and documented as intentional,
       including `agent/core/`, ordinary prose, and upstream API paths.
 - [ ] Repository-wide search finds no installed `.agents/skills` payload
       assumption; explicit `shimmy skills` targets remain supported.
-- [ ] `./bin/shimmy test` passes.
+- [ ] `./tests/test.sh` passes without a repository `shimmy`.
 - [ ] `./tests/context-tree.sh` passes.
+- [ ] Root `install.sh` remains a minimal bootstrap and repository status,
+      activation, test, dispatch, update, and uninstall workflows use explicit
+      scripts or the applicable installed profile launcher.
 - [ ] A disposable fresh default install works.
 - [ ] A disposable fresh upstream install works.
 - [ ] Default and upstream installs occupy independent canonical profile roots;
       activating either profile and dispatching its installed shims works.
+- [ ] Each profile has exactly one regular executable `bin/shimmy`; no shared
+      or repository launcher exists, and neither launcher can manage the other
+      profile.
 - [ ] Additive install, management refresh, and self-update work without
       changing unmanaged or sibling-profile sentinels.
 - [ ] Removing either profile preserves the other; removing the last profile
@@ -702,13 +801,14 @@ Set `<tmp-config-home>` to an absolute disposable directory and adjust the
 selected shim as needed:
 
 ```sh
-./bin/shimmy test
+./tests/test.sh
 ./tests/context-tree.sh
-XDG_CONFIG_HOME=<tmp-config-home> ./bin/shimmy install --profile default --no-startup --no-skills
-XDG_CONFIG_HOME=<tmp-config-home> ./bin/shimmy activate --profile default
+XDG_CONFIG_HOME=<tmp-config-home> ./install.sh --profile default --no-startup --no-skills
+XDG_CONFIG_HOME=<tmp-config-home> ./install.sh --profile upstream --no-startup --no-skills
+XDG_CONFIG_HOME=<tmp-config-home> <tmp-config-home>/shimmy/profiles/default/bin/shimmy activate
 XDG_CONFIG_HOME=<tmp-config-home> <tmp-config-home>/shimmy/profiles/default/bin/<shim> --version
-XDG_CONFIG_HOME=<tmp-config-home> ./bin/shimmy update --profile default
-XDG_CONFIG_HOME=<tmp-config-home> ./bin/shimmy uninstall --profile default
+XDG_CONFIG_HOME=<tmp-config-home> <tmp-config-home>/shimmy/profiles/default/bin/shimmy update
+XDG_CONFIG_HOME=<tmp-config-home> <tmp-config-home>/shimmy/profiles/default/bin/shimmy uninstall
 ```
 
 ### Human review gate
@@ -730,9 +830,10 @@ pass, no removed path override remains, and no legacy path can be recreated.
 3. **Cross-profile isolation** — Each profile contains a full independent
    payload. Selection, update, and uninstall mistakes must not mutate a sibling
    profile or a shared container.
-4. **Launcher mode detection and replacement** — Both launchers live below
-   `bin/`; incorrect root resolution, weak manifest checks, or non-atomic
-   replacement could break every management command.
+4. **Bootstrap/launcher boundary** — If the bootstrap grows into a second
+   management launcher, or an installed launcher can infer or select another
+   profile, the design recreates the ambiguity this change removes. Validate
+   the boundary in command-surface tests.
 5. **Merge-owned `bin/` collisions** — Replacing `bin/`, following a launcher
    symlink, or accepting an unproven launcher could destroy or hijack managed
    dispatch.
@@ -741,9 +842,9 @@ pass, no removed path override remains, and no legacy path can be recreated.
    changed.
 7. **Dispatcher target integrity** — A stale central target can produce broken
    or recursive symlinks.
-8. **Update detection** — Installed-management and fetched-source checks are
-   tightly coupled to the profile-flat layout and can silently misclassify
-   partial trees.
+8. **Update handoff** — An installed launcher must pass its manifest profile
+   name to the fetched source's bootstrap without accepting a caller-selected
+   target. Weak fetched-source or profile checks can refresh the wrong root.
 9. **Versioned runtime paths** — One missed `core/runtime` reference causes a
    tool-specific failure that broad lifecycle tests may not expose.
 
@@ -771,8 +872,10 @@ the fixed design decisions above.
   treats `../core` as its installed payload, and update detection checks
   `<install>/core`; these must change atomically.
 - The current installer copies one repository-root launcher to both
-  `<install>/bin/shimmy` and `<install>/core/shimmy`; the target design has one
-  launcher per profile and file-level ownership in each profile's `bin/`.
+  `<install>/bin/shimmy` and `<install>/core/shimmy`; the target design removes
+  the repository launcher, exposes only a minimal `install.sh` bootstrap, and
+  gives each profile one profile-bound launcher with file-level ownership in
+  that profile's `bin/`.
 - Directory renames also affect shellcheck source comments, context links,
   source-checkout validation, test support globs, and historical working plans.
 - A shared install root makes profile isolation and uninstall ownership harder
@@ -806,7 +909,9 @@ At the start of a later session:
 1. Read `AGENTS.md`, `CONTEXT.md`, this plan, the current chunk's files, and
    every context file on their paths.
 2. Restate the non-backward-compatible target: source `core/` becomes `lib/`,
-   `bin/shimmy` is the sole launcher, `--install-dir` and equivalent Shimmy
+   the repository has one minimal `install.sh` bootstrap and no `shimmy`, each
+   installed profile has one self-contained `bin/shimmy`, `--install-dir`,
+   installed `--profile`, `SHIMMY_PROFILE_ACTIVE`, and equivalent Shimmy
    location variables are removed, and each profile is a complete flat install
    below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`.
 3. Work only on the current chunk and stop at its human review gate.
