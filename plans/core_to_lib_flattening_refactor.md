@@ -137,9 +137,11 @@ Seed this block before any implementation starts, then append after each chunk.
 - Flat installation requires targeted replacement and cleanup of owned paths;
   the current bundled-directory delete behavior cannot be reused for the
   install root.
-- A layout-changing release must distinguish the new structure from the
-  existing layout in manifest validation; the exact version and label remain
-  an explicit design decision under **Unresolved**.
+- The flattened layout uses root install manifest version `3`, profile
+  manifest version `3`, and the root-only layout label
+  `shimmy_install_layout=flat-root`. Both manifest types require exact-version
+  validation; an existing version-2 or mixed-version install must be rejected
+  before any installed asset is changed.
 
 ## Chunk 1 lessons learned
 
@@ -320,9 +322,15 @@ This is the highest-risk behavioral change and should happen only after the sour
 
 - `<repo>/commands/dispatch-tool.sh`
 
+### Manifest-consuming commands
+
+- `<repo>/commands/activate.sh`
+- `<repo>/commands/status.sh`
+
 ### Update installed-layout detection
 
 - `<repo>/lib/update/management.sh`
+- `<repo>/lib/update/profile.sh`
 - `<repo>/lib/update/refresh.sh`
 - `<repo>/lib/update/update.sh`
 
@@ -349,6 +357,24 @@ This is the highest-risk behavioral change and should happen only after the sour
   `commands/`, `lib/`, and `tools/` source structure
 - make installed-layout detection validate the flattened paths rather than
   merely checking that the install directory exists
+- write `shimmy_install_manifest_version=3` and
+  `shimmy_install_layout=flat-root` in the root manifest
+- write `shimmy_profile_manifest_version=3` in every profile manifest and
+  remove the ambiguous unscoped `shimmy_layout` key from profile manifests
+- validate the root manifest version and layout label together, then validate
+  the selected profile manifest version before using profile-owned paths or
+  metadata
+- apply the same validation contract to install, additive install, refresh,
+  update, status, activation, dispatch, profile enumeration, and uninstall;
+  no command may consume incompatible manifest paths before rejecting them
+- if a root manifest exists but either required root identity field is missing
+  or different, fail before mutation with:
+  `incompatible Shimmy install layout at <manifest-path> (expected shimmy_install_manifest_version=3 and shimmy_install_layout=flat-root); uninstall it with the Shimmy version that created it, then reinstall`
+- if a profile manifest exists but its version is missing or different, fail
+  before mutation with:
+  `incompatible Shimmy profile manifest at <manifest-path> (expected shimmy_profile_manifest_version=3); uninstall the existing Shimmy installation with the Shimmy version that created it, then reinstall`
+- treat an absent root manifest as a fresh-install candidate, but do not treat
+  an existing manifest with missing identity fields as compatible
 
 ### Deliverable
 
@@ -418,6 +444,10 @@ Update all tests and test infrastructure to validate the new `lib/` source layou
   self-update, and uninstall
 - verify exact dispatcher symlink targets and reject broken or recursive links
 - verify source-checkout validation requires `lib/` and rejects stale `core/`
+- verify root manifests require version `3` plus
+  `shimmy_install_layout=flat-root`, and profile manifests require version `3`
+- verify missing, version-2, unknown-version, wrong-label, and mixed-version
+  manifests are rejected before any installed asset changes
 - verify executable bits on `shimmy`, command entrypoints, library entrypoints,
   version runtimes, and refresh hooks
 
@@ -576,6 +606,13 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 - [ ] An unmanaged install-root sentinel is preserved
 - [ ] No code path recursively removes the install root
 - [ ] Installed-layout validation rejects the previous incompatible layout
+- [ ] Root manifests use `shimmy_install_manifest_version=3` and
+      `shimmy_install_layout=flat-root`
+- [ ] Profile manifests use `shimmy_profile_manifest_version=3` and do not
+      contain the ambiguous unscoped `shimmy_layout` key
+- [ ] Existing malformed, version-2, unknown-version, wrong-label, and
+      mixed-version manifests are rejected before mutation with the agreed
+      remediation
 - Notes:
 
 ## Chunk 3 verification
@@ -653,8 +690,10 @@ Adjust as needed per chunk:
    - Installed-management detection is tightly coupled to current layout and can silently misclassify environments if partially updated.
 
 5. **Manifest layout identification**
-   - The incompatible flat layout must not be accepted as the existing layout
-     without an explicit version and validation decision.
+   - The incompatible flat layout must not be accepted as the existing layout.
+     The recorded decision is root manifest version `3`, profile manifest
+     version `3`, and root layout label `flat-root`, with strict validation of
+     all identity fields before mutation.
 
 6. **Tool runtime helper paths**
    - Many versioned tool runtimes hardcode `core/runtime/...`; missing even one will create fragmented failures.
@@ -709,7 +748,32 @@ Decide:
 - the exact error and remediation shown when an existing incompatible install
   is encountered.
 
-Decision: _pending_
+Decision: **resolved**.
+
+- The root install manifest version is `3`.
+- The profile manifest version is also `3`. Although profile directories keep
+  their current shape, the profile schema drops the ambiguous global
+  `shimmy_layout` field and becomes subject to exact-version validation. The
+  two version fields remain independently named so they may diverge in a
+  future schema change.
+- The root manifest replaces `shimmy_layout=metadata-tree` with the scoped
+  field `shimmy_install_layout=flat-root`.
+- Profile manifests do not contain a layout label. They describe profile
+  metadata, not ownership or placement of the shared install-root assets.
+- A missing root manifest is valid only as a fresh-install candidate. If the
+  root manifest exists, both its version and layout label must exactly match.
+  If a profile manifest exists, its version must exactly match before its
+  paths or metadata are consumed. Missing identity fields are incompatible;
+  they are not aliases for the current version.
+- Root-layout incompatibility must fail before mutation with this message:
+  `incompatible Shimmy install layout at <manifest-path> (expected shimmy_install_manifest_version=3 and shimmy_install_layout=flat-root); uninstall it with the Shimmy version that created it, then reinstall`
+- Profile-schema incompatibility must fail before mutation with this message:
+  `incompatible Shimmy profile manifest at <manifest-path> (expected shimmy_profile_manifest_version=3); uninstall the existing Shimmy installation with the Shimmy version that created it, then reinstall`
+- No in-place version-2 migration, compatibility alias, or automatic deletion
+  is permitted. Tests must cover version `2`, unknown versions, missing
+  identity fields, a wrong root layout label, and a version-3 root paired with
+  a non-version-3 profile. Each rejection must prove that existing install
+  assets and an unmanaged sentinel remain unchanged.
 
 ## 3. Canonical agent skill directory name
 
