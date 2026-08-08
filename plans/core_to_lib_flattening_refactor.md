@@ -71,6 +71,9 @@ shimmy/
     upstream/
 ```
 
+Whether the flat install also contains `<install>/.agents/skills` is unresolved
+and is intentionally not implied by this diagram.
+
 ## Naming model
 
 - `lib/` = shared shell modules
@@ -78,13 +81,35 @@ shimmy/
 - no separate installed `core/` bundle
 - remove `SHIMMY_*CORE*` variables and replace them with names that reflect the flattened layout
 
+## Confirmed implementation constraints
+
+- Treat the install root as a container of individually owned paths, not as a
+  recursively replaceable bundle.
+- Never translate the current `rm -rf "$SHIMMY_CORE_DIR"` behavior into an
+  equivalent recursive removal of the install root.
+- Refresh and additive install flows must preserve `profiles/`, manifests, and
+  unknown or unmanaged files at the install root.
+- Final-profile uninstall must remove each Shimmy-owned root asset explicitly
+  and remove the install root only when it is empty.
+- Add a disposable unmanaged sentinel file to install, refresh, update, and
+  uninstall tests and prove that Shimmy does not delete it.
+- Every accepted chunk must leave the repository in a testable, operational
+  state. Do not accept an intermediate chunk that knowingly breaks source or
+  installed dispatch.
+- Repository paths in this plan are relative to `<repo>` so the plan remains
+  portable across workstations and AI sessions.
+- Preserve unrelated uses of `core`, including upstream API paths such as
+  OPNsense `/core/...` endpoints. Cleanup searches require review, not blind
+  replacement.
+
 # Human-in-the-loop execution model
 
 Each chunk below is intended to be run in a separate or reusable AI session.
 
 For **every chunk**:
 
-1. Read the chunk header and its listed files first.
+1. Read `AGENTS.md`, `CONTEXT.md`, every child context on the path to a changed
+   file, the chunk header, and its listed files first.
 2. Execute only that chunk’s scope.
 3. Run the chunk verification checklist.
 4. Produce a short summary:
@@ -109,6 +134,12 @@ Seed this block before any implementation starts, then append after each chunk.
 - Any remaining `SHIMMY_INSTALL_CORE_DIR` or `SHIMMY_CORE_DIR` naming after refactor is a design bug, not technical debt to defer.
 - Dispatcher, launcher, update logic, runtime shims, tests, docs, and contexts all contain path assumptions and must be updated together.
 - When changing a directory name, also update shellcheck source comments, context links, and test support globs.
+- Flat installation requires targeted replacement and cleanup of owned paths;
+  the current bundled-directory delete behavior cannot be reused for the
+  install root.
+- A layout-changing release must distinguish the new structure from the
+  existing layout in manifest validation; the exact version and label remain
+  an explicit design decision under **Unresolved**.
 
 ## Chunk 1 lessons learned
 
@@ -130,7 +161,70 @@ Seed this block before any implementation starts, then append after each chunk.
 
 - _append after completion_
 
+# Confirmed scrub inventory
+
+This inventory was produced from a repository-wide search before implementation.
+It distinguishes known migration touchpoints from unrelated uses of `core`.
+
+## Shared source tree
+
+- Rename the complete `<repo>/core/` tree to `<repo>/lib/`, including all shell
+  modules and all nine `CONTEXT.md` files currently rooted there.
+- Update self-references in:
+  - `lib/install/install.sh`
+  - `lib/netinfo/netinfo.sh`
+  - `lib/runtime/image.sh`
+  - `lib/update/update.sh`
+- Update source-checkout structural validation in `lib/profile/profile.sh`.
+
+## Versioned runtime and refresh files
+
+- `tools/aws/versions/2.31/run.sh`
+- `tools/gcloud/versions/573.0/run.sh`
+- `tools/gdrive/versions/0.2/run.sh`
+- `tools/gdrive/versions/0.2/refresh.sh`
+- `tools/gh/versions/2.94/run.sh`
+- `tools/gh/versions/2.94/refresh.sh`
+- `tools/go/versions/1.26/run.sh`
+- `tools/jq/versions/1.8/run.sh`
+- `tools/logmine/versions/0.1/run.sh`
+- `tools/logmine/versions/0.1/refresh.sh`
+- `tools/netcat/versions/7.92/run.sh`
+- `tools/netcat/versions/7.92/refresh.sh`
+- `tools/nmap/versions/7.98/run.sh`
+- `tools/oc/versions/4.18/run.sh`
+- `tools/oc/versions/4.18/refresh.sh`
+- `tools/oc/versions/4.20/run.sh`
+- `tools/oc/versions/4.20/refresh.sh`
+- `tools/oc/versions/4.22/run.sh`
+- `tools/oc/versions/4.22/refresh.sh`
+- `tools/opnsense-mcp-admin/versions/1.0/run.sh`
+- `tools/opnsense-mcp-admin/versions/1.0/refresh.sh`
+- `tools/opnsense-mcp-read-only/versions/0.4/run.sh`
+- `tools/opnsense-mcp-read-only/versions/0.4/refresh.sh`
+- `tools/rg/versions/15.1/run.sh`
+- `tools/skopeo/versions/1.22/run.sh`
+- `tools/task/versions/3.45/run.sh`
+- `tools/task/versions/3.45/refresh.sh`
+- `tools/terraform/versions/1.15/run.sh`
+- `tools/tessl/versions/0.1/run.sh`
+- `tools/tessl/versions/0.1/refresh.sh`
+- `tools/textual/versions/8.2/run.sh`
+- `tools/textual/versions/8.2/refresh.sh`
+
+## Confirmed non-migration matches
+
+- OPNsense API endpoint paths such as `/core/system/info` and
+  `/core/firmware/status` are upstream API names and must not be rewritten.
+- Generic prose such as “core behavior” is not automatically a path reference;
+  retain or rewrite it based on meaning.
+
 # Chunked implementation plan
+
+Do not begin implementation until the blocking choices under **Unresolved**
+have decisions recorded and the affected chunk boundaries and file lists have
+been reconciled. In particular, the current Chunk 1/Chunk 2 boundary is not an
+approved operational transition.
 
 ## Chunk 1 — Source-tree rename and internal module path conversion
 
@@ -146,17 +240,18 @@ This establishes the new conceptual model for maintainers and reduces ambiguity 
 
 ### Rename directory
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/core` -> `/home/beewa/repos/GitHub/wadebee/shimmy/lib`
+- `<repo>/core/` -> `<repo>/lib/`
 
 ### Update command entrypoints
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/commands/activate.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/commands/agent-preflight.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/commands/install.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/commands/netinfo.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/commands/status.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/commands/update.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/commands/skills.sh`
+- `<repo>/commands/activate.sh`
+- `<repo>/commands/agent-preflight.sh`
+- `<repo>/commands/dispatch-tool.sh`
+- `<repo>/commands/install.sh`
+- `<repo>/commands/netinfo.sh`
+- `<repo>/commands/status.sh`
+- `<repo>/commands/update.sh`
+- `<repo>/commands/skills.sh`
 
 ### Update moved library files for self-references and shellcheck paths
 
@@ -164,23 +259,20 @@ This establishes the new conceptual model for maintainers and reduces ambiguity 
 
 ### Update repo launcher and any root-level helpers that reference `core/`
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/shimmy`
+- `<repo>/shimmy`
 
 ### Update tool runtime references to shared runtime helpers
 
-Representative set; in practice all matching files:
-
-- all `tools/*/versions/*/run.sh`
-- all `tools/*/versions/*/refresh.sh`
+Use the exact runtime and refresh inventory in **Confirmed scrub inventory**.
 
 ### Update tests that source repo `core/`
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/test.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/support.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/core/catalog.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/core/runtime.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/core/update.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/context-tree.sh`
+- `<repo>/tests/test.sh`
+- `<repo>/tests/support.sh`
+- `<repo>/tests/core/catalog.sh`
+- `<repo>/tests/core/runtime.sh`
+- `<repo>/tests/core/update.sh`
+- `<repo>/tests/context-tree.sh`
 
 ### Deliverable
 
@@ -207,32 +299,32 @@ This is the highest-risk behavioral change and should happen only after the sour
 
 ### Installed path model
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/lib/profile/profile.sh`
+- `<repo>/lib/profile/profile.sh`
 
 ### Install request wiring
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/lib/install/request.sh`
+- `<repo>/lib/install/request.sh`
 
 ### Installer asset copy logic
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/lib/install/profile-assets.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/lib/install/install.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/lib/install/uninstall.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/lib/install/manifest.sh`
+- `<repo>/lib/install/profile-assets.sh`
+- `<repo>/lib/install/install.sh`
+- `<repo>/lib/install/uninstall.sh`
+- `<repo>/lib/install/manifest.sh`
 
 ### Installed launcher
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/shimmy`
+- `<repo>/shimmy`
 
 ### Dispatcher
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/commands/dispatch-tool.sh`
+- `<repo>/commands/dispatch-tool.sh`
 
 ### Update installed-layout detection
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/lib/update/management.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/lib/update/refresh.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/lib/update/update.sh`
+- `<repo>/lib/update/management.sh`
+- `<repo>/lib/update/refresh.sh`
+- `<repo>/lib/update/update.sh`
 
 ### Specific implementation intent
 
@@ -247,6 +339,16 @@ This is the highest-risk behavioral change and should happen only after the sour
 - install commands at `<install>/commands`
 - install shared library at `<install>/lib`
 - install tools/tests/plugins/agent directly at install root
+- replace managed root assets individually; do not recursively delete or
+  replace `<install>` as a single directory
+- preserve `<install>/profiles`, all existing profile manifests, the root manifest, and
+  unmanaged root entries during additive install, refresh, and self-update
+- on final-profile uninstall, remove only verified Shimmy-owned paths and use
+  `rmdir` for the install root so unmanaged content is preserved
+- keep source checkout validation synchronized with the required
+  `commands/`, `lib/`, and `tools/` source structure
+- make installed-layout detection validate the flattened paths rather than
+  merely checking that the install directory exists
 
 ### Deliverable
 
@@ -259,6 +361,8 @@ Confirm:
 - the resulting install tree is easy to understand
 - no accidental path collisions were introduced at install root
 - manifest semantics still make sense
+- refresh and additive install cannot erase profile or unmanaged state
+- final-profile uninstall removes owned assets without recursively deleting the install root
 
 ## Chunk 3 — Tests and verification harness rewrite
 
@@ -270,37 +374,52 @@ Update all tests and test infrastructure to validate the new `lib/` source layou
 
 ### Command/install lifecycle tests
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/commands/install.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/commands/lifecycle.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/commands/update.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/commands/test.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/commands/profiles.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/commands/dispatcher.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/commands/management.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/commands/skills.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/commands/startup.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/commands/netinfo.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/commands/agent-preflight.sh`
+- `<repo>/tests/commands/install.sh`
+- `<repo>/tests/commands/lifecycle.sh`
+- `<repo>/tests/commands/update.sh`
+- `<repo>/tests/commands/test.sh`
+- `<repo>/tests/commands/profiles.sh`
+- `<repo>/tests/commands/dispatcher.sh`
+- `<repo>/tests/commands/management.sh`
+- `<repo>/tests/commands/skills.sh`
+- `<repo>/tests/commands/startup.sh`
+- `<repo>/tests/commands/netinfo.sh`
+- `<repo>/tests/commands/agent-preflight.sh`
 
 ### Shared/core-now-lib tests
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/core/catalog.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/core/runtime.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/core/update.sh`
-- consider whether `tests/core/` should itself be renamed to `tests/lib/` for consistency
+- `<repo>/tests/core/catalog.sh`
+- `<repo>/tests/core/runtime.sh`
+- `<repo>/tests/core/update.sh`
+- apply the recorded decision from **Unresolved: Shared-library test directory
+  name**
 
 ### Test runner and support
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/test.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/support.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/context-tree.sh`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/profile-smoke.sh`
+- `<repo>/tests/test.sh`
+- `<repo>/tests/support.sh`
+- `<repo>/tests/context-tree.sh`
+- `<repo>/tests/profile-smoke.sh`
 
 ### Specific implementation intent
 
 - replace installed assertions such as `$INSTALL_DIR/core/tools/...` with `$INSTALL_DIR/tools/...`
 - update any env vars or helper names referencing `CORE`
-- decide whether test directories named `tests/core/` should be renamed or kept as behavioral grouping; document the choice explicitly in this chunk summary
+- implement the recorded `tests/core/` naming decision consistently in paths,
+  context links, shellcheck comments, and test function names
+- rename test helper variables and functions that encode the old installed-core
+  model; do not retain `SHIMMY_INSTALL_CORE_DIR`, `install_core_dir`, or
+  equivalent aliases
+- verify fresh default and upstream installs independently and together
+- verify additive install and management refresh preserve both profiles
+- verify removing one profile preserves the other profile and shared assets
+- verify removing the final profile removes all owned root assets
+- verify an unmanaged install-root sentinel survives install, refresh,
+  self-update, and uninstall
+- verify exact dispatcher symlink targets and reject broken or recursive links
+- verify source-checkout validation requires `lib/` and rejects stale `core/`
+- verify executable bits on `shimmy`, command entrypoints, library entrypoints,
+  version runtimes, and refresh hooks
 
 ### Deliverable
 
@@ -313,6 +432,8 @@ Confirm:
 - test names still make sense
 - expected install tree in tests matches agreed flattened design
 - no tests silently retain legacy path assertions
+- every chunk accepted before this test rewrite has a documented passing test
+  command appropriate to its scope
 
 ## Chunk 4 — Documentation, contexts, and skills rewrite
 
@@ -324,34 +445,45 @@ Update all maintainer-facing and AI-facing documentation to the new terminology 
 
 ### Root and contribution docs
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/CONTEXT.md`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/CONTRIBUTING.md`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/AGENTS.md`
+- `<repo>/README.md`
+- `<repo>/CONTEXT.md`
+- `<repo>/CONTRIBUTING.md`
+- `<repo>/AGENTS.md`
+- `<repo>/commands/README.md`
 
 ### Context files
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/commands/CONTEXT.md`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/tests/CONTEXT.md`
+- `<repo>/commands/CONTEXT.md`
+- `<repo>/tests/CONTEXT.md`
+- `<repo>/tests/core/CONTEXT.md`
 - all context files currently under `<repo>/core/**/CONTEXT.md`, after rename under `<repo>/lib/**/CONTEXT.md`
+- `<repo>/agent/CONTEXT.md`
+- `<repo>/agent/core/CONTEXT.md`
+- `<repo>/agent/core/shimmy-create-tool/CONTEXT.md`
+- `<repo>/agent/core/shimmy-escalation/CONTEXT.md`
+- `<repo>/agent/core/shimmy-init/CONTEXT.md`
+- `<repo>/agent/core/shimmy-install/CONTEXT.md`
+- `<repo>/agent/core/shimmy-tool-local-build/CONTEXT.md`
 
 ### AI/skill guidance
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/.agents/skills/shimmy-create-tool/SKILL.md`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/plugins/shimmy/skills/shimmy-create-tool/SKILL.md`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/agent/core/shimmy-create-tool/SKILL.md`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/agent/core/shimmy-create-tool/CONTEXT.md`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/agent/core/shimmy-tool-local-build/SKILL.md`
-- any tool skill docs that mention `core/`
+- `<repo>/.agents/skills/shimmy-create-tool/SKILL.md`
+- `<repo>/plugins/shimmy/skills/shimmy-create-tool/SKILL.md`
+- `<repo>/agent/core/shimmy-create-tool/SKILL.md`
+- `<repo>/agent/core/shimmy-create-tool/CONTEXT.md`
+- `<repo>/agent/core/shimmy-tool-local-build/SKILL.md`
+- no canonical tool-local agent skill currently contains a shared-module
+  `core/` path; repeat the scrub after implementation and review any new match
 
 ### Other docs and plans with hardcoded `core/`
 
-- `/home/beewa/repos/GitHub/wadebee/shimmy/docs/prompt-shimmy-project.md`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/docs/testing.md`
-- `/home/beewa/repos/GitHub/wadebee/shimmy/docs/templates/generic-shim/SKILL.md`
+- `<repo>/docs/prompt-shimmy-project.md`
+- `<repo>/docs/testing.md`
+- `<repo>/docs/templates/generic-shim/SKILL.md`
 - plan/history docs that are intended to remain accurate:
-  - `/home/beewa/repos/GitHub/wadebee/shimmy/plans/context.md`
-  - `/home/beewa/repos/GitHub/wadebee/shimmy/plans/context_remaining.md`
-  - `/home/beewa/repos/GitHub/wadebee/shimmy/plans/multi-architecture-manifest.md`
+  - `<repo>/plans/context.md`
+  - `<repo>/plans/context_remaining.md`
+  - `<repo>/plans/multi-architecture-manifest.md`
 
 ### Specific implementation intent
 
@@ -359,6 +491,12 @@ Update all maintainer-facing and AI-facing documentation to the new terminology 
 - update path examples from `core/...` to `lib/...`
 - update install layout descriptions from `<install>/core/...` to flat install-root examples
 - ensure context-tree references point to renamed directories
+- update `README.md` and `commands/README.md`, which currently describe the
+  shared source directory as `core/`
+- audit the complete canonical agent context subtree and keep every parent-child
+  context link valid
+- update the canonical skill source first, then keep the plugin and `.agents`
+  distribution copies synchronized with it
 
 ### Deliverable
 
@@ -419,7 +557,9 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 - [ ] All moved library files have correct shellcheck source comments
 - [ ] All runtime shims reference `lib/runtime/...`
 - [ ] Test runner and support reference `lib/...`
-- [ ] `grep` confirms no unintended source-tree `core/...` references remain
+- [ ] `rg` confirms no unintended source-tree `core/...` references remain
+- [ ] Source-checkout validation requires `commands/`, `lib/`, and `tools/`
+- [ ] The repository remains operational at the chunk review gate
 - Notes:
 
 ## Chunk 2 verification
@@ -432,6 +572,10 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 - [ ] Update logic no longer checks `<install>/core/...`
 - [ ] Uninstall removes flattened install layout correctly
 - [ ] No `SHIMMY_INSTALL_CORE_DIR` or `SHIMMY_CORE_DIR` remain
+- [ ] Additive install and refresh preserve both profile trees and manifests
+- [ ] An unmanaged install-root sentinel is preserved
+- [ ] No code path recursively removes the install root
+- [ ] Installed-layout validation rejects the previous incompatible layout
 - Notes:
 
 ## Chunk 3 verification
@@ -441,6 +585,12 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 - [ ] Context-tree tests pass with renamed source directory
 - [ ] Profile smoke behavior still works
 - [ ] No tests assert old installed paths
+- [ ] Default-only, upstream-only, and combined-profile scenarios pass
+- [ ] Removing one profile preserves the other and shared root assets
+- [ ] Removing the final profile removes owned assets but preserves an
+      unmanaged sentinel
+- [ ] Dispatcher symlinks have the exact agreed target and are not broken
+- [ ] Required runnable files retain executable bits
 - Notes:
 
 ## Chunk 4 verification
@@ -448,6 +598,9 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 - [ ] Root docs describe `lib/` accurately
 - [ ] Context files reference `lib/` accurately
 - [ ] AI skill docs no longer advise `core/` paths
+- [ ] `agent/CONTEXT.md`, its management-skill child context, and all five leaf
+      contexts are explicitly reviewed
+- [ ] Canonical, plugin, and `.agents` skill copies are synchronized
 - [ ] Any persistent historical plan docs were either updated or intentionally left as historical artifacts with justification
 - Notes:
 
@@ -455,12 +608,15 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 
 - [ ] Full repo search shows no unintended `core/core` references
 - [ ] Full repo search shows no unintended `SHIMMY_*CORE*` variable names
+- [ ] Full repo search classifies every remaining `core` match as intentional
 - [ ] Fresh install works
 - [ ] `shimmy activate` works
 - [ ] Installed shim dispatch works
 - [ ] `shimmy update` works for a fresh install
 - [ ] `shimmy uninstall` works
 - [ ] Full relevant test suite passes
+- [ ] The context-tree test passes
+- [ ] Repository diff contains no stale workstation-specific absolute paths
 - Notes:
 
 ## Suggested commands to run during verification
@@ -468,8 +624,9 @@ Use this as a living checklist. Mark each item with `[x]`, `[ ]`, or `[~]`, and 
 Adjust as needed per chunk:
 
 - [ ] `./shimmy test`
+- [ ] `./tests/context-tree.sh`
 - [ ] disposable install with `./shimmy install --install-dir <tmpdir> --no-startup --no-skills`
-- [ ] inspect install tree with `ls`
+- [ ] inspect the complete install tree, including hidden paths
 - [ ] `./shimmy activate --install-dir <tmpdir>`
 - [ ] installed command smoke check from `<tmpdir>/bin/<shim> --version`
 - [ ] `./shimmy update --install-dir <tmpdir>`
@@ -480,48 +637,165 @@ Adjust as needed per chunk:
 
 ## High risk
 
-1. **Installed launcher path resolution**
+1. **Install-root destructive replacement**
+   - The current installer safely replaces a dedicated bundled directory with
+     `rm -rf`. Applying that behavior to the flattened install root would erase
+     profiles, manifests, and unmanaged content. Flat refresh and uninstall
+     must operate on individually validated owned paths.
+
+2. **Installed launcher path resolution**
    - If `shimmy` root detection is wrong, every installed command path becomes unreliable.
 
-2. **Dispatcher recursion or broken symlink targets**
+3. **Dispatcher recursion or broken symlink targets**
    - The dispatcher currently protects against recursion and assumes specific central paths.
 
-3. **Update/self-update detection**
+4. **Update/self-update detection**
    - Installed-management detection is tightly coupled to current layout and can silently misclassify environments if partially updated.
 
-4. **Tool runtime helper paths**
+5. **Manifest layout identification**
+   - The incompatible flat layout must not be accepted as the existing layout
+     without an explicit version and validation decision.
+
+6. **Tool runtime helper paths**
    - Many versioned tool runtimes hardcode `core/runtime/...`; missing even one will create fragmented failures.
 
 ## Medium risk
 
-5. **Context-tree and shellcheck source comments**
+7. **Context-tree and shellcheck source comments**
    - These are easy to miss and can create noisy failures late in the process.
 
-6. **Test naming and folder semantics**
+8. **Test naming and folder semantics**
    - `tests/core/` may become misleading once source `core/` is gone. Decide explicitly whether to rename it or document it as a legacy grouping.
 
-7. **Manifest semantics**
-   - Install manifests may still be valid structurally, but any path keys written into them must reflect the new layout.
+9. **Installed skill compatibility assets**
+   - The installer currently writes `.agents/skills` inside the bundled control
+     tree. Its flat-layout ownership and cleanup contract must be explicit.
 
 ## Low risk
 
-8. **Contributor/skill docs drift**
+10. **Contributor/skill docs drift**
    - Easy to fix, but if skipped, future AI sessions will reintroduce stale assumptions.
+
+# Unresolved
+
+Resolve these items with the maintainer before implementation. Record each
+decision here, then update the affected chunks and verification items so later
+sessions do not reopen it accidentally.
+
+## 1. Safe chunk sequencing
+
+The current Chunk 1 source rename and Chunk 2 installed-layout rewrite are not
+independently operational: the installed launcher and dispatcher span both
+models.
+
+Decide whether to:
+
+- merge the source rename, installed flattening, launcher, dispatcher, and
+  minimum lifecycle tests into one atomic chunk; or
+- add a preparatory, behavior-preserving path-abstraction chunk, followed by
+  one atomic layout-transition chunk.
+
+Decision: _pending_
+
+## 2. Manifest version and layout label
+
+The flat layout is incompatible with the current layout-version-2 structure.
+Decide:
+
+- the new root install manifest version;
+- whether the profile manifest version also changes;
+- whether `shimmy_layout=metadata-tree` remains accurate or receives a new
+  value; and
+- the exact error and remediation shown when an existing incompatible install
+  is encountered.
+
+Decision: _pending_
+
+## 3. Canonical agent skill directory name
+
+`agent/core/` means “core management skills,” not the shared shell-module
+directory being renamed. Keeping it is valid but leaves two meanings of
+“core”; renaming it affects skill discovery, tests, contexts, plugin copies,
+and installed agent assets.
+
+Decide whether to retain `agent/core/` with explicit terminology or rename it,
+for example to `agent/management/`.
+
+Decision: _pending_
+
+## 4. Shared-library test directory name
+
+Decide whether `tests/core/` and `test_core_*` names become `tests/lib/` and
+`test_lib_*`, or remain a behavioral grouping with documented meaning.
+
+Decision: _pending_
+
+## 5. Installed launcher contract
+
+The target includes both `<install>/shimmy` and `<install>/bin/shimmy`.
+Decide whether `bin/shimmy` is:
+
+- a relative symlink to `../shimmy`; or
+- a separately installed copy.
+
+Document the authoritative launcher, refresh behavior, uninstall behavior, and
+the exact assertions tests must make.
+
+Decision: _pending_
+
+## 6. Installed `.agents/skills` ownership
+
+The current bundled control tree contains a managed `.agents/skills` copy, but
+the proposed installed-layout diagram omits it. Decide whether the flat install
+continues to contain `<install>/.agents/skills`.
+
+If retained, define whether refresh replaces only manifest-owned `shimmy-*`
+skills or the entire directory, and whether final-profile uninstall removes
+those assets while preserving unmanaged entries.
+
+Decision: _pending_
+
+## 7. Pre-existing install-root collisions
+
+The flat layout claims common names such as `commands`, `lib`, `tools`,
+`tests`, `plugins`, and `agent`. Decide whether installation into a non-empty
+custom root:
+
+- refuses conflicting pre-existing paths unless they are proven to be managed
+  by the same compatible Shimmy layout; or
+- replaces those named paths because the install root is considered wholly
+  Shimmy-owned.
+
+Regardless of this decision, unknown paths outside the claimed asset names
+must not be recursively deleted.
+
+Decision: _pending_
+
+## 8. Historical plan treatment
+
+Decide whether completed historical plans containing `core/` references should
+remain unchanged with an archival notice, or be rewritten to current paths.
+Rewriting them may make their historical descriptions inaccurate; leaving them
+unchanged requires cleanup searches to allowlist them explicitly.
+
+Decision: _pending_
 
 # Recommended session bootstrap for future AI runs
 
 At the start of each new AI session working on this plan:
 
 1. Read:
-   - `/home/beewa/repos/GitHub/wadebee/shimmy/AGENTS.md`
-   - `/home/beewa/repos/GitHub/wadebee/shimmy/CONTEXT.md`
+   - `<repo>/AGENTS.md`
+   - `<repo>/CONTEXT.md`
    - this plan document
    - the relevant chunk’s target files
+   - every child `CONTEXT.md` on the path to each changed file
 
 2. Restate:
    - source `core/` becomes `lib/`
    - installed assets are flattened into install root
    - no backward compatibility
+   - all resolved decisions recorded under **Unresolved**
    - stop after the current chunk for review
 
 3. Before ending the session:
