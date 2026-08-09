@@ -7,7 +7,7 @@ test_commands_dispatcher_run() {
   assert_equals "$(readlink "$DEFAULT_PROFILE_ROOT/bin/jq")" '../commands/dispatch-tool.sh'
   assert_equals "$(readlink "$UPSTREAM_PROFILE_ROOT/bin/rg")" '../commands/dispatch-tool.sh'
 
-  default_output=$(env SHIMMY_PROFILE_ACTIVE=upstream XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version)
+  default_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version)
   assert_contains "$default_output" 'ghcr.io/jqlang/jq:1.8.1'
 
   set +e

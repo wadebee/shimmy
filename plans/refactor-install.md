@@ -620,11 +620,11 @@ checked.
 Resume record:
 
 ```text
-Last approved chunk: 4
-Current chunk: 5
-Last known-good revision or diff base: 9ce1c456f9dc9844412a386aff443d573a98ee38
+Last approved chunk: 5
+Current chunk: 6
+Last known-good revision or diff base: 7a4dd61
 Last validation command and result: ./tests/test.sh (exit 0; all 79 tests passed); git diff --check (exit 0)
-Outstanding human decision: approve the Chunk 5 lifecycle/skills separation, tests, and validation evidence
+Outstanding human decision: approve the Chunk 6 retired-state cleanup, safety-test preservation, and validation evidence
 ```
 
 - [x] Chunk 0 implementation/inventory complete
@@ -649,10 +649,10 @@ Outstanding human decision: approve the Chunk 5 lifecycle/skills separation, tes
 - [x] Chunk 4 lessons recorded
 - [x] Chunk 5 implementation complete
 - [x] Chunk 5 validation evidence captured
-- [ ] Chunk 5 human review approved
-- [ ] Chunk 5 lessons recorded
-- [ ] Chunk 6 implementation complete
-- [ ] Chunk 6 validation evidence captured
+- [x] Chunk 5 human review approved
+- [x] Chunk 5 lessons recorded
+- [x] Chunk 6 implementation complete
+- [x] Chunk 6 validation evidence captured
 - [ ] Chunk 6 human review approved
 - [ ] Chunk 6 lessons recorded
 - [ ] Chunk 7 implementation complete
@@ -1313,6 +1313,49 @@ coverage was retained even where compatibility coverage was removed.
 Post-processing: update the resume record and checklist and add a lesson about
 dead-code evidence, vocabulary cleanup, or safety-test preservation.
 
+### Chunk 6 execution record
+
+Install parsing and lifecycle state no longer contain the unused source-mode
+marker, no-op copy mode, custom symlink rejection, hidden refresh mode, or
+refresh-only validation. The root bootstrap now lets the ordinary install
+parser reject the retired refresh spelling as a generic unknown option. The
+config-root version-two detector and both calls were removed; unknown
+config-root siblings remain unmanaged and preserved.
+
+The call-site audit found `startup_file_summary_render` as the only dead
+activation-era helper, and it was removed with its obsolete manual-activation
+message. Definition-only helpers unrelated to this compatibility cleanup
+(`profile_manifest_write_atomic`, `version_list_from_entries`, `log_debug`,
+and `log_warn`) were classified and retained. No activation-specific helper
+name remains in implementation code.
+
+Compatibility-only fixtures for retired install-directory variables,
+`--install-dir`, `SHIMMY_PROFILE_ACTIVE`, config-root version-two guidance,
+and hidden refresh behavior were removed. One generic unknown-option scenario
+proves rejection occurs before profile mutation. Config-root and profile-root
+unmanaged-sibling assertions remain, as do profile-root wrong-version,
+malformed, unsafe, duplicate, collision, symlink, isolation, and ownership
+safety coverage.
+
+Validation evidence:
+
+```text
+dash -n install.sh lib/install/request.sh lib/install/install.sh lib/profile/profile.sh lib/install/startup.sh tests/commands/install.sh tests/commands/onboarding.sh tests/commands/management.sh tests/commands/dispatcher.sh tests/commands/skills.sh tests/commands/test.sh
+  exit 0
+./tests/test.sh
+  exit 0; all 79 tests passed
+git diff --check
+  exit 0
+```
+
+The retired-name audit found no Chunk 6 target matches in executable code or
+tests. Across the rest of the active tree, seven `manual activation` or
+`manual-activation` matches remain only in the Chunk 7-owned human, canonical
+skill, and generated-skill guidance. Two `activate.sh` matches remain as
+focused assertions that startup content and installed command payloads do not
+restore the removed asset. All plan matches are archival execution history.
+No checks were skipped.
+
 ## Chunk 7: Active guidance, contexts, and generated distributions
 
 Goal: make every active human and agent instruction describe the implemented v4
@@ -1400,7 +1443,7 @@ observations.
 | 2 | 2026-08-09 / user | Manifest identity, owned shell asset, and launcher command removal reached the same checkpoint with strict v3 rejection and v4 transaction coverage. | Kept rendering, validation, commit/rollback, startup, update, uninstall, launcher, and test fixtures on one v4 boundary. | Treat all producers and consumers of an owned schema identity as one review unit. |
 | 3 | 2026-08-09 / user | A plain final `false` in a sourced file can trigger Bash 3.2 `errexit` before a conditional dot-command caller recovers, preventing source-safe cleanup. | End failure paths with a negated successful command so they return status 1 without bypassing cleanup, and retain both ordinary and conditional failure coverage. | Source-safe POSIX entrypoints must test failure cleanup in callers with `errexit`; a function's final status-producing command affects whether the caller can recover. |
 | 4 | 2026-08-09 / user | The fixed jq/rg baseline and explicit installed selection passed review after full-manifest assertions exposed stale single-kind expectations. | Preserved complete selection snapshots through repository refresh and self-update instead of rebuilding bootstrap arguments. | When an installer policy changes ownership defaults, assert the complete manifest before and after every refresh path. |
-| 5 | Pending | Pending | Pending | Pending |
+| 5 | 2026-08-09 / user | Profile lifecycle and explicit standalone skills operations remained behaviorally separate through implementation and full-suite validation. | Kept canonical agent/plugin payload profile-owned while leaving repository and home targets manifest-owned by explicit `shimmy skills` commands. | Model profile payload and external integrations as separate ownership domains with separate commands and tests. |
 | 6 | Pending | Pending | Pending | Pending |
 | 7 | Pending | Pending | Pending | Pending |
 | 8 | Pending | Pending | Pending | Pending |

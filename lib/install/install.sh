@@ -12,7 +12,6 @@ REQUESTED_SHELL=
 REQUESTED_STARTUP_FILES=
 SKIP_STARTUP=0
 STARTUP_OPTION_REQUESTED=0
-REFRESH_SHIMS=0
 STARTUP_FILE_PATHS=
 STARTUP_SHELL=
 PROFILE_MANIFEST_KIND_VERSIONS=
@@ -180,7 +179,6 @@ profile_stage_cleanup() {
 
 perform_install() {
   validate_requested_shims
-  shimmy_version_two_install_reject "$SHIMMY_CONFIG_ROOT" || exit 1
   profile_existing_state_read
   if [ "$PROFILE_EXISTS" -eq 1 ] && [ "$STARTUP_OPTION_REQUESTED" -eq 0 ]; then
     SKIP_STARTUP=1
@@ -202,15 +200,11 @@ perform_install() {
 shimmy_install_run() {
   trap profile_stage_cleanup EXIT HUP INT TERM
   shimmy_install_request_parse "$@"
-  shimmy_version_two_install_reject "$SHIMMY_CONFIG_ROOT" || exit 1
 
   if [ "$UNINSTALL" -eq 1 ]; then
     [ -z "$REQUESTED_SHIMS" ] || fail "--shim cannot be combined with --uninstall"
     perform_uninstall_profile
     return 0
-  fi
-  if [ "$REFRESH_SHIMS" -eq 1 ]; then
-    [ -n "$REQUESTED_SHIMS" ] || fail "refresh must include --shim"
   fi
   [ -n "$REQUESTED_SHIMS" ] || fail "install requires at least one --shim <kind>"
   perform_install

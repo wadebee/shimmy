@@ -222,17 +222,6 @@ shimmy_profile_structure_validate() {
   done
 }
 
-shimmy_version_two_install_reject() {
-  config_root=$1
-  legacy_manifest=$config_root/install-manifest.txt
-
-  [ ! -e "$legacy_manifest" ] && [ ! -L "$legacy_manifest" ] && return 0
-  [ -f "$legacy_manifest" ] || return 0
-  [ "$(shimmy_read_manifest_value "$legacy_manifest" shimmy_install_manifest_version || true)" = 2 ] || return 0
-  printf 'ERROR: version-2 Shimmy installation detected at %s; uninstall every profile there with the Shimmy version that created it, then install version 3\n' "$legacy_manifest" >&2
-  return 1
-}
-
 shimmy_upstream_checkout_invalid_reason() {
   checkout_dir=${1:-}
   shim_name=${2:-}

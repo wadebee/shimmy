@@ -84,7 +84,7 @@ test_commands_skills_target_ownership() {
 
   (
     cd "$WORK_DIR"
-    default_shimmy install --refresh-shims --shim jq --no-startup >/dev/null
+    default_shimmy install --shim jq --no-startup >/dev/null
   )
   assert_equals "$(cksum < "$repo_skills_manifest")" "$repo_skills_manifest_checksum"
   assert_equals "$(cksum < "$profile_skills_manifest")" "$profile_skills_manifest_checksum"

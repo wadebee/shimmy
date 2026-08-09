@@ -5,7 +5,6 @@ test_commands_test_run() {
   bootstrap_default >/dev/null
   help_output=$(default_shimmy test --help)
   assert_contains "$help_output" 'shimmy test [--shim'
-  assert_not_contains "$help_output" '--install-dir'
 
   set +e
   rejected_output=$(default_shimmy test --profile upstream 2>&1)

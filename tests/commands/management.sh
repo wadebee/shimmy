@@ -42,9 +42,6 @@ test_commands_management_run() {
     assert_contains "$bound_output" 'unknown argument: --profile'
   done
 
-  selector_status=$(env SHIMMY_PROFILE_ACTIVE=upstream XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/shimmy" status --format manifest)
-  assert_contains "$selector_status" 'shimmy_profile_name=default'
-
   netinfo_output=$(run_in_repo ./commands/netinfo.sh --host-ip 192.0.2.10 --host-prefix 24 --format manifest)
   assert_contains "$netinfo_output" 'host_lan=192.0.2.0/24'
   pass "installed management help summarizes each command and every command remains profile-bound"

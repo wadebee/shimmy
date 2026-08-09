@@ -157,10 +157,8 @@ validate_requested_shims() {
 resolve_install_paths() {
   if [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ -x "$ROOT_DIR/install.sh" ]; then
     shimmy_profile_paths_resolve "$SHIMMY_BOOTSTRAP_PROFILE" || fail "unable to resolve canonical Shimmy profile; XDG_CONFIG_HOME and HOME must be absolute"
-    SHIMMY_INSTALL_SOURCE_MODE=bootstrap
   else
     shimmy_profile_context_resolve "$ROOT_DIR" || fail "installed Shimmy commands must run from a canonical profile root"
-    SHIMMY_INSTALL_SOURCE_MODE=installed
   fi
 
   SHIMMY_PROFILE_RESOLVED=$SHIMMY_PROFILE_NAME
@@ -173,16 +171,6 @@ resolve_install_paths() {
 shimmy_install_request_parse() {
   while [ "$#" -gt 0 ]; do
     case "$1" in
-      --copy)
-        shift
-        ;;
-      --refresh-shims)
-        REFRESH_SHIMS=1
-        shift
-        ;;
-      --symlink)
-        fail "symlink install mode has been removed on the posix-rewrite branch"
-        ;;
       --shim)
         [ "$#" -ge 2 ] || fail "missing value for --shim"
         requested_shim_append "$2"

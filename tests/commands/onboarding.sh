@@ -336,8 +336,6 @@ test_commands_onboarding_run() {
   upstream_shell_init_file=$UPSTREAM_PROFILE_ROOT/shell-init.sh
   assert_file_contains "$default_shell_init_file" "$DEFAULT_PROFILE_ROOT/bin"
   assert_file_contains "$upstream_shell_init_file" "$UPSTREAM_PROFILE_ROOT/bin"
-  assert_file_not_contains "$default_shell_init_file" SHIMMY_PROFILE_ACTIVE
-  assert_file_not_contains "$upstream_shell_init_file" SHIMMY_PROFILE_ACTIVE
   assert_file_contains "$default_shell_init_file" '/opt/podman/bin'
 
   podman_path_suffix=
@@ -381,11 +379,6 @@ test_commands_onboarding_run() {
     "$podman_path_dir" \
     "$DEFAULT_PROFILE_ROOT/bin:$podman_path_dir:$podman_fixture_dir"
 
-  default_bound_status=$(env SHIMMY_PROFILE_ACTIVE=upstream XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/shimmy" status --format manifest)
-  upstream_bound_status=$(env SHIMMY_PROFILE_ACTIVE=default XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$UPSTREAM_PROFILE_ROOT/bin/shimmy" status --format manifest)
-  assert_contains "$default_bound_status" 'shimmy_profile_name=default'
-  assert_contains "$upstream_bound_status" 'shimmy_profile_name=upstream'
-
   path_selected_status=$(
     PATH="$UPSTREAM_PROFILE_ROOT/bin:$DEFAULT_PROFILE_ROOT/bin:/usr/bin:/bin"
     XDG_CONFIG_HOME=$XDG_CONFIG_HOME_DIR
@@ -394,5 +387,5 @@ test_commands_onboarding_run() {
     shimmy status --format manifest
   )
   assert_contains "$path_selected_status" 'shimmy_profile_name=upstream'
-  pass "shell initialization changes PATH only and launchers remain bound to their enclosing profiles"
+  pass "shell initialization changes PATH only and PATH precedence selects the active profile"
 }

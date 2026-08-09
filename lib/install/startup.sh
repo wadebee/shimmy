@@ -34,21 +34,6 @@ $STARTUP_FILE_PATHS
 EOF
 }
 
-startup_file_summary_render() {
-  startup_file_paths=${1:-}
-  [ -n "$startup_file_paths" ] || { printf 'manual activation only\n'; return 0; }
-
-  separator=
-  while IFS= read -r startup_file_path; do
-    [ -n "$startup_file_path" ] || continue
-    printf '%s%s' "$separator" "$startup_file_path"
-    separator=', '
-  done <<EOF
-$startup_file_paths
-EOF
-  printf '\n'
-}
-
 write_shell_init_file() {
   shell_init_file=$1
   quoted_bin_dir=$(shimmy_quote_shell_word "$SHIMMY_BIN_DIR")

@@ -52,24 +52,13 @@ test_commands_install_run() {
   pass "canonical config, profiles, and profile roots reject symlink traversal"
 
   setup_scenario
-  legacy_dir=$SCENARIO_DIR/legacy-override
-  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_INSTALL_DIR="$legacy_dir" SHIMMY_CONTROL_INSTALL_DIR="$legacy_dir" SHIMMY_UPSTREAM_DIR="$legacy_dir" ./install.sh --profile default --no-startup >/dev/null
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
-  assert_path_not_exists "$legacy_dir"
-  printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
-  default_shimmy install --shim task --no-startup >/dev/null
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
-  assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
-
-  setup_scenario
   set +e
-  removed_option_output=$(bootstrap_default --install-dir "$SCENARIO_DIR/legacy" 2>&1)
-  removed_option_status=$?
+  unknown_option_output=$(bootstrap_default --unknown-option 2>&1)
+  unknown_option_status=$?
   set -e
-  [ "$removed_option_status" -ne 0 ] || fail_test "removed --install-dir option unexpectedly succeeded"
-  assert_contains "$removed_option_output" 'unknown argument: --install-dir'
+  [ "$unknown_option_status" -ne 0 ] || fail_test "unknown install option unexpectedly succeeded"
+  assert_contains "$unknown_option_output" 'unknown argument: --unknown-option'
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
-  assert_path_not_exists "$SCENARIO_DIR/legacy"
 
   setup_scenario
   run_in_repo env -u XDG_CONFIG_HOME HOME="$HOME_DIR" ./install.sh --no-startup >/dev/null
@@ -81,13 +70,13 @@ test_commands_install_run() {
 
   setup_scenario
   mkdir -p "$XDG_CONFIG_HOME_DIR/shimmy"
-  printf '%s\n' 'shimmy_install_manifest_version=2' > "$XDG_CONFIG_HOME_DIR/shimmy/install-manifest.txt"
-  set +e
-  version_two_output=$(bootstrap_default 2>&1)
-  version_two_status=$?
-  set -e
-  [ "$version_two_status" -ne 0 ] || fail_test "version-2 shared manifest unexpectedly accepted"
-  assert_contains "$version_two_output" 'version-2 Shimmy installation detected'
-  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
-  pass "installer enforces XDG resolution, rejects v2 and retired options, ignores retired variables, and preserves siblings"
+  printf '%s\n' keep > "$XDG_CONFIG_HOME_DIR/shimmy/unmanaged-sibling"
+  bootstrap_default >/dev/null
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_file_contains "$XDG_CONFIG_HOME_DIR/shimmy/unmanaged-sibling" keep
+  printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
+  default_shimmy install --shim task --no-startup >/dev/null
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
+  assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
+  pass "installer enforces XDG resolution, rejects unknown options before mutation, and preserves unmanaged siblings"
 }

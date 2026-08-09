@@ -30,7 +30,7 @@ shimmy__bootstrap_run() {
       -h|--help)
         shimmy__bootstrap_help_requested=1
         ;;
-      --uninstall|--refresh-shims)
+      --uninstall)
         printf 'ERROR: unsupported repository bootstrap option: %s\n' "$shimmy__bootstrap_argument" >&2
         return 1
         ;;
