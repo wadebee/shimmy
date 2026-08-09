@@ -71,7 +71,7 @@ Usage:
   shimmy <command> --help
 
 Commands:
-  install    Add tool shims and optional agent skills to this profile.
+  install    Add tool shims to this profile.
   uninstall  Remove this profile and its managed startup integration.
   netinfo    Show host, VM, and container network perspectives.
   skills     Install, update, uninstall, or export Shimmy agent skills.

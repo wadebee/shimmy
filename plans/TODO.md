@@ -65,3 +65,12 @@ When jq is called without params, it appears to hang in the UI. Possibly redirec
 
 # ------------ write_activate_file
 Work with AI to understand the purpose of this function from lib/install/startup.sh
+
+# ----------- Shimmy install option deprecation (move to shimmy update)
+shimmy_install_request_parse() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --copy)
+        shift
+        ;;
+      --refresh-shims)

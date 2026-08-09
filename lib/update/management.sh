@@ -24,7 +24,7 @@ shimmy_update_management_run() {
     fail "fetched source does not satisfy the Shimmy bootstrap contract ($upstream_invalid_reason)"
   fi
 
-  set -- "$source_dir/install.sh" --profile "$SHIMMY_PROFILE_NAME" --no-skills
+  set -- "$source_dir/install.sh" --profile "$SHIMMY_PROFILE_NAME"
   if [ "$REPAIR_STARTUP" -eq 0 ]; then
     set -- "$@" --no-startup
   else

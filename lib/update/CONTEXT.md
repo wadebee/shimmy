@@ -6,10 +6,11 @@ local images, and stale local-image state for the invoking profile only.
 
 An update preserves the profile's canonical root and, for `upstream`, its
 recorded source checkout. It never selects or mutates a sibling profile,
-updates persistent upstream startup integration, or implicitly refreshes an
-external skills target. Management self-update executes the fetched repository
-bootstrap without reconstructing tool-selection arguments; the existing valid
-manifest is merged so all owned kinds and concrete versions remain installed.
+updates persistent upstream startup integration, or writes an external skills
+target. Management self-update executes the fetched repository bootstrap
+without lifecycle skills options or reconstructed tool-selection arguments;
+the existing valid manifest is merged so all owned kinds and concrete versions
+remain installed.
 
 ## Files
 

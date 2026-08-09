@@ -21,6 +21,9 @@ test_commands_lifecycle_prepare() {
   assert_file_mode "$DEFAULT_PROFILE_ROOT/shell-init.sh" 644
   assert_file_executable "$DEFAULT_PROFILE_ROOT/commands/install.sh"
   assert_file_executable "$DEFAULT_PROFILE_ROOT/lib/catalog/catalog.sh"
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/agent/core/shimmy-install/SKILL.md"
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/shimmy-install/SKILL.md"
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/.shimmy-skills-manifest.txt" 'shimmy_skills_target=plugin'
 
   output=$(XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version)
   assert_contains "$output" "ghcr.io/jqlang/jq:1.8.1"
@@ -55,7 +58,7 @@ test_commands_lifecycle_launcher_refresh() {
   upstream_dispatcher_target=$(readlink "$UPSTREAM_PROFILE_ROOT/bin/rg")
 
   bootstrap_default >/dev/null
-  default_shimmy install --shim task --no-startup --no-skills >/dev/null
+  default_shimmy install --shim task --no-startup >/dev/null
   assert_file_not_contains "$DEFAULT_PROFILE_ROOT/bin/shimmy" '# stale launcher marker'
   assert_file_not_contains "$DEFAULT_PROFILE_ROOT/shell-init.sh" '# stale shell init marker'
   assert_file_mode "$DEFAULT_PROFILE_ROOT/shell-init.sh" 644
@@ -70,7 +73,7 @@ test_commands_lifecycle_launcher_refresh() {
 test_commands_lifecycle_empty_container_cleanup() {
   setup_scenario
   bootstrap_default >/dev/null
-  default_shimmy uninstall --no-skills >/dev/null
+  default_shimmy uninstall >/dev/null
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy"
@@ -78,11 +81,11 @@ test_commands_lifecycle_empty_container_cleanup() {
   setup_scenario
   bootstrap_default >/dev/null
   bootstrap_upstream >/dev/null
-  default_shimmy uninstall --no-skills >/dev/null
+  default_shimmy uninstall >/dev/null
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
   assert_dir_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
-  upstream_shimmy uninstall --no-skills >/dev/null
+  upstream_shimmy uninstall >/dev/null
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy"
   pass "profile removal preserves siblings and removes only empty merge-owned containers"
 }
@@ -90,12 +93,12 @@ test_commands_lifecycle_empty_container_cleanup() {
 test_commands_lifecycle_complete() {
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
   printf '%s\n' sibling > "$UPSTREAM_PROFILE_ROOT/sibling-sentinel"
-  default_shimmy install --shim task --no-startup --no-skills >/dev/null
+  default_shimmy install --shim task --no-startup >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/sibling-sentinel"
   assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
 
-  default_shimmy uninstall --no-skills >/dev/null
+  default_shimmy uninstall >/dev/null
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/shell-init.sh"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"

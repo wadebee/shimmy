@@ -31,7 +31,7 @@ test_commands_onboarding_absolute_execution() {
   absolute_output=$(
     cd "$WORK_DIR"
     env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-      "$ROOT_DIR/install.sh" --profile upstream --no-startup --no-skills 2>&1
+      "$ROOT_DIR/install.sh" --profile upstream --no-startup 2>&1
   )
   assert_contains "$absolute_output" "Installed Shimmy upstream profile at $UPSTREAM_PROFILE_ROOT"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/install-manifest.txt"
@@ -78,7 +78,7 @@ test_commands_onboarding_failure_cleanup() {
     env TEST_INSTALL_FILE="$ROOT_DIR/install.sh" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
       PATH=/usr/bin:/bin /bin/sh -c '
         cd "$HOME"
-        . "$TEST_INSTALL_FILE" --no-startup --no-skills >/dev/null 2>&1
+        . "$TEST_INSTALL_FILE" --no-startup >/dev/null 2>&1
         printf "status=%s\n" "$?"
         printf "after=checkout-failure\n"
       '
@@ -133,14 +133,14 @@ kind_version=rg|15.1|rg_15_1'
 
   manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   set +e
-  empty_install_output=$(default_shimmy install --no-startup --no-skills 2>&1)
+  empty_install_output=$(default_shimmy install --no-startup 2>&1)
   empty_install_status=$?
   set -e
   [ "$empty_install_status" -ne 0 ] || fail_test "installed install unexpectedly accepted an empty shim selection"
   assert_contains "$empty_install_output" 'install requires at least one --shim <kind>'
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$manifest_checksum"
 
-  default_shimmy install --shim task --shim oc@4.18 --no-startup --no-skills >/dev/null
+  default_shimmy install --shim task --shim oc@4.18 --no-startup >/dev/null
   additive_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   assert_contains "$additive_selection" 'kind=jq'
   assert_contains "$additive_selection" 'kind=rg'
@@ -165,7 +165,7 @@ test_commands_onboarding_shell_sources() {
       env TEST_ROOT_DIR="$ROOT_DIR" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
         PATH=/usr/bin:/bin "$source_shell" -c '
           cd "$TEST_ROOT_DIR"
-          source ./install.sh --profile default --no-startup --no-skills >/dev/null
+          source ./install.sh --profile default --no-startup >/dev/null
           command -v shimmy
         '
     )
@@ -233,7 +233,7 @@ test_commands_onboarding_sourced_state() {
         unrelated_value=preserved
         caller_function() { printf preserved; }
         trap "trap_preserved=yes" USR1
-        . ./install.sh --no-startup --no-skills >/dev/null
+        . ./install.sh --no-startup >/dev/null
         install_status=$?
         kill -USR1 $$
         printf "status=%s\n" "$install_status"
@@ -281,7 +281,7 @@ test_commands_onboarding_startup_failure() {
       XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
         cd "$TEST_ROOT_DIR"
         path_before=$PATH
-        . ./install.sh --shell zsh --startup-file "$TEST_INVALID_STARTUP_FILE" --no-skills >/dev/null 2>&1
+        . ./install.sh --shell zsh --startup-file "$TEST_INVALID_STARTUP_FILE" >/dev/null 2>&1
         printf "status=%s\n" "$?"
         printf "path_unchanged=%s\n" "$([ "$PATH" = "$path_before" ] && printf yes || printf no)"
         command -v shimmy >/dev/null 2>&1 && printf "shimmy=selected\n"
@@ -303,11 +303,11 @@ test_commands_onboarding_switch_profiles() {
       TEST_UPSTREAM_PROFILE_ROOT="$UPSTREAM_PROFILE_ROOT" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" \
       HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
         cd "$TEST_ROOT_DIR"
-        . ./install.sh --profile default --no-startup --no-skills >/dev/null
+        . ./install.sh --profile default --no-startup >/dev/null
         printf "default_first=%s\n" "$(command -v shimmy)"
-        . ./install.sh --profile upstream --no-startup --no-skills >/dev/null
+        . ./install.sh --profile upstream --no-startup >/dev/null
         printf "upstream=%s\n" "$(command -v shimmy)"
-        . ./install.sh --profile default --no-startup --no-skills >/dev/null
+        . ./install.sh --profile default --no-startup >/dev/null
         printf "default_again=%s\n" "$(command -v shimmy)"
       '
   )

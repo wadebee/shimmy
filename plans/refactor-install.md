@@ -620,11 +620,11 @@ checked.
 Resume record:
 
 ```text
-Last approved chunk: 3
-Current chunk: 4
-Last known-good revision or diff base: c2b0584f8545d0fd5e593baa292a8f6bb54c84e7
+Last approved chunk: 4
+Current chunk: 5
+Last known-good revision or diff base: 9ce1c456f9dc9844412a386aff443d573a98ee38
 Last validation command and result: ./tests/test.sh (exit 0; all 79 tests passed); git diff --check (exit 0)
-Outstanding human decision: approve the Chunk 4 fixed bootstrap baseline, explicit installed selection, tests, and validation evidence
+Outstanding human decision: approve the Chunk 5 lifecycle/skills separation, tests, and validation evidence
 ```
 
 - [x] Chunk 0 implementation/inventory complete
@@ -645,10 +645,10 @@ Outstanding human decision: approve the Chunk 4 fixed bootstrap baseline, explic
 - [x] Chunk 3 lessons recorded
 - [x] Chunk 4 implementation complete
 - [x] Chunk 4 validation evidence captured
-- [ ] Chunk 4 human review approved
-- [ ] Chunk 4 lessons recorded
-- [ ] Chunk 5 implementation complete
-- [ ] Chunk 5 validation evidence captured
+- [x] Chunk 4 human review approved
+- [x] Chunk 4 lessons recorded
+- [x] Chunk 5 implementation complete
+- [x] Chunk 5 validation evidence captured
 - [ ] Chunk 5 human review approved
 - [ ] Chunk 5 lessons recorded
 - [ ] Chunk 6 implementation complete
@@ -1238,6 +1238,43 @@ collision, export, refresh, and cleanup tests remain intact.
 Post-processing: update the resume record and checklist and add a lesson about
 separating profile-owned payload from externally owned integrations.
 
+### Chunk 5 execution record
+
+Profile lifecycle parsing and state no longer include skills targets or a
+skills opt-out. Install commits the unconditional canonical `agent/` sources
+and packaged `plugins/` bundle, then invokes only explicitly requested startup
+integration. Management self-update no longer forwards a lifecycle skills
+option, and uninstall remains confined to profile-owned assets.
+
+Lifecycle fixtures now omit skills options throughout. The focused skills
+scenario bootstraps profiles from an external working directory, proves no
+repository or home target appears, creates those targets only through installed
+`shimmy skills` commands, and verifies install, self-update, and uninstall leave
+their manifests and contents unchanged. Explicit standalone uninstall removes
+only manifest-owned skill directories while preserving unknown siblings. The
+standalone collision test also proves a failed skills operation leaves the
+installed profile manifest unchanged and can be retried directly. Profile
+payload assertions cover both canonical agent sources and the packaged plugin
+bundle.
+
+Validation evidence:
+
+```text
+dash -n lib/install/install.sh lib/install/request.sh lib/install/launcher-template.sh lib/update/management.sh tests/support.sh tests/commands/dispatcher.sh tests/commands/install.sh tests/commands/lifecycle.sh tests/commands/management.sh tests/commands/onboarding.sh tests/commands/profiles.sh tests/commands/skills.sh tests/commands/startup.sh tests/commands/update.sh
+  exit 0
+./tests/test.sh
+  exit 0; all 79 tests passed
+git diff --check
+  exit 0
+```
+
+The lifecycle implementation and test trees have no remaining
+`--no-skills`, `--skills-target`, `SKIP_SKILLS`,
+`REQUESTED_SKILLS_TARGET`, or `profile_external_integrations_apply` matches.
+Active README and canonical/generated skill guidance still contain options
+assigned to Chunk 7's coordinated guidance/export update. No checks were
+skipped.
+
 ## Chunk 6: Retired install-state and compatibility cleanup
 
 Goal: remove the remaining obsolete branches and vocabulary without changing
@@ -1362,7 +1399,7 @@ observations.
 | 1 | 2026-08-09 / user | A literal `printf` renderer consumed one percent sign from the intended `${value%%:*}` expansion until the generated asset was inspected directly. | Escaped both percent signs in the renderer and retained disposable-shell assertions for duplicate and empty PATH entries. | Validate rendered shell text through behavior, not only the renderer's source syntax. |
 | 2 | 2026-08-09 / user | Manifest identity, owned shell asset, and launcher command removal reached the same checkpoint with strict v3 rejection and v4 transaction coverage. | Kept rendering, validation, commit/rollback, startup, update, uninstall, launcher, and test fixtures on one v4 boundary. | Treat all producers and consumers of an owned schema identity as one review unit. |
 | 3 | 2026-08-09 / user | A plain final `false` in a sourced file can trigger Bash 3.2 `errexit` before a conditional dot-command caller recovers, preventing source-safe cleanup. | End failure paths with a negated successful command so they return status 1 without bypassing cleanup, and retain both ordinary and conditional failure coverage. | Source-safe POSIX entrypoints must test failure cleanup in callers with `errexit`; a function's final status-producing command affects whether the caller can recover. |
-| 4 | Pending | Pending | Pending | Pending |
+| 4 | 2026-08-09 / user | The fixed jq/rg baseline and explicit installed selection passed review after full-manifest assertions exposed stale single-kind expectations. | Preserved complete selection snapshots through repository refresh and self-update instead of rebuilding bootstrap arguments. | When an installer policy changes ownership defaults, assert the complete manifest before and after every refresh path. |
 | 5 | Pending | Pending | Pending | Pending |
 | 6 | Pending | Pending | Pending | Pending |
 | 7 | Pending | Pending | Pending | Pending |

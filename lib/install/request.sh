@@ -20,8 +20,6 @@ Usage:
 
 Options:
   --shim <name>          Install the named shim if missing. Required; repeatable.
-  --skills-target <name> Explicitly install agent skills in repo, profile, or plugin
-  --no-skills            Do not install agent skills
   --shell <name>         Override shell detection for startup-file updates
   --startup-file <path>  Override startup file updates. Repeatable.
   --no-startup           Skip persistent startup-file updates during install
@@ -156,16 +154,6 @@ validate_requested_shims() {
   selected_kind_version_entries >/dev/null
 }
 
-validate_skills_target() {
-  case "$1" in
-    repo|profile|plugin)
-      ;;
-    *)
-      fail "unsupported skills target: $1"
-      ;;
-  esac
-}
-
 resolve_install_paths() {
   if [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ -x "$ROOT_DIR/install.sh" ]; then
     shimmy_profile_paths_resolve "$SHIMMY_BOOTSTRAP_PROFILE" || fail "unable to resolve canonical Shimmy profile; XDG_CONFIG_HOME and HOME must be absolute"
@@ -190,16 +178,6 @@ shimmy_install_request_parse() {
         ;;
       --refresh-shims)
         REFRESH_SHIMS=1
-        shift
-        ;;
-      --skills-target)
-        [ "$#" -ge 2 ] || fail "missing value for --skills-target"
-        REQUESTED_SKILLS_TARGET=$2
-        validate_skills_target "$REQUESTED_SKILLS_TARGET"
-        shift 2
-        ;;
-      --no-skills)
-        SKIP_SKILLS=1
         shift
         ;;
       --symlink)

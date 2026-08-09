@@ -3,7 +3,7 @@
 test_commands_management_run() {
   help_output=$(default_shimmy)
   assert_contains "$help_output" 'shimmy <command> [options]'
-  assert_contains "$help_output" 'install    Add tool shims and optional agent skills to this profile.'
+  assert_contains "$help_output" 'install    Add tool shims to this profile.'
   assert_contains "$help_output" 'uninstall  Remove this profile and its managed startup integration.'
   assert_contains "$help_output" 'netinfo    Show host, VM, and container network perspectives.'
   assert_contains "$help_output" 'skills     Install, update, uninstall, or export Shimmy agent skills.'

@@ -21,7 +21,7 @@ refresh, or uninstall lifecycle flows without a shared installed control root.
 - `uninstall.sh` removes only validated assets owned by the enclosing profile,
   then attempts to remove empty merge-owned parent directories.
 
-External shared-skills integration for a repository or home agent profile runs
-only for an explicit target after the profile transaction commits. Profile
-lifecycle operations do not own or implicitly remove that target. The
-packaged `plugin` target remains inside the profile payload.
+Every profile payload unconditionally includes the canonical `agent/` sources
+and packaged `plugins/` bundle. Profile install and uninstall do not write or
+remove repository or home shared-skill targets; those targets are managed only
+through explicit standalone `shimmy skills` commands.

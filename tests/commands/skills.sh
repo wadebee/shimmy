@@ -47,59 +47,102 @@ test_commands_skills_target_ownership() {
   setup_scenario
   (
     cd "$WORK_DIR"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile default --no-startup --skills-target repo >/dev/null
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile upstream --no-startup --skills-target repo >/dev/null
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile default --no-startup >/dev/null
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile upstream --no-startup >/dev/null
   )
-  skills_root=$WORK_DIR/.agents/skills
-  skills_manifest=$skills_root/.shimmy-skills-manifest.txt
-  assert_file_exists "$skills_manifest"
-  assert_file_exists "$skills_root/shimmy-install/SKILL.md"
-  assert_file_exists "$skills_root/shimmy-tool-jq/SKILL.md"
-  assert_file_exists "$skills_root/shimmy-tool-rg/SKILL.md"
-  printf '%s\n' keep > "$skills_root/unknown-sibling"
-  skills_manifest_checksum=$(cksum < "$skills_manifest")
 
-  default_shimmy install --refresh-shims --shim jq --no-startup --no-skills >/dev/null
-  assert_equals "$(cksum < "$skills_manifest")" "$skills_manifest_checksum"
+  repo_skills_root=$WORK_DIR/.agents/skills
+  repo_skills_manifest=$repo_skills_root/.shimmy-skills-manifest.txt
+  profile_skills_root=$HOME_DIR/.agents/skills
+  profile_skills_manifest=$profile_skills_root/.shimmy-skills-manifest.txt
+  assert_path_not_exists "$repo_skills_root"
+  assert_path_not_exists "$profile_skills_root"
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/agent/core/shimmy-install/SKILL.md"
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/shimmy-install/SKILL.md"
+  assert_file_exists "$UPSTREAM_PROFILE_ROOT/agent/core/shimmy-install/SKILL.md"
+  assert_file_exists "$UPSTREAM_PROFILE_ROOT/plugins/shimmy/skills/shimmy-install/SKILL.md"
+
+  (
+    cd "$WORK_DIR"
+    default_shimmy skills install --target repo >/dev/null
+    upstream_shimmy skills update --target repo >/dev/null
+  )
+  default_shimmy skills install --target profile >/dev/null
+  upstream_shimmy skills update --target profile >/dev/null
+  default_shimmy skills update --target plugin >/dev/null
+
+  for skills_root in "$repo_skills_root" "$profile_skills_root"; do
+    assert_file_exists "$skills_root/.shimmy-skills-manifest.txt"
+    assert_file_exists "$skills_root/shimmy-install/SKILL.md"
+    assert_file_exists "$skills_root/shimmy-tool-jq/SKILL.md"
+    assert_file_exists "$skills_root/shimmy-tool-rg/SKILL.md"
+    printf '%s\n' keep > "$skills_root/unknown-sibling"
+  done
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/.shimmy-skills-manifest.txt" 'shimmy_skills_target=plugin'
+  repo_skills_manifest_checksum=$(cksum < "$repo_skills_manifest")
+  profile_skills_manifest_checksum=$(cksum < "$profile_skills_manifest")
+
+  (
+    cd "$WORK_DIR"
+    default_shimmy install --refresh-shims --shim jq --no-startup >/dev/null
+  )
+  assert_equals "$(cksum < "$repo_skills_manifest")" "$repo_skills_manifest_checksum"
+  assert_equals "$(cksum < "$profile_skills_manifest")" "$profile_skills_manifest_checksum"
 
   update_source=$SCENARIO_DIR/update-source
   test_update_source_repository_create "$update_source"
   test_manifest_source_url_replace "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "$update_source"
-  default_shimmy update --shim jq >/dev/null
-  assert_equals "$(cksum < "$skills_manifest")" "$skills_manifest_checksum"
+  (
+    cd "$WORK_DIR"
+    default_shimmy update --shim jq >/dev/null
+  )
+  assert_equals "$(cksum < "$repo_skills_manifest")" "$repo_skills_manifest_checksum"
+  assert_equals "$(cksum < "$profile_skills_manifest")" "$profile_skills_manifest_checksum"
 
-  default_shimmy uninstall --no-skills >/dev/null
-  assert_file_exists "$skills_root/shimmy-install/SKILL.md"
-  assert_file_exists "$skills_root/shimmy-tool-jq/SKILL.md"
-  assert_file_exists "$skills_root/shimmy-tool-rg/SKILL.md"
+  (
+    cd "$WORK_DIR"
+    default_shimmy uninstall >/dev/null
+  )
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/plugins"
+  assert_file_exists "$repo_skills_root/shimmy-install/SKILL.md"
+  assert_file_exists "$repo_skills_root/shimmy-tool-jq/SKILL.md"
+  assert_file_exists "$repo_skills_root/shimmy-tool-rg/SKILL.md"
+  assert_file_exists "$profile_skills_root/shimmy-install/SKILL.md"
+  assert_file_exists "$profile_skills_root/shimmy-tool-jq/SKILL.md"
+  assert_file_exists "$profile_skills_root/shimmy-tool-rg/SKILL.md"
 
   (
     cd "$WORK_DIR"
     upstream_shimmy skills uninstall --target repo >/dev/null
   )
-  assert_path_not_exists "$skills_root/shimmy-install"
-  assert_path_not_exists "$skills_root/shimmy-tool-jq"
-  assert_path_not_exists "$skills_root/shimmy-tool-rg"
-  assert_path_not_exists "$skills_manifest"
-  assert_file_exists "$skills_root/unknown-sibling"
-  pass "combined profiles share idempotent target-manifest-owned skills that only explicit uninstall removes"
+  upstream_shimmy skills uninstall --target profile >/dev/null
+  for skills_root in "$repo_skills_root" "$profile_skills_root"; do
+    assert_path_not_exists "$skills_root/shimmy-install"
+    assert_path_not_exists "$skills_root/shimmy-tool-jq"
+    assert_path_not_exists "$skills_root/shimmy-tool-rg"
+    assert_path_not_exists "$skills_root/.shimmy-skills-manifest.txt"
+    assert_file_exists "$skills_root/unknown-sibling"
+  done
+  pass "profile lifecycle preserves explicit repository and home skill targets until standalone uninstall"
 }
 
 test_commands_skills_external_failure_retry() {
   setup_scenario
+  bootstrap_default >/dev/null
+  manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   mkdir -p "$WORK_DIR/.agents"
   printf '%s\n' collision > "$WORK_DIR/.agents/skills"
   set +e
   failure_output=$(
     cd "$WORK_DIR"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile default --no-startup --skills-target repo 2>&1
+    default_shimmy skills install --target repo 2>&1
   )
   failure_status=$?
   set -e
   [ "$failure_status" -ne 0 ] || fail_test "skills target collision unexpectedly succeeded"
-  assert_contains "$failure_output" 'profile installed, but skills integration failed'
-  assert_contains "$failure_output" 'retry with'
+  assert_not_empty "$failure_output"
   assert_contains "$(default_shimmy status --format manifest)" 'shimmy_installed=yes'
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$manifest_checksum"
 
   rm -f "$WORK_DIR/.agents/skills"
   (
@@ -107,7 +150,7 @@ test_commands_skills_external_failure_retry() {
     default_shimmy skills install --target repo >/dev/null
   )
   assert_file_exists "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt"
-  pass "skills integration failure leaves a valid profile and an independently repeatable repair path"
+  pass "standalone skills failure leaves the installed profile unchanged and can be retried directly"
 }
 
 test_commands_skills_run() {

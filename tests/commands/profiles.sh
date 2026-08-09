@@ -176,7 +176,7 @@ test_commands_profiles_partial_shape() {
   [ "$dispatch_status" -ne 0 ] || fail_test "partial profile unexpectedly dispatched"
   assert_contains "$dispatch_output" 'incomplete or damaged Shimmy profile'
 
-  default_shimmy uninstall --no-skills >/dev/null
+  default_shimmy uninstall >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-partial-sentinel"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/commands"
@@ -261,7 +261,7 @@ test_commands_profiles_run() {
 
   setup_scenario
   set +e
-  relative_output=$(run_in_repo env XDG_CONFIG_HOME=relative HOME="$HOME_DIR" ./install.sh --no-startup --no-skills 2>&1)
+  relative_output=$(run_in_repo env XDG_CONFIG_HOME=relative HOME="$HOME_DIR" ./install.sh --no-startup 2>&1)
   relative_status=$?
   set -e
   [ "$relative_status" -ne 0 ] || fail_test "relative XDG_CONFIG_HOME unexpectedly succeeded"

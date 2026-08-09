@@ -53,11 +53,11 @@ test_commands_install_run() {
 
   setup_scenario
   legacy_dir=$SCENARIO_DIR/legacy-override
-  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_INSTALL_DIR="$legacy_dir" SHIMMY_CONTROL_INSTALL_DIR="$legacy_dir" SHIMMY_UPSTREAM_DIR="$legacy_dir" ./install.sh --profile default --no-startup --no-skills >/dev/null
+  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_INSTALL_DIR="$legacy_dir" SHIMMY_CONTROL_INSTALL_DIR="$legacy_dir" SHIMMY_UPSTREAM_DIR="$legacy_dir" ./install.sh --profile default --no-startup >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_path_not_exists "$legacy_dir"
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
-  default_shimmy install --shim task --no-startup --no-skills >/dev/null
+  default_shimmy install --shim task --no-startup >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
   assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
 
@@ -72,11 +72,11 @@ test_commands_install_run() {
   assert_path_not_exists "$SCENARIO_DIR/legacy"
 
   setup_scenario
-  run_in_repo env -u XDG_CONFIG_HOME HOME="$HOME_DIR" ./install.sh --no-startup --no-skills >/dev/null
+  run_in_repo env -u XDG_CONFIG_HOME HOME="$HOME_DIR" ./install.sh --no-startup >/dev/null
   assert_file_exists "$HOME_DIR/.config/shimmy/profiles/default/bin/shimmy"
 
   setup_scenario
-  run_in_repo env XDG_CONFIG_HOME= HOME="$HOME_DIR" ./install.sh --no-startup --no-skills >/dev/null
+  run_in_repo env XDG_CONFIG_HOME= HOME="$HOME_DIR" ./install.sh --no-startup >/dev/null
   assert_file_exists "$HOME_DIR/.config/shimmy/profiles/default/bin/shimmy"
 
   setup_scenario

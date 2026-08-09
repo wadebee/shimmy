@@ -31,7 +31,7 @@ test_commands_update_run() {
   setup_scenario
   bootstrap_default >/dev/null
   bootstrap_upstream >/dev/null
-  default_shimmy install --shim task --shim oc@4.18 --no-startup --no-skills >/dev/null
+  default_shimmy install --shim task --shim oc@4.18 --no-startup >/dev/null
   selection_before=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   update_source=$SCENARIO_DIR/update-source
   test_update_source_repository_create "$update_source"

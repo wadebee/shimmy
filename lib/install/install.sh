@@ -8,12 +8,10 @@ SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
 INSTALL_MODULE_DIR=$ROOT_DIR/lib/install
 
 REQUESTED_SHIMS=
-REQUESTED_SKILLS_TARGET=
 REQUESTED_SHELL=
 REQUESTED_STARTUP_FILES=
 SKIP_STARTUP=0
 STARTUP_OPTION_REQUESTED=0
-SKIP_SKILLS=0
 REFRESH_SHIMS=0
 STARTUP_FILE_PATHS=
 STARTUP_SHELL=
@@ -180,18 +178,6 @@ profile_stage_cleanup() {
   esac
 }
 
-profile_external_integrations_apply() {
-  if ! shimmy_install_startup_update; then
-    fail "profile installed, but startup integration failed; retry with '$SHIMMY_CONTROL_BIN install --shell $STARTUP_SHELL'"
-  fi
-
-  [ "$SKIP_SKILLS" -eq 0 ] || return 0
-  [ -n "$REQUESTED_SKILLS_TARGET" ] || return 0
-  if ! "$SHIMMY_PROFILE_ROOT/commands/skills.sh" install --target "$REQUESTED_SKILLS_TARGET" --manifest "$INSTALL_MANIFEST_FILE"; then
-    fail "profile installed, but skills integration failed; retry with '$SHIMMY_CONTROL_BIN skills install --target $REQUESTED_SKILLS_TARGET'"
-  fi
-}
-
 perform_install() {
   validate_requested_shims
   shimmy_version_two_install_reject "$SHIMMY_CONFIG_ROOT" || exit 1
@@ -205,7 +191,9 @@ perform_install() {
   profile_stage_prepare
   profile_assets_commit
   profile_stage_cleanup
-  profile_external_integrations_apply
+  if ! shimmy_install_startup_update; then
+    fail "profile installed, but startup integration failed; retry with '$SHIMMY_CONTROL_BIN install --shell $STARTUP_SHELL'"
+  fi
 
   log_info "Installed Shimmy $SHIMMY_PROFILE_RESOLVED profile at $SHIMMY_PROFILE_ROOT"
   log_info "Initialize this shell with: . '$SHIMMY_SHELL_INIT_FILE'"
