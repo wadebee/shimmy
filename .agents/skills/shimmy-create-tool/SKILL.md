@@ -7,10 +7,12 @@ description: Create or extend a Shimmy tool kind and its concrete CLI versions. 
 
 ## Read first
 
-1. Read `CONTRIBUTING.md`, `docs/prompt-shimmy-project.md`, and the context
+- Read `CONTRIBUTING.md`, `docs/prompt-shimmy-project.md`, and the context
    path from root to the target tool.
-2. Inspect a comparable tool under `tools/` before introducing structure.
-3. Check upstream documentation for required companion tools and choose the
+- Inspect a comparable tool under `tools/` before introducing structure.
+- Operate in PLAN -> REVIEW -> ACT mode to gather necessary feedback about tool image parameters (provenance, version, etc)
+- Identify risks, assumptions, and best practices you embrace.
+- Check upstream documentation for required companion tools and choose the
    image strategy before editing. Ask the user when viable image or version
    choices materially differ.
 

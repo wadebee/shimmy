@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan, Review, Act"
+  short_description: "Plan safely before implementation begins"
+  default_prompt: "Use $plan-review-act to investigate this task and produce a decision-complete implementation plan without making changes."

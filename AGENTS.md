@@ -51,6 +51,15 @@ Question requests that materially differ from your training of best practices by
 
 ## Refactoring Lessons Learned
 
+- Coordinate directory renames across source comments, context links, test
+  discovery, and historical plans so stale references do not recreate the old
+  layout in later work.
+- When removing a compatibility surface, remove every forwarding path,
+  equivalent environment or argument alias, fixture, and test together; verify
+  obsolete inputs fail before mutation.
+- During staged filesystem replacement, preserve the last valid marker or
+  manifest until the new state is committed atomically, so failures leave the
+  previous state intact and invalid partial state is rejected.
 - Treat a schema or owned-format identity change as one review unit. Inventory and update every producer, consumer, validator, fixture, transaction boundary, and rollback path together.
 - Validate generated shell artifacts by inspecting and exercising the rendered output. Correct-looking renderer source does not prove that quoting, escaping, or expansion survived generation.
 - Test sourced POSIX entrypoint failures under callers with `set -e`, including ordinary and conditional sourcing. The final status-producing command can determine whether cleanup runs and whether the caller can recover.
