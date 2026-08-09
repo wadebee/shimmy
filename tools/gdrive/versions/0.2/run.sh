@@ -3,8 +3,8 @@ set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
-SHIMMY_RUNTIME_DIR=$ROOT_DIR/core/runtime
-SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/core/runtime/image.sh
+SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
+SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/runtime/image.sh
 
 SHIMMY_GDRIVE_CREDS_DIR=
 SHIMMY_GDRIVE_AUTH_PORT_ARG=
@@ -16,7 +16,7 @@ if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
   exit 1
 fi
 
-# shellcheck source=core/runtime/image.sh
+# shellcheck source=lib/runtime/image.sh
 . "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
 shimmy_podman_preflight_or_preview_require "the gdrive shim" "$@"

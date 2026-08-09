@@ -12,14 +12,15 @@ case "$TMP_PARENT" in
 esac
 
 TMP_ROOT=$(mktemp -d "$TMP_PARENT/shimmy-test.XXXXXX")
+TMP_ROOT=$(cd -- "$TMP_ROOT" && pwd -P)
 TEST_COUNT=0
 
 # shellcheck source=tests/support.sh
 . "$SCRIPT_DIR/support.sh"
-# shellcheck source=core/common/common.sh
-. "$ROOT_DIR/core/common/common.sh"
-# shellcheck source=core/profile/profile.sh
-. "$ROOT_DIR/core/profile/profile.sh"
+# shellcheck source=lib/common/common.sh
+. "$ROOT_DIR/lib/common/common.sh"
+# shellcheck source=lib/profile/profile.sh
+. "$ROOT_DIR/lib/profile/profile.sh"
 # shellcheck source=tests/profile-smoke.sh
 . "$SCRIPT_DIR/profile-smoke.sh"
 # shellcheck source=tests/core/catalog.sh

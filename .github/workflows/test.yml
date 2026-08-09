@@ -3,20 +3,12 @@ name: Shim Tests
 on:
   pull_request:
     paths:
-      - "shims/**"
-      - "scripts/activate-shimmy.sh"
-      - "scripts/agent-shimmy-preflight.sh"
-      - "scripts/dispatch-shimmy.sh"
-      - "scripts/install-shimmy.sh"
-      - "scripts/netinfo-shimmy.sh"
-      - "scripts/skills-shimmy.sh"
-      - "scripts/status-shimmy.sh"
-      - "scripts/test-shimmy.sh"
-      - "scripts/update-shimmy.sh"
-      - "lib/repo/**"
-      - "shimmy"
-      - "images/task/**"
-      - "lib/shims/**"
+      - "install.sh"
+      - "commands/**"
+      - "lib/**"
+      - "tests/**"
+      - "tools/**"
+      - "agent/**"
       - ".agents/skills/**"
       - ".pre-commit-config.yaml"
       - ".github/workflows/test.yml"
@@ -26,20 +18,12 @@ on:
       - "plugins/shimmy/**"
   push:
     paths:
-      - "shims/**"
-      - "scripts/activate-shimmy.sh"
-      - "scripts/agent-shimmy-preflight.sh"
-      - "scripts/dispatch-shimmy.sh"
-      - "scripts/install-shimmy.sh"
-      - "scripts/netinfo-shimmy.sh"
-      - "scripts/skills-shimmy.sh"
-      - "scripts/status-shimmy.sh"
-      - "scripts/test-shimmy.sh"
-      - "scripts/update-shimmy.sh"
-      - "lib/repo/**"
-      - "shimmy"
-      - "images/task/**"
-      - "lib/shims/**"
+      - "install.sh"
+      - "commands/**"
+      - "lib/**"
+      - "tests/**"
+      - "tools/**"
+      - "agent/**"
       - ".agents/skills/**"
       - ".pre-commit-config.yaml"
       - ".github/workflows/test.yml"
@@ -63,4 +47,4 @@ jobs:
         run: sudo rm /usr/bin/jq || true
 
       - name: Run shim tests
-        run: ./shimmy test
+        run: ./tests/test.sh

@@ -8,10 +8,8 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
-COMMON_HELPER_FILE=$ROOT_DIR/core/common/common.sh
+COMMON_HELPER_FILE=$ROOT_DIR/lib/common/common.sh
 
-DEFAULT_INSTALL_DIR=${SHIMMY_CONTROL_INSTALL_DIR:-$HOME/.config/shimmy}
-REQUESTED_INSTALL_DIR=
 REQUESTED_MANIFEST_FILE=
 REQUESTED_SKILLS=
 REQUESTED_TARGET=repo
@@ -34,7 +32,7 @@ if [ ! -f "$COMMON_HELPER_FILE" ]; then
   fail "missing common helper: $COMMON_HELPER_FILE"
 fi
 
-# shellcheck source=core/common/common.sh
+# shellcheck source=lib/common/common.sh
 . "$COMMON_HELPER_FILE"
 
 ensure_safe_root() {
@@ -65,7 +63,6 @@ Options:
   --target profile    Write skills to ~/.agents/skills
   --target plugin     Write skills to the packaged Shimmy plugin skill bundle
   --export <path>     Export a portable skills folder, or a .zip archive
-  --install-dir <dir> Read installed kinds from <dir>/profiles/<profile>/install-manifest.txt
   --manifest <path>   Read installed kinds from the given profile manifest if present
   -h, --help          Show help
 
@@ -445,26 +442,8 @@ install_manifest_file_resolve() {
     return 0
   fi
 
-  profile_name=${SHIMMY_PROFILE_ACTIVE:-default}
-  case "$profile_name" in
-    default|upstream)
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-
-  if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    printf '%s/profiles/%s/install-manifest.txt\n' "$(shimmy_trim_path_trailing_slash "$REQUESTED_INSTALL_DIR")" "$profile_name"
-    return 0
-  fi
-
-  if [ -n "${SHIMMY_CONTROL_INSTALL_DIR:-}" ]; then
-    printf '%s/profiles/%s/install-manifest.txt\n' "$(shimmy_trim_path_trailing_slash "$DEFAULT_INSTALL_DIR")" "$profile_name"
-    return 0
-  fi
-
-  return 1
+  [ -f "$ROOT_DIR/install-manifest.txt" ] || return 1
+  printf '%s/install-manifest.txt\n' "$ROOT_DIR"
 }
 
 install_manifest_skills_update() {
@@ -623,11 +602,6 @@ main() {
       --export)
         [ "$#" -ge 2 ] || fail "missing value for --export"
         EXPORT_PATH=$2
-        shift 2
-        ;;
-      --install-dir)
-        [ "$#" -ge 2 ] || fail "missing value for --install-dir"
-        REQUESTED_INSTALL_DIR=$2
         shift 2
         ;;
       --manifest)

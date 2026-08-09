@@ -13,21 +13,19 @@ requested_shim_append() {
 
 usage() {
   cat <<'EOF'
-Install or uninstall Shimmy assets in a user-scoped location.
+Install or uninstall assets in the invoking Shimmy profile.
 
 Usage:
   commands/install.sh [options]
 
 Options:
-  --install-dir <dir>    Base install directory. Default: ~/.config/shimmy
-  --profile <name>          Install profile: default or upstream
   --shim <name>          Install the named shim if missing. Repeatable.
-  --skills-target <name> Share or remove Shimmy agent skills in repo, profile, or plugin
-  --no-skills            Do not prompt for, share, or remove Shimmy agent skills
+  --skills-target <name> Explicitly install agent skills in repo, profile, or plugin
+  --no-skills            Do not install agent skills
   --shell <name>         Override shell detection for startup-file updates
   --startup-file <path>  Override startup file updates. Repeatable.
   --no-startup           Skip persistent startup-file updates during install
-  --uninstall            Remove a profile; requires --profile default or upstream
+  --uninstall            Remove the invoking profile
   -h, --help             Show help
 EOF
 }
@@ -173,73 +171,25 @@ validate_skills_target() {
   esac
 }
 
-resolve_install_root() {
-  if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    printf '%s\n' "$(shimmy_trim_path_trailing_slash "$REQUESTED_INSTALL_DIR")"
-    return 0
-  fi
-
-  printf '%s\n' "$(shimmy_trim_path_trailing_slash "$DEFAULT_INSTALL_DIR")"
-}
-
 resolve_install_paths() {
-  install_root=$(resolve_install_root)
-  if ! shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$install_root" "$ROOT_DIR"; then
-    fail "unsupported Shimmy profile: ${SHIMMY_PROFILE_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
+  if [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ -x "$ROOT_DIR/install.sh" ]; then
+    shimmy_profile_paths_resolve "$SHIMMY_BOOTSTRAP_PROFILE" || fail "unable to resolve canonical Shimmy profile; XDG_CONFIG_HOME and HOME must be absolute"
+    SHIMMY_INSTALL_SOURCE_MODE=bootstrap
+  else
+    shimmy_profile_context_resolve "$ROOT_DIR" || fail "installed Shimmy commands must run from a canonical profile root"
+    SHIMMY_INSTALL_SOURCE_MODE=installed
   fi
 
   SHIMMY_PROFILE_RESOLVED=$SHIMMY_PROFILE_NAME
-  SHIMMY_INSTALL_DIR=$SHIMMY_PROFILE_INSTALL_DIR
-  SHIMMY_BIN_DIR=$SHIMMY_INSTALL_BIN_DIR
-  SHIMMY_PROFILE_MANIFEST_FILE=$SHIMMY_PROFILE_MANIFEST_PATH
-  SHIMMY_ROOT_MANIFEST_FILE=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" install-manifest.txt)
-  SHIMMY_CONTROL_BIN=$(shimmy_join_path "$SHIMMY_BIN_DIR" shimmy)
-  SHIMMY_CORE_DIR=$SHIMMY_INSTALL_CORE_DIR
-  SHIMMY_CORE_COMMAND_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" commands)
-  SHIMMY_CORE_DISPATCHER=$(shimmy_join_path "$SHIMMY_CORE_COMMAND_DIR" dispatch-tool.sh)
-  SHIMMY_CORE_TOOLS_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" tools)
-  SHIMMY_ACTIVATE_FILE=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" activate.sh)
-  INSTALL_MANIFEST_FILE=$SHIMMY_PROFILE_MANIFEST_FILE
-}
-
-load_install_root_from_manifest() {
-  if [ ! -f "$SHIMMY_ROOT_MANIFEST_FILE" ]; then
-    return 1
-  fi
-
-  manifest_install_dir=$(shimmy_read_manifest_value "$SHIMMY_ROOT_MANIFEST_FILE" install_dir || true)
-  if [ -z "$manifest_install_dir" ]; then
-    return 1
-  fi
-
-  SHIMMY_INSTALL_DIR=$(shimmy_trim_path_trailing_slash "$manifest_install_dir")
-  shimmy_profile_paths_resolve "$SHIMMY_PROFILE_RESOLVED" "$SHIMMY_INSTALL_DIR" "$ROOT_DIR" || return 1
-  SHIMMY_BIN_DIR=$SHIMMY_INSTALL_BIN_DIR
-  SHIMMY_PROFILE_MANIFEST_FILE=$SHIMMY_PROFILE_MANIFEST_PATH
-  SHIMMY_CONTROL_BIN=$(shimmy_join_path "$SHIMMY_BIN_DIR" shimmy)
-  SHIMMY_CORE_DIR=$SHIMMY_INSTALL_CORE_DIR
-  SHIMMY_CORE_COMMAND_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" commands)
-  SHIMMY_CORE_DISPATCHER=$(shimmy_join_path "$SHIMMY_CORE_COMMAND_DIR" dispatch-tool.sh)
-  SHIMMY_CORE_TOOLS_DIR=$(shimmy_join_path "$SHIMMY_CORE_DIR" tools)
-  SHIMMY_ACTIVATE_FILE=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" activate.sh)
-  SHIMMY_ROOT_MANIFEST_FILE=$(shimmy_join_path "$SHIMMY_INSTALL_DIR" install-manifest.txt)
-  INSTALL_MANIFEST_FILE=$SHIMMY_PROFILE_MANIFEST_FILE
+  SHIMMY_BIN_DIR=$SHIMMY_PROFILE_BIN_DIR
+  SHIMMY_CONTROL_BIN=$SHIMMY_BIN_DIR/shimmy
+  SHIMMY_ACTIVATE_FILE=$SHIMMY_PROFILE_ROOT/activate.sh
+  INSTALL_MANIFEST_FILE=$SHIMMY_PROFILE_MANIFEST_PATH
 }
 
 shimmy_install_request_parse() {
   while [ "$#" -gt 0 ]; do
     case "$1" in
-      --install-dir)
-        [ "$#" -ge 2 ] || fail "missing value for --install-dir"
-        REQUESTED_INSTALL_DIR=$2
-        shift 2
-        ;;
-      --profile)
-        [ "$#" -ge 2 ] || fail "missing value for --profile"
-        SHIMMY_PROFILE_REQUESTED=$2
-        SHIMMY_PROFILE_ACTIVATED=1
-        shift 2
-        ;;
       --copy)
         shift
         ;;
@@ -268,11 +218,13 @@ shimmy_install_request_parse() {
       --shell)
         [ "$#" -ge 2 ] || fail "missing value for --shell"
         REQUESTED_SHELL=$2
+        STARTUP_OPTION_REQUESTED=1
         shift 2
         ;;
       --startup-file)
         [ "$#" -ge 2 ] || fail "missing value for --startup-file"
         REQUESTED_STARTUP_FILES=$(shimmy_append_line_list "$REQUESTED_STARTUP_FILES" "$2")
+        STARTUP_OPTION_REQUESTED=1
         shift 2
         ;;
       --no-startup)
@@ -293,9 +245,11 @@ shimmy_install_request_parse() {
     esac
   done
 
-  if [ -n "${SHIMMY_PROFILE_ACTIVE:-}" ]; then
-    SHIMMY_PROFILE_ACTIVATED=1
-  fi
-
   resolve_install_paths
+
+  if [ "$SHIMMY_PROFILE_RESOLVED" = upstream ]; then
+    [ -z "$REQUESTED_SHELL" ] || fail "upstream is manual-activation-only; use its bin/shimmy activate command"
+    [ -z "$REQUESTED_STARTUP_FILES" ] || fail "upstream is manual-activation-only; use its bin/shimmy activate command"
+    SKIP_STARTUP=1
+  fi
 }

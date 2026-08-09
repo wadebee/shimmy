@@ -115,12 +115,30 @@ run_in_repo() {
   )
 }
 
+bootstrap_default() {
+  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --no-startup --no-skills "$@"
+}
+
+bootstrap_upstream() {
+  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream --no-startup --no-skills "$@"
+}
+
+default_shimmy() {
+  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/shimmy" "$@"
+}
+
+upstream_shimmy() {
+  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$UPSTREAM_PROFILE_ROOT/bin/shimmy" "$@"
+}
+
 setup_scenario() {
   SCENARIO_DIR=$(mktemp -d "$TMP_ROOT/scenario.XXXXXX")
   HOME_DIR=$SCENARIO_DIR/home
-  INSTALL_DIR=$SCENARIO_DIR/install
+  XDG_CONFIG_HOME_DIR=$SCENARIO_DIR/config
+  DEFAULT_PROFILE_ROOT=$XDG_CONFIG_HOME_DIR/shimmy/profiles/default
+  UPSTREAM_PROFILE_ROOT=$XDG_CONFIG_HOME_DIR/shimmy/profiles/upstream
   WORK_DIR=$SCENARIO_DIR/work
-  mkdir -p "$HOME_DIR" "$WORK_DIR"
+  mkdir -p "$HOME_DIR" "$XDG_CONFIG_HOME_DIR" "$WORK_DIR"
 }
 
 shimmy_test_cleanup() {
@@ -129,9 +147,9 @@ shimmy_test_cleanup() {
 
 tracked_shell_file_list() {
   for shell_file in \
-    "$ROOT_DIR/shimmy" \
+    "$ROOT_DIR/install.sh" \
     "$ROOT_DIR"/commands/*.sh \
-    "$ROOT_DIR"/core/*/*.sh \
+    "$ROOT_DIR"/lib/*/*.sh \
     "$ROOT_DIR"/tests/*.sh \
     "$ROOT_DIR"/tests/*/*.sh \
     "$ROOT_DIR"/tools/*/tests/*.sh \

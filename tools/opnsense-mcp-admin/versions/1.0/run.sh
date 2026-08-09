@@ -5,8 +5,8 @@ SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
-SHIMMY_RUNTIME_DIR=$ROOT_DIR/core/runtime
-SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/core/runtime/image.sh
+SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
+SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/runtime/image.sh
 
 SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY=${SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY:-opnsense_mcp_admin_api_key}
 SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET=${SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET:-opnsense_mcp_admin_api_secret}
@@ -140,7 +140,7 @@ if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
   exit 1
 fi
 
-# shellcheck source=core/runtime/image.sh
+# shellcheck source=lib/runtime/image.sh
 . "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
 shimmy_podman_preview_prepare "$@"

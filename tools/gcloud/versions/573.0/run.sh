@@ -5,7 +5,7 @@ SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
-SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/core/runtime/podman.sh
+SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/runtime/podman.sh
 
 SHIMMY_GCLOUD_CONTAINER_CONFIG_DIR=/home/cloudsdk/.config/gcloud
 SHIMMY_GCLOUD_CONTAINER_HOME=/home/cloudsdk
@@ -123,7 +123,7 @@ if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
   exit 1
 fi
 
-# shellcheck source=core/runtime/podman.sh
+# shellcheck source=lib/runtime/podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
 
 shimmy_podman_preview_prepare "$@"

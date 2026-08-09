@@ -8,9 +8,9 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
-SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/core/runtime/podman.sh
+SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/runtime/podman.sh
 SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
-CATALOG_HELPER_FILE=$ROOT_DIR/core/catalog/catalog.sh
+CATALOG_HELPER_FILE=$ROOT_DIR/lib/catalog/catalog.sh
 RUN_SMOKE=no
 PREFLIGHT_STATUS=0
 ACTIVE_SHIM_SEEN=
@@ -58,9 +58,9 @@ if [ ! -f "$CATALOG_HELPER_FILE" ]; then
   exit 1
 fi
 
-# shellcheck source=core/runtime/podman.sh
+# shellcheck source=lib/runtime/podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
-# shellcheck source=core/catalog/catalog.sh
+# shellcheck source=lib/catalog/catalog.sh
 . "$CATALOG_HELPER_FILE"
 
 shimmy_agent_json_string_print() {
@@ -238,9 +238,9 @@ $shim_name
 }
 
 shimmy_agent_manifest_shims_discover() {
-  install_dir=$1
+  profile_root=$1
   manifest_file=$2
-  bin_dir=$install_dir/bin
+  bin_dir=$profile_root/bin
 
   while IFS= read -r shim_name; do
     [ -n "$shim_name" ] || continue
@@ -251,21 +251,10 @@ EOF
 }
 
 shimmy_agent_installed_shims_discover() {
-  install_dir=$1
-  shim_dir=$install_dir/bin
-
-  for manifest_file in "$install_dir"/profiles/default/install-manifest.txt "$install_dir"/profiles/upstream/install-manifest.txt "$install_dir"/install-manifest.txt; do
+  config_home=$1
+  for manifest_file in "$config_home"/shimmy/profiles/default/install-manifest.txt "$config_home"/shimmy/profiles/upstream/install-manifest.txt; do
     [ -f "$manifest_file" ] || continue
-    shimmy_agent_manifest_shims_discover "$install_dir" "$manifest_file"
-  done
-
-  [ -d "$shim_dir" ] || return 0
-
-  for shim_path in "$shim_dir"/*; do
-    [ -f "$shim_path" ] || continue
-    [ -x "$shim_path" ] || continue
-    [ "$(basename "$shim_path")" != shimmy ] || continue
-    shimmy_agent_active_shim_consider "$(basename "$shim_path")" "$shim_path"
+    shimmy_agent_manifest_shims_discover "$(dirname "$manifest_file")" "$manifest_file"
   done
 }
 
@@ -276,7 +265,7 @@ shimmy_agent_path_shims_discover() {
     IFS=$old_ifs
     [ -n "$path_dir" ] || continue
     case "$path_dir" in
-      */shimmy/bin)
+      */shimmy/profiles/*/bin)
         [ -d "$path_dir" ] || continue
         for shim_path in "$path_dir"/*; do
           [ -f "$shim_path" ] || continue
@@ -355,10 +344,10 @@ fi
 
 printf '\nActive Shimmy command approvals:\n'
 
-if [ -n "${SHIMMY_INSTALL_DIR:-}" ]; then
-  shimmy_agent_installed_shims_discover "$SHIMMY_INSTALL_DIR"
+if [ -n "${XDG_CONFIG_HOME:-}" ]; then
+  case "$XDG_CONFIG_HOME" in /*) shimmy_agent_installed_shims_discover "$XDG_CONFIG_HOME" ;; esac
 elif [ -n "${HOME:-}" ]; then
-  shimmy_agent_installed_shims_discover "$HOME/.config/shimmy"
+  shimmy_agent_installed_shims_discover "$HOME/.config"
 fi
 shimmy_agent_path_shims_discover
 

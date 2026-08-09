@@ -5,7 +5,7 @@ Shimmy exposes common CLI tools through small POSIX shell wrappers that run Podm
 ## Architecture
 
 - `commands/` is the public management-command surface.
-- `core/` contains shared catalog, profile, runtime, startup, and networking
+- `lib/` contains shared catalog, profile, runtime, startup, and networking
   modules.
 - `tools/` owns each tool's metadata, versions, container context, guide, and
   agent guidance.
@@ -21,7 +21,7 @@ Shimmy exposes common CLI tools through small POSIX shell wrappers that run Podm
 ## Child contexts
 
 - [commands](commands/CONTEXT.md)
-- [core](core/CONTEXT.md)
+- [shared library](lib/CONTEXT.md)
 - [tools](tools/CONTEXT.md)
 - [tests](tests/CONTEXT.md)
 - [agent guidance](agent/CONTEXT.md)

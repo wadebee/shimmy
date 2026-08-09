@@ -4,9 +4,9 @@ set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
-SHIMMY_RUNTIME_DIR=$ROOT_DIR/core/runtime
+SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 
-# shellcheck source=core/runtime/image.sh
+# shellcheck source=lib/runtime/image.sh
 . "$SHIMMY_RUNTIME_DIR/image.sh"
 
 case "${1:-}" in

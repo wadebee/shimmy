@@ -7,8 +7,8 @@ test_core_catalog_context_tree() {
 }
 
 test_core_catalog_discovery() {
-  # shellcheck source=core/catalog/catalog.sh
-  . "$ROOT_DIR/core/catalog/catalog.sh"
+  # shellcheck source=lib/catalog/catalog.sh
+  . "$ROOT_DIR/lib/catalog/catalog.sh"
 
   kinds=$(shimmy_kind_list)
   assert_contains "$kinds" jq
@@ -30,8 +30,8 @@ test_core_catalog_preview_dispatch() {
 }
 
 test_core_catalog_all_previews() {
-  # shellcheck source=core/catalog/catalog.sh
-  . "$ROOT_DIR/core/catalog/catalog.sh"
+  # shellcheck source=lib/catalog/catalog.sh
+  . "$ROOT_DIR/lib/catalog/catalog.sh"
 
   for kind_name in $(shimmy_kind_list); do
     case "$kind_name" in
@@ -48,8 +48,8 @@ test_core_catalog_all_previews() {
 }
 
 test_core_catalog_concrete_version_previews() {
-  # shellcheck source=core/catalog/catalog.sh
-  . "$ROOT_DIR/core/catalog/catalog.sh"
+  # shellcheck source=lib/catalog/catalog.sh
+  . "$ROOT_DIR/lib/catalog/catalog.sh"
 
   for kind_name in $(shimmy_kind_list); do
     default_label=$(sed -n 's/^tool_default_version=//p' "$ROOT_DIR/tools/$kind_name/tool.conf" | sed -n '1p')

@@ -5,7 +5,7 @@ SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
-SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/core/runtime/podman.sh
+SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/runtime/podman.sh
 
 SHIMMY_NMAP_IMAGE=${SHIMMY_NMAP_IMAGE:-docker.io/instrumentisto/nmap:7.98-r2}
 SHIMMY_NMAP_IMAGE_PULL=${SHIMMY_NMAP_IMAGE_PULL:-}
@@ -61,7 +61,7 @@ if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
   exit 1
 fi
 
-# shellcheck source=core/runtime/podman.sh
+# shellcheck source=lib/runtime/podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
 
 shimmy_podman_preflight_or_preview_require "the nmap shim" "$@"

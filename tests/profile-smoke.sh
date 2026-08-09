@@ -25,8 +25,6 @@ EOF
 }
 
 test_profile_mode_parse() {
-  TEST_PROFILE_INSTALL_DIR_REQUESTED=
-  TEST_PROFILE_NAME_REQUESTED=
   TEST_PROFILE_RUN=0
   TEST_PROFILE_SHIM_REQUESTED=
   TEST_PROFILE_TEST_ALL=0
@@ -37,18 +35,6 @@ test_profile_mode_parse() {
         TEST_PROFILE_TEST_ALL=1
         TEST_PROFILE_RUN=1
         shift
-        ;;
-      --install-dir)
-        [ "$#" -ge 2 ] || fail_test "missing value for --install-dir"
-        TEST_PROFILE_INSTALL_DIR_REQUESTED=$2
-        TEST_PROFILE_RUN=1
-        shift 2
-        ;;
-      --profile)
-        [ "$#" -ge 2 ] || fail_test "missing value for --profile"
-        TEST_PROFILE_NAME_REQUESTED=$2
-        TEST_PROFILE_RUN=1
-        shift 2
         ;;
       --shim)
         [ "$#" -ge 2 ] || fail_test "missing value for --shim"
@@ -66,7 +52,7 @@ test_profile_mode_parse() {
     esac
   done
 
-  if [ -n "${SHIMMY_PROFILE_ACTIVE:-}" ] || [ -n "${SHIMMY_CONTROL_INSTALL_DIR:-}" ]; then
+  if [ -f "$ROOT_DIR/install-manifest.txt" ]; then
     TEST_PROFILE_RUN=1
   fi
 
@@ -80,16 +66,13 @@ test_profile_mode_usage() {
 Run Shimmy tests.
 
 Usage:
-  tests/test.sh [--install-dir <dir>] [--profile default|upstream] [--shim <kind>[@<version>]] [--all]
+  shimmy test [--shim <kind>[@<version>]] [--all]
 
-Without an install directory, profile, shim request, active profile, or installed
-launcher context, this runs the source-checkout test suite. With a selected
-installed profile, it validates the manifests and runs live non-mutating smoke
-commands through the installed wrappers.
+From a source checkout this runs the repository suite. Through an installed
+launcher it validates that launcher's profile and runs non-mutating smoke
+commands through its installed wrappers.
 
 Options:
-  --install-dir <dir>  Test the Shimmy install rooted at <dir>.
-  --profile <name>     Select default or upstream.
   --shim <name>        Test one installed kind or concrete kind@version.
   --all                Test installed public kinds and every installed concrete version.
 EOF
@@ -172,8 +155,6 @@ test_profile_smoke_command_run() {
   set +e
   smoke_output=$(
     test_profile_smoke_env_apply "$smoke_env_file" || exit 1
-    SHIMMY_PROFILE_ACTIVE=$profile_name
-    export SHIMMY_PROFILE_ACTIVE
     "$target_path" "$@"
   2>&1)
   smoke_status=$?
@@ -243,20 +224,10 @@ EOF
 }
 
 test_profile_smoke_run() {
-  if ! shimmy_profile_paths_resolve "$TEST_PROFILE_NAME_REQUESTED" "$TEST_PROFILE_INSTALL_DIR_REQUESTED" "$ROOT_DIR"; then
-    fail_test "unsupported Shimmy profile: ${TEST_PROFILE_NAME_REQUESTED:-${SHIMMY_PROFILE_ACTIVE:-}}"
-  fi
-
-  root_manifest_file=$(shimmy_root_manifest_path_resolve "$SHIMMY_PROFILE_INSTALL_DIR")
+  shimmy_profile_context_resolve "$ROOT_DIR" || fail_test "installed tests must run from a canonical profile root"
   profile_manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
-  assert_file_exists "$root_manifest_file"
-  shimmy_install_layout_validate "$root_manifest_file" || fail_test "legacy Shimmy install layout detected; uninstall and reinstall"
-
-  profile_implementation_dir=$(shimmy_read_manifest_value "$profile_manifest_file" profile_implementation_dir || true)
-  [ -n "$profile_implementation_dir" ] || profile_implementation_dir=$SHIMMY_PROFILE_IMPLEMENTATION_DIR
-  if ! shimmy_profile_structure_validate "$profile_manifest_file" "$profile_implementation_dir"; then
-    fail_test "incomplete Shimmy profile for profile $SHIMMY_PROFILE_NAME; repair with $(shimmy_profile_install_hint "$SHIMMY_PROFILE_NAME")"
-  fi
+  profile_implementation_dir=$SHIMMY_PROFILE_IMPLEMENTATION_DIR
+  shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" || fail_test "incomplete or damaged Shimmy profile"
 
   if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then
     source_checkout=$(shimmy_read_manifest_value "$profile_manifest_file" source_checkout || true)
@@ -266,16 +237,13 @@ test_profile_smoke_run() {
     fi
   fi
 
-  public_bin_dir=$(shimmy_read_manifest_value "$root_manifest_file" bin_dir || true)
-  [ -n "$public_bin_dir" ] || public_bin_dir=$SHIMMY_INSTALL_BIN_DIR
-  config_dir=$(shimmy_read_manifest_value "$profile_manifest_file" config_dir || true)
-  [ -n "$config_dir" ] || config_dir=$SHIMMY_PROFILE_CONFIG_DIR
+  public_bin_dir=$SHIMMY_PROFILE_BIN_DIR
+  config_dir=$SHIMMY_PROFILE_CONFIG_DIR
   test_profile_request_resolve "$profile_manifest_file"
 
   printf 'Shimmy Test\n'
   printf 'Selected Shimmy profile: %s\n' "$SHIMMY_PROFILE_NAME"
-  printf 'install_dir=%s\n' "$SHIMMY_PROFILE_INSTALL_DIR"
-  printf 'root_manifest_path=%s\n' "$root_manifest_file"
+  printf 'profile_root=%s\n' "$SHIMMY_PROFILE_ROOT"
   printf 'profile_manifest_path=%s\n' "$profile_manifest_file"
 
   if [ -n "$TEST_PROFILE_REQUEST_VERSION" ]; then

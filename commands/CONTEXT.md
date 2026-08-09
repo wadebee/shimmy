@@ -2,7 +2,7 @@
 
 These executable entrypoints implement the `shimmy` management surface. They
 parse command arguments and orchestrate shared modules; reusable behavior
-belongs in `../core/`.
+belongs in `../lib/`.
 
 ## Key files
 
@@ -15,6 +15,6 @@ belongs in `../core/`.
 
 ## Related contexts
 
-- [shared core](../core/CONTEXT.md)
+- [shared library](../lib/CONTEXT.md)
 - [tool metadata](../tools/CONTEXT.md)
 - [tests](../tests/CONTEXT.md)

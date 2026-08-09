@@ -1,6 +1,6 @@
-# Shared core
+# Shared library
 
-Core modules are sourced by commands and tool runtimes. Keep modules narrow;
+Library modules are sourced by commands and tool runtimes. Keep modules narrow;
 do not add tool-specific behavior here.
 
 ## Child contexts

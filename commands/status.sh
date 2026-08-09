@@ -5,11 +5,9 @@ set -eu
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
 SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
-COMMON_HELPER_FILE=$ROOT_DIR/core/common/common.sh
-CATALOG_HELPER_FILE=$ROOT_DIR/core/catalog/catalog.sh
-PROFILE_HELPER_FILE=$ROOT_DIR/core/profile/profile.sh
-REQUESTED_INSTALL_DIR=
-SHIMMY_PROFILE_REQUESTED=
+COMMON_HELPER_FILE=$ROOT_DIR/lib/common/common.sh
+CATALOG_HELPER_FILE=$ROOT_DIR/lib/catalog/catalog.sh
+PROFILE_HELPER_FILE=$ROOT_DIR/lib/profile/profile.sh
 OUTPUT_FORMAT=human
 SHOW_AVAILABLE=0
 
@@ -24,16 +22,8 @@ fail() {
 
 usage() {
   cat <<'EOF'
-Usage: commands/status.sh [--install-dir <dir>] [--profile default|upstream] [--available] [--format human|manifest]
+Usage: shimmy status [--available] [--format human|manifest]
 EOF
-}
-
-install_dir_resolve() {
-  if [ -n "$REQUESTED_INSTALL_DIR" ]; then
-    shimmy_trim_path_trailing_slash "$REQUESTED_INSTALL_DIR"
-    return 0
-  fi
-  shimmy_profile_install_dir_resolve ""
 }
 
 kind_installed() {
@@ -77,14 +67,13 @@ print_kind_human() {
 }
 
 print_status() {
-  install_dir=$1
-  manifest_file=$2
+  manifest_file=$1
 
   if [ "$OUTPUT_FORMAT" = manifest ]; then
-    printf 'shimmy_install_dir=%s\n' "$install_dir"
+    printf 'shimmy_profile_root=%s\n' "$SHIMMY_PROFILE_ROOT"
     printf 'shimmy_manifest_path=%s\n' "$manifest_file"
     printf 'shimmy_profile_name=%s\n' "$SHIMMY_PROFILE_NAME"
-    if shimmy_profile_structure_validate "$manifest_file" "$SHIMMY_PROFILE_IMPLEMENTATION_DIR"; then
+    if shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME"; then
       printf 'shimmy_installed=yes\n'
     else
       printf 'shimmy_installed=no\n'
@@ -92,7 +81,7 @@ print_status() {
   else
     printf 'Shimmy Status\n'
     printf 'profile: %s\n' "$SHIMMY_PROFILE_NAME"
-    printf 'install_dir: %s\n' "$install_dir"
+    printf 'profile_root: %s\n' "$SHIMMY_PROFILE_ROOT"
   fi
 
   for kind_name in $(shimmy_kind_list); do
@@ -118,8 +107,6 @@ print_status() {
 main() {
   while [ "$#" -gt 0 ]; do
     case "$1" in
-      --install-dir) REQUESTED_INSTALL_DIR=${2:?missing value for --install-dir}; shift 2 ;;
-      --profile) SHIMMY_PROFILE_REQUESTED=${2:?missing value for --profile}; shift 2 ;;
       --available) SHOW_AVAILABLE=1; shift ;;
       --format) OUTPUT_FORMAT=${2:?missing value for --format}; shift 2 ;;
       -h|--help) usage; exit 0 ;;
@@ -128,11 +115,9 @@ main() {
   done
 
   case "$OUTPUT_FORMAT" in human|manifest) ;; *) fail "unsupported status format: $OUTPUT_FORMAT" ;; esac
-  shimmy_profile_paths_resolve "$SHIMMY_PROFILE_REQUESTED" "$(install_dir_resolve)" "$ROOT_DIR" || fail "unsupported Shimmy profile"
-  install_dir=$SHIMMY_PROFILE_INSTALL_DIR
-  root_manifest_file=$install_dir/install-manifest.txt
-  shimmy_install_layout_validate "$root_manifest_file" || fail "legacy Shimmy install layout detected; uninstall and reinstall"
-  print_status "$install_dir" "$SHIMMY_PROFILE_MANIFEST_PATH"
+  shimmy_profile_context_resolve "$ROOT_DIR" || fail "installed launcher is outside a canonical profile root"
+  shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_PROFILE_NAME" || exit 1
+  print_status "$SHIMMY_PROFILE_MANIFEST_PATH"
 }
 
 main "$@"

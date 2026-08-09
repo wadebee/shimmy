@@ -1,59 +1,45 @@
 #!/bin/sh
-# Additive installation and install-request validation tests.
-
-test_commands_install_additive_kinds() {
-  setup_scenario
-
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup --no-skills >/dev/null
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim task --no-startup --no-skills >/dev/null
-
-  assert_path_symlink "$INSTALL_DIR/bin/jq"
-  assert_path_symlink "$INSTALL_DIR/bin/task"
-  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "kind=jq"
-  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "kind=task"
-  pass "additive install preserves previously installed tool kinds"
-}
-
-test_commands_install_additive_kind_refreshes_control_assets() {
-  setup_scenario
-
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup --no-skills >/dev/null
-  rm -rf "$INSTALL_DIR/core/tools/logmine"
-
-  HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim logmine --no-startup --no-skills >/dev/null
-
-  [ -f "$INSTALL_DIR/core/tools/logmine/tool.conf" ] || fail_test "additive install did not refresh installed tool metadata for logmine"
-  assert_path_symlink "$INSTALL_DIR/bin/logmine"
-  assert_file_contains "$INSTALL_DIR/profiles/default/install-manifest.txt" "kind=logmine"
-  pass "additive install refreshes installed control assets for newly added kinds"
-}
-
-test_commands_install_macos_podman_guidance() {
-  setup_scenario
-
-  output=$(SHIMMY_TEST_OS=Darwin HOME="$HOME_DIR" run_in_repo ./shimmy install --install-dir "$INSTALL_DIR" --shim jq --no-startup --no-skills 2>&1)
-
-  assert_contains "$output" "macOS Podman check: run 'podman info' in a normal shell before using Shimmy."
-  assert_contains "$output" "If Podman is unreachable, run 'podman machine start' in that shell, then retry Shimmy."
-  pass "install gives macOS Podman dependency guidance"
-}
-
-test_commands_install_uninstall_requires_profile() {
-  setup_scenario
-
-  set +e
-  output=$(HOME="$HOME_DIR" run_in_repo ./shimmy uninstall --install-dir "$INSTALL_DIR" --no-skills 2>&1)
-  status_code=$?
-  set -e
-
-  [ "$status_code" -ne 0 ] || fail_test "uninstall accepted a missing profile request"
-  assert_contains "$output" "uninstall requires --profile default or --profile upstream"
-  pass "uninstall requires an explicit profile selection"
-}
 
 test_commands_install_run() {
-  test_commands_install_additive_kinds
-  test_commands_install_additive_kind_refreshes_control_assets
-  test_commands_install_macos_podman_guidance
-  test_commands_install_uninstall_requires_profile
+  setup_scenario
+  mkdir -p "$DEFAULT_PROFILE_ROOT"
+  printf '%s\n' unmanaged > "$DEFAULT_PROFILE_ROOT/sentinel"
+  set +e
+  unmanaged_output=$(bootstrap_default --shim jq 2>&1)
+  unmanaged_status=$?
+  set -e
+  [ "$unmanaged_status" -ne 0 ] || fail_test "unmanaged profile root unexpectedly accepted"
+  assert_contains "$unmanaged_output" 'non-empty unmanaged profile root'
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/sentinel"
+
+  setup_scenario
+  legacy_dir=$SCENARIO_DIR/legacy-override
+  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_INSTALL_DIR="$legacy_dir" SHIMMY_CONTROL_INSTALL_DIR="$legacy_dir" SHIMMY_UPSTREAM_DIR="$legacy_dir" ./install.sh --profile default --shim jq --no-startup --no-skills >/dev/null
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_path_not_exists "$legacy_dir"
+
+  printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
+  bootstrap_default --shim task >/dev/null
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
+  assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
+
+  setup_scenario
+  run_in_repo env -u XDG_CONFIG_HOME HOME="$HOME_DIR" ./install.sh --shim jq --no-startup --no-skills >/dev/null
+  assert_file_exists "$HOME_DIR/.config/shimmy/profiles/default/bin/shimmy"
+
+  setup_scenario
+  run_in_repo env XDG_CONFIG_HOME= HOME="$HOME_DIR" ./install.sh --shim jq --no-startup --no-skills >/dev/null
+  assert_file_exists "$HOME_DIR/.config/shimmy/profiles/default/bin/shimmy"
+
+  setup_scenario
+  mkdir -p "$XDG_CONFIG_HOME_DIR/shimmy"
+  printf '%s\n' 'shimmy_install_manifest_version=2' > "$XDG_CONFIG_HOME_DIR/shimmy/install-manifest.txt"
+  set +e
+  version_two_output=$(bootstrap_default --shim jq 2>&1)
+  version_two_status=$?
+  set -e
+  [ "$version_two_status" -ne 0 ] || fail_test "version-2 shared manifest unexpectedly accepted"
+  assert_contains "$version_two_output" 'version-2 Shimmy installation detected'
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+  pass "installer enforces XDG resolution, rejects unmanaged roots and v2, ignores retired variables, and preserves siblings"
 }

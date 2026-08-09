@@ -83,8 +83,12 @@ shimmy_count_profile_manifests() {
 shimmy_join_path() {
   base_path=$1
   path_suffix=$2
-
-  printf '%s/%s\n' "$(shimmy_trim_path_trailing_slash "$base_path")" "$path_suffix"
+  base_path=$(shimmy_trim_path_trailing_slash "$base_path")
+  if [ "$base_path" = / ]; then
+    printf '/%s\n' "$path_suffix"
+  else
+    printf '%s/%s\n' "$base_path" "$path_suffix"
+  fi
 }
 
 shimmy_quote_shell_word() {
@@ -170,17 +174,13 @@ shimmy_resolve_path_absolute() {
 shimmy_trim_path_trailing_slash() {
   path_value=${1:-}
 
-  case "$path_value" in
-    ''|/)
-      printf '%s\n' "$path_value"
-      ;;
-    */)
-      printf '%s\n' "${path_value%/}"
-      ;;
-    *)
-      printf '%s\n' "$path_value"
-      ;;
-  esac
+  while [ "$path_value" != / ]; do
+    case "$path_value" in
+      */) path_value=${path_value%/} ;;
+      *) break ;;
+    esac
+  done
+  printf '%s\n' "$path_value"
 }
 
 shimmy_validate_remove_path_safe() {

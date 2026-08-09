@@ -5,7 +5,7 @@ set -eu
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
 
-# shellcheck source=core/install/install.sh
-. "$ROOT_DIR/core/install/install.sh"
+# shellcheck source=lib/install/install.sh
+. "$ROOT_DIR/lib/install/install.sh"
 
 shimmy_install_run "$@"

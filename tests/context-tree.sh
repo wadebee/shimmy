@@ -70,7 +70,7 @@ context_source_tree_validate() {
 }
 
 context_require "$ROOT_DIR/CONTEXT.md"
-for child_dir in agent commands core tools tests; do
+for child_dir in agent commands lib tools tests; do
   child_file=$ROOT_DIR/$child_dir/CONTEXT.md
   context_require "$child_file"
   context_link_require "$ROOT_DIR/CONTEXT.md" "$child_file"
@@ -83,15 +83,15 @@ for child_dir in core commands; do
 done
 
 for child_dir in catalog common install netinfo profile runtime startup update; do
-  child_file=$ROOT_DIR/core/$child_dir/CONTEXT.md
+  child_file=$ROOT_DIR/lib/$child_dir/CONTEXT.md
   context_require "$child_file"
-  context_link_require "$ROOT_DIR/core/CONTEXT.md" "$child_file"
+  context_link_require "$ROOT_DIR/lib/CONTEXT.md" "$child_file"
 done
 
 context_require "$ROOT_DIR/agent/core/CONTEXT.md"
 context_link_require "$ROOT_DIR/agent/CONTEXT.md" "$ROOT_DIR/agent/core/CONTEXT.md"
 
-for source_tree in agent commands core tools tests; do
+for source_tree in agent commands lib tools tests; do
   context_source_tree_validate "$ROOT_DIR/$source_tree"
 done
 

@@ -4,13 +4,13 @@
 SHIMMY_CUSTOM_IMAGE_LIB_DIR=${SHIMMY_RUNTIME_DIR:-}
 
 if [ -z "$SHIMMY_CUSTOM_IMAGE_LIB_DIR" ]; then
-  printf '%s\n' 'ERROR: SHIMMY_RUNTIME_DIR is required when sourcing core/runtime/image.sh.' >&2
+  printf '%s\n' 'ERROR: SHIMMY_RUNTIME_DIR is required when sourcing lib/runtime/image.sh.' >&2
   exit 1
 fi
 
-# shellcheck source=core/runtime/log.sh
+# shellcheck source=lib/runtime/log.sh
 . "$SHIMMY_CUSTOM_IMAGE_LIB_DIR/log.sh"
-# shellcheck source=core/runtime/podman.sh
+# shellcheck source=lib/runtime/podman.sh
 . "$SHIMMY_CUSTOM_IMAGE_LIB_DIR/podman.sh"
 
 shimmy_context_hash_render() {

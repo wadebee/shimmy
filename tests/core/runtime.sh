@@ -2,7 +2,7 @@
 # Shared runtime helper tests.
 
 test_core_runtime_platform() {
-  helper_file=$ROOT_DIR/core/runtime/podman.sh
+  helper_file=$ROOT_DIR/lib/runtime/podman.sh
   linux_platform=$(SHIMMY_TEST_OS=Linux /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$helper_file")
   darwin_platform=$(SHIMMY_TEST_OS=Darwin /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$helper_file")
 
@@ -13,7 +13,7 @@ test_core_runtime_platform() {
 }
 
 test_core_runtime_preview_helpers() {
-  helper_file=$ROOT_DIR/core/runtime/podman.sh
+  helper_file=$ROOT_DIR/lib/runtime/podman.sh
 
   /bin/sh -c '. "$1"; shimmy_podman_preview_args_include one --preview-shim two' sh "$helper_file" || fail_test "preview flag was not detected"
   if /bin/sh -c '. "$1"; shimmy_podman_preview_args_include one --not-preview two' sh "$helper_file"; then
@@ -38,7 +38,7 @@ test_core_runtime_posix_syntax() {
 }
 
 test_core_runtime_unreachable_guidance() {
-  helper_file=$ROOT_DIR/core/runtime/podman.sh
+  helper_file=$ROOT_DIR/lib/runtime/podman.sh
   output=$(/bin/sh -c '. "$1"; shimmy_podman_failure_print_unreachable "the rg shim" "/opt/podman/bin/podman"' sh "$helper_file" 2>&1)
 
   assert_contains "$output" 'AI Agent note: if `podman info` succeeds but this shim still fails'

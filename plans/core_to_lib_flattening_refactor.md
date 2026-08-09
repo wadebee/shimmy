@@ -605,79 +605,83 @@ links and runner paths required for a passing repository must be updated here.
 
 ### Verification
 
-- [ ] `core/` is renamed to `lib/`; all direct source references and shellcheck
+- [x] `core/` is renamed to `lib/`; all direct source references and shellcheck
       comments use `lib/`.
-- [ ] Root `install.sh` is the only repository bootstrap, and the repository
+- [x] Root `install.sh` is the only repository bootstrap, and the repository
       contains no `shimmy`, `bin/shimmy`, or equivalent management launcher.
-- [ ] `./install.sh` bootstraps `default`, and `./install.sh --profile
+- [x] `./install.sh` bootstraps `default`, and `./install.sh --profile
       upstream` bootstraps `upstream` from the intended maintainer checkout.
-- [ ] Unset or empty `XDG_CONFIG_HOME` resolves profiles below
+- [x] Unset or empty `XDG_CONFIG_HOME` resolves profiles below
       `$HOME/.config/shimmy/profiles`; an absolute value resolves them below
       `$XDG_CONFIG_HOME/shimmy/profiles`; a relative value fails before
       mutation.
-- [ ] No management command accepts or forwards `--install-dir`, and the
+- [x] No management command accepts or forwards `--install-dir`, and the
       removed Shimmy location variables are not read and cannot change a path
       or any other behavior.
-- [ ] Fresh install creates `activate.sh`, `install-manifest.txt`,
+- [x] Fresh install creates `activate.sh`, `install-manifest.txt`,
       `bin/shimmy`, `commands/`, `config/`, `implementations/`, `lib/`,
       `tools/`, `tests/`, `plugins/`, and `agent/` below the selected profile
       root, with no `<profile-root>/core`, `<profile-root>/shimmy`, or
       `<profile-root>/.agents/skills`.
-- [ ] Installed launcher is an executable regular file, uses same-directory
+- [x] Installed launcher is an executable regular file, uses same-directory
       atomic replacement, preserves all `bin/` siblings, and depends only on
       its own installed profile payload.
-- [ ] Installed launchers reject `--profile`, do not inspect
+- [x] Installed launchers reject `--profile`, do not inspect
       `SHIMMY_PROFILE_ACTIVE`, and cannot select, update, or uninstall a
       sibling profile.
-- [ ] The upstream launcher and management commands load only profile-local
+- [x] The upstream launcher and management commands load only profile-local
       assets. Only generated tool implementations execute through the
       validated recorded checkout; self-update preserves that checkout and
       does not record its temporary fetched source.
-- [ ] An unmanaged or symlinked pre-existing `bin/shimmy` is rejected before
+- [x] An unmanaged or symlinked pre-existing `bin/shimmy` is rejected before
       mutation; an existing launcher in a valid profile must be a regular
       non-symlink file at the schema-defined `bin/shimmy` path before
       replacement.
-- [ ] Dispatcher symlinks target exactly `../commands/dispatch-tool.sh`, load
+- [x] Dispatcher symlinks target exactly `../commands/dispatch-tool.sh`, load
       helpers from `<profile-root>/lib`, and are neither broken nor recursive.
-- [ ] Fresh installs reject non-empty unmanaged profile roots and all unmanaged
+- [x] Fresh installs reject non-empty unmanaged profile roots and all unmanaged
       claimed-path or dispatcher collisions before mutation.
-- [ ] Additive install, refresh, and self-update preserve the selected
+- [x] Additive install, refresh, and self-update preserve the selected
       manifest, sibling profiles, and unknown siblings.
-- [ ] Unmanaged sentinels in the selected profile and sibling profiles survive
+- [x] Unmanaged sentinels in the selected profile and sibling profiles survive
       install, refresh, self-update, and unrelated-profile uninstall.
-- [ ] Only `default` can write or remove its profile-specific persistent
+- [x] Only `default` can write or remove its profile-specific persistent
       startup block; `upstream` is manual-activation-only and rejects every
       startup-mutating option before mutation.
-- [ ] Profile refresh, self-update, and uninstall do not implicitly change a
+- [x] Profile refresh, self-update, and uninstall do not implicitly change a
       shared skills target. Explicit skills uninstall removes only entries
       owned by the target's skills manifest and preserves unknown siblings.
-- [ ] A requested startup or skills integration failure leaves the committed
+- [~] A requested startup or skills integration failure leaves the committed
       profile valid and reports an independently repeatable repair command.
-- [ ] Profile uninstall removes owned assets and uses `rmdir`, never recursive
+- [x] Profile uninstall removes owned assets and uses `rmdir`, never recursive
       profile-root or config-root deletion.
-- [ ] Each profile manifest contains both version `3` fields,
+- [x] Each profile manifest contains both version `3` fields,
       `profile-flat-root`, and the exact directory-derived profile name, and
       contains no `shimmy_layout`, `control_bin`, or other redundant location
       fields.
-- [ ] Missing or duplicate identity fields, version 2, unknown versions, wrong
+- [~] Missing or duplicate identity fields, version 2, unknown versions, wrong
       layout label, wrong profile name, malformed values, unsafe kind tokens,
       duplicate ownership entries, and contradictory kind/version records
       fail before mutation with the specified remediation message.
-- [ ] Manifest values are never sourced or evaluated as shell, cannot claim
+- [x] Manifest values are never sourced or evaluated as shell, cannot claim
       arbitrary filesystem paths, and cannot redirect update or uninstall
       outside the directory-derived profile root.
-- [ ] A partial profile with valid identity and ownership data can be safely
+- [~] A partial profile with valid identity and ownership data can be safely
       uninstalled; invalid identity or ownership data fails before mutation.
-- [ ] A canonical version-2 shared installation blocks v3 profile creation
+- [x] A canonical version-2 shared installation blocks v3 profile creation
       before mutation and reports removal guidance.
-- [ ] No `SHIMMY_INSTALL_CORE_DIR`, `SHIMMY_CORE_DIR`,
+- [x] No `SHIMMY_INSTALL_CORE_DIR`, `SHIMMY_CORE_DIR`,
       `SHIMMY_INSTALL_DIR`, `SHIMMY_CONTROL_INSTALL_DIR`,
       `SHIMMY_UPSTREAM_DIR`, `SHIMMY_PROFILE_ACTIVE`, repository `shimmy`,
       `core/core`, old dispatcher target, or `--install-dir` remains in
       implementation.
-- [ ] Minimum bootstrap, fresh-install, dispatch, refresh, update, and
+- [x] Minimum bootstrap, fresh-install, dispatch, refresh, update, and
       uninstall tests pass at the review gate.
-- Notes:
+- Notes: The implementation paths are complete and the minimum suite covers
+  both profiles, XDG fallback/absolute/relative resolution, additive install,
+  self-update, dispatch, startup, skills ownership, and uninstall isolation.
+  Failure-injection, the full malformed-manifest matrix, and broader partial-
+  profile cases remain explicitly marked `[~]` for Chunk 2.
 
 ### Human review gate
 
@@ -1086,7 +1090,11 @@ the fixed design decisions above.
 
 ### Chunk 1
 
-- _append after acceptance_
+- Independent profile roots make dispatcher and uninstall ownership local and
+  remove the need for cross-profile enumeration in every management command.
+- Keeping the old manifest present until the final atomic rename allows staged
+  directory replacement to fail closed while preserving a previously valid
+  profile.
 
 ### Chunk 2
 

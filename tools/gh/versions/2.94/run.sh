@@ -5,10 +5,10 @@ SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
-SHIMMY_RUNTIME_DIR=$ROOT_DIR/core/runtime
-SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/core/runtime/podman.sh
+SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
+SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/runtime/podman.sh
 
-SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/core/runtime/image.sh
+SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/runtime/image.sh
 SHIMMY_GH_CONFIG_DIR=
 SHIMMY_GH_CONTAINER_CONFIG_DIR=/home/gh/.config/gh
 SHIMMY_GH_IMAGES_DIR=$SCRIPT_DIR/container
@@ -51,7 +51,7 @@ if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
   exit 1
 fi
 
-# shellcheck source=core/runtime/image.sh
+# shellcheck source=lib/runtime/image.sh
 . "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
 shimmy_podman_preview_prepare "$@"

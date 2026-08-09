@@ -1,19 +1,12 @@
 #!/bin/sh
 # Shell startup-file integration helpers.
 
-SHIMMY_STARTUP_BLOCK_END='# <<< shimmy onboarding <<<'
-SHIMMY_STARTUP_BLOCK_START='# >>> shimmy onboarding >>>'
+SHIMMY_STARTUP_BLOCK_END='# <<< shimmy default profile <<<'
+SHIMMY_STARTUP_BLOCK_START='# >>> shimmy default profile >>>'
 
 shimmy_activate_block_read() {
   activate_script=${1:?activate script path is required}
-  install_dir=${2:-}
-
-  set -- "$activate_script"
-  if [ -n "$install_dir" ]; then
-    set -- "$@" --install-dir "$install_dir"
-  fi
-
-  "$@"
+  "$activate_script"
 }
 
 shimmy_activate_source_block_render() {

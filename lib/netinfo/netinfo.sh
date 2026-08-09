@@ -3,14 +3,14 @@
 set -eu
 
 # The public command supplies ROOT_DIR before sourcing this implementation.
-# shellcheck source=core/netinfo/cidr.sh
-. "$ROOT_DIR/core/netinfo/cidr.sh"
-# shellcheck source=core/netinfo/request.sh
-. "$ROOT_DIR/core/netinfo/request.sh"
-# shellcheck source=core/netinfo/platform.sh
-. "$ROOT_DIR/core/netinfo/platform.sh"
-# shellcheck source=core/netinfo/render.sh
-. "$ROOT_DIR/core/netinfo/render.sh"
+# shellcheck source=lib/netinfo/cidr.sh
+. "$ROOT_DIR/lib/netinfo/cidr.sh"
+# shellcheck source=lib/netinfo/request.sh
+. "$ROOT_DIR/lib/netinfo/request.sh"
+# shellcheck source=lib/netinfo/platform.sh
+. "$ROOT_DIR/lib/netinfo/platform.sh"
+# shellcheck source=lib/netinfo/render.sh
+. "$ROOT_DIR/lib/netinfo/render.sh"
 
 shimmy_netinfo_run() {
   shimmy_netinfo_request_reset

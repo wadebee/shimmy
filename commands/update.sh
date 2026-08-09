@@ -5,7 +5,7 @@ set -eu
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
 
-# shellcheck source=core/update/update.sh
-. "$ROOT_DIR/core/update/update.sh"
+# shellcheck source=lib/update/update.sh
+. "$ROOT_DIR/lib/update/update.sh"
 
 shimmy_update_run "$@"

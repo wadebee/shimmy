@@ -4,7 +4,7 @@ set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
-SHIMMY_RUNTIME_DIR=$ROOT_DIR/core/runtime
+SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 
 # shellcheck source=tools/task/versions/3.45/smoke.conf
 . "$SCRIPT_DIR/smoke.conf"
@@ -15,7 +15,7 @@ case "${1:-}" in
   build)
     [ -z "${SHIMMY_TASK_IMAGE:-}" ] || exit 0
     SHIMMY_TASK_IMAGE_BUILD=always "$SCRIPT_DIR/run.sh" "$smoke_arg" >/dev/null </dev/null
-    # shellcheck source=core/runtime/image.sh
+    # shellcheck source=lib/runtime/image.sh
     . "$SHIMMY_RUNTIME_DIR/image.sh"
     shimmy_local_image_stale_cleanup "localhost/shimmy-task-3_45" "$SCRIPT_DIR/container"
     ;;

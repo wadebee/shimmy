@@ -1,17 +1,15 @@
 #!/bin/sh
-# Activation asset rendering and startup-file integration.
+# Profile activation rendering and default-profile startup integration.
 
 resolve_startup_settings() {
-  if [ "$SKIP_STARTUP" -eq 1 ]; then
-    if [ -n "$PRESERVED_STARTUP_FILE_PATHS" ]; then
-      STARTUP_SHELL=$PRESERVED_STARTUP_SHELL
-      STARTUP_FILE_PATHS=$PRESERVED_STARTUP_FILE_PATHS
-    else
-      STARTUP_SHELL=
-      STARTUP_FILE_PATHS=
-    fi
-    return 0
+  STARTUP_SHELL=
+  STARTUP_FILE_PATHS=
+
+  if [ -f "$INSTALL_MANIFEST_FILE" ] && [ "$SHIMMY_PROFILE_RESOLVED" = default ]; then
+    STARTUP_SHELL=$(shimmy_read_manifest_value "$INSTALL_MANIFEST_FILE" startup_shell || true)
+    STARTUP_FILE_PATHS=$(shimmy_read_manifest_values "$INSTALL_MANIFEST_FILE" startup_file || true)
   fi
+  [ "$SKIP_STARTUP" -eq 0 ] || return 0
 
   STARTUP_SHELL=$(shimmy_shell_name_normalize "$REQUESTED_SHELL") || fail "unable to resolve startup shell"
   if [ -n "$REQUESTED_STARTUP_FILES" ]; then
@@ -22,6 +20,8 @@ resolve_startup_settings() {
 }
 
 shimmy_install_startup_update() {
+  [ "$SHIMMY_PROFILE_RESOLVED" = default ] || return 0
+  [ "$SKIP_STARTUP" -eq 0 ] || return 0
   [ -n "$STARTUP_FILE_PATHS" ] || return 0
 
   activate_block=$(shimmy_activate_source_block_render "$SHIMMY_ACTIVATE_FILE") || fail "unable to render activate block for startup file"
@@ -36,11 +36,7 @@ EOF
 
 startup_file_summary_render() {
   startup_file_paths=${1:-}
-
-  if [ -z "$startup_file_paths" ]; then
-    printf 'manual activation only\n'
-    return 0
-  fi
+  [ -n "$startup_file_paths" ] || { printf 'manual activation only\n'; return 0; }
 
   separator=
   while IFS= read -r startup_file_path; do
@@ -54,11 +50,10 @@ EOF
 }
 
 write_activate_file() {
+  activate_file=$1
   quoted_bin_dir=$(shimmy_quote_shell_word "$SHIMMY_BIN_DIR")
 
   {
-    printf "SHIMMY_PROFILE_ACTIVE='default'\n"
-    printf 'export SHIMMY_PROFILE_ACTIVE\n'
     printf 'shimmy_activate_bin_dir=%s\n' "$quoted_bin_dir"
     printf 'if [ -d "$shimmy_activate_bin_dir" ]; then\n'
     printf '  case ":${PATH:-}:" in\n'
@@ -68,18 +63,11 @@ write_activate_file() {
     printf 'fi\n'
     printf 'unset shimmy_activate_bin_dir\n'
     printf "shimmy_activate_podman_dir='/opt/podman/bin'\n"
-    printf 'if [ -x "$shimmy_activate_podman_dir/podman" ]; then\n'
-    printf '  case ":${PATH:-}:" in\n'
-    printf '    *:"$shimmy_activate_podman_dir":*) ;;\n'
-    printf '    *)\n'
-    printf '      if ! command -v podman >/dev/null 2>&1; then\n'
-    printf '        PATH=${PATH:+$PATH:}$shimmy_activate_podman_dir\n'
-    printf '      fi\n'
-    printf '      ;;\n'
-    printf '  esac\n'
+    printf 'if [ -x "$shimmy_activate_podman_dir/podman" ] && ! command -v podman >/dev/null 2>&1; then\n'
+    printf '  PATH=${PATH:+$PATH:}$shimmy_activate_podman_dir\n'
     printf 'fi\n'
     printf 'unset shimmy_activate_podman_dir\n'
     printf 'export PATH\n'
-  } > "$SHIMMY_ACTIVATE_FILE"
-  chmod 644 "$SHIMMY_ACTIVATE_FILE"
+  } > "$activate_file"
+  chmod 644 "$activate_file"
 }
