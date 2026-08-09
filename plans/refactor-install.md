@@ -620,19 +620,19 @@ checked.
 Resume record:
 
 ```text
-Last approved chunk: none
-Current chunk: 0
-Last known-good revision or diff base: fdd8f98cefe90d1d901c37c8c19985a95a7699b0 (clean worktree at Chunk 0 start)
+Last approved chunk: 0
+Current chunk: 1
+Last known-good revision or diff base: b0d8f13dec156d0cd93c3885c7fdb0a9780ee2dd
 Last validation command and result: ./tests/test.sh (exit 0; all 69 tests passed); git diff --check (exit 0)
-Outstanding human decision: approve the Chunk 0 baseline, inventory, and breaking decisions
+Outstanding human decision: approve the Chunk 1 PATH behavior, tests, and validation evidence
 ```
 
 - [x] Chunk 0 implementation/inventory complete
 - [x] Chunk 0 validation evidence captured
-- [ ] Chunk 0 human review approved
-- [ ] Chunk 0 lessons recorded
-- [ ] Chunk 1 implementation complete
-- [ ] Chunk 1 validation evidence captured
+- [x] Chunk 0 human review approved
+- [x] Chunk 0 lessons recorded
+- [x] Chunk 1 implementation complete
+- [x] Chunk 1 validation evidence captured
 - [ ] Chunk 1 human review approved
 - [ ] Chunk 1 lessons recorded
 - [ ] Chunk 2 implementation complete
@@ -869,6 +869,35 @@ test cases, macOS fallback, and absence of caller-state leakage.
 
 Post-processing: update the resume record and checklist and add a lesson about
 the PATH algorithm or disposable-shell harness.
+
+### Chunk 1 execution record
+
+The generated manifest-v3 `activate.sh` now parses PATH entries with an
+explicit colon-delimited loop. It removes every selected-profile entry,
+prepends that entry once, retains the order and count of all other entries
+including leading, middle, and trailing empties, and cleans every temporary
+variable. The existing conditional `/opt/podman/bin` append remains after PATH
+normalization.
+
+Focused disposable `/bin/sh` coverage in `tests/commands/activate.sh` proves a
+normal PATH, duplicate selected-profile entries mixed with all three empty-entry
+positions, default/upstream/default switching, repeated sourcing, temporary
+variable cleanup, and a deterministic injected Podman fallback. Manifest v3,
+the `activate.sh` filename, and the public `activate` command remain unchanged.
+
+Validation evidence:
+
+```text
+dash -n lib/install/startup.sh tests/commands/activate.sh   exit 0
+./tests/test.sh                                            exit 0; all 69 tests passed
+git diff --check                                           exit 0
+```
+
+The first full-suite attempt failed in the new duplicate/empty-entry assertion.
+Inspection of the generated file showed that `printf` consumed one `%` from
+the intended `${value%%:*}` shell expansion and rendered `${value%:*}`. The
+renderer now escapes both percent signs as `%%%%`; the complete suite then
+passed. No product behavior outside PATH rendering changed.
 
 ## Chunk 2: Atomic manifest-v4, shell-init, and command-surface boundary
 
@@ -1167,7 +1196,7 @@ observations.
 | Chunk | Date/reviewer | Evidence or surprise | Action taken in this plan or implementation | Rule for later chunks |
 | --- | --- | --- | --- | --- |
 | QA | 2026-08-09 / Codex | Schema identity, owned filename, validation, and launcher command removal have the same compatibility boundary; caller `errexit` remains caller-owned. | Grouped the boundary in Chunk 2 and added ordinary plus conditional failure tests. | Never split identity consumers across approved checkpoints or claim a sourced file can neutralize caller `set -e`. |
-| 0 | Pending | Pending | Pending | Pending |
+| 0 | 2026-08-09 / user | The active-tree audit found broader shell-initialization wording and retired `--install-dir` coverage outside the initial primary inventory; generic `activate` matches also include legitimate Podman runtime helpers. | Added the omitted guidance and test paths to the execution inventory and assigned every match to Chunks 1-7. | Classify broad terminology matches by behavior; do not mechanically remove runtime helpers that use “activate” accurately. |
 | 1 | Pending | Pending | Pending | Pending |
 | 2 | Pending | Pending | Pending | Pending |
 | 3 | Pending | Pending | Pending | Pending |

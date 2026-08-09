@@ -62,3 +62,6 @@ Read a fileRead .shimmy Skills Manifest.txt skill
 
 # --------- JQ empty command
 When jq is called without params, it appears to hang in the UI. Possibly redirect to jq --help?
+
+# ------------ write_activate_file
+Work with AI to understand the purpose of this function from lib/install/startup.sh
