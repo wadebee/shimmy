@@ -67,7 +67,25 @@ usage() {
 Manage this installed Shimmy profile.
 
 Usage:
-  shimmy <install|uninstall|activate|netinfo|skills|status|test|update> [options]
+  shimmy <command> [options]
+  shimmy <command> --help
+
+Commands:
+  install    Add tool shims and optional agent skills to this profile.
+  uninstall  Remove this profile and its managed startup integration.
+  activate   Print shell code to activate this profile in the current shell.
+  netinfo    Show host, VM, and container network perspectives.
+  skills     Install, update, uninstall, or export Shimmy agent skills.
+  status     Show installed shims, versions, and profile details.
+  test       Validate this profile with non-mutating shim smoke commands.
+  update     Refresh this profile and optionally pull or build tool images.
+
+Examples:
+  shimmy status
+  shimmy install --shim jq
+  eval "$(shimmy activate)"
+
+Run 'shimmy <command> --help' for command-specific options.
 EOF
 }
 

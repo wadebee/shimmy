@@ -12,7 +12,7 @@ Question requests that materially differ from your training of best practices by
 
 ## Project Map
 
-- Read `CONTEXT.md` and every child context on the path to a changed file.
+- Read `CONTEXT.md` and every child `CONTEXT.md` on the path to a changed file.
 - Tool runtime, metadata, guides, and concrete versions live in `tools/<kind>/`.
 - Shared modules live in `lib/`.
 - Management entrypoints live in `commands/`.

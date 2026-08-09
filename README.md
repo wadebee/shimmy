@@ -1,7 +1,7 @@
 # Shimmy
 
 Shimmy makes common CLI tools available through small POSIX shell wrappers that
-run containers with Podman. Tools use the current directory as `/work`, retain
+run containers with Podman. Tools mount the present working directory as `/work`, retain
 their documented configuration and credential mounts, and expose image
 overrides through `SHIMMY_*` environment variables.
 
@@ -47,9 +47,18 @@ SHIMMY_OC_VERSION=4.18 oc version
 
 Each installed launcher exposes this management surface:
 
-```text
-shimmy install | uninstall | activate | netinfo | skills | status | update | test
-```
+| Command | Purpose |
+|---|---|
+| `shimmy install` | Add tool shims and optional agent skills to the profile. |
+| `shimmy uninstall` | Remove the profile and its managed startup integration. |
+| `shimmy activate` | Print shell code that activates the profile in the current shell. |
+| `shimmy netinfo` | Show host, VM, and container network perspectives. |
+| `shimmy skills` | Install, update, uninstall, or export Shimmy agent skills. |
+| `shimmy status` | Show installed shims, versions, and profile details. |
+| `shimmy test` | Validate the profile with non-mutating shim smoke commands. |
+| `shimmy update` | Refresh the profile and optionally pull or build tool images. |
+
+Run `shimmy <command> --help` for command-specific options.
 
 The repository contains only the minimal `install.sh` bootstrap; it does not
 contain a runnable `shimmy` launcher. Bootstrap `default` with `./install.sh`
