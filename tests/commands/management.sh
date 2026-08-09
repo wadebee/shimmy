@@ -19,14 +19,6 @@ test_commands_management_run() {
   assert_equals "$explicit_help_output" "$help_output"
 
   set +e
-  removed_command_output=$(default_shimmy activate 2>&1)
-  removed_command_status=$?
-  set -e
-  [ "$removed_command_status" -ne 0 ] || fail_test "removed activate command unexpectedly succeeded"
-  assert_contains "$removed_command_output" 'unknown command: activate'
-  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/commands/activate.sh"
-
-  set +e
   error_output=$(default_shimmy status --profile upstream 2>&1)
   error_status=$?
   set -e

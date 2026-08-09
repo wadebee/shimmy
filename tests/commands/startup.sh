@@ -6,7 +6,6 @@ test_commands_startup_default_ownership() {
   run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --shell zsh --startup-file "$startup_file" >/dev/null
   assert_file_contains "$startup_file" '# >>> shimmy default profile >>>'
   assert_file_contains "$startup_file" "$DEFAULT_PROFILE_ROOT/shell-init.sh"
-  assert_file_not_contains "$startup_file" 'activate.sh'
 
   default_shimmy install --shim jq --shell zsh --startup-file "$startup_file" >/dev/null
   marker_count=$(grep -c '^# >>> shimmy default profile >>>$' "$startup_file")

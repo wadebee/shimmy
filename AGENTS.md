@@ -48,3 +48,13 @@ Question requests that materially differ from your training of best practices by
 - For installed shims already selected on `PATH`, invoke the normal tool name such as `rg` or `jq`; do not call the resolved installed shim path. Source the profile's `shell-init.sh` when PATH initialization is needed. For source previews, use `./commands/run-tool.sh <tool> --preview-shim ...` or the concrete version runtime named by that tool's context.
 - When running repo commands, invoke them directly with `exec_command` `login=false` unless profile or startup-file behavior is explicitly under test. Do not use `bash -lc` or login shells for Shimmy commands unless needed.
 - In AI Agent environments, approvals are evaluated on the outer command. If `podman info` succeeds but a Shimmy-backed tool still reports Podman-unreachable or sandbox-permission symptoms, use the `shimmy-escalation` workflow before asking the user for a Podman remediation plan. For availability smoke checks, request approval for the exact dry-run command prefix such as `["rg","--version"]`, `["jq","--version"]`, or `["./commands/run-tool.sh","rg","--version"]`; approval for `["podman", "info"]` alone does not approve nested Podman access through a wrapper.
+
+## Refactoring Lessons Learned
+
+- Treat a schema or owned-format identity change as one review unit. Inventory and update every producer, consumer, validator, fixture, transaction boundary, and rollback path together.
+- Validate generated shell artifacts by inspecting and exercising the rendered output. Correct-looking renderer source does not prove that quoting, escaping, or expansion survived generation.
+- Test sourced POSIX entrypoint failures under callers with `set -e`, including ordinary and conditional sourcing. The final status-producing command can determine whether cleanup runs and whether the caller can recover.
+- Classify broad terminology-search matches by behavior before editing them. Do not mechanically replace terms that remain accurate in a different subsystem.
+- Keep resources with different ownership and lifecycle boundaries behind separate commands and tests, even when one workflow initially creates both.
+- Before removing a compatibility surface, map its tests to the invariants they protect. Remove obsolete inputs and fixtures while retaining coverage for malformed state, unsafe paths, collisions, isolation, ownership, and unknown options.
+- Compare generated guidance with its canonical source semantically before regeneration. Byte-for-byte reproducibility demonstrates determinism only after the canonical source contains all guidance worth preserving.

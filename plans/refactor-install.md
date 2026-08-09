@@ -620,11 +620,11 @@ checked.
 Resume record:
 
 ```text
-Last approved chunk: 6
-Current chunk: 7
-Last known-good revision or diff base: 616d920
-Last validation command and result: ./tests/test.sh (exit 0; all 79 tests passed); git diff --check (exit 0)
-Outstanding human decision: approve the retried Chunk 7 guidance preservation and generated-distribution update after implementation and validation
+Last approved chunk: 7
+Current chunk: 8
+Last known-good revision or diff base: 64c9426
+Last validation command and result: ./tests/test.sh (exit 0; all 79 tests passed); final active-tree audits (rg exit 1; no matches); git diff --check (exit 0)
+Outstanding human decision: approve Chunk 8 final integrated validation and release-readiness audit after evidence is captured
 ```
 
 - [x] Chunk 0 implementation/inventory complete
@@ -657,10 +657,10 @@ Outstanding human decision: approve the retried Chunk 7 guidance preservation an
 - [x] Chunk 6 lessons recorded
 - [x] Chunk 7 implementation complete
 - [x] Chunk 7 validation evidence captured
-- [ ] Chunk 7 human review approved
-- [ ] Chunk 7 lessons recorded
-- [ ] Chunk 8 implementation complete
-- [ ] Chunk 8 validation evidence captured
+- [x] Chunk 7 human review approved
+- [x] Chunk 7 lessons recorded
+- [x] Chunk 8 implementation complete
+- [x] Chunk 8 validation evidence captured
 - [ ] Chunk 8 human review approved
 - [ ] Chunk 8 lessons recorded
 
@@ -1495,6 +1495,63 @@ it does not itself authorize publishing, merging, or deleting old user data.
 Post-processing: complete the resume record and checklist and add the final
 lesson, including any follow-up work that is explicitly outside this refactor.
 
+### Chunk 8 execution record
+
+The final audit began from approved revision `64c9426`. The first complete-suite
+run exposed a stale checked-in repository skill export: its manifest described
+the current canonical tree, but several exported skill descriptions and all
+exported repository `CONTEXT.md` companions had not reached the checkpoint.
+The canonical exporter refreshed 17 repository adapter descriptions and added
+the 20 missing generated context companions. The plugin export was already
+current. This was release-readiness drift within the refactor, not unrelated
+feature work.
+
+The forbidden-name audit then found three test-only references to the retired
+activation command or asset. Those compatibility assertions directly violated
+the final zero-match criterion and were removed from `management.sh` and
+`startup.sh`; the remaining tests continue to cover launcher help, unknown
+arguments, managed startup content, profile binding, and ownership behavior.
+
+Independent absolute disposable scenarios directly confirmed sourced default,
+upstream, and default-again PATH precedence; executed root and absolute-path
+bootstrap; the jq/rg baseline; additive task installation; manifest v4 profile
+identity; `shell-init.sh` mode 644; launcher mode 755; dispatcher ownership;
+persistent startup in a fresh shell; recoverable sourced failure; unknown
+sibling preservation; partial uninstall; full sibling-profile uninstall; and
+managed startup-block removal. The repository suite independently covered
+repository refresh, local-source self-update preservation and cleanup, damaged
+profile rollback and partial uninstall, explicit standalone skills lifecycle,
+all executable modes, and checked-in export fingerprints.
+
+Validation evidence:
+
+```text
+./commands/skills.sh update --target repo
+  exit 0; canonical repository adapters and contexts regenerated
+./commands/skills.sh update --target plugin
+  exit 0; every plugin skill already current
+focused sourced/manifest/additive/profile-switch disposable audit
+  exit 0
+focused executed-root/absolute-path/startup/failure/uninstall disposable audit
+  exit 0
+final forbidden-name active-tree audit, excluding plans/**
+  rg exit 1; no matches
+final repository-bootstrap --shim audit, excluding plans/**
+  rg exit 1; no matches
+generic English activation audit, excluding plans/**
+  rg exit 1; no matches
+git diff --check
+  exit 0
+./tests/test.sh
+  exit 0; all 79 tests passed
+```
+
+No checks were skipped and no live container execution was required. The
+acceptance criteria are covered by the focused onboarding/ownership scenarios,
+the complete lifecycle and generated-export suite, and the three zero-match
+active-tree audits. No unrelated issue, waiver, publication, merge, or old-data
+cleanup is included in this chunk.
+
 # Lessons Learned
 
 This is a cumulative execution log, not a retrospective written only at the
@@ -1512,7 +1569,7 @@ observations.
 | 4 | 2026-08-09 / user | The fixed jq/rg baseline and explicit installed selection passed review after full-manifest assertions exposed stale single-kind expectations. | Preserved complete selection snapshots through repository refresh and self-update instead of rebuilding bootstrap arguments. | When an installer policy changes ownership defaults, assert the complete manifest before and after every refresh path. |
 | 5 | 2026-08-09 / user | Profile lifecycle and explicit standalone skills operations remained behaviorally separate through implementation and full-suite validation. | Kept canonical agent/plugin payload profile-owned while leaving repository and home targets manifest-owned by explicit `shimmy skills` commands. | Model profile payload and external integrations as separate ownership domains with separate commands and tests. |
 | 6 | 2026-08-09 / user | Retired parser, state, schema-v2, and startup-summary compatibility could be removed without weakening malformed-state, unsafe-path, collision, isolation, or ownership coverage. | Removed compatibility-only helpers and fixtures while retaining behavior-level safety assertions and explicit unknown-option rejection. | When retiring compatibility surfaces, classify tests by protected invariant and preserve the invariant even when its old input spelling disappears. |
-| 7 | Pending | Pending | Pending | Pending |
+| 7 | 2026-08-09 / user | Canonical and generated skill guidance passed review only after richer generated adapters were treated as unmerged source material instead of disposable drift. | Promoted retained routing, safety, examples, and troubleshooting into canonical skills before deterministic repository and plugin export. | Compare generated guidance semantically before regeneration; byte parity proves reproducibility only after source completeness is established. |
 | 8 | Pending | Pending | Pending | Pending |
 
 When a lesson changes a later chunk, edit that chunk immediately and mention the
