@@ -7,8 +7,9 @@ a user's Shimmy installation or shell startup files.
 ## Files
 
 - `lifecycle.sh` covers install, dispatch, status, update, and uninstall.
-- `onboarding.sh` covers direct shell initialization, PATH precedence, and
-  profile-local launcher binding.
+- `onboarding.sh` covers sourced and executed repository onboarding, failure
+  cleanup, direct shell initialization, PATH precedence, and profile-local
+  launcher binding.
 - `status.sh` covers profile-local installed and available status output.
 - `management.sh` covers the installed command surface, skills, and netinfo
   behavior.

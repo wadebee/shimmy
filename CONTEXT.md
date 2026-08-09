@@ -7,8 +7,10 @@ Shimmy exposes common CLI tools through small POSIX shell wrappers that run Podm
 - `commands/` is the public management-command surface.
 - `lib/` contains shared catalog, profile, runtime, startup, and networking
   modules.
-- `install.sh` bootstraps one canonical profile; the repository has no
-  runnable `shimmy` launcher.
+- `install.sh` bootstraps one canonical profile and sources its generated
+  `shell-init.sh`; the repository has no runnable `shimmy` launcher. Sourcing
+  the installer retains shell initialization, while execution remains suitable
+  for automation and absolute-path self-update.
 - `tools/` owns each tool's metadata, versions, container context, guide, and
   agent guidance.
 - `tests/` contains the POSIX test runner and shared test support.

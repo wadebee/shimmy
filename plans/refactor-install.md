@@ -620,11 +620,11 @@ checked.
 Resume record:
 
 ```text
-Last approved chunk: 1
-Current chunk: 2
-Last known-good revision or diff base: 2e11f788c6d4ed694afc078dbb030029427394ff
-Last validation command and result: ./tests/test.sh (exit 0; all 70 tests passed); git diff --check (exit 0)
-Outstanding human decision: approve the Chunk 2 atomic manifest-v4, shell-init, command-surface, tests, and validation evidence
+Last approved chunk: 2
+Current chunk: 3
+Last known-good revision or diff base: cd9eb3c4da71f77a7da4d5d52d81c71f2dac981d
+Last validation command and result: ./tests/test.sh (exit 0; all 78 tests passed); git diff --check (exit 0)
+Outstanding human decision: approve the Chunk 3 source-safe dual-mode installer, tests, and validation evidence
 ```
 
 - [x] Chunk 0 implementation/inventory complete
@@ -637,10 +637,10 @@ Outstanding human decision: approve the Chunk 2 atomic manifest-v4, shell-init, 
 - [x] Chunk 1 lessons recorded
 - [x] Chunk 2 implementation complete
 - [x] Chunk 2 validation evidence captured
-- [ ] Chunk 2 human review approved
-- [ ] Chunk 2 lessons recorded
-- [ ] Chunk 3 implementation complete
-- [ ] Chunk 3 validation evidence captured
+- [x] Chunk 2 human review approved
+- [x] Chunk 2 lessons recorded
+- [x] Chunk 3 implementation complete
+- [x] Chunk 3 validation evidence captured
 - [ ] Chunk 3 human review approved
 - [ ] Chunk 3 lessons recorded
 - [ ] Chunk 4 implementation complete
@@ -1066,6 +1066,57 @@ the distinction between external startup failure and profile commit.
 Post-processing: update the resume record and checklist and add a lesson about
 sourced POSIX behavior, shell-specific observations, or checkout resolution.
 
+### Chunk 3 execution record
+
+The repository `install.sh` is now a source-safe dual-mode entrypoint. It has no
+top-level strict mode, exit, exec, trap, or directory change. One narrowly
+prefixed function resolves the source checkout from the executed `$0` location
+or canonical current directory, repeats the required checkout validation in a
+strict child, invokes `commands/install.sh` with child-scoped bootstrap profile
+state, and sources the installed profile's validated `shell-init.sh` only after
+the complete install request succeeds. Executed absolute-path installation from
+another directory remains valid.
+
+All bootstrap variables and the helper function are removed on success and
+recoverable failure. Sourced installs preserve caller working directory, shell
+options, traps, functions, positional parameters, and unrelated variables.
+Help does not install or alter PATH. `--no-startup` still initializes the
+current sourced shell, while startup integration failure may leave a committed
+profile but does not select it in PATH. Missing, symlinked, non-file, and
+unreadable generated shell-init assets are rejected without sourcing.
+
+Implementation changes:
+
+- rewrote root `install.sh` as the dual-mode source-safe entrypoint;
+- updated root `CONTEXT.md` for sourced and executed behavior.
+
+Test changes:
+
+- expanded `tests/commands/onboarding.sh` with disposable `/bin/sh`, Bash, and
+  Zsh sourced scenarios, caller-state and cleanup assertions, failure recovery,
+  help, startup failure, invalid checkout, shell-init validation, absolute
+  execution, and repeated default/upstream switching;
+- updated `tests/commands/CONTEXT.md` for the broader onboarding scope.
+
+Validation evidence:
+
+```text
+dash -n install.sh tests/commands/onboarding.sh
+  exit 0
+./tests/test.sh
+  exit 0; all 78 tests passed
+git diff --check
+  exit 0
+```
+
+The initial complete-suite attempt stopped because replacing `install.sh`
+temporarily removed its executable bit; mode 0755 was restored before behavioral
+validation. A later failure test showed that a plain final `false` inside a
+sourced file can trigger Bash 3.2 `errexit` before the dot command's conditional
+caller recovers. The failure terminator now uses a negated successful command,
+which returns status 1 without preempting cleanup; ordinary and conditional
+failure scenarios both pass. No checks were skipped.
+
 ## Chunk 4: Fixed bootstrap baseline and explicit installed selection
 
 Goal: move jq/rg baseline policy to bootstrap, make installed additions
@@ -1266,7 +1317,7 @@ observations.
 | QA | 2026-08-09 / Codex | Schema identity, owned filename, validation, and launcher command removal have the same compatibility boundary; caller `errexit` remains caller-owned. | Grouped the boundary in Chunk 2 and added ordinary plus conditional failure tests. | Never split identity consumers across approved checkpoints or claim a sourced file can neutralize caller `set -e`. |
 | 0 | 2026-08-09 / user | The active-tree audit found broader shell-initialization wording and retired `--install-dir` coverage outside the initial primary inventory; generic `activate` matches also include legitimate Podman runtime helpers. | Added the omitted guidance and test paths to the execution inventory and assigned every match to Chunks 1-7. | Classify broad terminology matches by behavior; do not mechanically remove runtime helpers that use “activate” accurately. |
 | 1 | 2026-08-09 / user | A literal `printf` renderer consumed one percent sign from the intended `${value%%:*}` expansion until the generated asset was inspected directly. | Escaped both percent signs in the renderer and retained disposable-shell assertions for duplicate and empty PATH entries. | Validate rendered shell text through behavior, not only the renderer's source syntax. |
-| 2 | Pending | Pending | Pending | Pending |
+| 2 | 2026-08-09 / user | Manifest identity, owned shell asset, and launcher command removal reached the same checkpoint with strict v3 rejection and v4 transaction coverage. | Kept rendering, validation, commit/rollback, startup, update, uninstall, launcher, and test fixtures on one v4 boundary. | Treat all producers and consumers of an owned schema identity as one review unit. |
 | 3 | Pending | Pending | Pending | Pending |
 | 4 | Pending | Pending | Pending | Pending |
 | 5 | Pending | Pending | Pending | Pending |
