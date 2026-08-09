@@ -2,9 +2,13 @@
 
 `test.sh` is the canonical POSIX test runner and `support.sh` provides shared
 assertions, scenarios, and cleanup. `profile-smoke.sh` parses installed-profile
-test requests and runs the selected profile's non-mutating smoke commands.
+test requests and runs the enclosing profile's non-mutating smoke commands.
 Tests use live Podman only for non-mutating commands; preview rendering is
 preferred where it proves the same behavior.
+
+Installation scenarios isolate state with absolute disposable `HOME` and
+`XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or
+installed profile-selection override.
 
 `context-tree.sh` validates the repository's hierarchical context links. Every
 source-bearing directory below `agent/`, `commands/`, `lib/`, `tools/`, and

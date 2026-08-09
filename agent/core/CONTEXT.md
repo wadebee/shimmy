@@ -2,7 +2,9 @@
 
 These skills cover Shimmy installation, initialization, escalation, tool
 creation, and local image builds. They link into the root-to-leaf context tree
-instead of duplicating source-layout details.
+instead of duplicating source-layout details. The `agent/core/` name denotes
+core management guidance and is intentionally unchanged by the shared-module
+rename from `core/` to `lib/`.
 
 ## Child contexts
 

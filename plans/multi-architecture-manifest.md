@@ -24,7 +24,7 @@ architecture selection in a tool shim.
   a tag or an architecture-specific digest.
 - Keep image references version-local in `container/Containerfile` or another
   version-owned metadata file.
-- Preserve `core/runtime/podman.sh` as the sole platform-selection mechanism.
+- Preserve `lib/runtime/podman.sh` as the sole platform-selection mechanism.
 - Give tool authors a repeatable validation and documentation workflow.
 
 ## Non-goals

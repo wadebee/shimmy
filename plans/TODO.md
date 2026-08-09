@@ -35,7 +35,7 @@ Always operate in PLAN → REVIEW → ACT mode:
 - After approval, proceed through implementation, verification, and summary.
 - It is important that you use Shimmy tools when available. This requires Podman to be running. If anything prevents you from running a preferred tool with Shimmy backing, pause execution and prompt the user for a remediation plan.  
 # -----------
-./shimmy update --shim opnsense-mcp-read-only --build
+shimmy update --shim opnsense-mcp-read-only --build
 
 # -----------
 Correct this tmp mount to rg container issue

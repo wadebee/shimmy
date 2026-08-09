@@ -19,7 +19,7 @@ Use this skill when working with `shims/opnsense-mcp-read-only`, its tests, its 
 
 ## Installed Workflow
 
-When this skill is installed outside the Shimmy checkout, prefer activated commands such as `opnsense-mcp-read-only --help`, inspect selected profile state with `shimmy status --format manifest`, and use `SHIMMY_PROFILE_ACTIVE=upstream opnsense-mcp-read-only --help` when validating the upstream profile. Use `./shims/opnsense-mcp-read-only` only when intentionally editing or testing the repo-local wrapper.
+When this skill is installed outside the Shimmy checkout, prefer activated commands such as `opnsense-mcp-read-only --help` and inspect the invoking profile with `shimmy status --format manifest`. To validate `upstream`, first activate its absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy` launcher, then run the tool without a profile selector. Use `./shims/opnsense-mcp-read-only` only when intentionally editing or testing the repo-local wrapper.
 
 ## Current Behavior
 

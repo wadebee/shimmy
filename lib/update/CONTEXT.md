@@ -1,19 +1,21 @@
 # Update lifecycle
 
 `update.sh` is the sourceable implementation for the public
-`commands/update.sh` entrypoint. It resolves installed profiles and refreshes
-management assets, remote images, local images, and stale local-image state.
+`commands/update.sh` entrypoint. It refreshes management assets, remote images,
+local images, and stale local-image state for the invoking profile only.
 
-The entrypoint supplies the source-root paths before calling
-`shimmy_update_run`.
+An update preserves the profile's canonical root and, for `upstream`, its
+recorded source checkout. It never selects or mutates a sibling profile,
+updates persistent upstream startup integration, or implicitly refreshes an
+external skills target.
 
 ## Files
 
 - `request.sh` parses update CLI inputs and renders command help.
-- `selection.sh` resolves target profiles and validates installed kinds and
-  concrete version selections.
+- `selection.sh` validates installed kinds and concrete version selections for
+  the enclosing profile.
 - `management.sh` refreshes management assets from an installed source URL.
-- `profile.sh` discovers installed profiles and refreshes their assets.
+- `profile.sh` validates and refreshes the enclosing profile's assets.
 - `refresh.sh` locates and invokes an installed concrete version's executable
   refresh hook. Hooks accept `pull` or `build`; they own image override
   handling, their safe runtime invocation where applicable, and local-image

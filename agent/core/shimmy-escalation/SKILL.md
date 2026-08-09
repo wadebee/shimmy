@@ -14,7 +14,9 @@ non-mutating wrapper prefix, for example `['rg', '--version']` or
 
 ## Workflow
 
-1. Identify the selected profile with `shimmy status --format manifest`.
+1. For an installed shim, identify the activated profile with `shimmy status
+   --format manifest`. Skip this step for source-only validation in a checkout
+   without an activated installation.
 2. For an installed shim, invoke its normal command name, such as `rg` or
    `jq`; do not use its resolved installation path.
 3. For source validation, use `./commands/run-tool.sh <kind> ...` or the
@@ -34,4 +36,6 @@ corresponding wrapper prefixes are approved.
 - Do not install Podman or initialize a machine.
 - If the engine itself is unavailable, use the initialization workflow and
   request user remediation before starting or creating anything.
-- Preserve `SHIMMY_PROFILE_ACTIVE=upstream` when testing an upstream profile.
+- To test `upstream`, first activate its absolute
+  `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy`
+  launcher; do not add a profile selector to the wrapper command.

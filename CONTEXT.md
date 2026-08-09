@@ -7,9 +7,15 @@ Shimmy exposes common CLI tools through small POSIX shell wrappers that run Podm
 - `commands/` is the public management-command surface.
 - `lib/` contains shared catalog, profile, runtime, startup, and networking
   modules.
+- `install.sh` bootstraps one canonical profile; the repository has no
+  runnable `shimmy` launcher.
 - `tools/` owns each tool's metadata, versions, container context, guide, and
   agent guidance.
 - `tests/` contains the POSIX test runner and shared test support.
+
+Installed profiles are independent flat control/runtime trees under
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`. Each owns its
+own `bin/shimmy`; no installed control payload is shared between profiles.
 
 ## Invariants
 

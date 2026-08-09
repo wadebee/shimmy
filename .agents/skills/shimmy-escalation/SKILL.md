@@ -24,14 +24,21 @@ connect to the local Podman socket without escalation.
 
 1. Read `../../../CONTRIBUTING.md` if making repository changes. For permission-only runs, no file changes are needed.
 2. Discover the active Shimmy install:
-   - Prefer `SHIMMY_INSTALL_DIR` when it is set.
-   - Otherwise use `$HOME/.config/shimmy`.
+   - Resolve the active `shimmy` command and require it to live below the
+     absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>/bin`
+     directory for that profile.
 3. Discover activated shims:
-   - Prefer `shimmy status --format manifest` for the active profile or `shimmy status --profile upstream --format manifest` for the upstream profile, then read `shimmy_profile_kind=` entries or profile manifest `kind=` entries.
-   - If the status command is unavailable, inspect `$SHIMMY_INSTALL_DIR/profiles/default/install-manifest.txt` or `$SHIMMY_INSTALL_DIR/profiles/upstream/install-manifest.txt`.
-   - If the manifest is missing, inspect `$SHIMMY_INSTALL_DIR/bin`.
-   - If that is unavailable, inspect every executable in `PATH` directories whose path ends in `/shimmy/bin`.
-4. Keep only executable shim names that resolve through the active shell with `command -v <name>`. Remember that `command -v <name>` shows the stable dispatcher; use `shimmy status` for the selected profile implementation path.
+   - Use `shimmy status --format manifest`, then read
+     `shimmy_profile_kind=` entries or the invoking profile manifest's `kind=`
+     entries.
+   - If status is unavailable, inspect the manifest in the activated
+     profile root, then that profile's `bin/` directory.
+   - If that is unavailable, inspect executables in `PATH` directories whose
+     path ends in `/shimmy/profiles/default/bin` or
+     `/shimmy/profiles/upstream/bin`.
+4. Keep only executable shim names that resolve through the active shell with
+   `command -v <name>`. Use `shimmy status` for the invoking profile's
+   implementation path.
 
 ## Podman Readiness
 
@@ -89,7 +96,9 @@ Summarize:
 - Smoke checks that succeeded.
 - Smoke checks that failed, including whether failure came from approval denial, missing Podman, image pull/network, credentials, or the tool itself.
 
-If no activated shims are found, report the install directory checked and suggest activating Shimmy first with `eval "$(shimmy activate)"`, `eval "$(./shimmy activate --profile upstream)"`, or installing shims with `shimmy install`.
+If no activated shims are found, report the profile root checked and suggest
+activating its absolute `bin/shimmy` launcher or bootstrapping a profile with
+`./install.sh` from a Shimmy source checkout.
 
 ## Safety
 

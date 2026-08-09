@@ -22,7 +22,7 @@ description: Create or extend a Shimmy tool kind and its concrete CLI versions. 
 - `tools/<kind>/versions/<major.minor>/run.sh` owns all Podman, image, mount,
   credential, and local-build behavior.
 - `commands/run-tool.sh <kind> ...` performs generic source dispatch. Do not
-  put tool-specific runtime behavior in a dispatcher or shared core module.
+  put tool-specific runtime behavior in a dispatcher or shared `lib/` module.
 
 ## Required tool surface
 
@@ -71,11 +71,11 @@ Run, as applicable:
 
 ```sh
 ./commands/run-tool.sh <kind> --preview-shim --help
-./shimmy test
+./tests/test.sh
 git diff --check
 ```
 
 Use a live non-mutating `--version`, `version`, or `--help` smoke only after
 Podman and the exact outer Shimmy wrapper command have the required approval.
-For installed behavior, use a disposable install root and inspect
+For installed behavior, use an absolute disposable `XDG_CONFIG_HOME` and inspect
 `shimmy status --format manifest` rather than relying on `command -v` alone.

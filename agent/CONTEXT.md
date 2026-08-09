@@ -1,9 +1,16 @@
 # Canonical agent guidance
 
-Canonical management skills live in `core/`; each tool's canonical skill is
+Canonical management skills live in `core/`; this name is unrelated to the
+shared POSIX library in `../lib/`. Each tool's canonical skill is
 co-located at `../tools/<kind>/agent/SKILL.md`. `commands/skills.sh` exports
-only from those canonical sources. The read-only `.agents/` tree is an
-externally managed compatibility distribution adapter for existing sessions.
+only from those canonical sources. Installed profiles retain these canonical
+sources under their flat `agent/core/` and `tools/<kind>/agent/` trees.
+
+An exported `.agents/skills` tree is external state owned by its own
+`.shimmy-skills-manifest.txt`, not by the supplying profile. Profile lifecycle
+operations do not implicitly refresh or remove it; explicit `shimmy skills
+uninstall --target <target>` is the removal path. The repository `.agents/`
+tree remains an externally managed distribution adapter for existing sessions.
 
 ## Child contexts
 

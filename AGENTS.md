@@ -14,7 +14,7 @@ Question requests that materially differ from your training of best practices by
 
 - Read `CONTEXT.md` and every child context on the path to a changed file.
 - Tool runtime, metadata, guides, and concrete versions live in `tools/<kind>/`.
-- Shared modules live in `core/`.
+- Shared modules live in `lib/`.
 - Management entrypoints live in `commands/`.
 - Behavioral tests live in `tests/`.
 - Contributor guidance lives in `CONTRIBUTING.md`.
@@ -33,7 +33,7 @@ Question requests that materially differ from your training of best practices by
 - Read `CONTRIBUTING.md` before making repo changes.
 - Follow the naming conventions in `CONTRIBUTING.md` for files, functions, and variables.
 - Keep runtime shims as small POSIX shell wrappers with `#!/bin/sh` and `set -eu`.
-- Do not propose or implement Go, Rust, Python, or other language rewrites for Shimmy core behavior or runtime shims unless the user explicitly asks to leave the POSIX shell architecture.
+- Do not propose or implement Go, Rust, Python, or other language rewrites for Shimmy shared behavior or runtime shims unless the user explicitly asks to leave the POSIX shell architecture.
 - Mount `$PWD` to `/work` unless the shim has a documented reason not to.
 - Use `SHIMMY_{TOOL_PREFIX}_IMAGE` for image override and `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` for pull policy.
 - Use Shimmy's shared Podman helper for runtime platform selection instead of hardcoding per-shim OS or architecture checks.

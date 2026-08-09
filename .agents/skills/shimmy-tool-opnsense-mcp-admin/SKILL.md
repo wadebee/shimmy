@@ -19,7 +19,7 @@ Use this skill when working with `shims/opnsense-mcp-admin`, its tests, its docs
 
 ## Installed Workflow
 
-When this skill is installed outside the Shimmy checkout, prefer activated commands such as `opnsense-mcp-admin --help`, inspect selected profile state with `shimmy status --format manifest`, and use `SHIMMY_PROFILE_ACTIVE=upstream opnsense-mcp-admin --help` when validating the upstream profile. Use `./shims/opnsense-mcp-admin` only when intentionally editing or testing the repo-local wrapper.
+When this skill is installed outside the Shimmy checkout, prefer activated commands such as `opnsense-mcp-admin --help` and inspect the invoking profile with `shimmy status --format manifest`. To validate `upstream`, first activate its absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy` launcher, then run the tool without a profile selector. Use `./shims/opnsense-mcp-admin` only when intentionally editing or testing the repo-local wrapper.
 
 ## Current Behavior
 

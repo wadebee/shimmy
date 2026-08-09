@@ -16,7 +16,7 @@ tools/<kind>/versions/<major.minor>/
   container/Containerfile
 ```
 
-`run.sh` uses `core/runtime/image.sh` to build or reuse the local image. Keep
+`run.sh` uses `lib/runtime/image.sh` to build or reuse the local image. Keep
 image naming, hash labels, and platform selection in the shared helper; do not
 copy image-cache logic into a tool runtime.
 
@@ -40,5 +40,5 @@ Use preview first:
 ```
 
 Use a live build only with explicit user authorization and a running Podman
-engine. Exercise it with a non-mutating tool command, then run `./shimmy test`
+engine. Exercise it with a non-mutating tool command, then run `./tests/test.sh`
 and `git diff --check`.

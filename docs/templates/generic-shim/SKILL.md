@@ -31,10 +31,10 @@ tool_selector_env=<SHIMMY_SELECTOR_ENV or empty>
 ```
 
 `run.sh` receives the original CLI argument vector unchanged, uses
-`core/runtime/podman.sh`, mounts `$PWD:/work`, and supports
-`--preview-shim`. Use `core/runtime/image.sh` for local build contexts after
-setting `SHIMMY_RUNTIME_DIR` to `core/runtime`.
+`lib/runtime/podman.sh`, mounts `$PWD:/work`, and supports
+`--preview-shim`. Use `lib/runtime/image.sh` for local build contexts after
+setting `SHIMMY_RUNTIME_DIR` to `lib/runtime`.
 
 The catalog discovers tool metadata automatically. Do not add central catalog,
 status, or update case statements. Add focused metadata and preview validation
-to `tests/` and run `./shimmy test`.
+to `tests/` and run `./tests/test.sh`.

@@ -901,25 +901,37 @@ source and installed layouts without redesigning skill ownership.
 
 ### Verification
 
-- [ ] Root and contributor docs accurately describe `lib/`, root `install.sh`,
+- [x] Root and contributor docs accurately describe `lib/`, root `install.sh`,
       the absence of a repository `shimmy`, profile-local `bin/shimmy`, XDG
       resolution, and independent profile-flat installations.
-- [ ] All context links and paths are valid; the context-tree test passes.
-- [ ] AI skill guidance contains no migrated `core/` path advice.
-- [ ] User, contributor, and AI guidance contains no removed install-location
+- [x] All context links and paths are valid; the context-tree test passes.
+- [x] AI skill guidance contains no migrated `core/` path advice.
+- [x] User, contributor, and AI guidance contains no removed install-location
       option, installed profile-selection option, or Shimmy environment
       override.
-- [ ] User, contributor, and AI guidance consistently describes default-only
+- [x] User, contributor, and AI guidance consistently describes default-only
       startup ownership, upstream manual activation, and target-owned shared
       skills.
-- [ ] The canonical management-skill context subtree was explicitly reviewed
+- [x] The canonical management-skill context subtree was explicitly reviewed
       and remains at `agent/core/`.
-- [ ] No skill tree was moved or broadly reconciled.
-- [ ] Persistent historical plans use current migrated paths without losing
+- [x] No skill tree was moved or broadly reconciled.
+- [x] Persistent historical plans use current migrated paths without losing
       their non-path history.
-- [ ] Every remaining `core` match in documentation is classified as an
+- [x] Every remaining `core` match in documentation is classified as an
       intentional concept, API path, or other unrelated use.
-- Notes:
+- Notes: Root, contributor, Podman, testing, network, prompt, tool-guide,
+  context, canonical-skill, plugin-skill, and distribution-skill guidance now
+  describes the version-3 flat XDG layout. The historical-plan scrub also
+  updated `context-handoff.md`, `TODO.md`, and `oc_multi_version_shim.md` after
+  they matched migrated launcher or profile-selection advice. Remaining
+  documentation `core` matches are `agent/core/`, its parent context link,
+  OPNsense API routes, or explicit removal history in this plan. Context-tree,
+  diff-check, and all 68 repository tests pass. The skill-creator
+  `quick_validate.py` check could not start because PyYAML is unavailable;
+  repository skill export and context validation passed instead. A read-only
+  skill forward-test clarified source-only escalation, user-owned Podman
+  machine startup, and the distinction between external shared skill targets
+  and the packaged profile-local `plugin` target.
 
 ### Human review gate
 
@@ -1110,7 +1122,15 @@ the fixed design decisions above.
 
 ### Chunk 3
 
-- _append after acceptance_
+- Durable guidance should describe a profile by the launcher that owns it,
+  rather than teaching a separate selector that can disagree with execution
+  identity.
+- Shared skills need their own target-manifest ownership language everywhere
+  profile lifecycle is documented; otherwise users can reasonably infer that
+  uninstalling a supplying profile also owns or removes the shared target.
+- The packaged `plugin` skills target is part of a profile payload, not a
+  shared external integration target, and must be documented as that explicit
+  exception to target-manifest ownership across profile lifecycle.
 
 ### Chunk 4
 

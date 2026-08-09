@@ -31,8 +31,11 @@ Use this skill when:
 
 1. Confirm the command is likely Shimmy-backed:
    - Prefer `command -v <tool>`.
-   - Treat paths under `$HOME/.config/shimmy/bin` or another `shimmy/bin` directory as Shimmy wrappers.
-   - `command -v <tool>` resolves the stable dispatcher path. Use `shimmy status --format manifest` or `shimmy status --profile upstream --format manifest` when you need the selected profile implementation path.
+   - Treat paths below an activated canonical
+     `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>/bin`
+     directory as Shimmy wrappers.
+   - `command -v <tool>` resolves that profile's dispatcher path. Use `shimmy
+     status --format manifest` when you need its implementation metadata.
 2. Locate Podman:
    - Run `command -v podman`.
    - On macOS, remember the official pkg installer may place it at `/opt/podman/bin/podman`.
@@ -41,7 +44,9 @@ Use this skill when:
    - If it succeeds, retry the original Shimmy command when appropriate.
 4. If `podman info` fails on macOS:
    - Run `podman machine list` with escalation if the sandbox blocks socket or machine access.
-   - Treat `podman machine start` returning `already running` as confirmation that the machine state is not the blocker, then verify `podman info`.
+   - If the user reports that `podman machine start` returned `already
+     running`, treat that as confirmation that stopped-machine state is not the
+     blocker, then verify `podman info`.
    - If an existing machine is stopped or Podman reports a refused/stale socket, stop and tell the user to run `podman machine start` in a normal shell outside the AI Agent.
    - After the user reports that startup succeeded, run `podman info` again with escalation if needed.
 5. If no Podman machine exists:
@@ -49,8 +54,10 @@ Use this skill when:
    - Do not provision Podman implicitly.
 6. If `podman info` succeeds but the Shimmy wrapper still fails:
    - Use the tool-specific Shimmy skill when available.
-   - Check `command -v <tool>`; if it resolves under `$HOME/.config/shimmy/bin` or another Shimmy install, the AI Agent may need approval for the outer wrapper command even though direct `podman info` works.
-   - If `SHIMMY_PROFILE_ACTIVE=upstream` is active, keep it in place for wrapper retries so the dispatcher uses the upstream profile.
+   - Check `command -v <tool>`; if it resolves below an activated canonical
+     profile's `bin/` directory, the AI Agent may need approval for the outer
+     wrapper command even though direct `podman info` works.
+   - Keep the desired profile's `bin/` first on `PATH` for wrapper retries.
    - Use `shimmy-escalation` to request approval for the exact dry-run smoke command prefix before asking the user for broader Podman remediation.
    - Run a harmless wrapper smoke check with exact-command escalation, such as `rg --version` with prefix rule `["rg","--version"]`.
    - Remember that AI Agent permissions are evaluated on the outer command (`rg`, `jq`, `terraform`, etc.), not only on the nested `podman` process that the wrapper starts.

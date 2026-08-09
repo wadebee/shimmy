@@ -15,9 +15,9 @@ segments. First read AGENTS.md, CONTRIBUTING.md, root CONTEXT.md, and the
 relevant child-context path for any file you change.
 
 Validate the current worktree before making changes. Use the source-checkout
-suite with SHIMMY_PROFILE_ACTIVE unset:
+suite directly:
 
-  env -u SHIMMY_PROFILE_ACTIVE ./shimmy test
+  ./tests/test.sh
 
 Use exact-approved, non-mutating Shimmy wrapper commands for any live Podman
 check. Do not pull or build an image without explicit user authority. Preserve
@@ -33,7 +33,8 @@ base images, begin with plans/multi-architecture-manifest.md.
 
 - Context links and source-bearing directories validate through
   `./tests/context-tree.sh`.
-- The source suite passes with `SHIMMY_PROFILE_ACTIVE` unset.
+- The source suite passes through `./tests/test.sh` without dispatching through
+  an installed profile.
 - All 16 tool kinds own test coverage, and all 18 concrete versions have a
   live non-mutating smoke result.
 - OC 4.18, 4.20, and 4.22 use Red Hat multi-architecture manifest-list
@@ -41,8 +42,8 @@ base images, begin with plans/multi-architecture-manifest.md.
 
 ## Boundaries for future work
 
-- The user's normal Shimmy install may use legacy layout version 1; do not
-  mutate it. Use disposable install roots for tests.
+- The user's normal Shimmy install may use a legacy layout; do not mutate it.
+  Use an absolute disposable `XDG_CONFIG_HOME` for tests.
 - Local image builds and remote image pulls mutate Podman state. Request
   authority before refreshing images, even if a previous session did so.
 - The read-only `.agents/` tree is a compatibility adapter. Canonical skills

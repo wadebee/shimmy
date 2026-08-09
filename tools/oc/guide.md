@@ -115,12 +115,12 @@ The versioned configs use a single-token smoke command:
 Examples:
 
 ```sh
-./shimmy install --shim oc
-./shimmy install --shim oc@4.18
-./shimmy test --shim oc
-./shimmy test --shim oc_4_20
-./shimmy test --shim oc_4_18
-./shimmy test --shim oc_4_22
+./install.sh --shim oc
+"${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" install --shim oc@4.18
+./tests/test.sh --shim oc
+./tests/test.sh --shim oc_4_20
+./tests/test.sh --shim oc_4_18
+./tests/test.sh --shim oc_4_22
 ```
 
 ## Installation and Profiles
@@ -137,18 +137,18 @@ Examples:
 
 ```sh
 # Install upstream profile and the default oc 4.20
-./shimmy install --profile upstream --shim oc
+./install.sh --profile upstream --shim oc
 
 # Install the 4.18 selector as an additional concrete version
-./shimmy install --profile upstream --shim oc@4.18
+"${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy" install --shim oc@4.18
 
 # In an activated upstream shell, unset selector uses 4.20
-eval "$(./shimmy activate --profile upstream)"
+eval "$("${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy" activate)"
 oc version
 SHIMMY_OC_VERSION=4.18 oc version
 ```
 
-`shimmy status` reports `oc` as an installed kind, the default version, and each installed version label. `shimmy update --shim oc --build` refreshes the dispatcher and installed `oc_4_xx` local images for the selected profile. `shimmy update --shim oc@4.18 --build` refreshes only the selected concrete version plus the required dispatcher.
+`shimmy status` reports `oc` as an installed kind, the default version, and each installed version label. `shimmy update --shim oc --build` refreshes the dispatcher and installed `oc_4_xx` local images for the invoking profile. `shimmy update --shim oc@4.18 --build` refreshes only the selected concrete version plus the required dispatcher.
 
 ## Extending to New Tracks
 

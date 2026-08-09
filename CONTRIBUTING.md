@@ -18,28 +18,46 @@ Use it as the source of truth for repository contribution guidance that should b
 
 ## Profile Workflow
 
-Shimmy has one install root with two built-in profiles:
+Shimmy has two built-in profiles, each installed as a complete independent
+tree below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`:
 
 - `default` is the external-user profile and the default for top-level commands.
-- `upstream` is the maintainer profile that dispatches installed tool commands to the recorded source checkout.
+- `upstream` is the maintainer profile whose generated tool implementations
+  dispatch to the recorded source checkout.
 
-Profile precedence is explicit flag, then `SHIMMY_PROFILE_ACTIVE`, then `default`. Direct tool commands such as `rg` and `jq` do not accept `--profile`; they read `SHIMMY_PROFILE_ACTIVE` and dispatch through the selected profile.
+The root `install.sh` is a minimal bootstrap and the repository has no runnable
+`shimmy` launcher. `./install.sh` selects `default`; only the bootstrap accepts
+`--profile upstream`. Each installed profile has a self-contained
+`bin/shimmy` launcher bound to its enclosing profile. Installed management and
+tool commands have no profile-selection option or environment selector.
 
-Bare `shimmy install` creates or repairs only the default profile. Use `shimmy install --profile upstream` only when intentionally installing the maintainer profile.
-
-For source changes that should be tested through normal installed commands, install and activate the upstream profile:
+For source changes that should be tested through normal installed commands,
+bootstrap and explicitly activate the upstream profile:
 
 ```sh
-./shimmy install --profile upstream
-eval "$(./shimmy activate --profile upstream)"
-shimmy status --profile upstream --format manifest
-shimmy test --profile upstream
-SHIMMY_PROFILE_ACTIVE=upstream rg --version
+./install.sh --profile upstream
+eval "$("${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy" activate)"
+shimmy status --format manifest
+shimmy test
+rg --version
 ```
 
-For repo-local previews, use `./commands/run-tool.sh rg --preview-shim --version` or the concrete runtime listed in `tools/rg/CONTEXT.md`. For installed-state inspection, prefer `shimmy status --format manifest` over `command -v <tool>`: `command -v` shows the stable dispatcher entrypoint, while status shows the selected profile manifest and upstream checkout.
+Switch profiles by evaluating the desired profile launcher's absolute path.
+Activation prepends only that profile's `bin/` directory to `PATH`.
 
-`SHIMMY_UPSTREAM_DIR` is Shimmy-managed profile state, defaulting under `$SHIMMY_INSTALL_DIR/profiles/upstream`. It is not the git checkout. Use `SHIMMY_UPSTREAM_CHECKOUT_DIR` only as an optional install-time override for `shimmy install --profile upstream`; Shimmy records that absolute checkout path in the upstream manifest.
+For repo-local previews, use `./commands/run-tool.sh rg --preview-shim --version` or the concrete runtime listed in `tools/rg/CONTEXT.md`. For installed-state inspection, prefer `shimmy status --format manifest` over `command -v <tool>`: `command -v` shows the invoking profile's dispatcher entrypoint, while status shows that profile's manifest-derived metadata.
+
+`SHIMMY_UPSTREAM_CHECKOUT_DIR` is the only upstream-specific path input. It
+selects the absolute source checkout recorded when `./install.sh --profile
+upstream` runs; it never relocates installed profile state.
+
+Only `default` may create, repair, or remove Shimmy's persistent shell-startup
+block. `upstream` is manual-activation-only. Shared repository and home agent
+skills live outside profile roots and are owned by their target's
+`.shimmy-skills-manifest.txt`. Profile lifecycle operations never implicitly
+refresh or remove them; use `shimmy skills uninstall --target repo|profile`
+for explicit removal. The `plugin` target is a packaged profile-local bundle,
+not a shared external target.
 
 ## Shim Kind Workflow
 
@@ -100,7 +118,7 @@ Avoid:
 Use names that communicate role first, then scope.
 
 - Public installed commands keep the CLI command name with no extension; source runtime entrypoints use `run.sh` below their version directory.
-- Executable management commands in `commands/` and shared shell modules in `core/` use lowercase kebab-case and end in `.sh`.
+- Executable management commands in `commands/` and shared shell modules in `lib/` use lowercase kebab-case and end in `.sh`.
 - Contributor-facing Markdown documents should use uppercase conventional names when they are standard repo entrypoints such as `README.md`, `AGENTS.md`, and `CONTRIBUTING.md`.
 - Other documentation files should use lowercase kebab-case.
 
@@ -108,7 +126,7 @@ Examples:
 
 - `tools/aws/versions/2.31/run.sh`
 - `commands/install.sh`
-- `core/startup/startup.sh`
+- `lib/startup/startup.sh`
 - `docs/prompt-shimmy-project.md`
 
 ### Function Naming
@@ -173,8 +191,7 @@ Examples:
 - `install_dir_target`
 - `shim_name_requested`
 - `SHIMMY_AWS_IMAGE`
-- `SHIMMY_INSTALL_DIR`
-- `SHIMMY_PROFILE_ACTIVE`
+- `SHIMMY_OC_VERSION`
 
 Avoid:
 

@@ -46,8 +46,8 @@ Official Podman installation guide: <https://podman.io/docs/installation>
 6. Install or activate Shimmy, then run a shim smoke check:
 
    ```sh
-   ./shimmy install
-   eval "$(~/.config/shimmy/bin/shimmy activate)"
+   ./install.sh
+   eval "$("${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" activate)"
    jq --version
    rg --version
    ```
@@ -224,22 +224,25 @@ shimmy status
 shimmy test
 ```
 
-From a source checkout, use:
+From a source checkout, run the repository suite directly:
 
 ```sh
-./shimmy status
-./shimmy test
+./tests/test.sh
 ```
 
 For maintainer testing through the upstream profile, install and activate that profile first:
 
 ```sh
-./shimmy install --profile upstream
-eval "$(./shimmy activate --profile upstream)"
-shimmy status --profile upstream
-shimmy test --profile upstream
-SHIMMY_PROFILE_ACTIVE=upstream rg --version
+./install.sh --profile upstream
+eval "$("${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy" activate)"
+shimmy status
+shimmy test
+rg --version
 ```
+
+The bootstrap chooses a profile; installed commands manage only the profile
+whose `bin/shimmy` launcher invoked them. The `upstream` profile is
+manual-activation-only and never manages persistent shell startup files.
 
 `shimmy test` uses live Podman execution for supported kinds. It is a stronger
 check than `podman info` because it verifies that Shimmy's wrappers can actually
