@@ -5,25 +5,6 @@ run containers with Podman. Tools mount the present working directory as `/work`
 their documented configuration and credential mounts, and expose image
 overrides through `SHIMMY_*` environment variables.
 
-## Context-first layout
-
-Read [CONTEXT.md](CONTEXT.md) before changing the repository. Source code and
-its operational context share the same hierarchy:
-
-```text
-commands/  management entrypoints
-lib/       shared catalog, profile, runtime, startup, and network behavior
-tools/     one self-contained directory per tool kind and version
-tests/     POSIX validation and context-tree verification
-```
-
-Each tool directory owns its guide, version metadata, concrete runtime,
-container context, test guidance, and agent skill. `tool.conf` defines the
-default version and optional selector; `commands/run-tool.sh` resolves it.
-This keeps the context an AI agent needs close to the files it may change,
-reduces repository-wide scanning, and makes tool-specific guidance installable
-from the canonical source tree.
-
 ## Requirements
 
 - POSIX-compatible `/bin/sh`
@@ -127,9 +108,30 @@ oc --preview-shim version
 | tessl | [tools/tessl/guide.md](tools/tessl/guide.md) |
 | textual | [tools/textual/guide.md](tools/textual/guide.md) |
 
-## Development
+## AI Aware repo layout
 
-Run the complete repository check from the root:
+Agents are instructed via [AGENTS.md](AGENTS.md) to read [CONTEXT.md](CONTEXT.md) before changing the repository. Source code and its operational context share the same hierarchy:
+
+```text
+commands/  management entrypoints
+lib/       shared catalog, profile, runtime, startup, and network behavior
+tools/     one self-contained directory per tool kind and version
+tests/     POSIX validation and context-tree verification
+```
+
+Each tool directory owns its guide, version metadata, concrete runtime,
+container context, test guidance, and agent skill. `tool.conf` defines the
+default version and optional selector; `commands/run-tool.sh` resolves it.
+This keeps the context an AI agent needs close to the files it may change,
+reduces repository-wide scanning, and makes tool-specific guidance installable
+from the canonical source tree.
+
+## Contributor Guidance and Testing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/testing.md](docs/testing.md), and
+[docs/podman.md](docs/podman.md) for contributor, testing, and Podman details.
+
+Run a complete repository check from the root:
 
 ```sh
 ./tests/test.sh
@@ -143,5 +145,4 @@ version runtime listed in its context:
 ./commands/run-tool.sh oc --preview-shim version
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/testing.md](docs/testing.md), and
-[docs/podman.md](docs/podman.md) for contributor, testing, and Podman details.
+

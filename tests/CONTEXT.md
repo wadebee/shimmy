@@ -15,7 +15,8 @@ semantics.
 `context-tree.sh` validates the repository's hierarchical context links. Every
 source-bearing directory below `agent/`, `commands/`, `lib/`, `tools/`, and
 `tests/` must have a linked `CONTEXT.md`; this includes canonical skills,
-test modules, and local container contexts.
+test modules, and local container contexts. The generated `.agents/`
+compatibility adapter and all of its descendants are explicitly excluded.
 
 ## Child contexts
 

@@ -53,8 +53,24 @@ context_source_directory_has_files() {
   return 1
 }
 
+context_source_directory_is_excluded() {
+  source_dir=$1
+
+  case "$source_dir" in
+    "$ROOT_DIR/.agents"|"$ROOT_DIR/.agents/"*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
 context_source_tree_validate() {
   source_dir=$1
+
+  if context_source_directory_is_excluded "$source_dir"; then
+    return 0
+  fi
 
   if context_source_directory_has_files "$source_dir"; then
     context_file=$source_dir/CONTEXT.md
@@ -90,6 +106,9 @@ done
 
 context_require "$ROOT_DIR/agent/core/CONTEXT.md"
 context_link_require "$ROOT_DIR/agent/CONTEXT.md" "$ROOT_DIR/agent/core/CONTEXT.md"
+
+# The generated compatibility adapter is not part of the canonical context tree.
+context_source_tree_validate "$ROOT_DIR/.agents"
 
 for source_tree in agent commands lib tools tests; do
   context_source_tree_validate "$ROOT_DIR/$source_tree"
