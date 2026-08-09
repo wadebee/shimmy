@@ -23,20 +23,24 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/profile/profile.sh"
 # shellcheck source=tests/profile-smoke.sh
 . "$SCRIPT_DIR/profile-smoke.sh"
-# shellcheck source=tests/core/catalog.sh
-. "$SCRIPT_DIR/core/catalog.sh"
-# shellcheck source=tests/core/runtime.sh
-. "$SCRIPT_DIR/core/runtime.sh"
-# shellcheck source=tests/core/update.sh
-. "$SCRIPT_DIR/core/update.sh"
+# shellcheck source=tests/lib/catalog.sh
+. "$SCRIPT_DIR/lib/catalog.sh"
+# shellcheck source=tests/lib/runtime.sh
+. "$SCRIPT_DIR/lib/runtime.sh"
+# shellcheck source=tests/lib/update.sh
+. "$SCRIPT_DIR/lib/update.sh"
 # shellcheck source=tests/commands/agent-preflight.sh
 . "$SCRIPT_DIR/commands/agent-preflight.sh"
 # shellcheck source=tests/commands/lifecycle.sh
 . "$SCRIPT_DIR/commands/lifecycle.sh"
 # shellcheck source=tests/commands/management.sh
 . "$SCRIPT_DIR/commands/management.sh"
+# shellcheck source=tests/commands/activate.sh
+. "$SCRIPT_DIR/commands/activate.sh"
 # shellcheck source=tests/commands/profiles.sh
 . "$SCRIPT_DIR/commands/profiles.sh"
+# shellcheck source=tests/commands/status.sh
+. "$SCRIPT_DIR/commands/status.sh"
 # shellcheck source=tests/commands/update.sh
 . "$SCRIPT_DIR/commands/update.sh"
 # shellcheck source=tests/commands/startup.sh
@@ -96,14 +100,16 @@ main() {
     return 0
   fi
 
-  test_core_catalog_run
-  test_core_runtime_run
-  test_core_update_run
+  test_lib_catalog_run
+  test_lib_runtime_run
+  test_lib_update_run
   test_commands_agent_preflight_run
   test_commands_lifecycle_prepare
   test_commands_management_run
+  test_commands_activate_run
   test_commands_lifecycle_complete
   test_commands_profiles_run
+  test_commands_status_run
   test_commands_update_run
   test_commands_startup_run
   test_commands_skills_run

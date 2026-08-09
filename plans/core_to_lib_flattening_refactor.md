@@ -784,34 +784,40 @@ tests, and provide exhaustive regression coverage for the recorded contracts.
 
 ### Verification
 
-- [ ] All command tests assert the canonical profile-flat layout.
-- [ ] Shared-library tests live under `tests/lib/`, use `test_lib_*`, and run in
+- [x] All command tests assert the canonical profile-flat layout.
+- [x] Shared-library tests live under `tests/lib/`, use `test_lib_*`, and run in
       the default suite.
-- [ ] Default-only, upstream-only, and combined-profile scenarios pass.
-- [ ] Repository bootstrap is the only source-side installation surface;
+- [x] Default-only, upstream-only, and combined-profile scenarios pass.
+- [x] Repository bootstrap is the only source-side installation surface;
       repository tests and previews work without a repository `shimmy`.
-- [ ] Profile isolation, profile removal, and empty-container cleanup obey the
+- [x] Profile isolation, profile removal, and empty-container cleanup obey the
       ownership contract.
-- [ ] Default-only startup ownership, upstream manual activation, external
+- [x] Default-only startup ownership, upstream manual activation, external
       integration retry behavior, and target-manifest-owned skill lifecycle
       scenarios pass with both profiles installed.
-- [ ] Each installed launcher is bound to one profile, rejects `--profile`,
+- [x] Each installed launcher is bound to one profile, rejects `--profile`,
       and cannot manage a sibling; activation switches profiles through
       `PATH` only.
-- [ ] Upstream management is self-contained, source-mode detection is absent,
+- [x] Upstream management is self-contained, source-mode detection is absent,
       recorded-checkout execution is limited to generated tool
       implementations, and self-update preserves the original checkout.
-- [ ] Collision, symlink-safety, sentinel-preservation, launcher, dispatcher,
+- [x] Collision, symlink-safety, sentinel-preservation, launcher, dispatcher,
       strict manifest parsing, safe ownership, partial-profile, and manifest
       rejection cases pass.
-- [ ] XDG fallback, absolute override, relative-path rejection, removed-option,
+- [x] XDG fallback, absolute override, relative-path rejection, removed-option,
       removed-variable, and removed-profile-selector cases pass.
-- [ ] Profile smoke and context-tree tests pass.
-- [ ] No test asserts legacy installed paths or uses installed-core aliases.
-- [ ] No test uses a private install-root override; isolation is achieved with
+- [x] Profile smoke and context-tree tests pass.
+- [x] No test asserts legacy installed paths or uses installed-core aliases.
+- [x] No test uses a private install-root override; isolation is achieved with
       disposable `HOME` and `XDG_CONFIG_HOME` values.
-- [ ] Required runnable files retain executable bits.
-- Notes:
+- [x] Required runnable files retain executable bits.
+- Notes: `./tests/test.sh` passes all 68 tests. The comprehensive migration
+  covers default-only, upstream-only, and combined profiles; the complete
+  claimed-asset collision matrix; strict manifest mutations; damaged-profile
+  reporting and safe uninstall; launcher, dispatcher, startup, skills, update,
+  and XDG isolation. Failure injection found that startup integration errors
+  were swallowed when called beneath `if !`; `lib/install/startup.sh` now
+  returns the failed write so the committed-profile retry path is observable.
 
 ### Human review gate
 
@@ -1098,7 +1104,9 @@ the fixed design decisions above.
 
 ### Chunk 2
 
-- _append after acceptance_
+- Shell functions executed as the condition of `if !` do not reliably stop on
+  an inner command failure under `set -e`; integration loops must explicitly
+  propagate a failed external write before logging success.
 
 ### Chunk 3
 

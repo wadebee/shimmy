@@ -1,12 +1,12 @@
 #!/bin/sh
 # Metadata and source-dispatch behavior tests.
 
-test_core_catalog_context_tree() {
+test_lib_catalog_context_tree() {
   "$ROOT_DIR/tests/context-tree.sh"
   pass "CONTEXT tree"
 }
 
-test_core_catalog_discovery() {
+test_lib_catalog_discovery() {
   # shellcheck source=lib/catalog/catalog.sh
   . "$ROOT_DIR/lib/catalog/catalog.sh"
 
@@ -20,7 +20,7 @@ test_core_catalog_discovery() {
   pass "metadata-driven catalog discovery"
 }
 
-test_core_catalog_preview_dispatch() {
+test_lib_catalog_preview_dispatch() {
   jq_preview=$("$ROOT_DIR/commands/run-tool.sh" jq --preview-shim --version)
   assert_contains "$jq_preview" ghcr.io/jqlang/jq:1.8.1
 
@@ -29,7 +29,7 @@ test_core_catalog_preview_dispatch() {
   pass "generic tool dispatch and version selection"
 }
 
-test_core_catalog_all_previews() {
+test_lib_catalog_all_previews() {
   # shellcheck source=lib/catalog/catalog.sh
   . "$ROOT_DIR/lib/catalog/catalog.sh"
 
@@ -47,7 +47,7 @@ test_core_catalog_all_previews() {
   pass "all tool preview paths"
 }
 
-test_core_catalog_concrete_version_previews() {
+test_lib_catalog_concrete_version_previews() {
   # shellcheck source=lib/catalog/catalog.sh
   . "$ROOT_DIR/lib/catalog/catalog.sh"
 
@@ -81,7 +81,7 @@ test_core_catalog_concrete_version_previews() {
   pass "all concrete runtimes honor declared smoke previews"
 }
 
-test_core_catalog_metadata_complete() {
+test_lib_catalog_metadata_complete() {
   for tool_file in "$ROOT_DIR"/tools/*/tool.conf; do
     [ -f "$tool_file" ] || continue
     tool_dir=$(dirname "$tool_file")
@@ -102,11 +102,11 @@ test_core_catalog_metadata_complete() {
   pass "tool metadata and concrete runtimes are complete"
 }
 
-test_core_catalog_run() {
-  test_core_catalog_context_tree
-  test_core_catalog_discovery
-  test_core_catalog_preview_dispatch
-  test_core_catalog_all_previews
-  test_core_catalog_concrete_version_previews
-  test_core_catalog_metadata_complete
+test_lib_catalog_run() {
+  test_lib_catalog_context_tree
+  test_lib_catalog_discovery
+  test_lib_catalog_preview_dispatch
+  test_lib_catalog_all_previews
+  test_lib_catalog_concrete_version_previews
+  test_lib_catalog_metadata_complete
 }

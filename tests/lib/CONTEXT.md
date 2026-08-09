@@ -1,4 +1,4 @@
-# Core test modules
+# Shared-library test modules
 
 These modules validate shared catalog and runtime behavior without starting
 tool containers. They are sourced by `../test.sh` and use `../support.sh` for

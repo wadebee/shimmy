@@ -30,17 +30,22 @@ test_manifest_source_url_replace() {
 test_commands_update_run() {
   setup_scenario
   bootstrap_default --shim jq >/dev/null
+  bootstrap_upstream --shim rg >/dev/null
   update_source=$SCENARIO_DIR/update-source
   test_update_source_repository_create "$update_source"
   test_manifest_source_url_replace "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "$update_source"
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/unmanaged-update-sentinel"
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/bin/unmanaged-bin-sentinel"
+  upstream_launcher_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")
+  upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
 
   default_shimmy update --shim jq >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-update-sentinel"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/unmanaged-bin-sentinel"
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "shimmy_source_url=$update_source"
   assert_equals "$(readlink "$DEFAULT_PROFILE_ROOT/bin/jq")" '../commands/dispatch-tool.sh'
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")" "$upstream_launcher_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"
 
   set +e
   profile_output=$(default_shimmy update --profile upstream 2>&1)
@@ -55,9 +60,15 @@ test_commands_update_run() {
   test_update_source_repository_create "$update_source"
   test_manifest_source_url_replace "$UPSTREAM_PROFILE_ROOT/install-manifest.txt" "$update_source"
   source_checkout_before=$(sed -n 's/^source_checkout=//p' "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
-  upstream_shimmy update --shim jq >/dev/null
+  update_tmp=$SCENARIO_DIR/update-tmp
+  mkdir -p "$update_tmp"
+  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" TMPDIR="$update_tmp" "$UPSTREAM_PROFILE_ROOT/bin/shimmy" update --shim jq >/dev/null
   source_checkout_after=$(sed -n 's/^source_checkout=//p' "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
   assert_equals "$source_checkout_after" "$source_checkout_before"
+  assert_file_contains "$UPSTREAM_PROFILE_ROOT/implementations/jq" "$source_checkout_before"
+  for update_entry in "$update_tmp"/shimmy-self-update.*; do
+    [ ! -e "$update_entry" ] && [ ! -L "$update_entry" ] || fail_test "self-update temporary source was not removed: $update_entry"
+  done
   XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$UPSTREAM_PROFILE_ROOT/bin/jq" --preview-shim --version >/dev/null
-  pass "self-update is profile-local, rejects profile selection, and preserves upstream checkout identity"
+  pass "self-update is profile-local, cleans temporary source, rejects profile selection, and preserves upstream checkout dispatch"
 }

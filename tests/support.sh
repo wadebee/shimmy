@@ -39,6 +39,15 @@ assert_file_contains() {
   assert_contains "$file_contents" "$needle"
 }
 
+assert_file_not_contains() {
+  file_path=$1
+  needle=$2
+
+  [ -f "$file_path" ] || fail_test "expected file to exist: $file_path"
+  file_contents=$(cat "$file_path")
+  assert_not_contains "$file_contents" "$needle"
+}
+
 assert_file_executable() {
   if [ ! -x "$1" ]; then
     fail_test "expected file to be executable: $1"
@@ -98,6 +107,12 @@ assert_path_symlink() {
   fi
 }
 
+assert_regular_file_not_symlink() {
+  if [ ! -f "$1" ] || [ -L "$1" ]; then
+    fail_test "expected regular non-symlink file: $1"
+  fi
+}
+
 fail_test() {
   printf 'FAIL: %s\n' "$1" >&2
   exit 1
@@ -129,6 +144,12 @@ default_shimmy() {
 
 upstream_shimmy() {
   env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$UPSTREAM_PROFILE_ROOT/bin/shimmy" "$@"
+}
+
+profile_manifest_value() {
+  manifest_file=$1
+  manifest_key=$2
+  sed -n "s/^$manifest_key=//p" "$manifest_file" | sed -n '1p'
 }
 
 setup_scenario() {

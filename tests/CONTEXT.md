@@ -13,5 +13,5 @@ test modules, and local container contexts.
 
 ## Child contexts
 
-- [shared-library behavior](core/CONTEXT.md)
+- [shared-library behavior](lib/CONTEXT.md)
 - [management commands](commands/CONTEXT.md)

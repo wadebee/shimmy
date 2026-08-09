@@ -76,7 +76,7 @@ for child_dir in agent commands lib tools tests; do
   context_link_require "$ROOT_DIR/CONTEXT.md" "$child_file"
 done
 
-for child_dir in core commands; do
+for child_dir in lib commands; do
   child_file=$ROOT_DIR/tests/$child_dir/CONTEXT.md
   context_require "$child_file"
   context_link_require "$ROOT_DIR/tests/CONTEXT.md" "$child_file"

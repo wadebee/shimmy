@@ -27,7 +27,7 @@ shimmy_install_startup_update() {
   activate_block=$(shimmy_activate_source_block_render "$SHIMMY_ACTIVATE_FILE") || fail "unable to render activate block for startup file"
   while IFS= read -r startup_file_path; do
     [ -n "$startup_file_path" ] || continue
-    shimmy_startup_file_update "$startup_file_path" "$activate_block"
+    shimmy_startup_file_update "$startup_file_path" "$activate_block" || return 1
     log_info "Updated startup file: $startup_file_path"
   done <<EOF
 $STARTUP_FILE_PATHS

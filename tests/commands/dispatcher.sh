@@ -3,7 +3,19 @@
 test_commands_dispatcher_run() {
   setup_scenario
   bootstrap_default --shim jq >/dev/null
+  bootstrap_upstream --shim rg >/dev/null
   assert_equals "$(readlink "$DEFAULT_PROFILE_ROOT/bin/jq")" '../commands/dispatch-tool.sh'
+  assert_equals "$(readlink "$UPSTREAM_PROFILE_ROOT/bin/rg")" '../commands/dispatch-tool.sh'
+
+  default_output=$(env SHIMMY_PROFILE_ACTIVE=upstream XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version)
+  assert_contains "$default_output" 'ghcr.io/jqlang/jq:1.8.1'
+
+  set +e
+  unowned_output=$(XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/commands/dispatch-tool.sh" rg --preview-shim --version 2>&1)
+  unowned_status=$?
+  set -e
+  [ "$unowned_status" -ne 0 ] || fail_test "unowned dispatcher request unexpectedly succeeded"
+  assert_contains "$unowned_output" 'rg is not owned by profile default'
 
   implementation=$DEFAULT_PROFILE_ROOT/implementations/jq
   rm -f "$implementation"
@@ -15,6 +27,15 @@ test_commands_dispatcher_run() {
   [ "$recursive_status" -ne 0 ] || fail_test "symlinked implementation unexpectedly dispatched"
   assert_contains "$recursive_output" 'invalid Shimmy implementation'
 
+  bootstrap_default --shim jq >/dev/null
+  chmod 644 "$DEFAULT_PROFILE_ROOT/implementations/jq"
+  set +e
+  non_executable_output=$(XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --version 2>&1)
+  non_executable_status=$?
+  set -e
+  [ "$non_executable_status" -ne 0 ] || fail_test "non-executable implementation unexpectedly dispatched"
+  assert_contains "$non_executable_output" 'implementation is not executable'
+
   setup_scenario
   set +e
   unknown_output=$(bootstrap_default --shim oc@9.99 2>&1)
@@ -22,5 +43,5 @@ test_commands_dispatcher_run() {
   set -e
   [ "$unknown_status" -ne 0 ] || fail_test "unknown version unexpectedly installed"
   assert_contains "$unknown_output" 'unsupported oc version'
-  pass "dispatchers use the profile-local target and reject unsafe implementations"
+  pass "dispatchers are profile-bound and reject unowned, symlinked, non-executable, and unknown implementations"
 }

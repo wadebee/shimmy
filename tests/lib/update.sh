@@ -1,6 +1,6 @@
 #!/bin/sh
 
-test_core_update_run() {
+test_lib_update_run() {
   setup_scenario
   SHIMMY_PROFILE_ROOT=$SCENARIO_DIR/profile
   refresh_dir=$SHIMMY_PROFILE_ROOT/tools/jq/versions/1.8
