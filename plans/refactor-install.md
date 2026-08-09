@@ -622,13 +622,13 @@ Resume record:
 ```text
 Last approved chunk: none
 Current chunk: 0
-Last known-good revision or diff base: <record before execution>
-Last validation command and result: <record before execution>
-Outstanding human decision: none
+Last known-good revision or diff base: fdd8f98cefe90d1d901c37c8c19985a95a7699b0 (clean worktree at Chunk 0 start)
+Last validation command and result: ./tests/test.sh (exit 0; all 69 tests passed); git diff --check (exit 0)
+Outstanding human decision: approve the Chunk 0 baseline, inventory, and breaking decisions
 ```
 
-- [ ] Chunk 0 implementation/inventory complete
-- [ ] Chunk 0 validation evidence captured
+- [x] Chunk 0 implementation/inventory complete
+- [x] Chunk 0 validation evidence captured
 - [ ] Chunk 0 human review approved
 - [ ] Chunk 0 lessons recorded
 - [ ] Chunk 1 implementation complete
@@ -740,6 +740,102 @@ inventory, and breaking decisions.
 Post-processing: update the resume record and checklist, then add the first
 entry under `# Lessons Learned`, including any corrected file inventory or test
 assumption.
+
+### Chunk 0 execution record
+
+Recorded on 2026-08-09 from starting revision
+`fdd8f98cefe90d1d901c37c8c19985a95a7699b0`. `git status --short` produced no
+output before the audit, so there are no pre-existing user changes to preserve.
+The audit excluded `plans/` and `.git/`.
+
+Exact retired-name and option matches at the starting revision:
+
+| Pattern | Matching lines | Files |
+| --- | ---: | ---: |
+| `shimmy activate` | 10 | 7 |
+| `commands/activate.sh` | 3 | 2 |
+| `activate.sh` | 17 | 13 |
+| `SHIMMY_ACTIVATE_FILE` | 4 | 4 |
+| `SHIMMY_PROFILE_ACTIVE` | 7 | 3 |
+| `SHIMMY_INSTALL_SOURCE_MODE` | 2 | 1 |
+| `manual-activation-only` | 12 | 10 |
+| `SHIMMY_DEFAULT_KINDS` | 2 | 1 |
+| `shimmy_default_kind_list` | 2 | 2 |
+| `--no-skills` | 25 | 10 |
+| `--skills-target` | 7 | 3 |
+| `SKIP_SKILLS` | 3 | 2 |
+| `REQUESTED_SKILLS_TARGET` | 6 | 2 |
+| `--copy` | 1 | 1 |
+| `--symlink` | 1 | 1 |
+| `--refresh-shims` | 2 | 2 |
+| `REFRESH_SHIMS` | 3 | 2 |
+| `profile_external_integrations_apply` | 2 | 1 |
+| `shimmy_version_two_install_reject` | 3 | 2 |
+| `shimmy_activate_block_read` | 1 | 1 |
+| `SHIMMY_INSTALL_DIR` | 1 | 1 |
+| `SHIMMY_CONTROL_INSTALL_DIR` | 1 | 1 |
+| `SHIMMY_UPSTREAM_DIR` | 1 | 1 |
+| retired `--install-dir` test coverage | 4 | 2 |
+| literal manifest-v3 identities | 7 | 5 |
+| `version-3` guidance | 4 | 4 |
+| repository-bootstrap `install.sh ... --shim` invocations | 16 | 8 |
+
+The broader wording audit found 43 lowercase `activation` matches in 18 files
+and 107 lowercase `activate` matches in 36 files. These totals intentionally
+include legitimate runtime helpers such as `shimmy_podman_path_activate`; Chunk
+7 must classify rather than mechanically remove those generic matches.
+
+Match ownership for later chunks:
+
+- Chunk 1 owns PATH rendering and focused current-name coverage in
+  `lib/install/startup.sh`, `tests/commands/activate.sh`, and any narrow
+  disposable-shell support added to `tests/support.sh`.
+- Chunk 2 owns the atomic command/schema/asset boundary in
+  `commands/activate.sh`, `lib/install/{install,launcher-template,manifest,profile-assets,request,startup,uninstall}.sh`,
+  `lib/profile/profile.sh`, `lib/startup/startup.sh`, `tests/test.sh`, and the
+  affected command tests for activation, install, lifecycle, management,
+  profiles, and startup.
+- Chunk 3 owns the dual-mode root `install.sh`, checkout resolution, sourced
+  shell cleanup, and onboarding coverage in `tests/commands/` plus any narrow
+  `tests/support.sh` helper.
+- Chunk 4 owns bootstrap baseline and explicit installed selection matches in
+  `lib/catalog/catalog.sh`, `lib/install/{install,request}.sh`,
+  `lib/update/management.sh`, and affected install, lifecycle, management,
+  profiles, skills, startup, and update tests.
+- Chunk 5 owns lifecycle skill-option and external-integration matches in
+  `lib/install/{install,request}.sh`, `lib/update/management.sh`,
+  `tests/support.sh`, and affected install, lifecycle, profiles, skills, and
+  startup tests. Explicit standalone `shimmy skills` behavior remains.
+- Chunk 6 owns the remaining retired parser/state/version-two/startup-summary
+  helpers and compatibility-only fixtures in `lib/install/{install,request}.sh`,
+  `lib/profile/profile.sh`, `lib/startup/startup.sh`, and affected dispatcher,
+  install, profiles, skills, and command-test fixtures, including the dedicated
+  ignored-variable and `--install-dir` assertions.
+- Chunk 7 owns active wording, examples, contexts, and generated distributions
+  in `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `commands/CONTEXT.md`,
+  `lib/{install,profile,startup}/CONTEXT.md`, `tests/CONTEXT.md`,
+  `tests/commands/CONTEXT.md`, `docs/{netinfo,podman,prompt-shimmy-project,testing}.md`,
+  `docs/network-tools.md`, `tools/{oc/guide.md,rg/CONTEXT.md}`, canonical
+  `agent/core/shimmy-{install,init,escalation}` guidance, and the matching
+  checked-in `plugins/shimmy/skills/` exports and fingerprints.
+
+The active inventory corrects the expected-impact list by explicitly adding
+the init/escalation skill wording, network and netinfo guidance, the ripgrep
+context, `AGENTS.md`, and retired `--install-dir` coverage. No product file is
+changed in this chunk.
+
+Validation evidence:
+
+```text
+./tests/test.sh   exit 0; All 69 Shimmy tests passed.
+git diff --check exit 0 after this record was added.
+git status --short: plans/refactor-install.md is the only changed path.
+```
+
+Human confirmation remains required for the manifest-v4 break without v2/v3
+migration, the fixed jq/rg bootstrap baseline, removal of bootstrap lifecycle
+skill options, and removal of the public activation command before Chunk 1
+begins.
 
 ## Chunk 1: PATH precedence behavior and sourced-shell test support
 
