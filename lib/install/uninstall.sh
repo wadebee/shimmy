@@ -36,7 +36,7 @@ perform_uninstall_profile() {
 $installed_kinds
 EOF
   profile_owned_path_remove "$SHIMMY_CONTROL_BIN"
-  profile_owned_path_remove "$SHIMMY_ACTIVATE_FILE"
+  profile_owned_path_remove "$SHIMMY_SHELL_INIT_FILE"
   profile_owned_path_remove "$INSTALL_MANIFEST_FILE"
 
   while IFS= read -r startup_file; do

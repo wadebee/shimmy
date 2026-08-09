@@ -7,16 +7,18 @@ a user's Shimmy installation or shell startup files.
 ## Files
 
 - `lifecycle.sh` covers install, dispatch, status, update, and uninstall.
-- `activate.sh` covers PATH-only activation and profile-local launcher binding.
+- `onboarding.sh` covers direct shell initialization, PATH precedence, and
+  profile-local launcher binding.
 - `status.sh` covers profile-local installed and available status output.
-- `management.sh` covers activation, skills, and netinfo command behavior.
+- `management.sh` covers the installed command surface, skills, and netinfo
+  behavior.
 - `profiles.sh` covers profile precedence, profile-isolated uninstalls, status
   availability and version-owned image descriptions, and profile error
   guidance.
 - `update.sh` covers selected-shim and all-profile refresh behavior, version-
   local irrelevant image-refresh actions, manifest preservation, and update
   request validation.
-- `startup.sh` covers activation idempotence and managed startup-block install
+- `startup.sh` covers shell-initialization idempotence and managed startup-block install
   and repair behavior.
 - `skills.sh` covers canonical skill sources, checked-in export fingerprints,
   portable manifests, exported folders, installed-kind selection, refresh,

@@ -12,8 +12,8 @@ shared modules; reusable behavior belongs in `../lib/`.
 - `run-tool.sh` resolves tool metadata and a concrete version.
 - `agent-preflight.sh` derives non-mutating approval smoke commands from concrete-version metadata.
 - `status.sh` reads enclosing-profile and concrete-version metadata;
-  `update.sh`, `skills.sh`, `activate.sh`, and `netinfo.sh` retain their
-  corresponding public capabilities.
+  `update.sh`, `skills.sh`, and `netinfo.sh` retain their corresponding public
+  capabilities.
 
 Installed commands derive profile identity from their profile root and reject
 profile and installation-location selectors. Shared skills are written only

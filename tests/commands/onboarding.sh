@@ -1,23 +1,23 @@
 #!/bin/sh
 
-test_commands_activate_path_assert() {
-  activate_file=$1
+test_commands_onboarding_shell_init_path_assert() {
+  shell_init_file=$1
   path_before=$2
   path_expected=$3
 
   path_after=$(
-    TEST_ACTIVATE_FILE=$activate_file TEST_PATH_BEFORE=$path_before /bin/sh -c '
+    TEST_SHELL_INIT_FILE=$shell_init_file TEST_PATH_BEFORE=$path_before /bin/sh -c '
       PATH=$TEST_PATH_BEFORE
       export PATH
-      . "$TEST_ACTIVATE_FILE"
-      if [ "${shimmy_activate_bin_dir+x}" = x ] ||
-        [ "${shimmy_activate_path_entry+x}" = x ] ||
-        [ "${shimmy_activate_path_has_entry+x}" = x ] ||
-        [ "${shimmy_activate_path_input+x}" = x ] ||
-        [ "${shimmy_activate_path_more+x}" = x ] ||
-        [ "${shimmy_activate_path_output+x}" = x ] ||
-        [ "${shimmy_activate_podman_dir+x}" = x ]; then
-        printf "temporary activation variable leaked\n"
+      . "$TEST_SHELL_INIT_FILE"
+      if [ "${shimmy_shell_init_bin_dir+x}" = x ] ||
+        [ "${shimmy_shell_init_path_entry+x}" = x ] ||
+        [ "${shimmy_shell_init_path_has_entry+x}" = x ] ||
+        [ "${shimmy_shell_init_path_input+x}" = x ] ||
+        [ "${shimmy_shell_init_path_more+x}" = x ] ||
+        [ "${shimmy_shell_init_path_output+x}" = x ] ||
+        [ "${shimmy_shell_init_podman_dir+x}" = x ]; then
+        printf "temporary shell init variable leaked\n"
       else
         printf "%s\n" "$PATH"
       fi
@@ -26,45 +26,43 @@ test_commands_activate_path_assert() {
   assert_equals "$path_after" "$path_expected"
 }
 
-test_commands_activate_run() {
+test_commands_onboarding_run() {
   setup_scenario
   bootstrap_default --shim jq >/dev/null
   bootstrap_upstream --shim rg >/dev/null
 
-  default_activation=$(default_shimmy activate)
-  upstream_activation=$(upstream_shimmy activate)
-  assert_contains "$default_activation" "$DEFAULT_PROFILE_ROOT/bin"
-  assert_contains "$upstream_activation" "$UPSTREAM_PROFILE_ROOT/bin"
-  assert_not_contains "$default_activation" SHIMMY_PROFILE_ACTIVE
-  assert_not_contains "$upstream_activation" SHIMMY_PROFILE_ACTIVE
-  assert_contains "$default_activation" '/opt/podman/bin'
+  default_shell_init_file=$DEFAULT_PROFILE_ROOT/shell-init.sh
+  upstream_shell_init_file=$UPSTREAM_PROFILE_ROOT/shell-init.sh
+  assert_file_contains "$default_shell_init_file" "$DEFAULT_PROFILE_ROOT/bin"
+  assert_file_contains "$upstream_shell_init_file" "$UPSTREAM_PROFILE_ROOT/bin"
+  assert_file_not_contains "$default_shell_init_file" SHIMMY_PROFILE_ACTIVE
+  assert_file_not_contains "$upstream_shell_init_file" SHIMMY_PROFILE_ACTIVE
+  assert_file_contains "$default_shell_init_file" '/opt/podman/bin'
 
   podman_path_suffix=
   if [ -x /opt/podman/bin/podman ] && ! (PATH=/usr/bin:/bin; export PATH; command -v podman >/dev/null 2>&1); then
     podman_path_suffix=:/opt/podman/bin
   fi
-  default_activate_file=$DEFAULT_PROFILE_ROOT/activate.sh
-  upstream_activate_file=$UPSTREAM_PROFILE_ROOT/activate.sh
-  test_commands_activate_path_assert \
-    "$default_activate_file" \
+  test_commands_onboarding_shell_init_path_assert \
+    "$default_shell_init_file" \
     "/usr/bin:/bin" \
     "$DEFAULT_PROFILE_ROOT/bin:/usr/bin:/bin$podman_path_suffix"
-  test_commands_activate_path_assert \
-    "$default_activate_file" \
+  test_commands_onboarding_shell_init_path_assert \
+    "$default_shell_init_file" \
     ":$DEFAULT_PROFILE_ROOT/bin:/usr/bin:$DEFAULT_PROFILE_ROOT/bin::/bin:" \
     "$DEFAULT_PROFILE_ROOT/bin::/usr/bin::/bin:$podman_path_suffix"
 
   switched_path=$(
-    TEST_DEFAULT_ACTIVATE_FILE=$default_activate_file \
-      TEST_UPSTREAM_ACTIVATE_FILE=$upstream_activate_file \
+    TEST_DEFAULT_SHELL_INIT_FILE=$default_shell_init_file \
+      TEST_UPSTREAM_SHELL_INIT_FILE=$upstream_shell_init_file \
       TEST_DEFAULT_BIN=$DEFAULT_PROFILE_ROOT/bin \
       TEST_UPSTREAM_BIN=$UPSTREAM_PROFILE_ROOT/bin \
       /bin/sh -c '
         PATH=$TEST_DEFAULT_BIN:/usr/bin:$TEST_UPSTREAM_BIN:/bin:$TEST_DEFAULT_BIN
         export PATH
-        . "$TEST_UPSTREAM_ACTIVATE_FILE"
-        . "$TEST_DEFAULT_ACTIVATE_FILE"
-        . "$TEST_DEFAULT_ACTIVATE_FILE"
+        . "$TEST_UPSTREAM_SHELL_INIT_FILE"
+        . "$TEST_DEFAULT_SHELL_INIT_FILE"
+        . "$TEST_DEFAULT_SHELL_INIT_FILE"
         printf "%s\n" "$PATH"
       '
   )
@@ -72,13 +70,13 @@ test_commands_activate_run() {
 
   podman_fixture_dir=$SCENARIO_DIR/podman-bin
   podman_path_dir=$SCENARIO_DIR/path-without-podman
-  podman_activate_file=$SCENARIO_DIR/activate-with-podman-fixture.sh
+  podman_shell_init_file=$SCENARIO_DIR/shell-init-with-podman-fixture.sh
   mkdir -p "$podman_fixture_dir" "$podman_path_dir"
   printf '#!/bin/sh\nexit 0\n' > "$podman_fixture_dir/podman"
   chmod 755 "$podman_fixture_dir/podman"
-  printf '%s\n' "$default_activation" | sed "s|'/opt/podman/bin'|'$podman_fixture_dir'|" > "$podman_activate_file"
-  test_commands_activate_path_assert \
-    "$podman_activate_file" \
+  sed "s|'/opt/podman/bin'|'$podman_fixture_dir'|" "$default_shell_init_file" > "$podman_shell_init_file"
+  test_commands_onboarding_shell_init_path_assert \
+    "$podman_shell_init_file" \
     "$podman_path_dir" \
     "$DEFAULT_PROFILE_ROOT/bin:$podman_path_dir:$podman_fixture_dir"
 
@@ -95,5 +93,5 @@ test_commands_activate_run() {
     shimmy status --format manifest
   )
   assert_contains "$path_selected_status" 'shimmy_profile_name=upstream'
-  pass "activation changes PATH only and launchers remain bound to their enclosing profiles"
+  pass "shell initialization changes PATH only and launchers remain bound to their enclosing profiles"
 }

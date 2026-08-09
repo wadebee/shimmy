@@ -5,7 +5,8 @@ test_commands_startup_default_ownership() {
   startup_file=$SCENARIO_DIR/zshrc
   run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --shim jq --shell zsh --startup-file "$startup_file" --no-skills >/dev/null
   assert_file_contains "$startup_file" '# >>> shimmy default profile >>>'
-  assert_file_contains "$startup_file" "$DEFAULT_PROFILE_ROOT/activate.sh"
+  assert_file_contains "$startup_file" "$DEFAULT_PROFILE_ROOT/shell-init.sh"
+  assert_file_not_contains "$startup_file" 'activate.sh'
 
   default_shimmy install --shim jq --shell zsh --startup-file "$startup_file" --no-skills >/dev/null
   marker_count=$(grep -c '^# >>> shimmy default profile >>>$' "$startup_file")
@@ -32,8 +33,10 @@ test_commands_startup_upstream_isolation() {
   set -e
   [ "$upstream_install_status" -ne 0 ] || fail_test "upstream install startup mutation unexpectedly succeeded"
   [ "$upstream_update_status" -ne 0 ] || fail_test "upstream update startup mutation unexpectedly succeeded"
-  assert_contains "$upstream_install_output" 'manual-activation-only'
-  assert_contains "$upstream_update_output" 'manual-activation-only'
+  assert_contains "$upstream_install_output" 'upstream has no persistent startup integration'
+  assert_contains "$upstream_install_output" "$UPSTREAM_PROFILE_ROOT/shell-init.sh"
+  assert_contains "$upstream_update_output" 'upstream has no persistent startup integration'
+  assert_contains "$upstream_update_output" "$UPSTREAM_PROFILE_ROOT/shell-init.sh"
   assert_path_not_exists "$upstream_startup_file"
   assert_equals "$(cksum < "$default_startup_file")" "$startup_checksum"
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$default_manifest_checksum"

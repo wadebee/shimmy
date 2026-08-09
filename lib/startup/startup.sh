@@ -4,20 +4,15 @@
 SHIMMY_STARTUP_BLOCK_END='# <<< shimmy default profile <<<'
 SHIMMY_STARTUP_BLOCK_START='# >>> shimmy default profile >>>'
 
-shimmy_activate_block_read() {
-  activate_script=${1:?activate script path is required}
-  "$activate_script"
-}
+shimmy_shell_init_source_block_render() {
+  shell_init_file=${1:?shell init file path is required}
+  quoted_shell_init_file=$(shimmy_quote_shell_word "$shell_init_file")
 
-shimmy_activate_source_block_render() {
-  activate_file=${1:?activate file path is required}
-  quoted_activate_file=$(shimmy_quote_shell_word "$activate_file")
-
-  printf 'shimmy_activate_file=%s\n' "$quoted_activate_file"
-  printf 'if [ -r "$shimmy_activate_file" ]; then\n'
-  printf '  . "$shimmy_activate_file"\n'
+  printf 'shimmy_shell_init_file=%s\n' "$quoted_shell_init_file"
+  printf 'if [ -r "$shimmy_shell_init_file" ]; then\n'
+  printf '  . "$shimmy_shell_init_file"\n'
   printf 'fi\n'
-  printf 'unset shimmy_activate_file\n'
+  printf 'unset shimmy_shell_init_file\n'
 }
 
 shimmy_shell_name_normalize() {
@@ -88,16 +83,16 @@ shimmy_startup_block_remove() {
 }
 
 shimmy_startup_block_render() {
-  activate_block=${1:?activate block is required}
+  shell_init_block=${1:?shell init block is required}
 
   printf '%s\n' "$SHIMMY_STARTUP_BLOCK_START"
-  printf '%s\n' "$activate_block"
+  printf '%s\n' "$shell_init_block"
   printf '%s\n' "$SHIMMY_STARTUP_BLOCK_END"
 }
 
 shimmy_startup_file_update() {
   startup_file=${1:?startup file path is required}
-  activate_block=${2:?activate block is required}
+  shell_init_block=${2:?shell init block is required}
 
   startup_dir=$(dirname -- "$startup_file")
   mkdir -p "$startup_dir"
@@ -110,5 +105,5 @@ shimmy_startup_file_update() {
     printf '\n' >> "$startup_file"
   fi
 
-  shimmy_startup_block_render "$activate_block" >> "$startup_file"
+  shimmy_startup_block_render "$shell_init_block" >> "$startup_file"
 }

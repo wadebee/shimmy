@@ -24,6 +24,8 @@ UNINSTALL=0
 PROFILE_EXISTS=0
 SHIMMY_STAGE_ROOT=
 SHIMMY_PROFILE_BACKUP_ROOT=
+SHIMMY_MANIFEST_COMMIT_TMP=
+SHIMMY_SHELL_INIT_COMMIT_TMP=
 LOG_LEVEL=${LOG_LEVEL:-info}
 
 log_level_value() {
@@ -157,13 +159,15 @@ $PROFILE_MANIFEST_KIND_VERSIONS
 EOF
 
   profile_launcher_collision_validate
-  write_activate_file "$SHIMMY_STAGE_ROOT/activate.sh"
+  profile_shell_init_collision_validate
+  write_shell_init_file "$SHIMMY_STAGE_ROOT/shell-init.sh"
   profile_manifest_render > "$SHIMMY_STAGE_ROOT/install-manifest.txt"
   chmod 644 "$SHIMMY_STAGE_ROOT/install-manifest.txt"
   shimmy_profile_manifest_validate "$SHIMMY_STAGE_ROOT/install-manifest.txt" "$SHIMMY_PROFILE_RESOLVED" || exit 1
 }
 
 profile_stage_cleanup() {
+  profile_commit_temporary_files_cleanup
   if [ -n "$SHIMMY_PROFILE_BACKUP_ROOT" ] && [ -d "$SHIMMY_PROFILE_BACKUP_ROOT" ]; then
     profile_owned_files_restore
     profile_owned_directories_restore
@@ -204,7 +208,7 @@ perform_install() {
   profile_external_integrations_apply
 
   log_info "Installed Shimmy $SHIMMY_PROFILE_RESOLVED profile at $SHIMMY_PROFILE_ROOT"
-  log_info "Activate with: eval \"\$('${SHIMMY_CONTROL_BIN}' activate)\""
+  log_info "Initialize this shell with: . '$SHIMMY_SHELL_INIT_FILE'"
 }
 
 shimmy_install_run() {

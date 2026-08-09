@@ -183,7 +183,7 @@ resolve_install_paths() {
   SHIMMY_PROFILE_RESOLVED=$SHIMMY_PROFILE_NAME
   SHIMMY_BIN_DIR=$SHIMMY_PROFILE_BIN_DIR
   SHIMMY_CONTROL_BIN=$SHIMMY_BIN_DIR/shimmy
-  SHIMMY_ACTIVATE_FILE=$SHIMMY_PROFILE_ROOT/activate.sh
+  SHIMMY_SHELL_INIT_FILE=$SHIMMY_PROFILE_ROOT/shell-init.sh
   INSTALL_MANIFEST_FILE=$SHIMMY_PROFILE_MANIFEST_PATH
 }
 
@@ -248,8 +248,8 @@ shimmy_install_request_parse() {
   resolve_install_paths
 
   if [ "$SHIMMY_PROFILE_RESOLVED" = upstream ]; then
-    [ -z "$REQUESTED_SHELL" ] || fail "upstream is manual-activation-only; use its bin/shimmy activate command"
-    [ -z "$REQUESTED_STARTUP_FILES" ] || fail "upstream is manual-activation-only; use its bin/shimmy activate command"
+    [ -z "$REQUESTED_SHELL" ] || fail "upstream has no persistent startup integration; source $SHIMMY_SHELL_INIT_FILE after installation"
+    [ -z "$REQUESTED_STARTUP_FILES" ] || fail "upstream has no persistent startup integration; source $SHIMMY_SHELL_INIT_FILE after installation"
     SKIP_STARTUP=1
   fi
 }

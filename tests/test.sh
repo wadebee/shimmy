@@ -35,8 +35,8 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/commands/lifecycle.sh"
 # shellcheck source=tests/commands/management.sh
 . "$SCRIPT_DIR/commands/management.sh"
-# shellcheck source=tests/commands/activate.sh
-. "$SCRIPT_DIR/commands/activate.sh"
+# shellcheck source=tests/commands/onboarding.sh
+. "$SCRIPT_DIR/commands/onboarding.sh"
 # shellcheck source=tests/commands/profiles.sh
 . "$SCRIPT_DIR/commands/profiles.sh"
 # shellcheck source=tests/commands/status.sh
@@ -106,7 +106,7 @@ main() {
   test_commands_agent_preflight_run
   test_commands_lifecycle_prepare
   test_commands_management_run
-  test_commands_activate_run
+  test_commands_onboarding_run
   test_commands_lifecycle_complete
   test_commands_profiles_run
   test_commands_status_run

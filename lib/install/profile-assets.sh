@@ -94,6 +94,19 @@ profile_control_assets_stage() {
   chmod 755 "$SHIMMY_STAGE_ROOT/bin/shimmy"
 }
 
+profile_commit_temporary_files_cleanup() {
+  for temporary_path in "$SHIMMY_MANIFEST_COMMIT_TMP" "$SHIMMY_SHELL_INIT_COMMIT_TMP"; do
+    [ -n "$temporary_path" ] || continue
+    case "$temporary_path" in
+      "$SHIMMY_PROFILE_ROOT"/.install-manifest.txt.tmp.*|"$SHIMMY_PROFILE_ROOT"/.shell-init.sh.tmp.*) ;;
+      *) continue ;;
+    esac
+    [ ! -f "$temporary_path" ] && [ ! -L "$temporary_path" ] || rm -f "$temporary_path"
+  done
+  SHIMMY_MANIFEST_COMMIT_TMP=
+  SHIMMY_SHELL_INIT_COMMIT_TMP=
+}
+
 profile_dispatcher_stage() {
   kind_name=$1
   ln -s ../commands/dispatch-tool.sh "$SHIMMY_STAGE_ROOT/bin/$kind_name"
@@ -115,6 +128,14 @@ profile_launcher_collision_validate() {
   [ -f "$launcher_path" ] && [ ! -L "$launcher_path" ] || fail "installed launcher must be a regular non-symlink file: $launcher_path"
 }
 
+profile_shell_init_collision_validate() {
+  shell_init_path=$SHIMMY_SHELL_INIT_FILE
+
+  [ ! -e "$shell_init_path" ] && [ ! -L "$shell_init_path" ] && return 0
+  [ "$PROFILE_EXISTS" -eq 1 ] || fail "unmanaged shell init collision: $shell_init_path"
+  [ -f "$shell_init_path" ] && [ ! -L "$shell_init_path" ] || fail "installed shell init must be a regular non-symlink file: $shell_init_path"
+}
+
 profile_owned_directories_restore() {
   for asset_name in commands config implementations lib tools tests plugins agent; do
     target_path=$SHIMMY_PROFILE_ROOT/$asset_name
@@ -128,7 +149,7 @@ profile_owned_directories_restore() {
 
 profile_owned_files_backup() {
   mkdir -p "$SHIMMY_PROFILE_BACKUP_ROOT/bin"
-  for relative_path in activate.sh install-manifest.txt bin/shimmy; do
+  for relative_path in shell-init.sh install-manifest.txt bin/shimmy; do
     source_path=$SHIMMY_PROFILE_ROOT/$relative_path
     target_path=$SHIMMY_PROFILE_BACKUP_ROOT/$relative_path
     [ ! -e "$source_path" ] && [ ! -L "$source_path" ] || cp -R "$source_path" "$target_path"
@@ -143,7 +164,7 @@ EOF
 }
 
 profile_owned_files_restore() {
-  for relative_path in activate.sh install-manifest.txt bin/shimmy; do
+  for relative_path in shell-init.sh install-manifest.txt bin/shimmy; do
     target_path=$SHIMMY_PROFILE_ROOT/$relative_path
     backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/$relative_path
     [ ! -e "$target_path" ] && [ ! -L "$target_path" ] || rm -f "$target_path"
@@ -201,15 +222,19 @@ profile_assets_commit() {
     fail "unable to replace profile bin assets; prior profile directories restored"
   fi
 
-  activate_tmp=$SHIMMY_PROFILE_ROOT/.activate.sh.tmp.$$
-  cp "$SHIMMY_STAGE_ROOT/activate.sh" "$activate_tmp"
-  chmod 644 "$activate_tmp"
-  mv "$activate_tmp" "$SHIMMY_ACTIVATE_FILE"
+  SHIMMY_SHELL_INIT_COMMIT_TMP=$SHIMMY_PROFILE_ROOT/.shell-init.sh.tmp.$$
+  [ ! -e "$SHIMMY_SHELL_INIT_COMMIT_TMP" ] && [ ! -L "$SHIMMY_SHELL_INIT_COMMIT_TMP" ] || fail "shell init temporary path collision: $SHIMMY_SHELL_INIT_COMMIT_TMP"
+  cp "$SHIMMY_STAGE_ROOT/shell-init.sh" "$SHIMMY_SHELL_INIT_COMMIT_TMP"
+  chmod 644 "$SHIMMY_SHELL_INIT_COMMIT_TMP"
+  mv "$SHIMMY_SHELL_INIT_COMMIT_TMP" "$SHIMMY_SHELL_INIT_FILE"
+  SHIMMY_SHELL_INIT_COMMIT_TMP=
 
-  manifest_tmp=$SHIMMY_PROFILE_ROOT/.install-manifest.txt.tmp.$$
-  cp "$SHIMMY_STAGE_ROOT/install-manifest.txt" "$manifest_tmp"
-  chmod 644 "$manifest_tmp"
-  mv "$manifest_tmp" "$INSTALL_MANIFEST_FILE"
+  SHIMMY_MANIFEST_COMMIT_TMP=$SHIMMY_PROFILE_ROOT/.install-manifest.txt.tmp.$$
+  [ ! -e "$SHIMMY_MANIFEST_COMMIT_TMP" ] && [ ! -L "$SHIMMY_MANIFEST_COMMIT_TMP" ] || fail "manifest temporary path collision: $SHIMMY_MANIFEST_COMMIT_TMP"
+  cp "$SHIMMY_STAGE_ROOT/install-manifest.txt" "$SHIMMY_MANIFEST_COMMIT_TMP"
+  chmod 644 "$SHIMMY_MANIFEST_COMMIT_TMP"
+  mv "$SHIMMY_MANIFEST_COMMIT_TMP" "$INSTALL_MANIFEST_FILE"
+  SHIMMY_MANIFEST_COMMIT_TMP=
   rm -rf "$SHIMMY_PROFILE_BACKUP_ROOT"
   SHIMMY_PROFILE_BACKUP_ROOT=
 }

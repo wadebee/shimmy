@@ -620,11 +620,11 @@ checked.
 Resume record:
 
 ```text
-Last approved chunk: 0
-Current chunk: 1
-Last known-good revision or diff base: b0d8f13dec156d0cd93c3885c7fdb0a9780ee2dd
-Last validation command and result: ./tests/test.sh (exit 0; all 69 tests passed); git diff --check (exit 0)
-Outstanding human decision: approve the Chunk 1 PATH behavior, tests, and validation evidence
+Last approved chunk: 1
+Current chunk: 2
+Last known-good revision or diff base: 2e11f788c6d4ed694afc078dbb030029427394ff
+Last validation command and result: ./tests/test.sh (exit 0; all 70 tests passed); git diff --check (exit 0)
+Outstanding human decision: approve the Chunk 2 atomic manifest-v4, shell-init, command-surface, tests, and validation evidence
 ```
 
 - [x] Chunk 0 implementation/inventory complete
@@ -633,10 +633,10 @@ Outstanding human decision: approve the Chunk 1 PATH behavior, tests, and valida
 - [x] Chunk 0 lessons recorded
 - [x] Chunk 1 implementation complete
 - [x] Chunk 1 validation evidence captured
-- [ ] Chunk 1 human review approved
-- [ ] Chunk 1 lessons recorded
-- [ ] Chunk 2 implementation complete
-- [ ] Chunk 2 validation evidence captured
+- [x] Chunk 1 human review approved
+- [x] Chunk 1 lessons recorded
+- [x] Chunk 2 implementation complete
+- [x] Chunk 2 validation evidence captured
 - [ ] Chunk 2 human review approved
 - [ ] Chunk 2 lessons recorded
 - [ ] Chunk 3 implementation complete
@@ -947,6 +947,74 @@ test fixture remains on the old identity or filename.
 Post-processing: update the resume record and checklist and add a lesson about
 atomic schema changes, rollback, or ownership validation.
 
+### Chunk 2 execution record
+
+Manifest rendering, shared profile validation, and the self-contained installed
+launcher now require identity version 4. The owned profile shell asset is
+`shell-init.sh`: staging, collision checks, backup/restore, same-directory
+temporary commit, failure cleanup, structure validation, startup rendering,
+refresh, and uninstall use that identity consistently. Both profiles render a
+regular non-symlink mode-0644 asset. Manifest-v3 profiles are rejected without
+in-place refresh.
+
+The public activation command and its installed entrypoint were deleted. The
+launcher omits activation from dispatch, help, and examples; direct sourcing of
+the installed `shell-init.sh` is the current-shell selection path until Chunk 3.
+Default startup blocks source the canonical shell-init file. Upstream startup
+mutation errors identify the exact file that can be sourced manually.
+
+Implementation changes:
+
+- deleted `commands/activate.sh`;
+- updated `lib/install/{install,launcher-template,manifest,profile-assets,request,startup,uninstall}.sh`;
+- updated `lib/profile/profile.sh`, `lib/startup/startup.sh`, and
+  `lib/update/update.sh`.
+
+Test changes:
+
+- replaced `tests/commands/activate.sh` with
+  `tests/commands/onboarding.sh` and updated `tests/test.sh`;
+- updated install, lifecycle, management, profiles, startup, update, and shared
+  support coverage for v4 identity, shell-init ownership/mode, additive and
+  self-update replacement, startup sourcing, command absence, damaged-asset
+  safety, uninstall, and manifest-v3 rejection.
+
+Guidance changes were limited to the closest command, install, profile, startup,
+and command-test `CONTEXT.md` files. The full active-guidance and generated-skill
+audit remains assigned to Chunk 7.
+
+Validation evidence:
+
+```text
+dash -n lib/install/install.sh lib/install/request.sh lib/install/manifest.sh lib/install/profile-assets.sh lib/install/startup.sh lib/install/uninstall.sh lib/install/launcher-template.sh lib/profile/profile.sh lib/startup/startup.sh lib/update/update.sh tests/support.sh tests/test.sh tests/commands/onboarding.sh tests/commands/lifecycle.sh tests/commands/management.sh tests/commands/profiles.sh tests/commands/startup.sh tests/commands/update.sh
+  exit 0
+./tests/test.sh
+  exit 0; all 70 tests passed
+git diff --check
+  exit 0
+```
+
+Focused validation used `/private/tmp/shimmy-chunk2.ajR7KM` and completed with
+these results:
+
+```text
+env XDG_CONFIG_HOME=/private/tmp/shimmy-chunk2.ajR7KM/config HOME=/private/tmp/shimmy-chunk2.ajR7KM/home ./install.sh --profile default --shim jq --shell zsh --startup-file /private/tmp/shimmy-chunk2.ajR7KM/zshrc --no-skills
+  exit 0
+env XDG_CONFIG_HOME=/private/tmp/shimmy-chunk2.ajR7KM/config HOME=/private/tmp/shimmy-chunk2.ajR7KM/home ./install.sh --profile upstream --shim rg --no-startup --no-skills
+  exit 0
+env XDG_CONFIG_HOME=/private/tmp/shimmy-chunk2.ajR7KM/config HOME=/private/tmp/shimmy-chunk2.ajR7KM/home /private/tmp/shimmy-chunk2.ajR7KM/config/shimmy/profiles/default/bin/shimmy activate
+  exit 1; ERROR: unknown command: activate
+env XDG_CONFIG_HOME=/private/tmp/shimmy-chunk2.ajR7KM/config HOME=/private/tmp/shimmy-chunk2.ajR7KM/home /private/tmp/shimmy-chunk2.ajR7KM/config/shimmy/profiles/default/bin/shimmy uninstall --no-skills
+  exit 0
+env XDG_CONFIG_HOME=/private/tmp/shimmy-chunk2.ajR7KM/config HOME=/private/tmp/shimmy-chunk2.ajR7KM/home /private/tmp/shimmy-chunk2.ajR7KM/config/shimmy/profiles/upstream/bin/shimmy uninstall --no-skills
+  exit 0
+```
+
+Direct inspection showed v4 identities for both profiles, only
+`shell-init.sh` as the owned root shell asset, mode 0644, no activation help or
+installed command file, a default startup block sourcing `shell-init.sh`, and
+complete owned-root/startup-block removal. No checks were skipped.
+
 ## Chunk 3: Source-safe dual-mode repository installer
 
 Goal: make root `install.sh` safe to source while retaining executed automation
@@ -1197,7 +1265,7 @@ observations.
 | --- | --- | --- | --- | --- |
 | QA | 2026-08-09 / Codex | Schema identity, owned filename, validation, and launcher command removal have the same compatibility boundary; caller `errexit` remains caller-owned. | Grouped the boundary in Chunk 2 and added ordinary plus conditional failure tests. | Never split identity consumers across approved checkpoints or claim a sourced file can neutralize caller `set -e`. |
 | 0 | 2026-08-09 / user | The active-tree audit found broader shell-initialization wording and retired `--install-dir` coverage outside the initial primary inventory; generic `activate` matches also include legitimate Podman runtime helpers. | Added the omitted guidance and test paths to the execution inventory and assigned every match to Chunks 1-7. | Classify broad terminology matches by behavior; do not mechanically remove runtime helpers that use “activate” accurately. |
-| 1 | Pending | Pending | Pending | Pending |
+| 1 | 2026-08-09 / user | A literal `printf` renderer consumed one percent sign from the intended `${value%%:*}` expansion until the generated asset was inspected directly. | Escaped both percent signs in the renderer and retained disposable-shell assertions for duplicate and empty PATH entries. | Validate rendered shell text through behavior, not only the renderer's source syntax. |
 | 2 | Pending | Pending | Pending | Pending |
 | 3 | Pending | Pending | Pending | Pending |
 | 4 | Pending | Pending | Pending | Pending |

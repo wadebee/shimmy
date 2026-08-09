@@ -54,6 +54,18 @@ assert_file_executable() {
   fi
 }
 
+assert_file_mode() {
+  file_path=$1
+  expected_mode=$2
+
+  if file_mode=$(stat -f '%Lp' "$file_path" 2>/dev/null); then
+    :
+  else
+    file_mode=$(stat -c '%a' "$file_path")
+  fi
+  assert_equals "$file_mode" "$expected_mode"
+}
+
 assert_file_exists() {
   if [ ! -f "$1" ]; then
     fail_test "expected file to exist: $1"

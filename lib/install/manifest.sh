@@ -1,5 +1,5 @@
 #!/bin/sh
-# Version-3 profile manifest rendering.
+# Version-4 profile manifest rendering.
 
 source_ref_resolve() {
   command -v git >/dev/null 2>&1 || return 0
@@ -19,9 +19,9 @@ profile_manifest_render() {
     [ -n "$shimmy_source_url" ] || shimmy_source_url=$(shimmy_read_manifest_value "$INSTALL_MANIFEST_FILE" shimmy_source_url || true)
   fi
 
-  printf 'shimmy_install_manifest_version=3\n'
+  printf 'shimmy_install_manifest_version=4\n'
   printf 'shimmy_install_layout=profile-flat-root\n'
-  printf 'shimmy_profile_manifest_version=3\n'
+  printf 'shimmy_profile_manifest_version=4\n'
   printf 'shimmy_profile_name=%s\n' "$SHIMMY_PROFILE_RESOLVED"
   if [ "$SHIMMY_PROFILE_RESOLVED" = upstream ]; then
     printf 'source_checkout=%s\n' "$SHIMMY_PROFILE_SOURCE_CHECKOUT"

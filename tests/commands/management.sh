@@ -5,23 +5,26 @@ test_commands_management_run() {
   assert_contains "$help_output" 'shimmy <command> [options]'
   assert_contains "$help_output" 'install    Add tool shims and optional agent skills to this profile.'
   assert_contains "$help_output" 'uninstall  Remove this profile and its managed startup integration.'
-  assert_contains "$help_output" 'activate   Print shell code to activate this profile in the current shell.'
   assert_contains "$help_output" 'netinfo    Show host, VM, and container network perspectives.'
   assert_contains "$help_output" 'skills     Install, update, uninstall, or export Shimmy agent skills.'
   assert_contains "$help_output" 'status     Show installed shims, versions, and profile details.'
   assert_contains "$help_output" 'test       Validate this profile with non-mutating shim smoke commands.'
   assert_contains "$help_output" 'update     Refresh this profile and optionally pull or build tool images.'
   assert_contains "$help_output" 'shimmy install --shim jq'
-  assert_contains "$help_output" "eval \"\$(shimmy activate)\""
+  assert_not_contains "$help_output" 'activate'
   assert_contains "$help_output" "Run 'shimmy <command> --help' for command-specific options."
   assert_not_contains "$help_output" '<install|uninstall|activate|netinfo|skills|status|test|update>'
 
   explicit_help_output=$(default_shimmy help)
   assert_equals "$explicit_help_output" "$help_output"
 
-  activation_output=$(default_shimmy activate)
-  assert_contains "$activation_output" "$DEFAULT_PROFILE_ROOT/bin"
-  assert_not_contains "$activation_output" 'SHIMMY_PROFILE_ACTIVE'
+  set +e
+  removed_command_output=$(default_shimmy activate 2>&1)
+  removed_command_status=$?
+  set -e
+  [ "$removed_command_status" -ne 0 ] || fail_test "removed activate command unexpectedly succeeded"
+  assert_contains "$removed_command_output" 'unknown command: activate'
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/commands/activate.sh"
 
   set +e
   error_output=$(default_shimmy status --profile upstream 2>&1)
@@ -30,7 +33,7 @@ test_commands_management_run() {
   [ "$error_status" -ne 0 ] || fail_test "installed status unexpectedly accepted --profile"
   assert_contains "$error_output" 'unknown argument: --profile'
 
-  for command_name in activate install netinfo skills status test uninstall update; do
+  for command_name in install netinfo skills status test uninstall update; do
     set +e
     bound_output=$(default_shimmy "$command_name" --profile upstream 2>&1)
     bound_status=$?

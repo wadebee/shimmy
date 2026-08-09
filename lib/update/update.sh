@@ -41,7 +41,7 @@ shimmy_update_run() {
   shimmy_update_request_parse "$@"
   shimmy_update_profile_validate
   if [ "$SHIMMY_PROFILE_NAME" = upstream ] && { [ "$REPAIR_STARTUP" -eq 1 ] || [ -n "$REQUESTED_SHELL" ] || [ -n "$REQUESTED_STARTUP_FILES" ]; }; then
-    fail "upstream is manual-activation-only and cannot modify shell startup files"
+    fail "upstream has no persistent startup integration; source $SHIMMY_PROFILE_ROOT/shell-init.sh after installation"
   fi
 
   selected_kinds=$(shimmy_update_selected_kinds_resolve "$SHIMMY_PROFILE_MANIFEST_PATH")

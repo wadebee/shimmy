@@ -16,6 +16,12 @@ test_manifest_mutate() {
     version_two)
       sed 's/^shimmy_install_manifest_version=.*/shimmy_install_manifest_version=2/' "$manifest_file" > "$mutation_tmp"
       ;;
+    version_three)
+      sed \
+        -e 's/^shimmy_install_manifest_version=.*/shimmy_install_manifest_version=3/' \
+        -e 's/^shimmy_profile_manifest_version=.*/shimmy_profile_manifest_version=3/' \
+        "$manifest_file" > "$mutation_tmp"
+      ;;
     unknown_version)
       sed 's/^shimmy_profile_manifest_version=.*/shimmy_profile_manifest_version=99/' "$manifest_file" > "$mutation_tmp"
       ;;
@@ -64,7 +70,7 @@ test_commands_profiles_manifest_rejection() {
   launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")
   implementation_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")
 
-  for mutation_name in missing_identity duplicate_identity version_two unknown_version wrong_label wrong_profile unsafe_kind duplicate_ownership duplicate_kind_version contradictory_kind_version malformed_line shell_payload; do
+  for mutation_name in missing_identity duplicate_identity version_two version_three unknown_version wrong_label wrong_profile unsafe_kind duplicate_ownership duplicate_kind_version contradictory_kind_version malformed_line shell_payload; do
     cp "$valid_manifest" "$manifest_file"
     test_manifest_mutate "$mutation_name" "$manifest_file"
     set +e
@@ -73,11 +79,28 @@ test_commands_profiles_manifest_rejection() {
     set -e
     [ "$rejection_status" -ne 0 ] || fail_test "invalid manifest unexpectedly accepted: $mutation_name"
     assert_contains "$rejection_output" 'invalid or unsupported Shimmy profile manifest'
+    if [ "$mutation_name" = version_three ]; then
+      assert_contains "$rejection_output" 'expected shimmy_install_manifest_version=4'
+      assert_contains "$rejection_output" 'shimmy_profile_manifest_version=4'
+    fi
     assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-manifest-sentinel"
     assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
     assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
     assert_path_not_exists "$SCENARIO_DIR/manifest-payload-ran"
   done
+
+  cp "$valid_manifest" "$manifest_file"
+  test_manifest_mutate version_three "$manifest_file"
+  set +e
+  v3_refresh_output=$(bootstrap_default --shim jq 2>&1)
+  v3_refresh_status=$?
+  set -e
+  [ "$v3_refresh_status" -ne 0 ] || fail_test "manifest-v3 profile unexpectedly refreshed in place"
+  assert_contains "$v3_refresh_output" 'expected shimmy_install_manifest_version=4'
+  assert_file_contains "$manifest_file" 'shimmy_install_manifest_version=3'
+  assert_file_contains "$manifest_file" 'shimmy_profile_manifest_version=3'
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
 
   cp "$valid_manifest" "$manifest_file"
   rm -f "$manifest_file"
@@ -147,14 +170,10 @@ test_commands_profiles_partial_shape() {
   assert_contains "$partial_status" 'shimmy_installed=no'
 
   set +e
-  activation_output=$(default_shimmy activate 2>&1)
-  activation_status=$?
   dispatch_output=$(XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version 2>&1)
   dispatch_status=$?
   set -e
-  [ "$activation_status" -ne 0 ] || fail_test "partial profile unexpectedly activated"
   [ "$dispatch_status" -ne 0 ] || fail_test "partial profile unexpectedly dispatched"
-  assert_contains "$activation_output" 'incomplete or damaged Shimmy profile'
   assert_contains "$dispatch_output" 'incomplete or damaged Shimmy profile'
 
   default_shimmy uninstall --no-skills >/dev/null
@@ -162,6 +181,65 @@ test_commands_profiles_partial_shape() {
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/commands"
   pass "partial profiles report damaged state and uninstall only their remaining schema-owned assets"
+}
+
+test_commands_profiles_shell_init_shape() {
+  for shell_init_mutation in missing symlink directory; do
+    setup_scenario
+    bootstrap_default --shim jq >/dev/null
+    shell_init_file=$DEFAULT_PROFILE_ROOT/shell-init.sh
+    manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+    launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")
+    implementation_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")
+
+    case "$shell_init_mutation" in
+      missing)
+        rm -f "$shell_init_file"
+        ;;
+      symlink)
+        shell_init_target=$SCENARIO_DIR/shell-init-target
+        printf '%s\n' keep > "$shell_init_target"
+        rm -f "$shell_init_file"
+        ln -s "$shell_init_target" "$shell_init_file"
+        ;;
+      directory)
+        rm -f "$shell_init_file"
+        mkdir "$shell_init_file"
+        printf '%s\n' keep > "$shell_init_file/sentinel"
+        ;;
+    esac
+
+    damaged_status=$(default_shimmy status --format manifest)
+    assert_contains "$damaged_status" 'shimmy_installed=no'
+    set +e
+    dispatch_output=$(XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version 2>&1)
+    dispatch_status=$?
+    set -e
+    [ "$dispatch_status" -ne 0 ] || fail_test "$shell_init_mutation shell init damage unexpectedly dispatched"
+    assert_contains "$dispatch_output" 'incomplete or damaged Shimmy profile'
+    assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$manifest_checksum"
+    assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
+    assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
+
+    if [ "$shell_init_mutation" != missing ]; then
+      set +e
+      refresh_output=$(bootstrap_default --shim jq 2>&1)
+      refresh_status=$?
+      set -e
+      [ "$refresh_status" -ne 0 ] || fail_test "$shell_init_mutation shell init collision unexpectedly refreshed"
+      assert_contains "$refresh_output" 'installed shell init must be a regular non-symlink file'
+      case "$shell_init_mutation" in
+        symlink)
+          assert_path_symlink "$shell_init_file"
+          assert_file_contains "$shell_init_target" keep
+          ;;
+        directory)
+          assert_file_exists "$shell_init_file/sentinel"
+          ;;
+      esac
+    fi
+  done
+  pass "missing, symlinked, and non-file shell init assets fail structure checks without mutating owned state"
 }
 
 test_commands_profiles_run() {
@@ -194,4 +272,5 @@ test_commands_profiles_run() {
   test_commands_profiles_manifest_rejection
   test_commands_profiles_upstream_checkout_rejection
   test_commands_profiles_partial_shape
+  test_commands_profiles_shell_init_shape
 }

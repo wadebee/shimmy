@@ -5,17 +5,20 @@ test_commands_lifecycle_prepare() {
   bootstrap_default --shim jq --shim rg >/dev/null
   bootstrap_upstream --shim jq >/dev/null
 
-  for asset_name in activate.sh install-manifest.txt bin/shimmy commands config implementations lib plugins tests tools agent; do
+  for asset_name in shell-init.sh install-manifest.txt bin/shimmy commands config implementations lib plugins tests tools agent; do
     [ -e "$DEFAULT_PROFILE_ROOT/$asset_name" ] || fail_test "missing flat profile asset: $asset_name"
   done
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/core"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/.agents"
-  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_manifest_version=3'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_manifest_version=4'
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_layout=profile-flat-root'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_manifest_version=4'
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_name=default'
   assert_equals "$(readlink "$DEFAULT_PROFILE_ROOT/bin/jq")" '../commands/dispatch-tool.sh'
   assert_regular_file_not_symlink "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_file_executable "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_regular_file_not_symlink "$DEFAULT_PROFILE_ROOT/shell-init.sh"
+  assert_file_mode "$DEFAULT_PROFILE_ROOT/shell-init.sh" 644
   assert_file_executable "$DEFAULT_PROFILE_ROOT/commands/install.sh"
   assert_file_executable "$DEFAULT_PROFILE_ROOT/lib/catalog/catalog.sh"
 
@@ -47,11 +50,14 @@ test_commands_lifecycle_launcher_refresh() {
   bootstrap_upstream --shim rg >/dev/null
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/bin/unmanaged-bin"
   printf '%s\n' '# stale launcher marker' >> "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  printf '%s\n' '# stale shell init marker' >> "$DEFAULT_PROFILE_ROOT/shell-init.sh"
   upstream_launcher_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")
   upstream_dispatcher_target=$(readlink "$UPSTREAM_PROFILE_ROOT/bin/rg")
 
   bootstrap_default --shim task >/dev/null
   assert_file_not_contains "$DEFAULT_PROFILE_ROOT/bin/shimmy" '# stale launcher marker'
+  assert_file_not_contains "$DEFAULT_PROFILE_ROOT/shell-init.sh" '# stale shell init marker'
+  assert_file_mode "$DEFAULT_PROFILE_ROOT/shell-init.sh" 644
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/unmanaged-bin"
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")" "$upstream_launcher_checksum"
   assert_equals "$(readlink "$UPSTREAM_PROFILE_ROOT/bin/rg")" "$upstream_dispatcher_target"
@@ -90,6 +96,7 @@ test_commands_lifecycle_complete() {
 
   default_shimmy uninstall --no-skills >/dev/null
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/shell-init.sh"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/sibling-sentinel"

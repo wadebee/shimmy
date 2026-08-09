@@ -36,6 +36,7 @@ test_commands_update_run() {
   test_manifest_source_url_replace "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "$update_source"
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/unmanaged-update-sentinel"
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/bin/unmanaged-bin-sentinel"
+  printf '%s\n' '# stale shell init marker' >> "$DEFAULT_PROFILE_ROOT/shell-init.sh"
   upstream_launcher_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")
   upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
 
@@ -43,6 +44,8 @@ test_commands_update_run() {
   assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-update-sentinel"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/unmanaged-bin-sentinel"
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "shimmy_source_url=$update_source"
+  assert_file_not_contains "$DEFAULT_PROFILE_ROOT/shell-init.sh" '# stale shell init marker'
+  assert_file_mode "$DEFAULT_PROFILE_ROOT/shell-init.sh" 644
   assert_equals "$(readlink "$DEFAULT_PROFILE_ROOT/bin/jq")" '../commands/dispatch-tool.sh'
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")" "$upstream_launcher_checksum"
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"

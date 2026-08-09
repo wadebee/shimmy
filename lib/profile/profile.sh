@@ -1,5 +1,5 @@
 #!/bin/sh
-# Canonical profile paths and version-3 manifest validation.
+# Canonical profile paths and version-4 manifest validation.
 
 shimmy_config_home_resolve() {
   if [ -n "${XDG_CONFIG_HOME:-}" ]; then
@@ -71,7 +71,7 @@ shimmy_profile_manifest_error() {
   manifest_file=$1
   profile_name=$2
 
-  printf 'invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=3, shimmy_install_layout=profile-flat-root, shimmy_profile_manifest_version=3, and shimmy_profile_name=%s); inspect or uninstall it with the Shimmy version that created it, then reinstall that profile\n' "$manifest_file" "$profile_name" >&2
+  printf 'invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=4, shimmy_install_layout=profile-flat-root, shimmy_profile_manifest_version=4, and shimmy_profile_name=%s); inspect or uninstall it with the Shimmy version that created it, then reinstall that profile\n' "$manifest_file" "$profile_name" >&2
 }
 
 shimmy_manifest_key_count() {
@@ -199,9 +199,9 @@ shimmy_profile_manifest_validate() {
     shimmy_profile_manifest_error "$manifest_file" "$profile_name"
     return 1
   }
-  shimmy_manifest_identity_value_validate "$manifest_file" shimmy_install_manifest_version 3 &&
+  shimmy_manifest_identity_value_validate "$manifest_file" shimmy_install_manifest_version 4 &&
     shimmy_manifest_identity_value_validate "$manifest_file" shimmy_install_layout profile-flat-root &&
-    shimmy_manifest_identity_value_validate "$manifest_file" shimmy_profile_manifest_version 3 &&
+    shimmy_manifest_identity_value_validate "$manifest_file" shimmy_profile_manifest_version 4 &&
     shimmy_manifest_identity_value_validate "$manifest_file" shimmy_profile_name "$profile_name" &&
     shimmy_manifest_ownership_validate "$manifest_file" "$profile_name" || {
       shimmy_profile_manifest_error "$manifest_file" "$profile_name"
@@ -215,7 +215,7 @@ shimmy_profile_structure_validate() {
   manifest_file=$profile_root/install-manifest.txt
 
   shimmy_profile_manifest_validate "$manifest_file" "$profile_name" || return 1
-  [ -f "$profile_root/activate.sh" ] && [ ! -L "$profile_root/activate.sh" ] || return 1
+  [ -f "$profile_root/shell-init.sh" ] && [ ! -L "$profile_root/shell-init.sh" ] || return 1
   [ -x "$profile_root/bin/shimmy" ] && [ ! -L "$profile_root/bin/shimmy" ] || return 1
   for required_dir in agent commands config implementations lib plugins tests tools; do
     [ -d "$profile_root/$required_dir" ] && [ ! -L "$profile_root/$required_dir" ] || return 1
