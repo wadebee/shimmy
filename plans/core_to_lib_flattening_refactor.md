@@ -17,6 +17,8 @@ implementation, tests, documentation, contexts, and skills:
 - remove Shimmy-defined public environment overrides for installation and
   profile-state locations
 - remove all shared-module and installed-layout `core` variables and paths
+- give persistent shell startup integration and shared agent-skill targets
+  explicit ownership outside the independent profile roots
 
 The work is divided into reviewable chunks for execution across fresh AI
 sessions. Every accepted chunk must leave repository bootstrap and installed
@@ -98,6 +100,12 @@ Installed skill commands use the canonical sources under
 `shimmy skills` target such as a repository or home agent profile, and remains
 governed by its own skills manifest.
 
+Persistent shell startup files and user-selected agent-skill targets are
+external integration surfaces, not profile-root assets. The `default` profile
+is the sole owner of Shimmy's persistent startup block. The `upstream` profile
+is manual-activation-only. A skills target is owned by its skills manifest,
+not by any profile that supplied the canonical skill sources.
+
 Terminology used throughout this plan:
 
 - `lib/` means shared POSIX shell modules.
@@ -164,6 +172,46 @@ machinery that this refactor does not need.
   `XDG_CONFIG_HOME`; no private install-directory override replaces the public
   option that this refactor removes.
 
+### External startup and skills ownership
+
+Profile isolation applies to the installed profile trees and to external
+integration side effects:
+
+- The `default` profile is the only profile allowed to create, repair, update,
+  record, or remove a persistent Shimmy shell-startup block. Its managed block
+  uses default-profile-specific start and end markers and sources only the
+  canonical default profile's `activate.sh`.
+- The `upstream` profile is manual-activation-only. Bootstrapping it behaves as
+  `--no-startup`; `--shell`, `--startup-file`, `--repair-startup`, and any
+  equivalent request to mutate persistent startup state must fail before
+  mutation with guidance to use the upstream launcher's explicit activation
+  command.
+- Installing, refreshing, updating, or removing `upstream` never reads or
+  writes a shell startup file. Removing `default` removes only its exact
+  managed marker block and never removes the containing startup file.
+- Only a valid default profile manifest may contain startup-shell and
+  startup-file metadata. That metadata authorizes management of the exact
+  default-profile marker block; it does not make the containing file a
+  profile-owned path. An upstream manifest containing startup metadata is
+  invalid.
+- A repository bootstrap may install or update agent skills only when the user
+  explicitly selects a skills target. Additive profile install, profile
+  refresh, self-update, and profile uninstall never implicitly mutate a shared
+  skills target.
+- Each skills target has its own manifest and owns only the skill entries
+  recorded there. Profile manifests do not record or claim a skills target.
+  Installing skills from either profile updates that target-owned manifest
+  idempotently; it does not create profile ownership or a removal reference.
+- Removing a profile never removes shared skills. Skills are removed only by
+  an explicit `shimmy skills uninstall --target <target>` operation, which
+  validates the target's skills manifest, removes only its recorded entries,
+  and preserves unknown siblings.
+- Commit and validate the profile filesystem transaction before performing an
+  explicitly requested startup or skills integration transaction. External
+  integration is independently idempotent. If it fails, leave the valid
+  profile installed, return a failure, and report the exact command needed to
+  retry only the failed integration.
+
 ### Ownership boundaries
 
 Treat every profile root as a container of individually owned paths, never as
@@ -203,10 +251,14 @@ a recursively replaceable bundle.
   limited to validating repository source, resolving the canonical XDG root,
   and creating or refreshing the profile selected by its bootstrap-only
   `--profile default|upstream` option.
-- The bootstrap may accept shim selection plus startup- and skill-installation
-  choices required to construct that profile. Status, activation, dispatch,
-  testing, uninstall, and general installed management remain outside its
-  surface.
+- The bootstrap may accept shim selection plus explicitly requested startup
+  and skill integration choices after constructing that profile. Status,
+  activation, dispatch, testing, uninstall, and general installed management
+  remain outside its surface.
+- Startup choices apply only to `default`. Skill installation requires an
+  explicit target and is a separate post-commit integration step. A refresh of
+  an existing profile, including self-update handoff, does not replay either
+  external integration implicitly.
 - `./install.sh` bootstraps `default`; `./install.sh --profile upstream`
   bootstraps `upstream` and records the intended maintainer checkout. There is
   no source-launcher mode to discover.
@@ -287,9 +339,12 @@ a recursively replaceable bundle.
   children of `<profile-root>/bin`.
 - Validate any remaining path-valued operational metadata for its specific
   purpose before use. In particular, `source_checkout` is upstream-only,
-  absolute, and must pass source-checkout validation. Startup-file metadata
-  may authorize removal of Shimmy's exact managed marker block only; it never
-  authorizes deleting the containing file.
+  absolute, and must pass source-checkout validation. Startup-file metadata is
+  default-only and may authorize removal of Shimmy's exact
+  default-profile-managed marker block only; it never authorizes deleting the
+  containing file. An upstream manifest containing startup metadata is
+  invalid. Profile manifests contain no shared-skills target or ownership
+  metadata.
 - Separate identity/ownership validation from operational-shape validation.
   Every mutating command requires valid identity and safe ownership data.
   Status, activation, and dispatch additionally require the assets they use.
@@ -475,6 +530,8 @@ to leave bootstrap and installed dispatch operational.
   - `tests/commands/update.sh`
   - `tests/commands/dispatcher.sh`
   - `tests/commands/management.sh`
+  - `tests/commands/startup.sh`
+  - `tests/commands/skills.sh`
 
 Mechanically update any additional test that invokes the old repository
 launcher or a renamed module path when required to keep the default suite
@@ -511,6 +568,10 @@ links and runner paths required for a passing repository must be updated here.
 - Stage and validate replacement assets before mutation, commit the manifest
   last, and retain or restore the prior valid current-schema profile after a
   failure.
+- Implement external startup and skills integration as separate idempotent
+  post-commit transactions using the recorded ownership contract. Never roll
+  back or damage a valid profile because a requested external integration
+  failed.
 - Add disposable unmanaged profile-root and sibling-profile sentinels to
   install, refresh, self-update, and uninstall coverage.
 
@@ -552,6 +613,14 @@ links and runner paths required for a passing repository must be updated here.
       manifest, sibling profiles, and unknown siblings.
 - [ ] Unmanaged sentinels in the selected profile and sibling profiles survive
       install, refresh, self-update, and unrelated-profile uninstall.
+- [ ] Only `default` can write or remove its profile-specific persistent
+      startup block; `upstream` is manual-activation-only and rejects every
+      startup-mutating option before mutation.
+- [ ] Profile refresh, self-update, and uninstall do not implicitly change a
+      shared skills target. Explicit skills uninstall removes only entries
+      owned by the target's skills manifest and preserves unknown siblings.
+- [ ] A requested startup or skills integration failure leaves the committed
+      profile valid and reports an independently repeatable repair command.
 - [ ] Profile uninstall removes owned assets and uses `rmdir`, never recursive
       profile-root or config-root deletion.
 - [ ] Each profile manifest contains both version `3` fields,
@@ -583,7 +652,9 @@ links and runner paths required for a passing repository must be updated here.
 Confirm the repository bootstrap is minimal, every operational launcher is
 owned by exactly one installed profile, canonical profile roots and their flat
 trees are understandable, manifest failures occur before mutation, and no
-owned-path operation can erase sibling-profile or unmanaged state.
+owned-path operation can erase sibling-profile or unmanaged state. Confirm
+only `default` owns persistent startup integration and all shared skills remain
+owned independently by their target manifests.
 
 ## Chunk 2 — Comprehensive test migration
 
@@ -634,6 +705,14 @@ tests, and provide exhaustive regression coverage for the recorded contracts.
   exporting a profile selector. Verify an installed launcher and its
   dispatchers remain bound to their enclosing profile even when a sibling is
   installed.
+- Verify `default` startup integration is idempotent and uses its
+  profile-specific marker. Verify `upstream` never reads or writes startup
+  files and rejects startup-mutating options without changing its profile,
+  the default profile, or the requested startup file.
+- Verify bootstrapping both profiles against one explicit skills target is
+  idempotent and target-manifest-owned. Refreshing, self-updating, or removing
+  either profile must preserve that target; only explicit skills uninstall may
+  remove its recorded entries.
 - Verify `--profile` is accepted by `./install.sh` and rejected by every
   installed launcher command before mutation. Verify
   `SHIMMY_PROFILE_ACTIVE` has no implementation semantics.
@@ -672,6 +751,9 @@ tests, and provide exhaustive regression coverage for the recorded contracts.
       repository tests and previews work without a repository `shimmy`.
 - [ ] Profile isolation, profile removal, and empty-container cleanup obey the
       ownership contract.
+- [ ] Default-only startup ownership, upstream manual activation, external
+      integration retry behavior, and target-manifest-owned skill lifecycle
+      scenarios pass with both profiles installed.
 - [ ] Each installed launcher is bound to one profile, rejects `--profile`,
       and cannot manage a sibling; activation switches profiles through
       `PATH` only.
@@ -744,6 +826,11 @@ source and installed layouts without redesigning skill ownership.
   each profile root as a complete flat control/runtime installation.
 - Describe the minimal root `install.sh` bootstrap, the absence of a
   repository `shimmy`, and the one-launcher-per-installed-profile model.
+- Explain that only `default` may manage persistent shell startup integration,
+  `upstream` is manual-activation-only, and profile lifecycle operations never
+  implicitly remove or refresh a shared skills target.
+- Document shared skills as target-manifest-owned external state and make
+  explicit skills uninstall the only supported removal path.
 - Remove `--install-dir`, `SHIMMY_INSTALL_DIR`,
   `SHIMMY_CONTROL_INSTALL_DIR`, and `SHIMMY_UPSTREAM_DIR` from all current
   guidance. Retain and clearly distinguish `SHIMMY_UPSTREAM_CHECKOUT_DIR`.
@@ -772,6 +859,9 @@ source and installed layouts without redesigning skill ownership.
 - [ ] User, contributor, and AI guidance contains no removed install-location
       option, installed profile-selection option, or Shimmy environment
       override.
+- [ ] User, contributor, and AI guidance consistently describes default-only
+      startup ownership, upstream manual activation, and target-owned shared
+      skills.
 - [ ] The canonical management-skill context subtree was explicitly reviewed
       and remains at `agent/core/`.
 - [ ] No skill tree was moved or broadly reconciled.
@@ -836,6 +926,10 @@ finds a missed migration reference or verification defect.
 - [ ] Removing either profile preserves the other; removing the last profile
       removes only its owned assets and empty merge-owned containers while
       preserving unmanaged content.
+- [ ] Installing, refreshing, updating, or removing `upstream` never changes a
+      startup file. Removing `default` removes only its exact managed block.
+- [ ] Shared skills survive every profile refresh, update, and uninstall;
+      explicit skills uninstall preserves unknown target siblings.
 - [ ] The complete tree of each installed profile, including hidden paths,
       matches the target layout, and no shared control/runtime payload exists
       above the profile roots.
@@ -877,7 +971,8 @@ pass, no removed path override remains, and no legacy path can be recreated.
    namespace, and legacy Shimmy location variables must not silently work.
 3. **Cross-profile isolation** — Each profile contains a full independent
    payload. Selection, update, and uninstall mistakes must not mutate a sibling
-   profile or a shared container.
+   profile, a shared container, a startup file owned by `default`, or a shared
+   skills target.
 4. **Bootstrap/launcher boundary** — If the bootstrap grows into a second
    management launcher, or an installed launcher can infer or select another
    profile, the design recreates the ambiguity this change removes. Validate
@@ -907,7 +1002,8 @@ pass, no removed path override remains, and no legacy path can be recreated.
 12. **Skills duplication assumptions** — Removing the installed
     `.agents/skills` copy is safe only while canonical `agent/` and tool-local
     agent sources remain part of every profile payload and skill commands
-    continue resolving them there.
+    continue resolving them there. Shared targets remain independently owned
+    by their skills manifests and are never removed by profile lifecycle.
 
 ## Lessons learned
 
@@ -938,6 +1034,9 @@ the fixed design decisions above.
 - A profile-local manifest confirms schema, identity, and safe ownership; it
   does not select a profile or provide launcher and deletion paths. The
   canonical enclosing directory remains authoritative.
+- Persistent startup integration is a default-profile-owned external side
+  effect, while shared skills are target-manifest-owned external state. Neither
+  is part of an upstream profile transaction or profile-root deletion.
 
 ### Chunk 1
 
@@ -966,7 +1065,10 @@ At the start of a later session:
    installed profile has one self-contained `bin/shimmy`, `--install-dir`,
    installed `--profile`, `SHIMMY_PROFILE_ACTIVE`, and equivalent Shimmy
    location variables are removed, and each profile is a complete flat install
-   below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`.
+   below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`. Only
+   `default` owns persistent startup integration; `upstream` is
+   manual-activation-only; and shared skills are owned by their target
+   manifests, never by profile lifecycle.
 3. Work only on the current chunk and stop at its human review gate.
 4. Before stopping, update its checklist and **Lessons learned**, then report
    tests, uncertainties, and remaining risks.
