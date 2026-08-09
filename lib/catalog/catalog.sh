@@ -2,7 +2,6 @@
 # Catalog helpers discover tool metadata from the source tree. No central
 # tool-name or version case list is maintained.
 
-SHIMMY_DEFAULT_KINDS='jq rg'
 SHIMMY_CATALOG_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 SHIMMY_CATALOG_ROOT=$(cd -- "$SHIMMY_CATALOG_DIR/../.." && pwd)
 SHIMMY_TOOLS_DIR=${SHIMMY_TOOLS_DIR:-$SHIMMY_CATALOG_ROOT/tools}
@@ -23,10 +22,6 @@ shimmy__version_name_read() {
   version_dir=$1
 
   shimmy__tool_metadata_read "$version_dir/smoke.conf" shim_name
-}
-
-shimmy_default_kind_list() {
-  printf '%s\n' "$SHIMMY_DEFAULT_KINDS"
 }
 
 shimmy_is_kind() {

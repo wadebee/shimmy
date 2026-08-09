@@ -2,8 +2,8 @@
 
 test_commands_dispatcher_run() {
   setup_scenario
-  bootstrap_default --shim jq >/dev/null
-  bootstrap_upstream --shim rg >/dev/null
+  bootstrap_default >/dev/null
+  bootstrap_upstream >/dev/null
   assert_equals "$(readlink "$DEFAULT_PROFILE_ROOT/bin/jq")" '../commands/dispatch-tool.sh'
   assert_equals "$(readlink "$UPSTREAM_PROFILE_ROOT/bin/rg")" '../commands/dispatch-tool.sh'
 
@@ -11,11 +11,11 @@ test_commands_dispatcher_run() {
   assert_contains "$default_output" 'ghcr.io/jqlang/jq:1.8.1'
 
   set +e
-  unowned_output=$(XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/commands/dispatch-tool.sh" rg --preview-shim --version 2>&1)
+  unowned_output=$(XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/commands/dispatch-tool.sh" task --preview-shim --version 2>&1)
   unowned_status=$?
   set -e
   [ "$unowned_status" -ne 0 ] || fail_test "unowned dispatcher request unexpectedly succeeded"
-  assert_contains "$unowned_output" 'rg is not owned by profile default'
+  assert_contains "$unowned_output" 'task is not owned by profile default'
 
   implementation=$DEFAULT_PROFILE_ROOT/implementations/jq
   rm -f "$implementation"
@@ -27,7 +27,7 @@ test_commands_dispatcher_run() {
   [ "$recursive_status" -ne 0 ] || fail_test "symlinked implementation unexpectedly dispatched"
   assert_contains "$recursive_output" 'invalid Shimmy implementation'
 
-  bootstrap_default --shim jq >/dev/null
+  bootstrap_default >/dev/null
   chmod 644 "$DEFAULT_PROFILE_ROOT/implementations/jq"
   set +e
   non_executable_output=$(XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --version 2>&1)
@@ -37,8 +37,9 @@ test_commands_dispatcher_run() {
   assert_contains "$non_executable_output" 'implementation is not executable'
 
   setup_scenario
+  bootstrap_default >/dev/null
   set +e
-  unknown_output=$(bootstrap_default --shim oc@9.99 2>&1)
+  unknown_output=$(default_shimmy install --shim oc@9.99 --no-startup --no-skills 2>&1)
   unknown_status=$?
   set -e
   [ "$unknown_status" -ne 0 ] || fail_test "unknown version unexpectedly installed"

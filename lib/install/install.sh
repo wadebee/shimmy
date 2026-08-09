@@ -224,5 +224,6 @@ shimmy_install_run() {
   if [ "$REFRESH_SHIMS" -eq 1 ]; then
     [ -n "$REQUESTED_SHIMS" ] || fail "refresh must include --shim"
   fi
+  [ -n "$REQUESTED_SHIMS" ] || fail "install requires at least one --shim <kind>"
   perform_install
 }

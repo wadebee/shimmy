@@ -2,8 +2,8 @@
 
 test_commands_lifecycle_prepare() {
   setup_scenario
-  bootstrap_default --shim jq --shim rg >/dev/null
-  bootstrap_upstream --shim jq >/dev/null
+  bootstrap_default >/dev/null
+  bootstrap_upstream >/dev/null
 
   for asset_name in shell-init.sh install-manifest.txt bin/shimmy commands config implementations lib plugins tests tools agent; do
     [ -e "$DEFAULT_PROFILE_ROOT/$asset_name" ] || fail_test "missing flat profile asset: $asset_name"
@@ -29,16 +29,16 @@ test_commands_lifecycle_prepare() {
 
 test_commands_lifecycle_install_shapes() {
   setup_scenario
-  bootstrap_default --shim jq >/dev/null
+  bootstrap_default >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
 
   setup_scenario
-  bootstrap_upstream --shim rg >/dev/null
+  bootstrap_upstream >/dev/null
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
 
-  bootstrap_default --shim jq >/dev/null
+  bootstrap_default >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
   pass "default-only, upstream-only, and combined profile installs use independent flat roots"
@@ -46,15 +46,16 @@ test_commands_lifecycle_install_shapes() {
 
 test_commands_lifecycle_launcher_refresh() {
   setup_scenario
-  bootstrap_default --shim jq >/dev/null
-  bootstrap_upstream --shim rg >/dev/null
+  bootstrap_default >/dev/null
+  bootstrap_upstream >/dev/null
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/bin/unmanaged-bin"
   printf '%s\n' '# stale launcher marker' >> "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   printf '%s\n' '# stale shell init marker' >> "$DEFAULT_PROFILE_ROOT/shell-init.sh"
   upstream_launcher_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")
   upstream_dispatcher_target=$(readlink "$UPSTREAM_PROFILE_ROOT/bin/rg")
 
-  bootstrap_default --shim task >/dev/null
+  bootstrap_default >/dev/null
+  default_shimmy install --shim task --no-startup --no-skills >/dev/null
   assert_file_not_contains "$DEFAULT_PROFILE_ROOT/bin/shimmy" '# stale launcher marker'
   assert_file_not_contains "$DEFAULT_PROFILE_ROOT/shell-init.sh" '# stale shell init marker'
   assert_file_mode "$DEFAULT_PROFILE_ROOT/shell-init.sh" 644
@@ -68,15 +69,15 @@ test_commands_lifecycle_launcher_refresh() {
 
 test_commands_lifecycle_empty_container_cleanup() {
   setup_scenario
-  bootstrap_default --shim jq >/dev/null
+  bootstrap_default >/dev/null
   default_shimmy uninstall --no-skills >/dev/null
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy"
 
   setup_scenario
-  bootstrap_default --shim jq >/dev/null
-  bootstrap_upstream --shim rg >/dev/null
+  bootstrap_default >/dev/null
+  bootstrap_upstream >/dev/null
   default_shimmy uninstall --no-skills >/dev/null
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"

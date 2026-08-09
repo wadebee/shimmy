@@ -31,7 +31,7 @@ test_commands_onboarding_absolute_execution() {
   absolute_output=$(
     cd "$WORK_DIR"
     env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-      "$ROOT_DIR/install.sh" --profile upstream --shim rg --no-startup --no-skills 2>&1
+      "$ROOT_DIR/install.sh" --profile upstream --no-startup --no-skills 2>&1
   )
   assert_contains "$absolute_output" "Installed Shimmy upstream profile at $UPSTREAM_PROFILE_ROOT"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/install-manifest.txt"
@@ -51,6 +51,7 @@ test_commands_onboarding_failure_cleanup() {
         printf "after=failure\n"
         command -v shimmy__bootstrap_run >/dev/null 2>&1 && printf "function=leaked\n"
         [ "${shimmy__bootstrap_profile_name+x}" = x ] && printf "variable=leaked\n"
+        [ "${shimmy__bootstrap_kind_baseline+x}" = x ] && printf "variable=leaked\n"
         true
       '
   )
@@ -102,10 +103,58 @@ test_commands_onboarding_help() {
       '
   )
   assert_contains "$help_output" 'source ./install.sh'
+  assert_contains "$help_output" 'Every bootstrap includes jq and rg.'
+  assert_contains "$help_output" 'shimmy install --shim <kind>'
   assert_contains "$help_output" 'path_unchanged=yes'
   assert_not_contains "$help_output" 'function=leaked'
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
   pass "sourced help describes both modes without installing or changing PATH"
+}
+
+test_commands_onboarding_selection_policy() {
+  setup_scenario
+  set +e
+  bootstrap_selection_output=$(bootstrap_default --shim task 2>&1)
+  bootstrap_selection_status=$?
+  set -e
+  [ "$bootstrap_selection_status" -ne 0 ] || fail_test "repository installer unexpectedly accepted --shim"
+  assert_contains "$bootstrap_selection_output" 'repository installation includes jq and rg'
+  assert_contains "$bootstrap_selection_output" 'shimmy install --shim <kind>'
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+
+  bootstrap_default >/dev/null
+  default_baseline_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+  assert_equals "$default_baseline_selection" 'kind=jq
+kind=rg
+kind_version=jq|default|jq_1_8
+kind_version=jq|1.8|jq_1_8
+kind_version=rg|default|rg_15_1
+kind_version=rg|15.1|rg_15_1'
+
+  manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+  set +e
+  empty_install_output=$(default_shimmy install --no-startup --no-skills 2>&1)
+  empty_install_status=$?
+  set -e
+  [ "$empty_install_status" -ne 0 ] || fail_test "installed install unexpectedly accepted an empty shim selection"
+  assert_contains "$empty_install_output" 'install requires at least one --shim <kind>'
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$manifest_checksum"
+
+  default_shimmy install --shim task --shim oc@4.18 --no-startup --no-skills >/dev/null
+  additive_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+  assert_contains "$additive_selection" 'kind=jq'
+  assert_contains "$additive_selection" 'kind=rg'
+  assert_contains "$additive_selection" 'kind=task'
+  assert_contains "$additive_selection" 'kind=oc'
+  assert_contains "$additive_selection" 'kind_version=oc|4.18|oc_4_18'
+  bootstrap_default >/dev/null
+  refreshed_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+  assert_equals "$refreshed_selection" "$additive_selection"
+
+  bootstrap_upstream >/dev/null
+  upstream_baseline_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
+  assert_equals "$upstream_baseline_selection" "$default_baseline_selection"
+  pass "bootstrap owns the fixed jq/rg baseline while installed additions stay explicit and additive"
 }
 
 test_commands_onboarding_shell_sources() {
@@ -116,7 +165,7 @@ test_commands_onboarding_shell_sources() {
       env TEST_ROOT_DIR="$ROOT_DIR" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
         PATH=/usr/bin:/bin "$source_shell" -c '
           cd "$TEST_ROOT_DIR"
-          source ./install.sh --profile default --shim jq --no-startup --no-skills >/dev/null
+          source ./install.sh --profile default --no-startup --no-skills >/dev/null
           command -v shimmy
         '
     )
@@ -200,6 +249,7 @@ test_commands_onboarding_sourced_state() {
         printf "trap=%s\n" "${trap_preserved:-no}"
         command -v shimmy__bootstrap_run >/dev/null 2>&1 && printf "function=leaked\n"
         [ "${shimmy__bootstrap_source_root+x}" = x ] && printf "variable=leaked\n"
+        [ "${shimmy__bootstrap_kind_baseline+x}" = x ] && printf "variable=leaked\n"
         [ "${SHIMMY_BOOTSTRAP_PROFILE+x}" = x ] && printf "profile_selector=leaked\n"
         true
       '
@@ -231,7 +281,7 @@ test_commands_onboarding_startup_failure() {
       XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
         cd "$TEST_ROOT_DIR"
         path_before=$PATH
-        . ./install.sh --shim jq --shell zsh --startup-file "$TEST_INVALID_STARTUP_FILE" --no-skills >/dev/null 2>&1
+        . ./install.sh --shell zsh --startup-file "$TEST_INVALID_STARTUP_FILE" --no-skills >/dev/null 2>&1
         printf "status=%s\n" "$?"
         printf "path_unchanged=%s\n" "$([ "$PATH" = "$path_before" ] && printf yes || printf no)"
         command -v shimmy >/dev/null 2>&1 && printf "shimmy=selected\n"
@@ -253,11 +303,11 @@ test_commands_onboarding_switch_profiles() {
       TEST_UPSTREAM_PROFILE_ROOT="$UPSTREAM_PROFILE_ROOT" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" \
       HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
         cd "$TEST_ROOT_DIR"
-        . ./install.sh --profile default --shim jq --no-startup --no-skills >/dev/null
+        . ./install.sh --profile default --no-startup --no-skills >/dev/null
         printf "default_first=%s\n" "$(command -v shimmy)"
-        . ./install.sh --profile upstream --shim rg --no-startup --no-skills >/dev/null
+        . ./install.sh --profile upstream --no-startup --no-skills >/dev/null
         printf "upstream=%s\n" "$(command -v shimmy)"
-        . ./install.sh --profile default --shim jq --no-startup --no-skills >/dev/null
+        . ./install.sh --profile default --no-startup --no-skills >/dev/null
         printf "default_again=%s\n" "$(command -v shimmy)"
       '
   )
@@ -270,6 +320,7 @@ test_commands_onboarding_switch_profiles() {
 test_commands_onboarding_run() {
   test_commands_onboarding_sourced_state
   test_commands_onboarding_help
+  test_commands_onboarding_selection_policy
   test_commands_onboarding_failure_cleanup
   test_commands_onboarding_startup_failure
   test_commands_onboarding_absolute_execution
@@ -278,8 +329,8 @@ test_commands_onboarding_run() {
   test_commands_onboarding_shell_init_rejection
 
   setup_scenario
-  bootstrap_default --shim jq >/dev/null
-  bootstrap_upstream --shim rg >/dev/null
+  bootstrap_default >/dev/null
+  bootstrap_upstream >/dev/null
 
   default_shell_init_file=$DEFAULT_PROFILE_ROOT/shell-init.sh
   upstream_shell_init_file=$UPSTREAM_PROFILE_ROOT/shell-init.sh

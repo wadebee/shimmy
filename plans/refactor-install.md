@@ -620,11 +620,11 @@ checked.
 Resume record:
 
 ```text
-Last approved chunk: 2
-Current chunk: 3
-Last known-good revision or diff base: cd9eb3c4da71f77a7da4d5d52d81c71f2dac981d
-Last validation command and result: ./tests/test.sh (exit 0; all 78 tests passed); git diff --check (exit 0)
-Outstanding human decision: approve the Chunk 3 source-safe dual-mode installer, tests, and validation evidence
+Last approved chunk: 3
+Current chunk: 4
+Last known-good revision or diff base: c2b0584f8545d0fd5e593baa292a8f6bb54c84e7
+Last validation command and result: ./tests/test.sh (exit 0; all 79 tests passed); git diff --check (exit 0)
+Outstanding human decision: approve the Chunk 4 fixed bootstrap baseline, explicit installed selection, tests, and validation evidence
 ```
 
 - [x] Chunk 0 implementation/inventory complete
@@ -641,10 +641,10 @@ Outstanding human decision: approve the Chunk 3 source-safe dual-mode installer,
 - [x] Chunk 2 lessons recorded
 - [x] Chunk 3 implementation complete
 - [x] Chunk 3 validation evidence captured
-- [ ] Chunk 3 human review approved
-- [ ] Chunk 3 lessons recorded
-- [ ] Chunk 4 implementation complete
-- [ ] Chunk 4 validation evidence captured
+- [x] Chunk 3 human review approved
+- [x] Chunk 3 lessons recorded
+- [x] Chunk 4 implementation complete
+- [x] Chunk 4 validation evidence captured
 - [ ] Chunk 4 human review approved
 - [ ] Chunk 4 lessons recorded
 - [ ] Chunk 5 implementation complete
@@ -1159,6 +1159,49 @@ defaults.
 Post-processing: update the resume record and checklist and add a lesson about
 policy placement, request validation, or manifest-preserving merge behavior.
 
+### Chunk 4 execution record
+
+The repository bootstrap now rejects caller-supplied `--shim` before profile
+mutation and internally requests the fixed jq/rg baseline for both profiles.
+Catalog discovery no longer defines installer defaults. Installed `shimmy
+install` requires at least one explicit `--shim` while preserving additive
+`kind@version` behavior. Repository refresh and fetched self-update rely on the
+existing valid manifest merge rather than reconstructing root-installer shim
+arguments, so unrelated kinds and concrete versions remain owned.
+
+Implementation changes:
+
+- updated root `install.sh` to document and inject the fixed baseline and reject
+  public tool selection with installed-command guidance;
+- removed `SHIMMY_DEFAULT_KINDS` and `shimmy_default_kind_list` from
+  `lib/catalog/catalog.sh`;
+- updated `lib/install/{install,request}.sh` for explicit installed selection;
+- removed manifest-to-bootstrap selection reconstruction from
+  `lib/update/management.sh`.
+
+Test changes rewrote repository bootstrap fixtures without `--shim`, moved
+non-baseline additions to installed launchers, and added exact fresh
+default/upstream baseline assertions, pre-mutation rejection checks, additive
+repository-refresh snapshots, status expectations, and self-update preservation
+for `task` plus non-default `oc@4.18` ownership. Closest root, install, update,
+and command-test contexts describe the new policy.
+
+Validation evidence:
+
+```text
+dash -n install.sh lib/catalog/catalog.sh lib/install/request.sh lib/install/install.sh lib/update/management.sh tests/commands/onboarding.sh tests/commands/dispatcher.sh tests/commands/install.sh tests/commands/lifecycle.sh tests/commands/profiles.sh tests/commands/skills.sh tests/commands/startup.sh tests/commands/status.sh tests/commands/test.sh tests/commands/update.sh
+  exit 0
+./tests/test.sh
+  exit 0; all 79 tests passed
+git diff --check
+  exit 0
+```
+
+The first two complete-suite attempts stopped on stale status assertions that
+still modeled jq-only default and rg-only upstream profiles. Those assertions
+now require both baseline kinds and treat rg as installed rather than available;
+the complete suite then passed. No checks were skipped.
+
 ## Chunk 5: Remove skills concerns from profile lifecycle
 
 Goal: make canonical skills and the plugin bundle unconditional profile payload
@@ -1318,7 +1361,7 @@ observations.
 | 0 | 2026-08-09 / user | The active-tree audit found broader shell-initialization wording and retired `--install-dir` coverage outside the initial primary inventory; generic `activate` matches also include legitimate Podman runtime helpers. | Added the omitted guidance and test paths to the execution inventory and assigned every match to Chunks 1-7. | Classify broad terminology matches by behavior; do not mechanically remove runtime helpers that use “activate” accurately. |
 | 1 | 2026-08-09 / user | A literal `printf` renderer consumed one percent sign from the intended `${value%%:*}` expansion until the generated asset was inspected directly. | Escaped both percent signs in the renderer and retained disposable-shell assertions for duplicate and empty PATH entries. | Validate rendered shell text through behavior, not only the renderer's source syntax. |
 | 2 | 2026-08-09 / user | Manifest identity, owned shell asset, and launcher command removal reached the same checkpoint with strict v3 rejection and v4 transaction coverage. | Kept rendering, validation, commit/rollback, startup, update, uninstall, launcher, and test fixtures on one v4 boundary. | Treat all producers and consumers of an owned schema identity as one review unit. |
-| 3 | Pending | Pending | Pending | Pending |
+| 3 | 2026-08-09 / user | A plain final `false` in a sourced file can trigger Bash 3.2 `errexit` before a conditional dot-command caller recovers, preventing source-safe cleanup. | End failure paths with a negated successful command so they return status 1 without bypassing cleanup, and retain both ordinary and conditional failure coverage. | Source-safe POSIX entrypoints must test failure cleanup in callers with `errexit`; a function's final status-producing command affects whether the caller can recover. |
 | 4 | Pending | Pending | Pending | Pending |
 | 5 | Pending | Pending | Pending | Pending |
 | 6 | Pending | Pending | Pending | Pending |

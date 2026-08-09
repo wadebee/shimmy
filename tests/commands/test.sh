@@ -2,7 +2,7 @@
 
 test_commands_test_run() {
   setup_scenario
-  bootstrap_default --shim jq >/dev/null
+  bootstrap_default >/dev/null
   help_output=$(default_shimmy test --help)
   assert_contains "$help_output" 'shimmy test [--shim'
   assert_not_contains "$help_output" '--install-dir'

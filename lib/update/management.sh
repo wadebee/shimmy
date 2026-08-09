@@ -41,20 +41,6 @@ $startup_files
 EOF
   fi
 
-  for kind_name in $(shimmy_read_manifest_kinds "$manifest_file"); do
-    set -- "$@" --shim "$kind_name"
-  done
-  while IFS= read -r kind_version_entry; do
-    [ -n "$kind_version_entry" ] || continue
-    entry_kind=${kind_version_entry%%|*}
-    entry_remainder=${kind_version_entry#*|}
-    entry_label=${entry_remainder%%|*}
-    [ "$entry_label" != default ] || continue
-    set -- "$@" --shim "$entry_kind@$entry_label"
-  done <<EOF
-$(shimmy_read_manifest_kind_versions "$manifest_file" || true)
-EOF
-
   previous_source_ref=$(shimmy_read_manifest_value "$manifest_file" shimmy_source_ref || true)
   set +e
   if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then

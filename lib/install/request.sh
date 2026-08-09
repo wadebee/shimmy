@@ -19,7 +19,7 @@ Usage:
   commands/install.sh [options]
 
 Options:
-  --shim <name>          Install the named shim if missing. Repeatable.
+  --shim <name>          Install the named shim if missing. Required; repeatable.
   --skills-target <name> Explicitly install agent skills in repo, profile, or plugin
   --no-skills            Do not install agent skills
   --shell <name>         Override shell detection for startup-file updates
@@ -31,12 +31,7 @@ EOF
 }
 
 selected_shim_list() {
-  if [ -n "$REQUESTED_SHIMS" ]; then
-    printf '%s\n' "$REQUESTED_SHIMS"
-    return 0
-  fi
-
-  shimmy_default_kind_list
+  printf '%s\n' "$REQUESTED_SHIMS"
 }
 
 version_label_list_render() {

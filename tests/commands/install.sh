@@ -5,7 +5,7 @@ test_commands_install_run() {
   mkdir -p "$DEFAULT_PROFILE_ROOT"
   printf '%s\n' unmanaged > "$DEFAULT_PROFILE_ROOT/sentinel"
   set +e
-  unmanaged_output=$(bootstrap_default --shim jq 2>&1)
+  unmanaged_output=$(bootstrap_default 2>&1)
   unmanaged_status=$?
   set -e
   [ "$unmanaged_status" -ne 0 ] || fail_test "unmanaged profile root unexpectedly accepted"
@@ -23,7 +23,7 @@ test_commands_install_run() {
         symlink) ln -s "$SCENARIO_DIR/missing-target" "$collision_path" ;;
       esac
       set +e
-      collision_output=$(bootstrap_default --shim jq 2>&1)
+      collision_output=$(bootstrap_default 2>&1)
       collision_status=$?
       set -e
       [ "$collision_status" -ne 0 ] || fail_test "$collision_type collision unexpectedly accepted at $claimed_path"
@@ -42,7 +42,7 @@ test_commands_install_run() {
     mkdir -p "$(dirname -- "$symlink_path")" "$SCENARIO_DIR/symlink-target"
     ln -s "$SCENARIO_DIR/symlink-target" "$symlink_path"
     set +e
-    symlink_output=$(bootstrap_default --shim jq 2>&1)
+    symlink_output=$(bootstrap_default 2>&1)
     symlink_status=$?
     set -e
     [ "$symlink_status" -ne 0 ] || fail_test "symlinked canonical parent unexpectedly accepted: $symlink_parent"
@@ -53,17 +53,17 @@ test_commands_install_run() {
 
   setup_scenario
   legacy_dir=$SCENARIO_DIR/legacy-override
-  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_INSTALL_DIR="$legacy_dir" SHIMMY_CONTROL_INSTALL_DIR="$legacy_dir" SHIMMY_UPSTREAM_DIR="$legacy_dir" ./install.sh --profile default --shim jq --no-startup --no-skills >/dev/null
+  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_INSTALL_DIR="$legacy_dir" SHIMMY_CONTROL_INSTALL_DIR="$legacy_dir" SHIMMY_UPSTREAM_DIR="$legacy_dir" ./install.sh --profile default --no-startup --no-skills >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_path_not_exists "$legacy_dir"
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
-  bootstrap_default --shim task >/dev/null
+  default_shimmy install --shim task --no-startup --no-skills >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
   assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
 
   setup_scenario
   set +e
-  removed_option_output=$(bootstrap_default --install-dir "$SCENARIO_DIR/legacy" --shim jq 2>&1)
+  removed_option_output=$(bootstrap_default --install-dir "$SCENARIO_DIR/legacy" 2>&1)
   removed_option_status=$?
   set -e
   [ "$removed_option_status" -ne 0 ] || fail_test "removed --install-dir option unexpectedly succeeded"
@@ -72,18 +72,18 @@ test_commands_install_run() {
   assert_path_not_exists "$SCENARIO_DIR/legacy"
 
   setup_scenario
-  run_in_repo env -u XDG_CONFIG_HOME HOME="$HOME_DIR" ./install.sh --shim jq --no-startup --no-skills >/dev/null
+  run_in_repo env -u XDG_CONFIG_HOME HOME="$HOME_DIR" ./install.sh --no-startup --no-skills >/dev/null
   assert_file_exists "$HOME_DIR/.config/shimmy/profiles/default/bin/shimmy"
 
   setup_scenario
-  run_in_repo env XDG_CONFIG_HOME= HOME="$HOME_DIR" ./install.sh --shim jq --no-startup --no-skills >/dev/null
+  run_in_repo env XDG_CONFIG_HOME= HOME="$HOME_DIR" ./install.sh --no-startup --no-skills >/dev/null
   assert_file_exists "$HOME_DIR/.config/shimmy/profiles/default/bin/shimmy"
 
   setup_scenario
   mkdir -p "$XDG_CONFIG_HOME_DIR/shimmy"
   printf '%s\n' 'shimmy_install_manifest_version=2' > "$XDG_CONFIG_HOME_DIR/shimmy/install-manifest.txt"
   set +e
-  version_two_output=$(bootstrap_default --shim jq 2>&1)
+  version_two_output=$(bootstrap_default 2>&1)
   version_two_status=$?
   set -e
   [ "$version_two_status" -ne 0 ] || fail_test "version-2 shared manifest unexpectedly accepted"

@@ -62,7 +62,7 @@ test_manifest_mutate() {
 
 test_commands_profiles_manifest_rejection() {
   setup_scenario
-  bootstrap_default --shim jq >/dev/null
+  bootstrap_default >/dev/null
   manifest_file=$DEFAULT_PROFILE_ROOT/install-manifest.txt
   valid_manifest=$SCENARIO_DIR/valid-manifest.txt
   cp "$manifest_file" "$valid_manifest"
@@ -92,7 +92,7 @@ test_commands_profiles_manifest_rejection() {
   cp "$valid_manifest" "$manifest_file"
   test_manifest_mutate version_three "$manifest_file"
   set +e
-  v3_refresh_output=$(bootstrap_default --shim jq 2>&1)
+  v3_refresh_output=$(bootstrap_default 2>&1)
   v3_refresh_status=$?
   set -e
   [ "$v3_refresh_status" -ne 0 ] || fail_test "manifest-v3 profile unexpectedly refreshed in place"
@@ -125,7 +125,7 @@ test_commands_profiles_manifest_rejection() {
 
 test_commands_profiles_upstream_checkout_rejection() {
   setup_scenario
-  bootstrap_upstream --shim jq >/dev/null
+  bootstrap_upstream >/dev/null
   manifest_file=$UPSTREAM_PROFILE_ROOT/install-manifest.txt
   valid_manifest=$SCENARIO_DIR/upstream-manifest.txt
   cp "$manifest_file" "$valid_manifest"
@@ -162,7 +162,7 @@ test_commands_profiles_upstream_checkout_rejection() {
 
 test_commands_profiles_partial_shape() {
   setup_scenario
-  bootstrap_default --shim jq >/dev/null
+  bootstrap_default >/dev/null
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/unmanaged-partial-sentinel"
   rm -rf "$DEFAULT_PROFILE_ROOT/tools"
 
@@ -186,7 +186,7 @@ test_commands_profiles_partial_shape() {
 test_commands_profiles_shell_init_shape() {
   for shell_init_mutation in missing symlink directory; do
     setup_scenario
-    bootstrap_default --shim jq >/dev/null
+    bootstrap_default >/dev/null
     shell_init_file=$DEFAULT_PROFILE_ROOT/shell-init.sh
     manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
     launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")
@@ -223,7 +223,7 @@ test_commands_profiles_shell_init_shape() {
 
     if [ "$shell_init_mutation" != missing ]; then
       set +e
-      refresh_output=$(bootstrap_default --shim jq 2>&1)
+      refresh_output=$(bootstrap_default 2>&1)
       refresh_status=$?
       set -e
       [ "$refresh_status" -ne 0 ] || fail_test "$shell_init_mutation shell init collision unexpectedly refreshed"
@@ -244,8 +244,8 @@ test_commands_profiles_shell_init_shape() {
 
 test_commands_profiles_run() {
   setup_scenario
-  bootstrap_default --shim jq >/dev/null
-  bootstrap_upstream --shim rg >/dev/null
+  bootstrap_default >/dev/null
+  bootstrap_upstream >/dev/null
 
   default_status=$(default_shimmy status --format manifest)
   upstream_status=$(upstream_shimmy status --format manifest)
@@ -261,7 +261,7 @@ test_commands_profiles_run() {
 
   setup_scenario
   set +e
-  relative_output=$(run_in_repo env XDG_CONFIG_HOME=relative HOME="$HOME_DIR" ./install.sh --shim jq --no-startup --no-skills 2>&1)
+  relative_output=$(run_in_repo env XDG_CONFIG_HOME=relative HOME="$HOME_DIR" ./install.sh --no-startup --no-skills 2>&1)
   relative_status=$?
   set -e
   [ "$relative_status" -ne 0 ] || fail_test "relative XDG_CONFIG_HOME unexpectedly succeeded"

@@ -2,9 +2,10 @@
 
 `install.sh` is the sourceable orchestration implementation for the public
 `commands/install.sh` entrypoint. The root `install.sh` invokes it only to
-bootstrap one canonical profile; an installed profile-local launcher invokes
-it only for its enclosing profile. It selects fresh, additive, refresh, or
-uninstall lifecycle flows without a shared installed control root.
+bootstrap one canonical profile with internally supplied jq/rg requests; an
+installed profile-local launcher invokes it only for its enclosing profile and
+requires one or more explicit `--shim` requests. It selects fresh, additive,
+refresh, or uninstall lifecycle flows without a shared installed control root.
 
 ## Files
 

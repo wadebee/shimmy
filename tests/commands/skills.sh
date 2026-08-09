@@ -47,8 +47,8 @@ test_commands_skills_target_ownership() {
   setup_scenario
   (
     cd "$WORK_DIR"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile default --shim jq --no-startup --skills-target repo >/dev/null
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile upstream --shim rg --no-startup --skills-target repo >/dev/null
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile default --no-startup --skills-target repo >/dev/null
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile upstream --no-startup --skills-target repo >/dev/null
   )
   skills_root=$WORK_DIR/.agents/skills
   skills_manifest=$skills_root/.shimmy-skills-manifest.txt
@@ -92,7 +92,7 @@ test_commands_skills_external_failure_retry() {
   set +e
   failure_output=$(
     cd "$WORK_DIR"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile default --shim jq --no-startup --skills-target repo 2>&1
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile default --no-startup --skills-target repo 2>&1
   )
   failure_status=$?
   set -e
