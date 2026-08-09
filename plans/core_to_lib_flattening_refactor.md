@@ -950,58 +950,79 @@ finds a missed migration reference or verification defect.
 
 ### Verification
 
-- [ ] Repository-wide search finds no unintended `core/core`,
+- [x] Repository-wide search finds no unintended `core/core`,
       `SHIMMY_INSTALL_CORE_DIR`, `SHIMMY_CORE_DIR`, old dispatcher target,
       `<repo>/shimmy`, `<repo>/bin/shimmy`, source-launcher mode, or migrated
       source `core/` paths.
-- [ ] Active implementation, tests, documentation, contexts, and skills contain
+- [x] Active implementation, tests, documentation, contexts, and skills contain
       no `--install-dir`, `SHIMMY_INSTALL_DIR`,
       `SHIMMY_CONTROL_INSTALL_DIR`, `SHIMMY_UPSTREAM_DIR`,
       `SHIMMY_PROFILE_ACTIVE`, installed-command `--profile`, or equivalent
       location/profile alias. Historical removal references in this plan are
       classified; bootstrap `--profile` and intentional
       `SHIMMY_UPSTREAM_CHECKOUT_DIR` uses remain.
-- [ ] Every remaining `core` match is reviewed and documented as intentional,
+- [x] Every remaining `core` match is reviewed and documented as intentional,
       including `agent/core/`, ordinary prose, and upstream API paths.
-- [ ] Repository-wide search finds no installed `.agents/skills` payload
+- [x] Repository-wide search finds no installed `.agents/skills` payload
       assumption; explicit `shimmy skills` targets remain supported.
-- [ ] `./tests/test.sh` passes without a repository `shimmy`.
-- [ ] `./tests/context-tree.sh` passes.
-- [ ] Root `install.sh` remains a minimal bootstrap and repository status,
+- [x] `./tests/test.sh` passes without a repository `shimmy`.
+- [x] `./tests/context-tree.sh` passes.
+- [x] Root `install.sh` remains a minimal bootstrap and repository status,
       activation, test, dispatch, update, and uninstall workflows use explicit
       scripts or the applicable installed profile launcher.
-- [ ] A disposable fresh default install works.
-- [ ] A disposable fresh upstream install works.
-- [ ] Default and upstream installs occupy independent canonical profile roots;
+- [x] A disposable fresh default install works.
+- [x] A disposable fresh upstream install works.
+- [x] Default and upstream installs occupy independent canonical profile roots;
       activating either profile and dispatching its installed shims works.
-- [ ] Upstream behaves as a normal installed profile: its launcher and
+- [x] Upstream behaves as a normal installed profile: its launcher and
       management plane use only profile-local assets, only generated tool
       implementations execute through `source_checkout`, and self-update does
       not substitute or retain a dependency on its temporary fetched source.
-- [ ] Each profile has exactly one regular executable `bin/shimmy`; no shared
+- [x] Each profile has exactly one regular executable `bin/shimmy`; no shared
       or repository launcher exists, and neither launcher can manage the other
       profile.
-- [ ] The directory-derived profile name is authoritative; copying one
+- [x] The directory-derived profile name is authoritative; copying one
       profile's manifest into the other is rejected, and manifests contain no
       `control_bin` or arbitrary owned-path field.
-- [ ] Strict manifest parsing rejects duplicate identity, unsafe ownership,
+- [x] Strict manifest parsing rejects duplicate identity, unsafe ownership,
       shell-evaluation payload, and invalid path-metadata cases before
       mutation; valid partial profiles remain safely uninstallable.
-- [ ] Additive install, management refresh, and self-update work without
+- [x] Additive install, management refresh, and self-update work without
       changing unmanaged or sibling-profile sentinels.
-- [ ] Removing either profile preserves the other; removing the last profile
+- [x] Removing either profile preserves the other; removing the last profile
       removes only its owned assets and empty merge-owned containers while
       preserving unmanaged content.
-- [ ] Installing, refreshing, updating, or removing `upstream` never changes a
+- [x] Installing, refreshing, updating, or removing `upstream` never changes a
       startup file. Removing `default` removes only its exact managed block.
-- [ ] Shared skills survive every profile refresh, update, and uninstall;
+- [x] Shared skills survive every profile refresh, update, and uninstall;
       explicit skills uninstall preserves unknown target siblings.
-- [ ] The complete tree of each installed profile, including hidden paths,
+- [x] The complete tree of each installed profile, including hidden paths,
       matches the target layout, and no shared control/runtime payload exists
       above the profile roots.
-- [ ] The repository diff contains no stale workstation-specific absolute
+- [x] The repository diff contains no stale workstation-specific absolute
       paths and no unintended executable-bit changes.
-- Notes:
+- Notes: The final scrub removed three obsolete `skill-orig.md` files from the
+  explicit repo skill target; those archives still taught the deleted source
+  launcher and retired path/profile controls. Repo and packaged-plugin skill
+  fingerprints were refreshed, and the test suite now recomputes every
+  checked-in export fingerprint to prevent recurrence. A workstation-specific
+  startup path in the already-touched historical TODO was made portable.
+  Remaining removed controls occur only in rejection or no-semantics tests;
+  remaining `--profile` uses are bootstrap selection, the validated internal
+  self-update handoff, launcher rejection, or their tests and documentation.
+  Remaining `core` matches are canonical `agent/core/`, ordinary core-skill
+  prose, negative stale-layout and legacy-manifest fixtures, historical plan
+  text, or OPNsense API paths. A disposable XDG root successfully installed
+  default and upstream with jq, reported profile-local status and activation,
+  dispatched both installed jq shims through preview, contained exactly one
+  regular executable `bin/shimmy` per profile and no payload above `profiles/`,
+  preserved upstream when default was removed, and cleaned both profiles.
+  Direct Podman access and the repo jq wrapper succeeded (`jq-1.8.1`); direct
+  live execution through the disposable wrappers remained blocked by the AI
+  Agent outer-command sandbox because their canonical XDG environment had to
+  be supplied through `env`. All 69 repository tests, the standalone context
+  tree test, repository-wide scrubs, manifest-fingerprint validation,
+  `git diff --check`, and executable-mode review pass.
 
 ### Suggested commands
 
@@ -1134,7 +1155,9 @@ the fixed design decisions above.
 
 ### Chunk 4
 
-- _append after acceptance_
+- Exported skill directories are part of their target manifest contract;
+  final scrubs must inspect auxiliary files and recompute fingerprints, not
+  only reconcile the canonical and exported `SKILL.md` files.
 
 ## Session bootstrap
 

@@ -1,5 +1,48 @@
 #!/bin/sh
 
+test_commands_skills_manifest_fingerprints() {
+  for skills_manifest in \
+    "$ROOT_DIR/.agents/skills/.shimmy-skills-manifest.txt" \
+    "$ROOT_DIR/plugins/shimmy/skills/.shimmy-skills-manifest.txt"; do
+    assert_file_exists "$skills_manifest"
+    tracked_skill_count=0
+
+    while IFS= read -r manifest_line; do
+      case "$manifest_line" in
+        shimmy_skill=*)
+          skill_entry=${manifest_line#shimmy_skill=}
+          skill_entry=${skill_entry#*|}
+          skill_name=${skill_entry%%|*}
+          skill_entry=${skill_entry#*|}
+          skill_path=${skill_entry%%|*}
+          expected_fingerprint=${skill_entry#*|}
+          skill_dir=$ROOT_DIR/$skill_path
+          assert_dir_exists "$skill_dir"
+
+          fingerprint_output=$(
+            (
+              cd "$skill_dir"
+              find . -type f -print | LC_ALL=C sort | while IFS= read -r skill_file; do
+                cksum "$skill_file"
+                printf ' %s\n' "$skill_file"
+              done
+            ) | cksum
+          )
+          set -- $fingerprint_output
+          actual_fingerprint=$1-$2
+          [ "$actual_fingerprint" = "$expected_fingerprint" ] ||
+            fail_test "stale checked-in fingerprint for $skill_name: expected $expected_fingerprint, got $actual_fingerprint"
+          tracked_skill_count=$((tracked_skill_count + 1))
+          ;;
+      esac
+    done < "$skills_manifest"
+
+    [ "$tracked_skill_count" -gt 0 ] || fail_test "expected tracked skills in $skills_manifest"
+  done
+
+  pass "checked-in repo and plugin skill manifests match their exported skill trees"
+}
+
 test_commands_skills_target_ownership() {
   setup_scenario
   (
@@ -68,6 +111,7 @@ test_commands_skills_external_failure_retry() {
 }
 
 test_commands_skills_run() {
+  test_commands_skills_manifest_fingerprints
   test_commands_skills_target_ownership
   test_commands_skills_external_failure_retry
 }

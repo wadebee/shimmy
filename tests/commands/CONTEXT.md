@@ -18,8 +18,9 @@ a user's Shimmy installation or shell startup files.
   request validation.
 - `startup.sh` covers activation idempotence and managed startup-block install
   and repair behavior.
-- `skills.sh` covers canonical skill sources, portable manifests, exported
-  folders, installed-kind selection, refresh, and manifest-tracked cleanup.
+- `skills.sh` covers canonical skill sources, checked-in export fingerprints,
+  portable manifests, exported folders, installed-kind selection, refresh,
+  and manifest-tracked cleanup.
 - `dispatcher.sh` covers profile-bound installed dispatchers, ownership, and
   recursion protections; repository previews use `commands/run-tool.sh`.
 - `netinfo.sh` covers deterministic CIDR rendering, explicit host-LAN
