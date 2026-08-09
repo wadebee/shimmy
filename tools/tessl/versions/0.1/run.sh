@@ -7,9 +7,9 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
 SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/runtime/image.sh
+SHIMMY_IMAGE_CONFIG_FILE=$SCRIPT_DIR/image.conf
 
 SHIMMY_TESSL_CONFIG_DIR=
-SHIMMY_TESSL_IMAGES_DIR=$SCRIPT_DIR/container
 SHIMMY_TESSL_PULL_ARG=
 SHIMMY_TESSL_TTY_ARG=
 
@@ -26,22 +26,11 @@ shimmy_podman_preflight_or_preview_require "the tessl shim" "$@"
 if [ -n "${SHIMMY_TESSL_IMAGE:-}" ]; then
   SHIMMY_TESSL_RUN_IMAGE=$SHIMMY_TESSL_IMAGE
 else
-  if [ -n "${SHIMMY_TESSL_BASE_IMAGE:-}" ]; then
-    SHIMMY_TESSL_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-tessl-0_1" \
-        "$SHIMMY_TESSL_IMAGES_DIR" \
-        "${SHIMMY_TESSL_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_TESSL_BASE_IMAGE=$SHIMMY_TESSL_BASE_IMAGE"
-    )
-  else
-    SHIMMY_TESSL_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-tessl-0_1" \
-        "$SHIMMY_TESSL_IMAGES_DIR" \
-        "${SHIMMY_TESSL_IMAGE_BUILD:-auto}"
-    )
-  fi
+  SHIMMY_TESSL_RUN_IMAGE=$(
+    shimmy_local_image_ensure \
+      "$SHIMMY_IMAGE_CONFIG_FILE" \
+      "${SHIMMY_TESSL_IMAGE_BUILD:-auto}"
+  )
 fi
 
 if [ -n "${HOME:-}" ] && [ -d "$HOME/.tessl" ]; then

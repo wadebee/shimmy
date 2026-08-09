@@ -86,6 +86,22 @@ jq --preview-shim --version
 oc --preview-shim version
 ```
 
+Every concrete version owns an `image.conf` that records its public or
+authenticated upstream reference, immutable multi-architecture default, and
+the required `linux/amd64` and `linux/arm64` platforms. Direct runtimes consume
+the pinned digest. Local builds consume configured pinned base digests, and
+their cache identity changes with the image configuration, effective build
+arguments, context, or selected native platform. Runtime image and base-image
+overrides retain their documented `SHIMMY_*` names.
+
+`shimmy update --pull` re-fetches the configured immutable digest; it does not
+advance the recorded upstream tag. Adopting a newer upstream artifact requires
+a reviewed `image.conf` change.
+
+Shimmy detects both host OS and CPU. Supported Linux and Darwin hosts running
+on `amd64` or `arm64` select the matching native Linux image platform;
+unsupported or unreadable host values fail before Podman is invoked.
+
 ## Included tools
 
 | Tool | Guide |
@@ -119,7 +135,7 @@ tools/     one self-contained directory per tool kind and version
 tests/     POSIX validation and context-tree verification
 ```
 
-Each tool directory owns its guide, version metadata, concrete runtime,
+Each tool directory owns its guide, version metadata including `image.conf`, concrete runtime,
 container context, test guidance, and agent skill. `tool.conf` defines the
 default version and optional selector; `commands/run-tool.sh` resolves it.
 This keeps the context an AI agent needs close to the files it may change,
@@ -144,5 +160,3 @@ version runtime listed in its context:
 ./commands/run-tool.sh jq --preview-shim --version
 ./commands/run-tool.sh oc --preview-shim version
 ```
-
-

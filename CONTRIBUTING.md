@@ -14,7 +14,10 @@ Use it as the source of truth for repository contribution guidance that should b
 - Follow `docs/testing.md` for POSIX-only test structure, shared assertions, and default-suite scope.
 - Treat Podman as an explicit Shimmy dependency. Do not install or provision it from Shimmy code, tests, or CI helpers.
 - Use live Podman execution for shim tests. Do not replace `podman` with fake binaries or argv-only mocks when validating shim behavior.
-- Use the shared Podman helper for runtime platform selection. Linux shims run containers as `linux/amd64`; macOS shims run containers as `linux/arm64`.
+- Use the shared Podman helper for runtime platform selection. Supported Linux
+  and Darwin hosts normalize `x86_64`/`amd64` and `aarch64`/`arm64`, then run
+  the matching native `linux/amd64` or `linux/arm64` image. Unsupported or
+  unreadable hosts fail closed.
 
 ## Profile Workflow
 
@@ -73,6 +76,11 @@ Runtime behavior belongs in concrete major.minor version shims under those kinds
 
 - Tool kinds live at `tools/<kind>/tool.conf`; generic dispatch selects their default or selected version.
 - Concrete version runtimes live at `tools/<kind>/versions/<major.minor>/run.sh` and contain Podman, image, mount, credential, and local-build logic.
+- Every concrete version owns exactly one validated `image.conf`. Repository
+  defaults are immutable OCI-index or Docker-manifest-list digests that declare
+  both required platforms. Direct runtimes read their default from that file;
+  local Containerfiles receive configured base defaults as build arguments and
+  do not duplicate them.
 - Every installable kind must have at least one concrete version and exactly one catalog default version.
 - `shimmy install --shim <kind>` installs the kind dispatcher plus its default version. Use `shimmy install --shim <kind>@<version-label>` when a non-default version is needed.
 - Profile manifests record `kind=` for installed user-facing commands and `kind_version=<kind>|<label>|<version>` for installed concrete versions.

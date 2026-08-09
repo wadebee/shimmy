@@ -5,23 +5,26 @@ SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
-SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/runtime/podman.sh
+SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
+SHIMMY_IMAGE_CONFIG_FILE=$SCRIPT_DIR/image.conf
+SHIMMY_IMAGE_HELPER_FILE=$SHIMMY_RUNTIME_DIR/image.sh
 
 SHIMMY_SKOPEO_AUTH_SECRET=${SHIMMY_SKOPEO_AUTH_SECRET:-}
 SHIMMY_SKOPEO_CONTAINER_AUTH_FILE=/run/secrets/skopeo-auth.json
-SHIMMY_SKOPEO_IMAGE=${SHIMMY_SKOPEO_IMAGE:-quay.io/skopeo/stable:latest}
 SHIMMY_SKOPEO_IMAGE_PULL=${SHIMMY_SKOPEO_IMAGE_PULL:-}
 SHIMMY_SKOPEO_IO_ARG=-i
 SHIMMY_SKOPEO_PULL_ARG=
 SHIMMY_SKOPEO_SECRET_ARG=
 
-if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
-  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
+if [ ! -f "$SHIMMY_IMAGE_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_IMAGE_HELPER_FILE" >&2
   exit 1
 fi
 
-# shellcheck source=lib/runtime/podman.sh
-. "$SHIMMY_PODMAN_HELPER_FILE"
+# shellcheck source=lib/runtime/image.sh
+. "$SHIMMY_IMAGE_HELPER_FILE"
+
+SHIMMY_SKOPEO_IMAGE=${SHIMMY_SKOPEO_IMAGE:-$(shimmy_image_external_default_read "$SHIMMY_IMAGE_CONFIG_FILE")}
 
 shimmy_podman_preflight_or_preview_require "the skopeo shim" "$@"
 

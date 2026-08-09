@@ -3,8 +3,12 @@
 Each child directory is a self-contained tool kind. `tool.conf` declares its
 default version and optional selector environment; concrete versions live in
 `versions/<major.minor>/`. Each concrete version owns `run.sh`, `refresh.sh`,
-`smoke.conf`, and `status.conf`. A tool directory also owns its guide and
-canonical agent skill.
+`smoke.conf`, and one validated `image.conf`. External defaults are immutable
+multi-platform index digests. Local builds declare their context, local
+repository, base-image build arguments, immutable base defaults, registry
+access, and both required platforms in that configuration. Containerfiles do
+not duplicate configured base defaults. A tool directory also owns its guide
+and canonical agent skill.
 
 ## Child contexts
 

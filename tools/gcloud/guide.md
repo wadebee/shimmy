@@ -5,7 +5,7 @@
 - Source repo README: <https://github.com/GoogleCloudPlatform/cloud-sdk-docker/blob/master/README.md>
 - Latest release: <https://github.com/GoogleCloudPlatform/cloud-sdk-docker/releases>
 - Docs: <https://cloud.google.com/sdk/docs>
-- Shim image: `gcr.io/google.com/cloudsdktool/google-cloud-cli:stable`
+- Shim image: `gcr.io/google.com/cloudsdktool/google-cloud-cli@sha256:f5fae73a6f1c60b58a1150ff76771a43620891d4dd74abc527c8eca0d544b385` from `versions/573.0/image.conf`
 - Image docs: <https://cloud.google.com/sdk/docs/downloads-docker>
 
 ## Upstream README Summary
@@ -41,7 +41,8 @@ Environment:
 - `SHIMMY_GCLOUD_IMAGE_PULL=always` - force pulling the configured image.
 - `CLOUDSDK_CONFIG` - standard Google Cloud CLI config directory override. When set on the host, Shimmy creates and mounts that directory instead of `$HOME/.config/gcloud`.
 
-The default image uses Google's documented Google Cloud CLI image repository and the `:stable` tag because it supports both `linux/amd64` and `linux/arm64` platforms.
+The image configuration records Google's `573.0.0-stable` tag for upstream
+discovery while runtime execution uses the reviewed immutable index digest.
 
 Mounts:
 
@@ -69,8 +70,8 @@ Forwarded environment:
 
 Runtime platform:
 
-- Linux -> `linux/amd64`
-- macOS -> `linux/arm64`
+- Linux or macOS on `amd64` -> `linux/amd64`
+- Linux or macOS on `arm64` -> `linux/arm64`
 
 ## Quick-Start Prompts
 

@@ -5,7 +5,7 @@
 - Source repo README: <https://github.com/BurntSushi/ripgrep/blob/master/README.md>
 - Latest release: <https://github.com/BurntSushi/ripgrep/releases/latest>
 - User guide: <https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md>
-- Shim image: `docker.io/vszl/ripgrep:latest`
+- Shim image: `docker.io/vszl/ripgrep@sha256:3e12f460f714b3c4ab27f4dbad8b7eda7b8184050c46c15f95eb0f2f53b5818c` from `versions/15.1/image.conf`
 
 ## Upstream README Summary
 
@@ -41,8 +41,8 @@ Mounts:
 
 Runtime platform:
 
-- Linux -> `linux/amd64`
-- macOS -> `linux/arm64`
+- Linux or macOS on `amd64` -> `linux/amd64`
+- Linux or macOS on `arm64` -> `linux/arm64`
 
 ## Quick-Start Prompts
 

@@ -5,7 +5,7 @@
 - Source repo README: <https://github.com/aws/aws-cli/blob/v2/README.rst>
 - Latest release/version source: <https://github.com/aws/aws-cli/blob/v2/CHANGELOG.rst>
 - Official docs: <https://docs.aws.amazon.com/cli/>
-- Shim image: `public.ecr.aws/aws-cli/aws-cli:2.31.21`
+- Shim image: `public.ecr.aws/aws-cli/aws-cli@sha256:40033dc921634b1073094712ea8237869bc857cd7ddc2571896ec9b14ef97ae8` from `versions/2.31/image.conf`
 
 ## Upstream README Summary
 
@@ -46,8 +46,8 @@ Forwarded environment:
 
 Runtime platform:
 
-- Linux -> `linux/amd64`
-- macOS -> `linux/arm64`
+- Linux or macOS on `amd64` -> `linux/amd64`
+- Linux or macOS on `arm64` -> `linux/arm64`
 
 ## Quick-Start Prompts
 

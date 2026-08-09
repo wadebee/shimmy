@@ -5,7 +5,7 @@
 - Source repo README: <https://github.com/jqlang/jq/blob/master/README.md>
 - Latest release: <https://github.com/jqlang/jq/releases/latest>
 - Manual: <https://jqlang.github.io/jq/manual/>
-- Shim image: `ghcr.io/jqlang/jq:1.8.1`
+- Shim image: `ghcr.io/jqlang/jq@sha256:4f34c6d23f4b1372ac789752cc955dc67c2ae177eb1b5860b75cdc5091ce6f91` from `versions/1.8/image.conf`
 
 ## Upstream README Summary
 
@@ -39,8 +39,8 @@ Mounts:
 
 Runtime platform:
 
-- Linux -> `linux/amd64`
-- macOS -> `linux/arm64`
+- Linux or macOS on `amd64` -> `linux/amd64`
+- Linux or macOS on `arm64` -> `linux/arm64`
 
 ## Quick-Start Prompts
 

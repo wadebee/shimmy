@@ -11,8 +11,10 @@ reusable behavior belongs in `../lib/`.
 - `install.sh` installs or removes the enclosing canonical profile.
 - `dispatch-tool.sh` dispatches a profile-local installed tool command.
 - `run-tool.sh` resolves tool metadata and a concrete version.
-- `agent-preflight.sh` derives non-mutating approval smoke commands from concrete-version metadata.
-- `status.sh` reads enclosing-profile and concrete-version metadata;
+- `agent-preflight.sh` validates concrete-version `image.conf` metadata and
+  adds preview-only smoke arguments for local builds.
+- `status.sh` reads enclosing-profile metadata and validated concrete-version
+  image configuration;
   `update.sh`, `skills.sh`, and `netinfo.sh` retain their corresponding public
   capabilities.
 

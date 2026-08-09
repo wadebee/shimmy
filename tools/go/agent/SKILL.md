@@ -32,13 +32,13 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: `docker.io/library/golang:1.26.4`
+- Default image: `docker.io/library/golang@sha256:f96cc555eb8db430159a3aa6797cd5bae561945b7b0fe7d0e284c63a3b291609` from version-owned `image.conf`
 - Image override: `SHIMMY_GO_IMAGE`
 - Pull override: `SHIMMY_GO_IMAGE_PULL=always`
 - Runtime mode: stdin-friendly via `podman run --rm -i`
 - Entrypoint override: `--entrypoint go`
 - Mount: `$PWD` to `/work`
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
 

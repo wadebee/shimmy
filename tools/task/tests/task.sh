@@ -15,6 +15,15 @@ test_tools_task_preview_contract() {
   pass "task preview preserves documented host integration mounts"
 }
 
+test_tools_task_target_archives() {
+  container_file=$ROOT_DIR/tools/task/versions/3.45/container/Containerfile
+  assert_file_contains "$container_file" "x86_64) task_arch='amd64'"
+  assert_file_contains "$container_file" "aarch64) task_arch='arm64'"
+  assert_file_contains "$container_file" 'task_linux_${task_arch}.tar.gz'
+  pass "task local build selects the release archive for the target architecture"
+}
+
 test_tools_task_run() {
   test_tools_task_preview_contract
+  test_tools_task_target_archives
 }

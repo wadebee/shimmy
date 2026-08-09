@@ -4,4 +4,5 @@
 pulls its effective image for `shimmy update --pull`; `smoke.conf` defines the
 concrete smoke command.
 
-`status.conf` supplies the image description rendered by `shimmy status`.
+`image.conf` owns the public upstream tag, immutable runtime digest, registry
+access, and required platforms consumed by the runtime and `shimmy status`.

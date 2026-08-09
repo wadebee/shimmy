@@ -16,6 +16,15 @@ test_tools_gdrive_preview_contract() {
   pass "gdrive preview preserves OAuth credential forwarding"
 }
 
+test_tools_gdrive_image_identity_inputs() {
+  default_output=$(SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=arm64 run_in_repo ./commands/run-tool.sh gdrive --preview-shim)
+  source_output=$(SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=arm64 SHIMMY_GDRIVE_SOURCE_REF=main run_in_repo ./commands/run-tool.sh gdrive --preview-shim)
+  [ "$default_output" != "$source_output" ] || fail_test 'gdrive source override did not change local cache identity'
+  assert_contains "$default_output" linux-arm64
+  pass "gdrive source overrides select a distinct native-platform cache identity"
+}
+
 test_tools_gdrive_run() {
+  test_tools_gdrive_image_identity_inputs
   test_tools_gdrive_preview_contract
 }

@@ -8,7 +8,7 @@ test_commands_dispatcher_run() {
   assert_equals "$(readlink "$UPSTREAM_PROFILE_ROOT/bin/rg")" '../commands/dispatch-tool.sh'
 
   default_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version)
-  assert_contains "$default_output" 'ghcr.io/jqlang/jq:1.8.1'
+  assert_contains "$default_output" 'ghcr.io/jqlang/jq@sha256:4f34c6d23f4b1372ac789752cc955dc67c2ae177eb1b5860b75cdc5091ce6f91'
 
   set +e
   unowned_output=$(XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/commands/dispatch-tool.sh" task --preview-shim --version 2>&1)

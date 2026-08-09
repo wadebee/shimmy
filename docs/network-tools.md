@@ -178,7 +178,8 @@ risks.
 Shim notes:
 
 - The shim mounts the current working directory at `/work`.
-- `SHIMMY_NMAP_IMAGE` defaults to `docker.io/instrumentisto/nmap:7.98-r2`.
+- `SHIMMY_NMAP_IMAGE` defaults to the immutable multi-platform digest recorded
+  in `tools/nmap/versions/7.98/image.conf`.
 - `SHIMMY_NMAP_IMAGE_PULL=always` pulls the configured image.
 - `SHIMMY_NMAP_NETWORK=<name>` runs the shim on a specific Podman network.
 - `SHIMMY_NMAP_LAN_SCAN=1` opts into host networking plus `NET_RAW` and

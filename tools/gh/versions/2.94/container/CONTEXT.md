@@ -1,4 +1,5 @@
 # GitHub CLI image build
 
-`Containerfile` downloads the pinned architecture-specific GitHub CLI release
-into a minimal Alpine image and sets `gh` as its entrypoint.
+`Containerfile` receives the configured Alpine base through its required build
+argument, downloads the pinned target-aware GitHub CLI release, and sets `gh`
+as its entrypoint.

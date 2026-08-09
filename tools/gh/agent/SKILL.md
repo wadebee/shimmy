@@ -33,11 +33,11 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: locally built `localhost/shimmy-gh-2_94:<context-hash>-<platform>`
+- Default image: locally built `localhost/shimmy-gh-2_94:<image-input-hash>-<platform>` from version-owned `image.conf` and `container/`
 - Image override: `SHIMMY_GH_IMAGE`
 - Build override: `SHIMMY_GH_IMAGE_BUILD=always`
 - Pull override for image overrides: `SHIMMY_GH_IMAGE_PULL=always`
-- Base image override: `SHIMMY_GH_BASE_IMAGE`, defaulting to `alpine:3.22`
+- Base image override: `SHIMMY_GH_BASE_IMAGE`, defaulting to `docker.io/library/alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce`
 - GitHub CLI release override: `SHIMMY_GH_VERSION`, defaulting to `2.94.0`
 - Host config: `GH_CONFIG_DIR`, defaulting to `$HOME/.config/gh`
 - Container config: `/home/gh/.config/gh`, set through `GH_CONFIG_DIR`

@@ -15,6 +15,9 @@ directory's architecture, conventions, or child links change.
   profile owns its own `bin/shimmy`.
 - `tools/<kind>/tool.conf` defines a tool's default version and selector.
 - `tools/<kind>/versions/<major.minor>/run.sh` is the concrete runtime.
+- Every concrete version owns `image.conf`, which records external or
+  local-build image policy, immutable multi-platform defaults, registry access,
+  and both required platforms.
 - Local builds use that version directory's `container/Containerfile`.
 - Tool guides and canonical agent skills live beside the tool.
 - `tests/` validates context integrity, metadata dispatch, previews, and clean
@@ -27,14 +30,19 @@ directory's architecture, conventions, or child links change.
   variables, image overrides, pull/build options, mounts, credentials, and
   `--preview-shim`.
 - Mount `$PWD` at `/work` unless the tool context documents a reason not to.
-- Use `lib/runtime/podman.sh` for platform selection and Podman preflight.
+- Use `lib/runtime/podman.sh` for native OS/architecture platform selection and
+  Podman preflight; unsupported or unreadable hosts must fail closed.
+- Use `lib/runtime/image.sh` to validate and consume `image.conf`, resolve local
+  build inputs, and derive cache identity. Do not duplicate repository-owned
+  defaults in runtime shell or Containerfiles.
 - Do not install or provision Podman from Shimmy.
 
 ## Tool additions
 
 Add a self-contained `tools/<kind>/` directory with `tool.conf`, a guide,
 `CONTEXT.md`, a canonical skill, and one or more version directories containing
-`run.sh`, `smoke.conf`, `CONTEXT.md`, and `container/` when locally built. The
+`run.sh`, `refresh.sh`, `smoke.conf`, `image.conf`, `CONTEXT.md`, and
+`container/` when locally built. The
 catalog discovers this metadata; do not add tool-name case statements to `lib/`
 or command code.
 

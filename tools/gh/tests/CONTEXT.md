@@ -1,4 +1,4 @@
 # GitHub CLI tests
 
-`gh.sh` verifies the preview-safe local-image override and GitHub config
-persistence contract.
+`gh.sh` verifies preview-safe cache inputs and overrides, GitHub config
+persistence, and target-aware release archive selection.

@@ -7,10 +7,10 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
 SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/runtime/image.sh
+SHIMMY_IMAGE_CONFIG_FILE=$SCRIPT_DIR/image.conf
 
 SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY=${SHIMMY_OPNSENSE_MCP_ADMIN_API_KEY:-opnsense_mcp_admin_api_key}
 SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET=${SHIMMY_OPNSENSE_MCP_ADMIN_API_SECRET:-opnsense_mcp_admin_api_secret}
-SHIMMY_OPNSENSE_MCP_ADMIN_IMAGES_DIR=$SCRIPT_DIR/container
 SHIMMY_OPNSENSE_MCP_ADMIN_PULL_ARG=
 OPNSENSE_VERIFY_SSL=${OPNSENSE_VERIFY_SSL:-false}
 
@@ -192,16 +192,14 @@ else
   if [ -n "${SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF:-}" ]; then
     SHIMMY_OPNSENSE_MCP_ADMIN_RUN_IMAGE=$(
       shimmy_local_image_ensure \
-        "localhost/shimmy-opnsense-mcp-admin-1_0" \
-        "$SHIMMY_OPNSENSE_MCP_ADMIN_IMAGES_DIR" \
+        "$SHIMMY_IMAGE_CONFIG_FILE" \
         "${SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_BUILD:-auto}" \
         --build-arg "SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF=$SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF"
     )
   else
     SHIMMY_OPNSENSE_MCP_ADMIN_RUN_IMAGE=$(
       shimmy_local_image_ensure \
-        "localhost/shimmy-opnsense-mcp-admin-1_0" \
-        "$SHIMMY_OPNSENSE_MCP_ADMIN_IMAGES_DIR" \
+        "$SHIMMY_IMAGE_CONFIG_FILE" \
         "${SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_BUILD:-auto}"
     )
   fi

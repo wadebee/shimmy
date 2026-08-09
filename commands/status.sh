@@ -8,6 +8,8 @@ SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
 COMMON_HELPER_FILE=$ROOT_DIR/lib/common/common.sh
 CATALOG_HELPER_FILE=$ROOT_DIR/lib/catalog/catalog.sh
 PROFILE_HELPER_FILE=$ROOT_DIR/lib/profile/profile.sh
+SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
+IMAGE_HELPER_FILE=$SHIMMY_RUNTIME_DIR/image.sh
 OUTPUT_FORMAT=human
 SHOW_AVAILABLE=0
 
@@ -18,6 +20,7 @@ fail() {
 
 . "$COMMON_HELPER_FILE"
 . "$CATALOG_HELPER_FILE"
+. "$IMAGE_HELPER_FILE"
 . "$PROFILE_HELPER_FILE"
 
 usage() {
@@ -35,20 +38,18 @@ kind_installed() {
 version_image_description() {
   kind_name=$1
   version_name=$2
-  version_label=$(shimmy_version_label "$version_name")
-  version_dir=$ROOT_DIR/tools/$kind_name/versions/$version_label
-  status_file=$version_dir/status.conf
+  version_dir=$(shimmy_version_dir "$version_name") || fail "missing version directory for $kind_name: $version_name"
+  image_config_file=$(shimmy_version_image_config_file "$version_name") || fail "missing image configuration path for $kind_name: $version_name"
+  shimmy_image_config_validate "$image_config_file" || exit 1
+  image_source=$(shimmy_image_config_scalar_read "$image_config_file" image_source)
 
-  [ -f "$status_file" ] || fail "missing version status metadata: $status_file"
-  image_value=$(sed -n 's/^status_image=//p' "$status_file" | sed -n '1p')
-  [ -n "$image_value" ] || fail "missing status_image in version status metadata: $status_file"
-
-  case "$image_value" in
-    local-build:container)
-      printf 'local-build:%s\n' "$version_dir/container"
+  case "$image_source" in
+    local-build)
+      image_context_dir=$(shimmy_local_image_context_dir_resolve "$image_config_file")
+      printf 'local-build:%s\n' "$image_context_dir"
       ;;
-    *)
-      printf '%s\n' "$image_value"
+    external)
+      shimmy_image_config_scalar_read "$image_config_file" image_default_ref
       ;;
   esac
 }
@@ -62,7 +63,8 @@ print_kind_human() {
   printf '  default: %s (%s)\n' "$default_label" "$default_version"
   for version_name in $(shimmy_kind_version_list "$kind_name"); do
     version_label=$(shimmy_version_label "$version_name")
-    printf '  version: %s (%s) %s\n' "$version_label" "$version_name" "$(version_image_description "$kind_name" "$version_name")"
+    version_description=$(version_image_description "$kind_name" "$version_name") || return 1
+    printf '  version: %s (%s) %s\n' "$version_label" "$version_name" "$version_description"
   done
 }
 

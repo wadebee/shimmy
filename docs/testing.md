@@ -27,10 +27,15 @@ The suite is POSIX shell and validates:
 
 - the complete `CONTEXT.md` tree and parent-to-child links, including every
   source-bearing canonical-skill, test-module, and container directory;
-- metadata-derived tool kinds, versions, defaults, and selectors;
-- preview rendering for every tool and every concrete runtime through its
-  declared smoke argument, without contacting Podman;
-- shared Podman platform and preview helpers plus POSIX syntax;
+- metadata-derived tool kinds, versions, immutable image defaults, configured
+  local bases, required platforms, and selectors;
+- negative schema coverage for missing, duplicate, unsafe, incomplete, tag-only,
+  and illegal image metadata, including platform-neutral `scratch` handling;
+- preview rendering for every concrete runtime across Linux/Darwin and
+  amd64/arm64 through its declared smoke argument, without contacting Podman;
+- local image identity changes for image configuration, ordered build
+  arguments, overrides, and platform while identical inputs remain stable;
+- shared fail-closed Podman OS/architecture and preview helpers plus POSIX syntax;
 - disposable version-4 flat default and upstream profile installs, installed
   command dispatch, status, update, legacy-layout rejection across management
   commands, and uninstall;

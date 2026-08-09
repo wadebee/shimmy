@@ -5,7 +5,9 @@
 without bypassing an image override. `smoke.conf` defines installed smoke
 behavior.
 
-`status.conf` supplies the local-build description rendered by `shimmy status`.
+`image.conf` owns the local context/repository, configured Alpine base digest,
+public registry access, and required platforms consumed by build/cache helpers
+and `shimmy status`.
 
 ## Child contexts
 

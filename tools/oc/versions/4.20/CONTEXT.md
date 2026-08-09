@@ -4,7 +4,9 @@ This is the metadata default version. `run.sh` builds from `container/` unless
 overridden. `refresh.sh` rebuilds and cleans stale local images for
 `shimmy update --build` without bypassing that override.
 
-`status.conf` supplies the local-build description rendered by `shimmy status`.
+`image.conf` owns the local context/repository, authenticated Red Hat base
+digest, and required platforms consumed by build/cache helpers and
+`shimmy status`.
 
 ## Child contexts
 

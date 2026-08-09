@@ -33,11 +33,12 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: locally built `localhost/shimmy-task-3_45:<context-hash>-<platform>`
+- Default image: locally built `localhost/shimmy-task-3_45:<image-input-hash>-<platform>` from version-owned `image.conf` and `container/`
 - Image override: `SHIMMY_TASK_IMAGE`
 - Build override: `SHIMMY_TASK_IMAGE_BUILD=always`
 - Pull override for image overrides: `SHIMMY_TASK_IMAGE_PULL=always`
 - Base image override: `SHIMMY_TASK_BASE_IMAGE`
+- Default base: `docker.io/library/alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce`
 - Task version override: `SHIMMY_TASK_VERSION`
 - Runtime mode: TTY only when stdin and stdout are terminals
 - Mounts:
@@ -50,7 +51,7 @@ removed repository `shims/` paths.
   - `HOME` when the home mount is enabled
   - `SHIMMY_HOST_PATH=$PATH`
   - `CONTAINER_HOST` when explicitly set
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
 

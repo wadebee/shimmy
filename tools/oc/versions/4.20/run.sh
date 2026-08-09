@@ -7,8 +7,8 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
 SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/runtime/image.sh
+SHIMMY_IMAGE_CONFIG_FILE=$SCRIPT_DIR/image.conf
 
-SHIMMY_OC_4_20_IMAGES_DIR=$SCRIPT_DIR/container
 SHIMMY_OC_4_20_PULL_ARG=
 SHIMMY_OC_4_20_TTY_ARG=
 
@@ -25,22 +25,11 @@ shimmy_podman_preflight_or_preview_require "the oc 4.20 shim" "$@"
 if [ -n "${SHIMMY_OC_4_20_IMAGE:-}" ]; then
   SHIMMY_OC_4_20_RUN_IMAGE=$SHIMMY_OC_4_20_IMAGE
 else
-  if [ -n "${SHIMMY_OC_4_20_BASE_IMAGE:-}" ]; then
-    SHIMMY_OC_4_20_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-oc-4_20" \
-        "$SHIMMY_OC_4_20_IMAGES_DIR" \
-        "${SHIMMY_OC_4_20_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_OC_4_20_BASE_IMAGE=$SHIMMY_OC_4_20_BASE_IMAGE"
-    )
-  else
-    SHIMMY_OC_4_20_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-oc-4_20" \
-        "$SHIMMY_OC_4_20_IMAGES_DIR" \
-        "${SHIMMY_OC_4_20_IMAGE_BUILD:-auto}"
-    )
-  fi
+  SHIMMY_OC_4_20_RUN_IMAGE=$(
+    shimmy_local_image_ensure \
+      "$SHIMMY_IMAGE_CONFIG_FILE" \
+      "${SHIMMY_OC_4_20_IMAGE_BUILD:-auto}"
+  )
 fi
 
 if [ -n "${SHIMMY_OC_4_20_IMAGE:-}" ] && [ "${SHIMMY_OC_4_20_IMAGE_PULL:-}" = "always" ]; then

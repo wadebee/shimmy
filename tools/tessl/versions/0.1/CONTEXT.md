@@ -4,7 +4,9 @@
 `refresh.sh` rebuilds and cleans stale local images for `shimmy update --build`
 without bypassing that override.
 
-`status.conf` supplies the local-build description rendered by `shimmy status`.
+`image.conf` owns the local context/repository, configured Node base digest,
+public registry access, and required platforms consumed by build/cache helpers
+and `shimmy status`.
 
 ## Child contexts
 

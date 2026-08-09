@@ -422,11 +422,11 @@ None.
 
 ## Progress Checklist
 
-Active chunk: Chunk 1, pending explicit implementation approval.
+Active chunk: Chunk 1 implemented and verified, pending human review.
 
-- [ ] Chunk 1 — Add native host-architecture selection, introduce the image
+- [x] Chunk 1 — Add native host-architecture selection, introduce the image
   configuration contract, and atomically migrate every current concrete
-  version and consumer.
+  version and consumer. Implementation and verification are complete.
 - [ ] Chunk 2 — Add opt-in live index verification with explicit
   authentication and deterministic parser coverage.
 - [ ] Chunk 3 — Complete native target-platform acceptance, rotation guidance,
@@ -539,33 +539,35 @@ Primary change surface:
 
 ### Verification checklist
 
-- [ ] Every concrete version has exactly one valid schema-version-1
+- [x] Every concrete version has exactly one valid schema-version-1
   `image.conf`; no `status.conf` remains.
-- [ ] Every non-`scratch` repository-owned default contains a fully qualified
+- [x] Every non-`scratch` repository-owned default contains a fully qualified
   `@sha256:` reference and every configured platform list equals the two
   required platforms.
-- [ ] Resolver tests cover Linux/amd64, Linux/arm64, Darwin/amd64, and
+- [x] Resolver tests cover Linux/amd64, Linux/arm64, Darwin/amd64, and
   Darwin/arm64; cover all accepted `uname -m` aliases; and prove unreadable or
   unsupported OS/architecture values fail without selecting a fallback.
-- [ ] Runtime preview integration proves every current concrete version passes
+- [x] Runtime preview integration proves every current concrete version passes
   `--platform linux/amd64` for Linux/amd64 and Darwin/amd64 and
   `--platform linux/arm64` for Linux/arm64 and Darwin/arm64.
-- [ ] No direct runtime or local Containerfile retains a duplicated
+- [x] No direct runtime or local Containerfile retains a duplicated
   repository-owned default tag/digest.
-- [ ] Direct default previews render the configured digest; runtime image
+- [x] Direct default previews render the configured digest; runtime image
   overrides and pull policies still render their supplied values.
-- [ ] Local default previews remain platform-separated; base/source/version
+- [x] Local default previews remain platform-separated; base/source/version
   overrides change cache identity deterministically without requiring
   `IMAGE_BUILD=always`.
-- [ ] `shimmy status` and agent-preflight behavior pass for source and
+- [x] `shimmy status` and agent-preflight behavior pass for source and
   disposable installed profiles with no installed-manifest schema change.
-- [ ] Metadata failure tests reject every malformed case before mutation or
+- [x] Metadata failure tests reject every malformed case before mutation or
   registry access.
-- [ ] `gh` and `task` retain target-aware `amd64`/`arm64` release selection;
+- [x] `gh` and `task` retain target-aware `amd64`/`arm64` release selection;
   no local build contains an unconditional architecture-specific artifact.
-- [ ] All runnable shell files pass `/bin/sh -n` and retain executable bits.
-- [ ] `./tests/test.sh` passes.
-- [ ] `git diff --check` passes and unrelated worktree changes remain
+- [x] All runnable shell files pass `/bin/sh -n` and retain executable bits.
+- [x] `./tests/test.sh` passes all 86 tests after repairing the pre-existing
+  `.agents` manifest fingerprints to describe the unchanged compatibility
+  adapter directories. No adapter or plugin skill content was regenerated.
+- [x] `git diff --check` passes and unrelated worktree changes remain
   untouched.
 
 ### Human review gate
@@ -805,6 +807,25 @@ multi-architecture image-support feature.
 - Installation copies the complete tools tree, allowing a profile-local image
   verifier to use catalog-default Skopeo and jq runtimes without making them
   host dependencies or baseline user commands.
+
+### Chunk 1
+
+- A version-owned `image.conf` can drive direct runtimes, local builds, status,
+  preflight, cache identity, and future registry verification without adding a
+  central tool/version case list.
+- Local build correctness requires one effective build-argument pipeline for
+  reference rendering, ensure/build, and stale cleanup. Hashing exact metadata,
+  sorted context content, and the ordered effective argument vector prevents a
+  rotated digest or override from silently reusing the old image.
+- Fail-closed native platform selection can be covered deterministically across
+  both supported host OS branches and CPU aliases without contacting Podman.
+- Installed status output must capture and check metadata-rendering status
+  before printing; nesting a failing renderer directly inside `printf` masks
+  its exit status in POSIX shell.
+- The checked-in `.agents` manifest incorrectly used two-file canonical/plugin
+  fingerprints for all twenty one-file compatibility adapters. Recomputing
+  only the target-owned manifest repaired the baseline without regenerating
+  adapter or plugin content and restored the ordinary 86-test suite.
 
 ## Session bootstrap
 

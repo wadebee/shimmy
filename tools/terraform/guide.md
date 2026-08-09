@@ -5,7 +5,7 @@
 - Source repo README: <https://github.com/hashicorp/terraform/blob/main/README.md>
 - Latest release: <https://github.com/hashicorp/terraform/releases/latest>
 - Docs: <https://developer.hashicorp.com/terraform/docs>
-- Shim image: `docker.io/hashicorp/terraform:latest`
+- Shim image: `docker.io/hashicorp/terraform@sha256:adae45661e45d3c88beef071ee1277b4621cea73517aae7f0844657c8e85f641` from `versions/1.15/image.conf`
 
 ## Upstream README Summary
 
@@ -49,8 +49,8 @@ Forwarded environment:
 
 Runtime platform:
 
-- Linux -> `linux/amd64`
-- macOS -> `linux/arm64`
+- Linux or macOS on `amd64` -> `linux/amd64`
+- Linux or macOS on `arm64` -> `linux/arm64`
 
 ## Quick-Start Prompts
 

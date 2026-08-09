@@ -7,8 +7,8 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
 SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/runtime/image.sh
+SHIMMY_IMAGE_CONFIG_FILE=$SCRIPT_DIR/image.conf
 
-SHIMMY_NETCAT_IMAGES_DIR=$SCRIPT_DIR/container
 SHIMMY_NETCAT_PULL_ARG=
 
 if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
@@ -24,22 +24,11 @@ shimmy_podman_preflight_or_preview_require "the netcat shim" "$@"
 if [ -n "${SHIMMY_NETCAT_IMAGE:-}" ]; then
   SHIMMY_NETCAT_RUN_IMAGE=$SHIMMY_NETCAT_IMAGE
 else
-  if [ -n "${SHIMMY_NETCAT_BASE_IMAGE:-}" ]; then
-    SHIMMY_NETCAT_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-netcat-7_92" \
-        "$SHIMMY_NETCAT_IMAGES_DIR" \
-        "${SHIMMY_NETCAT_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_NETCAT_BASE_IMAGE=$SHIMMY_NETCAT_BASE_IMAGE"
-    )
-  else
-    SHIMMY_NETCAT_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-netcat-7_92" \
-        "$SHIMMY_NETCAT_IMAGES_DIR" \
-        "${SHIMMY_NETCAT_IMAGE_BUILD:-auto}"
-    )
-  fi
+  SHIMMY_NETCAT_RUN_IMAGE=$(
+    shimmy_local_image_ensure \
+      "$SHIMMY_IMAGE_CONFIG_FILE" \
+      "${SHIMMY_NETCAT_IMAGE_BUILD:-auto}"
+  )
 fi
 
 if [ -n "${SHIMMY_NETCAT_IMAGE:-}" ] && [ "${SHIMMY_NETCAT_IMAGE_PULL:-}" = "always" ]; then

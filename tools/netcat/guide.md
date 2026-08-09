@@ -5,7 +5,7 @@
 - Ncat project page: <https://nmap.org/ncat/>
 - Nmap source repo README: <https://github.com/nmap/nmap/blob/master/README.md>
 - Latest Nmap/Ncat downloads: <https://nmap.org/download.html>
-- Shim image: local build from `versions/7.92/container/Containerfile`
+- Shim image: local build from `versions/7.92/image.conf` and `container/`
 
 ## Upstream README Summary
 
@@ -33,11 +33,11 @@ Environment:
 - `SHIMMY_NETCAT_IMAGE` - override the runtime image entirely.
 - `SHIMMY_NETCAT_IMAGE_BUILD=always` - rebuild the local image even when cached.
 - `SHIMMY_NETCAT_IMAGE_PULL=always` - force pulling `SHIMMY_NETCAT_IMAGE` when using an override.
-- `SHIMMY_NETCAT_BASE_IMAGE` - override the Containerfile base image. Default: `registry.access.redhat.com/ubi9/ubi-minimal:latest`.
+- `SHIMMY_NETCAT_BASE_IMAGE` - override the configured base image. Default: `registry.access.redhat.com/ubi9/ubi-minimal@sha256:dd334afa72444fa46238fcf9e6bd399245adf746378735348cf84b9dfdca38f1`.
 
 Local image behavior:
 
-- Shimmy builds `localhost/shimmy-netcat-7_92:<context-hash>-<platform>` from `versions/7.92/container/Containerfile`.
+- Shimmy builds `localhost/shimmy-netcat-7_92:<image-input-hash>-<platform>` from the version's `image.conf` and `container/` inputs.
 - The image installs the `nmap-ncat` package.
 
 Mounts:
@@ -46,8 +46,8 @@ Mounts:
 
 Runtime platform:
 
-- Linux -> `linux/amd64`
-- macOS -> `linux/arm64`
+- Linux or macOS on `amd64` -> `linux/amd64`
+- Linux or macOS on `arm64` -> `linux/arm64`
 
 ## Quick-Start Prompts
 

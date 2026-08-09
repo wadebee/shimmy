@@ -5,7 +5,7 @@
 - Source repo README: <https://github.com/golang/go/blob/master/README.md>
 - Latest release downloads: <https://go.dev/dl/>
 - Release notes: <https://go.dev/doc/devel/release>
-- Shim image: `docker.io/library/golang:latest`
+- Shim image: `docker.io/library/golang@sha256:f96cc555eb8db430159a3aa6797cd5bae561945b7b0fe7d0e284c63a3b291609` from `versions/1.26/image.conf`
 
 ## Upstream README Summary
 
@@ -45,8 +45,8 @@ Container I/O:
 
 Runtime platform:
 
-- Linux -> `linux/amd64`
-- macOS -> `linux/arm64`
+- Linux or macOS on `amd64` -> `linux/amd64`
+- Linux or macOS on `arm64` -> `linux/arm64`
 
 ## Quick-Start Prompts
 

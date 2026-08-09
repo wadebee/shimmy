@@ -32,7 +32,7 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: `docker.io/instrumentisto/nmap:7.98-r2`
+- Default image: `docker.io/instrumentisto/nmap@sha256:96f6ed194519b62421a1a1c57809e65a7f94d2aa1c8c25676f247e5e148c0827` from version-owned `image.conf`
 - Image override: `SHIMMY_NMAP_IMAGE`
 - Pull override: `SHIMMY_NMAP_IMAGE_PULL=always`
 - Network override: `SHIMMY_NMAP_NETWORK`
@@ -43,7 +43,7 @@ removed repository `shims/` paths.
 - Nmap unprivileged mode: `SHIMMY_NMAP_PRIVILEGED=0` passes `--unprivileged`
 - Runtime mode: TTY only when stdin and stdout are terminals
 - Mount: `$PWD` to `/work`
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
 

@@ -4,7 +4,7 @@
 test_tools_nmap_default_preview() {
   output=$("$ROOT_DIR/commands/run-tool.sh" nmap --preview-shim --version)
 
-  assert_contains "$output" "'docker.io/instrumentisto/nmap:7.98-r2'"
+  assert_contains "$output" "'docker.io/instrumentisto/nmap@sha256:96f6ed194519b62421a1a1c57809e65a7f94d2aa1c8c25676f247e5e148c0827'"
   assert_not_contains "$output" "'--network' 'host'"
   assert_not_contains "$output" "'--cap-add' 'NET_RAW'"
   assert_not_contains "$output" "'--privileged'"

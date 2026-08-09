@@ -5,13 +5,14 @@ SCRIPT_DIR=$(
   cd -- "$(dirname -- "$0")" && pwd
 )
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
-SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/runtime/podman.sh
+SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
+SHIMMY_IMAGE_CONFIG_FILE=$SCRIPT_DIR/image.conf
+SHIMMY_IMAGE_HELPER_FILE=$SHIMMY_RUNTIME_DIR/image.sh
 
 SHIMMY_GCLOUD_CONTAINER_CONFIG_DIR=/home/cloudsdk/.config/gcloud
 SHIMMY_GCLOUD_CONTAINER_HOME=/home/cloudsdk
 SHIMMY_GCLOUD_CONTAINER_KUBECONFIG=/home/cloudsdk/.kube/config
 SHIMMY_GCLOUD_CONTAINER_USER=cloudsdk
-SHIMMY_GCLOUD_IMAGE=${SHIMMY_GCLOUD_IMAGE:-gcr.io/google.com/cloudsdktool/google-cloud-cli:573.0.0-stable}
 SHIMMY_GCLOUD_IMAGE_PULL=${SHIMMY_GCLOUD_IMAGE_PULL:-}
 SHIMMY_GCLOUD_HOST_CONFIG_DIR=
 SHIMMY_GCLOUD_HOST_CONFIG_SOURCE=
@@ -118,13 +119,15 @@ shimmy_gcloud_config_help_print() {
   printf '%s\n' 'Shimmy does not create credentials or Google Cloud CLI configuration files automatically.'
 }
 
-if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
-  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_PODMAN_HELPER_FILE" >&2
+if [ ! -f "$SHIMMY_IMAGE_HELPER_FILE" ]; then
+  printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_IMAGE_HELPER_FILE" >&2
   exit 1
 fi
 
-# shellcheck source=lib/runtime/podman.sh
-. "$SHIMMY_PODMAN_HELPER_FILE"
+# shellcheck source=lib/runtime/image.sh
+. "$SHIMMY_IMAGE_HELPER_FILE"
+
+SHIMMY_GCLOUD_IMAGE=${SHIMMY_GCLOUD_IMAGE:-$(shimmy_image_external_default_read "$SHIMMY_IMAGE_CONFIG_FILE")}
 
 shimmy_podman_preview_prepare "$@"
 

@@ -26,7 +26,7 @@ test_commands_lifecycle_prepare() {
   assert_file_contains "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/.shimmy-skills-manifest.txt" 'shimmy_skills_target=plugin'
 
   output=$(XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version)
-  assert_contains "$output" "ghcr.io/jqlang/jq:1.8.1"
+  assert_contains "$output" "ghcr.io/jqlang/jq@sha256:4f34c6d23f4b1372ac789752cc955dc67c2ae177eb1b5860b75cdc5091ce6f91"
   pass "flat default and upstream profiles bootstrap and default dispatch works"
 }
 

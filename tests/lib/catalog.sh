@@ -20,9 +20,183 @@ test_lib_catalog_discovery() {
   pass "metadata-driven catalog discovery"
 }
 
+test_lib_catalog_image_config_assert_invalid() {
+  config_file=$1
+  if shimmy_image_config_validate "$config_file" >/dev/null 2>&1; then
+    fail_test "invalid image configuration was accepted: $config_file"
+  fi
+}
+
+test_lib_catalog_image_config_write() {
+  config_file=$1
+  shift
+
+  : > "$config_file"
+  for config_line do
+    printf '%s\n' "$config_line" >> "$config_file"
+  done
+}
+
+test_lib_catalog_image_config_validation() {
+  setup_scenario
+  SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
+  # shellcheck source=lib/runtime/image.sh
+  . "$SHIMMY_RUNTIME_DIR/image.sh"
+  config_dir=$SCENARIO_DIR/image-configs
+  mkdir -p "$config_dir"
+  digest_a=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+  valid_external=$config_dir/valid-external.conf
+  test_lib_catalog_image_config_write "$valid_external" \
+    'shimmy_image_config_version=1' \
+    'image_source=external' \
+    'image_upstream_ref=registry.example/vendor/tool:1.0' \
+    "image_default_ref=registry.example/vendor/tool@sha256:$digest_a" \
+    'image_registry_access=public' \
+    'image_platform=linux/amd64' \
+    'image_platform=linux/arm64'
+  shimmy_image_config_validate "$valid_external" || fail_test 'valid external image configuration was rejected'
+
+  test_lib_catalog_image_config_write "$config_dir/missing-key.conf" \
+    'shimmy_image_config_version=1' 'image_source=external' \
+    'image_upstream_ref=registry.example/vendor/tool:1.0' \
+    "image_default_ref=registry.example/vendor/tool@sha256:$digest_a" \
+    'image_platform=linux/amd64' 'image_platform=linux/arm64'
+  test_lib_catalog_image_config_assert_invalid "$config_dir/missing-key.conf"
+
+  test_lib_catalog_image_config_write "$config_dir/duplicate-key.conf" \
+    'shimmy_image_config_version=1' 'image_source=external' 'image_source=external' \
+    'image_upstream_ref=registry.example/vendor/tool:1.0' \
+    "image_default_ref=registry.example/vendor/tool@sha256:$digest_a" \
+    'image_registry_access=public' 'image_platform=linux/amd64' 'image_platform=linux/arm64'
+  test_lib_catalog_image_config_assert_invalid "$config_dir/duplicate-key.conf"
+
+  test_lib_catalog_image_config_write "$config_dir/unknown-version.conf" \
+    'shimmy_image_config_version=2' 'image_source=external' \
+    'image_upstream_ref=registry.example/vendor/tool:1.0' \
+    "image_default_ref=registry.example/vendor/tool@sha256:$digest_a" \
+    'image_registry_access=public' 'image_platform=linux/amd64' 'image_platform=linux/arm64'
+  test_lib_catalog_image_config_assert_invalid "$config_dir/unknown-version.conf"
+
+  test_lib_catalog_image_config_write "$config_dir/tag-default.conf" \
+    'shimmy_image_config_version=1' 'image_source=external' \
+    'image_upstream_ref=registry.example/vendor/tool:1.0' \
+    'image_default_ref=registry.example/vendor/tool:1.0' \
+    'image_registry_access=public' 'image_platform=linux/amd64' 'image_platform=linux/arm64'
+  test_lib_catalog_image_config_assert_invalid "$config_dir/tag-default.conf"
+
+  test_lib_catalog_image_config_write "$config_dir/malformed-digest.conf" \
+    'shimmy_image_config_version=1' 'image_source=external' \
+    'image_upstream_ref=registry.example/vendor/tool:1.0' \
+    'image_default_ref=registry.example/vendor/tool@sha256:abc123' \
+    'image_registry_access=public' 'image_platform=linux/amd64' 'image_platform=linux/arm64'
+  test_lib_catalog_image_config_assert_invalid "$config_dir/malformed-digest.conf"
+
+  test_lib_catalog_image_config_write "$config_dir/architecture-specific.conf" \
+    'shimmy_image_config_version=1' 'image_source=external' \
+    'image_upstream_ref=registry.example/vendor/tool:1.0-amd64' \
+    "image_default_ref=registry.example/vendor/tool@sha256:$digest_a" \
+    'image_registry_access=public' 'image_platform=linux/amd64'
+  test_lib_catalog_image_config_assert_invalid "$config_dir/architecture-specific.conf"
+
+  test_lib_catalog_image_config_write "$config_dir/unknown-key.conf" \
+    'shimmy_image_config_version=1' 'image_source=external' \
+    'image_upstream_ref=registry.example/vendor/tool:1.0' \
+    "image_default_ref=registry.example/vendor/tool@sha256:$digest_a" \
+    'image_registry_access=public' 'image_context=container' \
+    'image_platform=linux/amd64' 'image_platform=linux/arm64'
+  test_lib_catalog_image_config_assert_invalid "$config_dir/unknown-key.conf"
+
+  local_common='shimmy_image_config_version=1 image_source=local-build image_local_repo=localhost/shimmy-fixture image_base_count=1 image_base_1_build_arg=SHIMMY_FIXTURE_BASE_IMAGE image_base_1_upstream_ref=registry.example/base/image:1 image_base_1_registry_access=public image_platform=linux/amd64 image_platform=linux/arm64'
+  # shellcheck disable=SC2086
+  test_lib_catalog_image_config_write "$config_dir/unsafe-context.conf" $local_common \
+    'image_context=../container' "image_base_1_default_ref=registry.example/base/image@sha256:$digest_a"
+  test_lib_catalog_image_config_assert_invalid "$config_dir/unsafe-context.conf"
+
+  test_lib_catalog_image_config_write "$config_dir/unsafe-build-arg.conf" \
+    'shimmy_image_config_version=1' 'image_source=local-build' 'image_context=container' \
+    'image_local_repo=localhost/shimmy-fixture' 'image_base_count=1' \
+    'image_base_1_build_arg=FIXTURE_BASE_IMAGE;false' \
+    'image_base_1_upstream_ref=registry.example/base/image:1' \
+    "image_base_1_default_ref=registry.example/base/image@sha256:$digest_a" \
+    'image_base_1_registry_access=public' 'image_platform=linux/amd64' 'image_platform=linux/arm64'
+  test_lib_catalog_image_config_assert_invalid "$config_dir/unsafe-build-arg.conf"
+
+  test_lib_catalog_image_config_write "$config_dir/noncontiguous-base.conf" \
+    'shimmy_image_config_version=1' 'image_source=local-build' 'image_context=container' \
+    'image_local_repo=localhost/shimmy-fixture' 'image_base_count=2' \
+    'image_base_1_build_arg=SHIMMY_FIXTURE_BASE_IMAGE' \
+    'image_base_1_upstream_ref=registry.example/base/image:1' \
+    "image_base_1_default_ref=registry.example/base/image@sha256:$digest_a" \
+    'image_base_1_registry_access=public' 'image_platform=linux/amd64' 'image_platform=linux/arm64'
+  test_lib_catalog_image_config_assert_invalid "$config_dir/noncontiguous-base.conf"
+
+  scratch_config=$config_dir/scratch.conf
+  test_lib_catalog_image_config_write "$scratch_config" \
+    'shimmy_image_config_version=1' 'image_source=local-build' 'image_context=container' \
+    'image_local_repo=localhost/shimmy-fixture' 'image_base_count=1' \
+    'image_base_1_build_arg=SHIMMY_FIXTURE_BASE_IMAGE' 'image_base_1_default_ref=scratch' \
+    'image_platform=linux/amd64' 'image_platform=linux/arm64'
+  shimmy_image_config_validate "$scratch_config" || fail_test 'valid scratch image configuration was rejected'
+  printf '%s\n' 'image_base_1_registry_access=public' >> "$scratch_config"
+  test_lib_catalog_image_config_assert_invalid "$scratch_config"
+
+  pass "image configuration validation accepts complete schemas and rejects malformed metadata"
+}
+
+test_lib_catalog_local_image_identity() {
+  setup_scenario
+  SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
+  # shellcheck source=lib/runtime/image.sh
+  . "$SHIMMY_RUNTIME_DIR/image.sh"
+  version_dir=$SCENARIO_DIR/version
+  mkdir -p "$version_dir/container"
+  test_lib_catalog_image_config_write "$version_dir/container/Containerfile" 'ARG SHIMMY_FIXTURE_BASE_IMAGE' 'FROM ${SHIMMY_FIXTURE_BASE_IMAGE}'
+  digest_a=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  digest_b=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  test_lib_catalog_image_config_write "$version_dir/image.conf" \
+    'shimmy_image_config_version=1' 'image_source=local-build' 'image_context=container' \
+    'image_local_repo=localhost/shimmy-fixture' 'image_base_count=1' \
+    'image_base_1_build_arg=SHIMMY_FIXTURE_BASE_IMAGE' \
+    'image_base_1_upstream_ref=registry.example/base/image:1' \
+    "image_base_1_default_ref=registry.example/base/image@sha256:$digest_a" \
+    'image_base_1_registry_access=public' 'image_platform=linux/amd64' 'image_platform=linux/arm64'
+
+  ref_default=$(SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=amd64 shimmy_local_image_ref_render "$version_dir/image.conf")
+  ref_identical=$(SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=amd64 shimmy_local_image_ref_render "$version_dir/image.conf")
+  ref_arm64=$(SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=arm64 shimmy_local_image_ref_render "$version_dir/image.conf")
+  ref_value=$(SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=amd64 shimmy_local_image_ref_render "$version_dir/image.conf" --build-arg SHIMMY_FIXTURE_VERSION=2)
+  ref_order_a=$(SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=amd64 shimmy_local_image_ref_render "$version_dir/image.conf" --build-arg SHIMMY_FIXTURE_ONE=1 --build-arg SHIMMY_FIXTURE_TWO=2)
+  ref_order_b=$(SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=amd64 shimmy_local_image_ref_render "$version_dir/image.conf" --build-arg SHIMMY_FIXTURE_TWO=2 --build-arg SHIMMY_FIXTURE_ONE=1)
+  ref_override=$(SHIMMY_FIXTURE_BASE_IMAGE="registry.example/base/image@sha256:$digest_b" SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=amd64 shimmy_local_image_ref_render "$version_dir/image.conf")
+
+  assert_equals "$ref_default" "$ref_identical"
+  [ "$ref_default" != "$ref_arm64" ] || fail_test 'platform did not change local image identity'
+  [ "$ref_default" != "$ref_value" ] || fail_test 'build argument value did not change local image identity'
+  [ "$ref_order_a" != "$ref_order_b" ] || fail_test 'build argument order did not change local image identity'
+  [ "$ref_default" != "$ref_override" ] || fail_test 'base image override did not change local image identity'
+  assert_contains "$ref_default" linux-amd64
+  assert_contains "$ref_arm64" linux-arm64
+
+  test_lib_catalog_image_config_write "$version_dir/image.conf" \
+    'shimmy_image_config_version=1' 'image_source=local-build' 'image_context=container' \
+    'image_local_repo=localhost/shimmy-fixture' 'image_base_count=1' \
+    'image_base_1_build_arg=SHIMMY_FIXTURE_BASE_IMAGE' \
+    'image_base_1_upstream_ref=registry.example/base/image:2' \
+    "image_base_1_default_ref=registry.example/base/image@sha256:$digest_a" \
+    'image_base_1_registry_access=public' 'image_platform=linux/amd64' 'image_platform=linux/arm64'
+  ref_config_changed=$(SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=amd64 shimmy_local_image_ref_render "$version_dir/image.conf")
+  [ "$ref_default" != "$ref_config_changed" ] || fail_test 'image configuration did not change local image identity'
+  printf '%s\n' '# context change' >> "$version_dir/container/Containerfile"
+  ref_context_changed=$(SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=amd64 shimmy_local_image_ref_render "$version_dir/image.conf")
+  [ "$ref_config_changed" != "$ref_context_changed" ] || fail_test 'container context did not change local image identity'
+  assert_file_contains "$SHIMMY_RUNTIME_DIR/image.sh" 'current_ref=$(shimmy_local_image_ref_render "$config_file" "$@")'
+  pass "local image identity covers configuration, ordered build arguments, overrides, and platform"
+}
+
 test_lib_catalog_preview_dispatch() {
   jq_preview=$("$ROOT_DIR/commands/run-tool.sh" jq --preview-shim --version)
-  assert_contains "$jq_preview" ghcr.io/jqlang/jq:1.8.1
+  assert_contains "$jq_preview" 'ghcr.io/jqlang/jq@sha256:4f34c6d23f4b1372ac789752cc955dc67c2ae177eb1b5860b75cdc5091ce6f91'
 
   oc_preview=$(SHIMMY_OC_VERSION=4.18 "$ROOT_DIR/commands/run-tool.sh" oc --preview-shim version)
   assert_contains "$oc_preview" shimmy-oc-4_18
@@ -61,12 +235,25 @@ test_lib_catalog_concrete_version_previews() {
       version_name=$(shimmy_kind_version_for_label "$kind_name" "$version_label")
       smoke_name=$(sed -n 's/^shim_name=//p' "$smoke_file" | sed -n '1p')
       smoke_arg=$(sed -n 's/^smoke_arg=//p' "$smoke_file" | sed -n '1p')
+      image_source=$(sed -n 's/^image_source=//p' "$version_dir/image.conf" | sed -n '1p')
+      image_default_ref=$(sed -n 's/^image_default_ref=//p' "$version_dir/image.conf" | sed -n '1p')
 
       assert_equals "$smoke_name" "$version_name"
       assert_not_empty "$smoke_arg"
 
-      runtime_output=$("$version_dir/run.sh" --preview-shim "$smoke_arg" 2>&1)
-      assert_not_empty "$runtime_output"
+      for platform_case in \
+        'Linux amd64 linux/amd64' \
+        'Linux arm64 linux/arm64' \
+        'Darwin amd64 linux/amd64' \
+        'Darwin arm64 linux/arm64'; do
+        set -- $platform_case
+        runtime_output=$(env SHIMMY_TEST_OS="$1" SHIMMY_TEST_ARCH="$2" "$version_dir/run.sh" --preview-shim "$smoke_arg" 2>&1)
+        assert_not_empty "$runtime_output"
+        assert_contains "$runtime_output" "'--platform' '$3'"
+        if [ "$image_source" = external ]; then
+          assert_contains "$runtime_output" "'$image_default_ref'"
+        fi
+      done
 
       if [ -n "$selector_env" ]; then
         dispatch_output=$(env "$selector_env=$version_label" "$ROOT_DIR/commands/run-tool.sh" "$kind_name" --preview-shim "$smoke_arg" 2>&1)
@@ -82,6 +269,10 @@ test_lib_catalog_concrete_version_previews() {
 }
 
 test_lib_catalog_metadata_complete() {
+  SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
+  # shellcheck source=lib/runtime/image.sh
+  . "$SHIMMY_RUNTIME_DIR/image.sh"
+
   for tool_file in "$ROOT_DIR"/tools/*/tool.conf; do
     [ -f "$tool_file" ] || continue
     tool_dir=$(dirname "$tool_file")
@@ -90,21 +281,38 @@ test_lib_catalog_metadata_complete() {
     for version_dir in "$tool_dir"/versions/*; do
       [ -d "$version_dir" ] || continue
       assert_file_exists "$version_dir/smoke.conf"
-      assert_file_exists "$version_dir/status.conf"
+      assert_file_exists "$version_dir/image.conf"
       assert_file_executable "$version_dir/run.sh"
       assert_file_contains "$version_dir/smoke.conf" shim_name=
-      assert_file_contains "$version_dir/status.conf" shim_status_version=1
-      assert_file_contains "$version_dir/status.conf" status_image=
-      status_image=$(sed -n 's/^status_image=//p' "$version_dir/status.conf" | sed -n '1p')
-      assert_not_empty "$status_image"
+      shimmy_image_config_validate "$version_dir/image.conf" || fail_test "invalid image configuration: $version_dir/image.conf"
+      assert_equals "$(sed -n 's/^image_platform=//p' "$version_dir/image.conf")" 'linux/amd64
+linux/arm64'
+      image_source=$(shimmy_image_config_scalar_read "$version_dir/image.conf" image_source)
+      if [ "$image_source" = external ]; then
+        image_default_ref=$(shimmy_image_config_scalar_read "$version_dir/image.conf" image_default_ref)
+        assert_contains "$image_default_ref" '@sha256:'
+      else
+        image_base_count=$(shimmy_image_config_scalar_read "$version_dir/image.conf" image_base_count)
+        image_base_index=1
+        while [ "$image_base_index" -le "$image_base_count" ]; do
+          image_default_ref=$(shimmy_image_config_scalar_read "$version_dir/image.conf" "image_base_${image_base_index}_default_ref")
+          if [ "$image_default_ref" != scratch ]; then
+            assert_contains "$image_default_ref" '@sha256:'
+          fi
+          image_base_index=$((image_base_index + 1))
+        done
+      fi
+      assert_path_not_exists "$version_dir/status.conf"
     done
   done
-  pass "tool metadata and concrete runtimes are complete"
+  pass "tool image metadata and concrete runtimes are complete"
 }
 
 test_lib_catalog_run() {
   test_lib_catalog_context_tree
   test_lib_catalog_discovery
+  test_lib_catalog_image_config_validation
+  test_lib_catalog_local_image_identity
   test_lib_catalog_preview_dispatch
   test_lib_catalog_all_previews
   test_lib_catalog_concrete_version_previews

@@ -11,7 +11,8 @@ a user's Shimmy installation or shell startup files.
   cleanup, the fixed jq/rg bootstrap baseline, explicit additive installed
   selection, direct shell initialization, PATH precedence, and profile-local
   launcher binding.
-- `status.sh` covers profile-local installed and available status output.
+- `status.sh` covers profile-local installed and available status output from
+  validated version-owned image configuration.
 - `management.sh` covers the installed command surface, skills, and netinfo
   behavior.
 - `profiles.sh` covers profile precedence, profile-isolated uninstalls, status
@@ -35,5 +36,5 @@ a user's Shimmy installation or shell startup files.
 - `test.sh` covers installed-profile test request, metadata validation,
   profile binding, public dispatch, and concrete-version orchestration with
   disposable wrapper fixtures rather than live containers.
-- `agent-preflight.sh` covers metadata-driven approval smoke commands without
-  requiring a live Podman engine.
+- `agent-preflight.sh` covers image-metadata-driven approval smoke commands and
+  local-build preview selection without requiring a live Podman engine.

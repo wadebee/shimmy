@@ -80,6 +80,21 @@ shimmy_kind_version_list() {
   done
 }
 
+shimmy_version_dir() {
+  version_name=$1
+  kind_name=$(shimmy_version_kind "$version_name") || return 1
+  version_label=$(shimmy_version_label "$version_name") || return 1
+
+  printf '%s/%s/versions/%s\n' "$SHIMMY_TOOLS_DIR" "$kind_name" "$version_label"
+}
+
+shimmy_version_image_config_file() {
+  version_name=$1
+  version_dir=$(shimmy_version_dir "$version_name") || return 1
+
+  printf '%s/image.conf\n' "$version_dir"
+}
+
 shimmy_version_kind() {
   version_name=$1
 

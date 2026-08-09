@@ -91,20 +91,61 @@ shimmy_podman_path_activate() {
   esac
 }
 
-shimmy_podman_platform_resolve() {
-  os_name=${SHIMMY_TEST_OS:-$(uname -s 2>/dev/null || printf unknown)}
+shimmy_podman_architecture_normalize() {
+  architecture_value=${1:-}
 
-  case "$os_name" in
-    Darwin)
-      SHIMMY_PODMAN_PLATFORM=linux/arm64
+  case "$architecture_value" in
+    amd64|x86_64)
+      printf '%s\n' amd64
       ;;
-    Linux)
-      SHIMMY_PODMAN_PLATFORM=linux/amd64
+    aarch64|arm64)
+      printf '%s\n' arm64
+      ;;
+    '')
+      printf '%s\n' 'ERROR: unable to detect host architecture for Podman platform selection.' >&2
+      return 1
       ;;
     *)
-      SHIMMY_PODMAN_PLATFORM=linux/amd64
+      printf 'ERROR: unsupported host architecture for Podman platform selection: %s\n' "$architecture_value" >&2
+      return 1
       ;;
   esac
+}
+
+shimmy_podman_platform_resolve() {
+  SHIMMY_PODMAN_PLATFORM=
+
+  if [ "${SHIMMY_TEST_OS+x}" = x ]; then
+    os_name=$SHIMMY_TEST_OS
+  else
+    os_name=$(uname -s 2>/dev/null) || os_name=
+  fi
+
+  if [ "${SHIMMY_TEST_ARCH+x}" = x ]; then
+    architecture_name=$SHIMMY_TEST_ARCH
+  else
+    architecture_name=$(uname -m 2>/dev/null) || architecture_name=
+  fi
+
+  case "$os_name" in
+    Linux|Darwin)
+      ;;
+    '')
+      printf '%s\n' 'ERROR: unable to detect host operating system for Podman platform selection.' >&2
+      return 1
+      ;;
+    *)
+      printf 'ERROR: unsupported host operating system for Podman platform selection: %s\n' "$os_name" >&2
+      return 1
+      ;;
+  esac
+
+  architecture_normalized=$(shimmy_podman_architecture_normalize "$architecture_name") || return 1
+  SHIMMY_PODMAN_PLATFORM=linux/$architecture_normalized
+}
+
+shimmy_podman_required_platforms_print() {
+  printf '%s\n' linux/amd64 linux/arm64
 }
 
 shimmy_podman_platform_tag_render() {

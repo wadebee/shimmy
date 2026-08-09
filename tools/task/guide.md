@@ -5,7 +5,7 @@
 - Source repo README: <https://github.com/go-task/task/blob/main/README.md>
 - Latest release: <https://github.com/go-task/task/releases/latest>
 - Docs: <https://taskfile.dev/>
-- Shim image: local build from `versions/3.45/container/Containerfile`
+- Shim image: local build from `versions/3.45/image.conf` and `container/`
 
 ## Upstream README Summary
 
@@ -33,12 +33,12 @@ Environment:
 - `SHIMMY_TASK_IMAGE` - override the runtime image entirely.
 - `SHIMMY_TASK_IMAGE_BUILD=always` - rebuild the local image even when cached.
 - `SHIMMY_TASK_IMAGE_PULL=always` - force pulling `SHIMMY_TASK_IMAGE` when using an override.
-- `SHIMMY_TASK_BASE_IMAGE` - override the Containerfile base image. Default: `alpine:3.22`.
+- `SHIMMY_TASK_BASE_IMAGE` - override the configured base image. Default: `docker.io/library/alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce`.
 - `SHIMMY_TASK_VERSION` - override the Task release version. Default: `v3.45.5`.
 
 Local image behavior:
 
-- Shimmy builds `localhost/shimmy-task-3_45:<context-hash>-<platform>` from `versions/3.45/container/Containerfile`.
+- Shimmy builds `localhost/shimmy-task-3_45:<image-input-hash>-<platform>` from the version's `image.conf`, effective build arguments, and `container/`.
 
 Mounts:
 
@@ -55,8 +55,8 @@ Forwarded environment:
 
 Runtime platform:
 
-- Linux -> `linux/amd64`
-- macOS -> `linux/arm64`
+- Linux or macOS on `amd64` -> `linux/amd64`
+- Linux or macOS on `arm64` -> `linux/arm64`
 
 ## Quick-Start Prompts
 

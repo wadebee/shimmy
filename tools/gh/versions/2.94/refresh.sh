@@ -17,7 +17,12 @@ case "${1:-}" in
     SHIMMY_GH_IMAGE_BUILD=always "$SCRIPT_DIR/run.sh" "$smoke_arg" >/dev/null </dev/null
     # shellcheck source=lib/runtime/image.sh
     . "$SHIMMY_RUNTIME_DIR/image.sh"
-    shimmy_local_image_stale_cleanup "localhost/shimmy-gh-2_94" "$SCRIPT_DIR/container"
+    if [ -n "${SHIMMY_GH_VERSION:-}" ]; then
+      shimmy_local_image_stale_cleanup "$SCRIPT_DIR/image.conf" \
+        --build-arg "SHIMMY_GH_VERSION=$SHIMMY_GH_VERSION"
+    else
+      shimmy_local_image_stale_cleanup "$SCRIPT_DIR/image.conf"
+    fi
     ;;
   *)
     printf 'ERROR: unsupported refresh action: %s\n' "${1:-}" >&2

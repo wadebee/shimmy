@@ -9,6 +9,8 @@ ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
 SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/runtime/podman.sh
+SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
+SHIMMY_IMAGE_HELPER_FILE=$SHIMMY_RUNTIME_DIR/image.sh
 SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
 CATALOG_HELPER_FILE=$ROOT_DIR/lib/catalog/catalog.sh
 RUN_SMOKE=no
@@ -53,6 +55,11 @@ if [ ! -f "$SHIMMY_PODMAN_HELPER_FILE" ]; then
   exit 1
 fi
 
+if [ ! -f "$SHIMMY_IMAGE_HELPER_FILE" ]; then
+  printf 'ERROR: missing image helper: %s\n' "$SHIMMY_IMAGE_HELPER_FILE" >&2
+  exit 1
+fi
+
 if [ ! -f "$CATALOG_HELPER_FILE" ]; then
   printf 'ERROR: missing catalog helper: %s\n' "$CATALOG_HELPER_FILE" >&2
   exit 1
@@ -60,6 +67,8 @@ fi
 
 # shellcheck source=lib/runtime/podman.sh
 . "$SHIMMY_PODMAN_HELPER_FILE"
+# shellcheck source=lib/runtime/image.sh
+. "$SHIMMY_IMAGE_HELPER_FILE"
 # shellcheck source=lib/catalog/catalog.sh
 . "$CATALOG_HELPER_FILE"
 
@@ -130,9 +139,10 @@ shimmy_agent_smoke_args_render() {
   }
   version_dir=$ROOT_DIR/tools/$kind_name/versions/$version_label
   smoke_file=$version_dir/smoke.conf
-  status_file=$version_dir/status.conf
+  image_config_file=$version_dir/image.conf
 
-  if [ -f "$status_file" ] && [ "$(sed -n 's/^status_image=//p' "$status_file" | sed -n '1p')" = local-build:container ]; then
+  shimmy_image_config_validate "$image_config_file" || return 1
+  if [ "$(shimmy_image_config_scalar_read "$image_config_file" image_source)" = local-build ]; then
     printf '%s\n' '--preview-shim'
   fi
 

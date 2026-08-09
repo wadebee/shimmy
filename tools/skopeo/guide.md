@@ -6,7 +6,7 @@
 - Latest release: <https://github.com/containers/skopeo/releases/latest>
 - Installation docs: <https://github.com/containers/skopeo/blob/main/install.md>
 - Container image docs: <https://github.com/containers/image_build/tree/main/skopeo>
-- Shim image: `quay.io/skopeo/stable:latest` (currently reports Skopeo 1.22.2)
+- Shim image: `quay.io/skopeo/stable@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615` from `versions/1.22/image.conf` (currently reports Skopeo 1.22.2)
 
 ## Upstream README Summary
 
@@ -66,8 +66,8 @@ SHIMMY_SKOPEO_AUTH_SECRET=registry-example-auth \
 
 Runtime platform:
 
-- Linux -> `linux/amd64`
-- macOS -> `linux/arm64`
+- Linux or macOS on `amd64` -> `linux/amd64`
+- Linux or macOS on `arm64` -> `linux/arm64`
 
 ## Quick-Start Prompts
 

@@ -5,7 +5,7 @@
 - Source repo README: <https://github.com/nmap/nmap/blob/master/README.md>
 - Latest release downloads: <https://nmap.org/download.html>
 - Nmap docs: <https://nmap.org/book/man.html>
-- Shim image: `docker.io/instrumentisto/nmap:7.98-r2`
+- Shim image: `docker.io/instrumentisto/nmap@sha256:96f6ed194519b62421a1a1c57809e65a7f94d2aa1c8c25676f247e5e148c0827` from `versions/7.98/image.conf`
 
 ## Upstream README Summary
 
@@ -46,8 +46,8 @@ Mounts:
 
 Runtime platform:
 
-- Linux -> `linux/amd64`
-- macOS -> `linux/arm64`
+- Linux or macOS on `amd64` -> `linux/amd64`
+- Linux or macOS on `arm64` -> `linux/arm64`
 
 Notes:
 

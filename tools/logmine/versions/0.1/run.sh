@@ -7,8 +7,8 @@ SCRIPT_DIR=$(\
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
 SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/runtime/image.sh
+SHIMMY_IMAGE_CONFIG_FILE=$SCRIPT_DIR/image.conf
 
-SHIMMY_LOGMINE_IMAGES_DIR=$SCRIPT_DIR/container
 SHIMMY_LOGMINE_PULL_ARG=
 SHIMMY_LOGMINE_TTY_ARG=
 
@@ -25,36 +25,17 @@ shimmy_podman_preflight_or_preview_require "the logmine shim" "$@"
 if [ -n "${SHIMMY_LOGMINE_IMAGE:-}" ]; then
   SHIMMY_LOGMINE_RUN_IMAGE=$SHIMMY_LOGMINE_IMAGE
 else
-  if [ -n "${SHIMMY_LOGMINE_BASE_IMAGE:-}" ] && [ -n "${SHIMMY_LOGMINE_VERSION:-}" ]; then
+  if [ -n "${SHIMMY_LOGMINE_VERSION:-}" ]; then
     SHIMMY_LOGMINE_RUN_IMAGE=$(\
       shimmy_local_image_ensure \
-        "localhost/shimmy-logmine-0_1" \
-        "$SHIMMY_LOGMINE_IMAGES_DIR" \
-        "${SHIMMY_LOGMINE_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_LOGMINE_BASE_IMAGE=$SHIMMY_LOGMINE_BASE_IMAGE" \
-        --build-arg "SHIMMY_LOGMINE_VERSION=$SHIMMY_LOGMINE_VERSION"
-    )
-  elif [ -n "${SHIMMY_LOGMINE_BASE_IMAGE:-}" ]; then
-    SHIMMY_LOGMINE_RUN_IMAGE=$(\
-      shimmy_local_image_ensure \
-        "localhost/shimmy-logmine-0_1" \
-        "$SHIMMY_LOGMINE_IMAGES_DIR" \
-        "${SHIMMY_LOGMINE_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_LOGMINE_BASE_IMAGE=$SHIMMY_LOGMINE_BASE_IMAGE"
-    )
-  elif [ -n "${SHIMMY_LOGMINE_VERSION:-}" ]; then
-    SHIMMY_LOGMINE_RUN_IMAGE=$(\
-      shimmy_local_image_ensure \
-        "localhost/shimmy-logmine-0_1" \
-        "$SHIMMY_LOGMINE_IMAGES_DIR" \
+        "$SHIMMY_IMAGE_CONFIG_FILE" \
         "${SHIMMY_LOGMINE_IMAGE_BUILD:-auto}" \
         --build-arg "SHIMMY_LOGMINE_VERSION=$SHIMMY_LOGMINE_VERSION"
     )
   else
     SHIMMY_LOGMINE_RUN_IMAGE=$(\
       shimmy_local_image_ensure \
-        "localhost/shimmy-logmine-0_1" \
-        "$SHIMMY_LOGMINE_IMAGES_DIR" \
+        "$SHIMMY_IMAGE_CONFIG_FILE" \
         "${SHIMMY_LOGMINE_IMAGE_BUILD:-auto}"
     )
   fi

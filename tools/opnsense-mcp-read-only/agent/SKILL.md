@@ -33,7 +33,8 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: local build from `../../../tools/opnsense-mcp-read-only/versions/0.4/container/Containerfile`
+- Default image: local build from version-owned `image.conf` and `container/`
+- Default base: `docker.io/library/python@sha256:9662417aace5ae7b8e2609cce472b72a8958e134ba372808abe9cc1a0c0125e6`
 - Source ref: `8ddb99a2a99102abc084b5e605aaba1c05c2ff56` from `lucamarien/opnsense-mcp-server`
 - Build override: `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE_BUILD=always`
 - Source ref override: `SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF`
@@ -47,7 +48,7 @@ removed repository `shims/` paths.
 - Safe defaults: `OPNSENSE_VERIFY_SSL=false`, `OPNSENSE_ALLOW_WRITES=false`
 - Runtime mode: stdio-friendly via `podman run --rm -i`
 - Mount: `$PWD` to `/work`
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Routing Rules
 

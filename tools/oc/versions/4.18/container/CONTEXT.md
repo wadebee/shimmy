@@ -1,5 +1,4 @@
 # OpenShift CLI 4.18 image build
 
-`Containerfile` wraps the Red Hat OpenShift 4.18 CLI manifest-list digest so
-Podman selects the correct supported architecture. It sets the working
-directory to `/work` and exposes `oc` as its entrypoint.
+`Containerfile` receives the configured Red Hat OpenShift 4.18 manifest-list
+digest through its required build argument. It sets `/work` and exposes `oc`.

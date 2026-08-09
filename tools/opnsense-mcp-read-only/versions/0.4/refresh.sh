@@ -17,17 +17,17 @@ case "${1:-}" in
     shimmy_podman_preflight_require "shimmy update --build"
     if [ -n "${SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF:-}" ]; then
       shimmy_local_image_ensure \
-        "localhost/shimmy-opnsense-mcp-read-only-0_4" \
-        "$SCRIPT_DIR/container" \
+        "$SCRIPT_DIR/image.conf" \
         always \
         --build-arg "SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF=$SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF" >/dev/null
+      shimmy_local_image_stale_cleanup "$SCRIPT_DIR/image.conf" \
+        --build-arg "SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF=$SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF"
     else
       shimmy_local_image_ensure \
-        "localhost/shimmy-opnsense-mcp-read-only-0_4" \
-        "$SCRIPT_DIR/container" \
+        "$SCRIPT_DIR/image.conf" \
         always >/dev/null
+      shimmy_local_image_stale_cleanup "$SCRIPT_DIR/image.conf"
     fi
-    shimmy_local_image_stale_cleanup "localhost/shimmy-opnsense-mcp-read-only-0_4" "$SCRIPT_DIR/container"
     ;;
   *)
     printf 'ERROR: unsupported refresh action: %s\n' "${1:-}" >&2

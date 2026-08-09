@@ -1,4 +1,4 @@
 # Google Drive MCP tests
 
-`gdrive.sh` verifies the preview-safe image override and OAuth credential
-forwarding contract without starting the MCP server.
+`gdrive.sh` verifies preview-safe image/source cache inputs and OAuth credential
+forwarding without starting the MCP server.

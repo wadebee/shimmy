@@ -7,8 +7,8 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
 SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/runtime/image.sh
+SHIMMY_IMAGE_CONFIG_FILE=$SCRIPT_DIR/image.conf
 
-SHIMMY_TEXTUAL_IMAGES_DIR=$SCRIPT_DIR/container
 SHIMMY_TEXTUAL_PULL_ARG=
 SHIMMY_TEXTUAL_TTY_ARG=
 
@@ -25,22 +25,11 @@ shimmy_podman_preflight_or_preview_require "the textual shim" "$@"
 if [ -n "${SHIMMY_TEXTUAL_IMAGE:-}" ]; then
   SHIMMY_TEXTUAL_RUN_IMAGE=$SHIMMY_TEXTUAL_IMAGE
 else
-  if [ -n "${SHIMMY_TEXTUAL_BASE_IMAGE:-}" ]; then
-    SHIMMY_TEXTUAL_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-textual-8_2" \
-        "$SHIMMY_TEXTUAL_IMAGES_DIR" \
-        "${SHIMMY_TEXTUAL_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_TEXTUAL_BASE_IMAGE=$SHIMMY_TEXTUAL_BASE_IMAGE"
-    )
-  else
-    SHIMMY_TEXTUAL_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-textual-8_2" \
-        "$SHIMMY_TEXTUAL_IMAGES_DIR" \
-        "${SHIMMY_TEXTUAL_IMAGE_BUILD:-auto}"
-    )
-  fi
+  SHIMMY_TEXTUAL_RUN_IMAGE=$(
+    shimmy_local_image_ensure \
+      "$SHIMMY_IMAGE_CONFIG_FILE" \
+      "${SHIMMY_TEXTUAL_IMAGE_BUILD:-auto}"
+  )
 fi
 
 if [ -n "${SHIMMY_TEXTUAL_IMAGE:-}" ] && [ "${SHIMMY_TEXTUAL_IMAGE_PULL:-}" = "always" ]; then

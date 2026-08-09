@@ -4,7 +4,9 @@
 and cleans stale local images for `shimmy update --build` unless an image
 override is selected.
 
-`status.conf` supplies the local-build description rendered by `shimmy status`.
+`image.conf` owns the local context/repository, configured UBI base digest,
+public registry access, and required platforms consumed by build/cache helpers
+and `shimmy status`.
 
 ## Child contexts
 

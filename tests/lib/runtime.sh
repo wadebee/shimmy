@@ -3,13 +3,55 @@
 
 test_lib_runtime_platform() {
   helper_file=$ROOT_DIR/lib/runtime/podman.sh
-  linux_platform=$(SHIMMY_TEST_OS=Linux /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$helper_file")
-  darwin_platform=$(SHIMMY_TEST_OS=Darwin /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$helper_file")
+  for platform_case in \
+    'Linux x86_64 linux/amd64' \
+    'Linux amd64 linux/amd64' \
+    'Linux aarch64 linux/arm64' \
+    'Linux arm64 linux/arm64' \
+    'Darwin x86_64 linux/amd64' \
+    'Darwin amd64 linux/amd64' \
+    'Darwin aarch64 linux/arm64' \
+    'Darwin arm64 linux/arm64'; do
+    set -- $platform_case
+    resolved_platform=$(SHIMMY_TEST_OS=$1 SHIMMY_TEST_ARCH=$2 /bin/sh -c '. "$1"; shimmy_podman_platform_resolve; printf "%s\n" "$SHIMMY_PODMAN_PLATFORM"' sh "$helper_file")
+    assert_equals "$resolved_platform" "$3"
+  done
 
-  assert_equals "$linux_platform" linux/amd64
-  assert_equals "$darwin_platform" linux/arm64
+  required_platforms=$(/bin/sh -c '. "$1"; shimmy_podman_required_platforms_print' sh "$helper_file")
+  assert_equals "$required_platforms" 'linux/amd64
+linux/arm64'
   assert_equals "$(/bin/sh -c '. "$1"; shimmy_podman_platform_tag_render linux/arm64' sh "$helper_file")" linux-arm64
-  pass "Podman platform resolves from host OS"
+  pass "Podman platform resolves from supported host OS and architecture aliases"
+}
+
+test_lib_runtime_platform_failures() {
+  helper_file=$ROOT_DIR/lib/runtime/podman.sh
+
+  for platform_case in \
+    'Plan9 amd64 unsupported host operating system' \
+    'Linux riscv64 unsupported host architecture' \
+    '__EMPTY__ amd64 unable to detect host operating system' \
+    'Linux __EMPTY__ unable to detect host architecture'; do
+    set -- $platform_case
+    host_os=$1
+    host_arch=$2
+    expected_message=$3
+    shift 3
+    expected_message="$expected_message $*"
+    [ "$host_os" != __EMPTY__ ] || host_os=
+    [ "$host_arch" != __EMPTY__ ] || host_arch=
+
+    set +e
+    output=$(SHIMMY_TEST_OS=$host_os SHIMMY_TEST_ARCH=$host_arch /bin/sh -c '. "$1"; SHIMMY_PODMAN_PLATFORM=stale; shimmy_podman_platform_resolve; status=$?; printf "platform=%s\n" "$SHIMMY_PODMAN_PLATFORM"; exit "$status"' sh "$helper_file" 2>&1)
+    status_code=$?
+    set -e
+
+    [ "$status_code" -ne 0 ] || fail_test "unsupported host unexpectedly resolved: $platform_case"
+    assert_contains "$output" "$expected_message"
+    assert_contains "$output" 'platform='
+    assert_not_contains "$output" 'platform=linux/'
+  done
+  pass "Podman platform resolution fails closed for unreadable and unsupported hosts"
 }
 
 test_lib_runtime_preview_helpers() {
@@ -93,6 +135,7 @@ test_lib_runtime_unreachable_guidance() {
 
 test_lib_runtime_run() {
   test_lib_runtime_platform
+  test_lib_runtime_platform_failures
   test_lib_runtime_preview_helpers
   test_lib_runtime_posix_syntax
   test_lib_runtime_executable_contract

@@ -17,7 +17,7 @@ case "${1:-}" in
     SHIMMY_TESSL_IMAGE_BUILD=always "$SCRIPT_DIR/run.sh" "$smoke_arg" >/dev/null </dev/null
     # shellcheck source=lib/runtime/image.sh
     . "$SHIMMY_RUNTIME_DIR/image.sh"
-    shimmy_local_image_stale_cleanup "localhost/shimmy-tessl-0_1" "$SCRIPT_DIR/container"
+    shimmy_local_image_stale_cleanup "$SCRIPT_DIR/image.conf"
     ;;
   *)
     printf 'ERROR: unsupported refresh action: %s\n' "${1:-}" >&2

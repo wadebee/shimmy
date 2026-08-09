@@ -25,6 +25,10 @@ own `bin/shimmy`; no installed control payload is shared between profiles.
 - Runtime code is POSIX shell and uses `set -eu`.
 - User-facing tool variables use the `SHIMMY_` prefix.
 - Tool runs mount `$PWD` at `/work` unless its local context documents why.
+- Supported Linux and Darwin hosts select the matching native
+  `linux/amd64` or `linux/arm64` image platform; unsupported hosts fail closed.
+- Every concrete version owns validated `image.conf` metadata with immutable
+  multi-platform defaults.
 - Podman is an explicit dependency; do not provision it from Shimmy.
 
 ## Child contexts

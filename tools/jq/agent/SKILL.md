@@ -32,13 +32,13 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: `ghcr.io/jqlang/jq:1.8.1`
+- Default image: `ghcr.io/jqlang/jq@sha256:4f34c6d23f4b1372ac789752cc955dc67c2ae177eb1b5860b75cdc5091ce6f91` from version-owned `image.conf`
 - Image override: `SHIMMY_JQ_IMAGE`
 - Pull override: `SHIMMY_JQ_IMAGE_PULL=always`
 - Runtime mode: stdin-friendly via `podman run --rm -i`
 - Mount: `$PWD` to `/work`
 - No extra mounts or forwarded env var families
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
 
@@ -53,7 +53,7 @@ removed repository `shims/` paths.
 
 - Direct smoke: `./commands/run-tool.sh jq --version`
 - Filter smoke: run jq against a small local JSON fixture and expect the selected field.
-- Pull override smoke keeps `SHIMMY_JQ_IMAGE_PULL=always SHIMMY_JQ_IMAGE=ghcr.io/jqlang/jq:1.8.1` aligned with tests.
+- Pull override smoke keeps `SHIMMY_JQ_IMAGE_PULL=always` plus an explicit `SHIMMY_JQ_IMAGE` override aligned with tests.
 
 ## Learning Guidance
 

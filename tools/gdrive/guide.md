@@ -5,7 +5,7 @@
 - Source repo README: <https://github.com/isaacphi/mcp-gdrive/blob/master/README.md>
 - Current source ref: `5a94bdcb751975f9f6552d261da35314baf89c43`
 - Manual: <https://github.com/isaacphi/mcp-gdrive#readme>
-- Shim image: locally built `localhost/shimmy-gdrive-0_2:<context-hash>-<platform>` from `versions/0.2/container/Containerfile` and `isaacphi/mcp-gdrive`
+- Shim image: locally built `localhost/shimmy-gdrive-0_2:<image-input-hash>-<platform>` from `versions/0.2/image.conf`, `container/`, and `isaacphi/mcp-gdrive`
 
 ## Upstream README Summary
 
@@ -44,6 +44,7 @@ Environment:
 - `SHIMMY_GDRIVE_IMAGE_BUILD=always` - rebuild the local source-built image.
 - `SHIMMY_GDRIVE_AUTH_PORT` - host OAuth callback port for first-time auth; defaults to `3000`.
 - `SHIMMY_GDRIVE_BASE_IMAGE` - override the Node base image for local builds.
+- Configured base: `docker.io/library/node@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32`.
 - `SHIMMY_GDRIVE_SOURCE_REF` - override the `isaacphi/mcp-gdrive` git ref used for local builds.
 
 Mounts:
@@ -64,8 +65,8 @@ Preflight:
 
 Runtime platform:
 
-- Linux -> `linux/amd64`
-- macOS -> `linux/arm64`
+- Linux or macOS on `amd64` -> `linux/amd64`
+- Linux or macOS on `arm64` -> `linux/arm64`
 
 ## Quick-Start Prompts
 

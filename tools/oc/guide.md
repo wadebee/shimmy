@@ -62,20 +62,25 @@ When `SHIMMY_OC_4_xx_IMAGE` is **not** set, Shimmy uses a local image built from
 - `versions/4.20/container/Containerfile`
 - `versions/4.22/container/Containerfile`
 
-Each Containerfile selects a version-appropriate base image. When the image is
-published for multiple architectures, use the publisher's fully qualified
-manifest-list digest rather than an architecture-specific tag or digest. The
-current Red Hat defaults are:
+Each version's `image.conf` selects the authenticated Red Hat base and passes
+it to the Containerfile as a required build argument. The defaults are
+publisher-supplied manifest-list digests rather than architecture-specific
+child manifests:
 
 - `SHIMMY_OC_4_18_BASE_IMAGE=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:16c25aadbd5f564a7c5f1508470f734d676a411b89bd98b307001619d1a5338f`
 - `SHIMMY_OC_4_20_BASE_IMAGE=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:61136a31003a378aae4039be61cfe10f3d2b60399f08a5325233826deb569383`
 - `SHIMMY_OC_4_22_BASE_IMAGE=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:83541f26b665963dea277a7f893725f4a1812b0550d07404f1429ed8da6b3bb2`
 
-You can override the base image used for local builds by setting the corresponding `SHIMMY_OC_4_xx_BASE_IMAGE` environment variable; the versioned shim passes it to Podman as a `--build-arg`. If a local image for the same build context was already cached, set the matching `SHIMMY_OC_4_xx_IMAGE_BUILD=always` once to force a rebuild with the new base image. You can also customize your Podman `registries.conf` to control how the short name is resolved.
+You can override a base for the current build with the corresponding
+`SHIMMY_OC_4_xx_BASE_IMAGE` variable. Configuration and effective build
+arguments are part of cache identity, so an override selects a distinct cache
+without requiring `IMAGE_BUILD=always`; that option remains available for an
+explicit rebuild.
 
 Runtime behavior for each versioned shim:
 
-- Uses Shimmy's shared Podman helper for platform selection (`linux/amd64` on Linux, `linux/arm64` on macOS).
+- Uses Shimmy's shared Podman helper to select the native `linux/amd64` or
+  `linux/arm64` platform on supported Linux/macOS hosts.
 - Mounts `$PWD` to `/work` and sets `-w /work`.
 - Adds `-it` only when stdin and stdout are terminals.
 - Forwards `KUBECONFIG` into the container when it is set in the host environment.

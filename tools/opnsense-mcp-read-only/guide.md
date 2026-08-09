@@ -4,7 +4,7 @@
 
 - Source repo README: <https://github.com/lucamarien/opnsense-mcp-server>
 - PyPI package: <https://pypi.org/project/opnsense-mcp-server/>
-- Shim image: local build from `versions/0.4/container/Containerfile`
+- Shim image: local build from `versions/0.4/image.conf` and `container/`
 - Pinned source ref: `8ddb99a2a99102abc084b5e605aaba1c05c2ff56`
 
 ## Upstream README Summary
@@ -66,6 +66,7 @@ Environment:
 - `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE_PULL=always` - pull an override image before running.
 - `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE_BUILD=always` - rebuild the local source image even when cached.
 - `SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF` - override the Marien git ref used for local builds.
+- `SHIMMY_OPNSENSE_MCP_READ_ONLY_BASE_IMAGE` - override the configured Python base; default `docker.io/library/python@sha256:9662417aace5ae7b8e2609cce472b72a8958e134ba372808abe9cc1a0c0125e6`.
 - `SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY` - Podman secret name mounted into the container as `OPNSENSE_API_KEY`. Default: `opnsense_mcp_read_only_api_key`.
 - `SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET` - Podman secret name mounted into the container as `OPNSENSE_API_SECRET`. Default: `opnsense_mcp_read_only_api_secret`.
 - `OPNSENSE_URL` - OPNsense firewall host or root URL. Bare hostnames are normalized with `https://`; `/api` is appended before the read-only server sees it.
@@ -74,7 +75,7 @@ Environment:
 
 Local image build:
 
-- Shimmy builds `localhost/shimmy-opnsense-mcp-read-only-0_4:<context-hash>-<platform>` from `versions/0.4/container/Containerfile`.
+- Shimmy builds `localhost/shimmy-opnsense-mcp-read-only-0_4:<image-input-hash>-<platform>` from the version's configuration, effective build arguments, and container context.
 - The default source ref is `8ddb99a2a99102abc084b5e605aaba1c05c2ff56` from `lucamarien/opnsense-mcp-server`.
 - Use `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE_BUILD=always` to force a rebuild.
 - Use `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE` only when you want to run a separately managed image.
@@ -94,8 +95,8 @@ Mounts:
 
 Runtime platform:
 
-- Linux -> `linux/amd64`
-- macOS -> `linux/arm64`
+- Linux or macOS on `amd64` -> `linux/amd64`
+- Linux or macOS on `arm64` -> `linux/arm64`
 
 Minimum read-only OPNsense API privileges:
 

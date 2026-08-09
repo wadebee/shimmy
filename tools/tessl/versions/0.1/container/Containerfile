@@ -1,5 +1,5 @@
 # Hardened Image at dhi.io/node:25-dev
-ARG SHIMMY_TESSL_BASE_IMAGE=node:25 
+ARG SHIMMY_TESSL_BASE_IMAGE
 FROM ${SHIMMY_TESSL_BASE_IMAGE}
 EXPOSE 8888
 RUN mkdir -p .npm-global \

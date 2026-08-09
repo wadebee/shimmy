@@ -61,13 +61,24 @@ tools actually run in containers. That gives Shimmy its main value:
 - Project directories can be mounted into short-lived tool containers.
 - Users can override container images with `SHIMMY_{TOOL_PREFIX}_IMAGE`.
 
-For tools that do not ship a usable upstream image, Shimmy can build and cache a
-local image from a checked-in `Containerfile` context. The local image tag is
-derived from the build-context hash and resolved platform, so Podman reuses the
-cached image until the context or platform changes.
+Every concrete version owns validated `image.conf` metadata. Direct-image
+defaults and local-build base defaults are pinned to immutable
+multi-architecture index digests that declare `linux/amd64` and `linux/arm64`.
+User-supplied image overrides remain outside that repository guarantee.
+Pull refreshes re-fetch the configured digest and do not advance the upstream
+tag recorded for discovery.
 
-Shimmy also resolves the container platform at runtime. Linux hosts run
-containers as `linux/amd64`; macOS hosts run containers as `linux/arm64`.
+For tools that do not ship a usable upstream image, Shimmy builds and caches a
+local image from a checked-in `Containerfile` context. The local image tag is
+derived from the complete context, exact image configuration, ordered effective
+build arguments, and selected platform. Podman reuses the cache only while all
+of those inputs remain identical.
+
+Shimmy resolves both the host operating system and CPU architecture at runtime.
+Linux and Darwin hosts normalize `x86_64`/`amd64` to `amd64` and
+`aarch64`/`arm64` to `arm64`, then select the matching native `linux/amd64` or
+`linux/arm64` image platform. Unreadable or unsupported values fail before
+Podman is invoked.
 
 Podman Desktop is not required. Shimmy needs the Podman CLI and an engine the
 CLI can reach.

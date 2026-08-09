@@ -5,10 +5,10 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
 SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/runtime/image.sh
+SHIMMY_IMAGE_CONFIG_FILE=$SCRIPT_DIR/image.conf
 
 SHIMMY_GDRIVE_CREDS_DIR=
 SHIMMY_GDRIVE_AUTH_PORT_ARG=
-SHIMMY_GDRIVE_IMAGES_DIR=$SCRIPT_DIR/container
 SHIMMY_GDRIVE_PULL_ARG=
 
 if [ ! -f "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE" ]; then
@@ -24,36 +24,17 @@ shimmy_podman_preflight_or_preview_require "the gdrive shim" "$@"
 if [ -n "${SHIMMY_GDRIVE_IMAGE:-}" ]; then
   SHIMMY_GDRIVE_RUN_IMAGE=$SHIMMY_GDRIVE_IMAGE
 else
-  if [ -n "${SHIMMY_GDRIVE_BASE_IMAGE:-}" ] && [ -n "${SHIMMY_GDRIVE_SOURCE_REF:-}" ]; then
+  if [ -n "${SHIMMY_GDRIVE_SOURCE_REF:-}" ]; then
     SHIMMY_GDRIVE_RUN_IMAGE=$(
       shimmy_local_image_ensure \
-        "localhost/shimmy-gdrive-0_2" \
-        "$SHIMMY_GDRIVE_IMAGES_DIR" \
-        "${SHIMMY_GDRIVE_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_GDRIVE_BASE_IMAGE=$SHIMMY_GDRIVE_BASE_IMAGE" \
-        --build-arg "SHIMMY_GDRIVE_SOURCE_REF=$SHIMMY_GDRIVE_SOURCE_REF"
-    )
-  elif [ -n "${SHIMMY_GDRIVE_BASE_IMAGE:-}" ]; then
-    SHIMMY_GDRIVE_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-gdrive-0_2" \
-        "$SHIMMY_GDRIVE_IMAGES_DIR" \
-        "${SHIMMY_GDRIVE_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_GDRIVE_BASE_IMAGE=$SHIMMY_GDRIVE_BASE_IMAGE"
-    )
-  elif [ -n "${SHIMMY_GDRIVE_SOURCE_REF:-}" ]; then
-    SHIMMY_GDRIVE_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-gdrive-0_2" \
-        "$SHIMMY_GDRIVE_IMAGES_DIR" \
+        "$SHIMMY_IMAGE_CONFIG_FILE" \
         "${SHIMMY_GDRIVE_IMAGE_BUILD:-auto}" \
         --build-arg "SHIMMY_GDRIVE_SOURCE_REF=$SHIMMY_GDRIVE_SOURCE_REF"
     )
   else
     SHIMMY_GDRIVE_RUN_IMAGE=$(
       shimmy_local_image_ensure \
-        "localhost/shimmy-gdrive-0_2" \
-        "$SHIMMY_GDRIVE_IMAGES_DIR" \
+        "$SHIMMY_IMAGE_CONFIG_FILE" \
         "${SHIMMY_GDRIVE_IMAGE_BUILD:-auto}"
     )
   fi

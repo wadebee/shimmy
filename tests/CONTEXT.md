@@ -4,7 +4,9 @@
 assertions, scenarios, and cleanup. `profile-smoke.sh` parses installed-profile
 test requests and runs the enclosing profile's non-mutating smoke commands.
 Tests use live Podman only for non-mutating commands; preview rendering is
-preferred where it proves the same behavior.
+preferred where it proves the same behavior. The default suite validates image
+metadata offline and previews every concrete runtime across the supported
+Linux/Darwin and amd64/arm64 host matrix.
 
 Installation scenarios isolate state with absolute disposable `HOME` and
 `XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or

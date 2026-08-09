@@ -9,9 +9,9 @@ SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/runtime/podman.sh
 
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/runtime/image.sh
+SHIMMY_IMAGE_CONFIG_FILE=$SCRIPT_DIR/image.conf
 SHIMMY_GH_CONFIG_DIR=
 SHIMMY_GH_CONTAINER_CONFIG_DIR=/home/gh/.config/gh
-SHIMMY_GH_IMAGES_DIR=$SCRIPT_DIR/container
 SHIMMY_GH_IMAGE_PULL=${SHIMMY_GH_IMAGE_PULL:-}
 SHIMMY_GH_PULL_ARG=
 SHIMMY_GH_RUN_IMAGE=
@@ -66,36 +66,17 @@ fi
 if [ -n "${SHIMMY_GH_IMAGE:-}" ]; then
   SHIMMY_GH_RUN_IMAGE=$SHIMMY_GH_IMAGE
 else
-  if [ -n "${SHIMMY_GH_BASE_IMAGE:-}" ] && [ -n "${SHIMMY_GH_VERSION:-}" ]; then
+  if [ -n "${SHIMMY_GH_VERSION:-}" ]; then
     SHIMMY_GH_RUN_IMAGE=$(
       shimmy_local_image_ensure \
-        "localhost/shimmy-gh-2_94" \
-        "$SHIMMY_GH_IMAGES_DIR" \
-        "${SHIMMY_GH_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_GH_BASE_IMAGE=$SHIMMY_GH_BASE_IMAGE" \
-        --build-arg "SHIMMY_GH_VERSION=$SHIMMY_GH_VERSION"
-    )
-  elif [ -n "${SHIMMY_GH_BASE_IMAGE:-}" ]; then
-    SHIMMY_GH_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-gh-2_94" \
-        "$SHIMMY_GH_IMAGES_DIR" \
-        "${SHIMMY_GH_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_GH_BASE_IMAGE=$SHIMMY_GH_BASE_IMAGE"
-    )
-  elif [ -n "${SHIMMY_GH_VERSION:-}" ]; then
-    SHIMMY_GH_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-gh-2_94" \
-        "$SHIMMY_GH_IMAGES_DIR" \
+        "$SHIMMY_IMAGE_CONFIG_FILE" \
         "${SHIMMY_GH_IMAGE_BUILD:-auto}" \
         --build-arg "SHIMMY_GH_VERSION=$SHIMMY_GH_VERSION"
     )
   else
     SHIMMY_GH_RUN_IMAGE=$(
       shimmy_local_image_ensure \
-        "localhost/shimmy-gh-2_94" \
-        "$SHIMMY_GH_IMAGES_DIR" \
+        "$SHIMMY_IMAGE_CONFIG_FILE" \
         "${SHIMMY_GH_IMAGE_BUILD:-auto}"
     )
   fi

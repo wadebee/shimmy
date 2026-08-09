@@ -7,11 +7,11 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
 SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 SHIMMY_CUSTOM_IMAGE_HELPER_FILE=$ROOT_DIR/lib/runtime/image.sh
+SHIMMY_IMAGE_CONFIG_FILE=$SCRIPT_DIR/image.conf
 
 SHIMMY_TASK_CONTAINER_HOST_SOCKET=
 SHIMMY_TASK_CONTAINER_HOST_VALUE=
 SHIMMY_TASK_HOME_DIR=
-SHIMMY_TASK_IMAGES_DIR=$SCRIPT_DIR/container
 SHIMMY_TASK_PULL_ARG=
 SHIMMY_TASK_TMP_DIR=
 SHIMMY_TASK_TTY_ARG=
@@ -29,36 +29,17 @@ shimmy_podman_preflight_or_preview_require "the task shim" "$@"
 if [ -n "${SHIMMY_TASK_IMAGE:-}" ]; then
   SHIMMY_TASK_RUN_IMAGE=$SHIMMY_TASK_IMAGE
 else
-  if [ -n "${SHIMMY_TASK_BASE_IMAGE:-}" ] && [ -n "${SHIMMY_TASK_VERSION:-}" ]; then
+  if [ -n "${SHIMMY_TASK_VERSION:-}" ]; then
     SHIMMY_TASK_RUN_IMAGE=$(
       shimmy_local_image_ensure \
-        "localhost/shimmy-task-3_45" \
-        "$SHIMMY_TASK_IMAGES_DIR" \
-        "${SHIMMY_TASK_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_TASK_BASE_IMAGE=$SHIMMY_TASK_BASE_IMAGE" \
-        --build-arg "SHIMMY_TASK_VERSION=$SHIMMY_TASK_VERSION"
-    )
-  elif [ -n "${SHIMMY_TASK_BASE_IMAGE:-}" ]; then
-    SHIMMY_TASK_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-task-3_45" \
-        "$SHIMMY_TASK_IMAGES_DIR" \
-        "${SHIMMY_TASK_IMAGE_BUILD:-auto}" \
-        --build-arg "SHIMMY_TASK_BASE_IMAGE=$SHIMMY_TASK_BASE_IMAGE"
-    )
-  elif [ -n "${SHIMMY_TASK_VERSION:-}" ]; then
-    SHIMMY_TASK_RUN_IMAGE=$(
-      shimmy_local_image_ensure \
-        "localhost/shimmy-task-3_45" \
-        "$SHIMMY_TASK_IMAGES_DIR" \
+        "$SHIMMY_IMAGE_CONFIG_FILE" \
         "${SHIMMY_TASK_IMAGE_BUILD:-auto}" \
         --build-arg "SHIMMY_TASK_VERSION=$SHIMMY_TASK_VERSION"
     )
   else
     SHIMMY_TASK_RUN_IMAGE=$(
       shimmy_local_image_ensure \
-        "localhost/shimmy-task-3_45" \
-        "$SHIMMY_TASK_IMAGES_DIR" \
+        "$SHIMMY_IMAGE_CONFIG_FILE" \
         "${SHIMMY_TASK_IMAGE_BUILD:-auto}"
     )
   fi

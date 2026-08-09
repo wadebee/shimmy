@@ -1,4 +1,4 @@
 # Textual image build
 
-`Containerfile` installs the pinned Textual and Textual developer CLI packages
-in the configured Python image and exposes `textual` as its entrypoint.
+`Containerfile` receives the configured Python base through its required build
+argument, installs the pinned Textual packages, and exposes `textual`.
