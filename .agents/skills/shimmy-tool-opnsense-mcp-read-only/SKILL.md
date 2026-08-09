@@ -1,29 +1,39 @@
 ---
 name: shimmy-tool-opnsense-mcp-read-only
-description: Guidance for using, changing, testing, and troubleshooting the opnsense-mcp-read-only shim in this repository, including read-only OPNsense MCP routing, API privileges, Podman secrets, supported tool inventory, and MCP stdio smoke tests.
+description: Canonical read-only OPNsense MCP via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the opnsense-mcp-read-only shim in this repository, including read-only OPNsense MCP routing, API privileges, Podman secrets, supported tool inventory, and MCP stdio smoke tests.
 ---
 
 # OPNsense MCP Read-Only Shim
 
-Use this skill when working with `shims/opnsense-mcp-read-only`, its tests, its docs, or live read-only OPNsense MCP queries.
+Use this skill when working with the opnsense-mcp-read-only tool, its tests, its docs, or live read-only OPNsense MCP queries.
 
 ## Files
 
-- Kind dispatcher: `../../../shims/opnsense-mcp-read-only`
-- Version shim: `../../../shims/opnsense-mcp-read-only_0_4`
-- User docs: `../../../docs/shims/opnsense-mcp-read-only.md`
-- Image context: `../../../images/opnsense-mcp-read-only_0_4/Containerfile`
-- Tests: `../../../scripts/test-shimmy.sh`
-- Skill installer: `../../../scripts/skills-shimmy.sh`
+- Kind metadata: `../../../tools/opnsense-mcp-read-only/tool.conf`
+- Concrete runtime: `../../../tools/opnsense-mcp-read-only/versions/0.4/run.sh`
+- User guide: `../../../tools/opnsense-mcp-read-only/guide.md`
+- Tests: `../../../tools/opnsense-mcp-read-only/tests/opnsense-mcp-read-only.sh`
+- Image context: `../../../tools/opnsense-mcp-read-only/versions/0.4/container/Containerfile`
+- Repository suite: `../../../tests/test.sh`
 - README: `../../../README.md`
+- Contributor guidance: `../../../CONTRIBUTING.md`
+- Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Installed Workflow
 
-When this skill is installed outside the Shimmy checkout, prefer activated commands such as `opnsense-mcp-read-only --help` and inspect the invoking profile with `shimmy status --format manifest`. To validate `upstream`, first activate its absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy` launcher, then run the tool without a profile selector. Use `./shims/opnsense-mcp-read-only` only when intentionally editing or testing the repo-local wrapper.
+When the installed profile is selected on `PATH`, invoke `opnsense-mcp-read-only` normally
+and inspect the invoking profile with `shimmy status --format manifest`. Select an
+existing profile by sourcing its generated `shell-init.sh`; installed commands do
+not accept a profile selector. To test `upstream`, source
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh`.
+
+For source validation, use `./commands/run-tool.sh opnsense-mcp-read-only --preview-shim --help`
+or the concrete `tools/opnsense-mcp-read-only/versions/0.4/run.sh` runtime. Do not use
+removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: local build from `../../../images/opnsense-mcp-read-only_0_4/Containerfile`
+- Default image: local build from `../../../tools/opnsense-mcp-read-only/versions/0.4/container/Containerfile`
 - Source ref: `8ddb99a2a99102abc084b5e605aaba1c05c2ff56` from `lucamarien/opnsense-mcp-server`
 - Build override: `SHIMMY_OPNSENSE_MCP_READ_ONLY_IMAGE_BUILD=always`
 - Source ref override: `SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF`
@@ -77,7 +87,7 @@ Use read-only tools first when a matching tool exists. Use admin only for missin
 When an OPNsense MCP call returns HTTP 403 or another authorization error:
 
 1. Stop. Do not try alternate endpoints, remove safety flags, enable writes, or work around the missing privilege.
-2. Identify the failed MCP tool and likely OPNsense privilege `Name` from `../../../docs/shims/opnsense-mcp-read-only.md` when possible.
+2. Identify the failed MCP tool and likely OPNsense privilege `Name` from `../../../tools/opnsense-mcp-read-only/guide.md` when possible.
 3. Ask the user to update the API user's group privileges at `System | Access | Groups | Edit Group | Privileges`.
 4. Include the security impact: read-oriented privileges preserve the read-only posture while `System: Deny config write` remains enabled; write-capable privileges breach that boundary and need an explicit change window.
 5. After the user confirms the privilege has been added, retry the same operation once. If it still fails, stop and report the remaining error.

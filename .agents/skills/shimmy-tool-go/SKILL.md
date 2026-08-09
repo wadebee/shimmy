@@ -1,29 +1,38 @@
 ---
 name: shimmy-tool-go
-description: Guidance for using, changing, testing, and troubleshooting the Go toolchain shim in this repository, including stdin-friendly execution, Go command smoke checks, and platform-aware container behavior.
+description: Canonical GOlang CLI via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the Go toolchain shim in this repository, including stdin-friendly execution, source-tree execution, Go command smoke checks, and platform-aware container behavior.
 ---
 
 # Go Shim
 
-Use this skill when working with `shims/go`, its tests, its docs, or Go CLI usage through Shimmy.
+Use this skill when working with the Go tool, its tests, its docs, or Go CLI usage through Shimmy.
 
 ## Files
 
-- Runtime shim: `../../../shims/go`
-- User docs: `../../../docs/shims/go.md`
-- Tests: `../../../scripts/test-shimmy.sh`
-- Installer: `../../../scripts/install-shimmy.sh`
+- Kind metadata: `../../../tools/go/tool.conf`
+- Concrete runtime: `../../../tools/go/versions/1.26/run.sh`
+- User guide: `../../../tools/go/guide.md`
+- Tests: `../../../tools/go/tests/go.sh`
+- Repository suite: `../../../tests/test.sh`
 - README: `../../../README.md`
 - Contributor guidance: `../../../CONTRIBUTING.md`
 - Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Installed Workflow
 
-When this skill is installed outside the Shimmy source checkout, do not rely on the repo-relative `Files` paths above. Prefer activated commands such as `<tool> --version` and inspect the invoking profile with `shimmy status --format manifest`. To validate `upstream`, first activate its absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy` launcher, then run the tool without a profile selector. Use repo-local paths such as `./shims/<tool>` only when intentionally editing or testing source files in the Shimmy checkout.
+When the installed profile is selected on `PATH`, invoke `go` normally
+and inspect the invoking profile with `shimmy status --format manifest`. Select an
+existing profile by sourcing its generated `shell-init.sh`; installed commands do
+not accept a profile selector. To test `upstream`, source
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh`.
+
+For source validation, use `./commands/run-tool.sh go --preview-shim version`
+or the concrete `tools/go/versions/1.26/run.sh` runtime. Do not use
+removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: `docker.io/library/golang:latest`
+- Default image: `docker.io/library/golang:1.26.4`
 - Image override: `SHIMMY_GO_IMAGE`
 - Pull override: `SHIMMY_GO_IMAGE_PULL=always`
 - Runtime mode: stdin-friendly via `podman run --rm -i`
@@ -42,9 +51,9 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Validation
 
-- Direct smoke: `./shims/go version`
-- Help smoke: `./shims/go help test`
-- Platform smoke: `./shims/go env GOARCH`
+- Direct smoke: `./commands/run-tool.sh go version`
+- Help smoke: `./commands/run-tool.sh go help test`
+- Platform smoke: `./commands/run-tool.sh go env GOARCH`
 - Expected platform output is `amd64` on Linux and `arm64` on macOS.
 
 ## Learning Guidance

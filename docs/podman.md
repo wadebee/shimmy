@@ -43,11 +43,10 @@ Official Podman installation guide: <https://podman.io/docs/installation>
    podman run --rm quay.io/podman/hello
    ```
 
-6. Install or activate Shimmy, then run a shim smoke check:
+6. Source the Shimmy bootstrap, then run a shim smoke check:
 
    ```sh
-   ./install.sh
-   eval "$("${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" activate)"
+   . ./install.sh
    jq --version
    rg --version
    ```
@@ -161,7 +160,8 @@ The official macOS pkg installer may place the binary at:
 /opt/podman/bin/podman
 ```
 
-Shimmy accounts for that path during activation and runtime preflight checks.
+Shimmy accounts for that path during shell initialization and runtime preflight
+checks.
 If you are running Podman manually and `podman` is not found, either add
 `/opt/podman/bin` to `PATH` or call `/opt/podman/bin/podman` directly while you
 repair your shell setup.
@@ -230,19 +230,22 @@ From a source checkout, run the repository suite directly:
 ./tests/test.sh
 ```
 
-For maintainer testing through the upstream profile, install and activate that profile first:
+For maintainer testing through the upstream profile, source its bootstrap
+first:
 
 ```sh
-./install.sh --profile upstream
-eval "$("${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy" activate)"
+. ./install.sh --profile upstream
 shimmy status
 shimmy test
 rg --version
 ```
 
-The bootstrap chooses a profile; installed commands manage only the profile
-whose `bin/shimmy` launcher invoked them. The `upstream` profile is
-manual-activation-only and never manages persistent shell startup files.
+Every bootstrap includes jq and rg; add other tools afterward with the
+installed `shimmy install --shim <kind>` command. Executing the bootstrap is
+suitable for automation but cannot change its parent shell. To select an
+existing profile, source its generated `shell-init.sh`. Installed commands
+manage only the profile whose `bin/shimmy` launcher invoked them. The
+`upstream` profile never manages persistent shell startup files.
 
 `shimmy test` uses live Podman execution for supported kinds. It is a stronger
 check than `podman info` because it verifies that Shimmy's wrappers can actually
@@ -301,15 +304,17 @@ rg --version
 From a source checkout:
 
 ```sh
-./commands/run-tool.sh jq --version
-./commands/run-tool.sh rg --version
+./commands/run-tool.sh jq --preview-shim --version
+./commands/run-tool.sh rg --preview-shim --version
 ```
 
 In AI Agent environments, command approvals are often evaluated on the outer
 command. Approving `podman info` only proves the engine works; it may not
 approve nested Podman access through a Shimmy wrapper. Approve the exact dry-run
 shim command prefix the agent needs, such as `["rg","--version"]` for an
-activated shim or `["./commands/run-tool.sh","rg","--version"]` for a repo-local runtime.
+installed shim selected on `PATH` or
+`["./commands/run-tool.sh","rg","--preview-shim","--version"]` for a
+repo-local runtime.
 
 The source checkout includes a preflight helper that prints useful approval
 prefixes and smoke commands:

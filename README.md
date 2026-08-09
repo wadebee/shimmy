@@ -36,8 +36,7 @@ normal user shell before running a shim.
 ## Install and use
 
 ```sh
-./install.sh
-eval "$("${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" activate)"
+. ./install.sh
 jq --version
 rg --version
 
@@ -49,9 +48,8 @@ Each installed launcher exposes this management surface:
 
 | Command | Purpose |
 |---|---|
-| `shimmy install` | Add tool shims and optional agent skills to the profile. |
+| `shimmy install` | Add explicitly selected tool shims to the profile. |
 | `shimmy uninstall` | Remove the profile and its managed startup integration. |
-| `shimmy activate` | Print shell code that activates the profile in the current shell. |
 | `shimmy netinfo` | Show host, VM, and container network perspectives. |
 | `shimmy skills` | Install, update, uninstall, or export Shimmy agent skills. |
 | `shimmy status` | Show installed shims, versions, and profile details. |
@@ -61,25 +59,38 @@ Each installed launcher exposes this management surface:
 Run `shimmy <command> --help` for command-specific options.
 
 The repository contains only the minimal `install.sh` bootstrap; it does not
-contain a runnable `shimmy` launcher. Bootstrap `default` with `./install.sh`
-or `upstream` with `./install.sh --profile upstream`. Each installed profile
-has its own self-contained `bin/shimmy`, and installed launchers manage only
-their enclosing profile.
+contain a runnable `shimmy` launcher. Source `. ./install.sh` to bootstrap
+`default` and initialize the current shell, or source `. ./install.sh --profile
+upstream` for the maintainer profile. Every bootstrap installs jq and rg.
+Install any other tool afterward with `shimmy install --shim <kind>`.
+
+Executing `./install.sh` performs the same bootstrap for automation, but its
+shell initialization ends with that process. To initialize another shell
+directly from an existing profile, source its generated asset:
+
+```sh
+. "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/shell-init.sh"
+```
+
+Each profile has its own self-contained `bin/shimmy`, and installed launchers
+manage only their enclosing profile.
 
 Profiles are independent flat installations below an absolute
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>` root. A relative,
 non-empty `XDG_CONFIG_HOME` is rejected. The `default` profile alone may own a
-persistent startup block; `upstream` is manual-activation-only. Switch profiles
-by evaluating the desired profile's absolute launcher, not with an installed
-command option or environment selector.
+persistent startup block; `upstream` never changes shell startup files. Switch
+profiles by sourcing the desired profile's `shell-init.sh`, not with an
+installed command option or environment selector.
 
 Agent skills exported to a repository or home agent profile are external,
-target-manifest-owned state. Profile install, update, and uninstall do not
-implicitly refresh or remove these shared targets. Install them only with an
-explicit `--skills-target repo|profile`, and remove them only with `shimmy
-skills uninstall --target repo|profile`. The `plugin` target manages the
-packaged bundle inside the invoking profile and is not a shared external
-target.
+target-manifest-owned state. Every profile payload already includes canonical
+agent sources and its packaged plugin skills. Profile install, update, and
+uninstall do not implicitly refresh or remove repository or home exports. Use
+the standalone `shimmy skills install --target repo|profile` or `shimmy skills
+update --target repo|profile` operation to write those external targets, and
+`shimmy skills uninstall --target repo|profile` to remove their manifest-owned
+entries. The `plugin` target is the packaged bundle inside the invoking
+profile, not a shared external target.
 
 Earlier installation layouts are intentionally unsupported. Remove them with
 the Shimmy version that created them, then bootstrap the desired profile.

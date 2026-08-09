@@ -20,11 +20,12 @@ a user's Shimmy installation or shell startup files.
 - `update.sh` covers selected-shim and all-profile refresh behavior, version-
   local irrelevant image-refresh actions, manifest-preserving self-update for
   non-baseline kinds and concrete versions, and update request validation.
-- `startup.sh` covers shell-initialization idempotence and managed startup-block install
-  and repair behavior.
+- `startup.sh` covers shell-initialization idempotence and managed startup-block
+  install and repair behavior without a separate initialization command.
 - `skills.sh` covers canonical skill sources, checked-in export fingerprints,
   portable manifests, installed-kind selection, explicit repository, home, and
-  plugin targets, lifecycle isolation, refresh, and manifest-tracked cleanup.
+  plugin targets, unconditional profile payload, lifecycle isolation, refresh,
+  and manifest-tracked cleanup.
 - `dispatcher.sh` covers profile-bound installed dispatchers, ownership, and
   recursion protections; repository previews use `commands/run-tool.sh`.
 - `netinfo.sh` covers deterministic CIDR rendering, explicit host-LAN

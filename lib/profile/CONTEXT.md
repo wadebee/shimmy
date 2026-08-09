@@ -6,4 +6,5 @@ validity. The canonical roots are
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`; a non-empty
 relative `XDG_CONFIG_HOME` is invalid. Installed launchers and dispatchers
 derive identity from their enclosing canonical profile and never select a
-sibling profile.
+sibling profile. Shell selection is performed by sourcing that profile's
+generated `shell-init.sh`.

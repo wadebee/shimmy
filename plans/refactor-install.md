@@ -620,11 +620,11 @@ checked.
 Resume record:
 
 ```text
-Last approved chunk: 5
-Current chunk: 6
-Last known-good revision or diff base: 7a4dd61
+Last approved chunk: 6
+Current chunk: 7
+Last known-good revision or diff base: 616d920
 Last validation command and result: ./tests/test.sh (exit 0; all 79 tests passed); git diff --check (exit 0)
-Outstanding human decision: approve the Chunk 6 retired-state cleanup, safety-test preservation, and validation evidence
+Outstanding human decision: approve the retried Chunk 7 guidance preservation and generated-distribution update after implementation and validation
 ```
 
 - [x] Chunk 0 implementation/inventory complete
@@ -653,10 +653,10 @@ Outstanding human decision: approve the Chunk 6 retired-state cleanup, safety-te
 - [x] Chunk 5 lessons recorded
 - [x] Chunk 6 implementation complete
 - [x] Chunk 6 validation evidence captured
-- [ ] Chunk 6 human review approved
-- [ ] Chunk 6 lessons recorded
-- [ ] Chunk 7 implementation complete
-- [ ] Chunk 7 validation evidence captured
+- [x] Chunk 6 human review approved
+- [x] Chunk 6 lessons recorded
+- [x] Chunk 7 implementation complete
+- [x] Chunk 7 validation evidence captured
 - [ ] Chunk 7 human review approved
 - [ ] Chunk 7 lessons recorded
 - [ ] Chunk 8 implementation complete
@@ -1376,6 +1376,13 @@ Implementation:
 - Use the existing canonical export workflow to regenerate `.agents/` and
   plugin skill distributions and their manifests/fingerprints. Do not hand-edit
   generated copies independently of the canonical source.
+- Before exporting, compare every existing `.agents/skills/*/SKILL.md` with its
+  canonical source. Preserve its domain knowledge, safety rules, routing,
+  examples, and troubleshooting by migrating that content into the canonical
+  skill; update or remove only obsolete paths, layout, and lifecycle wording.
+- Review semantic preservation independently of fingerprint and byte-parity
+  checks. A generated copy that is richer than its canonical source is
+  unmerged source material, not disposable drift.
 - Re-read every changed directory's `CONTEXT.md` and update only the closest
   context plus required parent link or description.
 
@@ -1395,6 +1402,66 @@ startup, update, uninstall, and external-skills instructions.
 
 Post-processing: update the resume record and checklist and add a lesson about
 guidance drift, context-tree maintenance, or deterministic exports.
+
+### Chunk 7 execution record
+
+The first unapproved Chunk 7 worktree was discarded at the reviewer's request.
+This retry began from clean revision `616d920` with Chunk 7 explicitly recorded
+as not implemented. Before any export, every existing repository skill adapter
+was compared with its canonical source. Richer adapter guidance was treated as
+unmerged source material and promoted into the canonical core or tool skill.
+
+The retained material includes tool-specific routing, safety boundaries,
+configuration and credential behavior, examples, supported-operation
+inventories, troubleshooting, and lessons learned. In particular, the admin
+OPNsense skill still contains Files, Installed Workflow, Current Behavior,
+Routing Rules, Preflight, Supported Tool Inventory, Admin Safety, and Lessons
+Learned sections. Obsolete `shims/`, central `images/`, and lifecycle activation
+terminology was replaced with the current tool-owned version layout,
+`commands/run-tool.sh` source-validation workflow, sourced `shell-init.sh`, and
+profile-local management model.
+
+`shimmy-tool-local-build` was the only intentional structural exception. Its
+old central `scripts/update-shimmy.sh` mapping and `images/<kind>_<version>`
+procedure were obsolete; the canonical skill replaces them with the current
+version-owned `container/` layout, shared runtime helper rules, preview example,
+and live-build validation requirements.
+
+Human guidance, parent and closest contexts, canonical skills, repository
+adapters, plugin skills, and both manifests now describe sourced onboarding,
+the fixed jq/rg bootstrap baseline, explicit additive tool installs,
+default-only startup mutation, profile-packaged skills, and standalone external
+skill operations. The canonical exporter regenerated the checked-in copies;
+subsequent repository and plugin exports were no-ops.
+
+Validation evidence:
+
+```text
+canonical/exported SKILL.md byte comparison
+  exit 0; all repository and plugin exports match their canonical sources
+generated skill section and size preservation audit
+  exit 0 for every retained skill; shimmy-tool-local-build classified as the
+  documented obsolete-layout migration above
+exported-skill relative-path audit
+  exit 0
+active-guidance retired-path, lifecycle-option, activation, and bootstrap
+example audits
+  exit 0; no matches
+./commands/skills.sh update --target repo
+  exit 0; every skill already current
+./commands/skills.sh update --target plugin
+  exit 0; every skill already current
+git diff --check
+  exit 0
+./tests/test.sh
+  exit 0; all 79 tests passed
+```
+
+The skill-creator `quick_validate.py` check was attempted but could not start
+because that validator's Python environment lacks its `yaml` dependency
+(`ModuleNotFoundError: No module named 'yaml'`). No dependency was installed or
+repository state changed to bypass that environment issue; repository-native
+skill-manifest/export checks and the complete suite passed.
 
 ## Chunk 8: Final integrated validation and release-readiness audit
 
@@ -1444,7 +1511,7 @@ observations.
 | 3 | 2026-08-09 / user | A plain final `false` in a sourced file can trigger Bash 3.2 `errexit` before a conditional dot-command caller recovers, preventing source-safe cleanup. | End failure paths with a negated successful command so they return status 1 without bypassing cleanup, and retain both ordinary and conditional failure coverage. | Source-safe POSIX entrypoints must test failure cleanup in callers with `errexit`; a function's final status-producing command affects whether the caller can recover. |
 | 4 | 2026-08-09 / user | The fixed jq/rg baseline and explicit installed selection passed review after full-manifest assertions exposed stale single-kind expectations. | Preserved complete selection snapshots through repository refresh and self-update instead of rebuilding bootstrap arguments. | When an installer policy changes ownership defaults, assert the complete manifest before and after every refresh path. |
 | 5 | 2026-08-09 / user | Profile lifecycle and explicit standalone skills operations remained behaviorally separate through implementation and full-suite validation. | Kept canonical agent/plugin payload profile-owned while leaving repository and home targets manifest-owned by explicit `shimmy skills` commands. | Model profile payload and external integrations as separate ownership domains with separate commands and tests. |
-| 6 | Pending | Pending | Pending | Pending |
+| 6 | 2026-08-09 / user | Retired parser, state, schema-v2, and startup-summary compatibility could be removed without weakening malformed-state, unsafe-path, collision, isolation, or ownership coverage. | Removed compatibility-only helpers and fixtures while retaining behavior-level safety assertions and explicit unknown-option rejection. | When retiring compatibility surfaces, classify tests by protected invariant and preserve the invariant even when its old input spelling disappears. |
 | 7 | Pending | Pending | Pending | Pending |
 | 8 | Pending | Pending | Pending | Pending |
 

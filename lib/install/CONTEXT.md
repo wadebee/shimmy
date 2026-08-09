@@ -6,6 +6,9 @@ bootstrap one canonical profile with internally supplied jq/rg requests; an
 installed profile-local launcher invokes it only for its enclosing profile and
 requires one or more explicit `--shim` requests. It selects fresh, additive,
 refresh, or uninstall lifecycle flows without a shared installed control root.
+The root entrypoint sources the installed `shell-init.sh` into its caller when
+it is sourced; execution retains initialization only inside the bootstrap
+process.
 
 ## Files
 

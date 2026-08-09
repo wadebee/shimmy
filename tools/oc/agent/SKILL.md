@@ -13,8 +13,8 @@ Use `oc --help` for non-network smoke checks across supported versions.
 
 ## Corporate / proxy / airgapped environments
 
-- **Corporate registry mirrors for `registry.redhat.io`.** 
-  Registry mirrors must be configured in `/etc/containers/registries.conf` so
+- **Use a working `registries.conf` mirror for `registry.redhat.io`.** Corporate
+  registry mirrors must be configured in `/etc/containers/registries.conf` so
   Podman pulls the oc image from the proxy registry instead of the upstream
   Red Hat registry.
 - **Mirror images and signatures together where possible.** If the mirror does
@@ -23,7 +23,7 @@ Use `oc --help` for non-network smoke checks across supported versions.
 
   ```json
   {
-    "default": [{ "type": "reject" }],
+    "default": [{ "type": "insecureAcceptAnything" }],
     "transports": {
       "docker": {
         "your-mirror-host": [{ "type": "insecureAcceptAnything" }]

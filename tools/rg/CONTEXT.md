@@ -1,8 +1,8 @@
 # ripgrep
 
 The ripgrep wrapper exposes a remote image with `$PWD` mounted at `/work`.
-Use the normal `rg` command when activated; direct source validation uses the
-version runtime.
+Use the normal `rg` command when the installed profile is selected on `PATH`;
+direct source validation uses the version runtime.
 
 ## Child contexts
 

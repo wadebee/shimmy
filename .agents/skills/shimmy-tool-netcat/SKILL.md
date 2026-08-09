@@ -1,27 +1,35 @@
 ---
 name: shimmy-tool-netcat
-description: Guidance for using, changing, testing, and troubleshooting the Netcat/Ncat shim in this repository, including local image build behavior and network debugging safety.
+description: Canonical NetCat CLI via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the Netcat/Ncat shim in this repository, including local image build behavior and network debugging safety.
 ---
 
 # Netcat Shim
 
-Use this skill when working with `shims/netcat`, its local image, its tests, its docs, or Netcat/Ncat usage through Shimmy.
+Use this skill when working with the Netcat tool, its local image, its tests, its docs, or Netcat/Ncat usage through Shimmy.
 
 ## Files
 
-- Kind dispatcher: `../../../shims/netcat`
-- Version shim: `../../../shims/netcat_7_92`
-- Local image: `../../../images/netcat_7_92/Containerfile`
-- User docs: `../../../docs/shims/netcat.md`
-- Tests: `../../../scripts/test-shimmy.sh`
-- Installer: `../../../scripts/install-shimmy.sh`
+- Kind metadata: `../../../tools/netcat/tool.conf`
+- Concrete runtime: `../../../tools/netcat/versions/7.92/run.sh`
+- User guide: `../../../tools/netcat/guide.md`
+- Tests: `../../../tools/netcat/tests/netcat.sh`
+- Image context: `../../../tools/netcat/versions/7.92/container/Containerfile`
+- Repository suite: `../../../tests/test.sh`
 - README: `../../../README.md`
 - Contributor guidance: `../../../CONTRIBUTING.md`
 - Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Installed Workflow
 
-When this skill is installed outside the Shimmy source checkout, do not rely on the repo-relative `Files` paths above. Prefer activated commands such as `<tool> --version` and inspect the invoking profile with `shimmy status --format manifest`. To validate `upstream`, first activate its absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy` launcher, then run the tool without a profile selector. Use repo-local paths such as `./shims/<tool>` only when intentionally editing or testing source files in the Shimmy checkout.
+When the installed profile is selected on `PATH`, invoke `netcat` normally
+and inspect the invoking profile with `shimmy status --format manifest`. Select an
+existing profile by sourcing its generated `shell-init.sh`; installed commands do
+not accept a profile selector. To test `upstream`, source
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh`.
+
+For source validation, use `./commands/run-tool.sh netcat --preview-shim --help`
+or the concrete `tools/netcat/versions/7.92/run.sh` runtime. Do not use
+removed repository `shims/` paths.
 
 ## Current Behavior
 
@@ -37,7 +45,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Change Rules
 
-1. Keep package installation inside `../../../images/netcat_7_92/Containerfile`, not the kind dispatcher.
+1. Keep package installation inside `../../../tools/netcat/versions/7.92/container/Containerfile`, not the kind dispatcher.
 2. Use `SHIMMY_NETCAT_IMAGE` only as a full runtime image override; local build args apply only to Shimmy-built images.
 3. Keep `SHIMMY_NETCAT_IMAGE_PULL=always` scoped to external image overrides.
 4. Treat network probes as potentially environment-specific. Prefer `netcat --help` for routine validation.
@@ -46,7 +54,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Validation
 
-- Direct smoke: `./shims/netcat --help`
+- Direct smoke: `./commands/run-tool.sh netcat --help`
 - Local build validation may pull or build images; use it only when the task changes image behavior.
 
 ## Learning Guidance

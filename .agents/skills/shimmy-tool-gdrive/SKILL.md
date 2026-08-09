@@ -1,27 +1,35 @@
 ---
 name: shimmy-tool-gdrive
-description: Guidance for using, changing, testing, and troubleshooting the gdrive MCP server shim in this repository, including local image builds from isaacphi/mcp-gdrive and OAuth credential mounts.
+description: Canonical Google Drive via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the gdrive MCP server shim in this repository, including local image builds from isaacphi/mcp-gdrive and required OAuth credential mounts.
 ---
 
 # gdrive Shim
 
-Use this skill when working with `shims/gdrive`, its local image, its tests, its docs, or Google Drive MCP usage through Shimmy.
+Use this skill when working with the gdrive tool, its local image, its tests, its docs, or Google Drive MCP usage through Shimmy.
 
 ## Files
 
-- Kind dispatcher: `../../../shims/gdrive`
-- Version shim: `../../../shims/gdrive_0_2`
-- Local image: `../../../images/gdrive_0_2/Containerfile`
-- User docs: `../../../docs/shims/gdrive.md`
-- Tests: `../../../scripts/test-shimmy.sh`
-- Installer: `../../../scripts/install-shimmy.sh`
+- Kind metadata: `../../../tools/gdrive/tool.conf`
+- Concrete runtime: `../../../tools/gdrive/versions/0.2/run.sh`
+- User guide: `../../../tools/gdrive/guide.md`
+- Tests: `../../../tools/gdrive/tests/gdrive.sh`
+- Image context: `../../../tools/gdrive/versions/0.2/container/Containerfile`
+- Repository suite: `../../../tests/test.sh`
 - README: `../../../README.md`
 - Contributor guidance: `../../../CONTRIBUTING.md`
 - Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Installed Workflow
 
-When this skill is installed outside the Shimmy source checkout, do not rely on the repo-relative `Files` paths above. Prefer activated commands such as `gdrive --help` and inspect the invoking profile with `shimmy status --format manifest`. To validate `upstream`, first activate its absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy` launcher, then run `gdrive --help` without a profile selector. Use repo-local paths such as `./shims/gdrive` only when intentionally editing or testing source files in the Shimmy checkout.
+When the installed profile is selected on `PATH`, invoke `gdrive` normally
+and inspect the invoking profile with `shimmy status --format manifest`. Select an
+existing profile by sourcing its generated `shell-init.sh`; installed commands do
+not accept a profile selector. To test `upstream`, source
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh`.
+
+For source validation, use `./commands/run-tool.sh gdrive --preview-shim --help`
+or the concrete `tools/gdrive/versions/0.2/run.sh` runtime. Do not use
+removed repository `shims/` paths.
 
 ## Current Behavior
 
@@ -49,7 +57,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 ## Change Rules
 
 1. Keep OAuth credentials in a host directory mounted through `GDRIVE_CREDS_DIR`; do not bake credentials into the image.
-2. Keep package installation and source checkout in `../../../images/gdrive_0_2/Containerfile`, not the kind dispatcher.
+2. Keep package installation and source checkout in `../../../tools/gdrive/versions/0.2/container/Containerfile`, not the kind dispatcher.
 3. Use `SHIMMY_GDRIVE_IMAGE` only as a full runtime image override; local build args apply only to Shimmy-built images.
 4. Keep `--help` wrapper-level so smoke tests do not start browser OAuth.
 5. Preserve first-time auth port publishing unless upstream stops using a localhost browser callback.
@@ -57,9 +65,9 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Validation
 
-- Direct smoke: `./shims/gdrive --help`
-- Rebuild smoke: `SHIMMY_GDRIVE_IMAGE_BUILD=always ./shims/gdrive --help`
-- Configuration preflight: run `./shims/gdrive` without `CLIENT_ID`, `CLIENT_SECRET`, or `GDRIVE_CREDS_DIR` and expect an early error.
+- Direct smoke: `./commands/run-tool.sh gdrive --help`
+- Rebuild smoke: `SHIMMY_GDRIVE_IMAGE_BUILD=always ./commands/run-tool.sh gdrive --help`
+- Configuration preflight: run `./commands/run-tool.sh gdrive` without `CLIENT_ID`, `CLIENT_SECRET`, or `GDRIVE_CREDS_DIR` and expect an early error.
 - Full MCP validation requires Google OAuth credentials and should use read/search operations unless the user explicitly asks to test Sheets writes.
 
 ## Learning Guidance

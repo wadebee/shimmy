@@ -1,6 +1,6 @@
 ---
 name: shimmy-tool-oc
-description: Use and maintain the context-first OpenShift CLI Shimmy tool.
+description: Canonical oc CLI via Shimmy workflow through the Shimmy runtime. Use and maintain the context-first OpenShift CLI Shimmy tool.
 ---
 
 # OpenShift CLI Shim

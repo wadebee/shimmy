@@ -31,9 +31,9 @@ Use this skill when:
 
 1. Confirm the command is likely Shimmy-backed:
    - Prefer `command -v <tool>`.
-   - Treat paths below an activated canonical
-     `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>/bin`
-     directory as Shimmy wrappers.
+   - Treat paths below a canonical profile selected on `PATH`, at
+     `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>/bin`, as
+     Shimmy wrappers.
    - `command -v <tool>` resolves that profile's dispatcher path. Use `shimmy
      status --format manifest` when you need its implementation metadata.
 2. Locate Podman:
@@ -54,8 +54,9 @@ Use this skill when:
    - Do not provision Podman implicitly.
 6. If `podman info` succeeds but the Shimmy wrapper still fails:
    - Use the tool-specific Shimmy skill when available.
-   - Check `command -v <tool>`; if it resolves below an activated canonical
-     profile's `bin/` directory, the AI Agent may need approval for the outer
+   - Check `command -v <tool>`; if it resolves below the `bin/` directory of a
+     canonical profile selected on `PATH`, the AI Agent may need approval for
+     the outer
      wrapper command even though direct `podman info` works.
    - Keep the desired profile's `bin/` first on `PATH` for wrapper retries.
    - Use `shimmy-escalation` to request approval for the exact dry-run smoke command prefix before asking the user for broader Podman remediation.

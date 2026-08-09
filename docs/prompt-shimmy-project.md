@@ -10,7 +10,9 @@ directory's architecture, conventions, or child links change.
 - `lib/` contains reusable POSIX modules, including canonical XDG profile-path
   resolution.
 - Root `install.sh` bootstraps one profile; the repository contains no runnable
-  `shimmy` launcher. Each installed flat profile owns its own `bin/shimmy`.
+  `shimmy` launcher. Sourcing it initializes the caller; execution is for
+  automation. Every bootstrap includes jq and rg, and each installed flat
+  profile owns its own `bin/shimmy`.
 - `tools/<kind>/tool.conf` defines a tool's default version and selector.
 - `tools/<kind>/versions/<major.minor>/run.sh` is the concrete runtime.
 - Local builds use that version directory's `container/Containerfile`.
@@ -41,12 +43,14 @@ or command code.
 Install profiles below an absolute
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>` root. Installed
 commands derive identity from their enclosing profile and do not accept
-installation-location or profile-selection overrides. Only `default` owns a
-persistent startup block; `upstream` is manual-activation-only. Shared
-repository and home agent skills are external state owned by the selected
-target manifest and are removed only with explicit `shimmy skills uninstall
---target repo|profile`. The packaged `plugin` target stays inside the invoking
-profile payload.
+installation-location or profile-selection overrides. Add non-baseline tools
+after onboarding with installed `shimmy install --shim <kind>`. Source a
+profile's `shell-init.sh` to select it in an existing shell. Only `default`
+owns a persistent startup block; `upstream` never changes startup files.
+Canonical sources and packaged plugin skills are unconditional profile payload.
+Repository and home agent skills are external state owned by the selected
+target manifest and are written or removed only with explicit standalone
+`shimmy skills ... --target repo|profile` operations.
 
 ## Verification
 

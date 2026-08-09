@@ -4,8 +4,8 @@
 macOS. It is a local diagnostic command, not a Podman-backed shim, because the
 first question is usually what the shell VM, container, or host can see before
 another container is started. From a source checkout, run it as
-`./commands/netinfo.sh`; after installation, activated shells can run `shimmy
-netinfo` from any directory.
+`./commands/netinfo.sh`; after installation, shells initialized from the
+profile's `shell-init.sh` can run `shimmy netinfo` from any directory.
 
 ## Usage
 

@@ -1,29 +1,38 @@
 ---
 name: shimmy-tool-terraform
-description: Guidance for using, changing, testing, and troubleshooting the Terraform shim in this repository, including AWS credential mounts, plugin-cache mounts, TF_VAR forwarding, and plan-first validation.
+description: Canonical terraform CLI via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the Terraform shim in this repository, including AWS credential mounts, plugin-cache mounts, TF_VAR forwarding, and plan-first validation.
 ---
 
 # Terraform Shim
 
-Use this skill when working with `shims/terraform`, its tests, its docs, or Terraform usage through Shimmy.
+Use this skill when working with the Terraform tool, its tests, its docs, or Terraform usage through Shimmy.
 
 ## Files
 
-- Runtime shim: `../../../shims/terraform`
-- User docs: `../../../docs/shims/terraform.md`
-- Tests: `../../../scripts/test-shimmy.sh`
-- Installer: `../../../scripts/install-shimmy.sh`
+- Kind metadata: `../../../tools/terraform/tool.conf`
+- Concrete runtime: `../../../tools/terraform/versions/1.15/run.sh`
+- User guide: `../../../tools/terraform/guide.md`
+- Tests: `../../../tools/terraform/tests/terraform.sh`
+- Repository suite: `../../../tests/test.sh`
 - README: `../../../README.md`
 - Contributor guidance: `../../../CONTRIBUTING.md`
 - Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Installed Workflow
 
-When this skill is installed outside the Shimmy source checkout, do not rely on the repo-relative `Files` paths above. Prefer activated commands such as `<tool> --version` and inspect the invoking profile with `shimmy status --format manifest`. To validate `upstream`, first activate its absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy` launcher, then run the tool without a profile selector. Use repo-local paths such as `./shims/<tool>` only when intentionally editing or testing source files in the Shimmy checkout.
+When the installed profile is selected on `PATH`, invoke `terraform` normally
+and inspect the invoking profile with `shimmy status --format manifest`. Select an
+existing profile by sourcing its generated `shell-init.sh`; installed commands do
+not accept a profile selector. To test `upstream`, source
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh`.
+
+For source validation, use `./commands/run-tool.sh terraform --preview-shim version`
+or the concrete `tools/terraform/versions/1.15/run.sh` runtime. Do not use
+removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: `docker.io/hashicorp/terraform:latest`
+- Default image: `docker.io/hashicorp/terraform:1.15.6`
 - Image override: `SHIMMY_TF_IMAGE`
 - Pull override: `SHIMMY_TF_IMAGE_PULL=always`
 - Runtime mode: TTY only when stdin and stdout are terminals
@@ -45,7 +54,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Validation
 
-- Direct smoke: `./shims/terraform version`
+- Direct smoke: `./commands/run-tool.sh terraform version`
 - Low-risk workflow checks: `terraform fmt -check`, `terraform validate`, and `terraform plan` when project context supports them.
 
 ## Learning Guidance

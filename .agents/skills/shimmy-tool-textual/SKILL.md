@@ -1,27 +1,35 @@
 ---
 name: shimmy-tool-textual
-description: Guidance for using, changing, testing, and troubleshooting the Textual developer CLI shim in this repository, including local image builds, TTY behavior, and Textual app diagnostics.
+description: Canonical textual CLI via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the Textual developer CLI shim in this repository, including local image builds, TTY behavior, and Textual app diagnostics.
 ---
 
 # Textual Shim
 
-Use this skill when working with `shims/textual`, its local image, its tests, its docs, or Textual CLI usage through Shimmy.
+Use this skill when working with the Textual tool, its local image, its tests, its docs, or Textual CLI usage through Shimmy.
 
 ## Files
 
-- Kind dispatcher: `../../../shims/textual`
-- Version shim: `../../../shims/textual_8_2`
-- Local image: `../../../images/textual_8_2/Containerfile`
-- User docs: `../../../docs/shims/textual.md`
-- Tests: `../../../scripts/test-shimmy.sh`
-- Installer: `../../../scripts/install-shimmy.sh`
+- Kind metadata: `../../../tools/textual/tool.conf`
+- Concrete runtime: `../../../tools/textual/versions/8.2/run.sh`
+- User guide: `../../../tools/textual/guide.md`
+- Tests: `../../../tools/textual/tests/textual.sh`
+- Image context: `../../../tools/textual/versions/8.2/container/Containerfile`
+- Repository suite: `../../../tests/test.sh`
 - README: `../../../README.md`
 - Contributor guidance: `../../../CONTRIBUTING.md`
 - Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Installed Workflow
 
-When this skill is installed outside the Shimmy source checkout, do not rely on the repo-relative `Files` paths above. Prefer activated commands such as `<tool> --version` and inspect the invoking profile with `shimmy status --format manifest`. To validate `upstream`, first activate its absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy` launcher, then run the tool without a profile selector. Use repo-local paths such as `./shims/<tool>` only when intentionally editing or testing source files in the Shimmy checkout.
+When the installed profile is selected on `PATH`, invoke `textual` normally
+and inspect the invoking profile with `shimmy status --format manifest`. Select an
+existing profile by sourcing its generated `shell-init.sh`; installed commands do
+not accept a profile selector. To test `upstream`, source
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh`.
+
+For source validation, use `./commands/run-tool.sh textual --preview-shim --help`
+or the concrete `tools/textual/versions/8.2/run.sh` runtime. Do not use
+removed repository `shims/` paths.
 
 ## Current Behavior
 
@@ -38,7 +46,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Change Rules
 
-1. Keep package installation inside `../../../images/textual_8_2/Containerfile`, not the kind dispatcher.
+1. Keep package installation inside `../../../tools/textual/versions/8.2/container/Containerfile`, not the kind dispatcher.
 2. Preserve TTY detection; Textual apps often need a terminal, while scripted help checks should remain clean.
 3. Use `SHIMMY_TEXTUAL_IMAGE` only as a full runtime image override; local build args apply only to Shimmy-built images.
 4. Treat `textual run` and `textual serve` as interactive or potentially long-running commands.
@@ -47,8 +55,8 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Validation
 
-- Direct smoke: `./shims/textual --help`
-- Diagnostics smoke: `./shims/textual diagnose` when environment details are useful and output size is acceptable.
+- Direct smoke: `./commands/run-tool.sh textual --help`
+- Diagnostics smoke: `./commands/run-tool.sh textual diagnose` when environment details are useful and output size is acceptable.
 
 ## Learning Guidance
 

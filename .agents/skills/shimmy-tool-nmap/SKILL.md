@@ -1,25 +1,34 @@
 ---
 name: shimmy-tool-nmap
-description: Guidance for using, changing, testing, and troubleshooting the Nmap shim in this repository, including LAN scan opt-ins, rootless Podman limits, and privileged escalation safeguards.
+description: Canonical nmap CLI via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the Nmap shim in this repository, including LAN scan opt-ins, rootless Podman limits, and privileged escalation safeguards.
 ---
 
 # Nmap Shim
 
-Use this skill when working with `shims/nmap`, its tests, its docs, or Nmap usage through Shimmy.
+Use this skill when working with the Nmap tool, its tests, its docs, or Nmap usage through Shimmy.
 
 ## Files
 
-- Runtime shim: `../../../shims/nmap`
-- User docs: `../../../docs/shims/nmap.md`
-- Tests: `../../../scripts/test-shimmy.sh`
-- Installer: `../../../scripts/install-shimmy.sh`
+- Kind metadata: `../../../tools/nmap/tool.conf`
+- Concrete runtime: `../../../tools/nmap/versions/7.98/run.sh`
+- User guide: `../../../tools/nmap/guide.md`
+- Tests: `../../../tools/nmap/tests/nmap.sh`
+- Repository suite: `../../../tests/test.sh`
 - README: `../../../README.md`
 - Contributor guidance: `../../../CONTRIBUTING.md`
 - Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Installed Workflow
 
-When this skill is installed outside the Shimmy source checkout, do not rely on the repo-relative `Files` paths above. Prefer activated commands such as `<tool> --version` and inspect the invoking profile with `shimmy status --format manifest`. To validate `upstream`, first activate its absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy` launcher, then run the tool without a profile selector. Use repo-local paths such as `./shims/<tool>` only when intentionally editing or testing source files in the Shimmy checkout.
+When the installed profile is selected on `PATH`, invoke `nmap` normally
+and inspect the invoking profile with `shimmy status --format manifest`. Select an
+existing profile by sourcing its generated `shell-init.sh`; installed commands do
+not accept a profile selector. To test `upstream`, source
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh`.
+
+For source validation, use `./commands/run-tool.sh nmap --preview-shim --version`
+or the concrete `tools/nmap/versions/7.98/run.sh` runtime. Do not use
+removed repository `shims/` paths.
 
 ## Current Behavior
 
@@ -48,9 +57,9 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Validation
 
-- Direct smoke: `./shims/nmap --version`
-- Opt-in smoke: `SHIMMY_NMAP_LAN_SCAN=1 ./shims/nmap --version`
-- Network smoke: `SHIMMY_NMAP_NETWORK=none ./shims/nmap --version`
+- Direct smoke: `./commands/run-tool.sh nmap --version`
+- Opt-in smoke: `SHIMMY_NMAP_LAN_SCAN=1 ./commands/run-tool.sh nmap --version`
+- Network smoke: `SHIMMY_NMAP_NETWORK=none ./commands/run-tool.sh nmap --version`
 - Rootless guidance tests should fail before execution for host discovery without approved privileged Podman.
 
 ## Learning Guidance

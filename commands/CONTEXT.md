@@ -1,9 +1,10 @@
 # Management commands
 
 These executable entrypoints implement the installed `bin/shimmy` management
-surface. The repository `install.sh` bootstrap invokes `install.sh` directly;
-there is no repository launcher. Commands parse arguments and orchestrate
-shared modules; reusable behavior belongs in `../lib/`.
+surface. The sourceable or executable repository `install.sh` bootstrap
+invokes `install.sh` directly with its fixed jq/rg baseline; there is no
+repository launcher. Commands parse arguments and orchestrate shared modules;
+reusable behavior belongs in `../lib/`.
 
 ## Key files
 
@@ -16,8 +17,9 @@ shared modules; reusable behavior belongs in `../lib/`.
   capabilities.
 
 Installed commands derive profile identity from their profile root and reject
-profile and installation-location selectors. Shared skills are written only
-to explicit external targets and are owned by the target manifest.
+profile and installation-location selectors. Canonical and plugin skills are
+profile payload; repository and home exports are written only by explicit
+standalone skills operations and are owned by the target manifest.
 
 ## Related contexts
 

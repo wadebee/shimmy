@@ -19,9 +19,9 @@ runs each installed public kind; `--all` also runs every installed concrete
 version. Those commands use live Podman only for the version-owned
 non-mutating smoke arguments.
 
-Switch installed profiles by evaluating the desired profile's absolute
-`bin/shimmy` activation output before running `shimmy test`; installed test
-commands do not select another profile.
+Switch installed profiles by sourcing the desired profile's absolute
+`shell-init.sh` before running `shimmy test`; installed test commands do not
+select another profile.
 
 The suite is POSIX shell and validates:
 
@@ -31,17 +31,17 @@ The suite is POSIX shell and validates:
 - preview rendering for every tool and every concrete runtime through its
   declared smoke argument, without contacting Podman;
 - shared Podman platform and preview helpers plus POSIX syntax;
-- disposable version-3 flat default and upstream profile installs, installed
+- disposable version-4 flat default and upstream profile installs, installed
   command dispatch, status, update, legacy-layout rejection across management
   commands, and uninstall;
-- activation, canonical skill export/removal, netinfo input rendering, and
-  management-command argument validation;
+- shell initialization, canonical skill export/removal, netinfo input
+  rendering, and management-command argument validation;
 - bootstrap-only profile selection, profile-isolated uninstalls, status
   availability, and profile-specific repair guidance;
 - selected-shim profile-local update refreshes, manifest lifecycle-field
   preservation, request validation, and installed-management source refresh;
-- idempotent activation, default-only managed startup-block install and repair,
-  and upstream manual activation.
+- idempotent shell initialization, default-only managed startup-block install
+  and repair, and direct upstream shell initialization.
 - canonical skill-source export, target-owned portable manifests,
   installed-kind selection, refresh, and explicit manifest-tracked cleanup.
 - source and installed dispatcher validation, including selector, canonical

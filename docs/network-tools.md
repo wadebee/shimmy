@@ -8,10 +8,10 @@ debugging.
 Shimmy also includes the `shimmy netinfo` management command for identifying the
 current shell's network perspective before choosing a container-backed network
 tool. It is available as `./commands/netinfo.sh` from a source checkout and as
-`shimmy netinfo` from any activated installed shell. `netinfo` is intentionally
-not a Podman-backed shim: it reports what the Linux shell, macOS host, VM, or
-container can see, including interfaces, routes, DNS, and optional host-side
-identity supplied through DNS or explicit arguments.
+`shimmy netinfo` when an installed profile's `bin/` is selected on `PATH`.
+`netinfo` is intentionally not a Podman-backed shim: it reports what the Linux
+shell, macOS host, VM, or container can see, including interfaces, routes, DNS,
+and optional host-side identity supplied through DNS or explicit arguments.
 
 This document is prompt-oriented. It focuses on what to ask an agent to do with
 the shims, not on every command-line option each tool supports.

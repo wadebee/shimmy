@@ -1,29 +1,39 @@
 ---
 name: shimmy-tool-opnsense-mcp-admin
-description: Guidance for using, changing, testing, and troubleshooting the opnsense-mcp-admin shim in this repository, including admin-capable OPNsense MCP routing, change-window approval, rollback guidance, Podman secrets, and supported tool inventory.
+description: Canonical change-capable OPNsense MCP via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the opnsense-mcp-admin shim in this repository, including admin-capable OPNsense MCP routing, change-window approval, rollback guidance, Podman secrets, and supported tool inventory.
 ---
 
 # OPNsense MCP Admin Shim
 
-Use this skill when working with `shims/opnsense-mcp-admin`, its tests, its docs, or approved admin-capable OPNsense MCP workflows.
+Use this skill when working with the opnsense-mcp-admin tool, its tests, its docs, or approved admin-capable OPNsense MCP workflows.
 
 ## Files
 
-- Kind dispatcher: `../../../shims/opnsense-mcp-admin`
-- Version shim: `../../../shims/opnsense-mcp-admin_1_0`
-- User docs: `../../../docs/shims/opnsense-mcp-admin.md`
-- Image context: `../../../images/opnsense-mcp-admin_1_0/Containerfile`
-- Tests: `../../../scripts/test-shimmy.sh`
-- Skill installer: `../../../scripts/skills-shimmy.sh`
+- Kind metadata: `../../../tools/opnsense-mcp-admin/tool.conf`
+- Concrete runtime: `../../../tools/opnsense-mcp-admin/versions/1.0/run.sh`
+- User guide: `../../../tools/opnsense-mcp-admin/guide.md`
+- Tests: `../../../tools/opnsense-mcp-admin/tests/opnsense-mcp-admin.sh`
+- Image context: `../../../tools/opnsense-mcp-admin/versions/1.0/container/Containerfile`
+- Repository suite: `../../../tests/test.sh`
 - README: `../../../README.md`
+- Contributor guidance: `../../../CONTRIBUTING.md`
+- Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Installed Workflow
 
-When this skill is installed outside the Shimmy checkout, prefer activated commands such as `opnsense-mcp-admin --help` and inspect the invoking profile with `shimmy status --format manifest`. To validate `upstream`, first activate its absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy` launcher, then run the tool without a profile selector. Use `./shims/opnsense-mcp-admin` only when intentionally editing or testing the repo-local wrapper.
+When the installed profile is selected on `PATH`, invoke `opnsense-mcp-admin` normally
+and inspect the invoking profile with `shimmy status --format manifest`. Select an
+existing profile by sourcing its generated `shell-init.sh`; installed commands do
+not accept a profile selector. To test `upstream`, source
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh`.
+
+For source validation, use `./commands/run-tool.sh opnsense-mcp-admin --preview-shim --help`
+or the concrete `tools/opnsense-mcp-admin/versions/1.0/run.sh` runtime. Do not use
+removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: local build from `../../../images/opnsense-mcp-admin_1_0/Containerfile`
+- Default image: local build from `../../../tools/opnsense-mcp-admin/versions/1.0/container/Containerfile`
 - Source ref: `eeccd8189dc2d80fd397b2a589b20683ec947266` from `floriangrousset/opnsense-mcp-server`
 - Build override: `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_BUILD=always`
 - Source ref override: `SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF`
@@ -107,6 +117,6 @@ Use read-only first when a matching tool exists. Use admin only for missing read
 - Manual stdio smoke for these images should use newline-delimited JSON unless testing a specific framing change.
 - If direct tool calls fail after connection, distinguish shim connectivity from upstream endpoint bugs. For example, `get_system_status` may fail on `/core/system/info` while `exec_api_call` to `/core/firmware/status` proves auth/API connectivity.
 - In sandboxed AI Agent runs, `firewall.home.arpa` or other local DNS names may fail before Podman during shim curl preflight even when they work from the user's normal host shell. Treat `curl: (6) Could not resolve host` as a host-network/DNS sandbox symptom first, not an OPNsense or shim failure.
-- When local DNS fails in the sandbox, rerun the exact `opnsense-mcp-admin` wrapper command with escalation instead of falling back to host curl or bypassing the shim. Example prefix: `["env", "OPNSENSE_URL=http://firewall.home.arpa/", "OPNSENSE_VERIFY_SSL=false", "./shims/opnsense-mcp-admin"]`.
+- When local DNS fails in the sandbox, rerun the exact `opnsense-mcp-admin` wrapper command with escalation instead of falling back to host curl or bypassing the shim. Example prefix: `["env", "OPNSENSE_URL=http://firewall.home.arpa/", "OPNSENSE_VERIFY_SSL=false", "./commands/run-tool.sh opnsense-mcp-admin"]`.
 - For connectivity smoke, use `configure_opnsense_connection` first, then `exec_api_call` with `GET /core/firmware/status`. A `200 OK` there proves URL normalization, credentials, auth, and OPNsense API reachability.
 - Interrupting a manual stdio MCP smoke with Ctrl-C can print a Python `KeyboardInterrupt` traceback. That is normal cleanup noise after a successful smoke, not a connectivity failure.

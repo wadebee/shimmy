@@ -8,7 +8,9 @@ preferred where it proves the same behavior.
 
 Installation scenarios isolate state with absolute disposable `HOME` and
 `XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or
-installed profile-selection override.
+installed profile-selection override. Onboarding coverage sources the root
+bootstrap to initialize PATH and executes it separately to verify automation
+semantics.
 
 `context-tree.sh` validates the repository's hierarchical context links. Every
 source-bearing directory below `agent/`, `commands/`, `lib/`, `tools/`, and

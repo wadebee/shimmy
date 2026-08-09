@@ -1,27 +1,35 @@
 ---
 name: shimmy-tool-task
-description: Guidance for using, changing, testing, and troubleshooting the Task shim in this repository, including local image builds, host path behavior, home/tmp mounts, and Podman socket forwarding for nested workflows.
+description: Canonical task CLI via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the Task shim in this repository, including local image builds, host path behavior, home/tmp mounts, and Podman socket forwarding for nested workflows.
 ---
 
 # Task Shim
 
-Use this skill when working with `shims/task`, its local image, its tests, its docs, or Taskfile usage through Shimmy.
+Use this skill when working with the Task tool, its local image, its tests, its docs, or Taskfile usage through Shimmy.
 
 ## Files
 
-- Kind dispatcher: `../../../shims/task`
-- Version shim: `../../../shims/task_3_45`
-- Local image: `../../../images/task_3_45/Containerfile`
-- User docs: `../../../docs/shims/task.md`
-- Tests: `../../../scripts/test-shimmy.sh`
-- Installer: `../../../scripts/install-shimmy.sh`
+- Kind metadata: `../../../tools/task/tool.conf`
+- Concrete runtime: `../../../tools/task/versions/3.45/run.sh`
+- User guide: `../../../tools/task/guide.md`
+- Tests: `../../../tools/task/tests/task.sh`
+- Image context: `../../../tools/task/versions/3.45/container/Containerfile`
+- Repository suite: `../../../tests/test.sh`
 - README: `../../../README.md`
 - Contributor guidance: `../../../CONTRIBUTING.md`
 - Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Installed Workflow
 
-When this skill is installed outside the Shimmy source checkout, do not rely on the repo-relative `Files` paths above. Prefer activated commands such as `<tool> --version` and inspect the invoking profile with `shimmy status --format manifest`. To validate `upstream`, first activate its absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy` launcher, then run the tool without a profile selector. Use repo-local paths such as `./shims/<tool>` only when intentionally editing or testing source files in the Shimmy checkout.
+When the installed profile is selected on `PATH`, invoke `task` normally
+and inspect the invoking profile with `shimmy status --format manifest`. Select an
+existing profile by sourcing its generated `shell-init.sh`; installed commands do
+not accept a profile selector. To test `upstream`, source
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh`.
+
+For source validation, use `./commands/run-tool.sh task --preview-shim --version`
+or the concrete `tools/task/versions/3.45/run.sh` runtime. Do not use
+removed repository `shims/` paths.
 
 ## Current Behavior
 
@@ -48,7 +56,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 1. Preserve the `$PWD` to `$PWD` mount and working directory behavior; Taskfiles often expect host-relative paths.
 2. Treat `$HOME`, `/tmp`, and `CONTAINER_HOST` forwarding as deliberate host-coupling. Keep tests and docs aligned if changed.
-3. Keep package installation inside `../../../images/task_3_45/Containerfile`, not the kind dispatcher.
+3. Keep package installation inside `../../../tools/task/versions/3.45/container/Containerfile`, not the kind dispatcher.
 4. Use `SHIMMY_TASK_IMAGE` only as a full runtime image override; local build args apply only to Shimmy-built images.
 5. Use non-mutating smoke checks such as `task --version` or `task --list`.
 6. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
@@ -56,7 +64,7 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Validation
 
-- Direct smoke: `./shims/task --version`
+- Direct smoke: `./commands/run-tool.sh task --version`
 - Installed smoke: install the task shim and run the installed wrapper with `--version`.
 - For Taskfile behavior changes, prefer `task --list` before running tasks with side effects.
 

@@ -20,6 +20,10 @@ tools/<kind>/versions/<major.minor>/
 image naming, hash labels, and platform selection in the shared helper; do not
 copy image-cache logic into a tool runtime.
 
+Do not restore the retired central `local_build_repo_for_shim` mapping or
+`images/<kind>_<version>/` layout. Version-owned `container/` directories and
+refresh hooks provide that behavior in the current tree.
+
 ## Rules
 
 - Keep every build argument and image override under the `SHIMMY_` prefix.

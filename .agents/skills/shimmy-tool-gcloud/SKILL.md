@@ -1,29 +1,38 @@
 ---
 name: shimmy-tool-gcloud
-description: Guidance for using, changing, testing, and troubleshooting the Google Cloud CLI shim in this repository, including configuration mounts, kubeconfig mounting, and CLOUDSDK_* environment variable forwarding.
+description: Canonical GCloud via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the Google Cloud CLI shim in this repository, including configuration mounts, kubeconfig mounting, and CLOUDSDK_* environment variable forwarding.
 ---
 
 # Google Cloud CLI Shim
 
-Use this skill when working with `shims/gcloud`, its tests, its docs, or gcloud usage through Shimmy.
+Use this skill when working with the gcloud tool, its tests, its docs, or gcloud usage through Shimmy.
 
 ## Files
 
-- Runtime shim: `../../../shims/gcloud`
-- User docs: `../../../docs/shims/gcloud.md`
-- Tests: `../../../scripts/test-shimmy.sh`
-- Installer: `../../../scripts/install-shimmy.sh`
+- Kind metadata: `../../../tools/gcloud/tool.conf`
+- Concrete runtime: `../../../tools/gcloud/versions/573.0/run.sh`
+- User guide: `../../../tools/gcloud/guide.md`
+- Tests: `../../../tools/gcloud/tests/gcloud.sh`
+- Repository suite: `../../../tests/test.sh`
 - README: `../../../README.md`
 - Contributor guidance: `../../../CONTRIBUTING.md`
 - Shared prompt: `../../../docs/prompt-shimmy-project.md`
 
 ## Installed Workflow
 
-When this skill is installed outside the Shimmy source checkout, do not rely on the repo-relative `Files` paths above. Prefer activated commands such as `<tool> --version` and inspect the invoking profile with `shimmy status --format manifest`. To validate `upstream`, first activate its absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy` launcher, then run the tool without a profile selector. Use repo-local paths such as `./shims/<tool>` only when intentionally editing or testing source files in the Shimmy checkout.
+When the installed profile is selected on `PATH`, invoke `gcloud` normally
+and inspect the invoking profile with `shimmy status --format manifest`. Select an
+existing profile by sourcing its generated `shell-init.sh`; installed commands do
+not accept a profile selector. To test `upstream`, source
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh`.
+
+For source validation, use `./commands/run-tool.sh gcloud --preview-shim --version`
+or the concrete `tools/gcloud/versions/573.0/run.sh` runtime. Do not use
+removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: `gcr.io/google.com/cloudsdktool/google-cloud-cli:stable`
+- Default image: `gcr.io/google.com/cloudsdktool/google-cloud-cli:573.0.0-stable`
 - Image override: `SHIMMY_GCLOUD_IMAGE`
 - Pull override: `SHIMMY_GCLOUD_IMAGE_PULL=always`
 - Config dir override: host `CLOUDSDK_CONFIG`
@@ -53,8 +62,8 @@ When this skill is installed outside the Shimmy source checkout, do not rely on 
 
 ## Validation
 
-- Config help smoke: `./shims/gcloud --shimmy-config-help`
-- Direct smoke: `./shims/gcloud --version`
+- Config help smoke: `./commands/run-tool.sh gcloud --shimmy-config-help`
+- Direct smoke: `./commands/run-tool.sh gcloud --version`
 - Auth smoke: `gcloud auth list` (when authenticated)
 - Project smoke: `gcloud projects list` (when authenticated)
 

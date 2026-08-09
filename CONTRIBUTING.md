@@ -32,18 +32,21 @@ The root `install.sh` is a minimal bootstrap and the repository has no runnable
 tool commands have no profile-selection option or environment selector.
 
 For source changes that should be tested through normal installed commands,
-bootstrap and explicitly activate the upstream profile:
+source the bootstrap for the upstream profile:
 
 ```sh
-./install.sh --profile upstream
-eval "$("${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy" activate)"
+. ./install.sh --profile upstream
 shimmy status --format manifest
 shimmy test
 rg --version
 ```
 
-Switch profiles by evaluating the desired profile launcher's absolute path.
-Activation prepends only that profile's `bin/` directory to `PATH`.
+Every bootstrap installs jq and rg. Add other tools afterward through the
+installed command, for example `shimmy install --shim task`. Executing
+`./install.sh --profile upstream` is appropriate for automation but cannot
+initialize its parent shell. Switch an existing shell by sourcing the desired
+profile's absolute `shell-init.sh`; it prepends that profile's `bin/` directory
+to `PATH`.
 
 For repo-local previews, use `./commands/run-tool.sh rg --preview-shim --version` or the concrete runtime listed in `tools/rg/CONTEXT.md`. For installed-state inspection, prefer `shimmy status --format manifest` over `command -v <tool>`: `command -v` shows the invoking profile's dispatcher entrypoint, while status shows that profile's manifest-derived metadata.
 
@@ -52,12 +55,16 @@ selects the absolute source checkout recorded when `./install.sh --profile
 upstream` runs; it never relocates installed profile state.
 
 Only `default` may create, repair, or remove Shimmy's persistent shell-startup
-block. `upstream` is manual-activation-only. Shared repository and home agent
-skills live outside profile roots and are owned by their target's
+block. `upstream` never changes shell startup files. Canonical agent sources
+and packaged plugin skills are included unconditionally in each profile;
+shared repository and home agent skills live outside profile roots and are
+owned by their target's
 `.shimmy-skills-manifest.txt`. Profile lifecycle operations never implicitly
-refresh or remove them; use `shimmy skills uninstall --target repo|profile`
-for explicit removal. The `plugin` target is a packaged profile-local bundle,
-not a shared external target.
+refresh or remove them. Use explicit standalone `shimmy skills install
+--target repo|profile` or `shimmy skills update --target repo|profile`
+operations to write them and `shimmy skills uninstall --target repo|profile`
+for removal. The `plugin` target is a packaged profile-local bundle, not a
+shared external target.
 
 ## Shim Kind Workflow
 

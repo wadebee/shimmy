@@ -1,6 +1,6 @@
 ---
 name: shimmy-escalation
-description: Request AI Agent escalation permissions for activated Shimmy wrappers that run through Podman. Use when the user asks to make Shimmy shims usable from AI Agent shells, pre-authorize shim wrappers, approve all activated shims, or troubleshoot AI Agent sandbox permission prompts for installed shims.
+description: Defines the narrow Podman and Shimmy-wrapper approval workflow for AI-agent environments. Request narrow escalation permissions that run through Podman. Use when the user asks to make installed shims usable from AI Agent shells, pre-authorize wrapper smoke checks, or troubleshoot sandbox permission prompts.
 ---
 
 # Shimmy Escalation Skill
@@ -9,11 +9,19 @@ Use this skill when the user wants AI Agent shell approvals for installed Shimmy
 
 ## Goal
 
-Trigger AI Agent approval prompts for activated shims using narrow dry-run command prefixes such as `["rg","--version"]` or `["jq","--version"]`. A skill cannot grant permanent permissions directly; it can only run harmless shim smoke checks with escalation and suggest persistent prefix approval.
+Trigger AI Agent approval prompts for installed shims using narrow,
+non-mutating command prefixes such as `["rg","--version"]` or
+`["jq","--version"]`. A skill cannot grant permanent permissions directly; it
+can only run harmless shim smoke checks with escalation and suggest persistent
+prefix approval.
 
-When working in the Shimmy repository, `scripts/agent-shimmy-preflight.sh` can print the exact active and repo-local wrapper prefixes to approve.
+When working in the Shimmy repository, `./commands/agent-preflight.sh` can
+print exact installed and repo-local wrapper prefixes to approve.
 
-For activated installed shims, invoke the normal tool name such as `rg` or `jq`; do not call the resolved installed shim path. Use `./shims/<tool>` only when intentionally testing the repo-local wrapper file.
+For installed shims selected on `PATH`, invoke the normal tool name such as
+`rg` or `jq`; do not call the resolved installed shim path. For source
+validation, use `./commands/run-tool.sh <tool> --preview-shim ...` or the
+concrete version runtime.
 
 On macOS, Shimmy wrappers require a reachable Podman machine before any wrapper
 can run. Treat Podman readiness as the first part of the escalation workflow,
@@ -23,15 +31,14 @@ connect to the local Podman socket without escalation.
 ## Discovery
 
 1. Read `../../../CONTRIBUTING.md` if making repository changes. For permission-only runs, no file changes are needed.
-2. Discover the active Shimmy install:
-   - Resolve the active `shimmy` command and require it to live below the
+2. Discover the selected Shimmy install:
+   - Resolve the `shimmy` command and require it to live below the
      absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>/bin`
      directory for that profile.
-3. Discover activated shims:
+3. Discover installed shims:
    - Use `shimmy status --format manifest`, then read
-     `shimmy_profile_kind=` entries or the invoking profile manifest's `kind=`
-     entries.
-   - If status is unavailable, inspect the manifest in the activated
+     the invoking profile manifest's `kind=` entries.
+   - If status is unavailable, inspect the manifest in the selected
      profile root, then that profile's `bin/` directory.
    - If that is unavailable, inspect executables in `PATH` directories whose
      path ends in `/shimmy/profiles/default/bin` or
@@ -47,23 +54,25 @@ Before running shim smoke checks, verify Podman itself is usable.
 1. Locate Podman with `command -v podman`.
 2. Run `podman info`.
 3. If `podman info` succeeds, continue to the Approval Workflow.
-   - If a Shimmy wrapper already failed with Podman-unreachable guidance in the same AI Agent shell, do not keep debugging the Podman machine. For availability checks, request approval for the exact dry-run smoke command prefix, such as `["rg","--version"]` or `["./shims/rg","--version"]`.
+   - If a Shimmy wrapper already failed with Podman-unreachable guidance in the
+     same AI Agent shell, do not keep debugging the Podman machine. For
+     availability checks, request approval for the exact smoke command prefix,
+     such as `["rg","--version"]` or
+     `["./commands/run-tool.sh","rg","--preview-shim","--version"]`.
    - Remember that approval for `["podman", "info"]` does not approve nested Podman access through a Shimmy wrapper.
 4. If `podman info` fails on macOS with socket, lockfile, or `operation not permitted` errors:
    - Run `podman machine list` with the AI Agent's approval mechanism.
    - Use a justification such as: `Allow Podman machine inspection outside the sandbox so Shimmy wrappers can be verified.`
    - Use the narrow prefix rule equivalent for `["podman", "machine", "list"]`.
-5. If an existing Podman machine is listed but stopped:
-   - Run `podman machine start` with the AI Agent's approval mechanism.
-   - Use a justification such as: `Start the existing Podman machine required by Shimmy wrappers on macOS.`
-   - Use the narrow prefix rule equivalent for `["podman", "machine", "start"]`.
-6. After starting or confirming the machine, run `podman info` with the AI Agent's approval mechanism.
+5. If an existing Podman machine is listed but stopped, stop and tell the user
+   to run `podman machine start` in a normal shell outside the AI Agent.
+6. After the user confirms startup, run `podman info` with the AI Agent's approval mechanism.
    - Use a justification such as: `Verify Podman engine access outside the sandbox for Shimmy wrappers.`
    - Use the narrow prefix rule equivalent for `["podman", "info"]`.
-7. If no Podman machine exists, stop and ask before running `podman machine init`.
-   - Do not initialize a machine unless the user explicitly approves.
-   - If approved, prefer the narrow prefix rule equivalent for `["podman", "machine", "init"]`.
-8. Do not install Podman or start Podman Desktop unless the user explicitly asks.
+7. If no Podman machine exists, stop and ask before any initialization.
+   - Do not initialize a machine implicitly or from an AI Agent shell.
+8. Do not install Podman, start Podman Desktop, or start a Podman machine from
+   an AI Agent shell.
 
 ## Approval Workflow
 
@@ -96,14 +105,15 @@ Summarize:
 - Smoke checks that succeeded.
 - Smoke checks that failed, including whether failure came from approval denial, missing Podman, image pull/network, credentials, or the tool itself.
 
-If no activated shims are found, report the profile root checked and suggest
-activating its absolute `bin/shimmy` launcher or bootstrapping a profile with
-`./install.sh` from a Shimmy source checkout.
+If no installed shims are found on `PATH`, report the profile root checked and
+suggest sourcing its absolute `shell-init.sh` or sourcing `./install.sh` from a
+Shimmy source checkout.
 
 ## Safety
 
 - Do not modify repository files, startup files, manifests, or shell profiles during a permission-only run.
-- Do not install Podman, initialize a Podman machine, or start Podman Desktop unless the user explicitly asks.
-- Starting an existing stopped Podman machine is acceptable when the user asked to make Shimmy usable from AI Agent shells, because macOS Shimmy wrappers require the Podman engine.
+- Do not install Podman, initialize or start a Podman machine, or start Podman
+  Desktop from an AI Agent shell. Direct the user to a normal shell for machine
+  startup.
 - Do not use destructive commands.
 - Treat image pulls as acceptable only when they are required by the shim smoke check and the user approved the escalated run.
