@@ -172,6 +172,30 @@ machinery that this refactor does not need.
   `XDG_CONFIG_HOME`; no private install-directory override replaces the public
   option that this refactor removes.
 
+### Upstream maintainer profile and removed source mode
+
+- Remove repository-versus-installed source-mode detection and all
+  source-side launcher behavior. The repository exposes only `install.sh` for
+  bootstrap; an installed launcher never detects, enters, or dispatches a
+  source mode.
+- `upstream` encapsulates maintainer functionality as a normal installed
+  profile. Its canonical profile root is its identity, it uses the installed
+  management command surface, and it obeys the same ownership and
+  cross-profile isolation rules as `default`.
+- The upstream profile's `bin/shimmy`, management commands, shared libraries,
+  manifests, tests, metadata, plugins, and agent guidance are self-contained
+  in that profile. They never load management behavior through a repository
+  launcher or the recorded maintainer checkout.
+- Only generated upstream tool implementations may execute code from the
+  absolute, validated `source_checkout` recorded in the upstream manifest.
+  Management code may parse and validate that field but never source or
+  execute management code from it.
+- Upstream self-update may execute the separately fetched update source after
+  validating its bootstrap contract, but it must preserve and revalidate the
+  upstream profile's recorded maintainer checkout. It must never replace
+  `source_checkout` with the temporary fetched source, and removal of that
+  temporary source after update must not break upstream tool dispatch.
+
 ### External startup and skills ownership
 
 Profile isolation applies to the installed profile trees and to external
@@ -564,6 +588,10 @@ links and runner paths required for a passing repository must be updated here.
   directory existence as proof of an installation.
 - Preserve sibling profiles, the selected manifest, generated dispatchers,
   and unmanaged siblings through additive install, refresh, and self-update.
+- Remove source-mode detection and repository-launcher management dispatch.
+  Keep upstream management profile-local, restrict recorded-checkout execution
+  to generated tool implementations, and preserve that checkout through
+  self-update.
 - Profile uninstall removes only the selected profile's verified owned assets.
 - Stage and validate replacement assets before mutation, commit the manifest
   last, and retain or restore the prior valid current-schema profile after a
@@ -601,6 +629,10 @@ links and runner paths required for a passing repository must be updated here.
 - [ ] Installed launchers reject `--profile`, do not inspect
       `SHIMMY_PROFILE_ACTIVE`, and cannot select, update, or uninstall a
       sibling profile.
+- [ ] The upstream launcher and management commands load only profile-local
+      assets. Only generated tool implementations execute through the
+      validated recorded checkout; self-update preserves that checkout and
+      does not record its temporary fetched source.
 - [ ] An unmanaged or symlinked pre-existing `bin/shimmy` is rejected before
       mutation; an existing launcher in a valid profile must be a regular
       non-symlink file at the schema-defined `bin/shimmy` path before
@@ -705,6 +737,11 @@ tests, and provide exhaustive regression coverage for the recorded contracts.
   exporting a profile selector. Verify an installed launcher and its
   dispatchers remain bound to their enclosing profile even when a sibling is
   installed.
+- Verify the upstream launcher and every management command remain
+  profile-local while generated tool implementations execute through the
+  recorded checkout. After self-update deletes its temporary fetched source,
+  verify the manifest still records the original checkout and upstream tool
+  dispatch still uses it.
 - Verify `default` startup integration is idempotent and uses its
   profile-specific marker. Verify `upstream` never reads or writes startup
   files and rejects startup-mutating options without changing its profile,
@@ -757,6 +794,9 @@ tests, and provide exhaustive regression coverage for the recorded contracts.
 - [ ] Each installed launcher is bound to one profile, rejects `--profile`,
       and cannot manage a sibling; activation switches profiles through
       `PATH` only.
+- [ ] Upstream management is self-contained, source-mode detection is absent,
+      recorded-checkout execution is limited to generated tool
+      implementations, and self-update preserves the original checkout.
 - [ ] Collision, symlink-safety, sentinel-preservation, launcher, dispatcher,
       strict manifest parsing, safe ownership, partial-profile, and manifest
       rejection cases pass.
@@ -912,6 +952,10 @@ finds a missed migration reference or verification defect.
 - [ ] A disposable fresh upstream install works.
 - [ ] Default and upstream installs occupy independent canonical profile roots;
       activating either profile and dispatching its installed shims works.
+- [ ] Upstream behaves as a normal installed profile: its launcher and
+      management plane use only profile-local assets, only generated tool
+      implementations execute through `source_checkout`, and self-update does
+      not substitute or retain a dependency on its temporary fetched source.
 - [ ] Each profile has exactly one regular executable `bin/shimmy`; no shared
       or repository launcher exists, and neither launcher can manage the other
       profile.
@@ -989,7 +1033,9 @@ pass, no removed path override remains, and no legacy path can be recreated.
 8. **Update handoff** — An installed launcher must pass its validated
    directory-derived profile name to the fetched source's bootstrap without
    accepting a caller- or manifest-selected target. Weak fetched-source or
-   profile checks can refresh the wrong root.
+   profile checks can refresh the wrong root. Upstream update must preserve its
+   validated maintainer checkout and never record the temporary fetched source
+   as `source_checkout`.
 9. **Versioned runtime paths** — One missed `core/runtime` reference causes a
    tool-specific failure that broad lifecycle tests may not expose.
 
@@ -1067,8 +1113,11 @@ At the start of a later session:
    location variables are removed, and each profile is a complete flat install
    below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`. Only
    `default` owns persistent startup integration; `upstream` is
-   manual-activation-only; and shared skills are owned by their target
-   manifests, never by profile lifecycle.
+   manual-activation-only and encapsulates maintainer functionality as a normal
+   installed profile. Its management plane is self-contained, only generated
+   tool implementations execute through its validated recorded checkout, and
+   self-update preserves that checkout. Shared skills are owned by their
+   target manifests, never by profile lifecycle.
 3. Work only on the current chunk and stop at its human review gate.
 4. Before stopping, update its checklist and **Lessons learned**, then report
    tests, uncertainties, and remaining risks.
