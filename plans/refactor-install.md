@@ -2,9 +2,47 @@
 
 ## Status
 
-Proposed. This document is the implementation plan; it does not preserve the
+QA reviewed; proposed for implementation. This document does not preserve the
 current activation command, profile manifest schema, retired options, retired
 environment variables, or earlier installed-profile layouts.
+
+## QA review findings
+
+The design is internally consistent after the following execution constraints
+are made explicit:
+
+- The manifest-v4 transition, `activate.sh` to `shell-init.sh` ownership
+  change, profile-structure validation, installed launcher validation, and
+  public activation-command removal form one atomic review boundary. Do not
+  leave a checkpoint that renders v4 while any v3 or `activate.sh` consumer is
+  still active.
+- Tests must change with the behavior they cover. Do not defer all test work to
+  a final test-only pass; each chunk below owns its focused fixtures and
+  assertions.
+- A sourced file can avoid calling `exit`, changing shell options, or leaking
+  state, but it cannot override the calling shell's `errexit` behavior. If a
+  caller with `set -e` sources a failing installer as a simple command, the
+  caller's shell may exit. Test failure cleanup both with ordinary shell
+  options and with the dot command used as a conditional command.
+- PATH normalization needs explicit coverage for duplicate profile entries and
+  leading, middle, and trailing empty entries. A simple `for` loop over a
+  colon-separated PATH is not sufficient evidence that empty entries retain
+  their meaning.
+- Profile commit and persistent startup-file integration are separate
+  transactions. A startup update may fail after a valid profile commit; the
+  required guarantee is that root `install.sh` does not source `shell-init.sh`
+  after that failure. The plan does not promise rollback of an already
+  committed profile when external startup-file mutation fails.
+- Root checkout validation is duplicated necessarily before repository
+  libraries can be trusted and sourced. Keep its required-path contract aligned
+  with `shimmy_upstream_checkout_invalid_reason` through focused tests.
+- The repository test runner is intentionally monolithic. Every approved code
+  checkpoint runs `./tests/test.sh`; focused disposable-shell checks supplement
+  rather than replace it.
+- Checked-in skill distributions and fingerprints must be regenerated only
+  after canonical guidance is final, then verified by the normal test suite.
+
+No backward-compatibility or migration requirement was added by this review.
 
 ## Objective
 
@@ -124,7 +162,9 @@ The root `install.sh` is the only file intentionally safe to source. It must:
 - source the installed shell-init file only after the full install command,
   including explicitly requested startup integration, returns success;
 - return a nonzero status on validation or installation failure without
-  terminating the calling shell;
+  explicitly terminating the calling shell; callers that already use
+  `set -e` must source it in a conditional command if they intend to recover
+  from failure;
 - leave the caller's current working directory, positional parameters, shell
   options, traps, functions, and non-Shimmy variables unchanged;
 - remove every temporary bootstrap variable and helper function before
@@ -570,32 +610,482 @@ tests/support.sh                              (only if a narrow helper is useful
 Documentation, context, skill, and checked-in export changes follow the active
 guidance audit rather than this list being exhaustive.
 
-## Execution sequence
+# Progress Checklist
 
-This is one breaking schema and command-surface transition. Implement it on one
-branch without compatibility scaffolding.
+This checklist is the resumability source of truth. Update it immediately after
+each implementation pass, validation pass, human decision, and lessons-learned
+entry. Do not mark a chunk complete until all four boxes for that chunk are
+checked.
 
-1. Add manifest-v4 constants and rename the owned profile shell-init asset
-   throughout validation, staging, transaction, update, and uninstall code.
-2. Make generated shell-init idempotently establish profile precedence and
-   update default startup integration to source it.
-3. Refactor root `install.sh` into the source-safe dual-mode entrypoint while
-   enforcing the jq/rg baseline and preserving absolute executed self-update
-   behavior.
-4. Require explicit installed `shimmy install --shim` selection and remove
-   catalog-owned bootstrap defaults plus self-update shim forwarding.
-5. Remove bootstrap and profile-lifecycle skill flags, parser state, external
-   skill export, retry guidance, and self-update forwarding.
-6. Delete the activation command and remove launcher exposure.
-7. Remove dead and retired install/activation branches, variables, helpers,
-   messages, and compatibility tests.
-8. Replace activation tests with sourced onboarding, shell hygiene, profile
-   switching, and shell-init ownership coverage.
-9. Update active documentation, contexts, canonical skill guidance, and
-   checked-in skill distributions.
-10. Run the complete validation matrix and perform a final old-name audit.
+Resume record:
 
-## Validation
+```text
+Last approved chunk: none
+Current chunk: 0
+Last known-good revision or diff base: <record before execution>
+Last validation command and result: <record before execution>
+Outstanding human decision: none
+```
+
+- [ ] Chunk 0 implementation/inventory complete
+- [ ] Chunk 0 validation evidence captured
+- [ ] Chunk 0 human review approved
+- [ ] Chunk 0 lessons recorded
+- [ ] Chunk 1 implementation complete
+- [ ] Chunk 1 validation evidence captured
+- [ ] Chunk 1 human review approved
+- [ ] Chunk 1 lessons recorded
+- [ ] Chunk 2 implementation complete
+- [ ] Chunk 2 validation evidence captured
+- [ ] Chunk 2 human review approved
+- [ ] Chunk 2 lessons recorded
+- [ ] Chunk 3 implementation complete
+- [ ] Chunk 3 validation evidence captured
+- [ ] Chunk 3 human review approved
+- [ ] Chunk 3 lessons recorded
+- [ ] Chunk 4 implementation complete
+- [ ] Chunk 4 validation evidence captured
+- [ ] Chunk 4 human review approved
+- [ ] Chunk 4 lessons recorded
+- [ ] Chunk 5 implementation complete
+- [ ] Chunk 5 validation evidence captured
+- [ ] Chunk 5 human review approved
+- [ ] Chunk 5 lessons recorded
+- [ ] Chunk 6 implementation complete
+- [ ] Chunk 6 validation evidence captured
+- [ ] Chunk 6 human review approved
+- [ ] Chunk 6 lessons recorded
+- [ ] Chunk 7 implementation complete
+- [ ] Chunk 7 validation evidence captured
+- [ ] Chunk 7 human review approved
+- [ ] Chunk 7 lessons recorded
+- [ ] Chunk 8 implementation complete
+- [ ] Chunk 8 validation evidence captured
+- [ ] Chunk 8 human review approved
+- [ ] Chunk 8 lessons recorded
+
+If execution is interrupted, resume the current chunk only. Read this checklist,
+the latest entry in `# Lessons Learned`, the diff since the recorded known-good
+base, and every applicable `CONTEXT.md` before making another change. Do not
+restart completed chunks or discard uncommitted work.
+
+# Ordered Implementation Chunks
+
+This is one breaking schema and command-surface transition implemented on one
+branch without final-state compatibility scaffolding. Start each chunk in a
+fresh Codex context when practical. A new context reads only the objective,
+recorded design decisions, its chunk, the progress checklist, accumulated
+lessons, applicable context files, and the current diff. Earlier chunks are
+inputs, not work to repeat.
+
+## Human-in-the-loop review protocol
+
+After every chunk, stop before beginning the next chunk and provide the human
+reviewer with:
+
+1. the chunk objective and concise behavior-level result;
+2. changed, added, and deleted files grouped by implementation, tests, and
+   guidance;
+3. exact validation commands, exit statuses, and any skipped checks;
+4. the focused diff or recorded revision range;
+5. known risks, assumptions, and deliberately deferred work; and
+6. a proposed `# Lessons Learned` entry.
+
+The reviewer must explicitly approve the chunk or request changes. Requested
+changes remain part of the same chunk and require revalidation. After approval,
+record the revision or diff base, update all four checklist boxes and the resume
+record, complete the approved lesson row, and only then start the next chunk. If the
+workflow uses commits, create the checkpoint commit only after the reviewer
+approves its diff; otherwise record an immutable diff base or patch identifier.
+
+For a transient failure, preserve the worktree, record the failed command and
+its output summary in the resume record, and keep the chunk's unchecked boxes
+unchecked. Do not broaden the scope, silently skip validation, or advance to the
+next chunk.
+
+## Chunk 0: Baseline, inventory, and decision lock
+
+Goal: establish a reproducible pre-change baseline and confirm that the plan's
+file inventory matches the active tree. This chunk changes only this plan if an
+inventory correction is necessary.
+
+Implementation:
+
+- Read `CONTRIBUTING.md`, root `CONTEXT.md`, and every child `CONTEXT.md` on the
+  path to files in the first implementation chunk.
+- Record `git status --short`, the starting revision, and any pre-existing user
+  changes. Preserve unrelated changes throughout the refactor.
+- Run the complete old-name and retired-option audit and save the active-tree
+  match inventory, excluding `plans/`.
+- Map each match to Chunks 1 through 7 so no deletion or guidance update is
+  orphaned.
+- Confirm the intended manifest-v4 break, lack of v2/v3 migration, fixed jq/rg
+  baseline, removal of bootstrap lifecycle skill options, and activation-command
+  removal with the human reviewer before product changes.
+
+Validation evidence:
+
+```sh
+./tests/test.sh
+git diff --check
+```
+
+Also capture `git status --short` and the audit match counts. If the baseline
+suite fails, stop and classify the failure as pre-existing or plan-blocking;
+do not mix an unrelated repair into this refactor without human approval.
+
+Human review gate: approve the baseline, dirty-worktree boundaries, active-tree
+inventory, and breaking decisions.
+
+Post-processing: update the resume record and checklist, then add the first
+entry under `# Lessons Learned`, including any corrected file inventory or test
+assumption.
+
+## Chunk 1: PATH precedence behavior and sourced-shell test support
+
+Goal: implement and prove the final PATH normalization behavior before crossing
+the schema boundary. Keep manifest v3, `activate.sh`, and the public activation
+command unchanged in this chunk.
+
+Implementation:
+
+- Refactor the generated shell code so the selected profile bin path is removed
+  from every exact PATH entry and prepended exactly once.
+- Preserve all other entries in order, including empty leading, middle, and
+  trailing entries, and retain the conditional macOS `/opt/podman/bin` fallback.
+- Keep the generated code POSIX, idempotent, non-exporting except for `PATH`, and
+  free of temporary variables after sourcing.
+- Add narrow disposable-child-shell helpers only where they reduce duplication;
+  do not let a sourced scenario mutate the main test runner.
+- Extend the existing activation tests or add the future onboarding test module
+  to cover repeated sourcing, profile switching, PATH duplicates, empty entries,
+  variable cleanup, and Podman fallback behavior under the current filename.
+
+Validation evidence:
+
+```sh
+./tests/test.sh
+git diff --check
+```
+
+Human review gate: inspect the generated POSIX shell, exact PATH-before/PATH-after
+test cases, macOS fallback, and absence of caller-state leakage.
+
+Post-processing: update the resume record and checklist and add a lesson about
+the PATH algorithm or disposable-shell harness.
+
+## Chunk 2: Atomic manifest-v4, shell-init, and command-surface boundary
+
+Goal: cross the breaking schema boundary in one checkpoint. No active v4
+consumer may expect `activate.sh`, and no installed launcher may expose
+`activate` after this chunk. This is an internal, non-release checkpoint: until
+Chunk 3 is approved, current-shell selection uses direct sourcing of the
+installed `shell-init.sh`.
+
+Implementation:
+
+- Bump both manifest identities to 4 in rendering, shared validation, error
+  messages, fixtures, and the self-contained launcher template.
+- Rename all owned asset constants, functions, locals, staging paths, collision
+  checks, backup/restore paths, commit temporaries, structure checks, update
+  behavior, and uninstall ownership from activation to shell-init terminology.
+- Generate and atomically commit `shell-init.sh` as a regular non-symlink 0644
+  file, preserving rollback of directories, launcher, manifest, dispatchers, and
+  the shell-init asset on commit failure.
+- Update default startup blocks to source the canonical `shell-init.sh`; remove
+  dead activation-block helpers where they cease to have callers.
+- Delete `commands/activate.sh`; remove launcher dispatch, help, examples, staged
+  command exposure, and command-context registration.
+- Update tests in the same checkpoint: v4 acceptance, v3/wrong/malformed
+  rejection, shell-init ownership and mode, collision and symlink safety,
+  startup/update/uninstall behavior, unknown sibling preservation, launcher help,
+  and absence of the removed command and file.
+- Rename `tests/commands/activate.sh` to `tests/commands/onboarding.sh` if that is
+  the selected final module name, update `tests/test.sh`, and update the closest
+  test context.
+
+Validation evidence:
+
+```sh
+./tests/test.sh
+git diff --check
+```
+
+Run focused disposable installs for both profiles and inspect their manifests,
+owned root assets, launcher help, startup block, and uninstall results. Do not
+test a compatibility alias.
+
+Human review gate: review the complete schema-boundary diff as a unit. Reject the
+chunk if any renderer, validator, transaction, launcher, update, uninstall, or
+test fixture remains on the old identity or filename.
+
+Post-processing: update the resume record and checklist and add a lesson about
+atomic schema changes, rollback, or ownership validation.
+
+## Chunk 3: Source-safe dual-mode repository installer
+
+Goal: make root `install.sh` safe to source while retaining executed automation
+and absolute-path self-update behavior. Keep tool-selection and skills-policy
+changes outside this chunk unless needed to pass the new entrypoint's internal
+request unchanged.
+
+Implementation:
+
+- Replace top-level strict mode, `exec`, and exit-based helpers with one
+  cleanup-safe, narrowly prefixed flow.
+- Resolve and validate the checkout in the recorded `$0` then canonical-PWD
+  order, with contract tests aligned to
+  `shimmy_upstream_checkout_invalid_reason`.
+- Parse the bootstrap-only leading `--profile default|upstream`, help, and
+  root-only rejection cases without shifting the caller's positional
+  parameters or duplicating the installed request parser.
+- Run strict validation and `commands/install.sh` in a child with
+  command-scoped `SHIMMY_BOOTSTRAP_PROFILE`.
+- After complete child success, resolve the canonical selected profile and
+  verify that `shell-init.sh` is readable, regular, and non-symlink before
+  sourcing it.
+- Clean every root-bootstrap helper and temporary variable on success and every
+  failure path. Preserve cwd, positional parameters, functions, traps, shell
+  options, and unrelated variables.
+- Intercept sourced help before mutation. Preserve executed install from the
+  repository root and absolute-path execution from another cwd.
+- Add disposable `/bin/sh` sourced scenarios plus Bash/Zsh-oriented syntax only
+  where those shells are available. Cover ordinary failure recovery and a
+  caller with `set -e` using the dot command in a conditional context; do not
+  claim the caller's own `errexit` can be overridden.
+- Prove `--no-startup` still initializes the current sourced shell and that an
+  install or external startup-file failure never sources shell-init.
+
+Validation evidence:
+
+```sh
+./tests/test.sh
+git diff --check
+```
+
+Run the focused sourced, executed, absolute-path, help, failure-cleanup, and
+default/upstream switching matrix in absolute disposable HOME/XDG roots.
+
+Human review gate: inspect every top-level command in root `install.sh`, all
+cleanup paths, checkout-resolution diagnostics, caller-state assertions, and
+the distinction between external startup failure and profile commit.
+
+Post-processing: update the resume record and checklist and add a lesson about
+sourced POSIX behavior, shell-specific observations, or checkout resolution.
+
+## Chunk 4: Fixed bootstrap baseline and explicit installed selection
+
+Goal: move jq/rg baseline policy to bootstrap, make installed additions
+explicit, and preserve existing manifest ownership during bootstrap refresh and
+self-update.
+
+Implementation:
+
+- Add a narrowly scoped root-bootstrap jq/rg request and validate both kinds
+  before profile mutation.
+- Reject repository-installer `--shim` before mutation with installed-command
+  guidance. Keep bootstrap profile selection and integration options within the
+  recorded public surface.
+- Remove `SHIMMY_DEFAULT_KINDS` and `shimmy_default_kind_list` from catalog
+  policy and tests.
+- Make installed `shimmy install` require one or more `--shim` values before
+  mutation while preserving `kind@version` behavior.
+- Ensure additive merge keeps unrelated kinds and concrete versions and keeps
+  jq/rg present on repository reinstall.
+- Remove manifest-to-root `--shim` argument reconstruction from self-update;
+  prove fetched absolute execution plus existing-manifest merge preserves all
+  owned kinds and versions.
+- Rewrite bootstrap fixtures around the fixed baseline and add other kinds only
+  through the installed launcher.
+
+Validation evidence:
+
+```sh
+./tests/test.sh
+git diff --check
+```
+
+Include focused fresh default/upstream manifest assertions, pre-mutation
+rejection checks, additive kind/version preservation, and self-update evidence.
+
+Human review gate: compare fresh, additive, repository-refresh, and self-update
+manifest snapshots and verify that catalog discovery no longer owns product
+defaults.
+
+Post-processing: update the resume record and checklist and add a lesson about
+policy placement, request validation, or manifest-preserving merge behavior.
+
+## Chunk 5: Remove skills concerns from profile lifecycle
+
+Goal: make canonical skills and the plugin bundle unconditional profile payload
+while keeping every external skills target an explicit standalone operation.
+
+Implementation:
+
+- Remove `--no-skills`, `--skills-target`, parser state, target validation,
+  post-commit export, partial-success retry guidance, and self-update forwarding
+  from bootstrap, install, update, and uninstall lifecycle paths.
+- Remove `profile_external_integrations_apply`; invoke requested startup
+  integration directly after profile commit.
+- Retain profile staging of canonical `agent/` sources and the checked-in
+  `plugins/` bundle.
+- Keep `commands/skills.sh` behavior and explicit `repo|profile|plugin` target
+  ownership unchanged.
+- Rewrite lifecycle fixtures without skills options. Rewrite skills fixtures to
+  bootstrap first, then invoke the installed `shimmy skills` command for every
+  external target operation.
+- Prove profile install/update/uninstall does not write or delete repository or
+  home external skill targets.
+
+Validation evidence:
+
+```sh
+./tests/test.sh
+git diff --check
+```
+
+Human review gate: inspect lifecycle calls for any remaining implicit external
+skills side effect and separately confirm standalone skills ownership,
+collision, export, refresh, and cleanup tests remain intact.
+
+Post-processing: update the resume record and checklist and add a lesson about
+separating profile-owned payload from externally owned integrations.
+
+## Chunk 6: Retired install-state and compatibility cleanup
+
+Goal: remove the remaining obsolete branches and vocabulary without changing
+the now-established target behavior.
+
+Implementation:
+
+- Remove `SHIMMY_INSTALL_SOURCE_MODE`, `--copy`, custom `--symlink`, hidden
+  `--refresh-shims`, `REFRESH_SHIMS`, the config-root v2 detector and duplicate
+  calls, `SHIMMY_PROFILE_ACTIVE` fixtures, dead startup summary helpers, and all
+  other unused activation-specific helpers discovered by call-site audit.
+- Delete tests dedicated only to ignored legacy install-directory environment
+  variables, retired `--install-dir`, special retired-option errors, v2
+  config-root guidance, and removed activation selector behavior.
+- Retain one generic unknown-option pre-mutation test and all profile-root v3,
+  malformed, unsafe, duplicate, collision, symlink, isolation, and ownership
+  safety tests.
+- Replace remaining active “manual activation” terminology with precise shell
+  initialization or persistent-startup wording.
+- Run a call-site and dead-code audit before deleting any helper; do not remove
+  shared behavior solely because its old name contains “activate.”
+
+Validation evidence:
+
+```sh
+./tests/test.sh
+git diff --check
+```
+
+Also run the retired-name audit and classify every remaining match as an allowed
+archival-plan reference or a defect.
+
+Human review gate: review deletions separately from renames and confirm safety
+coverage was retained even where compatibility coverage was removed.
+
+Post-processing: update the resume record and checklist and add a lesson about
+dead-code evidence, vocabulary cleanup, or safety-test preservation.
+
+## Chunk 7: Active guidance, contexts, and generated distributions
+
+Goal: make every active human and agent instruction describe the implemented v4
+onboarding model, then regenerate checked-in skill distributions once.
+
+Implementation:
+
+- Update `README.md`, `CONTRIBUTING.md`, active docs, tool guides, root and child
+  contexts, test descriptions, and canonical installation skill guidance.
+- Audit every active bootstrap example: jq/rg arrive from onboarding; any other
+  tool is added afterward through installed `shimmy install --shim`.
+- Document sourced onboarding, executed automation, direct advanced sourcing of
+  installed shell-init, default-only persistent startup, unconditional
+  profile-packaged canonical/plugin skills, and explicit standalone external
+  skills operations.
+- Keep historical plans unchanged unless they claim to be current operational
+  guidance.
+- Use the existing canonical export workflow to regenerate `.agents/` and
+  plugin skill distributions and their manifests/fingerprints. Do not hand-edit
+  generated copies independently of the canonical source.
+- Re-read every changed directory's `CONTEXT.md` and update only the closest
+  context plus required parent link or description.
+
+Validation evidence:
+
+```sh
+./tests/test.sh
+git diff --check
+```
+
+Also inspect the generated-export diff and run the final active-guidance command
+example audit.
+
+Human review gate: review source guidance separately from generated copies,
+confirm fingerprints are reproducible, and spot-check onboarding, maintainer,
+startup, update, uninstall, and external-skills instructions.
+
+Post-processing: update the resume record and checklist and add a lesson about
+guidance drift, context-tree maintenance, or deterministic exports.
+
+## Chunk 8: Final integrated validation and release-readiness audit
+
+Goal: validate the complete target state from a clean disposable environment
+without adding new feature scope.
+
+Implementation:
+
+- Run the complete repository suite and every focused validation listed below.
+- Exercise sourced default/upstream switching, executed root and absolute-path
+  install, additive installed management, self-update preservation, startup
+  integration, update, partial/full uninstall, and failure cleanup in fresh
+  absolute disposable HOME/XDG roots.
+- Inspect manifest v4 and owned modes/paths directly and confirm unknown sibling
+  preservation.
+- Run the final active-tree forbidden-name and bootstrap-invocation audits,
+  excluding archival plans only.
+- Review `git diff --stat`, `git diff --check`, executable bits, new/untracked
+  files, and unrelated user changes.
+- Do not fix newly discovered unrelated issues in this chunk; report them for a
+  separate decision.
+
+Validation evidence: all commands and checks under `# Validation`, with exact
+statuses recorded. A skipped check requires an explicit human waiver and reason.
+
+Human review gate: the reviewer receives the complete diff, validation matrix,
+remaining audit matches with classifications, accepted waivers, and a direct
+acceptance-criteria trace. Approval means the plan is implementation-complete;
+it does not itself authorize publishing, merging, or deleting old user data.
+
+Post-processing: complete the resume record and checklist and add the final
+lesson, including any follow-up work that is explicitly outside this refactor.
+
+# Lessons Learned
+
+This is a cumulative execution log, not a retrospective written only at the
+end. Complete the corresponding row after each chunk's human review. Record
+evidence and the resulting change to later execution; avoid generic
+observations.
+
+| Chunk | Date/reviewer | Evidence or surprise | Action taken in this plan or implementation | Rule for later chunks |
+| --- | --- | --- | --- | --- |
+| QA | 2026-08-09 / Codex | Schema identity, owned filename, validation, and launcher command removal have the same compatibility boundary; caller `errexit` remains caller-owned. | Grouped the boundary in Chunk 2 and added ordinary plus conditional failure tests. | Never split identity consumers across approved checkpoints or claim a sourced file can neutralize caller `set -e`. |
+| 0 | Pending | Pending | Pending | Pending |
+| 1 | Pending | Pending | Pending | Pending |
+| 2 | Pending | Pending | Pending | Pending |
+| 3 | Pending | Pending | Pending | Pending |
+| 4 | Pending | Pending | Pending | Pending |
+| 5 | Pending | Pending | Pending | Pending |
+| 6 | Pending | Pending | Pending | Pending |
+| 7 | Pending | Pending | Pending | Pending |
+| 8 | Pending | Pending | Pending | Pending |
+
+When a lesson changes a later chunk, edit that chunk immediately and mention the
+change in its row. Do not rewrite an approved earlier chunk's record except to
+correct a factual error; append the correction to the current row instead.
+
+# Validation
 
 Required repository validation:
 
@@ -660,7 +1150,7 @@ References to generic English “activation” should remain only where that wor
 is materially clearer than “shell initialization”; prefer the latter
 throughout the new architecture.
 
-## Acceptance criteria
+# Acceptance criteria
 
 - A new user can run `source ./install.sh` from the checkout root and invoke
   `shimmy` immediately in the same shell.
@@ -693,7 +1183,7 @@ throughout the new architecture.
   distributions describe the same onboarding and profile-selection model.
 - The complete repository suite passes.
 
-## Out of scope
+# Out of scope
 
 - Migrating manifest-v2 or manifest-v3 installations.
 - Automatically deleting or rewriting earlier profile layouts.
