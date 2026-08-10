@@ -3,6 +3,7 @@
 Thumbs.db
 
 # Editor directories and files
+.agents/
 .kilo/
 .vscode/
 .windsurf/
