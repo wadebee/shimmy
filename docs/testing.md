@@ -25,8 +25,9 @@ select another profile.
 
 The suite is POSIX shell and validates:
 
-- the complete `CONTEXT.md` tree and parent-to-child links, including every
-  source-bearing canonical-skill, test-module, and container directory;
+- the retained `CONTEXT.md` hierarchy and parent-to-child links under root,
+  `commands/`, `lib/`, and `tests/`, plus rejection of context files under
+  `tools/` and `plugins/shimmy/`;
 - metadata-derived tool kinds, versions, immutable image defaults, configured
   local bases, required platforms, and selectors;
 - negative schema coverage for missing, duplicate, unsafe, incomplete, tag-only,

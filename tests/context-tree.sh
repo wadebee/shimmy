@@ -53,24 +53,8 @@ context_source_directory_has_files() {
   return 1
 }
 
-context_source_directory_is_excluded() {
-  source_dir=$1
-
-  case "$source_dir" in
-    "$ROOT_DIR/.agents"|"$ROOT_DIR/.agents/"*)
-      return 0
-      ;;
-  esac
-
-  return 1
-}
-
 context_source_tree_validate() {
   source_dir=$1
-
-  if context_source_directory_is_excluded "$source_dir"; then
-    return 0
-  fi
 
   if context_source_directory_has_files "$source_dir"; then
     context_file=$source_dir/CONTEXT.md
@@ -85,8 +69,30 @@ context_source_tree_validate() {
   done
 }
 
+context_prohibited_tree_validate() {
+  source_dir=$1
+
+  [ -d "$source_dir" ] || return 0
+  [ ! -f "$source_dir/CONTEXT.md" ] ||
+    fail "prohibited context file: ${source_dir#$ROOT_DIR/}/CONTEXT.md"
+
+  for child_dir in "$source_dir"/*; do
+    [ -d "$child_dir" ] || continue
+    context_prohibited_tree_validate "$child_dir"
+  done
+}
+
+if [ "${1:-}" = --check-prohibited-tree ]; then
+  [ "$#" -eq 2 ] || fail 'usage: context-tree.sh --check-prohibited-tree <path>'
+  context_prohibited_tree_validate "$2"
+  printf 'PASS: prohibited context tree is empty\n'
+  exit 0
+fi
+
+[ "$#" -eq 0 ] || fail 'context-tree.sh does not accept arguments'
+
 context_require "$ROOT_DIR/CONTEXT.md"
-for child_dir in agent commands lib tools tests; do
+for child_dir in agent commands lib tests; do
   child_file=$ROOT_DIR/$child_dir/CONTEXT.md
   context_require "$child_file"
   context_link_require "$ROOT_DIR/CONTEXT.md" "$child_file"
@@ -107,12 +113,12 @@ done
 context_require "$ROOT_DIR/agent/core/CONTEXT.md"
 context_link_require "$ROOT_DIR/agent/CONTEXT.md" "$ROOT_DIR/agent/core/CONTEXT.md"
 
-# The generated compatibility adapter is not part of the canonical context tree.
-context_source_tree_validate "$ROOT_DIR/.agents"
-
-for source_tree in agent commands lib tools tests; do
+for source_tree in commands lib tests; do
   context_source_tree_validate "$ROOT_DIR/$source_tree"
 done
+
+context_prohibited_tree_validate "$ROOT_DIR/tools"
+context_prohibited_tree_validate "$ROOT_DIR/plugins/shimmy"
 
 for version_dir in "$ROOT_DIR"/tools/*/versions/*; do
   [ -d "$version_dir" ] || continue
@@ -122,4 +128,4 @@ for version_dir in "$ROOT_DIR"/tools/*/versions/*; do
   [ -f "$version_dir/image.conf" ] || fail "missing image metadata: ${version_dir#$ROOT_DIR/}/image.conf"
 done
 
-printf 'PASS: CONTEXT tree is complete and linked\n'
+printf 'PASS: retained CONTEXT tree is complete and prohibited trees are empty\n'

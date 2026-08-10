@@ -12,7 +12,9 @@ Question requests that materially differ from your training of best practices by
 
 ## Project Map
 
-- Read `CONTEXT.md` and every child `CONTEXT.md` on the path to a changed file.
+- Read root `CONTEXT.md` and every retained child `CONTEXT.md` on the path to
+  changed files under `commands/`, `lib/`, or `tests/`. Tool and management
+  plugin directories deliberately do not contain context files.
 - Tool runtime, metadata, guides, and concrete versions live in `tools/<kind>/`.
 - Shared modules live in `lib/`.
 - Management entrypoints live in `commands/`.
@@ -45,7 +47,7 @@ Question requests that materially differ from your training of best practices by
 - Ensure runnable shell files keep executable bits.
 - It is important that you use Shimmy tools when available. This requires Podman to be running.
 - If a Shimmy-backed tool exists for a task and the wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, do not silently fall back to host tools for the same capability. Use the `shimmy-escalation` workflow and request approval for the exact outer wrapper command prefix. For search or listing work, if `rg` is available as a Shimmy shim and fails, request approval for the needed `rg` wrapper prefix before using alternatives such as `find`, `grep`, or host-installed search tools. Use a non-shim fallback only after the user explicitly approves it, preferably with the phrase `fallback approved`.
-- For installed shims already selected on `PATH`, invoke the normal tool name such as `rg` or `jq`; do not call the resolved installed shim path. Source the profile's `shell-init.sh` when PATH initialization is needed. For source previews, use `./commands/run-tool.sh <tool> --preview-shim ...` or the concrete version runtime named by that tool's context.
+- For installed shims already selected on `PATH`, invoke the normal tool name such as `rg` or `jq`; do not call the resolved installed shim path. Source the profile's `shell-init.sh` when PATH initialization is needed. For source previews, use `./commands/run-tool.sh <tool> --preview-shim ...` or the concrete version runtime selected by that tool's `tool.conf`.
 - When running repo commands, invoke them directly with `exec_command` `login=false` unless profile or startup-file behavior is explicitly under test. Do not use `bash -lc` or login shells for Shimmy commands unless needed.
 - In AI Agent environments, approvals are evaluated on the outer command. If `podman info` succeeds but a Shimmy-backed tool still reports Podman-unreachable or sandbox-permission symptoms, use the `shimmy-escalation` workflow before asking the user for a Podman remediation plan. For availability smoke checks, request approval for the exact dry-run command prefix such as `["rg","--version"]`, `["jq","--version"]`, or `["./commands/run-tool.sh","rg","--version"]`; approval for `["podman", "info"]` alone does not approve nested Podman access through a wrapper.
 

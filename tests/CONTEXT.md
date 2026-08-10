@@ -22,11 +22,12 @@ created once per session. Onboarding coverage sources the root
 bootstrap to initialize PATH and executes it separately to verify automation
 semantics.
 
-`context-tree.sh` validates the repository's hierarchical context links. Every
-source-bearing directory below `agent/`, `commands/`, `lib/`, `tools/`, and
-`tests/` must have a linked `CONTEXT.md`; this includes canonical skills,
-test modules, and local container contexts. The generated `.agents/`
-compatibility adapter and all of its descendants are explicitly excluded.
+`context-tree.sh` validates the retained hierarchical context links below
+`commands/`, `lib/`, and `tests/`, plus the explicit intermediate links from
+root to `agent/CONTEXT.md` and `agent/core/CONTEXT.md`. It rejects any
+`CONTEXT.md` below `tools/` or `plugins/shimmy/` and independently verifies
+every concrete tool version's executable runtime and refresh hook plus its
+smoke and image metadata.
 
 ## Child contexts
 

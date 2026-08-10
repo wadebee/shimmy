@@ -154,21 +154,23 @@ unsupported or unreadable host values fail before Podman is invoked.
 
 ## AI Aware repo layout
 
-Agents are instructed via [AGENTS.md](AGENTS.md) to read [CONTEXT.md](CONTEXT.md) before changing the repository. Source code and its operational context share the same hierarchy:
+Agents are instructed via [AGENTS.md](AGENTS.md) to read [CONTEXT.md](CONTEXT.md)
+before changing the repository. Retained module contexts cover management,
+shared-library, and test code; tool and management-plugin guidance lives in
+their guides and canonical skills:
 
 ```text
 commands/  management entrypoints
 lib/       shared catalog, profile, runtime, startup, and network behavior
 tools/     one self-contained directory per tool kind and version
-tests/     POSIX validation and context-tree verification
+tests/     POSIX validation and retained context-tree verification
 ```
 
 Each tool directory owns its guide, version metadata including `image.conf`, concrete runtime,
 container context, test guidance, and agent skill. `tool.conf` defines the
 default version and optional selector; `commands/run-tool.sh` resolves it.
-This keeps the context an AI agent needs close to the files it may change,
-reduces repository-wide scanning, and makes tool-specific guidance installable
-from the canonical source tree.
+This keeps tool-specific operating guidance close to the files it may change
+and makes that guidance installable from the canonical source tree.
 
 ## Contributor Guidance and Testing
 
@@ -181,8 +183,8 @@ Run a complete repository check from the root:
 ./tests/test.sh
 ```
 
-For a tool-specific preview, invoke its generic dispatcher or the concrete
-version runtime listed in its context:
+For a tool-specific preview, invoke its generic dispatcher or a concrete
+version runtime selected by `tool.conf`:
 
 ```sh
 ./commands/run-tool.sh jq --preview-shim --version

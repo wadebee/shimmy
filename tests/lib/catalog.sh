@@ -3,7 +3,23 @@
 
 test_lib_catalog_context_tree() {
   "$ROOT_DIR/tests/context-tree.sh"
-  pass "CONTEXT tree"
+  pass "retained CONTEXT tree"
+}
+
+test_lib_catalog_context_tree_rejects_prohibited_file() {
+  setup_scenario
+  prohibited_tree=$SCENARIO_DIR/prohibited-tree
+  mkdir -p "$prohibited_tree/nested"
+  : > "$prohibited_tree/nested/CONTEXT.md"
+
+  set +e
+  output=$("$ROOT_DIR/tests/context-tree.sh" --check-prohibited-tree "$prohibited_tree" 2>&1)
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "prohibited context fixture unexpectedly passed"
+  assert_contains "$output" 'prohibited context file:'
+  pass "prohibited tool and plugin context files are rejected"
 }
 
 test_lib_catalog_discovery() {
@@ -310,6 +326,7 @@ linux/arm64'
 
 test_lib_catalog_run() {
   test_lib_catalog_context_tree
+  test_lib_catalog_context_tree_rejects_prohibited_file
   test_lib_catalog_discovery
   test_lib_catalog_image_config_validation
   test_lib_catalog_local_image_identity

@@ -1,23 +1,22 @@
 ---
 name: shimmy-generic-shim-template
-description: Template for a context-first Shimmy CLI tool backed by Podman.
+description: Template for a Shimmy CLI tool backed by Podman.
 ---
 
 # Generic Shimmy tool template
 
-Read root `CONTEXT.md`, `tools/CONTEXT.md`, and the closest existing tool.
-Create one self-contained `tools/<kind>/` directory.
+Read root `CONTEXT.md`, `CONTRIBUTING.md`, and the guide and canonical skill
+for the closest existing tool. Create one self-contained `tools/<kind>/`
+directory.
 
 ## Required structure
 
 ```text
 tools/<kind>/
-  CONTEXT.md
   tool.conf
   guide.md
   agent/SKILL.md
   versions/<major.minor>/
-    CONTEXT.md
     run.sh
     smoke.conf
     image.conf

@@ -1,8 +1,9 @@
 # Shimmy project guidance
 
-Read root `CONTEXT.md`, then the direct child contexts leading to the module
-being changed. Context is local: update the closest `CONTEXT.md` whenever its
-directory's architecture, conventions, or child links change.
+Read root `CONTEXT.md`, then the retained child contexts leading to changed
+code under `commands/`, `lib/`, or `tests/`. Update the closest retained
+context whenever that hierarchy's architecture, conventions, or child links
+change. Tool and management-plugin directories do not own context files.
 
 ## Layout
 
@@ -20,7 +21,7 @@ directory's architecture, conventions, or child links change.
   and both required platforms.
 - Local builds use that version directory's `container/Containerfile`.
 - Tool guides and canonical agent skills live beside the tool.
-- `tests/` validates context integrity, metadata dispatch, previews, and clean
+- `tests/` validates retained context integrity, metadata dispatch, previews, and clean
   installation behavior.
 
 ## Runtime rules
@@ -29,7 +30,8 @@ directory's architecture, conventions, or child links change.
 - Preserve tool names, supported tool-specific `SHIMMY_*` environment
   variables, image overrides, pull/build options, mounts, credentials, and
   `--preview-shim`.
-- Mount `$PWD` at `/work` unless the tool context documents a reason not to.
+- Mount `$PWD` at `/work` unless the tool guide or canonical skill documents a
+  reason not to.
 - Use `lib/runtime/podman.sh` for native OS/architecture platform selection and
   Podman preflight; unsupported or unreadable hosts must fail closed.
 - Use `lib/runtime/image.sh` to validate and consume `image.conf`, resolve local
@@ -39,10 +41,10 @@ directory's architecture, conventions, or child links change.
 
 ## Tool additions
 
-Add a self-contained `tools/<kind>/` directory with `tool.conf`, a guide,
-`CONTEXT.md`, a canonical skill, and one or more version directories containing
-`run.sh`, `refresh.sh`, `smoke.conf`, `image.conf`, `CONTEXT.md`, and
-`container/` when locally built. The
+Add a self-contained `tools/<kind>/` directory with `tool.conf`, a guide, a
+canonical `agent/SKILL.md`, focused tests, and one or more version directories
+containing `run.sh`, `refresh.sh`, `smoke.conf`, `image.conf`, and `container/`
+when locally built. The
 catalog discovers this metadata; do not add tool-name case statements to `lib/`
 or command code.
 
@@ -76,5 +78,6 @@ target manifest and are written or removed only with explicit standalone
 
 ## Verification
 
-Run `./tests/test.sh`, inspect shell executable bits, and verify context links.
+Run `./tests/test.sh`, inspect shell executable bits, and verify retained
+context links.
 For a source preview, use `./commands/run-tool.sh <kind> --preview-shim ...`.

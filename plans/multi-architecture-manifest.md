@@ -446,8 +446,11 @@ Active chunk: Chunk 3 at final human review gate with one accepted deferral.
 
 For every chunk:
 
-1. Read `AGENTS.md`, `CONTEXT.md`, every child context on the path to a changed
-   file, this plan, and the chunk's target files.
+1. Read `AGENTS.md`, root `CONTEXT.md`, every retained child context on the
+   path to changed files under `commands/`, `lib/`, or `tests/`, this plan,
+   and the chunk's target files. Tool and plugin context files listed in the
+   historical chunk inventories below have since been removed and must not be
+   recreated.
 2. Execute only that chunk's scope.
 3. Run its verification checklist and record `[x]`, `[ ]`, or `[~]` with notes.
 4. Update the cumulative **Lessons learned** block.
@@ -961,8 +964,10 @@ For a fresh implementation session:
 
 1. Read `AGENTS.md`, root `CONTEXT.md`, `CONTRIBUTING.md`, this complete plan,
    and the `plan-review-act` skill.
-2. Read every context on the path to the active chunk's files and inspect the
-   current diffs before editing. The planning baseline had unrelated user
+2. Read every retained context on the path to active files under `commands/`,
+   `lib/`, or `tests/` and inspect the current diffs before editing. Do not
+   recreate the historical tool or plugin context files named by earlier
+   chunks. The planning baseline had unrelated user
    changes in `README.md`, `tests/CONTEXT.md`, `tests/context-tree.sh`, and
    deleted historical plans; do not assume that state remains unchanged or
    discard it.

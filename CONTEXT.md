@@ -1,6 +1,9 @@
 # Shimmy
 
-Shimmy exposes common CLI tools through small POSIX shell wrappers that run Podman containers. Read this file first, then the `CONTEXT.md` files on the path to the code being changed.
+Shimmy exposes common CLI tools through small POSIX shell wrappers that run
+Podman containers. Read this file first, then the retained `CONTEXT.md` files
+on the path to changed code under `commands/`, `lib/`, or `tests/`. Tool and
+management-plugin directories deliberately have no context-file hierarchy.
 
 ## Architecture
 
@@ -35,7 +38,6 @@ own `bin/shimmy`; no installed control payload is shared between profiles.
 
 - [commands](commands/CONTEXT.md)
 - [shared library](lib/CONTEXT.md)
-- [tools](tools/CONTEXT.md)
 - [tests](tests/CONTEXT.md)
 - [agent guidance](agent/CONTEXT.md)
 

@@ -328,9 +328,9 @@ None.
 
 ## Progress Checklist
 
-Active chunk: Chunk 1, not started; awaiting explicit implementation approval.
+Active chunk: Chunk 1 implemented and verified; awaiting human review.
 
-- [ ] Chunk 1 — Remove tool/plugin contexts and every mechanism that requires
+- [x] Chunk 1 — Remove tool/plugin contexts and every mechanism that requires
   or prescribes them while preserving tool-local skill ownership.
 - [ ] Chunk 2 — Move only the control-plane skills into the canonical
   management plugin, flatten all tool skills, preserve one-file exports,
@@ -341,8 +341,10 @@ Active chunk: Chunk 1, not started; awaiting explicit implementation approval.
 
 For every chunk:
 
-1. Read `AGENTS.md`, `CONTEXT.md`, every child context on the path to a changed
-   file, this plan, and the chunk's target files.
+1. Read `AGENTS.md`, root `CONTEXT.md`, and every retained child context on the
+   path to changed files under `commands/`, `lib/`, or `tests/`, plus this plan
+   and the chunk's target files. Do not recreate context files below `tools/`
+   or `plugins/shimmy/`.
 2. Execute only that chunk's scope.
 3. Run its verification checklist and record `[x]`, `[ ]`, or `[~]` with notes.
 4. Update the cumulative **Lessons learned** block.
@@ -426,26 +428,32 @@ Primary change surface:
 
 ### Verification checklist
 
-- [ ] A filesystem inventory finds zero `CONTEXT.md` below
+- [x] A filesystem inventory finds zero `CONTEXT.md` below
   `plugins/shimmy/` and zero below `tools/`, while all retained context files
-  outside those trees remain linked and valid.
-- [ ] All 18 `tools/<kind>/agent/SKILL.md` files remain at their original paths
+  outside those trees remain linked and valid. Verified by
+  `./tests/context-tree.sh` and filesystem inventory.
+- [x] All 18 `tools/<kind>/agent/SKILL.md` files remain at their original paths
   with unchanged names; all five current `agent/core/` skills remain available
-  for Chunk 2.
-- [ ] No tool/plugin template, rule, skill, test, current plan instruction, or
+  for Chunk 2. Verified by explicit source inventories.
+- [x] No tool/plugin template, rule, skill, test, current plan instruction, or
   documentation tells contributors to create or read a prohibited context
   file. Container build-context and ordinary context wording remains accurate.
-- [ ] `tests/context-tree.sh` passes, checks the retained context hierarchy,
+  Broad searches retain only allowed context infrastructure, explicit absence
+  rules, ordinary wording, and historical evidence.
+- [x] `tests/context-tree.sh` passes, checks the retained context hierarchy,
   rejects a fixture or discovered `CONTEXT.md` under either prohibited tree,
   no longer demands the four already-deleted management-skill contexts, and
-  retains tool runtime/config completeness checks.
-- [ ] The checked-in plugin-target and repository-adapter manifests match their
+  retains tool runtime/config completeness checks. The negative fixture is
+  covered by `tests/lib/catalog.sh`.
+- [x] The checked-in plugin-target and repository-adapter manifests match their
   post-removal payloads; semantic parity still uses `agent/core/` for
   management skills and `tools/<kind>/agent/` for tool skills in this
-  intermediate state.
-- [ ] `./tests/test.sh`, shell syntax checks for changed scripts,
-  `git diff --check`, and executable-bit checks pass.
-- [ ] Final status for the chunk leaves the tracked `.agents/` ignore rule
+  intermediate state. The generated plugin and affected repository adapters
+  were refreshed from those sources.
+- [x] `./tests/test.sh`, shell syntax checks for changed scripts,
+  `git diff --check`, and executable-bit checks pass. The full suite passed 94
+  tests.
+- [x] Final status for the chunk leaves the tracked `.agents/` ignore rule
   unchanged and contains only the approved Chunk 1 work plus plan progress.
 
 ### Human review gate
@@ -658,14 +666,34 @@ reviewer accepts the verified repository state.
 - The `.agents/` ignore rule and this plan are tracked baseline state, not
   unrelated worktree modifications.
 
+### Chunk 1
+
+- The deleted tool contexts mostly summarized behavior already enforced by
+  version metadata, runtime code, focused tests, guides, and canonical skills.
+  The Logmine checksum workaround was the only unusually specific build note;
+  it was already preserved in `tools/logmine/guide.md` and its Containerfile.
+- Retained context validation is clearer when traversal and prohibition are
+  separate contracts: `commands/`, `lib/`, and `tests/` remain recursively
+  linked, while `tools/` and `plugins/shimmy/` are recursively checked for
+  absence without coupling that check to tool runtime completeness.
+- One-file repository adapters require stable references that work from both
+  the canonical tool-skill directory and `.agents/skills/<name>/`; root-relative
+  repository paths expressed with the shared three-level prefix preserve that
+  parity.
+- Regenerating a tracked `.agents/skills/` adapter can require a narrow
+  repository-write approval even when the checkout itself is writable; the
+  approved skills command preserved unrelated adapter content and updated only
+  changed payloads and fingerprints.
+
 ## Session bootstrap
 
 A fresh implementation session must:
 
 1. Read `AGENTS.md`, root `CONTEXT.md`, `CONTRIBUTING.md`, this entire plan,
-   and the currently applicable retained contexts for the active chunk. Before
-   deleting current tool/plugin contexts in Chunk 1, read and classify them for
-   unique durable rules.
+   and the currently applicable retained contexts for the active chunk. The
+   removed tool/plugin contexts were classified during Chunk 1; use the
+   surviving guides, canonical skills, metadata, runtime code, and tests as
+   their durable owners.
 2. Re-run the context and skill inventories; leave the tracked `.agents/`
    ignore rule unchanged and preserve any unrelated worktree changes.
 3. Keep the ownership boundary fixed: five control-plane skills in

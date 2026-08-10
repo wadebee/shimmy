@@ -26,10 +26,9 @@ profile payload; repository and home exports are written only by explicit
 standalone skills operations and are owned by the target manifest. Repository
 and home `.agents/skills/<name>/` exports are one-file compatibility adapters
 containing only `SKILL.md`; canonical source and packaged plugin directories
-may also contain repository context files and other owned resources.
+may contain other owned resources.
 
 ## Related contexts
 
 - [shared library](../lib/CONTEXT.md)
-- [tool metadata](../tools/CONTEXT.md)
 - [tests](../tests/CONTEXT.md)

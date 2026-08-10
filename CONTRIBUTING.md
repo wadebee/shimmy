@@ -7,7 +7,10 @@ Use it as the source of truth for repository contribution guidance that should b
 ## Contributor Workflow
 
 - Keep runtime shims small and readable.
-- Read root `CONTEXT.md` and the relevant child context before changing a module.
+- Read root `CONTEXT.md` and the relevant retained child context before changing
+  `commands/`, `lib/`, or `tests/`. Tool and management-plugin work uses this
+  guide plus the tool guide or canonical skill; those trees do not own
+  `CONTEXT.md` files.
 - Update related implementation, tests, installer behavior, and user-facing docs together when behavior changes.
 - Reuse established repo patterns before introducing new structure or naming.
 - Keep runnable shell files executable.
@@ -51,7 +54,11 @@ initialize its parent shell. Switch an existing shell by sourcing the desired
 profile's absolute `shell-init.sh`; it prepends that profile's `bin/` directory
 to `PATH`.
 
-For repo-local previews, use `./commands/run-tool.sh rg --preview-shim --version` or the concrete runtime listed in `tools/rg/CONTEXT.md`. For installed-state inspection, prefer `shimmy status --format manifest` over `command -v <tool>`: `command -v` shows the invoking profile's dispatcher entrypoint, while status shows that profile's manifest-derived metadata.
+For repo-local previews, use `./commands/run-tool.sh rg --preview-shim
+--version` or the concrete runtime selected by `tools/rg/tool.conf`. For
+installed-state inspection, prefer `shimmy status --format manifest` over
+`command -v <tool>`: `command -v` shows the invoking profile's dispatcher
+entrypoint, while status shows that profile's manifest-derived metadata.
 
 `SHIMMY_UPSTREAM_CHECKOUT_DIR` is the only upstream-specific path input. It
 selects the absolute source checkout recorded when `./install.sh --profile
@@ -69,10 +76,10 @@ operations to write them and `shimmy skills uninstall --target repo|profile`
 for removal. The `plugin` target is a packaged profile-local bundle, not a
 shared external target.
 
-Repository and home `.agents/skills/<name>/` targets are one-file
-compatibility adapters containing only `SKILL.md`. Do not copy canonical
-`CONTEXT.md` files into those targets. Packaged plugin skills retain their
-complete canonical directory payload.
+Repository and home `.agents/skills/<name>/` targets are one-file compatibility
+adapters containing only `SKILL.md`. Do not copy other repository metadata
+into those targets. Packaged plugin skills retain their complete canonical
+directory payload.
 
 ## Shim Kind Workflow
 

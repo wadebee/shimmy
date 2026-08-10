@@ -7,8 +7,8 @@ description: Create or extend a Shimmy tool kind and its concrete CLI versions. 
 
 ## Read first
 
-- Read `CONTRIBUTING.md`, `docs/prompt-shimmy-project.md`, and the context
-   path from root to the target tool.
+- Read root `CONTEXT.md`, `CONTRIBUTING.md`, and
+  `docs/prompt-shimmy-project.md`.
 - Inspect a comparable tool under `tools/` before introducing structure.
 - Use PLAN -> REVIEW -> ACT for image provenance, version, strategy, and other
   choices whose alternatives materially change the resulting tool.
@@ -31,16 +31,16 @@ description: Create or extend a Shimmy tool kind and its concrete CLI versions. 
 
 Create or update the following as applicable:
 
-- `tools/<kind>/tool.conf`, `guide.md`, `CONTEXT.md`, and `agent/SKILL.md`;
+- `tools/<kind>/tool.conf`, `guide.md`, and `agent/SKILL.md`;
 - `tools/<kind>/versions/<major.minor>/run.sh`, `smoke.conf`, `image.conf`,
-  `refresh.sh`, and `CONTEXT.md`;
+  and `refresh.sh`;
 - `container/Containerfile` and its context only for local-build versions;
 - `tools/<kind>/tests/` for behavior not covered by generic catalog tests.
 
 Keep the runtime a small POSIX shell wrapper with `#!/bin/sh` and `set -eu`.
-Mount `$PWD` at `/work` unless the tool's context documents an exception. Use
-the shared Podman helper for platform selection. Shimmy-defined environment
-variables must start with `SHIMMY_`.
+Mount `$PWD` at `/work` unless the tool's guide or canonical skill documents an
+exception. Use the shared Podman helper for platform selection. Shimmy-defined
+environment variables must start with `SHIMMY_`.
 
 Choose `image_source=external` for a suitable publisher image or
 `image_source=local-build` for a version-owned build context. Every concrete

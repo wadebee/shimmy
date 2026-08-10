@@ -6,8 +6,8 @@ also invokes `commands/install.sh` to create one canonical profile. These
 entrypoints orchestrate metadata and shared behavior from `../lib/`; do not
 put tool-specific runtime logic here.
 
-See [CONTEXT.md](CONTEXT.md) for ownership and [tools](../tools/CONTEXT.md) for
-tool runtime behavior.
+See [CONTEXT.md](CONTEXT.md) for command ownership and each tool's `guide.md`,
+`tool.conf`, and version-owned files for runtime behavior.
 
 `shimmy images verify` checks pinned remote defaults and reports upstream-tag
 drift without pulling target image layers. Use `--public-only` to visibly skip
