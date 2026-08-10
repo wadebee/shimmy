@@ -20,7 +20,7 @@ change. Tool and management-plugin directories do not own context files.
   local-build image policy, immutable multi-platform defaults, registry access,
   and both required platforms.
 - Local builds use that version directory's `container/Containerfile`.
-- Tool guides and canonical agent skills live beside the tool.
+- Tool guides and canonical tool skills live beside the tool.
 - `tests/` validates retained context integrity, metadata dispatch, previews, and clean
   installation behavior.
 
@@ -42,7 +42,7 @@ change. Tool and management-plugin directories do not own context files.
 ## Tool additions
 
 Add a self-contained `tools/<kind>/` directory with `tool.conf`, a guide, a
-canonical `agent/SKILL.md`, focused tests, and one or more version directories
+canonical `SKILL.md`, focused tests, and one or more version directories
 containing `run.sh`, `refresh.sh`, `smoke.conf`, `image.conf`, and `container/`
 when locally built. The
 catalog discovers this metadata; do not add tool-name case statements to `lib/`
@@ -71,9 +71,9 @@ installation-location or profile-selection overrides. Add non-baseline tools
 after onboarding with installed `shimmy install --shim <kind>`. Source a
 profile's `shell-init.sh` to select it in an existing shell. Only `default`
 owns a persistent startup block; `upstream` never changes startup files.
-Canonical sources and packaged plugin skills are unconditional profile payload.
-Repository and home agent skills are external state owned by the selected
-target manifest and are written or removed only with explicit standalone
+The five-skill management plugin and co-located tool skills are unconditional
+profile payload. Repository and home agent skill adapters are external state
+owned by the selected target manifest and are written or removed only with explicit standalone
 `shimmy skills ... --target repo|profile` operations.
 
 ## Verification

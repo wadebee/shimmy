@@ -15,7 +15,7 @@ directory.
 tools/<kind>/
   tool.conf
   guide.md
-  agent/SKILL.md
+  SKILL.md
   versions/<major.minor>/
     run.sh
     smoke.conf

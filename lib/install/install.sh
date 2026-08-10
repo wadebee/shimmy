@@ -21,6 +21,8 @@ UNINSTALL=0
 PROFILE_EXISTS=0
 SHIMMY_STAGE_ROOT=
 SHIMMY_PROFILE_BACKUP_ROOT=
+SHIMMY_PROFILE_DIRECTORIES_REPLACED=
+SHIMMY_PROFILE_FILES_REPLACED=
 SHIMMY_MANIFEST_COMMIT_TMP=
 SHIMMY_SHELL_INIT_COMMIT_TMP=
 LOG_LEVEL=${LOG_LEVEL:-info}
@@ -166,10 +168,7 @@ EOF
 profile_stage_cleanup() {
   profile_commit_temporary_files_cleanup
   if [ -n "$SHIMMY_PROFILE_BACKUP_ROOT" ] && [ -d "$SHIMMY_PROFILE_BACKUP_ROOT" ]; then
-    profile_owned_files_restore
-    profile_owned_directories_restore
-    rmdir "$SHIMMY_PROFILE_BACKUP_ROOT/bin" 2>/dev/null || true
-    rmdir "$SHIMMY_PROFILE_BACKUP_ROOT" 2>/dev/null || true
+    profile_commit_restore
   fi
   [ -n "$SHIMMY_STAGE_ROOT" ] || return 0
   case "$SHIMMY_STAGE_ROOT" in

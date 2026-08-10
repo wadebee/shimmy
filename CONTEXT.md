@@ -16,7 +16,8 @@ management-plugin directories deliberately have no context-file hierarchy.
   retains shell initialization, while execution remains suitable for
   automation and absolute-path self-update.
 - `tools/` owns each tool's metadata, versions, container context, guide, and
-  agent guidance.
+  canonical skill.
+- `plugins/shimmy/skills/` owns the five canonical control-plane skills.
 - `tests/` contains the POSIX test runner and shared test support.
 
 Installed profiles are independent flat control/runtime trees under
@@ -39,7 +40,6 @@ own `bin/shimmy`; no installed control payload is shared between profiles.
 - [commands](commands/CONTEXT.md)
 - [shared library](lib/CONTEXT.md)
 - [tests](tests/CONTEXT.md)
-- [agent guidance](agent/CONTEXT.md)
 
 ## Maintaining this tree
 

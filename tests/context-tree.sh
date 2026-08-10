@@ -92,7 +92,7 @@ fi
 [ "$#" -eq 0 ] || fail 'context-tree.sh does not accept arguments'
 
 context_require "$ROOT_DIR/CONTEXT.md"
-for child_dir in agent commands lib tests; do
+for child_dir in commands lib tests; do
   child_file=$ROOT_DIR/$child_dir/CONTEXT.md
   context_require "$child_file"
   context_link_require "$ROOT_DIR/CONTEXT.md" "$child_file"
@@ -109,9 +109,6 @@ for child_dir in catalog common images install netinfo profile runtime startup u
   context_require "$child_file"
   context_link_require "$ROOT_DIR/lib/CONTEXT.md" "$child_file"
 done
-
-context_require "$ROOT_DIR/agent/core/CONTEXT.md"
-context_link_require "$ROOT_DIR/agent/CONTEXT.md" "$ROOT_DIR/agent/core/CONTEXT.md"
 
 for source_tree in commands lib tests; do
   context_source_tree_validate "$ROOT_DIR/$source_tree"

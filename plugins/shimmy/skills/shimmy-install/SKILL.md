@@ -7,9 +7,9 @@ description: Install, update, validate, initialize shells for, or remove Shimmy 
 
 ## Source of truth
 
-- In this repository, use the minimal `./install.sh` bootstrap for first
-  installation and `./tests/test.sh` for repository validation. There is no
-  repository `shimmy` launcher.
+- For first-time checkout installation, read `BOOTSTRAP.md`, use the public
+  `./install.sh` checkout bootstrap, and use `./tests/test.sh` for repository
+  validation. There is no repository `shimmy` launcher.
 - In an installed environment, use the desired profile's absolute
   `bin/shimmy` launcher or its `shimmy` command after sourcing `shell-init.sh`.
 - Inspect the invoking profile with `shimmy status --format manifest`.
@@ -69,21 +69,17 @@ changes; `upstream` never changes shell startup files.
 
 ## Shared skills
 
-Canonical agent sources and packaged plugin skills are included
-unconditionally in every profile payload. Install or update shared agent
-skills in a repository or home agent profile only when the user explicitly
-selects that target through standalone `shimmy skills` commands. The target's
-`.shimmy-skills-manifest.txt` owns those entries; no profile manifest owns the
+The canonical five-skill management plugin and co-located tool skills are
+included unconditionally in every profile payload. Install or update agent
+skill adapters in a repository or home agent profile only when the user
+explicitly selects that target through standalone `shimmy skills` commands.
+The target's `.shimmy-skills-manifest.txt` owns those entries; no profile manifest owns the
 target. Profile install, update, and uninstall never implicitly refresh or
 remove it. Remove target-owned shared skills only with:
 
 ```sh
 shimmy skills uninstall --target <repo|profile>
 ```
-
-Treat `--target plugin` separately: it addresses the packaged skill bundle
-inside the invoking profile. Normal profile installation and update already
-replace that bundle with the canonical payload.
 
 ## Podman and validation
 

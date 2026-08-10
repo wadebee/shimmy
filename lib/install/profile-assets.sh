@@ -84,7 +84,7 @@ profile_shim_assets_stage() {
 
 profile_control_assets_stage() {
   mkdir -p "$SHIMMY_STAGE_ROOT"
-  for asset_name in commands lib tools tests plugins agent; do
+  for asset_name in commands lib tools tests plugins; do
     profile_asset_directory_stage "$ROOT_DIR/$asset_name" "$SHIMMY_STAGE_ROOT/$asset_name"
   done
   mkdir -p "$SHIMMY_STAGE_ROOT/config/shims" "$SHIMMY_STAGE_ROOT/implementations" "$SHIMMY_STAGE_ROOT/bin"
@@ -105,6 +105,29 @@ profile_commit_temporary_files_cleanup() {
   done
   SHIMMY_MANIFEST_COMMIT_TMP=
   SHIMMY_SHELL_INIT_COMMIT_TMP=
+}
+
+profile_commit_backup_cleanup() {
+  for relative_path in shell-init.sh install-manifest.txt bin/shimmy; do
+    backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/$relative_path
+    [ ! -e "$backup_path" ] && [ ! -L "$backup_path" ] || rm -f "$backup_path"
+  done
+  while IFS= read -r kind_name; do
+    [ -n "$kind_name" ] || continue
+    backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/bin/$kind_name
+    [ ! -e "$backup_path" ] && [ ! -L "$backup_path" ] || rm -f "$backup_path"
+  done <<EOF
+$PROFILE_MANIFEST_KINDS
+EOF
+  rmdir "$SHIMMY_PROFILE_BACKUP_ROOT/bin" 2>/dev/null || true
+  rmdir "$SHIMMY_PROFILE_BACKUP_ROOT" 2>/dev/null || true
+}
+
+profile_commit_restore() {
+  profile_owned_files_restore
+  profile_owned_directories_restore
+  profile_commit_backup_cleanup
+  SHIMMY_PROFILE_BACKUP_ROOT=
 }
 
 profile_dispatcher_stage() {
@@ -137,14 +160,16 @@ profile_shell_init_collision_validate() {
 }
 
 profile_owned_directories_restore() {
-  for asset_name in commands config implementations lib tools tests plugins agent; do
+  for asset_name in agent commands config implementations lib tools tests plugins; do
     target_path=$SHIMMY_PROFILE_ROOT/$asset_name
     backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/$asset_name
-    if [ -e "$target_path" ] || [ -L "$target_path" ]; then
+    if shimmy_contains_line_list "$SHIMMY_PROFILE_DIRECTORIES_REPLACED" "$asset_name" &&
+      { [ -e "$target_path" ] || [ -L "$target_path" ]; }; then
       if [ -L "$target_path" ]; then rm -f "$target_path"; else rm -rf "$target_path"; fi
     fi
     [ ! -e "$backup_path" ] && [ ! -L "$backup_path" ] || mv "$backup_path" "$target_path"
   done
+  SHIMMY_PROFILE_DIRECTORIES_REPLACED=
 }
 
 profile_owned_files_backup() {
@@ -167,30 +192,45 @@ profile_owned_files_restore() {
   for relative_path in shell-init.sh install-manifest.txt bin/shimmy; do
     target_path=$SHIMMY_PROFILE_ROOT/$relative_path
     backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/$relative_path
-    [ ! -e "$target_path" ] && [ ! -L "$target_path" ] || rm -f "$target_path"
-    [ ! -e "$backup_path" ] && [ ! -L "$backup_path" ] || mv "$backup_path" "$target_path"
+    if shimmy_contains_line_list "$SHIMMY_PROFILE_FILES_REPLACED" "$relative_path"; then
+      [ ! -e "$target_path" ] && [ ! -L "$target_path" ] || rm -f "$target_path"
+      [ ! -e "$backup_path" ] && [ ! -L "$backup_path" ] || mv "$backup_path" "$target_path"
+    fi
   done
   while IFS= read -r kind_name; do
     [ -n "$kind_name" ] || continue
-    target_path=$SHIMMY_BIN_DIR/$kind_name
+    relative_path=bin/$kind_name
+    target_path=$SHIMMY_PROFILE_ROOT/$relative_path
     backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/bin/$kind_name
-    [ ! -e "$target_path" ] && [ ! -L "$target_path" ] || rm -f "$target_path"
-    [ ! -e "$backup_path" ] && [ ! -L "$backup_path" ] || mv "$backup_path" "$target_path"
+    if shimmy_contains_line_list "$SHIMMY_PROFILE_FILES_REPLACED" "$relative_path"; then
+      [ ! -e "$target_path" ] && [ ! -L "$target_path" ] || rm -f "$target_path"
+      [ ! -e "$backup_path" ] && [ ! -L "$backup_path" ] || mv "$backup_path" "$target_path"
+    fi
   done <<EOF
 $PROFILE_MANIFEST_KINDS
 EOF
+  SHIMMY_PROFILE_FILES_REPLACED=
 }
 
 profile_replace_owned_directories() {
   SHIMMY_PROFILE_BACKUP_ROOT=$SHIMMY_PROFILES_ROOT/."$SHIMMY_PROFILE_RESOLVED".backup.$$
+  SHIMMY_PROFILE_DIRECTORIES_REPLACED=
   mkdir -p "$SHIMMY_PROFILE_BACKUP_ROOT"
-  for asset_name in commands config implementations lib tools tests plugins agent; do
+  for asset_name in agent commands config implementations lib tools tests plugins; do
     target_path=$SHIMMY_PROFILE_ROOT/$asset_name
     backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/$asset_name
     if [ -e "$target_path" ] || [ -L "$target_path" ]; then
       mv "$target_path" "$backup_path" || { profile_owned_directories_restore; return 1; }
+      SHIMMY_PROFILE_DIRECTORIES_REPLACED=$(shimmy_append_line_list "$SHIMMY_PROFILE_DIRECTORIES_REPLACED" "$asset_name")
     fi
+  done
+
+  for asset_name in commands config implementations lib tools tests plugins; do
+    target_path=$SHIMMY_PROFILE_ROOT/$asset_name
     mv "$SHIMMY_STAGE_ROOT/$asset_name" "$target_path" || { profile_owned_directories_restore; return 1; }
+    if ! shimmy_contains_line_list "$SHIMMY_PROFILE_DIRECTORIES_REPLACED" "$asset_name"; then
+      SHIMMY_PROFILE_DIRECTORIES_REPLACED=$(shimmy_append_line_list "$SHIMMY_PROFILE_DIRECTORIES_REPLACED" "$asset_name")
+    fi
   done
 }
 
@@ -200,6 +240,7 @@ profile_merge_bin_commit() {
   cp "$SHIMMY_STAGE_ROOT/bin/shimmy" "$launcher_tmp"
   chmod 755 "$launcher_tmp"
   mv "$launcher_tmp" "$SHIMMY_CONTROL_BIN"
+  SHIMMY_PROFILE_FILES_REPLACED=$(shimmy_append_line_list "$SHIMMY_PROFILE_FILES_REPLACED" bin/shimmy)
 
   while IFS= read -r kind_name; do
     [ -n "$kind_name" ] || continue
@@ -207,6 +248,7 @@ profile_merge_bin_commit() {
     rm -f "$dispatcher_tmp"
     ln -s ../commands/dispatch-tool.sh "$dispatcher_tmp"
     mv "$dispatcher_tmp" "$SHIMMY_BIN_DIR/$kind_name"
+    SHIMMY_PROFILE_FILES_REPLACED=$(shimmy_append_line_list "$SHIMMY_PROFILE_FILES_REPLACED" "bin/$kind_name")
   done <<EOF
 $PROFILE_MANIFEST_KINDS
 EOF
@@ -215,10 +257,9 @@ EOF
 profile_assets_commit() {
   mkdir -p "$SHIMMY_CONFIG_ROOT" "$SHIMMY_PROFILES_ROOT" "$SHIMMY_PROFILE_ROOT"
   profile_replace_owned_directories || fail "unable to replace profile assets; prior profile restored"
-  profile_owned_files_backup || { profile_owned_directories_restore; fail "unable to back up owned profile files"; }
+  profile_owned_files_backup || { profile_commit_restore; fail "unable to back up owned profile files"; }
   if ! profile_merge_bin_commit; then
-    profile_owned_files_restore
-    profile_owned_directories_restore
+    profile_commit_restore
     fail "unable to replace profile bin assets; prior profile directories restored"
   fi
 
@@ -227,6 +268,7 @@ profile_assets_commit() {
   cp "$SHIMMY_STAGE_ROOT/shell-init.sh" "$SHIMMY_SHELL_INIT_COMMIT_TMP"
   chmod 644 "$SHIMMY_SHELL_INIT_COMMIT_TMP"
   mv "$SHIMMY_SHELL_INIT_COMMIT_TMP" "$SHIMMY_SHELL_INIT_FILE"
+  SHIMMY_PROFILE_FILES_REPLACED=$(shimmy_append_line_list "$SHIMMY_PROFILE_FILES_REPLACED" shell-init.sh)
   SHIMMY_SHELL_INIT_COMMIT_TMP=
 
   SHIMMY_MANIFEST_COMMIT_TMP=$SHIMMY_PROFILE_ROOT/.install-manifest.txt.tmp.$$
@@ -234,7 +276,10 @@ profile_assets_commit() {
   cp "$SHIMMY_STAGE_ROOT/install-manifest.txt" "$SHIMMY_MANIFEST_COMMIT_TMP"
   chmod 644 "$SHIMMY_MANIFEST_COMMIT_TMP"
   mv "$SHIMMY_MANIFEST_COMMIT_TMP" "$INSTALL_MANIFEST_FILE"
+  SHIMMY_PROFILE_FILES_REPLACED=$(shimmy_append_line_list "$SHIMMY_PROFILE_FILES_REPLACED" install-manifest.txt)
   SHIMMY_MANIFEST_COMMIT_TMP=
   rm -rf "$SHIMMY_PROFILE_BACKUP_ROOT"
   SHIMMY_PROFILE_BACKUP_ROOT=
+  SHIMMY_PROFILE_DIRECTORIES_REPLACED=
+  SHIMMY_PROFILE_FILES_REPLACED=
 }

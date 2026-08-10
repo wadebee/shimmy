@@ -4,7 +4,7 @@ test_update_source_repository_create() {
   source_repo=$1
   mkdir -p "$source_repo"
   cp "$ROOT_DIR/install.sh" "$source_repo/install.sh"
-  for asset_name in agent commands lib plugins tests tools; do
+  for asset_name in commands lib plugins tests tools; do
     cp -R "$ROOT_DIR/$asset_name" "$source_repo/$asset_name"
   done
   git -C "$source_repo" init -q

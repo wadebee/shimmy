@@ -6,7 +6,7 @@ This template describes one Shimmy tool directory.
 
 - Read this directory's `SKILL.md`, root `CONTEXT.md`, `CONTRIBUTING.md`, and a
   comparable existing tool's guide and canonical skill.
-- Create `tools/<kind>/tool.conf`, `guide.md`, and `agent/SKILL.md`.
+- Create `tools/<kind>/tool.conf`, `guide.md`, and `SKILL.md`.
 - Put each concrete runtime at `versions/<major.minor>/run.sh` with a sibling
   `smoke.conf` and `image.conf`.
 - Put local build assets in that version's `container/` directory.

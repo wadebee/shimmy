@@ -8,7 +8,9 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
+SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
 COMMON_HELPER_FILE=$ROOT_DIR/lib/common/common.sh
+CATALOG_HELPER_FILE=$ROOT_DIR/lib/catalog/catalog.sh
 
 REQUESTED_MANIFEST_FILE=
 REQUESTED_SKILLS=
@@ -21,6 +23,9 @@ shimmy-init
 shimmy-create-tool
 shimmy-escalation'
 
+CONTROL_PLANE_SKILLS="$CORE_SKILLS
+shimmy-tool-local-build"
+
 SKILLS_MANIFEST_NAME=.shimmy-skills-manifest.txt
 
 fail() {
@@ -28,12 +33,14 @@ fail() {
   exit 1
 }
 
-if [ ! -f "$COMMON_HELPER_FILE" ]; then
-  fail "missing common helper: $COMMON_HELPER_FILE"
-fi
+for helper_file in "$COMMON_HELPER_FILE" "$CATALOG_HELPER_FILE"; do
+  [ -f "$helper_file" ] || fail "missing shared helper: $helper_file"
+done
 
 # shellcheck source=lib/common/common.sh
 . "$COMMON_HELPER_FILE"
+# shellcheck source=lib/catalog/catalog.sh
+. "$CATALOG_HELPER_FILE"
 
 ensure_safe_root() {
   root_path=$1
@@ -61,7 +68,6 @@ Usage:
 Options:
   --target repo       Write skills to .agents/skills in the current directory
   --target profile    Write skills to ~/.agents/skills
-  --target plugin     Write skills to the packaged Shimmy plugin skill bundle
   --export <path>     Export a portable skills folder, or a .zip archive
   --manifest <path>   Read installed kinds from the given profile manifest if present
   -h, --help          Show help
@@ -99,7 +105,7 @@ skill_name_validate() {
 
 target_name_validate() {
   case "$1" in
-    repo|profile|plugin)
+    repo|profile)
       ;;
     *)
       fail "unsupported skills target: $1"
@@ -117,36 +123,24 @@ target_root_resolve() {
     profile)
       printf '%s/.agents/skills\n' "$HOME"
       ;;
-    plugin)
-      if [ -n "${SHIMMY_SKILLS_PLUGIN_DIR:-}" ]; then
-        case "$SHIMMY_SKILLS_PLUGIN_DIR" in
-          */skills)
-            printf '%s\n' "$(shimmy_trim_path_trailing_slash "$SHIMMY_SKILLS_PLUGIN_DIR")"
-            ;;
-          *)
-            printf '%s/skills\n' "$(shimmy_trim_path_trailing_slash "$SHIMMY_SKILLS_PLUGIN_DIR")"
-            ;;
-        esac
-        return 0
-      fi
-      printf '%s/plugins/shimmy/skills\n' "$ROOT_DIR"
-      ;;
   esac
 }
 
-skill_source_dir_resolve() {
+skill_source_file_resolve() {
   skill_name=$1
 
-  if [ -f "$ROOT_DIR/agent/core/$skill_name/SKILL.md" ]; then
-    printf '%s/agent/core/%s\n' "$ROOT_DIR" "$skill_name"
+  if shimmy_contains_line_list "$CONTROL_PLANE_SKILLS" "$skill_name"; then
+    source_file=$ROOT_DIR/plugins/shimmy/skills/$skill_name/SKILL.md
+    [ -f "$source_file" ] || fail "missing canonical source skill: $skill_name"
+    printf '%s\n' "$source_file"
     return 0
   fi
 
   case "$skill_name" in
     shimmy-tool-*)
       kind_name=${skill_name#shimmy-tool-}
-      if [ -f "$ROOT_DIR/tools/$kind_name/agent/SKILL.md" ]; then
-        printf '%s/tools/%s/agent\n' "$ROOT_DIR" "$kind_name"
+      if shimmy_is_kind "$kind_name" && [ -f "$ROOT_DIR/tools/$kind_name/SKILL.md" ]; then
+        printf '%s/tools/%s/SKILL.md\n' "$ROOT_DIR" "$kind_name"
         return 0
       fi
       ;;
@@ -158,7 +152,7 @@ skill_source_dir_resolve() {
 skill_source_exists() {
   skill_name=$1
 
-  skill_source_dir_resolve "$skill_name" >/dev/null 2>&1
+  (skill_source_file_resolve "$skill_name" >/dev/null 2>&1)
 }
 
 skill_manifest_skill_names_read() {
@@ -315,7 +309,7 @@ skill_sources_validate() {
   while IFS= read -r skill_name; do
     [ -n "$skill_name" ] || continue
     skill_name_validate "$skill_name"
-    skill_source_dir_resolve "$skill_name" >/dev/null
+    skill_source_file_resolve "$skill_name" >/dev/null
   done <<EOF
 $skill_names
 EOF
@@ -337,59 +331,30 @@ skill_fingerprint_render() {
   printf '%s-%s\n' "$1" "$2"
 }
 
-skill_dir_install() {
-  source_dir=$1
+skill_file_install() {
+  source_skill_file=$1
   target_dir=$2
   skill_name=$3
-  target_name=$4
+  target_skill_file=$target_dir/SKILL.md
+  target_entry_count=0
 
-  case "$target_name" in
-    repo|profile)
-      source_skill_file=$source_dir/SKILL.md
-      target_skill_file=$target_dir/SKILL.md
-      target_entry_count=0
-
-      if [ -d "$target_dir" ]; then
-        for target_entry in "$target_dir"/* "$target_dir"/.[!.]* "$target_dir"/..?*; do
-          [ -e "$target_entry" ] || [ -L "$target_entry" ] || continue
-          target_entry_count=$((target_entry_count + 1))
-        done
-      fi
-
-      [ -f "$source_skill_file" ] || fail "missing canonical skill file: $source_skill_file"
-      if [ -d "$target_dir" ] && [ "$target_entry_count" -eq 1 ] &&
-        [ -f "$target_skill_file" ] && cmp -s "$source_skill_file" "$target_skill_file"; then
-        log_info "Skill already current: $skill_name"
-        return 0
-      fi
-
-      rm -rf "$target_dir"
-      mkdir -p "$target_dir"
-      cp "$source_skill_file" "$target_skill_file"
-      log_info "Installed skill: $skill_name"
-      return 0
-      ;;
-  esac
-
-  source_dir_real=$(cd -- "$source_dir" && pwd)
-  target_dir_real=
   if [ -d "$target_dir" ]; then
-    target_dir_real=$(cd -- "$target_dir" && pwd)
+    for target_entry in "$target_dir"/* "$target_dir"/.[!.]* "$target_dir"/..?*; do
+      [ -e "$target_entry" ] || [ -L "$target_entry" ] || continue
+      target_entry_count=$((target_entry_count + 1))
+    done
   fi
 
-  if [ "$source_dir_real" = "$target_dir_real" ]; then
-    log_info "Skill already current: $skill_name"
-    return 0
-  fi
-
-  if [ -d "$target_dir" ] && diff -qr "$source_dir" "$target_dir" >/dev/null 2>&1; then
+  [ -f "$source_skill_file" ] || fail "missing canonical skill file: $source_skill_file"
+  if [ -d "$target_dir" ] && [ "$target_entry_count" -eq 1 ] &&
+    [ -f "$target_skill_file" ] && cmp -s "$source_skill_file" "$target_skill_file"; then
     log_info "Skill already current: $skill_name"
     return 0
   fi
 
   rm -rf "$target_dir"
-  mkdir -p "$(dirname "$target_dir")"
-  cp -R "$source_dir" "$target_dir"
+  mkdir -p "$target_dir"
+  cp "$source_skill_file" "$target_skill_file"
   log_info "Installed skill: $skill_name"
 }
 
@@ -406,16 +371,6 @@ skills_manifest_root_render() {
       ;;
     profile)
       printf '%s\n' '$HOME/.agents/skills'
-      ;;
-    plugin)
-      case "$target_root" in
-        "$ROOT_DIR"/*)
-          printf '%s\n' "${target_root#"$ROOT_DIR"/}"
-          ;;
-        *)
-          printf '%s\n' "$target_root"
-          ;;
-      esac
       ;;
     *)
       printf '%s\n' "$target_root"
@@ -490,8 +445,8 @@ skills_sync_to_root() {
 
   while IFS= read -r skill_name; do
     [ -n "$skill_name" ] || continue
-    source_dir=$(skill_source_dir_resolve "$skill_name")
-    skill_dir_install "$source_dir" "$target_root/$skill_name" "$skill_name" "$target_name"
+    source_skill_file=$(skill_source_file_resolve "$skill_name")
+    skill_file_install "$source_skill_file" "$target_root/$skill_name" "$skill_name"
   done <<EOF
 $skill_names
 EOF

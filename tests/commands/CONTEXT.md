@@ -42,9 +42,9 @@ a user's Shimmy installation or shell startup files.
   install and repair behavior without a separate initialization command. Its
   upstream-isolation case clones upstream while retaining the real default
   startup installation.
-- `skills.sh` covers canonical skill sources, checked-in export fingerprints,
-  one-file repository/home adapters, complete plugin copies, portable
-  manifests, installed-kind selection, unconditional profile payload,
+- `skills.sh` covers split canonical skill sources, checked-in adapter
+  fingerprints, one-file repository/home and portable exports, management
+  plugin discovery, installed-kind selection, unconditional profile payload,
   lifecycle isolation, refresh, and manifest-tracked cleanup. Its
   target-ownership lifecycle and retryable external-target failure start from
   pristine profile clones.

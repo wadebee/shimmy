@@ -696,12 +696,12 @@ Primary change surface:
   `docs/prompt-shimmy-project.md`;
 - `docs/templates/generic-shim/AGENTS.md` and
   `docs/templates/generic-shim/SKILL.md`;
-- `agent/core/shimmy-create-tool/SKILL.md`,
-  `agent/core/shimmy-tool-local-build/SKILL.md`, and their contexts;
+- `plugins/shimmy/skills/shimmy-create-tool/SKILL.md` and
+  `plugins/shimmy/skills/shimmy-tool-local-build/SKILL.md`;
 - affected tool guides/canonical skills where native validation finds a
   tool-specific requirement;
-- regenerated `.agents/skills/`, `plugins/shimmy/skills/`, and their checked-in
-  target manifests using the repository's explicit skills workflow;
+- regenerated manifest-tracked `.agents/skills/` adapters using the
+  repository's explicit skills workflow;
 - skill fingerprint and context-tree tests; and
 - this plan's progress, verification notes, and lessons sections.
 
@@ -740,11 +740,12 @@ Primary change surface:
    OS/architecture selection, choose `external` or `local-build`, create
    `image.conf`, use an index digest, validate bases and architecture-specific
    artifacts, and run the explicit verifier.
-9. Generate compatibility adapters and plugin skills only from the reviewed
-   canonical sources. Repository/home compatibility adapters contain only the
-   canonical `SKILL.md`; plugin skills retain the complete canonical directory.
-   Update target manifests/fingerprints with the normal explicit skills command
-   and verify semantic parity, not only matching checksums.
+9. Generate compatibility adapters only from the reviewed split canonical
+   sources: control-plane skills in `plugins/shimmy/skills/` and tool skills at
+   `tools/<kind>/SKILL.md`. Repository/home compatibility adapters contain only
+   the canonical `SKILL.md`. Update target manifests/fingerprints with the
+   normal explicit skills command and verify semantic parity, not only matching
+   checksums. Never generate into the canonical management plugin.
 10. Do not add an always-on remote registry job to the default workflow. If a
    later scheduled workflow is desired, require a separately reviewed,
    pre-provisioned runner/authentication design.
@@ -787,7 +788,7 @@ Primary change surface:
 - [x] A digest rotation changes only the affected configured input and local
   cache identity; the prior digest remains recoverable from git history.
 - [x] Contributor docs, project prompt, generic template, canonical creation
-  skills, tool-specific guidance, and generated/plugin copies describe the same
+  skills, tool-specific guidance, and generated adapters describe the same
   contract.
 - [x] Skill fingerprint tests and semantic source/generated comparison pass.
 - [x] `./tests/test.sh`, the repository context-tree test, executable-bit
@@ -933,9 +934,8 @@ multi-architecture image-support feature.
   declared module requirement, and building the root command made the native
   image reproducible and runnable.
 - Checked-in skill fingerprints prove integrity only. Repository/home adapters
-  must compare their sole `SKILL.md` with the canonical source, while plugin
-  skills compare the complete canonical directory; this preserves semantic
-  parity without exporting repository-only `CONTEXT.md` metadata.
+  must compare their sole `SKILL.md` with the split canonical source; the
+  management plugin is canonical rather than a generated target.
 - Exact per-wrapper approvals produced valid native Podman evidence; approval
   of an aggregate test launcher did not grant nested wrapper access in this AI
   agent environment.

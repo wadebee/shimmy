@@ -217,7 +217,7 @@ shimmy_profile_structure_validate() {
   shimmy_profile_manifest_validate "$manifest_file" "$profile_name" || return 1
   [ -f "$profile_root/shell-init.sh" ] && [ ! -L "$profile_root/shell-init.sh" ] || return 1
   [ -x "$profile_root/bin/shimmy" ] && [ ! -L "$profile_root/bin/shimmy" ] || return 1
-  for required_dir in agent commands config implementations lib plugins tests tools; do
+  for required_dir in commands config implementations lib plugins tests tools; do
     [ -d "$profile_root/$required_dir" ] && [ ! -L "$profile_root/$required_dir" ] || return 1
   done
 }

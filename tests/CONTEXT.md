@@ -23,8 +23,7 @@ bootstrap to initialize PATH and executes it separately to verify automation
 semantics.
 
 `context-tree.sh` validates the retained hierarchical context links below
-`commands/`, `lib/`, and `tests/`, plus the explicit intermediate links from
-root to `agent/CONTEXT.md` and `agent/core/CONTEXT.md`. It rejects any
+`commands/`, `lib/`, and `tests/`. It rejects any
 `CONTEXT.md` below `tools/` or `plugins/shimmy/` and independently verifies
 every concrete tool version's executable runtime and refresh hook plus its
 smoke and image metadata.

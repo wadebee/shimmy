@@ -1,7 +1,7 @@
 {
   "name": "shimmy",
   "version": "0.1.0",
-  "description": "Packaged AI Agent skills for building, installing, troubleshooting, and extending Shimmy.",
+  "description": "Packaged control-plane skills for building, installing, troubleshooting, and extending Shimmy.",
   "author": {
     "name": "Shimmy contributors",
     "email": "[TODO: contact email]",
@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "Shimmy",
     "shortDescription": "Work with Shimmy's Podman-backed CLI shims.",
-    "longDescription": "Use packaged Shimmy AI Agent skills for creating new shims, troubleshooting Podman-backed wrappers, managing installs, and maintaining tool-specific shim behavior.",
+    "longDescription": "Use Shimmy control-plane skills for creating tools, troubleshooting Podman-backed wrappers, managing installs, escalation, and local image builds.",
     "developerName": "Shimmy contributors",
     "category": "Developer Tools",
     "capabilities": [

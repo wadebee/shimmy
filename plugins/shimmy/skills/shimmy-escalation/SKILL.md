@@ -30,7 +30,7 @@ connect to the local Podman socket without escalation.
 
 ## Discovery
 
-1. Read `../../../CONTRIBUTING.md` if making repository changes. For permission-only runs, no file changes are needed.
+1. Read `CONTRIBUTING.md` if making repository changes. For permission-only runs, no file changes are needed.
 2. Discover the selected Shimmy install:
    - Resolve the `shimmy` command and require it to live below the
      absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>/bin`

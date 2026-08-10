@@ -16,6 +16,9 @@ normal user shell before running a shim.
 
 ## Install and use
 
+For first-time checkout prerequisites, entrypoint roles, profile selection,
+and verification, see [BOOTSTRAP.md](BOOTSTRAP.md).
+
 ```sh
 . ./install.sh
 jq --version
@@ -65,14 +68,13 @@ profiles by sourcing the desired profile's `shell-init.sh`, not with an
 installed command option or environment selector.
 
 Agent skills exported to a repository or home agent profile are external,
-target-manifest-owned state. Every profile payload already includes canonical
-agent sources and its packaged plugin skills. Profile install, update, and
-uninstall do not implicitly refresh or remove repository or home exports. Use
+target-manifest-owned state. Every profile payload already includes the
+five-skill management plugin and every co-located tool skill. Profile install,
+update, and uninstall do not implicitly refresh or remove repository or home exports. Use
 the standalone `shimmy skills install --target repo|profile` or `shimmy skills
 update --target repo|profile` operation to write those external targets, and
 `shimmy skills uninstall --target repo|profile` to remove their manifest-owned
-entries. The `plugin` target is the packaged bundle inside the invoking
-profile, not a shared external target.
+entries.
 
 Earlier installation layouts are intentionally unsupported. Remove them with
 the Shimmy version that created them, then bootstrap the desired profile.
@@ -167,7 +169,7 @@ tests/     POSIX validation and retained context-tree verification
 ```
 
 Each tool directory owns its guide, version metadata including `image.conf`, concrete runtime,
-container context, test guidance, and agent skill. `tool.conf` defines the
+container context, test guidance, and canonical `SKILL.md`. `tool.conf` defines the
 default version and optional selector; `commands/run-tool.sh` resolves it.
 This keeps tool-specific operating guidance close to the files it may change
 and makes that guidance installable from the canonical source tree.

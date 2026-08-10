@@ -24,7 +24,10 @@ process.
 - `uninstall.sh` removes only validated assets owned by the enclosing profile,
   then attempts to remove empty merge-owned parent directories.
 
-Every profile payload unconditionally includes the canonical `agent/` sources
-and packaged `plugins/` bundle. Profile install and uninstall do not write or
-remove repository or home shared-skill targets; those targets are managed only
-through explicit standalone `shimmy skills` commands.
+Every profile payload unconditionally includes the canonical management
+plugin under `plugins/` and co-located tool skills under `tools/`. A successful
+refresh transaction removes a legacy top-level `agent/` payload and restores
+it with the other owned directories if the commit fails. Profile install and
+uninstall do not write or remove repository or home shared-skill targets;
+those targets are managed only through explicit standalone `shimmy skills`
+commands. Uninstall still removes a legacy `agent/` when present.

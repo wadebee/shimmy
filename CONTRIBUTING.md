@@ -65,21 +65,20 @@ selects the absolute source checkout recorded when `./install.sh --profile
 upstream` runs; it never relocates installed profile state.
 
 Only `default` may create, repair, or remove Shimmy's persistent shell-startup
-block. `upstream` never changes shell startup files. Canonical agent sources
-and packaged plugin skills are included unconditionally in each profile;
-shared repository and home agent skills live outside profile roots and are
-owned by their target's
+block. `upstream` never changes shell startup files. The canonical five-skill
+management plugin and co-located tool skills are included unconditionally in
+each profile; shared repository and home agent skill adapters live outside
+profile roots and are owned by their target's
 `.shimmy-skills-manifest.txt`. Profile lifecycle operations never implicitly
 refresh or remove them. Use explicit standalone `shimmy skills install
 --target repo|profile` or `shimmy skills update --target repo|profile`
 operations to write them and `shimmy skills uninstall --target repo|profile`
-for removal. The `plugin` target is a packaged profile-local bundle, not a
-shared external target.
+for removal.
 
 Repository and home `.agents/skills/<name>/` targets are one-file compatibility
 adapters containing only `SKILL.md`. Do not copy other repository metadata
-into those targets. Packaged plugin skills retain their complete canonical
-directory payload.
+into those targets. The packaged management plugin is canonical source, not a
+writable skills target.
 
 ## Shim Kind Workflow
 

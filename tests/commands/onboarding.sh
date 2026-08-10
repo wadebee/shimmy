@@ -111,6 +111,22 @@ test_commands_onboarding_help() {
   pass "sourced help describes both modes without installing or changing PATH"
 }
 
+test_commands_onboarding_bootstrap_documentation() {
+  assert_file_exists "$ROOT_DIR/BOOTSTRAP.md"
+  assert_file_contains "$ROOT_DIR/AGENTS.md" 'BOOTSTRAP.md'
+  assert_file_contains "$ROOT_DIR/README.md" '[BOOTSTRAP.md](BOOTSTRAP.md)'
+  assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'root `install.sh` checkout bootstrap'
+  assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'commands/install.sh'
+  assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'lib/install/install.sh'
+  assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'Do not execute or source'
+  assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'Every bootstrap installs jq and rg.'
+  assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'shimmy skills install --target repo'
+  assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'shimmy skills install --target profile'
+  assert_path_not_exists "$ROOT_DIR/bootstrap.sh"
+  assert_path_not_exists "$ROOT_DIR/bootstrap"
+  pass "bootstrap discovery documents the supported public chain and adapter workflow"
+}
+
 test_commands_onboarding_selection_policy() {
   setup_scenario
   set +e
@@ -380,6 +396,7 @@ test_commands_onboarding_shell_init_path_behavior() {
 
 test_commands_onboarding_run() {
   test_commands_onboarding_sourced_state
+  test_commands_onboarding_bootstrap_documentation
   test_commands_onboarding_help
   test_commands_onboarding_selection_policy
   test_commands_onboarding_failure_cleanup

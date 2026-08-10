@@ -31,7 +31,7 @@ description: Create or extend a Shimmy tool kind and its concrete CLI versions. 
 
 Create or update the following as applicable:
 
-- `tools/<kind>/tool.conf`, `guide.md`, and `agent/SKILL.md`;
+- `tools/<kind>/tool.conf`, `guide.md`, and `SKILL.md`;
 - `tools/<kind>/versions/<major.minor>/run.sh`, `smoke.conf`, `image.conf`,
   and `refresh.sh`;
 - `container/Containerfile` and its context only for local-build versions;

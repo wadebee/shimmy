@@ -30,6 +30,19 @@ Question requests that materially differ from your training of best practices by
 - ripgrep tool: `tools/rg/`
 - Terraform tool: `tools/terraform/`
 
+## First-time installation
+
+If Shimmy is not installed on this system:
+
+1. Read `BOOTSTRAP.md`.
+2. Use the existing source checkout and invoke the root `install.sh` checkout
+   bootstrap as documented there.
+
+The authoritative Shimmy control-plane skills are under
+`plugins/shimmy/skills/`. Canonical tool skills are at
+`tools/<kind>/SKILL.md`. Do not modify generated copies under
+`.agents/skills/`.
+
 ## Working Rules
 
 - Read `CONTRIBUTING.md` before making repo changes.

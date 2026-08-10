@@ -328,11 +328,12 @@ None.
 
 ## Progress Checklist
 
-Active chunk: Chunk 1 implemented and verified; awaiting human review.
+Status: Complete. Chunk 2 was accepted at the final human review gate on
+2026-08-10.
 
 - [x] Chunk 1 — Remove tool/plugin contexts and every mechanism that requires
   or prescribes them while preserving tool-local skill ownership.
-- [ ] Chunk 2 — Move only the control-plane skills into the canonical
+- [x] Chunk 2 — Move only the control-plane skills into the canonical
   management plugin, flatten all tool skills, preserve one-file exports,
   migrate installed profiles, add bootstrap discovery, regenerate adapters,
   and verify the final repository.
@@ -565,49 +566,51 @@ Primary change surface:
 
 ### Verification checklist
 
-- [ ] The management plugin contains exactly five skill directories with
+- [x] The management plugin contains exactly five skill directories with
   matching `name:` frontmatter, each containing `SKILL.md` and no
   `CONTEXT.md`; plugin discovery exposes those five and no tool-specific
   skills.
-- [ ] All 18 tool-specific skills exist at `tools/<kind>/SKILL.md`, no
+- [x] All 18 tool-specific skills exist at `tools/<kind>/SKILL.md`, no
   `tools/<kind>/agent/` directory remains, and every catalog kind resolves and
   exports its co-located skill, including both hyphenated OPNsense kinds.
-- [ ] `agent/`, `plugins/shimmy/skills/.shimmy-skills-manifest.txt`, every
+- [x] `agent/`, `plugins/shimmy/skills/.shimmy-skills-manifest.txt`, every
   `plugins/shimmy/**/CONTEXT.md`, and every `tools/**/CONTEXT.md` are absent,
   with no maintained path capable of recreating them.
-- [ ] Skills command success cases cover control-plane, local-build, and every
+- [x] Skills command success cases cover control-plane, local-build, and every
   tool skill; default and installed-kind selection remain unchanged;
   repo/profile adapters and portable directory/archive exports contain only
   `SKILL.md`; tool guides, metadata, tests, versions, and container assets are
   not copied; unrelated target siblings remain correct.
-- [ ] `--target plugin` is absent from help and install/update/uninstall
+- [x] `--target plugin` is absent from help and install/update/uninstall
   requests using it fail before mutation. `SHIMMY_SKILLS_PLUGIN_DIR` no longer
   affects valid behavior.
-- [ ] Fresh default and upstream profiles contain the five-skill plugin and all
+- [x] Fresh default and upstream profiles contain the five-skill plugin and all
   co-located `tools/<kind>/SKILL.md` source skills, contain no top-level or
   tool-local `agent/`, pass structure validation, and remain isolated from
   external adapter targets.
-- [ ] A fixture shaped like the current profile loses its legacy `agent/` only
+- [x] A fixture shaped like the current profile loses its legacy `agent/` only
   after successful refresh; an induced commit failure restores it and every
   other backed-up owned asset; uninstall removes it when present.
-- [ ] `BOOTSTRAP.md` is linked from `AGENTS.md` and `README.md`, names
+- [x] `BOOTSTRAP.md` is linked from `AGENTS.md` and `README.md`, names
   `lib/install/` as the implementation, accurately maps the public entrypoints
   to it, calls root `install.sh` the checkout bootstrap, matches onboarding
   tests, and contains no renamed or second bootstrap script, bootstrap
   subdirectory, PowerShell workflow, or direct internal invocation.
-- [ ] Plugin metadata parses as JSON and the marketplace still resolves
+- [x] Plugin metadata parses as JSON and the marketplace still resolves
   `./plugins/shimmy` with management-only skill discovery.
-- [ ] Checked-in repository-adapter fingerprints match generated files,
+- [x] Checked-in repository-adapter fingerprints match generated files,
   semantic comparisons use the plugin for control-plane skills and tool-local
   sources for tool skills, and unrelated `.agents` content remains intact.
-- [ ] `./tests/context-tree.sh` and the complete `./tests/test.sh` suite pass.
-- [ ] Every changed runnable shell file passes `/bin/sh -n`; executable bits
+- [x] `./tests/context-tree.sh` and the complete `./tests/test.sh` suite pass.
+  The complete suite passes all 101 tests.
+- [x] Every changed runnable shell file passes `/bin/sh -n`; executable bits
   remain correct; `git diff --check` passes; and final status leaves the
   tracked `.agents/` ignore rule unchanged.
 
 ### Human review gate
 
-The reviewer must confirm all verification states and explicitly accept:
+Accepted on 2026-08-10. The reviewer confirmed all verification states and
+accepted:
 
 - the five-skill limit of the canonical management plugin;
 - continued canonical ownership of tool skills under
@@ -619,8 +622,8 @@ The reviewer must confirm all verification states and explicitly accept:
   `BOOTSTRAP.md`; and
 - the disposition of every `[~]` item surfaced in the review report.
 
-No later implementation chunk exists. Do not mark the plan complete until the
-reviewer accepts the verified repository state.
+No later implementation chunk exists. The verified repository state and all
+final ownership, export, migration, and bootstrap decisions are accepted.
 
 ## Risk register
 
@@ -676,14 +679,38 @@ reviewer accepts the verified repository state.
   separate contracts: `commands/`, `lib/`, and `tests/` remain recursively
   linked, while `tools/` and `plugins/shimmy/` are recursively checked for
   absence without coupling that check to tool runtime completeness.
-- One-file repository adapters require stable references that work from both
-  the canonical tool-skill directory and `.agents/skills/<name>/`; root-relative
-  repository paths expressed with the shared three-level prefix preserve that
-  parity.
+- In Chunk 1's intermediate nested layout, one-file repository adapters and
+  canonical tool skills shared the same three-level repository prefix. Chunk 2
+  required a new stable reference form when the canonical files moved up one
+  directory.
 - Regenerating a tracked `.agents/skills/` adapter can require a narrow
   repository-write approval even when the checkout itself is writable; the
   approved skills command preserved unrelated adapter content and updated only
   changed payloads and fingerprints.
+
+### Chunk 2
+
+- Flattened canonical tool skills and generated one-file adapters cannot share
+  location-relative repository links. Repository-root-relative guidance keeps
+  the identical `SKILL.md` useful in both locations without generating a
+  location-specific variant.
+- A sourceable catalog module needs the caller to set `SHIMMY_TOOLS_DIR`
+  explicitly. Deriving catalog ownership from `$0` is not reliable when the
+  module is sourced by a management command.
+- Transactional restoration must track directories and files that were
+  actually replaced. The presence of a backup copy alone does not authorize
+  deleting an untouched target, while fresh targets with no prior backup still
+  need removal after a failed commit.
+- Retiring installed schema-owned state is safest inside the existing asset
+  transaction: back up legacy `agent/` with current directories, stage no
+  replacement, restore it on failure, and discard it only after the manifest
+  commit succeeds.
+- Removing a writable canonical-source target requires argument rejection
+  before root resolution or directory creation. Keeping the former environment
+  override completely unread makes it inert for valid repo/profile operations.
+- Skill export selection remains separate from source ownership: the default
+  set stays at four management skills plus installed kinds, local-build remains
+  explicit-only, and every target copies only the resolved `SKILL.md`.
 
 ## Session bootstrap
 
@@ -706,6 +733,6 @@ A fresh implementation session must:
    `commands/install.sh` as the public management entrypoint into the
    implementation under `lib/install/`; do not instruct direct execution of
    the internal sourceable module or rename the root bootstrap.
-6. Execute only the active chunk, update the cumulative checklist and
-   **Lessons learned**, report every partial verification item explicitly, and
-   stop at that chunk's human review gate.
+6. Chunk 2 was implemented, verified, and accepted at the final human review
+   gate on 2026-08-10. The plan is complete; begin any further work under a new
+   reviewed scope.
