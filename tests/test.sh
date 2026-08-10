@@ -100,6 +100,8 @@ main() {
     return 0
   fi
 
+  setup_session_profile_fixtures
+  setup_session_update_source_fixture
   test_lib_catalog_run
   test_lib_runtime_run
   test_lib_update_run

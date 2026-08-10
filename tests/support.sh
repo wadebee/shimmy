@@ -174,6 +174,70 @@ setup_scenario() {
   mkdir -p "$HOME_DIR" "$XDG_CONFIG_HOME_DIR" "$WORK_DIR"
 }
 
+setup_scenario_with_profiles() {
+  setup_scenario
+  mkdir -p "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
+
+  for profile_name in "$@"; do
+    case "$profile_name" in
+      default)
+        profile_target=$DEFAULT_PROFILE_ROOT
+        ;;
+      upstream)
+        profile_target=$UPSTREAM_PROFILE_ROOT
+        ;;
+      *)
+        fail_test "unknown pristine profile fixture: $profile_name"
+        ;;
+    esac
+
+    profile_source=$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/$profile_name
+    if [ "$SHIMMY_TEST_COPY_ON_WRITE" -eq 1 ]; then
+      cp -cR "$profile_source" "$profile_target" || fail_test "unable to clone pristine $profile_name profile fixture"
+    else
+      cp -R "$profile_source" "$profile_target" || fail_test "unable to copy pristine $profile_name profile fixture"
+    fi
+
+    shell_init_file=$profile_target/shell-init.sh
+    shell_init_tmp=$profile_target/.shell-init.sh.fixture.tmp
+    quoted_bin_dir=$(shimmy_quote_shell_word "$profile_target/bin")
+    {
+      printf 'shimmy_shell_init_bin_dir=%s\n' "$quoted_bin_dir"
+      sed -n '2,$p' "$shell_init_file"
+    } > "$shell_init_tmp"
+    mv "$shell_init_tmp" "$shell_init_file"
+    chmod 644 "$shell_init_file"
+
+    shimmy_profile_manifest_validate "$profile_target/install-manifest.txt" "$profile_name" ||
+      fail_test "invalid cloned $profile_name profile fixture"
+    assert_file_contains "$shell_init_file" "shimmy_shell_init_bin_dir=$quoted_bin_dir"
+  done
+}
+
+setup_session_profile_fixtures() {
+  SHIMMY_TEST_PROFILE_FIXTURES_ROOT=$TMP_ROOT/profile-fixtures
+  fixture_home=$TMP_ROOT/profile-fixture-home
+  fixture_config=$TMP_ROOT/profile-fixture-config
+  copy_probe_source=$TMP_ROOT/copy-on-write-source
+  copy_probe_target=$TMP_ROOT/copy-on-write-target
+  HOME_DIR=$fixture_home
+  XDG_CONFIG_HOME_DIR=$fixture_config
+  DEFAULT_PROFILE_ROOT=$fixture_config/shimmy/profiles/default
+  UPSTREAM_PROFILE_ROOT=$fixture_config/shimmy/profiles/upstream
+  SHIMMY_TEST_COPY_ON_WRITE=0
+
+  mkdir -p "$fixture_home" "$fixture_config" "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT"
+  printf '%s\n' probe > "$copy_probe_source"
+  if cp -c "$copy_probe_source" "$copy_probe_target" 2>/dev/null; then
+    SHIMMY_TEST_COPY_ON_WRITE=1
+  fi
+
+  bootstrap_default >/dev/null 2>&1
+  bootstrap_upstream >/dev/null 2>&1
+  mv "$DEFAULT_PROFILE_ROOT" "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/default"
+  mv "$UPSTREAM_PROFILE_ROOT" "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/upstream"
+}
+
 shimmy_test_cleanup() {
   rm -rf "$TMP_ROOT"
 }

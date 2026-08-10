@@ -185,8 +185,7 @@ test_commands_profiles_partial_shape() {
 
 test_commands_profiles_shell_init_shape() {
   for shell_init_mutation in missing symlink directory; do
-    setup_scenario
-    bootstrap_default >/dev/null
+    setup_scenario_with_profiles default
     shell_init_file=$DEFAULT_PROFILE_ROOT/shell-init.sh
     manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
     launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")

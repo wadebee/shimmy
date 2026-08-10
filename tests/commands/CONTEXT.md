@@ -12,15 +12,19 @@ a user's Shimmy installation or shell startup files.
   selection, direct shell initialization, PATH precedence, and profile-local
   launcher binding.
 - `status.sh` covers profile-local installed and available status output from
-  validated version-owned image configuration.
+  validated version-owned image configuration. It starts from pristine profile
+  clones and retains a real additive install for local-build status coverage.
 - `management.sh` covers the installed command surface, skills, and netinfo
   behavior.
 - `profiles.sh` covers profile precedence, profile-isolated uninstalls, status
   availability and version-owned image descriptions, and profile error
-  guidance.
+  guidance. Its independent shell-init damage cases start from pristine
+  profile clones while retaining real bootstrap repair-rejection checks.
 - `update.sh` covers selected-shim and all-profile refresh behavior, version-
   local irrelevant image-refresh actions, manifest-preserving self-update for
-  non-baseline kinds and concrete versions, and update request validation.
+  non-baseline kinds and concrete versions, and update request validation. Its
+  self-update scenario starts from session-scoped pristine profile clones so
+  it measures update behavior without repeating repository bootstraps.
 - `startup.sh` covers shell-initialization idempotence and managed startup-block
   install and repair behavior without a separate initialization command.
 - `skills.sh` covers canonical skill sources, checked-in export fingerprints,

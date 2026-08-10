@@ -72,3 +72,8 @@ per behavior and preserve executable bits on shell entrypoints.
 
 Disposable installation scenarios set absolute temporary `HOME` and
 `XDG_CONFIG_HOME` values. Do not introduce an installation-directory override.
+The runner creates pristine default and upstream profiles once per session.
+Scenarios that are testing installed-profile behavior rather than bootstrap
+behavior may clone those fixtures; APFS copy-on-write is used when available,
+with a portable recursive-copy fallback. Self-update tests also share one
+immutable committed source-repository fixture for the session.

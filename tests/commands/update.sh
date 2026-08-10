@@ -27,15 +27,18 @@ test_manifest_source_url_replace() {
   mv "$manifest_tmp" "$manifest_file"
 }
 
+setup_session_update_source_fixture() {
+  SHIMMY_TEST_UPDATE_SOURCE_REPOSITORY=$TMP_ROOT/update-source-repository
+  test_update_source_repository_create "$SHIMMY_TEST_UPDATE_SOURCE_REPOSITORY"
+}
+
 test_commands_update_run() {
-  setup_scenario
-  bootstrap_default >/dev/null
-  bootstrap_upstream >/dev/null
+  setup_scenario_with_profiles default upstream
   default_shimmy install --shim task --shim oc@4.18 --no-startup >/dev/null
   selection_before=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
-  update_source=$SCENARIO_DIR/update-source
-  test_update_source_repository_create "$update_source"
+  update_source=$SHIMMY_TEST_UPDATE_SOURCE_REPOSITORY
   test_manifest_source_url_replace "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "$update_source"
+  test_manifest_source_url_replace "$UPSTREAM_PROFILE_ROOT/install-manifest.txt" "$update_source"
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/unmanaged-update-sentinel"
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/bin/unmanaged-bin-sentinel"
   printf '%s\n' '# stale shell init marker' >> "$DEFAULT_PROFILE_ROOT/shell-init.sh"
@@ -63,11 +66,8 @@ test_commands_update_run() {
   [ "$profile_status" -ne 0 ] || fail_test "installed update unexpectedly accepted --profile"
   assert_contains "$profile_output" 'unknown argument: --profile'
 
-  setup_scenario
-  bootstrap_upstream >/dev/null
-  update_source=$SCENARIO_DIR/update-source
-  test_update_source_repository_create "$update_source"
-  test_manifest_source_url_replace "$UPSTREAM_PROFILE_ROOT/install-manifest.txt" "$update_source"
+  default_launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")
+  default_manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   source_checkout_before=$(sed -n 's/^source_checkout=//p' "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
   update_tmp=$SCENARIO_DIR/update-tmp
   mkdir -p "$update_tmp"
@@ -75,6 +75,8 @@ test_commands_update_run() {
   source_checkout_after=$(sed -n 's/^source_checkout=//p' "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
   assert_equals "$source_checkout_after" "$source_checkout_before"
   assert_file_contains "$UPSTREAM_PROFILE_ROOT/implementations/jq" "$source_checkout_before"
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$default_launcher_checksum"
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$default_manifest_checksum"
   for update_entry in "$update_tmp"/shimmy-self-update.*; do
     [ ! -e "$update_entry" ] && [ ! -L "$update_entry" ] || fail_test "self-update temporary source was not removed: $update_entry"
   done

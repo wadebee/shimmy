@@ -1,9 +1,7 @@
 #!/bin/sh
 
 test_commands_status_run() {
-  setup_scenario
-  bootstrap_default >/dev/null
-  bootstrap_upstream >/dev/null
+  setup_scenario_with_profiles default upstream
 
   default_status=$(default_shimmy status --format manifest)
   upstream_status=$(upstream_shimmy status --format manifest)

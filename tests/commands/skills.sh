@@ -89,8 +89,7 @@ test_commands_skills_target_ownership() {
   assert_equals "$(cksum < "$repo_skills_manifest")" "$repo_skills_manifest_checksum"
   assert_equals "$(cksum < "$profile_skills_manifest")" "$profile_skills_manifest_checksum"
 
-  update_source=$SCENARIO_DIR/update-source
-  test_update_source_repository_create "$update_source"
+  update_source=$SHIMMY_TEST_UPDATE_SOURCE_REPOSITORY
   test_manifest_source_url_replace "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "$update_source"
   (
     cd "$WORK_DIR"
