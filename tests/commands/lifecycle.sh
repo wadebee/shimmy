@@ -1,9 +1,7 @@
 #!/bin/sh
 
 test_commands_lifecycle_prepare() {
-  setup_scenario
-  bootstrap_default >/dev/null
-  bootstrap_upstream >/dev/null
+  setup_scenario_with_profiles default upstream
 
   for asset_name in shell-init.sh install-manifest.txt bin/shimmy commands config implementations lib plugins tests tools agent; do
     [ -e "$DEFAULT_PROFILE_ROOT/$asset_name" ] || fail_test "missing flat profile asset: $asset_name"
@@ -48,9 +46,7 @@ test_commands_lifecycle_install_shapes() {
 }
 
 test_commands_lifecycle_launcher_refresh() {
-  setup_scenario
-  bootstrap_default >/dev/null
-  bootstrap_upstream >/dev/null
+  setup_scenario_with_profiles default upstream
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/bin/unmanaged-bin"
   printf '%s\n' '# stale launcher marker' >> "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   printf '%s\n' '# stale shell init marker' >> "$DEFAULT_PROFILE_ROOT/shell-init.sh"
@@ -71,16 +67,13 @@ test_commands_lifecycle_launcher_refresh() {
 }
 
 test_commands_lifecycle_empty_container_cleanup() {
-  setup_scenario
-  bootstrap_default >/dev/null
+  setup_scenario_with_profiles default
   default_shimmy uninstall >/dev/null
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy"
 
-  setup_scenario
-  bootstrap_default >/dev/null
-  bootstrap_upstream >/dev/null
+  setup_scenario_with_profiles default upstream
   default_shimmy uninstall >/dev/null
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"

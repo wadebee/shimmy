@@ -122,7 +122,7 @@ test_commands_onboarding_selection_policy() {
   assert_contains "$bootstrap_selection_output" 'shimmy install --shim <kind>'
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
 
-  bootstrap_default >/dev/null
+  setup_scenario_with_profiles default
   default_baseline_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   assert_equals "$default_baseline_selection" 'kind=jq
 kind=rg
@@ -151,8 +151,8 @@ kind_version=rg|15.1|rg_15_1'
   refreshed_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   assert_equals "$refreshed_selection" "$additive_selection"
 
-  bootstrap_upstream >/dev/null
-  upstream_baseline_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
+  upstream_fixture_manifest=$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/upstream/install-manifest.txt
+  upstream_baseline_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$upstream_fixture_manifest")
   assert_equals "$upstream_baseline_selection" "$default_baseline_selection"
   pass "bootstrap owns the fixed jq/rg baseline while installed additions stay explicit and additive"
 }
@@ -317,20 +317,8 @@ test_commands_onboarding_switch_profiles() {
   pass "repeated sourced installs switch profile PATH precedence deterministically"
 }
 
-test_commands_onboarding_run() {
-  test_commands_onboarding_sourced_state
-  test_commands_onboarding_help
-  test_commands_onboarding_selection_policy
-  test_commands_onboarding_failure_cleanup
-  test_commands_onboarding_startup_failure
-  test_commands_onboarding_absolute_execution
-  test_commands_onboarding_switch_profiles
-  test_commands_onboarding_shell_sources
-  test_commands_onboarding_shell_init_rejection
-
-  setup_scenario
-  bootstrap_default >/dev/null
-  bootstrap_upstream >/dev/null
+test_commands_onboarding_shell_init_path_behavior() {
+  setup_scenario_with_profiles default upstream
 
   default_shell_init_file=$DEFAULT_PROFILE_ROOT/shell-init.sh
   upstream_shell_init_file=$UPSTREAM_PROFILE_ROOT/shell-init.sh
@@ -388,4 +376,17 @@ test_commands_onboarding_run() {
   )
   assert_contains "$path_selected_status" 'shimmy_profile_name=upstream'
   pass "shell initialization changes PATH only and PATH precedence selects the active profile"
+}
+
+test_commands_onboarding_run() {
+  test_commands_onboarding_sourced_state
+  test_commands_onboarding_help
+  test_commands_onboarding_selection_policy
+  test_commands_onboarding_failure_cleanup
+  test_commands_onboarding_startup_failure
+  test_commands_onboarding_absolute_execution
+  test_commands_onboarding_switch_profiles
+  test_commands_onboarding_shell_sources
+  test_commands_onboarding_shell_init_rejection
+  test_commands_onboarding_shell_init_path_behavior
 }

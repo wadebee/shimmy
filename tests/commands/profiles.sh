@@ -241,10 +241,8 @@ test_commands_profiles_shell_init_shape() {
   pass "missing, symlinked, and non-file shell init assets fail structure checks without mutating owned state"
 }
 
-test_commands_profiles_run() {
-  setup_scenario
-  bootstrap_default >/dev/null
-  bootstrap_upstream >/dev/null
+test_commands_profiles_identity() {
+  setup_scenario_with_profiles default upstream
 
   default_status=$(default_shimmy status --format manifest)
   upstream_status=$(upstream_shimmy status --format manifest)
@@ -267,7 +265,10 @@ test_commands_profiles_run() {
   assert_contains "$relative_output" 'unable to resolve canonical Shimmy profile'
   assert_path_not_exists "$ROOT_DIR/relative"
   pass "profile identity is directory-bound and relative XDG roots are rejected"
+}
 
+test_commands_profiles_run() {
+  test_commands_profiles_identity
   test_commands_profiles_manifest_rejection
   test_commands_profiles_upstream_checkout_rejection
   test_commands_profiles_partial_shape

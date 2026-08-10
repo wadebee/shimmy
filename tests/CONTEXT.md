@@ -14,8 +14,9 @@ installed profile-selection override. The runner creates pristine default and
 upstream profiles once per session; scenarios that do not need to exercise the
 bootstrap itself clone those fixtures using APFS copy-on-write when available
 and a recursive copy fallback elsewhere. Clones relocate the generated
-`shell-init.sh` path before use. The immutable committed source repository used
-by self-update scenarios is also created once per session. Onboarding coverage sources the root
+`shell-init.sh` path and default implementation runtime roots before use. The
+immutable committed source repository used by self-update scenarios is also
+created once per session. Onboarding coverage sources the root
 bootstrap to initialize PATH and executes it separately to verify automation
 semantics.
 

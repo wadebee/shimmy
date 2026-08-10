@@ -44,12 +44,7 @@ test_commands_skills_manifest_fingerprints() {
 }
 
 test_commands_skills_target_ownership() {
-  setup_scenario
-  (
-    cd "$WORK_DIR"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile default --no-startup >/dev/null
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$ROOT_DIR/install.sh" --profile upstream --no-startup >/dev/null
-  )
+  setup_scenario_with_profiles default upstream
 
   repo_skills_root=$WORK_DIR/.agents/skills
   repo_skills_manifest=$repo_skills_root/.shimmy-skills-manifest.txt

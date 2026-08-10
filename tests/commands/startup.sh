@@ -15,11 +15,10 @@ test_commands_startup_default_ownership() {
 }
 
 test_commands_startup_upstream_isolation() {
-  setup_scenario
+  setup_scenario_with_profiles upstream
   default_startup_file=$SCENARIO_DIR/default-zshrc
   upstream_startup_file=$SCENARIO_DIR/upstream-zshrc
   run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --shell zsh --startup-file "$default_startup_file" >/dev/null
-  bootstrap_upstream >/dev/null
   default_manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
   startup_checksum=$(cksum < "$default_startup_file")

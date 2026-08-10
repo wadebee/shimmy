@@ -75,5 +75,6 @@ Disposable installation scenarios set absolute temporary `HOME` and
 The runner creates pristine default and upstream profiles once per session.
 Scenarios that are testing installed-profile behavior rather than bootstrap
 behavior may clone those fixtures; APFS copy-on-write is used when available,
-with a portable recursive-copy fallback. Self-update tests also share one
-immutable committed source-repository fixture for the session.
+with a portable recursive-copy fallback. Cloning relocates generated shell-init
+and default implementation paths to the scenario profile. Self-update tests
+also share one immutable committed source-repository fixture for the session.
