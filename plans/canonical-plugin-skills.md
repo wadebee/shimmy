@@ -5,21 +5,23 @@
 Make `plugins/shimmy/skills/` the sole Git-controlled source of truth for the
 five Shimmy control-plane skills currently owned by `agent/core/`, while
 preserving every tool-specific skill beside its tool at
-`tools/<kind>/agent/SKILL.md`.
+`tools/<kind>/SKILL.md`.
 
 As part of the same refactor, remove every `CONTEXT.md` below
 `plugins/shimmy/` and `tools/`, remove the rules and tests that require those
 files, and add a root `BOOTSTRAP.md` that discovers and explains the existing
-shimmy public checkout bootstrap whose implementation is at `install.sh`.
+Shimmy public checkout bootstrap at `install.sh` and its delegated
+implementation under `commands/install.sh` and `lib/install/`.
 
-Project Repo is not published so backwards compatibility is not required. 
+The project repository is not published, so backwards compatibility is not
+required.
 
 Success requires:
 
 - the canonical Shimmy management plugin to contain exactly the five
   control-plane skills relocated from `agent/core/`;
-- all 18 current tool skills to remain canonical and co-located under a flattened 
-  path `tools/<kind>/SKILL.md`;
+- all 18 current tool skills to remain canonical and co-located under the
+  flattened path `tools/<kind>/SKILL.md`;
 - no `CONTEXT.md` to remain anywhere below `plugins/shimmy/` or `tools/`, and
   no maintained rule, test, template, plan, or skill to instruct future work
   to create one there;
@@ -36,13 +38,16 @@ Success requires:
 Explicit exclusions:
 
 - do not move, copy, or generate tool-specific skills into
-  `plugins/shimmy/skills/`; broader tool/plugin skills belongs to a future
+  `plugins/shimmy/skills/`; broader tool/plugin skills belong to a future
   plan;
 - do not remove the context system from the repository root, `commands/`,
   `lib/`, or `tests/`; this plan removes it only from `plugins/shimmy/`,
   `tools/`, and the retired `agent/` tree;
 - do not add release-artifact discovery, downloading, signature/checksum
   verification, or a no-checkout installation path;
+- do not rename root `install.sh` or add a parallel `bootstrap.sh`; use
+  documentation and precise role terminology to disambiguate the existing
+  bootstrap, management entrypoint, and implementation layers;
 - do not add cross-agent native-plugin registration or a new
   `shimmy skills --scope ...` interface;
 - do not change tool runtime behavior, image metadata, profile manifest schema,
@@ -60,13 +65,16 @@ canonically owns only these five **control-plane skills**:
 - `shimmy-escalation`
 - `shimmy-tool-local-build`
 
-A **tool skill** is canonical only at `tools/<kind>/SKILL.md`. Current nested location at `tools/<kind>/agents/SKILL.md` is to be flattened. All other Tool skills are deliberately separated from the management plugin folder structure pending a future
-tool-separation design.
+A **tool skill** is canonical only at `tools/<kind>/SKILL.md`. Its current
+nested location at `tools/<kind>/agent/SKILL.md` is flattened during Chunk 2.
+All tool skills remain deliberately separated from the management plugin
+folder structure pending a future tool-separation design.
 
-`.agents/skills/` below a repository or user home is an **adapter target** and git ignored. It
-contains one `SKILL.md` per installed Shimmy skill and is owned by that
-target's `.shimmy-skills-manifest.txt`. A portable `--export` remains a copied
-artifact, not a canonical source.
+`.agents/skills/` below a repository or user home is an **adapter target** and
+git ignored. It contains one `SKILL.md` per installed Shimmy skill and is owned
+by that target's `.shimmy-skills-manifest.txt`. A portable `--export` is also
+a one-file-per-skill copied artifact, not a canonical source; it never copies
+the rest of a tool directory.
 
 The intended source layout is:
 
@@ -86,7 +94,7 @@ The intended source layout is:
 │       ├── shimmy-escalation/SKILL.md
 │       └── shimmy-tool-local-build/SKILL.md
 ├── tools/<kind>/
-│   ├── SKILL.md                 # canonical tool-specific skill relocated from flattened agent subdirectory
+│   ├── SKILL.md                 # canonical tool-specific skill relocated from agent/
 │   ├── guide.md
 │   ├── tool.conf
 │   ├── tests/
@@ -94,43 +102,36 @@ The intended source layout is:
 └── .agents/skills/                    # generated one-file adapters
 ~~~
 
-`AGENTS.md` to be modified to include pointer to `BOOTSTRAP.md` for bootstrapping of library to the end-users workstation. A sample of the new contents shown below but modify as necessary to optimize plan implementation.   
+`AGENTS.md` is modified to point to `BOOTSTRAP.md` for first-time checkout
+installation. Its installation guidance follows this substance:
 ~~~text
 ## First-time installation
 
 If Shimmy is not installed on this system:
 
 1. Read `BOOTSTRAP.md`.
-
-2. Follow the installation procedure defined there.
-
-3. Do not require the user to clone this repository unless
-
-   explicitly requested.
-
-4. Obtain released Shimmy artifacts from the project's   official distribution location.
-
-5. After installation, install Shimmy's agent skills according
-
-   to the user's selected scope:
-
-   - plugin/native (default if supported by agent harness)
-
-   - repository-local (default if not supported by agent harness)
- 
-   - user-global (by user flag only)
+2. Use the existing source checkout and invoke the root `install.sh` bootstrap
+   as documented there.
+3. Treat Podman and a valid source checkout as prerequisites; no released or
+   downloaded no-checkout artifact flow exists.
+4. After installation, use explicit `shimmy skills` operations only when a
+   repository-local or user-home adapter is requested. The management plugin
+   is already part of the installed profile payload.
 
 ## Existing installations
 
-If Shimmy is already installed, use the installed Shimmy
-
-skills rather than this bootstrap procedure.
+If Shimmy is already installed, use the installed Shimmy skills rather than
+this bootstrap procedure.
 
 ## Canonical skills
 
-The authoritative Shimmy skills are located at:
+The authoritative Shimmy control-plane skills are located at:
 
-    plugin/shimmy/skills/
+    plugins/shimmy/skills/
+
+Canonical tool skills are located at:
+
+    tools/<kind>/SKILL.md
 
 Do not modify generated copies of these skills.
 ~~~
@@ -139,12 +140,16 @@ The installation discovery chain documented by `BOOTSTRAP.md` is:
 
 ~~~text
 BOOTSTRAP.md
-  -> install.sh
+  -> install.sh                    # public checkout bootstrap
+     -> commands/install.sh        # public management entrypoint
+        -> lib/install/install.sh  # sourceable orchestration implementation
+           -> sibling lib/install modules
 ~~~
 
-`BOOTSTRAP.md` points agents to `install.sh` as the implementation and
-explains the supported public entrypoints. It must not instruct users to source
-or execute `lib/install/install.sh` directly.
+`BOOTSTRAP.md` points agents to root `install.sh` as the public checkout
+bootstrap and explains the supported public entrypoints and delegated
+implementation. It must not instruct users to source or execute
+`lib/install/install.sh` directly.
 
 The following paths do not exist in the target layout:
 
@@ -154,6 +159,7 @@ plugins/shimmy/**/CONTEXT.md
 tools/**/agent/*
 tools/**/CONTEXT.md
 plugins/shimmy/skills/.shimmy-skills-manifest.txt
+bootstrap.sh
 bootstrap/
 ~~~
 
@@ -162,8 +168,9 @@ bootstrap/
 1. The existing plural path `plugins/shimmy/` is authoritative; the singular
    `plugin/shimmy/` spelling from the supplied discussion is not introduced.
 2. The management plugin is intentionally limited to the five skills now under
-   `agent/core/`. Tool-specific skills remain co-located and canonical under
-   `tools/<kind>/SKILL.md`; implementation must not move or duplicate them.
+   `agent/core/`. During Chunk 2, each tool-specific skill moves from
+   `tools/<kind>/agent/SKILL.md` to `tools/<kind>/SKILL.md`; it must not move
+   into or be duplicated under the management plugin.
 3. The four existing plugin `SKILL.md` copies become canonical after one final
    semantic comparison with `agent/core/`.
    `shimmy-tool-local-build/SKILL.md` moves from `agent/core/` into the
@@ -201,9 +208,9 @@ bootstrap/
    explicitly selectable but is not added to the default export set.
 10. Repository and home adapter targets continue to copy only `SKILL.md`,
     preserve unrelated siblings, and use their own manifest for update and
-    uninstall. Portable exports retain the complete selected source directory;
-    after context removal, current source skill directories contain only their
-    `SKILL.md`.
+    uninstall. Portable exports also contain only `SKILL.md` for each selected
+    skill. Flattening a tool skill into `tools/<kind>/` must not cause its
+    guide, metadata, tests, versions, or container assets to enter an export.
 11. A successful profile refresh removes the retired top-level `agent/`
     directory. Current owned directories and any legacy `agent/` directory are
     backed up within one transaction; failure restores the entire prior layout,
@@ -211,26 +218,29 @@ bootstrap/
     requires `agent/`, but uninstall continues to remove it when present.
 12. Profile manifest version 4 remains unchanged because source placement is a
     replaceable profile payload detail, not a manifest identity change.
-13. `BOOTSTRAP.md` documents the existing implementation chain under
-    `install.sh`, identifies root `install.sh` as the checkout bootstrap, and
-    identifies `commands/install.sh` as a separate shimmy management entrypoint. It covers
-    checkout and Podman preconditions, sourced versus executed bootstrap
-    behavior, default/upstream profiles, the jq/rg baseline, verification, and
-    explicit repo/home adapter installation. It adds no executable logic.
+13. Retain root `install.sh` as the conventional public checkout-bootstrap
+    name. It is not self-contained: it invokes `commands/install.sh`, which
+    sources `lib/install/install.sh` and its sibling modules. `BOOTSTRAP.md`
+    documents that exact chain and consistently distinguishes **checkout
+    bootstrap**, **management entrypoint**, and **installation
+    implementation**. It covers checkout and Podman preconditions, sourced
+    versus executed bootstrap behavior, default/upstream profiles, the jq/rg
+    baseline, verification, and explicit repo/home adapter installation. It
+    adds no executable logic, downloader, or no-checkout flow.
 14. `AGENTS.md` remains the universal repository entrypoint and links to
     `BOOTSTRAP.md` for first-time installation and the management plugin for
     control-plane skills.
 15. Existing plugin metadata and `.agents/plugins/marketplace.json` remain at
     their current paths. Their wording may be narrowed to management/control
     scope, but their schema and identity are not redesigned.
-16. The existing user-owned `.gitignore` modification is outside this plan and
-    must be preserved without alteration.
+16. The tracked `.agents/` ignore rule in `.gitignore` is existing repository
+    state and remains unchanged by this plan.
 
 ## Verified implementation inventory
 
-This is the verified baseline at commit `e228ad8`, plus the current user-owned
-`.gitignore` modification. Implementation must recheck for newly introduced
-dependencies before editing.
+This is the verified baseline at commit `c5fb986`; the worktree was clean when
+this review began. Implementation must recheck for newly introduced
+dependencies and unrelated worktree changes before editing.
 
 - `agent/core/` owns the five control-plane skills listed above. Four have
   byte-identical copies in `plugins/shimmy/skills/`;
@@ -238,7 +248,8 @@ dependencies before editing.
 - Eighteen `tools/<kind>/agent/` directories each own one tool-specific
   `SKILL.md`: aws, gcloud, gdrive, gh, go, jq, logmine, netcat, nmap, oc,
   opnsense-mcp-admin, opnsense-mcp-read-only, rg, skopeo, task, terraform,
-  tessl, and textual. These paths are retained.
+  tessl, and textual. These are the current paths and the relocation sources
+  for the flattened Chunk 2 target.
 - The prohibited context inventory is 90 files: 86 below `tools/` and four
   below `plugins/shimmy/`. The tool count includes root, kind, agent, tests,
   version, and local container `CONTEXT.md` files.
@@ -275,19 +286,22 @@ dependencies before editing.
   `tests/commands/lifecycle.sh`, `tests/commands/install.sh`, and
   `tests/context-tree.sh` encode the current duplicate management layout,
   plugin-target behavior, and tool/plugin context requirements.
-- The install call chain is verified as root `install.sh` ->
-  `commands/install.sh` -> sourceable `lib/install/install.sh` -> its sibling
-  request, manifest, profile-assets, startup, and uninstall modules. Direct
-  invocation of `lib/install/install.sh` is not the supported public interface.
+- Root `install.sh` is not self-contained. The install call chain is verified
+  as root `install.sh` -> `commands/install.sh` -> sourceable
+  `lib/install/install.sh` -> its sibling request, manifest, profile-assets,
+  startup, and uninstall modules. Direct invocation of
+  `lib/install/install.sh` is not the supported public interface. Renaming the
+  root bootstrap would also affect checkout validation, self-update, tests,
+  docs, skills, and tool guides; the plan retains its conventional name and
+  resolves the overload through precise role terminology.
 - `.github/workflows/test.yml` still watches the retiring `agent/**`; it
   already watches `tools/**` and `plugins/shimmy/**`.
 - `plans/multi-architecture-manifest.md` contains future-facing instructions
   that would regenerate plugin copies and recreate tool/plugin contexts if
   left unchanged. Completed historical verification evidence may remain only
   when clearly described as past state.
-- The worktree was initially clean. It now contains a user-owned addition of
-  `.agents/` to `.gitignore` and this untracked plan; implementation must not
-  revert or rewrite the `.gitignore` change.
+- The `.agents/` ignore rule and this plan are tracked at the baseline commit;
+  neither is an unrelated dirty-worktree change.
 
 Primary implementation surface:
 
@@ -295,9 +309,9 @@ Primary implementation surface:
   `plugins/shimmy/**/CONTEXT.md`, `tools/**/CONTEXT.md`, `tools/**/agent/CONTEXT.md`,
   `tests/context-tree.sh`, root/module contexts, contributor/docs/template
   guidance, the create-tool skill, and affected tool skills;
-- control-plane ownership and distribution: `agent/**`,
-  `plugins/shimmy/skills/**`, `commands/skills.sh`, and generated
-  `.agents/skills/**`;
+- skill ownership and distribution: `agent/**`,
+  `plugins/shimmy/skills/**`, all 18 `tools/<kind>/agent/SKILL.md` relocation
+  sources, `commands/skills.sh`, and generated `.agents/skills/**`;
 - profile lifecycle: `lib/install/profile-assets.sh`,
   `lib/install/uninstall.sh`, `lib/profile/profile.sh`, update fixtures,
   lifecycle/skills/profile tests, and retained closest contexts outside the
@@ -319,8 +333,9 @@ Active chunk: Chunk 1, not started; awaiting explicit implementation approval.
 - [ ] Chunk 1 — Remove tool/plugin contexts and every mechanism that requires
   or prescribes them while preserving tool-local skill ownership.
 - [ ] Chunk 2 — Move only the control-plane skills into the canonical
-  management plugin, migrate installed profiles, add bootstrap discovery,
-  regenerate adapters, and verify the final repository.
+  management plugin, flatten all tool skills, preserve one-file exports,
+  migrate installed profiles, add bootstrap discovery, regenerate adapters,
+  and verify the final repository.
 
 ## Execution protocol
 
@@ -402,8 +417,8 @@ Primary change surface:
 7. Regenerate the four-skill plugin target and only affected
    manifest-tracked `.agents/skills/` adapters from the reviewed current
    canonical sources so this intermediate chunk remains internally consistent.
-   Update their fingerprints, preserve unrelated `.agents` content, and do not
-   alter the user-owned `.gitignore` change.
+   Update their fingerprints, preserve unrelated `.agents` content, and leave
+   the tracked `.agents/` ignore rule unchanged.
 8. Re-run broad `CONTEXT.md` and “context-first” searches before the gate.
    Classify retained matches: remaining context infrastructure outside the
    prohibited trees, ordinary language, and historical evidence are allowed;
@@ -430,8 +445,8 @@ Primary change surface:
   intermediate state.
 - [ ] `./tests/test.sh`, shell syntax checks for changed scripts,
   `git diff --check`, and executable-bit checks pass.
-- [ ] Final status for the chunk preserves the user-owned `.gitignore`
-  modification and contains only the approved Chunk 1 work plus this plan.
+- [ ] Final status for the chunk leaves the tracked `.agents/` ignore rule
+  unchanged and contains only the approved Chunk 1 work plus plan progress.
 
 ### Human review gate
 
@@ -446,14 +461,14 @@ The reviewer must confirm that:
 Do not begin the control-plane ownership cutover until Chunk 1 is explicitly
 accepted.
 
-## Chunk 2 — Control-plane plugin cutover and bootstrap
+## Chunk 2 — Skill ownership cutover and bootstrap
 
 ### Goal
 
 Make the five-skill management plugin canonical, retire top-level
-`agent/core/` safely in source and installed profiles, preserve co-located
-tool-skill export, and add accurate root bootstrap discovery for the existing
-`lib/install/` implementation.
+`agent/core/` safely in source and installed profiles, flatten all 18 tool
+skills into their tool roots, preserve one-file skill exports, and add accurate
+root bootstrap discovery for the existing `lib/install/` implementation.
 
 ### Files
 
@@ -462,6 +477,8 @@ Primary change surface:
 - `agent/**`, `plugins/shimmy/skills/**`,
   `plugins/shimmy/.agent-plugin/plugin.json`, and
   `.agents/plugins/marketplace.json`;
+- all 18 `tools/<kind>/agent/SKILL.md` source paths and their target
+  `tools/<kind>/SKILL.md` paths;
 - `commands/skills.sh`, `commands/CONTEXT.md`,
   `lib/install/profile-assets.sh`, `lib/install/uninstall.sh`,
   `lib/install/CONTEXT.md`, `lib/profile/profile.sh`, and
@@ -484,11 +501,16 @@ Primary change surface:
    top-level `agent/` tree. The plugin must contain exactly those five
    control-plane skill directories and no tool-specific skills.
 2. Change `commands/skills.sh` so explicit control-plane names resolve from
-   `plugins/shimmy/skills/` and tool names continue to resolve from
-   `tools/<kind>/agent/`. Preserve default management selection,
+   `plugins/shimmy/skills/`. Move each tool skill from
+   `tools/<kind>/agent/SKILL.md` to `tools/<kind>/SKILL.md`, remove the empty
+   tool `agent/` directories, and resolve tool names from the flattened path.
+   Update the create-tool skill, generic template, docs, and tests to create
+   and consume only the flattened path. Preserve default management selection,
    installed-kind selection, explicit names, stale target-manifest filtering,
-   one-file repo/profile adapters, complete exports, collision checks, and
-   manifest-tracked cleanup.
+   collision checks, and manifest-tracked cleanup. Decouple skill-file
+   resolution from source-directory copying so repo, profile, and portable
+   export targets copy only the selected `SKILL.md`; never recursively copy a
+   tool root into a skill artifact.
 3. Remove the canonical plugin's target manifest, the `plugin` target, and
    `SHIMMY_SKILLS_PLUGIN_DIR` together. Update help, validation,
    documentation, canonical install guidance, and tests. Prove obsolete target
@@ -524,12 +546,14 @@ Primary change surface:
 10. Regenerate only manifest-tracked `.agents/skills/` adapters from the
     reviewed split canonical sources. Preserve unrelated `.agents` content,
     keep every adapter to one `SKILL.md`, update fingerprints, and do not
-    generate into the canonical management plugin.
+    generate into the canonical management plugin. Verify portable directory
+    and archive exports also contain only one `SKILL.md` per selected skill.
 11. Before the review gate, run repository-wide path and terminology
     inventories. Remove stale behavioral references to `agent/core/`,
-    writable/generated plugin skills, or tool/plugin `CONTEXT.md` while
-    retaining accurate uses of AI agent, `.agents/skills/`, container build
-    contexts, and explicit legacy migration tests.
+    `tools/<kind>/agent/SKILL.md`, writable/generated plugin skills, or
+    tool/plugin `CONTEXT.md` while retaining accurate uses of AI agent,
+    `.agents/skills/`, container build contexts, and explicit legacy migration
+    tests.
 
 ### Verification checklist
 
@@ -537,28 +561,31 @@ Primary change surface:
   matching `name:` frontmatter, each containing `SKILL.md` and no
   `CONTEXT.md`; plugin discovery exposes those five and no tool-specific
   skills.
-- [ ] All 18 tool-specific skills remain at
-  `tools/<kind>/agent/SKILL.md`, and every catalog kind resolves and exports
-  its co-located skill, including both hyphenated OPNsense kinds.
+- [ ] All 18 tool-specific skills exist at `tools/<kind>/SKILL.md`, no
+  `tools/<kind>/agent/` directory remains, and every catalog kind resolves and
+  exports its co-located skill, including both hyphenated OPNsense kinds.
 - [ ] `agent/`, `plugins/shimmy/skills/.shimmy-skills-manifest.txt`, every
   `plugins/shimmy/**/CONTEXT.md`, and every `tools/**/CONTEXT.md` are absent,
   with no maintained path capable of recreating them.
 - [ ] Skills command success cases cover control-plane, local-build, and every
   tool skill; default and installed-kind selection remain unchanged;
-  repo/profile adapters contain only `SKILL.md`; exports and unrelated target
-  siblings remain correct.
+  repo/profile adapters and portable directory/archive exports contain only
+  `SKILL.md`; tool guides, metadata, tests, versions, and container assets are
+  not copied; unrelated target siblings remain correct.
 - [ ] `--target plugin` is absent from help and install/update/uninstall
   requests using it fail before mutation. `SHIMMY_SKILLS_PLUGIN_DIR` no longer
   affects valid behavior.
 - [ ] Fresh default and upstream profiles contain the five-skill plugin and all
-  co-located tool source skills, contain no top-level `agent/`, pass structure
-  validation, and remain isolated from external adapter targets.
+  co-located `tools/<kind>/SKILL.md` source skills, contain no top-level or
+  tool-local `agent/`, pass structure validation, and remain isolated from
+  external adapter targets.
 - [ ] A fixture shaped like the current profile loses its legacy `agent/` only
   after successful refresh; an induced commit failure restores it and every
   other backed-up owned asset; uninstall removes it when present.
 - [ ] `BOOTSTRAP.md` is linked from `AGENTS.md` and `README.md`, names
   `lib/install/` as the implementation, accurately maps the public entrypoints
-  to it, matches onboarding tests, and contains no second installer, bootstrap
+  to it, calls root `install.sh` the checkout bootstrap, matches onboarding
+  tests, and contains no renamed or second bootstrap script, bootstrap
   subdirectory, PowerShell workflow, or direct internal invocation.
 - [ ] Plugin metadata parses as JSON and the marketplace still resolves
   `./plugins/shimmy` with management-only skill discovery.
@@ -567,8 +594,8 @@ Primary change surface:
   sources for tool skills, and unrelated `.agents` content remains intact.
 - [ ] `./tests/context-tree.sh` and the complete `./tests/test.sh` suite pass.
 - [ ] Every changed runnable shell file passes `/bin/sh -n`; executable bits
-  remain correct; `git diff --check` passes; and final status preserves the
-  user-owned `.gitignore` modification.
+  remain correct; `git diff --check` passes; and final status leaves the
+  tracked `.agents/` ignore rule unchanged.
 
 ### Human review gate
 
@@ -576,7 +603,7 @@ The reviewer must confirm all verification states and explicitly accept:
 
 - the five-skill limit of the canonical management plugin;
 - continued canonical ownership of tool skills under
-  `tools/<kind>/agent/SKILL.md`;
+  `tools/<kind>/SKILL.md` and one-file-only portable exports;
 - removal, rather than deprecation, of `--target plugin` and
   `SHIMMY_SKILLS_PLUGIN_DIR`;
 - transactional deletion of legacy installed-profile `agent/` payloads;
@@ -591,13 +618,14 @@ reviewer accepts the verified repository state.
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Tool skills are moved into the management plugin despite the clarified boundary. | The future tool-separation model is preempted and management/tool ownership is coupled. | Move only the five `agent/core/` skills and assert all 18 tool skill paths remain intact after each chunk. |
+| Tool skills are moved into the management plugin despite the clarified boundary. | The future tool-separation model is preempted and management/tool ownership is coupled. | Move only the five `agent/core/` skills into the plugin; keep all 18 tool skills at their current paths through Chunk 1 and assert their flattened `tools/<kind>/SKILL.md` paths after Chunk 2. |
 | Context files are deleted without preserving unique operating rules. | Safety, credentials, platform, or lifecycle knowledge is lost. | Classify content before deletion and migrate durable rules into AGENTS, contributor docs, guides, skills, schemas, or tests according to ownership. |
 | A template, test, historical plan, or context link recreates prohibited files. | The removed context topology returns in later changes. | Remove all prescriptive references, add absence checks, and search future-facing guidance at both gates. |
 | The old `--target plugin` writes into or uninstalls the new canonical source. | Canonical control-plane skills can be deleted or self-copied. | Remove the target, environment override, target manifest, docs, and forwarding paths together; assert rejection before mutation. |
 | Refresh deletes legacy profile `agent/` before another commit step fails. | A failed update leaves the prior profile incomplete under its old validator. | Back up the retired tree in the same replace/restore transaction and discard it only after full success. |
 | Split source resolution allows name collision or breaks hyphenated tool kinds. | Wrong guidance is exported or installed kinds lose their skills. | Resolve the explicit control-plane set first, map tool names only through validated catalog kinds, fail closed, and test every kind. |
-| Adapter regeneration overwrites richer guidance or unrelated `.agents` content. | Documentation or user-owned files are lost. | Review canonical sources first, regenerate only manifest-tracked names, verify parity and unknown-sibling preservation, and preserve `.gitignore`. |
+| Flattened tool-skill resolution recursively exports the entire tool root. | Portable skill artifacts unexpectedly contain runtime code, metadata, tests, versions, or container assets. | Resolve the canonical `SKILL.md` explicitly, copy only that file for every adapter/export target, and assert prohibited tool-root siblings are absent from directory and archive exports. |
+| Adapter regeneration overwrites richer guidance or unrelated `.agents` content. | Documentation or user-owned files are lost. | Review canonical sources first, regenerate only manifest-tracked names, verify parity and unknown-sibling preservation, and leave the tracked `.agents/` ignore rule unchanged. |
 | `BOOTSTRAP.md` tells users to run the internal sourceable module directly. | Initialization, argument setup, or cleanup contracts are bypassed. | Document the complete chain, name `lib/install/` as implementation, and route actual invocation through root or command entrypoints. |
 | Plugin metadata is changed incidentally. | Existing marketplace discovery regresses for an unrelated reason. | Keep schema, path, and identity unchanged; make only scope wording changes proven necessary by validation. |
 
@@ -608,6 +636,9 @@ reviewer accepts the verified repository state.
 - The clarified architecture intentionally has two kinds of canonical skill
   ownership: five management/control skills in the Shimmy plugin and each tool
   skill beside its tool.
+- Flattening a tool skill into its tool root requires file-level export
+  resolution; recursively copying the canonical directory would export the
+  tool's runtime and maintenance assets.
 - The prior draft incorrectly treated “one canonical plugin tree” as applying
   to tool-specific skills; the supplied future direction makes the plugin a
   control-plane boundary instead.
@@ -621,7 +652,11 @@ reviewer accepts the verified repository state.
 - Installation is implemented in `lib/install/`, reached through
   `commands/install.sh` and the root checkout bootstrap. Discovery should
   expose that ownership chain without bypassing the public entrypoints.
-- The current `.gitignore` change is user-owned and outside this plan.
+- Root `install.sh` delegates rather than implementing installation by itself.
+  Retaining its conventional bootstrap name and defining the three install
+  roles precisely avoids a broad rename without hiding the actual call chain.
+- The `.agents/` ignore rule and this plan are tracked baseline state, not
+  unrelated worktree modifications.
 
 ## Session bootstrap
 
@@ -631,17 +666,18 @@ A fresh implementation session must:
    and the currently applicable retained contexts for the active chunk. Before
    deleting current tool/plugin contexts in Chunk 1, read and classify them for
    unique durable rules.
-2. Re-run the context and skill inventories; preserve the user-owned
-   `.gitignore` modification and any other unrelated worktree changes.
+2. Re-run the context and skill inventories; leave the tracked `.agents/`
+   ignore rule unchanged and preserve any unrelated worktree changes.
 3. Keep the ownership boundary fixed: five control-plane skills in
    `plugins/shimmy/skills/`, 18 tool skills at
-   `tools/<kind>/agent/SKILL.md`, and generated adapters under
+   `tools/<kind>/SKILL.md` after Chunk 2, and generated adapters under
    `.agents/skills/`.
 4. Treat `plugins/shimmy/**/CONTEXT.md` and `tools/**/CONTEXT.md` as prohibited
    final state, but retain the context system outside those trees.
-5. Treat root `install.sh` and `commands/install.sh` as public entrypoints into
-   the implementation under `lib/install/`; do not instruct direct execution
-   of the internal sourceable module.
+5. Treat root `install.sh` as the public checkout bootstrap and
+   `commands/install.sh` as the public management entrypoint into the
+   implementation under `lib/install/`; do not instruct direct execution of
+   the internal sourceable module or rename the root bootstrap.
 6. Execute only the active chunk, update the cumulative checklist and
    **Lessons learned**, report every partial verification item explicitly, and
    stop at that chunk's human review gate.
