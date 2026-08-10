@@ -121,8 +121,7 @@ test_commands_skills_target_ownership() {
 }
 
 test_commands_skills_external_failure_retry() {
-  setup_scenario
-  bootstrap_default >/dev/null
+  setup_scenario_with_profiles default
   manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   mkdir -p "$WORK_DIR/.agents"
   printf '%s\n' collision > "$WORK_DIR/.agents/skills"

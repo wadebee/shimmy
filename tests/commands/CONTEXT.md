@@ -24,8 +24,9 @@ a user's Shimmy installation or shell startup files.
   behavior.
 - `profiles.sh` covers profile precedence, profile-isolated uninstalls, status
   availability and version-owned image descriptions, and profile error
-  guidance. Its identity and independent shell-init damage cases start from
-  pristine profile clones while retaining real invalid-XDG and bootstrap
+  guidance. Its identity, malformed-manifest, invalid-upstream-checkout,
+  partial-profile, and independent shell-init damage cases start from pristine
+  profile clones while retaining real invalid-XDG and bootstrap
   repair-rejection checks.
 - `update.sh` covers selected-shim and all-profile refresh behavior, version-
   local irrelevant image-refresh actions, manifest-preserving self-update for
@@ -39,8 +40,8 @@ a user's Shimmy installation or shell startup files.
 - `skills.sh` covers canonical skill sources, checked-in export fingerprints,
   portable manifests, installed-kind selection, explicit repository, home, and
   plugin targets, unconditional profile payload, lifecycle isolation, refresh,
-  and manifest-tracked cleanup. Its target-ownership lifecycle starts from
-  pristine profile clones.
+  and manifest-tracked cleanup. Its target-ownership lifecycle and retryable
+  external-target failure start from pristine profile clones.
 - `dispatcher.sh` covers profile-bound installed dispatchers, ownership, and
   recursion protections using isolated pristine clones for destructive cases;
   repository previews use `commands/run-tool.sh`.
@@ -49,7 +50,8 @@ a user's Shimmy installation or shell startup files.
 - `install.sh` covers additive installed-kind requests, uninstall request
   validation, and macOS Podman guidance.
 - `test.sh` covers installed-profile test request, metadata validation,
-  profile binding, public dispatch, and concrete-version orchestration with
-  disposable wrapper fixtures rather than live containers.
+  profile binding, public dispatch, and concrete-version orchestration. Its
+  installed profile-binding scenario starts from a pristine clone; runtime
+  orchestration uses disposable wrapper fixtures rather than live containers.
 - `agent-preflight.sh` covers image-metadata-driven approval smoke commands and
   local-build preview selection without requiring a live Podman engine.

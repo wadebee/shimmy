@@ -61,8 +61,7 @@ test_manifest_mutate() {
 }
 
 test_commands_profiles_manifest_rejection() {
-  setup_scenario
-  bootstrap_default >/dev/null
+  setup_scenario_with_profiles default
   manifest_file=$DEFAULT_PROFILE_ROOT/install-manifest.txt
   valid_manifest=$SCENARIO_DIR/valid-manifest.txt
   cp "$manifest_file" "$valid_manifest"
@@ -124,8 +123,7 @@ test_commands_profiles_manifest_rejection() {
 }
 
 test_commands_profiles_upstream_checkout_rejection() {
-  setup_scenario
-  bootstrap_upstream >/dev/null
+  setup_scenario_with_profiles upstream
   manifest_file=$UPSTREAM_PROFILE_ROOT/install-manifest.txt
   valid_manifest=$SCENARIO_DIR/upstream-manifest.txt
   cp "$manifest_file" "$valid_manifest"
@@ -161,8 +159,7 @@ test_commands_profiles_upstream_checkout_rejection() {
 }
 
 test_commands_profiles_partial_shape() {
-  setup_scenario
-  bootstrap_default >/dev/null
+  setup_scenario_with_profiles default
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/unmanaged-partial-sentinel"
   rm -rf "$DEFAULT_PROFILE_ROOT/tools"
 

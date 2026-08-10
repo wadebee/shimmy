@@ -1,8 +1,7 @@
 #!/bin/sh
 
 test_commands_test_run() {
-  setup_scenario
-  bootstrap_default >/dev/null
+  setup_scenario_with_profiles default
   help_output=$(default_shimmy test --help)
   assert_contains "$help_output" 'shimmy test [--shim'
 
