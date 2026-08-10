@@ -70,7 +70,8 @@ commands derive identity from their enclosing profile and do not accept
 installation-location or profile-selection overrides. Add non-baseline tools
 after onboarding with installed `shimmy install --shim <kind>`. Source a
 profile's `shell-init.sh` to select it in an existing shell. Only `default`
-owns a persistent startup block; `upstream` never changes startup files.
+owns persistent startup blocks for zsh and Bash by default; explicit startup
+options may narrow the targets, and `upstream` never changes startup files.
 The five-skill management plugin and co-located tool skills are unconditional
 profile payload. Repository and home agent skill adapters are external state
 owned by the selected target manifest and are written or removed only with explicit standalone

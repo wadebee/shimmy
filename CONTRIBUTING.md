@@ -65,7 +65,9 @@ selects the absolute source checkout recorded when `./install.sh --profile
 upstream` runs; it never relocates installed profile state.
 
 Only `default` may create, repair, or remove Shimmy's persistent shell-startup
-block. `upstream` never changes shell startup files. The canonical five-skill
+blocks. An unqualified checkout bootstrap manages zsh plus Bash login and
+non-login interactive startup files; explicit startup options remain
+authoritative. `upstream` never changes shell startup files. The canonical five-skill
 management plugin and co-located tool skills are included unconditionally in
 each profile; shared repository and home agent skill adapters live outside
 profile roots and are owned by their target's

@@ -38,8 +38,9 @@ a user's Shimmy installation or shell startup files.
   non-baseline kinds and concrete versions, and update request validation. Its
   self-update scenario starts from session-scoped pristine profile clones so
   it measures update behavior without repeating repository bootstraps.
-- `startup.sh` covers shell-initialization idempotence and managed startup-block
-  install and repair behavior without a separate initialization command. Its
+- `startup.sh` covers automatic zsh and Bash bootstrap integration,
+  shell-initialization idempotence, and managed startup-block install and
+  repair behavior without a separate initialization command. Its
   upstream-isolation case clones upstream while retaining the real default
   startup installation.
 - `skills.sh` covers split canonical skill sources, checked-in adapter

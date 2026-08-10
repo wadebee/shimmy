@@ -11,11 +11,15 @@ resolve_startup_settings() {
   fi
   [ "$SKIP_STARTUP" -eq 0 ] || return 0
 
-  STARTUP_SHELL=$(shimmy_shell_name_normalize "$REQUESTED_SHELL") || fail "unable to resolve startup shell"
   if [ -n "$REQUESTED_STARTUP_FILES" ]; then
+    STARTUP_SHELL=$(shimmy_shell_name_normalize "$REQUESTED_SHELL") || fail "unable to resolve startup shell"
     STARTUP_FILE_PATHS=$REQUESTED_STARTUP_FILES
-  else
+  elif [ -n "$REQUESTED_SHELL" ]; then
+    STARTUP_SHELL=$(shimmy_shell_name_normalize "$REQUESTED_SHELL") || fail "unable to resolve startup shell"
     STARTUP_FILE_PATHS=$(shimmy_startup_file_path_list_resolve "$STARTUP_SHELL" "$HOME") || fail "unable to resolve startup file path"
+  else
+    STARTUP_SHELL=
+    STARTUP_FILE_PATHS=$(shimmy_startup_file_path_list_default_resolve "$HOME") || fail "unable to resolve default startup file paths"
   fi
 }
 

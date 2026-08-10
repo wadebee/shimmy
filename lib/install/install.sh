@@ -179,7 +179,7 @@ profile_stage_cleanup() {
 perform_install() {
   validate_requested_shims
   profile_existing_state_read
-  if [ "$PROFILE_EXISTS" -eq 1 ] && [ "$STARTUP_OPTION_REQUESTED" -eq 0 ]; then
+  if [ "$PROFILE_EXISTS" -eq 1 ] && [ "$STARTUP_OPTION_REQUESTED" -eq 0 ] && [ -z "${SHIMMY_BOOTSTRAP_PROFILE:-}" ]; then
     SKIP_STARTUP=1
   fi
   profile_source_checkout_resolve
@@ -189,7 +189,7 @@ perform_install() {
   profile_assets_commit
   profile_stage_cleanup
   if ! shimmy_install_startup_update; then
-    fail "profile installed, but startup integration failed; retry with '$SHIMMY_CONTROL_BIN install --shell $STARTUP_SHELL'"
+    fail "profile installed, but startup integration failed; retry with the checkout bootstrap or an installed shim install using explicit startup options"
   fi
 
   log_info "Installed Shimmy $SHIMMY_PROFILE_RESOLVED profile at $SHIMMY_PROFILE_ROOT"

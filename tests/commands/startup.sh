@@ -1,5 +1,31 @@
 #!/bin/sh
 
+test_commands_startup_default_bootstrap_shells() {
+  setup_scenario
+  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHELL=/bin/sh ./install.sh --profile default >/dev/null
+
+  for startup_file in "$HOME_DIR/.zshrc" "$HOME_DIR/.bashrc" "$HOME_DIR/.bash_profile"; do
+    assert_file_contains "$startup_file" '# >>> shimmy default profile >>>'
+    assert_file_contains "$startup_file" "$DEFAULT_PROFILE_ROOT/shell-init.sh"
+    assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "startup_file=$startup_file"
+  done
+  assert_not_contains "$(sed -n 's/^startup_shell=//p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" 'sh'
+  pass "default bootstrap configures zsh and Bash login and interactive startup files"
+}
+
+test_commands_startup_default_bootstrap_repairs_existing_profile() {
+  setup_scenario
+  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --shell zsh >/dev/null
+  assert_path_not_exists "$HOME_DIR/.bashrc"
+  assert_path_not_exists "$HOME_DIR/.bash_profile"
+
+  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default >/dev/null
+  assert_file_contains "$HOME_DIR/.zshrc" "$DEFAULT_PROFILE_ROOT/shell-init.sh"
+  assert_file_contains "$HOME_DIR/.bashrc" "$DEFAULT_PROFILE_ROOT/shell-init.sh"
+  assert_file_contains "$HOME_DIR/.bash_profile" "$DEFAULT_PROFILE_ROOT/shell-init.sh"
+  pass "repeated default bootstrap adopts automatic multi-shell startup integration"
+}
+
 test_commands_startup_default_ownership() {
   setup_scenario
   startup_file=$SCENARIO_DIR/zshrc
@@ -62,6 +88,8 @@ test_commands_startup_external_failure_retry() {
 }
 
 test_commands_startup_run() {
+  test_commands_startup_default_bootstrap_shells
+  test_commands_startup_default_bootstrap_repairs_existing_profile
   test_commands_startup_default_ownership
   test_commands_startup_upstream_isolation
   test_commands_startup_external_failure_retry

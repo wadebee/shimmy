@@ -25,6 +25,12 @@ and initialize it in the current shell:
 . ./install.sh
 ```
 
+An unqualified default bootstrap installs a managed startup block in `.zshrc`,
+`.bashrc`, and the active Bash login file (`.bash_profile`, `.bash_login`, or
+`.profile`; `.bash_profile` is created when none exists). This covers zsh plus
+login and non-login interactive Bash sessions. Use `--shell`, repeatable
+`--startup-file`, or `--no-startup` to request narrower behavior.
+
 Execute the same file when automation needs the installation but does not
 need its parent shell initialized:
 

@@ -63,9 +63,10 @@ for automation, but initialization ends with that process.
 ```
 
 Switch profiles by sourcing the desired profile's absolute `shell-init.sh`.
-Only `default` may manage a persistent startup block. Use explicit `--shell`
-and `--startup-file` only when the user authorizes default-profile startup
-changes; `upstream` never changes shell startup files.
+Only `default` may manage persistent startup blocks. An unqualified checkout
+bootstrap manages `.zshrc`, `.bashrc`, and the active Bash login file. Use
+explicit `--shell` and `--startup-file` only when the user authorizes narrower
+default-profile startup changes; `upstream` never changes shell startup files.
 
 ## Shared skills
 

@@ -20,7 +20,9 @@ process.
 - `launcher-template.sh` becomes the installed profile's self-contained
   `bin/shimmy`.
 - `startup.sh` renders the profile's `shell-init.sh` asset and applies
-  persistent startup integration only for `default`.
+  persistent startup integration only for `default`. Unqualified checkout
+  bootstraps manage zsh and both Bash startup modes; explicit startup options
+  remain authoritative.
 - `uninstall.sh` removes only validated assets owned by the enclosing profile,
   then attempts to remove empty merge-owned parent directories.
 

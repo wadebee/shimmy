@@ -1,7 +1,7 @@
 shimmy_skills_manifest_version=1
 shimmy_skills_target=repo
 shimmy_skills_root=.agents/skills
-shimmy_skill=repo|shimmy-install|.agents/skills/shimmy-install|3672512809-39
+shimmy_skill=repo|shimmy-install|.agents/skills/shimmy-install|4148789291-38
 shimmy_skill=repo|shimmy-init|.agents/skills/shimmy-init|3612390952-39
 shimmy_skill=repo|shimmy-create-tool|.agents/skills/shimmy-create-tool|881781931-39
 shimmy_skill=repo|shimmy-escalation|.agents/skills/shimmy-escalation|1977567976-38

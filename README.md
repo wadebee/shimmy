@@ -48,6 +48,10 @@ contain a runnable `shimmy` launcher. Source `. ./install.sh` to bootstrap
 `default` and initialize the current shell, or source `. ./install.sh --profile
 upstream` for the maintainer profile. Every bootstrap installs jq and rg.
 Install any other tool afterward with `shimmy install --shim <kind>`.
+An unqualified default bootstrap also installs its managed startup block for
+zsh and for login and non-login interactive Bash sessions. Explicit `--shell`,
+repeatable `--startup-file`, and `--no-startup` options narrow or disable those
+updates.
 
 Executing `./install.sh` performs the same bootstrap for automation, but its
 shell initialization ends with that process. To initialize another shell
