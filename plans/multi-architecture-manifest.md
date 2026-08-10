@@ -422,7 +422,7 @@ None.
 
 ## Progress Checklist
 
-Active chunk: Chunk 3 at human review gate with external partials.
+Active chunk: Chunk 3 at final human review gate with one accepted deferral.
 
 - [x] Chunk 1 — Add native host-architecture selection, introduce the image
   configuration contract, and atomically migrate every current concrete
@@ -433,10 +433,14 @@ Active chunk: Chunk 3 at human review gate with external partials.
   entries, and reported one non-strict upstream-tag drift for Netcat. Human
   review accepted the pinned Netcat snapshot; its upstream digest rotation is
   a separate follow-up and is not part of this feature chunk.
-- [~] Chunk 3 — Native Apple Silicon acceptance, rotation guidance, future-tool
-  guardrails, generated guidance parity, and repository verification are
-  complete. Native Linux `amd64` execution and authenticated Red Hat index
-  verification remain external acceptance requirements.
+- [~] Chunk 3 — Native Apple Silicon acceptance, all eight native Linux
+  `amd64` direct-image smokes, eleven of twelve native Linux local-build
+  smokes, full authenticated index verification, rotation guidance,
+  future-tool guardrails, generated guidance parity, and repository
+  verification are complete. Tessl builds for Linux/amd64 but its runtime
+  smoke fails while promoting the downloaded `linux-x64` binary and is an
+  explicitly accepted, non-blocking deferral. Chunk 3 awaits final human
+  acceptance at its review gate.
 
 ## Execution protocol
 
@@ -744,29 +748,39 @@ Primary change surface:
 
 ### Verification checklist
 
-- [~] Full authenticated remote verification passes all direct defaults and
-  local bases, including all three OC digests. The 2026-08-09 public-only run
-  passed all seventeen public roles, retained the accepted Netcat drift
-  warning, and skipped all three OC roles. The available Podman secrets include
-  a Red Hat password but no compatible registry `auth.json`, so authenticated
-  inspection remains pending and no credential material was synthesized or
-  exposed.
-- [~] All eight direct-image smokes pass on native Linux `amd64` and native
+- [x] Full authenticated remote verification passes all direct defaults and
+  local bases, including all three OC digests. The 2026-08-09 authenticated
+  run used the explicitly selected `registry-auth` Podman secret, exited zero,
+  and verified accepted index media types plus both required platforms for all
+  twenty roles. OC access passed as `authenticated`; no credential contents or
+  raw authentication state were printed. Netcat and Ripgrep upstream tags had
+  moved, producing the expected non-strict warnings while their pinned indexes
+  remained valid.
+- [x] All eight direct-image smokes pass on native Linux `amd64` and native
   macOS/Apple Silicon `arm64`. All eight passed through exact approved source
-  wrappers on Darwin/arm64 with Podman 5.8.1 selecting `linux/arm64`; the native
-  Linux `amd64` run remains pending on a separate host.
+  wrappers on Darwin/arm64 with Podman 5.8.1 selecting `linux/arm64` and on
+  Linux/amd64 with Podman 5.4.2 selecting `linux/amd64`.
 - [~] All twelve local images build and their version-owned smokes pass on both
   native platforms. All twelve built and passed on Darwin/arm64 after repairing
-  Logmine's invalid source ref and legacy module build; the native Linux
-  `amd64` build/smoke matrix remains pending on a separate host.
+  Logmine's invalid source ref and legacy module build. On Linux/amd64,
+  `gdrive@0.2`, `gh@2.94`, `logmine@0.1`, `netcat@7.92`, both OPNsense MCP
+  versions, all three OC versions, `task@3.45`, and `textual@8.2` passed.
+  `tessl@0.1` builds, downloads and verifies the `linux-x64` CLI, then fails
+  its smoke because the npm launcher cannot execute/promote the nested binary
+  (`--version exited with code null`); a diagnostic run without Shimmy's memory
+  limit was not approved.
+  Human review explicitly accepted deferring this failing Tessl container on
+  2026-08-09. It does not require further work in this chunk, but this checklist
+  item remains partial because its stated all-twelve acceptance condition was
+  not met. The accepted deferral does not block Chunk 3 acceptance.
 - [x] The resolver/runtime-preview suite passes all four supported host
   OS/architecture combinations and proves unsupported combinations fail before
   Podman invocation.
-- [~] GH and Task select the matching official release archive on both
+- [x] GH and Task select the matching official release archive on both
   platforms; language/package-manager builds produce runnable target binaries.
-  Focused preview tests cover both architecture branches and both native arm64
-  images built and ran successfully; native `amd64` archive execution remains
-  part of the pending Linux matrix.
+  Focused preview tests cover both architecture branches, and native arm64 and
+  amd64 images built and ran successfully. The Linux builds visibly selected
+  `gh_*_linux_amd64.tar.gz` and `task_linux_amd64.tar.gz`.
 - [x] A digest rotation changes only the affected configured input and local
   cache identity; the prior digest remains recoverable from git history.
 - [x] Contributor docs, project prompt, generic template, canonical creation
@@ -800,6 +814,26 @@ Primary change surface:
 - Repository verification: `./tests/test.sh` passed 93 tests; context-tree,
   shell syntax, executable modes, semantic generated-skill parity, fingerprint
   checks, and `git diff --check` passed.
+- Host: Linux `x86_64`/`amd64`, Podman 5.4.2, native target `linux/amd64`.
+- Linux direct versions passed: `aws@2.31`, `gcloud@573.0`, `go@1.26`,
+  `jq@1.8`, `nmap@7.98`, `rg@15.1`, `skopeo@1.22`, and `terraform@1.15`.
+- Linux local-build versions passed: `gdrive@0.2`, `gh@2.94`, `logmine@0.1`,
+  `netcat@7.92`, `oc@4.18`, `oc@4.20`, `oc@4.22`,
+  `opnsense-mcp-admin@1.0`,
+  `opnsense-mcp-read-only@0.4`, `task@3.45`, and `textual@8.2`.
+- Authenticated verification command:
+  `SHIMMY_SKOPEO_AUTH_SECRET=registry-auth ./commands/images.sh verify --all --format manifest`;
+  result: exit zero, all twenty roles verified, all three
+  OC roles passed authenticated access, and valid pinned Netcat and Ripgrep
+  indexes reported non-strict upstream-tag drift warnings.
+- Linux partial: `tessl@0.1` built for `linux/amd64`, but its smoke failed while
+  the npm launcher promoted its downloaded `linux-x64` executable. Human review
+  explicitly accepted this as a non-blocking deferral.
+- The 10 GB Linux root filesystem reached 95% utilization during concurrent
+  builds. After explicit approval, only enumerated, reproducible images already
+  verified during this run were removed; the pre-existing tagged Ripgrep image
+  was preserved. Tessl and Textual were then rebuilt, eliminating storage as
+  the cause of Tessl's remaining runtime failure.
 
 ### Human review gate
 
@@ -902,6 +936,24 @@ multi-architecture image-support feature.
 - Exact per-wrapper approvals produced valid native Podman evidence; approval
   of an aggregate test launcher did not grant nested wrapper access in this AI
   agent environment.
+- The native Linux matrix confirms all direct defaults and both explicit
+  archive selectors. A persistent Podman auth file enables native OC builds,
+  while the containerized verifier separately requires an explicitly selected
+  Podman secret containing compatible registry auth JSON.
+- Non-strict upstream drift is independent of pinned-index validity. Netcat and
+  Ripgrep both retained valid dual-platform pinned indexes while their mutable
+  upstream tags moved; adopting either new digest remains a separate reviewed
+  rotation.
+- Tessl's Node-based installer selected, downloaded, and checksum-verified the
+  correct `linux-x64` artifact, but the unprivileged runtime launcher could not
+  execute/promote it. Build success alone is insufficient evidence for
+  installer-based local images; the version-owned smoke remains mandatory for
+  future Tessl acceptance. Human review explicitly deferred this failing
+  container from the current Chunk 3 acceptance run.
+- Native matrices can consume several gigabytes even with shared layers. On a
+  10 GB runner, execute in smaller batches and remove only enumerated,
+  reproducible acceptance artifacts with explicit approval when capacity is
+  exhausted.
 
 ## Session bootstrap
 
@@ -921,7 +973,10 @@ For a fresh implementation session:
    unchanged tool-specific override/mount/credential behavior.
 4. Chunk 2 was accepted with the pinned Netcat snapshot retained; treat its
    moved upstream tag as a separate digest-rotation follow-up.
-5. Chunk 3 is at its human review gate. Apple Silicon acceptance and repository
-   work are complete; native Linux `amd64` execution and full authenticated Red
-   Hat verification remain partial. Do not mark the feature complete without
-   running them or explicitly accepting their deferral.
+5. Chunk 3 is at its final human review gate. Apple Silicon acceptance,
+   repository work, full authenticated index verification, all Linux direct
+   smokes, and eleven Linux local-build smokes are complete. Tessl's Linux
+   image builds but fails its runtime smoke while promoting the downloaded
+   `linux-x64` binary; its non-blocking deferral was explicitly accepted and no
+   further Tessl work is required in this chunk. Do not begin another chunk
+   until the reviewer explicitly accepts Chunk 3.
