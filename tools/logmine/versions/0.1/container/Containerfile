@@ -1,12 +1,13 @@
 ARG SHIMMY_LOGMINE_BASE_IMAGE
 FROM ${SHIMMY_LOGMINE_BASE_IMAGE}
 
-ARG SHIMMY_LOGMINE_VERSION=v0.1
+ARG SHIMMY_LOGMINE_VERSION=e32a7f656d21fe87b1e1209db4312b728f2f521a
 
 RUN git clone https://github.com/kpfaulkner/gologmine /src/gologmine \
     && cd /src/gologmine \
     && git checkout "${SHIMMY_LOGMINE_VERSION}" \
-    && go build -o /usr/local/bin/logmine ./... \
+    && go get github.com/sirupsen/logrus@v1.6.0 \
+    && go build -o /usr/local/bin/logmine . \
     && chmod +x /usr/local/bin/logmine
 
 WORKDIR /work

@@ -1,6 +1,6 @@
 ---
 name: shimmy-tool-terraform
-description: Canonical terraform CLI via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the Terraform shim in this repository, including AWS credential mounts, plugin-cache mounts, TF_VAR forwarding, and plan-first validation.
+description: Guidance for using, changing, testing, and troubleshooting the Terraform shim in this repository, including AWS credential mounts, plugin-cache mounts, TF_VAR forwarding, and plan-first validation.
 ---
 
 # Terraform Shim
@@ -32,7 +32,7 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: `docker.io/hashicorp/terraform:1.15.6`
+- Default image: `docker.io/hashicorp/terraform@sha256:adae45661e45d3c88beef071ee1277b4621cea73517aae7f0844657c8e85f641` from version-owned `image.conf`
 - Image override: `SHIMMY_TF_IMAGE`
 - Pull override: `SHIMMY_TF_IMAGE_PULL=always`
 - Runtime mode: TTY only when stdin and stdout are terminals
@@ -41,7 +41,7 @@ removed repository `shims/` paths.
   - `$HOME/.aws` to `/root/.aws:ro` when present
   - `$HOME/.terraform.d/plugin-cache` to `/root/.terraform.d/plugin-cache` when present
 - Forwarded env: `AWS_*`, `TF_VAR_*`
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
 

@@ -69,6 +69,11 @@ operations to write them and `shimmy skills uninstall --target repo|profile`
 for removal. The `plugin` target is a packaged profile-local bundle, not a
 shared external target.
 
+Repository and home `.agents/skills/<name>/` targets are one-file
+compatibility adapters containing only `SKILL.md`. Do not copy canonical
+`CONTEXT.md` files into those targets. Packaged plugin skills retain their
+complete canonical directory payload.
+
 ## Shim Kind Workflow
 
 Shimmy exposes logical tool kinds as the user-facing commands on `PATH`.
@@ -85,6 +90,46 @@ Runtime behavior belongs in concrete major.minor version shims under those kinds
 - `shimmy install --shim <kind>` installs the kind dispatcher plus its default version. Use `shimmy install --shim <kind>@<version-label>` when a non-default version is needed.
 - Profile manifests record `kind=` for installed user-facing commands and `kind_version=<kind>|<label>|<version>` for installed concrete versions.
 - Do not put tool-specific runtime behavior in a kind dispatcher. Add or update the relevant version shim instead.
+
+### Image selection and rotation
+
+Choose the image strategy before adding a concrete version:
+
+- Use `image_source=external` when a suitable publisher image exists.
+- Use `image_source=local-build` when Shimmy must build a version-owned
+  `container/` context. Every non-`scratch` base is part of the same image
+  contract.
+
+Every concrete version must own one valid `image.conf`. Repository defaults
+must be fully qualified immutable OCI-index or Docker-manifest-list digests
+whose descriptors include both `linux/amd64` and `linux/arm64`; tags belong in
+the upstream discovery fields, not in default fields. Use the shared runtime
+helpers for host OS/architecture selection and image consumption. Audit any
+download URL, package, installer, or compiled dependency in a local build for
+target-architecture behavior rather than assuming a multi-platform base is
+sufficient.
+
+Before accepting a new or rotated default, run `shimmy images verify` (or
+`./commands/images.sh verify` from source) and native version-owned smokes on
+Linux `amd64` and Apple Silicon macOS `arm64`. Cross-emulated builds do not
+replace either native acceptance run.
+
+Rotate a digest as a focused reviewed change:
+
+1. Locate the publisher's intended tag or release reference.
+2. Resolve its top-level index digest and verify both required platforms and
+   any required registry authentication.
+3. Update only the affected version's `image.conf` default and upstream
+   discovery fields as applicable.
+4. For a local build, confirm the derived cache identity changes.
+5. Pull or build the selected native image and run the version-owned smoke on
+   both native acceptance hosts.
+6. Keep the prior digest recoverable in git history and identify it in review
+   notes as the rollback reference.
+
+Do not make remote registry checks part of the default offline suite. A
+scheduled verifier requires a separately reviewed runner and credential
+design.
 
 ## Naming Conventions
 

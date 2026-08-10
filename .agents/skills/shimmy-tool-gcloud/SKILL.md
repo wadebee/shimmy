@@ -1,6 +1,6 @@
 ---
 name: shimmy-tool-gcloud
-description: Canonical GCloud via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the Google Cloud CLI shim in this repository, including configuration mounts, kubeconfig mounting, and CLOUDSDK_* environment variable forwarding.
+description: Guidance for using, changing, testing, and troubleshooting the Google Cloud CLI shim in this repository, including configuration mounts, kubeconfig mounting, and CLOUDSDK_* environment variable forwarding.
 ---
 
 # Google Cloud CLI Shim
@@ -32,7 +32,7 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: `gcr.io/google.com/cloudsdktool/google-cloud-cli:573.0.0-stable`
+- Default image: `gcr.io/google.com/cloudsdktool/google-cloud-cli@sha256:f5fae73a6f1c60b58a1150ff76771a43620891d4dd74abc527c8eca0d544b385` from version-owned `image.conf`
 - Image override: `SHIMMY_GCLOUD_IMAGE`
 - Pull override: `SHIMMY_GCLOUD_IMAGE_PULL=always`
 - Config dir override: host `CLOUDSDK_CONFIG`
@@ -45,7 +45,7 @@ removed repository `shims/` paths.
   - host `CLOUDSDK_CONFIG`, otherwise `$HOME/.config/gcloud`, to `/home/cloudsdk/.config/gcloud:rw`; the host directory is created during normal gcloud execution
   - `$HOME/.kube/config` to `/home/cloudsdk/.kube/config:ro` when present
 - Forwarded env: `CLOUDSDK_*`
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
 
@@ -53,7 +53,7 @@ removed repository `shims/` paths.
 2. Do not create kubeconfig paths, credentials, or Google Cloud CLI config files automatically.
 3. Keep `--shimmy-config-help` non-mutating; normal gcloud execution creates host `CLOUDSDK_CONFIG` when set, otherwise `~/.config/gcloud` when `HOME` is set.
 4. Keep the container running as `cloudsdk` with `CLOUDSDK_CONFIG=/home/cloudsdk/.config/gcloud` unless a future image removes that user or changes its home.
-5. Keep the default image aligned with Google's documented Google Cloud CLI Docker image repository. The `:stable` tag is the preferred default because Google documents it as supporting both `linux/amd64` and `linux/arm64`.
+5. Keep the upstream tag and immutable multi-platform default in `image.conf` aligned with Google's documented Google Cloud CLI image repository.
 6. Treat `CLOUDSDK_*` forwarding as the current contract; update docs and tests deliberately if it changes. Host `CLOUDSDK_CONFIG` should select the host mount source, and Shimmy's explicit container `CLOUDSDK_CONFIG` value should point to that mounted directory.
 7. Prefer `gcloud info`, `gcloud version`, and `gcloud auth list` for validation and information gathering.
 8. Do not run `gcloud apply` or `gcloud destroy` style operations unless the user explicitly asks for that operation and understands the consequences.

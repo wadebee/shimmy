@@ -9,6 +9,8 @@ without bypassing an image override.
 `image.conf` owns the local context/repository, configured Go base digest,
 public registry access, and required platforms consumed by build/cache helpers
 and `shimmy status`.
+The Containerfile pins the audited upstream source commit because gologmine
+publishes no tags; changing it changes the local image cache identity.
 
 ## Child contexts
 

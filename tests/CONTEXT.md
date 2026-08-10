@@ -3,6 +3,8 @@
 `test.sh` is the canonical POSIX test runner and `support.sh` provides shared
 assertions, scenarios, and cleanup. `profile-smoke.sh` parses installed-profile
 test requests and runs the enclosing profile's non-mutating smoke commands.
+Smoke output capture preserves the wrapped command's exit status so engine or
+tool failures cannot be reported as passes.
 Tests use live Podman only for non-mutating commands; preview rendering is
 preferred where it proves the same behavior. The default suite validates image
 metadata offline and previews every concrete runtime across the supported

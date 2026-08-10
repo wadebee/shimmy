@@ -1,6 +1,6 @@
 ---
 name: shimmy-tool-gdrive
-description: Canonical Google Drive via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the gdrive MCP server shim in this repository, including local image builds from isaacphi/mcp-gdrive and required OAuth credential mounts.
+description: Guidance for using, changing, testing, and troubleshooting the gdrive MCP server shim in this repository, including local image builds from isaacphi/mcp-gdrive and OAuth credential mounts.
 ---
 
 # gdrive Shim
@@ -33,13 +33,14 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: locally built `localhost/shimmy-gdrive-0_2:<context-hash>-<platform>` from `isaacphi/mcp-gdrive`
+- Default image: locally built `localhost/shimmy-gdrive-0_2:<image-input-hash>-<platform>` from version-owned `image.conf`, `container/`, and `isaacphi/mcp-gdrive`
 - Source ref: `SHIMMY_GDRIVE_SOURCE_REF`, default `5a94bdcb751975f9f6552d261da35314baf89c43`
 - Image override: `SHIMMY_GDRIVE_IMAGE`
 - Build override: `SHIMMY_GDRIVE_IMAGE_BUILD=always`
 - Pull override for image overrides: `SHIMMY_GDRIVE_IMAGE_PULL=always`
 - OAuth callback port override: `SHIMMY_GDRIVE_AUTH_PORT`, default `3000`
 - Base image override: `SHIMMY_GDRIVE_BASE_IMAGE`
+- Default base: `docker.io/library/node@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32`
 - Required upstream env: `CLIENT_ID`, `CLIENT_SECRET`, `GDRIVE_CREDS_DIR`
 - Runtime mode: stdio-friendly via `podman run --rm -i`
 - Mounts:
@@ -52,7 +53,7 @@ removed repository `shims/` paths.
   - `CLIENT_ID`
   - `CLIENT_SECRET`
   - `GDRIVE_CREDS_DIR`
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
 

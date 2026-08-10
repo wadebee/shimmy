@@ -42,10 +42,11 @@ a user's Shimmy installation or shell startup files.
   upstream-isolation case clones upstream while retaining the real default
   startup installation.
 - `skills.sh` covers canonical skill sources, checked-in export fingerprints,
-  portable manifests, installed-kind selection, explicit repository, home, and
-  plugin targets, unconditional profile payload, lifecycle isolation, refresh,
-  and manifest-tracked cleanup. Its target-ownership lifecycle and retryable
-  external-target failure start from pristine profile clones.
+  one-file repository/home adapters, complete plugin copies, portable
+  manifests, installed-kind selection, unconditional profile payload,
+  lifecycle isolation, refresh, and manifest-tracked cleanup. Its
+  target-ownership lifecycle and retryable external-target failure start from
+  pristine profile clones.
 - `dispatcher.sh` covers profile-bound installed dispatchers, ownership, and
   recursion protections using isolated pristine clones for destructive cases;
   repository previews use `commands/run-tool.sh`.
@@ -56,6 +57,7 @@ a user's Shimmy installation or shell startup files.
 - `test.sh` covers installed-profile test request, metadata validation,
   profile binding, public dispatch, and concrete-version orchestration. Its
   installed profile-binding scenario starts from a pristine clone; runtime
-  orchestration uses disposable wrapper fixtures rather than live containers.
+  orchestration uses disposable wrapper fixtures rather than live containers,
+  including a failing smoke that must propagate its nonzero status.
 - `agent-preflight.sh` covers image-metadata-driven approval smoke commands and
   local-build preview selection without requiring a live Podman engine.

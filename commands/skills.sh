@@ -341,6 +341,35 @@ skill_dir_install() {
   source_dir=$1
   target_dir=$2
   skill_name=$3
+  target_name=$4
+
+  case "$target_name" in
+    repo|profile)
+      source_skill_file=$source_dir/SKILL.md
+      target_skill_file=$target_dir/SKILL.md
+      target_entry_count=0
+
+      if [ -d "$target_dir" ]; then
+        for target_entry in "$target_dir"/* "$target_dir"/.[!.]* "$target_dir"/..?*; do
+          [ -e "$target_entry" ] || [ -L "$target_entry" ] || continue
+          target_entry_count=$((target_entry_count + 1))
+        done
+      fi
+
+      [ -f "$source_skill_file" ] || fail "missing canonical skill file: $source_skill_file"
+      if [ -d "$target_dir" ] && [ "$target_entry_count" -eq 1 ] &&
+        [ -f "$target_skill_file" ] && cmp -s "$source_skill_file" "$target_skill_file"; then
+        log_info "Skill already current: $skill_name"
+        return 0
+      fi
+
+      rm -rf "$target_dir"
+      mkdir -p "$target_dir"
+      cp "$source_skill_file" "$target_skill_file"
+      log_info "Installed skill: $skill_name"
+      return 0
+      ;;
+  esac
 
   source_dir_real=$(cd -- "$source_dir" && pwd)
   target_dir_real=
@@ -462,7 +491,7 @@ skills_sync_to_root() {
   while IFS= read -r skill_name; do
     [ -n "$skill_name" ] || continue
     source_dir=$(skill_source_dir_resolve "$skill_name")
-    skill_dir_install "$source_dir" "$target_root/$skill_name" "$skill_name"
+    skill_dir_install "$source_dir" "$target_root/$skill_name" "$skill_name" "$target_name"
   done <<EOF
 $skill_names
 EOF

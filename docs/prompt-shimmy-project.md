@@ -46,6 +46,20 @@ Add a self-contained `tools/<kind>/` directory with `tool.conf`, a guide,
 catalog discovers this metadata; do not add tool-name case statements to `lib/`
 or command code.
 
+Choose `external` or `local-build` before implementation. Each concrete
+version must own a complete `image.conf`; every repository default and
+non-`scratch` base must be an immutable top-level index digest with both
+required platforms. Keep mutable publisher tags only as upstream discovery
+references. Use the shared image and Podman helpers rather than duplicating
+defaults or OS/architecture checks.
+
+Audit companion tools, packages, download URLs, and release archives for both
+target architectures. Verify configured indexes explicitly with `shimmy images
+verify`, then run the version-owned smoke on native Linux `amd64` and native
+Apple Silicon macOS `arm64`; cross-emulation is not acceptance. Digest rotation
+is a focused `image.conf` review that must change local cache identity when
+applicable and retain the prior digest in git history as rollback evidence.
+
 ## Installed profiles and external integrations
 
 Install profiles below an absolute

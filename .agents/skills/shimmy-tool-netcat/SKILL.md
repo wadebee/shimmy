@@ -1,6 +1,6 @@
 ---
 name: shimmy-tool-netcat
-description: Canonical NetCat CLI via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the Netcat/Ncat shim in this repository, including local image build behavior and network debugging safety.
+description: Guidance for using, changing, testing, and troubleshooting the Netcat/Ncat shim in this repository, including local image build behavior and network debugging safety.
 ---
 
 # Netcat Shim
@@ -33,15 +33,15 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: locally built `localhost/shimmy-netcat-7_92:<context-hash>-<platform>`
+- Default image: locally built `localhost/shimmy-netcat-7_92:<image-input-hash>-<platform>` from version-owned `image.conf` and `container/`
 - Image override: `SHIMMY_NETCAT_IMAGE`
 - Build override: `SHIMMY_NETCAT_IMAGE_BUILD=always`
 - Pull override for image overrides: `SHIMMY_NETCAT_IMAGE_PULL=always`
 - Base image override: `SHIMMY_NETCAT_BASE_IMAGE`
-- Default base image: `registry.access.redhat.com/ubi9/ubi-minimal:latest`
+- Default base image: `registry.access.redhat.com/ubi9/ubi-minimal@sha256:dd334afa72444fa46238fcf9e6bd399245adf746378735348cf84b9dfdca38f1`
 - Runtime mode: stdin-friendly via `podman run --rm -i`
 - Mount: `$PWD` to `/work:rw`
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
 

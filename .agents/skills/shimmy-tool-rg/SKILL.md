@@ -1,6 +1,6 @@
 ---
 name: shimmy-tool-rg
-description: Canonical rg CLI via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the ripgrep shim in this repository, including stdin-friendly search behavior and rg image/version expectations.
+description: Guidance for using, changing, testing, and troubleshooting the ripgrep shim in this repository, including stdin-friendly search behavior and rg image/version expectations.
 ---
 
 # ripgrep Shim
@@ -32,13 +32,13 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: `docker.io/vszl/ripgrep:latest`
+- Default image: `docker.io/vszl/ripgrep@sha256:3e12f460f714b3c4ab27f4dbad8b7eda7b8184050c46c15f95eb0f2f53b5818c` from version-owned `image.conf`
 - Image override: `SHIMMY_RG_IMAGE`
 - Pull override: `SHIMMY_RG_IMAGE_PULL=always`
 - Runtime mode: stdin-friendly via `podman run --rm -i`
 - Mount: `$PWD` to `/work`
 - No extra mounts or forwarded env var families
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
 

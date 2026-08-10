@@ -1,14 +1,16 @@
 ---
 name: shimmy-tool-oc
-description: Canonical oc CLI via Shimmy workflow through the Shimmy runtime. Use and maintain the context-first OpenShift CLI Shimmy tool.
+description: Use and maintain the context-first OpenShift CLI Shimmy tool.
 ---
 
 # OpenShift CLI Shim
 
 Read `../../../CONTEXT.md`, `../CONTEXT.md`, and the selected version context.
 `SHIMMY_OC_VERSION` selects a supported local-build version; metadata defaults
-to 4.20. Preserve publisher-supplied multi-architecture manifest-list digests
-for default CLI images so the shared runtime helper can select the host platform.
+to 4.20. Each version's `image.conf` owns its authenticated Red Hat
+manifest-list digest and passes it to the Containerfile. Preserve those index
+digests so the shared runtime helper can select the native platform from host
+OS and CPU.
 Use `oc --help` for non-network smoke checks across supported versions.
 
 ## Corporate / proxy / airgapped environments

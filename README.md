@@ -99,6 +99,14 @@ overrides retain their documented `SHIMMY_*` names.
 advance the recorded upstream tag. Adopting a newer upstream artifact requires
 a reviewed `image.conf` change.
 
+For a digest rotation, resolve the publisher tag to its top-level index,
+verify `linux/amd64` and `linux/arm64`, update only the affected version's
+`image.conf`, confirm any local-build cache identity changes, and run the
+version-owned smoke on native Linux `amd64` and Apple Silicon `arm64` hosts.
+Record the previous digest in review notes as the rollback reference; git
+history retains the actual prior value. Upstream drift reported by the verifier
+does not modify the pinned snapshot automatically.
+
 Run explicit remote verification when reviewing those pinned defaults:
 
 ```sh

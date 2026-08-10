@@ -154,9 +154,10 @@ test_profile_smoke_command_run() {
 
   set +e
   smoke_output=$(
+    exec 2>&1
     test_profile_smoke_env_apply "$smoke_env_file" || exit 1
     "$target_path" "$@"
-  2>&1)
+  )
   smoke_status=$?
   set -e
 

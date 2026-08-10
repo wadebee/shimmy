@@ -11,6 +11,8 @@ An exported `.agents/skills` tree is external state owned by its own
 operations do not implicitly refresh or remove it; explicit `shimmy skills
 uninstall --target <target>` is the removal path. The repository `.agents/`
 tree remains an externally managed distribution adapter for existing sessions.
+Repository and home adapters contain only the canonical `SKILL.md`; do not
+copy canonical `CONTEXT.md` files or other repository metadata into them.
 Before regenerating it, migrate any richer adapter guidance into the canonical
 skill and modernize only obsolete paths or lifecycle wording. Fingerprint
 parity does not substitute for semantic preservation.

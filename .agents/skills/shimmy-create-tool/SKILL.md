@@ -10,8 +10,9 @@ description: Create or extend a Shimmy tool kind and its concrete CLI versions. 
 - Read `CONTRIBUTING.md`, `docs/prompt-shimmy-project.md`, and the context
    path from root to the target tool.
 - Inspect a comparable tool under `tools/` before introducing structure.
-- Operate in PLAN -> REVIEW -> ACT mode to gather necessary feedback about tool image parameters (provenance, version, etc)
-- Identify risks, assumptions, and best practices you embrace.
+- Use PLAN -> REVIEW -> ACT for image provenance, version, strategy, and other
+  choices whose alternatives materially change the resulting tool.
+- Record risks, assumptions, and adopted safeguards.
 - Check upstream documentation for required companion tools and choose the
    image strategy before editing. Ask the user when viable image or version
    choices materially differ.
@@ -31,8 +32,8 @@ description: Create or extend a Shimmy tool kind and its concrete CLI versions. 
 Create or update the following as applicable:
 
 - `tools/<kind>/tool.conf`, `guide.md`, `CONTEXT.md`, and `agent/SKILL.md`;
-- `tools/<kind>/versions/<major.minor>/run.sh`, `smoke.conf`, and
-  `CONTEXT.md`;
+- `tools/<kind>/versions/<major.minor>/run.sh`, `smoke.conf`, `image.conf`,
+  `refresh.sh`, and `CONTEXT.md`;
 - `container/Containerfile` and its context only for local-build versions;
 - `tools/<kind>/tests/` for behavior not covered by generic catalog tests.
 
@@ -41,11 +42,15 @@ Mount `$PWD` at `/work` unless the tool's context documents an exception. Use
 the shared Podman helper for platform selection. Shimmy-defined environment
 variables must start with `SHIMMY_`.
 
-When an image must work on both Linux `amd64` and macOS `arm64`, prefer a
-fully qualified manifest-list digest supplied by the image publisher. Do not
-pin an architecture-specific image digest or tag as the default: Podman must
-select the matching platform image while the shared runtime helper retains
-responsibility for `--platform`.
+Choose `image_source=external` for a suitable publisher image or
+`image_source=local-build` for a version-owned build context. Every concrete
+version owns exactly one valid `image.conf`. Repository defaults and every
+non-`scratch` base must be fully qualified immutable top-level OCI-index or
+Docker-manifest-list digests containing both `linux/amd64` and `linux/arm64`.
+Keep mutable tags only in upstream discovery fields. Never pin an
+architecture-specific child digest or duplicate a configured default in shell
+or a Containerfile. Podman selects the native child through the shared runtime
+helper's `--platform` value.
 
 ## Dependency and safety gate
 
@@ -63,9 +68,15 @@ in the guide and the tool skill.
 
 `tool.conf` is the source of truth for kind defaults and selectors. `smoke.conf`
 is the source of truth for the concrete version's non-mutating smoke command.
+`image.conf` is the source of truth for image strategy, immutable defaults,
+registry access, local context/build arguments, and required platforms.
 Do not add central tool-name, status-image, or refresh case lists. Follow the
 existing catalog and lifecycle contracts until version-local refresh hooks
 replace the remaining update logic.
+
+For local builds, audit packages, install scripts, compiled dependencies, and
+release archive URLs for both target architectures. A compatible base index is
+necessary but not sufficient.
 
 ## Validation
 
@@ -73,6 +84,7 @@ Run, as applicable:
 
 ```sh
 ./commands/run-tool.sh <kind> --preview-shim --help
+./commands/images.sh verify --shim <kind>@<version>
 ./tests/test.sh
 git diff --check
 ```
@@ -81,3 +93,10 @@ Use a live non-mutating `--version`, `version`, or `--help` smoke only after
 Podman and the exact outer Shimmy wrapper command have the required approval.
 For installed behavior, use an absolute disposable `XDG_CONFIG_HOME` and inspect
 `shimmy status --format manifest` rather than relying on `command -v` alone.
+Feature acceptance requires the version-owned smoke on native Linux `amd64`
+and native Apple Silicon macOS `arm64`; do not substitute cross-emulation.
+
+For digest rotation, resolve the publisher tag to its top-level index, verify
+both platforms and registry access, update only the affected `image.conf`,
+confirm local cache identity changes when applicable, repeat both native
+smokes, and retain the prior digest in git history/review notes for rollback.

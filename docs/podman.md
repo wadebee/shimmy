@@ -97,6 +97,28 @@ Linux and Darwin hosts normalize `x86_64`/`amd64` to `amd64` and
 `linux/arm64` image platform. Unreadable or unsupported values fail before
 Podman is invoked.
 
+## Native image acceptance
+
+A multi-platform index proves that descriptors exist; it does not prove that a
+tool or local build works on each target. Accept image changes with the
+version-owned non-mutating smoke on both native targets:
+
+- Linux on `amd64`, running `linux/amd64` containers.
+- Apple Silicon macOS with a running Podman machine, running `linux/arm64`
+  containers.
+
+For local images, build on each native target before running the smoke. Inspect
+architecture-dependent downloads such as release archives explicitly. Do not
+use cross-emulated Containerfile success as a substitute; Shimmy does not
+provision host emulation.
+
+To rotate a repository default, resolve the publisher's tag to the immutable
+top-level index digest, verify both required descriptors and registry access,
+change only the affected `image.conf`, confirm local cache identity changes
+when applicable, and repeat both native smokes. Keep the old digest in git
+history and call it out as the rollback reference in review notes. Registry
+verification remains explicit rather than an always-on default test.
+
 Podman Desktop is not required. Shimmy needs the Podman CLI and an engine the
 CLI can reach.
 

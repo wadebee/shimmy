@@ -1,6 +1,6 @@
 ---
 name: shimmy-tool-textual
-description: Canonical textual CLI via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the Textual developer CLI shim in this repository, including local image builds, TTY behavior, and Textual app diagnostics.
+description: Guidance for using, changing, testing, and troubleshooting the Textual developer CLI shim in this repository, including local image builds, TTY behavior, and Textual app diagnostics.
 ---
 
 # Textual Shim
@@ -33,16 +33,16 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: locally built `localhost/shimmy-textual-8_2:<context-hash>-<platform>`
+- Default image: locally built `localhost/shimmy-textual-8_2:<image-input-hash>-<platform>` from version-owned `image.conf` and `container/`
 - Image override: `SHIMMY_TEXTUAL_IMAGE`
 - Build override: `SHIMMY_TEXTUAL_IMAGE_BUILD=always`
 - Pull override for image overrides: `SHIMMY_TEXTUAL_IMAGE_PULL=always`
 - Base image override: `SHIMMY_TEXTUAL_BASE_IMAGE`
 - Textual version override: `SHIMMY_TEXTUAL_VERSION`
-- Default base image: `python:3.13-slim-bookworm`
+- Default base image: `docker.io/library/python@sha256:67a1e1f215ccda113cfc024e8639049257e88f273898f595b61476d128d387e8`
 - Runtime mode: TTY only when stdin and stdout are terminals
 - Mount: `$PWD` to `/work:rw`
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
 

@@ -1,6 +1,6 @@
 ---
 name: shimmy-install
-description:  Canonical guidance to install, update, validate, initialize shells for, or remove Shimmy profiles. Use for Shimmy lifecycle work, bootstrap-time profile selection, disposable XDG installation validation, external startup or skills integration, and manifest-based state inspection.
+description: Install, update, validate, initialize shells for, or remove Shimmy profiles. Use for Shimmy lifecycle work, bootstrap-time profile selection, disposable XDG installation validation, external startup or skills integration, and manifest-based state inspection.
 ---
 
 # Shimmy Installation Lifecycle

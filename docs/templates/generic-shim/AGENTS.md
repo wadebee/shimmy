@@ -7,7 +7,13 @@ This template describes one context-first Shimmy tool directory.
 - Read this directory's `SKILL.md`, root `CONTEXT.md`, and `tools/CONTEXT.md`.
 - Create `tools/<kind>/tool.conf`, `CONTEXT.md`, `guide.md`, and `agent/SKILL.md`.
 - Put each concrete runtime at `versions/<major.minor>/run.sh` with a sibling
-  `smoke.conf` and `CONTEXT.md`.
+  `smoke.conf`, `image.conf`, and `CONTEXT.md`.
 - Put local build assets in that version's `container/` directory.
 - Keep runtime wrappers POSIX shell, executable, and `SHIMMY_`-prefixed for
   Shimmy-defined environment variables.
+- Choose `image_source=external` or `image_source=local-build`. Pin repository
+  defaults and non-`scratch` bases to top-level indexes containing
+  `linux/amd64` and `linux/arm64`; retain tags only for upstream discovery.
+- Use the shared image and Podman helpers. Audit architecture-specific
+  artifacts, run the explicit image verifier, and require native smokes on
+  Linux `amd64` and Apple Silicon macOS `arm64`.

@@ -1,6 +1,6 @@
 ---
 name: shimmy-escalation
-description: Defines the narrow Podman and Shimmy-wrapper approval workflow for AI-agent environments. Request narrow escalation permissions that run through Podman. Use when the user asks to make installed shims usable from AI Agent shells, pre-authorize wrapper smoke checks, or troubleshoot sandbox permission prompts.
+description: Request narrow AI Agent escalation permissions for Shimmy wrappers that run through Podman. Use when the user asks to make installed shims usable from AI Agent shells, pre-authorize wrapper smoke checks, or troubleshoot sandbox permission prompts.
 ---
 
 # Shimmy Escalation Skill

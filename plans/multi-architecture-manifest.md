@@ -422,7 +422,7 @@ None.
 
 ## Progress Checklist
 
-Active chunk: Chunk 2 implemented and verified, pending human review.
+Active chunk: Chunk 3 at human review gate with external partials.
 
 - [x] Chunk 1 — Add native host-architecture selection, introduce the image
   configuration contract, and atomically migrate every current concrete
@@ -430,9 +430,13 @@ Active chunk: Chunk 2 implemented and verified, pending human review.
 - [x] Chunk 2 — Add opt-in live index verification with explicit
   authentication and deterministic parser coverage. The public live run
   verified every public pinned index, skipped all three authenticated OC
-  entries, and reported one non-strict upstream-tag drift for Netcat.
-- [ ] Chunk 3 — Complete native target-platform acceptance, rotation guidance,
-  and future-tool guardrails.
+  entries, and reported one non-strict upstream-tag drift for Netcat. Human
+  review accepted the pinned Netcat snapshot; its upstream digest rotation is
+  a separate follow-up and is not part of this feature chunk.
+- [~] Chunk 3 — Native Apple Silicon acceptance, rotation guidance, future-tool
+  guardrails, generated guidance parity, and repository verification are
+  complete. Native Linux `amd64` execution and authenticated Red Hat index
+  verification remain external acceptance requirements.
 
 ## Execution protocol
 
@@ -729,38 +733,73 @@ Primary change surface:
    OS/architecture selection, choose `external` or `local-build`, create
    `image.conf`, use an index digest, validate bases and architecture-specific
    artifacts, and run the explicit verifier.
-9. Generate compatibility-adapter and plugin skills only from the reviewed
-   canonical sources. Update target manifests/fingerprints with the normal
-   explicit skills command and verify semantic parity, not only matching
-   checksums.
+9. Generate compatibility adapters and plugin skills only from the reviewed
+   canonical sources. Repository/home compatibility adapters contain only the
+   canonical `SKILL.md`; plugin skills retain the complete canonical directory.
+   Update target manifests/fingerprints with the normal explicit skills command
+   and verify semantic parity, not only matching checksums.
 10. Do not add an always-on remote registry job to the default workflow. If a
    later scheduled workflow is desired, require a separately reviewed,
    pre-provisioned runner/authentication design.
 
 ### Verification checklist
 
-- [ ] Full authenticated remote verification passes all direct defaults and
-  local bases, including all three OC digests.
-- [ ] All eight direct-image smokes pass on native Linux `amd64` and native
-  macOS/Apple Silicon `arm64`.
-- [ ] All twelve local images build and their version-owned smokes pass on both
-  native platforms.
-- [ ] The resolver/runtime-preview suite passes all four supported host
+- [~] Full authenticated remote verification passes all direct defaults and
+  local bases, including all three OC digests. The 2026-08-09 public-only run
+  passed all seventeen public roles, retained the accepted Netcat drift
+  warning, and skipped all three OC roles. The available Podman secrets include
+  a Red Hat password but no compatible registry `auth.json`, so authenticated
+  inspection remains pending and no credential material was synthesized or
+  exposed.
+- [~] All eight direct-image smokes pass on native Linux `amd64` and native
+  macOS/Apple Silicon `arm64`. All eight passed through exact approved source
+  wrappers on Darwin/arm64 with Podman 5.8.1 selecting `linux/arm64`; the native
+  Linux `amd64` run remains pending on a separate host.
+- [~] All twelve local images build and their version-owned smokes pass on both
+  native platforms. All twelve built and passed on Darwin/arm64 after repairing
+  Logmine's invalid source ref and legacy module build; the native Linux
+  `amd64` build/smoke matrix remains pending on a separate host.
+- [x] The resolver/runtime-preview suite passes all four supported host
   OS/architecture combinations and proves unsupported combinations fail before
   Podman invocation.
-- [ ] GH and Task select the matching official release archive on both
+- [~] GH and Task select the matching official release archive on both
   platforms; language/package-manager builds produce runnable target binaries.
-- [ ] A digest rotation changes only the affected configured input and local
+  Focused preview tests cover both architecture branches and both native arm64
+  images built and ran successfully; native `amd64` archive execution remains
+  part of the pending Linux matrix.
+- [x] A digest rotation changes only the affected configured input and local
   cache identity; the prior digest remains recoverable from git history.
-- [ ] Contributor docs, project prompt, generic template, canonical creation
+- [x] Contributor docs, project prompt, generic template, canonical creation
   skills, tool-specific guidance, and generated/plugin copies describe the same
   contract.
-- [ ] Skill fingerprint tests and semantic source/generated comparison pass.
-- [ ] `./tests/test.sh`, the repository context-tree test, executable-bit
+- [x] Skill fingerprint tests and semantic source/generated comparison pass.
+- [x] `./tests/test.sh`, the repository context-tree test, executable-bit
   checks, `/bin/sh -n`, and `git diff --check` pass after any native-failure
-  fixes and guidance generation.
-- [ ] This plan records platform, command, result, failures, approved deferrals,
+  fixes and guidance generation. The suite passes all 93 tests.
+- [x] This plan records platform, command, result, failures, approved deferrals,
   and durable lessons without credentials or unnecessary registry payloads.
+
+### Execution evidence
+
+- Host: Apple Silicon macOS (`Darwin/arm64`), Podman client/engine 5.8.1,
+  native target `linux/arm64`.
+- Direct versions passed: `aws@2.31`, `gcloud@573.0`, `go@1.26`, `jq@1.8`,
+  `nmap@7.98`, `rg@15.1`, `skopeo@1.22`, and `terraform@1.15`.
+- Local-build versions built and passed: `gdrive@0.2`, `gh@2.94`,
+  `logmine@0.1`, `netcat@7.92`, `oc@4.18`, `oc@4.20`, `oc@4.22`,
+  `opnsense-mcp-admin@1.0`, `opnsense-mcp-read-only@0.4`, `task@3.45`,
+  `tessl@0.1`, and `textual@8.2`.
+- The first aggregate installed-profile run was rejected as evidence because
+  Podman preflight failures were falsely reported as passes. The output-capture
+  boundary was fixed, a failing-smoke regression was added, and acceptance was
+  rerun through exact approved source wrappers.
+- Public verification command:
+  `./commands/images.sh verify --all --public-only --format manifest`; result:
+  seventeen public roles passed, three authenticated OC roles skipped, and the
+  separately accepted Netcat upstream movement remained a non-strict warning.
+- Repository verification: `./tests/test.sh` passed 93 tests; context-tree,
+  shell syntax, executable modes, semantic generated-skill parity, fingerprint
+  checks, and `git diff --check` passed.
 
 ### Human review gate
 
@@ -845,6 +884,25 @@ multi-architecture image-support feature.
   accepting that pinned snapshot or scheduling a separate digest rotation is a
   Chunk 2 review decision.
 
+### Chunk 3
+
+- Installed smoke capture must redirect stderr without adding a trailing
+  redirection-only command; otherwise that null command replaces the wrapped
+  runtime's nonzero status and creates false acceptance evidence.
+- Native validation can expose architecture-independent failures that preview
+  and metadata tests cannot. Logmine referenced a nonexistent `v0.1` tag,
+  lacked a legacy transitive module checksum, and tried to write multiple
+  packages to one output path. Pinning the audited commit, refreshing the exact
+  declared module requirement, and building the root command made the native
+  image reproducible and runnable.
+- Checked-in skill fingerprints prove integrity only. Repository/home adapters
+  must compare their sole `SKILL.md` with the canonical source, while plugin
+  skills compare the complete canonical directory; this preserves semantic
+  parity without exporting repository-only `CONTEXT.md` metadata.
+- Exact per-wrapper approvals produced valid native Podman evidence; approval
+  of an aggregate test launcher did not grant nested wrapper access in this AI
+  agent environment.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -861,8 +919,9 @@ For a fresh implementation session:
    behavior, version-owned image policy, no central tool/version cases, no
    implicit Podman/auth provisioning, no ordinary-run registry inspection, and
    unchanged tool-specific override/mount/credential behavior.
-4. Active implementation target is Chunk 2, which is implemented and verified
-   pending human review. Recheck its recorded evidence and stop at its human
-   review gate; do not begin Chunk 3.
-5. Do not start Chunk 3 without explicit acceptance of the preceding
-   chunk, including the disposition of every `[~]` item.
+4. Chunk 2 was accepted with the pinned Netcat snapshot retained; treat its
+   moved upstream tag as a separate digest-rotation follow-up.
+5. Chunk 3 is at its human review gate. Apple Silicon acceptance and repository
+   work are complete; native Linux `amd64` execution and full authenticated Red
+   Hat verification remain partial. Do not mark the feature complete without
+   running them or explicitly accepting their deferral.

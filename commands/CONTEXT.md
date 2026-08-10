@@ -23,7 +23,10 @@ reusable behavior belongs in `../lib/`.
 Installed commands derive profile identity from their profile root and reject
 profile and installation-location selectors. Canonical and plugin skills are
 profile payload; repository and home exports are written only by explicit
-standalone skills operations and are owned by the target manifest.
+standalone skills operations and are owned by the target manifest. Repository
+and home `.agents/skills/<name>/` exports are one-file compatibility adapters
+containing only `SKILL.md`; canonical source and packaged plugin directories
+may also contain repository context files and other owned resources.
 
 ## Related contexts
 

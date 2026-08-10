@@ -1,6 +1,6 @@
 ---
 name: shimmy-tool-opnsense-mcp-admin
-description: Canonical change-capable OPNsense MCP via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the opnsense-mcp-admin shim in this repository, including admin-capable OPNsense MCP routing, change-window approval, rollback guidance, Podman secrets, and supported tool inventory.
+description: Guidance for using, changing, testing, and troubleshooting the opnsense-mcp-admin shim in this repository, including admin-capable OPNsense MCP routing, change-window approval, rollback guidance, Podman secrets, and supported tool inventory.
 ---
 
 # OPNsense MCP Admin Shim
@@ -33,7 +33,8 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: local build from `../../../tools/opnsense-mcp-admin/versions/1.0/container/Containerfile`
+- Default image: local build from version-owned `image.conf` and `container/`
+- Default base: `docker.io/library/python@sha256:9662417aace5ae7b8e2609cce472b72a8958e134ba372808abe9cc1a0c0125e6`
 - Source ref: `eeccd8189dc2d80fd397b2a589b20683ec947266` from `floriangrousset/opnsense-mcp-server`
 - Build override: `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_BUILD=always`
 - Source ref override: `SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF`
@@ -49,7 +50,7 @@ removed repository `shims/` paths.
 - Runtime profile stub: the image writes a no-secret `~/.opnsense-mcp/config.json` default profile from `OPNSENSE_URL` and `OPNSENSE_VERIFY_SSL`
 - Runtime mode: stdio-friendly via `podman run --rm -i`
 - Mount: `$PWD` to `/work`
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Routing Rules
 

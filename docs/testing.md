@@ -79,6 +79,15 @@ That command can contact registries but does not pull target layers. A full
 authenticated acceptance run additionally requires an explicitly selected
 `SHIMMY_SKOPEO_AUTH_SECRET`; never place credential contents in test output.
 
+Feature acceptance for a new or rotated image also requires the concrete
+version's `smoke.conf` command on native Linux `amd64` and native Apple Silicon
+macOS `arm64`. Build every `image_source=local-build` version on each host
+before its smoke; run external defaults with the shared helper's selected
+native platform. Record the host platform, concrete version, command result,
+and any approved deferral without recording credentials. The deterministic
+preview suite covers both supported host-OS branches, but emulation and preview
+results do not replace the two native container-architecture runs.
+
 The runner in `tests/test.sh` sources shared assertions from
 `tests/support.sh`, shared-library coverage from `tests/lib/`, and
 management-command coverage from `tests/commands/`. Tool-specific coverage

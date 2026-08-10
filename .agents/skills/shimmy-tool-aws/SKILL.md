@@ -1,6 +1,6 @@
 ---
 name: shimmy-tool-aws
-description: Canonical AWS via Shimmy workflow through the Shimmy runtime. Guidance for using, changing, testing, and troubleshooting the AWS CLI shim in this repository, including AWS credential mounts, AWS env forwarding, and non-mutating AWS CLI smoke checks.
+description: Guidance for using, changing, testing, and troubleshooting the AWS CLI shim in this repository, including AWS credential mounts, AWS env forwarding, and non-mutating AWS CLI smoke checks.
 ---
 
 # AWS Shim
@@ -32,7 +32,7 @@ removed repository `shims/` paths.
 
 ## Current Behavior
 
-- Default image: `public.ecr.aws/aws-cli/aws-cli:2.31.21`
+- Default image: `public.ecr.aws/aws-cli/aws-cli@sha256:40033dc921634b1073094712ea8237869bc857cd7ddc2571896ec9b14ef97ae8` from version-owned `image.conf`
 - Image override: `SHIMMY_AWS_IMAGE`
 - Pull override: `SHIMMY_AWS_IMAGE_PULL=always`
 - Runtime mode: TTY only when stdin and stdout are terminals
@@ -40,7 +40,7 @@ removed repository `shims/` paths.
   - `$PWD` to `/work`
   - `$HOME/.aws` to `/root/.aws:ro` when present
 - Forwarded env: `AWS_*`
-- Platform: shared Podman helper resolves `linux/amd64` on Linux and `linux/arm64` on macOS
+- Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
 

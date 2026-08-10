@@ -43,6 +43,47 @@ test_commands_skills_manifest_fingerprints() {
   pass "checked-in repo and plugin skill manifests match their exported skill trees"
 }
 
+test_commands_skills_semantic_parity() {
+  for target_name in repo plugin; do
+    case "$target_name" in
+      repo) skills_root=$ROOT_DIR/.agents/skills ;;
+      plugin) skills_root=$ROOT_DIR/plugins/shimmy/skills ;;
+    esac
+    skills_manifest=$skills_root/.shimmy-skills-manifest.txt
+
+    while IFS= read -r manifest_line; do
+      case "$manifest_line" in
+        shimmy_skill=*)
+          skill_entry=${manifest_line#shimmy_skill=}
+          skill_entry=${skill_entry#*|}
+          skill_name=${skill_entry%%|*}
+          if [ -d "$ROOT_DIR/agent/core/$skill_name" ]; then
+            source_dir=$ROOT_DIR/agent/core/$skill_name
+          else
+            source_dir=$ROOT_DIR/tools/${skill_name#shimmy-tool-}/agent
+          fi
+          assert_dir_exists "$source_dir"
+          case "$target_name" in
+            repo)
+              generated_file_count=$(find "$skills_root/$skill_name" -type f | wc -l | tr -d ' ')
+              assert_equals "$generated_file_count" 1
+              assert_file_exists "$skills_root/$skill_name/SKILL.md"
+              cmp -s "$source_dir/SKILL.md" "$skills_root/$skill_name/SKILL.md" ||
+                fail_test "generated repo adapter differs from canonical SKILL.md: $skill_name"
+              ;;
+            plugin)
+              diff -qr "$source_dir" "$skills_root/$skill_name" >/dev/null 2>&1 ||
+                fail_test "generated plugin skill differs from canonical source: $skill_name"
+              ;;
+          esac
+          ;;
+      esac
+    done < "$skills_manifest"
+  done
+
+  pass "repo adapters preserve canonical SKILL.md only and plugin skills preserve complete canonical content"
+}
+
 test_commands_skills_target_ownership() {
   setup_scenario_with_profiles default upstream
 
@@ -71,6 +112,7 @@ test_commands_skills_target_ownership() {
     assert_file_exists "$skills_root/shimmy-install/SKILL.md"
     assert_file_exists "$skills_root/shimmy-tool-jq/SKILL.md"
     assert_file_exists "$skills_root/shimmy-tool-rg/SKILL.md"
+    assert_path_not_exists "$skills_root/shimmy-install/CONTEXT.md"
     printf '%s\n' keep > "$skills_root/unknown-sibling"
   done
   assert_file_contains "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/.shimmy-skills-manifest.txt" 'shimmy_skills_target=plugin'
@@ -148,6 +190,7 @@ test_commands_skills_external_failure_retry() {
 
 test_commands_skills_run() {
   test_commands_skills_manifest_fingerprints
+  test_commands_skills_semantic_parity
   test_commands_skills_target_ownership
   test_commands_skills_external_failure_retry
 }
