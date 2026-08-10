@@ -1,0 +1,1 @@
+{"_fixture":"missing-arm64","schemaVersion":2,"mediaType":"application/vnd.oci.image.index.v1+json","manifests":[{"platform":{"os":"linux","architecture":"amd64"}}]}

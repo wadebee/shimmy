@@ -71,6 +71,7 @@ Usage:
   shimmy <command> --help
 
 Commands:
+  images     Verify configured remote image indexes and upstream drift.
   install    Add tool shims to this profile.
   uninstall  Remove this profile and its managed startup integration.
   netinfo    Show host, VM, and container network perspectives.
@@ -90,6 +91,7 @@ EOF
 command_name=${1:-help}
 case "$command_name" in
   help|-h|--help) usage ;;
+  images) shift; exec "$profile_root/commands/images.sh" "$@" ;;
   install) shift; exec "$profile_root/commands/install.sh" "$@" ;;
   uninstall) shift; exec "$profile_root/commands/install.sh" --uninstall "$@" ;;
   netinfo) shift; exec "$profile_root/commands/netinfo.sh" "$@" ;;

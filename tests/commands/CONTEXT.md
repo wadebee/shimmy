@@ -6,6 +6,10 @@ a user's Shimmy installation or shell startup files.
 
 ## Files
 
+- `images.sh` covers source and installed selection, fixture-driven OCI/Docker
+  parsing, request deduplication, authentication skips/failures, drift policy,
+  stable output, and command availability without target-registry access.
+- `image-fixtures/` owns committed raw manifest responses for those tests.
 - `lifecycle.sh` covers install, dispatch, status, update, and uninstall. Its
   layout, launcher-refresh, and profile-removal cases clone their initial
   profiles while retaining real refresh, additive-install, and uninstall

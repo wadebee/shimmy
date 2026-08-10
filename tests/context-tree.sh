@@ -98,7 +98,7 @@ for child_dir in lib commands; do
   context_link_require "$ROOT_DIR/tests/CONTEXT.md" "$child_file"
 done
 
-for child_dir in catalog common install netinfo profile runtime startup update; do
+for child_dir in catalog common images install netinfo profile runtime startup update; do
   child_file=$ROOT_DIR/lib/$child_dir/CONTEXT.md
   context_require "$child_file"
   context_link_require "$ROOT_DIR/lib/CONTEXT.md" "$child_file"

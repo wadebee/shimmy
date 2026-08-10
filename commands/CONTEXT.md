@@ -15,6 +15,8 @@ reusable behavior belongs in `../lib/`.
   adds preview-only smoke arguments for local builds.
 - `status.sh` reads enclosing-profile metadata and validated concrete-version
   image configuration;
+- `images.sh` provides explicit, non-mutating remote index and upstream-drift
+  verification through catalog-default profile-local Skopeo and jq runtimes;
   `update.sh`, `skills.sh`, and `netinfo.sh` retain their corresponding public
   capabilities.
 

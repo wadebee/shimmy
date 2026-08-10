@@ -35,6 +35,10 @@ The suite is POSIX shell and validates:
   amd64/arm64 through its declared smoke argument, without contacting Podman;
 - local image identity changes for image configuration, ordered build
   arguments, overrides, and platform while identical inputs remain stable;
+- fixture-driven image verification for OCI indexes, Docker manifest lists,
+  required-platform failures, selection, remote-reference deduplication,
+  authentication policy, drift handling, and stable output without contacting
+  target registries;
 - shared fail-closed Podman OS/architecture and preview helpers plus POSIX syntax;
 - disposable version-4 flat default and upstream profile installs, installed
   command dispatch, status, update, legacy-layout rejection across management
@@ -63,6 +67,17 @@ The suite is POSIX shell and validates:
 Use live Podman only for non-mutating commands such as `--version`, `version`,
 or `--help`. Prefer `--preview-shim` whenever it proves the intended runtime
 shape without pulling, building, or running a container.
+
+Registry verification is deliberately separate from the default suite. Run a
+live public check explicitly with:
+
+```sh
+./commands/images.sh verify --all --public-only
+```
+
+That command can contact registries but does not pull target layers. A full
+authenticated acceptance run additionally requires an explicitly selected
+`SHIMMY_SKOPEO_AUTH_SECRET`; never place credential contents in test output.
 
 The runner in `tests/test.sh` sources shared assertions from
 `tests/support.sh`, shared-library coverage from `tests/lib/`, and

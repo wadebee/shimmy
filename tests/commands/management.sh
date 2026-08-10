@@ -4,6 +4,7 @@ test_commands_management_run() {
   help_output=$(default_shimmy)
   assert_contains "$help_output" 'shimmy <command> [options]'
   assert_contains "$help_output" 'install    Add tool shims to this profile.'
+  assert_contains "$help_output" 'images     Verify configured remote image indexes and upstream drift.'
   assert_contains "$help_output" 'uninstall  Remove this profile and its managed startup integration.'
   assert_contains "$help_output" 'netinfo    Show host, VM, and container network perspectives.'
   assert_contains "$help_output" 'skills     Install, update, uninstall, or export Shimmy agent skills.'
@@ -25,7 +26,7 @@ test_commands_management_run() {
   [ "$error_status" -ne 0 ] || fail_test "installed status unexpectedly accepted --profile"
   assert_contains "$error_output" 'unknown argument: --profile'
 
-  for command_name in install netinfo skills status test uninstall update; do
+  for command_name in images install netinfo skills status test uninstall update; do
     set +e
     bound_output=$(default_shimmy "$command_name" --profile upstream 2>&1)
     bound_status=$?

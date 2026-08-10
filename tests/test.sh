@@ -21,6 +21,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/common/common.sh"
 # shellcheck source=lib/profile/profile.sh
 . "$ROOT_DIR/lib/profile/profile.sh"
+# shellcheck source=lib/images/images.sh
+. "$ROOT_DIR/lib/images/images.sh"
 # shellcheck source=tests/profile-smoke.sh
 . "$SCRIPT_DIR/profile-smoke.sh"
 # shellcheck source=tests/lib/catalog.sh
@@ -31,6 +33,8 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/lib/update.sh"
 # shellcheck source=tests/commands/agent-preflight.sh
 . "$SCRIPT_DIR/commands/agent-preflight.sh"
+# shellcheck source=tests/commands/images.sh
+. "$SCRIPT_DIR/commands/images.sh"
 # shellcheck source=tests/commands/lifecycle.sh
 . "$SCRIPT_DIR/commands/lifecycle.sh"
 # shellcheck source=tests/commands/management.sh
@@ -106,6 +110,7 @@ main() {
   test_lib_runtime_run
   test_lib_update_run
   test_commands_agent_preflight_run
+  test_commands_images_run
   test_commands_lifecycle_prepare
   test_commands_management_run
   test_commands_onboarding_run

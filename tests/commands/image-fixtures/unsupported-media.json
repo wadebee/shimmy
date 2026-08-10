@@ -1,0 +1,1 @@
+{"_fixture":"unsupported-media","schemaVersion":2,"mediaType":"application/example.index.v1+json","manifests":[{"platform":{"os":"linux","architecture":"amd64"}},{"platform":{"os":"linux","architecture":"arm64"}}]}

@@ -29,6 +29,7 @@ Each installed launcher exposes this management surface:
 
 | Command | Purpose |
 |---|---|
+| `shimmy images` | Verify pinned remote image indexes and report upstream drift. |
 | `shimmy install` | Add explicitly selected tool shims to the profile. |
 | `shimmy uninstall` | Remove the profile and its managed startup integration. |
 | `shimmy netinfo` | Show host, VM, and container network perspectives. |
@@ -97,6 +98,25 @@ overrides retain their documented `SHIMMY_*` names.
 `shimmy update --pull` re-fetches the configured immutable digest; it does not
 advance the recorded upstream tag. Adopting a newer upstream artifact requires
 a reviewed `image.conf` change.
+
+Run explicit remote verification when reviewing those pinned defaults:
+
+```sh
+shimmy images verify
+shimmy images verify --all --public-only
+shimmy images verify --shim oc@4.18 --require-current-upstream
+```
+
+Installed verification defaults to concrete versions recorded in the invoking
+profile. `--all` selects every catalog version, repeated `--shim` selects a kind
+default or an exact `kind@version`, and `--format manifest` emits stable
+machine-readable result lines. Source-checkout use is
+`./commands/images.sh verify` and requires `--all` or an explicit `--shim`.
+The command inspects manifests without pulling target layers and never changes
+`image.conf`. Upstream movement is a warning unless
+`--require-current-upstream` is set. Authenticated entries require the Skopeo
+runtime's explicit `SHIMMY_SKOPEO_AUTH_SECRET`; `--public-only` reports them as
+skipped rather than verified.
 
 Shimmy detects both host OS and CPU. Supported Linux and Darwin hosts running
 on `amd64` or `arm64` select the matching native Linux image platform;

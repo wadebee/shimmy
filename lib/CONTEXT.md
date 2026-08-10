@@ -17,6 +17,7 @@ profiles below `shimmy/profiles/<profile>`.
 - [network information](netinfo/CONTEXT.md)
 - [installation lifecycle](install/CONTEXT.md)
 - [update lifecycle](update/CONTEXT.md)
+- [image verification](images/CONTEXT.md)
 
 The public `commands/netinfo.sh` entrypoint sources the host-network
 implementation from `netinfo/`.

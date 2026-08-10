@@ -422,13 +422,15 @@ None.
 
 ## Progress Checklist
 
-Active chunk: Chunk 1 implemented and verified, pending human review.
+Active chunk: Chunk 2 implemented and verified, pending human review.
 
 - [x] Chunk 1 — Add native host-architecture selection, introduce the image
   configuration contract, and atomically migrate every current concrete
   version and consumer. Implementation and verification are complete.
-- [ ] Chunk 2 — Add opt-in live index verification with explicit
-  authentication and deterministic parser coverage.
+- [x] Chunk 2 — Add opt-in live index verification with explicit
+  authentication and deterministic parser coverage. The public live run
+  verified every public pinned index, skipped all three authenticated OC
+  entries, and reported one non-strict upstream-tag drift for Netcat.
 - [ ] Chunk 3 — Complete native target-platform acceptance, rotation guidance,
   and future-tool guardrails.
 
@@ -639,23 +641,23 @@ Primary change surface:
 
 ### Verification checklist
 
-- [ ] Fixture tests accept OCI indexes and Docker manifest lists containing
+- [x] Fixture tests accept OCI indexes and Docker manifest lists containing
   both required platforms, including `arm64/v8` and unrelated attestations.
-- [ ] Fixture tests reject single manifests, child digests, malformed JSON,
+- [x] Fixture tests reject single manifests, child digests, malformed JSON,
   missing platforms, and unsupported media types with stable nonzero results.
-- [ ] Selection tests cover installed defaults, `--all`, repeated `--shim`,
+- [x] Selection tests cover installed defaults, `--all`, repeated `--shim`,
   unknown kinds/versions, source mode, and duplicate remote refs.
-- [ ] Authentication tests prove that missing credentials fail normally,
+- [x] Authentication tests prove that missing credentials fail normally,
   `--public-only` reports explicit skips, and no output includes secret values.
-- [ ] Drift tests cover matching, moved, unreachable, and digest-only upstream
+- [x] Drift tests cover matching, moved, unreachable, and digest-only upstream
   refs plus both strict/non-strict exit behavior.
-- [ ] Disposable installed profiles expose `shimmy images verify --help` and
+- [x] Disposable installed profiles expose `shimmy images verify --help` and
   reject profile/location selectors consistently with other commands.
-- [ ] An explicit live `--public-only --all` run verifies every public pinned
+- [x] An explicit live `--public-only --all` run verifies every public pinned
   digest from Chunk 1 without pulling target image layers.
-- [ ] The same live run reports the three authenticated OC bases as skipped,
+- [x] The same live run reports the three authenticated OC bases as skipped,
   not passed.
-- [ ] `./tests/test.sh`, `/bin/sh -n` for new/changed shell, executable-bit
+- [x] `./tests/test.sh`, `/bin/sh -n` for new/changed shell, executable-bit
   checks, and `git diff --check` pass.
 
 ### Human review gate
@@ -827,6 +829,22 @@ multi-architecture image-support feature.
   only the target-owned manifest repaired the baseline without regenerating
   adapter or plugin content and restored the ordinary 86-test suite.
 
+### Chunk 2
+
+- A registry-inspection child must receive `/dev/null` explicitly when the
+  verifier itself is iterating records on standard input. Otherwise Podman can
+  consume the remaining selection even when Skopeo does not logically need
+  input; the controlled runtime now models that behavior as a regression test.
+- One catalog-resolved Skopeo runtime and one jq runtime are sufficient for
+  source and installed verification. Keeping raw and digest inspection caches
+  keyed by mode plus exact reference avoids duplicate registry requests while
+  retaining one result for every version-owned role.
+- The public live check verified all seventeen public result roles and visibly
+  skipped the three authenticated OC bases. The Netcat pinned index remains
+  valid for both required platforms, but its `latest` upstream tag has moved;
+  accepting that pinned snapshot or scheduling a separate digest rotation is a
+  Chunk 2 review decision.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -843,9 +861,8 @@ For a fresh implementation session:
    behavior, version-owned image policy, no central tool/version cases, no
    implicit Podman/auth provisioning, no ordinary-run registry inspection, and
    unchanged tool-specific override/mount/credential behavior.
-4. Active implementation target is Chunk 1 only. Revalidate the recorded files
-   and immutable digest availability, implement that schema transition as one
-   review unit, update this plan, run its checklist, and stop at its human
-   review gate.
-5. Do not start Chunk 2 or Chunk 3 without explicit acceptance of the preceding
+4. Active implementation target is Chunk 2, which is implemented and verified
+   pending human review. Recheck its recorded evidence and stop at its human
+   review gate; do not begin Chunk 3.
+5. Do not start Chunk 3 without explicit acceptance of the preceding
    chunk, including the disposition of every `[~]` item.

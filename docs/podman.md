@@ -68,6 +68,23 @@ User-supplied image overrides remain outside that repository guarantee.
 Pull refreshes re-fetch the configured digest and do not advance the upstream
 tag recorded for discovery.
 
+Use `shimmy images verify` for an explicit, non-mutating registry check. It
+uses the profile's catalog-default Skopeo runtime for remote inspection and jq
+runtime for raw index parsing, verifies both required platforms, and reports
+whether a tag-form upstream reference still resolves to the pinned digest. It
+does not pull target layers or change image configuration. Drift warns by
+default and fails with `--require-current-upstream`.
+
+Authenticated registries are never given implicit access to host credential
+files. Select the Skopeo Podman secret explicitly with
+`SHIMMY_SKOPEO_AUTH_SECRET`, or use `--public-only` to report authenticated
+entries as skipped while checking public entries:
+
+```sh
+shimmy images verify --all --public-only
+SHIMMY_SKOPEO_AUTH_SECRET=registry-auth shimmy images verify --all
+```
+
 For tools that do not ship a usable upstream image, Shimmy builds and caches a
 local image from a checked-in `Containerfile` context. The local image tag is
 derived from the complete context, exact image configuration, ordered effective
