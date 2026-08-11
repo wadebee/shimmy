@@ -80,13 +80,13 @@ shimmy_images_cache_inspect() {
 }
 
 shimmy_images_catalog_selection_all() {
-  for kind_name in $(shimmy_kind_list); do
-    shimmy_kind_version_list "$kind_name"
+  for tool_name in $(shimmy_tool_list); do
+    shimmy_tool_version_list "$tool_name"
   done
 }
 
 shimmy_images_config_records_print() {
-  kind_name=$1
+  tool_name=$1
   version_name=$2
   version_label=$(shimmy_version_label "$version_name") || return 1
   config_file=$(shimmy_version_image_config_file "$version_name") || return 1
@@ -96,7 +96,7 @@ shimmy_images_config_records_print() {
   case "$image_source" in
     external)
       printf '%s|%s|%s|runtime|%s|%s|%s\n' \
-        "$kind_name" "$version_label" "$version_name" \
+        "$tool_name" "$version_label" "$version_name" \
         "$(shimmy_image_config_scalar_read "$config_file" image_upstream_ref)" \
         "$(shimmy_image_config_scalar_read "$config_file" image_default_ref)" \
         "$(shimmy_image_config_scalar_read "$config_file" image_registry_access)"
@@ -108,7 +108,7 @@ shimmy_images_config_records_print() {
         default_ref=$(shimmy_image_config_scalar_read "$config_file" "image_base_${image_base_index}_default_ref")
         if [ "$default_ref" != scratch ]; then
           printf '%s|%s|%s|base-%s|%s|%s|%s\n' \
-            "$kind_name" "$version_label" "$version_name" "$image_base_index" \
+            "$tool_name" "$version_label" "$version_name" "$image_base_index" \
             "$(shimmy_image_config_scalar_read "$config_file" "image_base_${image_base_index}_upstream_ref")" \
             "$default_ref" \
             "$(shimmy_image_config_scalar_read "$config_file" "image_base_${image_base_index}_registry_access")"
@@ -141,14 +141,14 @@ shimmy_images_manifest_selection() {
   manifest_file=$1
   selected_versions=
 
-  while IFS= read -r kind_version_entry; do
-    [ -n "$kind_version_entry" ] || continue
-    version_name=${kind_version_entry##*|}
+  while IFS= read -r tool_version_entry; do
+    [ -n "$tool_version_entry" ] || continue
+    version_name=${tool_version_entry##*|}
     if ! shimmy_contains_line_list "$selected_versions" "$version_name"; then
       selected_versions=$(shimmy_append_line_list "$selected_versions" "$version_name")
     fi
   done <<EOF
-$(shimmy_read_manifest_kind_versions "$manifest_file")
+$(shimmy_manifest_tool_version_list_read "$manifest_file")
 EOF
   printf '%s\n' "$selected_versions"
 }
@@ -160,25 +160,25 @@ shimmy_images_request_selection() {
   for requested_shim in $requested_shims; do
     case "$requested_shim" in
       *@*)
-        kind_name=${requested_shim%%@*}
+        tool_name=${requested_shim%%@*}
         version_label=${requested_shim#*@}
-        shimmy_is_kind "$kind_name" || {
-          printf 'ERROR: unsupported shim kind: %s\n' "$kind_name" >&2
+        shimmy_tool_exists "$tool_name" || {
+          printf 'ERROR: unsupported shim tool: %s\n' "$tool_name" >&2
           return 1
         }
-        version_name=$(shimmy_kind_version_for_label "$kind_name" "$version_label" || true)
+        version_name=$(shimmy_tool_version_label_resolve "$tool_name" "$version_label" || true)
         [ -n "$version_name" ] || {
-          printf 'ERROR: unsupported %s version: %s\n' "$kind_name" "$version_label" >&2
+          printf 'ERROR: unsupported %s version: %s\n' "$tool_name" "$version_label" >&2
           return 1
         }
         ;;
       *)
-        if shimmy_is_kind "$requested_shim"; then
-          version_name=$(shimmy_kind_default_version "$requested_shim")
+        if shimmy_tool_exists "$requested_shim"; then
+          version_name=$(shimmy_tool_version_default "$requested_shim")
         elif shimmy_is_version "$requested_shim"; then
           version_name=$requested_shim
         else
-          printf 'ERROR: unsupported shim kind: %s\n' "$requested_shim" >&2
+          printf 'ERROR: unsupported shim tool: %s\n' "$requested_shim" >&2
           return 1
         fi
         ;;
@@ -191,8 +191,8 @@ shimmy_images_request_selection() {
 }
 
 shimmy_images_runtime_resolve() {
-  runtime_kind=$1
-  runtime_version=$(shimmy_kind_default_version "$runtime_kind") || return 1
+  runtime_tool=$1
+  runtime_version=$(shimmy_tool_version_default "$runtime_tool") || return 1
   runtime_dir=$(shimmy_version_dir "$runtime_version") || return 1
   runtime_file=$runtime_dir/run.sh
   [ -x "$runtime_file" ] || return 1

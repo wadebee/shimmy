@@ -19,24 +19,24 @@ profile_manifest_render() {
     [ -n "$shimmy_source_url" ] || shimmy_source_url=$(shimmy_read_manifest_value "$INSTALL_MANIFEST_FILE" shimmy_source_url || true)
   fi
 
-  printf 'shimmy_install_manifest_version=4\n'
+  printf 'shimmy_install_manifest_version=1\n'
   printf 'shimmy_install_layout=profile-flat-root\n'
-  printf 'shimmy_profile_manifest_version=4\n'
+  printf 'shimmy_profile_manifest_version=1\n'
   printf 'shimmy_profile_name=%s\n' "$SHIMMY_PROFILE_RESOLVED"
   if [ "$SHIMMY_PROFILE_RESOLVED" = upstream ]; then
     printf 'source_checkout=%s\n' "$SHIMMY_PROFILE_SOURCE_CHECKOUT"
   fi
-  while IFS= read -r kind_name; do
-    [ -n "$kind_name" ] || continue
-    printf 'kind=%s\n' "$kind_name"
+  while IFS= read -r tool_name; do
+    [ -n "$tool_name" ] || continue
+    printf 'tool=%s\n' "$tool_name"
   done <<EOF
-$PROFILE_MANIFEST_KINDS
+$PROFILE_MANIFEST_TOOLS
 EOF
-  while IFS= read -r kind_version_entry; do
-    [ -n "$kind_version_entry" ] || continue
-    printf 'kind_version=%s\n' "$kind_version_entry"
+  while IFS= read -r tool_version_entry; do
+    [ -n "$tool_version_entry" ] || continue
+    printf 'tool_version=%s\n' "$tool_version_entry"
   done <<EOF
-$PROFILE_MANIFEST_KIND_VERSIONS
+$PROFILE_MANIFEST_TOOL_VERSIONS
 EOF
   [ -z "$shimmy_source_url" ] || printf 'shimmy_source_url=%s\n' "$shimmy_source_url"
   [ -z "$shimmy_source_ref" ] || printf 'shimmy_source_ref=%s\n' "$shimmy_source_ref"

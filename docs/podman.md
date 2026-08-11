@@ -291,13 +291,13 @@ rg --version
 ```
 
 Every bootstrap includes jq and rg; add other tools afterward with the
-installed `shimmy install --shim <kind>` command. Executing the bootstrap is
+installed `shimmy install --shim <tool>` command. Executing the bootstrap is
 suitable for automation but cannot change its parent shell. To select an
 existing profile, source its generated `shell-init.sh`. Installed commands
 manage only the profile whose `bin/shimmy` launcher invoked them. The
 `upstream` profile never manages persistent shell startup files.
 
-`shimmy test` uses live Podman execution for supported kinds. It is a stronger
+`shimmy test` uses live Podman execution for supported tools. It is a stronger
 check than `podman info` because it verifies that Shimmy's wrappers can actually
 start the tool containers.
 

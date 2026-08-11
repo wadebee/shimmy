@@ -26,12 +26,12 @@ test_lib_catalog_discovery() {
   # shellcheck source=lib/catalog/catalog.sh
   . "$ROOT_DIR/lib/catalog/catalog.sh"
 
-  kinds=$(shimmy_kind_list)
-  assert_contains "$kinds" jq
-  assert_contains "$kinds" opnsense-mcp-admin
-  assert_equals "$(shimmy_kind_default_version oc)" oc_4_20
-  assert_equals "$(shimmy_kind_version_for_label oc 4.18)" oc_4_18
-  assert_equals "$(shimmy_version_kind rg_15_1)" rg
+  tools=$(shimmy_tool_list)
+  assert_contains "$tools" jq
+  assert_contains "$tools" opnsense-mcp-admin
+  assert_equals "$(shimmy_tool_version_default oc)" oc_4_20
+  assert_equals "$(shimmy_tool_version_label_resolve oc 4.18)" oc_4_18
+  assert_equals "$(shimmy_tool_version_tool rg_15_1)" rg
   assert_equals "$(shimmy_version_label gcloud_573_0)" 573.0
   pass "metadata-driven catalog discovery"
 }
@@ -223,13 +223,13 @@ test_lib_catalog_all_previews() {
   # shellcheck source=lib/catalog/catalog.sh
   . "$ROOT_DIR/lib/catalog/catalog.sh"
 
-  for kind_name in $(shimmy_kind_list); do
-    case "$kind_name" in
+  for tool_name in $(shimmy_tool_list); do
+    case "$tool_name" in
       gdrive|opnsense-mcp-admin|opnsense-mcp-read-only)
-        output=$("$ROOT_DIR/commands/run-tool.sh" "$kind_name" --preview-shim 2>&1)
+        output=$("$ROOT_DIR/commands/run-tool.sh" "$tool_name" --preview-shim 2>&1)
         ;;
       *)
-        output=$("$ROOT_DIR/commands/run-tool.sh" "$kind_name" --preview-shim --help 2>&1)
+        output=$("$ROOT_DIR/commands/run-tool.sh" "$tool_name" --preview-shim --help 2>&1)
         ;;
     esac
     assert_not_empty "$output"
@@ -241,14 +241,14 @@ test_lib_catalog_concrete_version_previews() {
   # shellcheck source=lib/catalog/catalog.sh
   . "$ROOT_DIR/lib/catalog/catalog.sh"
 
-  for kind_name in $(shimmy_kind_list); do
-    default_label=$(sed -n 's/^tool_default_version=//p' "$ROOT_DIR/tools/$kind_name/tool.conf" | sed -n '1p')
-    selector_env=$(shimmy_kind_selector_env "$kind_name")
+  for tool_name in $(shimmy_tool_list); do
+    default_label=$(sed -n 's/^tool_default_version=//p' "$ROOT_DIR/tools/$tool_name/tool.conf" | sed -n '1p')
+    selector_env=$(shimmy_tool_selector_env "$tool_name")
 
-    for version_label in $(shimmy_kind_version_label_list "$kind_name"); do
-      version_dir=$ROOT_DIR/tools/$kind_name/versions/$version_label
+    for version_label in $(shimmy_tool_version_label_list "$tool_name"); do
+      version_dir=$ROOT_DIR/tools/$tool_name/versions/$version_label
       smoke_file=$version_dir/smoke.conf
-      version_name=$(shimmy_kind_version_for_label "$kind_name" "$version_label")
+      version_name=$(shimmy_tool_version_label_resolve "$tool_name" "$version_label")
       smoke_name=$(sed -n 's/^shim_name=//p' "$smoke_file" | sed -n '1p')
       smoke_arg=$(sed -n 's/^smoke_arg=//p' "$smoke_file" | sed -n '1p')
       image_source=$(sed -n 's/^image_source=//p' "$version_dir/image.conf" | sed -n '1p')
@@ -272,9 +272,9 @@ test_lib_catalog_concrete_version_previews() {
       done
 
       if [ -n "$selector_env" ]; then
-        dispatch_output=$(env "$selector_env=$version_label" "$ROOT_DIR/commands/run-tool.sh" "$kind_name" --preview-shim "$smoke_arg" 2>&1)
+        dispatch_output=$(env "$selector_env=$version_label" "$ROOT_DIR/commands/run-tool.sh" "$tool_name" --preview-shim "$smoke_arg" 2>&1)
       elif [ "$version_label" = "$default_label" ]; then
-        dispatch_output=$("$ROOT_DIR/commands/run-tool.sh" "$kind_name" --preview-shim "$smoke_arg" 2>&1)
+        dispatch_output=$("$ROOT_DIR/commands/run-tool.sh" "$tool_name" --preview-shim "$smoke_arg" 2>&1)
       else
         continue
       fi

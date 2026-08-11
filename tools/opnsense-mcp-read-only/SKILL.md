@@ -9,7 +9,7 @@ Use this skill when working with the opnsense-mcp-read-only tool, its tests, its
 
 ## Files
 
-- Kind metadata: `tools/opnsense-mcp-read-only/tool.conf`
+- Tool metadata: `tools/opnsense-mcp-read-only/tool.conf`
 - Concrete runtime: `tools/opnsense-mcp-read-only/versions/0.4/run.sh`
 - User guide: `tools/opnsense-mcp-read-only/guide.md`
 - Tests: `tools/opnsense-mcp-read-only/tests/opnsense-mcp-read-only.sh`

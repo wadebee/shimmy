@@ -9,13 +9,13 @@ recorded source checkout. It never selects or mutates a sibling profile,
 updates persistent upstream startup integration, or writes an external skills
 target. Management self-update executes the fetched repository bootstrap
 without lifecycle skills options or reconstructed tool-selection arguments;
-the existing valid manifest is merged so all owned kinds and concrete versions
+the existing valid manifest is merged so all owned tools and concrete versions
 remain installed.
 
 ## Files
 
 - `request.sh` parses update CLI inputs and renders command help.
-- `selection.sh` validates installed kinds and concrete version selections for
+- `selection.sh` validates installed tools and concrete version selections for
   the enclosing profile.
 - `management.sh` refreshes management assets from an installed source URL.
 - `profile.sh` validates and refreshes the enclosing profile's assets.

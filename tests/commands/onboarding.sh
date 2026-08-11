@@ -51,7 +51,7 @@ test_commands_onboarding_failure_cleanup() {
         printf "after=failure\n"
         command -v shimmy__bootstrap_run >/dev/null 2>&1 && printf "function=leaked\n"
         [ "${shimmy__bootstrap_profile_name+x}" = x ] && printf "variable=leaked\n"
-        [ "${shimmy__bootstrap_kind_baseline+x}" = x ] && printf "variable=leaked\n"
+        [ "${shimmy__bootstrap_tool_baseline+x}" = x ] && printf "variable=leaked\n"
         true
       '
   )
@@ -104,7 +104,7 @@ test_commands_onboarding_help() {
   )
   assert_contains "$help_output" 'source ./install.sh'
   assert_contains "$help_output" 'Every bootstrap includes jq and rg.'
-  assert_contains "$help_output" 'shimmy install --shim <kind>'
+  assert_contains "$help_output" 'shimmy install --shim <tool>'
   assert_contains "$help_output" 'path_unchanged=yes'
   assert_not_contains "$help_output" 'function=leaked'
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
@@ -135,17 +135,17 @@ test_commands_onboarding_selection_policy() {
   set -e
   [ "$bootstrap_selection_status" -ne 0 ] || fail_test "repository installer unexpectedly accepted --shim"
   assert_contains "$bootstrap_selection_output" 'repository installation includes jq and rg'
-  assert_contains "$bootstrap_selection_output" 'shimmy install --shim <kind>'
+  assert_contains "$bootstrap_selection_output" 'shimmy install --shim <tool>'
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
 
   setup_scenario_with_profiles default
-  default_baseline_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
-  assert_equals "$default_baseline_selection" 'kind=jq
-kind=rg
-kind_version=jq|default|jq_1_8
-kind_version=jq|1.8|jq_1_8
-kind_version=rg|default|rg_15_1
-kind_version=rg|15.1|rg_15_1'
+  default_baseline_selection=$(sed -n '/^tool=/p; /^tool_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+  assert_equals "$default_baseline_selection" 'tool=jq
+tool=rg
+tool_version=jq|default|jq_1_8
+tool_version=jq|1.8|jq_1_8
+tool_version=rg|default|rg_15_1
+tool_version=rg|15.1|rg_15_1'
 
   manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   set +e
@@ -153,22 +153,22 @@ kind_version=rg|15.1|rg_15_1'
   empty_install_status=$?
   set -e
   [ "$empty_install_status" -ne 0 ] || fail_test "installed install unexpectedly accepted an empty shim selection"
-  assert_contains "$empty_install_output" 'install requires at least one --shim <kind>'
+  assert_contains "$empty_install_output" 'install requires at least one --shim <tool>'
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$manifest_checksum"
 
   default_shimmy install --shim task --shim oc@4.18 --no-startup >/dev/null
-  additive_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
-  assert_contains "$additive_selection" 'kind=jq'
-  assert_contains "$additive_selection" 'kind=rg'
-  assert_contains "$additive_selection" 'kind=task'
-  assert_contains "$additive_selection" 'kind=oc'
-  assert_contains "$additive_selection" 'kind_version=oc|4.18|oc_4_18'
+  additive_selection=$(sed -n '/^tool=/p; /^tool_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+  assert_contains "$additive_selection" 'tool=jq'
+  assert_contains "$additive_selection" 'tool=rg'
+  assert_contains "$additive_selection" 'tool=task'
+  assert_contains "$additive_selection" 'tool=oc'
+  assert_contains "$additive_selection" 'tool_version=oc|4.18|oc_4_18'
   bootstrap_default >/dev/null
-  refreshed_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+  refreshed_selection=$(sed -n '/^tool=/p; /^tool_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   assert_equals "$refreshed_selection" "$additive_selection"
 
   upstream_fixture_manifest=$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/upstream/install-manifest.txt
-  upstream_baseline_selection=$(sed -n '/^kind=/p; /^kind_version=/p' "$upstream_fixture_manifest")
+  upstream_baseline_selection=$(sed -n '/^tool=/p; /^tool_version=/p' "$upstream_fixture_manifest")
   assert_equals "$upstream_baseline_selection" "$default_baseline_selection"
   pass "bootstrap owns the fixed jq/rg baseline while installed additions stay explicit and additive"
 }
@@ -265,7 +265,7 @@ test_commands_onboarding_sourced_state() {
         printf "trap=%s\n" "${trap_preserved:-no}"
         command -v shimmy__bootstrap_run >/dev/null 2>&1 && printf "function=leaked\n"
         [ "${shimmy__bootstrap_source_root+x}" = x ] && printf "variable=leaked\n"
-        [ "${shimmy__bootstrap_kind_baseline+x}" = x ] && printf "variable=leaked\n"
+        [ "${shimmy__bootstrap_tool_baseline+x}" = x ] && printf "variable=leaked\n"
         [ "${SHIMMY_BOOTSTRAP_PROFILE+x}" = x ] && printf "profile_selector=leaked\n"
         true
       '

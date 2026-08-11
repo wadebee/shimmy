@@ -9,7 +9,7 @@ Use this skill when working with the Go tool, its tests, its docs, or Go CLI usa
 
 ## Files
 
-- Kind metadata: `tools/go/tool.conf`
+- Tool metadata: `tools/go/tool.conf`
 - Concrete runtime: `tools/go/versions/1.26/run.sh`
 - User guide: `tools/go/guide.md`
 - Tests: `tools/go/tests/go.sh`

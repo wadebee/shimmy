@@ -14,8 +14,8 @@ change. Tool and management-plugin directories do not own context files.
   `shimmy` launcher. Sourcing it initializes the caller; execution is for
   automation. Every bootstrap includes jq and rg, and each installed flat
   profile owns its own `bin/shimmy`.
-- `tools/<kind>/tool.conf` defines a tool's default version and selector.
-- `tools/<kind>/versions/<major.minor>/run.sh` is the concrete runtime.
+- `tools/<tool>/tool.conf` defines a tool's default version and selector.
+- `tools/<tool>/versions/<major.minor>/run.sh` is the concrete runtime.
 - Every concrete version owns `image.conf`, which records external or
   local-build image policy, immutable multi-platform defaults, registry access,
   and both required platforms.
@@ -41,7 +41,7 @@ change. Tool and management-plugin directories do not own context files.
 
 ## Tool additions
 
-Add a self-contained `tools/<kind>/` directory with `tool.conf`, a guide, a
+Add a self-contained `tools/<tool>/` directory with `tool.conf`, a guide, a
 canonical `SKILL.md`, focused tests, and one or more version directories
 containing `run.sh`, `refresh.sh`, `smoke.conf`, `image.conf`, and `container/`
 when locally built. The
@@ -68,7 +68,7 @@ Install profiles below an absolute
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>` root. Installed
 commands derive identity from their enclosing profile and do not accept
 installation-location or profile-selection overrides. Add non-baseline tools
-after onboarding with installed `shimmy install --shim <kind>`. Source a
+after onboarding with installed `shimmy install --shim <tool>`. Source a
 profile's `shell-init.sh` to select it in an existing shell. Only `default`
 owns persistent startup blocks for zsh and Bash by default; explicit startup
 options may narrow the targets, and `upstream` never changes startup files.
@@ -81,4 +81,4 @@ owned by the selected target manifest and are written or removed only with expli
 
 Run `./tests/test.sh`, inspect shell executable bits, and verify retained
 context links.
-For a source preview, use `./commands/run-tool.sh <kind> --preview-shim ...`.
+For a source preview, use `./commands/run-tool.sh <tool> --preview-shim ...`.

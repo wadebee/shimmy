@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-# Resolve a tool kind and run its selected concrete version. This is used by
+# Resolve a tool and run its selected concrete version. This is used by
 # both the source checkout and installed profile wrappers.
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
@@ -15,28 +15,28 @@ tool_metadata_read() {
   sed -n "s/^${key}=//p" "$metadata_file" | sed -n '1p'
 }
 
-tool_kind_validate() {
-  kind_name=$1
+tool_name_validate() {
+  tool_name=$1
 
-  case "$kind_name" in
+  case "$tool_name" in
     ''|*/*|.*|*'..'*) return 1 ;;
     *) return 0 ;;
   esac
 }
 
 main() {
-  kind_name=${1:?tool kind is required}
+  tool_name=${1:?tool is required}
   shift
 
-  tool_kind_validate "$kind_name" || {
-    printf 'ERROR: invalid tool kind: %s\n' "$kind_name" >&2
+  tool_name_validate "$tool_name" || {
+    printf 'ERROR: invalid tool: %s\n' "$tool_name" >&2
     exit 1
   }
 
-  tool_dir=$TOOLS_DIR/$kind_name
+  tool_dir=$TOOLS_DIR/$tool_name
   tool_file=$tool_dir/tool.conf
   [ -f "$tool_file" ] || {
-    printf 'ERROR: unsupported Shimmy tool kind: %s\n' "$kind_name" >&2
+    printf 'ERROR: unsupported Shimmy tool: %s\n' "$tool_name" >&2
     exit 1
   }
 
@@ -57,10 +57,10 @@ main() {
     if [ -n "$selector_env" ]; then
       printf 'ERROR: unsupported %s value: %s\n' "$selector_env" "$selected_version" >&2
     else
-      printf 'ERROR: missing %s default version: %s\n' "$kind_name" "$selected_version" >&2
+      printf 'ERROR: missing %s default version: %s\n' "$tool_name" "$selected_version" >&2
     fi
-    printf 'Available %s versions: %s\n' "$kind_name" "$available_versions" >&2
-    printf 'Default %s version: %s\n' "$kind_name" "$default_version" >&2
+    printf 'Available %s versions: %s\n' "$tool_name" "$available_versions" >&2
+    printf 'Default %s version: %s\n' "$tool_name" "$default_version" >&2
     exit 1
   fi
 

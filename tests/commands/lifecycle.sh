@@ -13,9 +13,9 @@ test_commands_lifecycle_prepare() {
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/agent"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/agent"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/.agents"
-  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_manifest_version=4'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_manifest_version=1'
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_layout=profile-flat-root'
-  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_manifest_version=4'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_manifest_version=1'
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_name=default'
   assert_equals "$(readlink "$DEFAULT_PROFILE_ROOT/bin/jq")" '../commands/dispatch-tool.sh'
   assert_regular_file_not_symlink "$DEFAULT_PROFILE_ROOT/bin/shimmy"
@@ -27,11 +27,11 @@ test_commands_lifecycle_prepare() {
   assert_file_exists "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/shimmy-install/SKILL.md"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/shimmy-tool-local-build/SKILL.md"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/.shimmy-skills-manifest.txt"
-  for kind_name in $(shimmy_kind_list); do
-    assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/$kind_name/SKILL.md"
-    assert_file_exists "$UPSTREAM_PROFILE_ROOT/tools/$kind_name/SKILL.md"
-    assert_path_not_exists "$DEFAULT_PROFILE_ROOT/tools/$kind_name/agent"
-    assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/tools/$kind_name/agent"
+  for tool_name in $(shimmy_tool_list); do
+    assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/$tool_name/SKILL.md"
+    assert_file_exists "$UPSTREAM_PROFILE_ROOT/tools/$tool_name/SKILL.md"
+    assert_path_not_exists "$DEFAULT_PROFILE_ROOT/tools/$tool_name/agent"
+    assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/tools/$tool_name/agent"
   done
 
   output=$(XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version)
@@ -84,8 +84,8 @@ test_commands_lifecycle_legacy_agent_rollback() {
   SHIMMY_CONTROL_BIN=$transaction_profile_root/bin/shimmy
   SHIMMY_SHELL_INIT_FILE=$transaction_profile_root/shell-init.sh
   INSTALL_MANIFEST_FILE=$transaction_profile_root/install-manifest.txt
-  EXISTING_PROFILE_KINDS=jq
-  PROFILE_MANIFEST_KINDS=jq
+  EXISTING_PROFILE_TOOLS=jq
+  PROFILE_MANIFEST_TOOLS=jq
   SHIMMY_PROFILE_BACKUP_ROOT=
   SHIMMY_PROFILE_DIRECTORIES_REPLACED=
   SHIMMY_PROFILE_FILES_REPLACED=

@@ -9,45 +9,45 @@ profile_asset_directory_stage() {
   cp -R "$source_path" "$target_path"
 }
 
-shim_name_kind_resolve() {
+shim_name_tool_resolve() {
   shim_name=$1
-  if shimmy_is_kind "$shim_name"; then
+  if shimmy_tool_exists "$shim_name"; then
     printf '%s\n' "$shim_name"
   else
-    shimmy_version_kind "$shim_name"
+    shimmy_tool_version_tool "$shim_name"
   fi
 }
 
 shim_name_version_label_resolve() {
   shim_name=$1
-  shimmy_is_kind "$shim_name" && return 1
+  shimmy_tool_exists "$shim_name" && return 1
   shimmy_version_label "$shim_name"
 }
 
 shim_source_config_path_resolve() {
   shim_name=$1
-  kind_name=$(shim_name_kind_resolve "$shim_name") || return 1
-  if shimmy_is_kind "$shim_name"; then
-    printf '%s/tools/%s/tool.conf\n' "$ROOT_DIR" "$kind_name"
+  tool_name=$(shim_name_tool_resolve "$shim_name") || return 1
+  if shimmy_tool_exists "$shim_name"; then
+    printf '%s/tools/%s/tool.conf\n' "$ROOT_DIR" "$tool_name"
   else
     version_label=$(shim_name_version_label_resolve "$shim_name") || return 1
-    printf '%s/tools/%s/versions/%s/smoke.conf\n' "$ROOT_DIR" "$kind_name" "$version_label"
+    printf '%s/tools/%s/versions/%s/smoke.conf\n' "$ROOT_DIR" "$tool_name" "$version_label"
   fi
 }
 
 render_shim_exec_wrapper() {
   shim_name=$1
   source_root=$2
-  kind_name=$(shim_name_kind_resolve "$shim_name") || fail "missing Shimmy tool metadata for $shim_name"
-  quoted_kind_name=$(shimmy_quote_shell_word "$kind_name")
+  tool_name=$(shim_name_tool_resolve "$shim_name") || fail "missing Shimmy tool metadata for $shim_name"
+  quoted_tool_name=$(shimmy_quote_shell_word "$tool_name")
   quoted_source_root=$(shimmy_quote_shell_word "$source_root")
 
-  if shimmy_is_kind "$shim_name"; then
+  if shimmy_tool_exists "$shim_name"; then
     target_rel=commands/run-tool.sh
-    target_args='$shimmy_tool_kind "$@"'
+    target_args='$shimmy_tool_name "$@"'
   else
     version_label=$(shim_name_version_label_resolve "$shim_name") || fail "missing version label for $shim_name"
-    target_rel=tools/$kind_name/versions/$version_label/run.sh
+    target_rel=tools/$tool_name/versions/$version_label/run.sh
     target_args='"$@"'
   fi
 
@@ -55,7 +55,7 @@ render_shim_exec_wrapper() {
 #!/bin/sh
 set -eu
 
-shimmy_tool_kind=$quoted_kind_name
+shimmy_tool_name=$quoted_tool_name
 shimmy_source_root=$quoted_source_root
 shimmy_runtime_target=\$shimmy_source_root/$target_rel
 
@@ -112,12 +112,12 @@ profile_commit_backup_cleanup() {
     backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/$relative_path
     [ ! -e "$backup_path" ] && [ ! -L "$backup_path" ] || rm -f "$backup_path"
   done
-  while IFS= read -r kind_name; do
-    [ -n "$kind_name" ] || continue
-    backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/bin/$kind_name
+  while IFS= read -r tool_name; do
+    [ -n "$tool_name" ] || continue
+    backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/bin/$tool_name
     [ ! -e "$backup_path" ] && [ ! -L "$backup_path" ] || rm -f "$backup_path"
   done <<EOF
-$PROFILE_MANIFEST_KINDS
+$PROFILE_MANIFEST_TOOLS
 EOF
   rmdir "$SHIMMY_PROFILE_BACKUP_ROOT/bin" 2>/dev/null || true
   rmdir "$SHIMMY_PROFILE_BACKUP_ROOT" 2>/dev/null || true
@@ -131,16 +131,16 @@ profile_commit_restore() {
 }
 
 profile_dispatcher_stage() {
-  kind_name=$1
-  ln -s ../commands/dispatch-tool.sh "$SHIMMY_STAGE_ROOT/bin/$kind_name"
+  tool_name=$1
+  ln -s ../commands/dispatch-tool.sh "$SHIMMY_STAGE_ROOT/bin/$tool_name"
 }
 
 profile_dispatcher_collision_validate() {
-  kind_name=$1
-  dispatcher_path=$SHIMMY_BIN_DIR/$kind_name
+  tool_name=$1
+  dispatcher_path=$SHIMMY_BIN_DIR/$tool_name
 
   [ ! -e "$dispatcher_path" ] && [ ! -L "$dispatcher_path" ] && return 0
-  shimmy_contains_line_list "$EXISTING_PROFILE_KINDS" "$kind_name" || fail "unmanaged dispatcher collision: $dispatcher_path"
+  shimmy_contains_line_list "$EXISTING_PROFILE_TOOLS" "$tool_name" || fail "unmanaged dispatcher collision: $dispatcher_path"
 }
 
 profile_launcher_collision_validate() {
@@ -179,12 +179,12 @@ profile_owned_files_backup() {
     target_path=$SHIMMY_PROFILE_BACKUP_ROOT/$relative_path
     [ ! -e "$source_path" ] && [ ! -L "$source_path" ] || cp -R "$source_path" "$target_path"
   done
-  while IFS= read -r kind_name; do
-    [ -n "$kind_name" ] || continue
-    source_path=$SHIMMY_BIN_DIR/$kind_name
-    [ ! -e "$source_path" ] && [ ! -L "$source_path" ] || cp -R "$source_path" "$SHIMMY_PROFILE_BACKUP_ROOT/bin/$kind_name"
+  while IFS= read -r tool_name; do
+    [ -n "$tool_name" ] || continue
+    source_path=$SHIMMY_BIN_DIR/$tool_name
+    [ ! -e "$source_path" ] && [ ! -L "$source_path" ] || cp -R "$source_path" "$SHIMMY_PROFILE_BACKUP_ROOT/bin/$tool_name"
   done <<EOF
-$EXISTING_PROFILE_KINDS
+$EXISTING_PROFILE_TOOLS
 EOF
 }
 
@@ -197,17 +197,17 @@ profile_owned_files_restore() {
       [ ! -e "$backup_path" ] && [ ! -L "$backup_path" ] || mv "$backup_path" "$target_path"
     fi
   done
-  while IFS= read -r kind_name; do
-    [ -n "$kind_name" ] || continue
-    relative_path=bin/$kind_name
+  while IFS= read -r tool_name; do
+    [ -n "$tool_name" ] || continue
+    relative_path=bin/$tool_name
     target_path=$SHIMMY_PROFILE_ROOT/$relative_path
-    backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/bin/$kind_name
+    backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/bin/$tool_name
     if shimmy_contains_line_list "$SHIMMY_PROFILE_FILES_REPLACED" "$relative_path"; then
       [ ! -e "$target_path" ] && [ ! -L "$target_path" ] || rm -f "$target_path"
       [ ! -e "$backup_path" ] && [ ! -L "$backup_path" ] || mv "$backup_path" "$target_path"
     fi
   done <<EOF
-$PROFILE_MANIFEST_KINDS
+$PROFILE_MANIFEST_TOOLS
 EOF
   SHIMMY_PROFILE_FILES_REPLACED=
 }
@@ -242,15 +242,15 @@ profile_merge_bin_commit() {
   mv "$launcher_tmp" "$SHIMMY_CONTROL_BIN"
   SHIMMY_PROFILE_FILES_REPLACED=$(shimmy_append_line_list "$SHIMMY_PROFILE_FILES_REPLACED" bin/shimmy)
 
-  while IFS= read -r kind_name; do
-    [ -n "$kind_name" ] || continue
-    dispatcher_tmp=$SHIMMY_BIN_DIR/."$kind_name".tmp.$$
+  while IFS= read -r tool_name; do
+    [ -n "$tool_name" ] || continue
+    dispatcher_tmp=$SHIMMY_BIN_DIR/."$tool_name".tmp.$$
     rm -f "$dispatcher_tmp"
     ln -s ../commands/dispatch-tool.sh "$dispatcher_tmp"
-    mv "$dispatcher_tmp" "$SHIMMY_BIN_DIR/$kind_name"
-    SHIMMY_PROFILE_FILES_REPLACED=$(shimmy_append_line_list "$SHIMMY_PROFILE_FILES_REPLACED" "bin/$kind_name")
+    mv "$dispatcher_tmp" "$SHIMMY_BIN_DIR/$tool_name"
+    SHIMMY_PROFILE_FILES_REPLACED=$(shimmy_append_line_list "$SHIMMY_PROFILE_FILES_REPLACED" "bin/$tool_name")
   done <<EOF
-$PROFILE_MANIFEST_KINDS
+$PROFILE_MANIFEST_TOOLS
 EOF
 }
 

@@ -26,37 +26,37 @@ EOF
   return 1
 }
 
-shimmy_contains_manifest_kind() {
+shimmy_manifest_tool_contains() {
   manifest_file=$1
-  kind_name=$2
+  tool_name=$2
 
   [ -f "$manifest_file" ] || return 1
 
-  while IFS= read -r manifest_kind_name; do
-    [ -n "$manifest_kind_name" ] || continue
-    if [ "$manifest_kind_name" = "$kind_name" ]; then
+  while IFS= read -r manifest_tool_name; do
+    [ -n "$manifest_tool_name" ] || continue
+    if [ "$manifest_tool_name" = "$tool_name" ]; then
       return 0
     fi
   done <<EOF
-$(shimmy_read_manifest_kinds "$manifest_file")
+$(shimmy_manifest_tool_list_read "$manifest_file")
 EOF
 
   return 1
 }
 
 shimmy_contains_manifest_shim() {
-  shimmy_contains_manifest_kind "$@"
+  shimmy_manifest_tool_contains "$@"
 }
 
-shimmy_contains_profile_kind_other() {
+shimmy_profile_tool_other_contains() {
   install_dir=$1
-  kind_name=$2
+  tool_name=$2
   skip_manifest_one=${3:-}
 
   for manifest_file in "$install_dir"/profiles/*/install-manifest.txt; do
     [ -f "$manifest_file" ] || continue
     [ "$manifest_file" != "$skip_manifest_one" ] || continue
-    if shimmy_contains_manifest_kind "$manifest_file" "$kind_name"; then
+    if shimmy_manifest_tool_contains "$manifest_file" "$tool_name"; then
       return 0
     fi
   done
@@ -65,7 +65,7 @@ shimmy_contains_profile_kind_other() {
 }
 
 shimmy_contains_profile_shim_other() {
-  shimmy_contains_profile_kind_other "$@"
+  shimmy_profile_tool_other_contains "$@"
 }
 
 shimmy_count_profile_manifests() {
@@ -95,22 +95,22 @@ shimmy_quote_shell_word() {
   printf "%s" "$1" | sed "s/'/'\\\\''/g; 1s/^/'/; \$s/\$/'/"
 }
 
-shimmy_read_manifest_kind_versions() {
+shimmy_manifest_tool_version_list_read() {
   manifest_file=$1
 
-  shimmy_read_manifest_values "$manifest_file" kind_version
+  shimmy_read_manifest_values "$manifest_file" tool_version
 }
 
-shimmy_read_manifest_kinds() {
+shimmy_manifest_tool_list_read() {
   manifest_file=$1
 
-  shimmy_read_manifest_values "$manifest_file" kind
+  shimmy_read_manifest_values "$manifest_file" tool
 }
 
 shimmy_read_manifest_shims() {
   manifest_file=$1
 
-  shimmy_read_manifest_kinds "$manifest_file"
+  shimmy_manifest_tool_list_read "$manifest_file"
 }
 
 shimmy_read_manifest_value() {

@@ -33,80 +33,80 @@ selected_shim_list() {
 }
 
 version_label_list_render() {
-  kind_name=$1
+  tool_name=$1
   separator=
 
-  for version_label in $(shimmy_kind_version_label_list "$kind_name"); do
+  for version_label in $(shimmy_tool_version_label_list "$tool_name"); do
     printf '%s%s' "$separator" "$version_label"
     separator=', '
   done
   printf '\n'
 }
 
-kind_list_render() {
+tool_list_render() {
   separator=
 
-  for kind_name in $(shimmy_kind_list); do
-    printf '%s%s' "$separator" "$kind_name"
+  for tool_name in $(shimmy_tool_list); do
+    printf '%s%s' "$separator" "$tool_name"
     separator=', '
   done
   printf '\n'
 }
 
-kind_version_entry_print() {
-  entry_kind_name=$1
+tool_version_entry_print() {
+  entry_tool_name=$1
   entry_version_label=$2
   entry_version_name=$3
 
-  printf '%s|%s|%s\n' "$entry_kind_name" "$entry_version_label" "$entry_version_name"
+  printf '%s|%s|%s\n' "$entry_tool_name" "$entry_version_label" "$entry_version_name"
 }
 
-request_kind_version_entries_resolve() {
+request_tool_version_entries_resolve() {
   requested_shim=$1
 
   case "$requested_shim" in
     *@*)
-      kind_name=${requested_shim%%@*}
+      tool_name=${requested_shim%%@*}
       version_label=${requested_shim#*@}
-      shimmy_is_kind "$kind_name" || fail "unsupported shim kind: $kind_name. Available kinds: $(kind_list_render)"
-      version_name=$(shimmy_kind_version_for_label "$kind_name" "$version_label" || true)
+      shimmy_tool_exists "$tool_name" || fail "unsupported shim tool: $tool_name. Available tools: $(tool_list_render)"
+      version_name=$(shimmy_tool_version_label_resolve "$tool_name" "$version_label" || true)
       if [ -z "$version_name" ]; then
-        fail "unsupported $kind_name version: $version_label. Available $kind_name versions: $(version_label_list_render "$kind_name"). Default $kind_name version: $(shimmy_version_label "$(shimmy_kind_default_version "$kind_name")")"
+        fail "unsupported $tool_name version: $version_label. Available $tool_name versions: $(version_label_list_render "$tool_name"). Default $tool_name version: $(shimmy_version_label "$(shimmy_tool_version_default "$tool_name")")"
       fi
-      default_version=$(shimmy_kind_default_version "$kind_name")
-      kind_version_entry_print "$kind_name" default "$default_version"
-      kind_version_entry_print "$kind_name" "$(shimmy_version_label "$default_version")" "$default_version"
-      kind_version_entry_print "$kind_name" "$version_label" "$version_name"
+      default_version=$(shimmy_tool_version_default "$tool_name")
+      tool_version_entry_print "$tool_name" default "$default_version"
+      tool_version_entry_print "$tool_name" "$(shimmy_version_label "$default_version")" "$default_version"
+      tool_version_entry_print "$tool_name" "$version_label" "$version_name"
       ;;
     *)
-      if shimmy_is_kind "$requested_shim"; then
-        kind_name=$requested_shim
-        default_version=$(shimmy_kind_default_version "$kind_name")
-        kind_version_entry_print "$kind_name" default "$default_version"
-        kind_version_entry_print "$kind_name" "$(shimmy_version_label "$default_version")" "$default_version"
+      if shimmy_tool_exists "$requested_shim"; then
+        tool_name=$requested_shim
+        default_version=$(shimmy_tool_version_default "$tool_name")
+        tool_version_entry_print "$tool_name" default "$default_version"
+        tool_version_entry_print "$tool_name" "$(shimmy_version_label "$default_version")" "$default_version"
       elif shimmy_is_version "$requested_shim"; then
         version_name=$requested_shim
-        kind_name=$(shimmy_version_kind "$version_name")
-        default_version=$(shimmy_kind_default_version "$kind_name")
-        kind_version_entry_print "$kind_name" default "$default_version"
-        kind_version_entry_print "$kind_name" "$(shimmy_version_label "$default_version")" "$default_version"
-        kind_version_entry_print "$kind_name" "$(shimmy_version_label "$version_name")" "$version_name"
+        tool_name=$(shimmy_tool_version_tool "$version_name")
+        default_version=$(shimmy_tool_version_default "$tool_name")
+        tool_version_entry_print "$tool_name" default "$default_version"
+        tool_version_entry_print "$tool_name" "$(shimmy_version_label "$default_version")" "$default_version"
+        tool_version_entry_print "$tool_name" "$(shimmy_version_label "$version_name")" "$version_name"
       else
-        fail "unsupported shim kind: $requested_shim. Available kinds: $(kind_list_render)"
+        fail "unsupported shim tool: $requested_shim. Available tools: $(tool_list_render)"
       fi
       ;;
   esac
 }
 
-selected_kind_version_entries() {
+selected_tool_version_entries() {
   selected_entries=
 
   for requested_shim in $(selected_shim_list); do
-    requested_entries=$(request_kind_version_entries_resolve "$requested_shim") || return 1
-    while IFS= read -r kind_version_entry; do
-      [ -n "$kind_version_entry" ] || continue
-      if ! shimmy_contains_line_list "$selected_entries" "$kind_version_entry"; then
-        selected_entries=$(shimmy_append_line_list "$selected_entries" "$kind_version_entry")
+    requested_entries=$(request_tool_version_entries_resolve "$requested_shim") || return 1
+    while IFS= read -r tool_version_entry; do
+      [ -n "$tool_version_entry" ] || continue
+      if ! shimmy_contains_line_list "$selected_entries" "$tool_version_entry"; then
+        selected_entries=$(shimmy_append_line_list "$selected_entries" "$tool_version_entry")
       fi
     done <<EOF
 $requested_entries
@@ -116,42 +116,42 @@ EOF
   printf '%s\n' "$selected_entries"
 }
 
-kind_list_from_entries() {
-  kind_version_entries=$1
-  kind_names=
+tool_list_from_entries() {
+  tool_version_entries=$1
+  tool_names=
 
-  while IFS= read -r kind_version_entry; do
-    [ -n "$kind_version_entry" ] || continue
-    kind_name=${kind_version_entry%%|*}
-    if ! shimmy_contains_line_list "$kind_names" "$kind_name"; then
-      kind_names=$(shimmy_append_line_list "$kind_names" "$kind_name")
+  while IFS= read -r tool_version_entry; do
+    [ -n "$tool_version_entry" ] || continue
+    tool_name=${tool_version_entry%%|*}
+    if ! shimmy_contains_line_list "$tool_names" "$tool_name"; then
+      tool_names=$(shimmy_append_line_list "$tool_names" "$tool_name")
     fi
   done <<EOF
-$kind_version_entries
+$tool_version_entries
 EOF
 
-  printf '%s\n' "$kind_names"
+  printf '%s\n' "$tool_names"
 }
 
 version_list_from_entries() {
-  kind_version_entries=$1
+  tool_version_entries=$1
   version_names=
 
-  while IFS= read -r kind_version_entry; do
-    [ -n "$kind_version_entry" ] || continue
-    version_name=${kind_version_entry##*|}
+  while IFS= read -r tool_version_entry; do
+    [ -n "$tool_version_entry" ] || continue
+    version_name=${tool_version_entry##*|}
     if ! shimmy_contains_line_list "$version_names" "$version_name"; then
       version_names=$(shimmy_append_line_list "$version_names" "$version_name")
     fi
   done <<EOF
-$kind_version_entries
+$tool_version_entries
 EOF
 
   printf '%s\n' "$version_names"
 }
 
 validate_requested_shims() {
-  selected_kind_version_entries >/dev/null
+  selected_tool_version_entries >/dev/null
 }
 
 resolve_install_paths() {

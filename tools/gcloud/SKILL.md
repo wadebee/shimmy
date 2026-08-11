@@ -9,7 +9,7 @@ Use this skill when working with the gcloud tool, its tests, its docs, or gcloud
 
 ## Files
 
-- Kind metadata: `tools/gcloud/tool.conf`
+- Tool metadata: `tools/gcloud/tool.conf`
 - Concrete runtime: `tools/gcloud/versions/573.0/run.sh`
 - User guide: `tools/gcloud/guide.md`
 - Tests: `tools/gcloud/tests/gcloud.sh`

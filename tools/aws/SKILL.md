@@ -9,7 +9,7 @@ Use this skill when working with the AWS tool, its tests, its docs, or AWS CLI u
 
 ## Files
 
-- Kind metadata: `tools/aws/tool.conf`
+- Tool metadata: `tools/aws/tool.conf`
 - Concrete runtime: `tools/aws/versions/2.31/run.sh`
 - User guide: `tools/aws/guide.md`
 - Tests: `tools/aws/tests/aws.sh`

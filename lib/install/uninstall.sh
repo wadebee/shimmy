@@ -20,7 +20,7 @@ perform_uninstall_profile() {
   [ -f "$INSTALL_MANIFEST_FILE" ] || fail "no Shimmy profile manifest found at $INSTALL_MANIFEST_FILE"
   shimmy_profile_manifest_validate "$INSTALL_MANIFEST_FILE" "$SHIMMY_PROFILE_RESOLVED" || exit 1
 
-  installed_kinds=$(shimmy_read_manifest_kinds "$INSTALL_MANIFEST_FILE" || true)
+  installed_tools=$(shimmy_manifest_tool_list_read "$INSTALL_MANIFEST_FILE" || true)
   startup_files=
   if [ "$SHIMMY_PROFILE_RESOLVED" = default ]; then
     startup_files=$(shimmy_read_manifest_values "$INSTALL_MANIFEST_FILE" startup_file || true)
@@ -29,11 +29,11 @@ perform_uninstall_profile() {
   for asset_name in agent commands config implementations lib plugins tests tools; do
     profile_owned_path_remove "$SHIMMY_PROFILE_ROOT/$asset_name"
   done
-  while IFS= read -r kind_name; do
-    [ -n "$kind_name" ] || continue
-    profile_owned_path_remove "$SHIMMY_BIN_DIR/$kind_name"
+  while IFS= read -r tool_name; do
+    [ -n "$tool_name" ] || continue
+    profile_owned_path_remove "$SHIMMY_BIN_DIR/$tool_name"
   done <<EOF
-$installed_kinds
+$installed_tools
 EOF
   profile_owned_path_remove "$SHIMMY_CONTROL_BIN"
   profile_owned_path_remove "$SHIMMY_SHELL_INIT_FILE"

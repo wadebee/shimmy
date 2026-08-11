@@ -2,7 +2,7 @@
 # Bootstrap one canonical Shimmy profile from this source checkout.
 
 shimmy__bootstrap_run() {
-  shimmy__bootstrap_kind_baseline='jq rg'
+  shimmy__bootstrap_tool_baseline='jq rg'
   shimmy__bootstrap_profile_name=default
 
   case "${1:-}" in
@@ -35,7 +35,7 @@ shimmy__bootstrap_run() {
         return 1
         ;;
       --shim)
-        printf '%s\n' "ERROR: repository installation includes jq and rg; finish onboarding, then run 'shimmy install --shim <kind>'" >&2
+        printf '%s\n' "ERROR: repository installation includes jq and rg; finish onboarding, then run 'shimmy install --shim <tool>'" >&2
         return 1
         ;;
     esac
@@ -53,7 +53,7 @@ Sourcing installs the selected profile and initializes it in the current shell.
 Executing performs the same install for automation; shell initialization ends
 with that process. Every bootstrap includes jq and rg. Profile selection is
 bootstrap-only; install additional tools afterward with the installed command:
-  shimmy install --shim <kind>
+  shimmy install --shim <tool>
 EOF
     return 0
   fi
@@ -104,8 +104,8 @@ EOF
     }
     SHIMMY_BOOTSTRAP_PROFILE=$shimmy__bootstrap_profile_name
     export SHIMMY_BOOTSTRAP_PROFILE
-    for shimmy__bootstrap_kind in $shimmy__bootstrap_kind_baseline; do
-      set -- "$@" --shim "$shimmy__bootstrap_kind"
+    for shimmy__bootstrap_tool in $shimmy__bootstrap_tool_baseline; do
+      set -- "$@" --shim "$shimmy__bootstrap_tool"
     done
     "$shimmy__bootstrap_source_root/commands/install.sh" "$@"
   ); then
@@ -141,7 +141,7 @@ fi
 unset -f shimmy__bootstrap_run
 unset shimmy__bootstrap_argument shimmy__bootstrap_candidate
 unset shimmy__bootstrap_help_requested
-unset shimmy__bootstrap_kind shimmy__bootstrap_kind_baseline
+unset shimmy__bootstrap_tool shimmy__bootstrap_tool_baseline
 unset shimmy__bootstrap_profile_name shimmy__bootstrap_profile_root
 unset shimmy__bootstrap_pwd_candidate shimmy__bootstrap_script_candidate
 unset shimmy__bootstrap_script_parent shimmy__bootstrap_shell_init_file

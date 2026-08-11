@@ -9,7 +9,7 @@ Use this skill when working with the Terraform tool, its tests, its docs, or Ter
 
 ## Files
 
-- Kind metadata: `tools/terraform/tool.conf`
+- Tool metadata: `tools/terraform/tool.conf`
 - Concrete runtime: `tools/terraform/versions/1.15/run.sh`
 - User guide: `tools/terraform/guide.md`
 - Tests: `tools/terraform/tests/terraform.sh`

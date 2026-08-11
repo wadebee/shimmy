@@ -9,7 +9,7 @@ Use this skill when working with the gdrive tool, its local image, its tests, it
 
 ## Files
 
-- Kind metadata: `tools/gdrive/tool.conf`
+- Tool metadata: `tools/gdrive/tool.conf`
 - Concrete runtime: `tools/gdrive/versions/0.2/run.sh`
 - User guide: `tools/gdrive/guide.md`
 - Tests: `tools/gdrive/tests/gdrive.sh`
@@ -58,7 +58,7 @@ removed repository `shims/` paths.
 ## Change Rules
 
 1. Keep OAuth credentials in a host directory mounted through `GDRIVE_CREDS_DIR`; do not bake credentials into the image.
-2. Keep package installation and source checkout in `tools/gdrive/versions/0.2/container/Containerfile`, not the kind dispatcher.
+2. Keep package installation and source checkout in `tools/gdrive/versions/0.2/container/Containerfile`, not the tool dispatcher.
 3. Use `SHIMMY_GDRIVE_IMAGE` only as a full runtime image override; local build args apply only to Shimmy-built images.
 4. Keep `--help` wrapper-level so smoke tests do not start browser OAuth.
 5. Preserve first-time auth port publishing unless upstream stops using a localhost browser callback.

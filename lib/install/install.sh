@@ -14,9 +14,9 @@ SKIP_STARTUP=0
 STARTUP_OPTION_REQUESTED=0
 STARTUP_FILE_PATHS=
 STARTUP_SHELL=
-PROFILE_MANIFEST_KIND_VERSIONS=
-PROFILE_MANIFEST_KINDS=
-EXISTING_PROFILE_KINDS=
+PROFILE_MANIFEST_TOOL_VERSIONS=
+PROFILE_MANIFEST_TOOLS=
+EXISTING_PROFILE_TOOLS=
 UNINSTALL=0
 PROFILE_EXISTS=0
 SHIMMY_STAGE_ROOT=
@@ -119,9 +119,9 @@ profile_existing_state_read() {
   if [ -f "$INSTALL_MANIFEST_FILE" ] || [ -L "$INSTALL_MANIFEST_FILE" ]; then
     shimmy_profile_manifest_validate "$INSTALL_MANIFEST_FILE" "$SHIMMY_PROFILE_RESOLVED" || exit 1
     PROFILE_EXISTS=1
-    EXISTING_PROFILE_KINDS=$(shimmy_read_manifest_kinds "$INSTALL_MANIFEST_FILE" || true)
-    PROFILE_MANIFEST_KINDS=$EXISTING_PROFILE_KINDS
-    PROFILE_MANIFEST_KIND_VERSIONS=$(shimmy_read_manifest_kind_versions "$INSTALL_MANIFEST_FILE" || true)
+    EXISTING_PROFILE_TOOLS=$(shimmy_manifest_tool_list_read "$INSTALL_MANIFEST_FILE" || true)
+    PROFILE_MANIFEST_TOOLS=$EXISTING_PROFILE_TOOLS
+    PROFILE_MANIFEST_TOOL_VERSIONS=$(shimmy_manifest_tool_version_list_read "$INSTALL_MANIFEST_FILE" || true)
     return 0
   fi
 
@@ -129,10 +129,10 @@ profile_existing_state_read() {
 }
 
 profile_selection_merge() {
-  selected_entries=$(selected_kind_version_entries)
-  selected_kinds=$(kind_list_from_entries "$selected_entries")
-  PROFILE_MANIFEST_KINDS=$(line_list_merge "$PROFILE_MANIFEST_KINDS" "$selected_kinds")
-  PROFILE_MANIFEST_KIND_VERSIONS=$(line_list_merge "$PROFILE_MANIFEST_KIND_VERSIONS" "$selected_entries")
+  selected_entries=$(selected_tool_version_entries)
+  selected_tools=$(tool_list_from_entries "$selected_entries")
+  PROFILE_MANIFEST_TOOLS=$(line_list_merge "$PROFILE_MANIFEST_TOOLS" "$selected_tools")
+  PROFILE_MANIFEST_TOOL_VERSIONS=$(line_list_merge "$PROFILE_MANIFEST_TOOL_VERSIONS" "$selected_entries")
 }
 
 profile_stage_prepare() {
@@ -141,20 +141,20 @@ profile_stage_prepare() {
   [ ! -e "$SHIMMY_STAGE_ROOT" ] || fail "staging path already exists: $SHIMMY_STAGE_ROOT"
   profile_control_assets_stage
 
-  while IFS= read -r kind_name; do
-    [ -n "$kind_name" ] || continue
-    profile_dispatcher_collision_validate "$kind_name"
-    profile_shim_assets_stage "$kind_name"
-    profile_dispatcher_stage "$kind_name"
+  while IFS= read -r tool_name; do
+    [ -n "$tool_name" ] || continue
+    profile_dispatcher_collision_validate "$tool_name"
+    profile_shim_assets_stage "$tool_name"
+    profile_dispatcher_stage "$tool_name"
   done <<EOF
-$PROFILE_MANIFEST_KINDS
+$PROFILE_MANIFEST_TOOLS
 EOF
-  while IFS= read -r kind_version_entry; do
-    [ -n "$kind_version_entry" ] || continue
-    version_name=${kind_version_entry##*|}
+  while IFS= read -r tool_version_entry; do
+    [ -n "$tool_version_entry" ] || continue
+    version_name=${tool_version_entry##*|}
     profile_shim_assets_stage "$version_name"
   done <<EOF
-$PROFILE_MANIFEST_KIND_VERSIONS
+$PROFILE_MANIFEST_TOOL_VERSIONS
 EOF
 
   profile_launcher_collision_validate
@@ -205,6 +205,6 @@ shimmy_install_run() {
     perform_uninstall_profile
     return 0
   fi
-  [ -n "$REQUESTED_SHIMS" ] || fail "install requires at least one --shim <kind>"
+  [ -n "$REQUESTED_SHIMS" ] || fail "install requires at least one --shim <tool>"
   perform_install
 }

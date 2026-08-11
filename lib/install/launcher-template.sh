@@ -39,7 +39,7 @@ if [ "$config_home" = / ]; then expected_root=/shimmy/profiles/$profile_name; el
 
 manifest_file=$profile_root/install-manifest.txt
 manifest_fail() {
-  printf 'ERROR: invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=4, shimmy_install_layout=profile-flat-root, shimmy_profile_manifest_version=4, and shimmy_profile_name=%s); inspect or uninstall it with the Shimmy version that created it, then reinstall that profile\n' "$manifest_file" "$profile_name" >&2
+  printf 'ERROR: invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=1, shimmy_install_layout=profile-flat-root, shimmy_profile_manifest_version=1, and shimmy_profile_name=%s); inspect or uninstall it with the Shimmy version that created it, then reinstall that profile\n' "$manifest_file" "$profile_name" >&2
   exit 1
 }
 manifest_value_count() {
@@ -53,9 +53,9 @@ manifest_value_read() {
 for identity_key in shimmy_install_manifest_version shimmy_install_layout shimmy_profile_manifest_version shimmy_profile_name; do
   [ "$(manifest_value_count "$identity_key")" -eq 1 ] || manifest_fail
 done
-[ "$(manifest_value_read shimmy_install_manifest_version)" = 4 ] || manifest_fail
+[ "$(manifest_value_read shimmy_install_manifest_version)" = 1 ] || manifest_fail
 [ "$(manifest_value_read shimmy_install_layout)" = profile-flat-root ] || manifest_fail
-[ "$(manifest_value_read shimmy_profile_manifest_version)" = 4 ] || manifest_fail
+[ "$(manifest_value_read shimmy_profile_manifest_version)" = 1 ] || manifest_fail
 [ "$(manifest_value_read shimmy_profile_name)" = "$profile_name" ] || manifest_fail
 
 for launcher_arg in "$@"; do

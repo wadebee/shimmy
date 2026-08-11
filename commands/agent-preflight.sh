@@ -117,8 +117,8 @@ shimmy_agent_manifest_value() {
 shimmy_agent_smoke_args_render() {
   shim_name=$1
 
-  if shimmy_is_kind "$shim_name"; then
-    version_name=$(shimmy_kind_default_version "$shim_name") || {
+  if shimmy_tool_exists "$shim_name"; then
+    version_name=$(shimmy_tool_version_default "$shim_name") || {
       printf '%s\n' '--version'
       return 0
     }
@@ -129,7 +129,7 @@ shimmy_agent_smoke_args_render() {
     return 0
   fi
 
-  kind_name=$(shimmy_version_kind "$version_name") || {
+  tool_name=$(shimmy_tool_version_tool "$version_name") || {
     printf '%s\n' '--version'
     return 0
   }
@@ -137,7 +137,7 @@ shimmy_agent_smoke_args_render() {
     printf '%s\n' '--version'
     return 0
   }
-  version_dir=$ROOT_DIR/tools/$kind_name/versions/$version_label
+  version_dir=$ROOT_DIR/tools/$tool_name/versions/$version_label
   smoke_file=$version_dir/smoke.conf
   image_config_file=$version_dir/image.conf
 
@@ -256,7 +256,7 @@ shimmy_agent_manifest_shims_discover() {
     [ -n "$shim_name" ] || continue
     shimmy_agent_active_shim_consider "$shim_name" "$bin_dir/$shim_name"
   done <<EOF
-$(sed -n 's/^kind=//p' "$manifest_file")
+$(sed -n 's/^tool=//p' "$manifest_file")
 EOF
 }
 

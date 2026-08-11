@@ -37,7 +37,7 @@ connect to the local Podman socket without escalation.
      directory for that profile.
 3. Discover installed shims:
    - Use `shimmy status --format manifest`, then read
-     the invoking profile manifest's `kind=` entries.
+     the invoking profile manifest's `tool=` entries.
    - If status is unavailable, inspect the manifest in the selected
      profile root, then that profile's `bin/` directory.
    - If that is unavailable, inspect executables in `PATH` directories whose

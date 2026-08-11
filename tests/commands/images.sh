@@ -227,8 +227,8 @@ test_commands_images_installed_selection() {
   : > "$IMAGES_FIXTURE_CALL_LOG"
   : > "$IMAGES_FIXTURE_RESPONSES"
 
-  for kind_name in jq rg; do
-    version_name=$(shimmy_kind_default_version "$kind_name")
+  for tool_name in jq rg; do
+    version_name=$(shimmy_tool_version_default "$tool_name")
     config_file=$(shimmy_version_image_config_file "$version_name")
     default_ref=$(shimmy_image_config_scalar_read "$config_file" image_default_ref)
     upstream_ref=$(shimmy_image_config_scalar_read "$config_file" image_upstream_ref)

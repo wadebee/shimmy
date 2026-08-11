@@ -9,7 +9,7 @@ Use this skill when working with the opnsense-mcp-admin tool, its tests, its doc
 
 ## Files
 
-- Kind metadata: `tools/opnsense-mcp-admin/tool.conf`
+- Tool metadata: `tools/opnsense-mcp-admin/tool.conf`
 - Concrete runtime: `tools/opnsense-mcp-admin/versions/1.0/run.sh`
 - User guide: `tools/opnsense-mcp-admin/guide.md`
 - Tests: `tools/opnsense-mcp-admin/tests/opnsense-mcp-admin.sh`

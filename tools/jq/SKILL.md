@@ -9,7 +9,7 @@ Use this skill when working with the jq tool, its tests, its docs, or jq usage t
 
 ## Files
 
-- Kind metadata: `tools/jq/tool.conf`
+- Tool metadata: `tools/jq/tool.conf`
 - Concrete runtime: `tools/jq/versions/1.8/run.sh`
 - User guide: `tools/jq/guide.md`
 - Tests: `tools/jq/tests/jq.sh`

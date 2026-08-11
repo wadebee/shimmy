@@ -15,7 +15,7 @@ Question requests that materially differ from your training of best practices by
 - Read root `CONTEXT.md` and every retained child `CONTEXT.md` on the path to
   changed files under `commands/`, `lib/`, or `tests/`. Tool and management
   plugin directories deliberately do not contain context files.
-- Tool runtime, metadata, guides, and concrete versions live in `tools/<kind>/`.
+- Tool runtime, metadata, guides, and concrete versions live in `tools/<tool>/`.
 - Shared modules live in `lib/`.
 - Management entrypoints live in `commands/`.
 - Behavioral tests live in `tests/`.
@@ -40,7 +40,7 @@ If Shimmy is not installed on this system:
 
 The authoritative Shimmy control-plane skills are under
 `plugins/shimmy/skills/`. Canonical tool skills are at
-`tools/<kind>/SKILL.md`. Do not modify generated copies under
+`tools/<tool>/SKILL.md`. Do not modify generated copies under
 `.agents/skills/`.
 
 ## Working Rules

@@ -6,13 +6,13 @@ description: Template for a Shimmy CLI tool backed by Podman.
 # Generic Shimmy tool template
 
 Read root `CONTEXT.md`, `CONTRIBUTING.md`, and the guide and canonical skill
-for the closest existing tool. Create one self-contained `tools/<kind>/`
+for the closest existing tool. Create one self-contained `tools/<tool>/`
 directory.
 
 ## Required structure
 
 ```text
-tools/<kind>/
+tools/<tool>/
   tool.conf
   guide.md
   SKILL.md
@@ -23,7 +23,7 @@ tools/<kind>/
     container/Containerfile  # only for local builds
 ```
 
-`tool.conf` must retain `shim_name=<kind>` for manifest compatibility and add:
+`tool.conf` must retain `shim_name=<tool>` for manifest compatibility and add:
 
 ```text
 tool_default_version=<major.minor>
@@ -43,7 +43,7 @@ base to an immutable top-level OCI index or Docker manifest-list digest with
 references only. Do not duplicate defaults in `run.sh` or a `Containerfile`.
 
 Audit packages and downloaded artifacts for both target architectures. Run
-`./commands/images.sh verify --shim <kind>@<version>`, the preview suite, and
+`./commands/images.sh verify --shim <tool>@<version>`, the preview suite, and
 the version-owned smoke on native Linux `amd64` and Apple Silicon macOS
 `arm64`. Cross-emulated builds do not satisfy native acceptance.
 

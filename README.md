@@ -47,7 +47,7 @@ The repository contains only the minimal `install.sh` bootstrap; it does not
 contain a runnable `shimmy` launcher. Source `. ./install.sh` to bootstrap
 `default` and initialize the current shell, or source `. ./install.sh --profile
 upstream` for the maintainer profile. Every bootstrap installs jq and rg.
-Install any other tool afterward with `shimmy install --shim <kind>`.
+Install any other tool afterward with `shimmy install --shim <tool>`.
 An unqualified default bootstrap also installs its managed startup block for
 zsh and for login and non-login interactive Bash sessions. Explicit `--shell`,
 repeatable `--startup-file`, and `--no-startup` options narrow or disable those
@@ -122,8 +122,8 @@ shimmy images verify --shim oc@4.18 --require-current-upstream
 ```
 
 Installed verification defaults to concrete versions recorded in the invoking
-profile. `--all` selects every catalog version, repeated `--shim` selects a kind
-default or an exact `kind@version`, and `--format manifest` emits stable
+profile. `--all` selects every catalog version, repeated `--shim` selects a tool
+default or an exact `tool@version`, and `--format manifest` emits stable
 machine-readable result lines. Source-checkout use is
 `./commands/images.sh verify` and requires `--all` or an explicit `--shim`.
 The command inspects manifests without pulling target layers and never changes
@@ -168,7 +168,7 @@ their guides and canonical skills:
 ```text
 commands/  management entrypoints
 lib/       shared catalog, profile, runtime, startup, and network behavior
-tools/     one self-contained directory per tool kind and version
+tools/     one self-contained directory per tool and version
 tests/     POSIX validation and retained context-tree verification
 ```
 

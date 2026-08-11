@@ -44,8 +44,8 @@ shimmy_update_run() {
     fail "upstream has no persistent startup integration; source $SHIMMY_PROFILE_ROOT/shell-init.sh after installation"
   fi
 
-  selected_kinds=$(shimmy_update_selected_kinds_resolve "$SHIMMY_PROFILE_MANIFEST_PATH")
-  selected_versions=$(shimmy_update_selected_versions_resolve "$SHIMMY_PROFILE_MANIFEST_PATH" "$selected_kinds")
+  selected_tools=$(shimmy_update_selected_tools_resolve "$SHIMMY_PROFILE_MANIFEST_PATH")
+  selected_versions=$(shimmy_update_selected_versions_resolve "$SHIMMY_PROFILE_MANIFEST_PATH" "$selected_tools")
   shimmy_update_management_run "$SHIMMY_PROFILE_MANIFEST_PATH"
 
   [ "$PULL_IMAGES" -eq 0 ] || shimmy_update_refresh_hooks_run pull "$selected_versions"

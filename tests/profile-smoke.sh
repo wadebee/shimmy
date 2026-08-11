@@ -1,24 +1,24 @@
 #!/bin/sh
 # Installed-profile smoke test mode.
 
-test_profile_kind_version_find() {
+test_profile_tool_version_find() {
   manifest_file=$1
-  kind_name_expected=$2
+  tool_name_expected=$2
   version_label_expected=$3
 
-  while IFS= read -r kind_version_entry; do
-    [ -n "$kind_version_entry" ] || continue
-    kind_name=${kind_version_entry%%|*}
-    version_entry=${kind_version_entry#*|}
+  while IFS= read -r tool_version_entry; do
+    [ -n "$tool_version_entry" ] || continue
+    tool_name=${tool_version_entry%%|*}
+    version_entry=${tool_version_entry#*|}
     version_label=${version_entry%%|*}
     version_name=${version_entry#*|}
 
-    if [ "$kind_name" = "$kind_name_expected" ] && [ "$version_label" = "$version_label_expected" ]; then
+    if [ "$tool_name" = "$tool_name_expected" ] && [ "$version_label" = "$version_label_expected" ]; then
       printf '%s\n' "$version_name"
       return 0
     fi
   done <<EOF
-$(shimmy_read_manifest_kind_versions "$manifest_file" || true)
+$(shimmy_manifest_tool_version_list_read "$manifest_file" || true)
 EOF
 
   return 1
@@ -66,15 +66,15 @@ test_profile_mode_usage() {
 Run Shimmy tests.
 
 Usage:
-  shimmy test [--shim <kind>[@<version>]] [--all]
+  shimmy test [--shim <tool>[@<version>]] [--all]
 
 From a source checkout this runs the repository suite. Through an installed
 launcher it validates that launcher's profile and runs non-mutating smoke
 commands through its installed wrappers.
 
 Options:
-  --shim <name>        Test one installed kind or concrete kind@version.
-  --all                Test installed public kinds and every installed concrete version.
+  --shim <name>        Test one installed tool or concrete tool@version.
+  --all                Test installed public tools and every installed concrete version.
 EOF
 }
 
@@ -82,26 +82,26 @@ test_profile_request_resolve() {
   test_profile_manifest_file=$1
   test_profile_requested_shim=$TEST_PROFILE_SHIM_REQUESTED
 
-  TEST_PROFILE_REQUEST_KIND=
+  TEST_PROFILE_REQUEST_TOOL=
   TEST_PROFILE_REQUEST_VERSION=
 
   [ -n "$test_profile_requested_shim" ] || return 0
 
   case "$test_profile_requested_shim" in
     *@*)
-      TEST_PROFILE_REQUEST_KIND=${test_profile_requested_shim%%@*}
+      TEST_PROFILE_REQUEST_TOOL=${test_profile_requested_shim%%@*}
       test_profile_requested_label=${test_profile_requested_shim#*@}
-      case "$TEST_PROFILE_REQUEST_KIND:$test_profile_requested_label" in
+      case "$TEST_PROFILE_REQUEST_TOOL:$test_profile_requested_label" in
         :*|*:@*|*:)
           fail_test "invalid shim request: $test_profile_requested_shim"
           ;;
       esac
-      TEST_PROFILE_REQUEST_VERSION=$(test_profile_kind_version_find "$test_profile_manifest_file" "$TEST_PROFILE_REQUEST_KIND" "$test_profile_requested_label" || true)
+      TEST_PROFILE_REQUEST_VERSION=$(test_profile_tool_version_find "$test_profile_manifest_file" "$TEST_PROFILE_REQUEST_TOOL" "$test_profile_requested_label" || true)
       [ -n "$TEST_PROFILE_REQUEST_VERSION" ] || fail_test "version $test_profile_requested_shim is not recorded in the selected Shimmy profile"
       ;;
     *)
-      TEST_PROFILE_REQUEST_KIND=$test_profile_requested_shim
-      shimmy_contains_manifest_kind "$test_profile_manifest_file" "$TEST_PROFILE_REQUEST_KIND" || fail_test "kind $TEST_PROFILE_REQUEST_KIND is not recorded in the selected Shimmy profile"
+      TEST_PROFILE_REQUEST_TOOL=$test_profile_requested_shim
+      shimmy_manifest_tool_contains "$test_profile_manifest_file" "$TEST_PROFILE_REQUEST_TOOL" || fail_test "tool $TEST_PROFILE_REQUEST_TOOL is not recorded in the selected Shimmy profile"
       ;;
   esac
 }
@@ -169,23 +169,23 @@ test_profile_smoke_command_run() {
   pass "$smoke_scope smoke command succeeds for $smoke_name in profile $profile_name"
 }
 
-test_profile_smoke_kind_run() {
-  kind_name=$1
+test_profile_smoke_tool_run() {
+  tool_name=$1
   manifest_file=$2
   public_bin_dir=$3
   config_dir=$4
   profile_name=$5
 
-  version_name=$(test_profile_kind_version_find "$manifest_file" "$kind_name" default || true)
-  [ -n "$version_name" ] || fail_test "kind $kind_name has no default version in the selected Shimmy profile"
+  version_name=$(test_profile_tool_version_find "$manifest_file" "$tool_name" default || true)
+  [ -n "$version_name" ] || fail_test "tool $tool_name has no default version in the selected Shimmy profile"
 
   test_profile_smoke_command_run \
-    "$public_bin_dir/$kind_name" \
+    "$public_bin_dir/$tool_name" \
     "$profile_name" \
-    "$config_dir/shims/$kind_name.conf" \
+    "$config_dir/shims/$tool_name.conf" \
     "$config_dir/shims/$version_name.conf" \
     public \
-    "$kind_name"
+    "$tool_name"
 }
 
 test_profile_smoke_version_run() {
@@ -210,17 +210,17 @@ test_profile_smoke_versions_run() {
   profile_name=$4
   version_names_seen=
 
-  while IFS= read -r kind_version_entry; do
-    [ -n "$kind_version_entry" ] || continue
-    version_name=${kind_version_entry##*|}
-    [ -n "$version_name" ] || fail_test "invalid kind_version entry in $manifest_file: $kind_version_entry"
+  while IFS= read -r tool_version_entry; do
+    [ -n "$tool_version_entry" ] || continue
+    version_name=${tool_version_entry##*|}
+    [ -n "$version_name" ] || fail_test "invalid tool_version entry in $manifest_file: $tool_version_entry"
     if shimmy_contains_line_list "$version_names_seen" "$version_name"; then
       continue
     fi
     version_names_seen=$(shimmy_append_line_list "$version_names_seen" "$version_name")
     test_profile_smoke_version_run "$version_name" "$profile_implementation_dir" "$config_dir" "$profile_name"
   done <<EOF
-$(shimmy_read_manifest_kind_versions "$manifest_file" || true)
+$(shimmy_manifest_tool_version_list_read "$manifest_file" || true)
 EOF
 }
 
@@ -252,20 +252,20 @@ test_profile_smoke_run() {
     return 0
   fi
 
-  if [ -n "$TEST_PROFILE_REQUEST_KIND" ]; then
-    test_profile_smoke_kind_run "$TEST_PROFILE_REQUEST_KIND" "$profile_manifest_file" "$public_bin_dir" "$config_dir" "$SHIMMY_PROFILE_NAME"
+  if [ -n "$TEST_PROFILE_REQUEST_TOOL" ]; then
+    test_profile_smoke_tool_run "$TEST_PROFILE_REQUEST_TOOL" "$profile_manifest_file" "$public_bin_dir" "$config_dir" "$SHIMMY_PROFILE_NAME"
     return 0
   fi
 
-  installed_kind_count=0
-  while IFS= read -r kind_name; do
-    [ -n "$kind_name" ] || continue
-    test_profile_smoke_kind_run "$kind_name" "$profile_manifest_file" "$public_bin_dir" "$config_dir" "$SHIMMY_PROFILE_NAME"
-    installed_kind_count=$((installed_kind_count + 1))
+  installed_tool_count=0
+  while IFS= read -r tool_name; do
+    [ -n "$tool_name" ] || continue
+    test_profile_smoke_tool_run "$tool_name" "$profile_manifest_file" "$public_bin_dir" "$config_dir" "$SHIMMY_PROFILE_NAME"
+    installed_tool_count=$((installed_tool_count + 1))
   done <<EOF
-$(shimmy_read_manifest_kinds "$profile_manifest_file" || true)
+$(shimmy_manifest_tool_list_read "$profile_manifest_file" || true)
 EOF
-  [ "$installed_kind_count" -gt 0 ] || fail_test "no installed kinds recorded in $profile_manifest_file"
+  [ "$installed_tool_count" -gt 0 ] || fail_test "no installed tools recorded in $profile_manifest_file"
 
   if [ "$TEST_PROFILE_TEST_ALL" -eq 1 ]; then
     test_profile_smoke_versions_run "$profile_manifest_file" "$profile_implementation_dir" "$config_dir" "$SHIMMY_PROFILE_NAME"

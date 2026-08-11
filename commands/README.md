@@ -28,7 +28,7 @@ indexes and report whether their upstream tags have moved. Verification does
 not pull target image layers.
 
 ```text
-shimmy images verify [--all | --shim <kind[@version]> ...]
+shimmy images verify [--all | --shim <tool[@version]> ...]
                      [--public-only] [--require-current-upstream]
                      [--format human|manifest]
 ```
@@ -36,7 +36,7 @@ shimmy images verify [--all | --shim <kind[@version]> ...]
 Options:
 
 - `--all` verifies every catalog version. It cannot be combined with `--shim`.
-- `--shim <kind[@version]>` verifies a kind or concrete version. Repeat the
+- `--shim <tool[@version]>` verifies a tool or concrete version. Repeat the
   option to select multiple entries.
 - `--public-only` visibly skips entries that require registry authentication.
 - `--require-current-upstream` treats upstream-tag drift as a failure instead
@@ -63,7 +63,7 @@ shimmy images verify --require-current-upstream --format manifest
 Manifest records have this form:
 
 ```text
-image_verify=<kind>|<version>|<role>|<digest>|<media-type>|<platform-result>|<access-result>|<drift-result>|<result>|<error>
+image_verify=<tool>|<version>|<role>|<digest>|<media-type>|<platform-result>|<access-result>|<drift-result>|<result>|<error>
 ```
 
 The result is `pass`, `warning`, `skip`, or `fail`. Upstream movement is a
@@ -72,18 +72,18 @@ omitted by `--public-only` is `skip`, never `pass`.
 
 ## `install`
 
-Add one or more tool kinds to the current profile. Installing a kind also
-installs its catalog-default concrete version; use `kind@version` to request a
+Add one or more tools to the current profile. Installing a tool also
+installs its catalog-default concrete version; use `tool@version` to request a
 different available version as well.
 
 ```text
-shimmy install --shim <kind[@version]> [--shim <kind[@version]> ...]
+shimmy install --shim <tool[@version]> [--shim <tool[@version]> ...]
                [--shell <name>] [--startup-file <path> ...] [--no-startup]
 ```
 
 Options:
 
-- `--shim <kind[@version]>` selects a tool to install and is required. Repeat
+- `--shim <tool[@version]>` selects a tool to install and is required. Repeat
   it to install multiple tools.
 - `--shell <name>` overrides shell detection when updating startup files.
 - `--startup-file <path>` selects a startup file to update. Repeat it to
@@ -162,7 +162,7 @@ shimmy netinfo --host-ip 192.168.1.20 --host-lan 192.168.1.0/24 --format manifes
 
 Install, update, uninstall, or export Shimmy agent skills. With no explicit
 skill names, installation selects the core management skills plus tool skills
-for kinds in the chosen install manifest. Updates prefer the skills already
+for tools in the chosen install manifest. Updates prefer the skills already
 tracked by the target's skills manifest.
 
 ```text
@@ -178,7 +178,7 @@ Options:
 - `--target profile` writes compatibility adapters to `~/.agents/skills`.
 - `--export <path>` exports a portable skills directory, or a `.zip` archive
   when the destination ends in `.zip`. It is not supported with `uninstall`.
-- `--manifest <path>` uses installed kinds from the specified profile manifest
+- `--manifest <path>` uses installed tools from the specified profile manifest
   when present.
 - `-h`, `--help` shows command help.
 
@@ -197,9 +197,9 @@ shimmy skills install --export ./shimmy-skills.zip
 
 ## `status`
 
-Show the current profile's identity and root, its installed tool kinds, and the
-catalog versions and configured image references for those kinds. Optionally
-include tool kinds that are available in the catalog but not installed.
+Show the current profile's identity and root, its installed tools, and the
+catalog versions and configured image references for those tools. Optionally
+include tools that are available in the catalog but not installed.
 
 ```text
 shimmy status [--available] [--format human|manifest]
@@ -207,7 +207,7 @@ shimmy status [--available] [--format human|manifest]
 
 Options:
 
-- `--available` includes catalog kinds that are not installed.
+- `--available` includes catalog tools that are not installed.
 - `--format human|manifest` selects human-readable or machine-readable output.
   The default is `human`.
 - `-h`, `--help` shows command help.
@@ -223,17 +223,17 @@ shimmy status --format manifest
 ## `test`
 
 Validate the current profile and run non-mutating smoke commands through its
-installed wrappers. A kind selection tests its installed public command; a
-`kind@version` selection tests a recorded concrete version.
+installed wrappers. A tool selection tests its installed public command; a
+`tool@version` selection tests a recorded concrete version.
 
 ```text
-shimmy test [--shim <kind>[@<version>]] [--all]
+shimmy test [--shim <tool>[@<version>]] [--all]
 ```
 
 Options:
 
-- `--shim <kind>[@<version>]` tests one installed kind or concrete version.
-- `--all` tests every installed public kind and every installed concrete
+- `--shim <tool>[@<version>]` tests one installed tool or concrete version.
+- `--all` tests every installed public tool and every installed concrete
   version. It cannot be combined with `--shim`.
 - `-h`, `--help` shows command help.
 
@@ -260,9 +260,9 @@ shimmy update [--shim <name> ... | --all] [--pull] [--build]
 
 Options:
 
-- `--shim <name>` selects an installed kind to update. Repeat it to select
-  multiple kinds.
-- `--all` selects all installed kinds in the current profile. It does not
+- `--shim <name>` selects an installed tool to update. Repeat it to select
+  multiple tools.
+- `--all` selects all installed tools in the current profile. It does not
   enumerate sibling profiles and cannot be combined with `--shim`.
 - `--pull` pulls images for selected external-image versions.
 - `--build` builds images for selected local-build versions.
@@ -272,7 +272,7 @@ Options:
   multiple files.
 - `-h`, `--help` shows command help.
 
-With neither `--all` nor `--shim`, the command updates all kinds already
+With neither `--all` nor `--shim`, the command updates all tools already
 installed in the current profile. Startup repair options are unavailable for
 the `upstream` profile.
 

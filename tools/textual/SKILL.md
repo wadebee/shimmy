@@ -9,7 +9,7 @@ Use this skill when working with the Textual tool, its local image, its tests, i
 
 ## Files
 
-- Kind metadata: `tools/textual/tool.conf`
+- Tool metadata: `tools/textual/tool.conf`
 - Concrete runtime: `tools/textual/versions/8.2/run.sh`
 - User guide: `tools/textual/guide.md`
 - Tests: `tools/textual/tests/textual.sh`
@@ -46,7 +46,7 @@ removed repository `shims/` paths.
 
 ## Change Rules
 
-1. Keep package installation inside `tools/textual/versions/8.2/container/Containerfile`, not the kind dispatcher.
+1. Keep package installation inside `tools/textual/versions/8.2/container/Containerfile`, not the tool dispatcher.
 2. Preserve TTY detection; Textual apps often need a terminal, while scripted help checks should remain clean.
 3. Use `SHIMMY_TEXTUAL_IMAGE` only as a full runtime image override; local build args apply only to Shimmy-built images.
 4. Treat `textual run` and `textual serve` as interactive or potentially long-running commands.

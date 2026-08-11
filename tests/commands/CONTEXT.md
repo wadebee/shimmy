@@ -35,7 +35,7 @@ a user's Shimmy installation or shell startup files.
   repair-rejection checks.
 - `update.sh` covers selected-shim and all-profile refresh behavior, version-
   local irrelevant image-refresh actions, manifest-preserving self-update for
-  non-baseline kinds and concrete versions, and update request validation. Its
+  non-baseline tools and concrete versions, and update request validation. Its
   self-update scenario starts from session-scoped pristine profile clones so
   it measures update behavior without repeating repository bootstraps.
 - `startup.sh` covers automatic zsh and Bash bootstrap integration,
@@ -45,7 +45,7 @@ a user's Shimmy installation or shell startup files.
   startup installation.
 - `skills.sh` covers split canonical skill sources, checked-in adapter
   fingerprints, one-file repository/home and portable exports, management
-  plugin discovery, installed-kind selection, unconditional profile payload,
+  plugin discovery, installed-tool selection, unconditional profile payload,
   lifecycle isolation, refresh, and manifest-tracked cleanup. Its
   target-ownership lifecycle and retryable external-target failure start from
   pristine profile clones.
@@ -54,7 +54,7 @@ a user's Shimmy installation or shell startup files.
   repository previews use `commands/run-tool.sh`.
 - `netinfo.sh` covers deterministic CIDR rendering, explicit host-LAN
   precedence, help output, and request validation.
-- `install.sh` covers additive installed-kind requests, uninstall request
+- `install.sh` covers additive installed-tool requests, uninstall request
   validation, and macOS Podman guidance.
 - `test.sh` covers installed-profile test request, metadata validation,
   profile binding, public dispatch, and concrete-version orchestration. Its

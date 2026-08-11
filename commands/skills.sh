@@ -69,13 +69,13 @@ Options:
   --target repo       Write skills to .agents/skills in the current directory
   --target profile    Write skills to ~/.agents/skills
   --export <path>     Export a portable skills folder, or a .zip archive
-  --manifest <path>   Read installed kinds from the given profile manifest if present
+  --manifest <path>   Read installed tools from the given profile manifest if present
   -h, --help          Show help
 
 With no explicit skill names, install writes the core Shimmy management skills
-plus tool skills for kinds recorded in the install manifest.
+plus tool skills for tools recorded in the install manifest.
 Update refreshes manifest-tracked skills for the target, falling back to the
-core management and installed-kind skills when no target manifest exists yet.
+core management and installed-tool skills when no target manifest exists yet.
 Uninstall removes skills recorded in the selected target manifest.
 EOF
 }
@@ -138,9 +138,9 @@ skill_source_file_resolve() {
 
   case "$skill_name" in
     shimmy-tool-*)
-      kind_name=${skill_name#shimmy-tool-}
-      if shimmy_is_kind "$kind_name" && [ -f "$ROOT_DIR/tools/$kind_name/SKILL.md" ]; then
-        printf '%s/tools/%s/SKILL.md\n' "$ROOT_DIR" "$kind_name"
+      tool_name=${skill_name#shimmy-tool-}
+      if shimmy_tool_exists "$tool_name" && [ -f "$ROOT_DIR/tools/$tool_name/SKILL.md" ]; then
+        printf '%s/tools/%s/SKILL.md\n' "$ROOT_DIR" "$tool_name"
         return 0
       fi
       ;;
@@ -211,10 +211,10 @@ skill_manifest_skill_names_read_all() {
   fi
 }
 
-installed_kind_skill_name_render() {
-  kind_name=$1
+installed_tool_skill_name_render() {
+  tool_name=$1
 
-  case "$kind_name" in
+  case "$tool_name" in
     opnsense-mcp-admin)
       printf 'shimmy-tool-opnsense-mcp-admin\n'
       ;;
@@ -222,12 +222,12 @@ installed_kind_skill_name_render() {
       printf 'shimmy-tool-opnsense-mcp-read-only\n'
       ;;
     *)
-      printf 'shimmy-tool-%s\n' "$kind_name"
+      printf 'shimmy-tool-%s\n' "$tool_name"
       ;;
   esac
 }
 
-installed_kind_skill_names_read() {
+installed_tool_skill_names_read() {
   manifest_file=$(install_manifest_file_resolve || true)
   skill_names=
 
@@ -236,10 +236,10 @@ installed_kind_skill_names_read() {
 
   while IFS= read -r manifest_line; do
     case "$manifest_line" in
-      kind=*)
-        kind_name=${manifest_line#kind=}
-        [ -n "$kind_name" ] || continue
-        skill_name=$(installed_kind_skill_name_render "$kind_name")
+      tool=*)
+        tool_name=${manifest_line#tool=}
+        [ -n "$tool_name" ] || continue
+        skill_name=$(installed_tool_skill_name_render "$tool_name")
         [ -n "$skill_name" ] || continue
         if ! shimmy_contains_line_list "$skill_names" "$skill_name"; then
           skill_names=$(shimmy_append_line_list "$skill_names" "$skill_name")
@@ -255,7 +255,7 @@ installed_kind_skill_names_read() {
 
 default_skill_names_resolve() {
   default_skills=$CORE_SKILLS
-  installed_skill_names=$(installed_kind_skill_names_read)
+  installed_skill_names=$(installed_tool_skill_names_read)
 
   while IFS= read -r installed_skill_name; do
     [ -n "$installed_skill_name" ] || continue

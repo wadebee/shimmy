@@ -1,5 +1,5 @@
 #!/bin/sh
-# Canonical profile paths and version-4 manifest validation.
+# Canonical profile paths and version-1 manifest validation.
 
 shimmy_config_home_resolve() {
   if [ -n "${XDG_CONFIG_HOME:-}" ]; then
@@ -71,7 +71,7 @@ shimmy_profile_manifest_error() {
   manifest_file=$1
   profile_name=$2
 
-  printf 'invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=4, shimmy_install_layout=profile-flat-root, shimmy_profile_manifest_version=4, and shimmy_profile_name=%s); inspect or uninstall it with the Shimmy version that created it, then reinstall that profile\n' "$manifest_file" "$profile_name" >&2
+  printf 'invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=1, shimmy_install_layout=profile-flat-root, shimmy_profile_manifest_version=1, and shimmy_profile_name=%s); inspect or uninstall it with the Shimmy version that created it, then reinstall that profile\n' "$manifest_file" "$profile_name" >&2
 }
 
 shimmy_manifest_key_count() {
@@ -90,7 +90,7 @@ shimmy_manifest_identity_value_validate() {
   [ "$(shimmy_read_manifest_value "$manifest_file" "$manifest_key")" = "$expected_value" ]
 }
 
-shimmy_kind_name_validate() {
+shimmy_tool_name_validate() {
   case "${1:-}" in
     ''|-*|*--*|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) return 1 ;;
     *) return 0 ;;
@@ -107,9 +107,9 @@ shimmy_version_token_validate() {
 shimmy_manifest_ownership_validate() {
   manifest_file=$1
   profile_name=$2
-  kind_lines=
-  kind_version_lines=
-  kind_label_lines=
+  tool_lines=
+  tool_version_lines=
+  tool_label_lines=
   startup_file_lines=
 
   while IFS= read -r manifest_line || [ -n "$manifest_line" ]; do
@@ -123,29 +123,29 @@ shimmy_manifest_ownership_validate() {
     case "$manifest_key" in
       shimmy_install_manifest_version|shimmy_install_layout|shimmy_profile_manifest_version|shimmy_profile_name)
         ;;
-      kind)
-        shimmy_kind_name_validate "$manifest_value" || return 1
-        shimmy_contains_line_list "$kind_lines" "$manifest_value" && return 1
-        kind_lines=$(shimmy_append_line_list "$kind_lines" "$manifest_value")
+      tool)
+        shimmy_tool_name_validate "$manifest_value" || return 1
+        shimmy_contains_line_list "$tool_lines" "$manifest_value" && return 1
+        tool_lines=$(shimmy_append_line_list "$tool_lines" "$manifest_value")
         ;;
-      kind_version)
+      tool_version)
         case "$manifest_value" in
           *\|*\|*) ;;
           *) return 1 ;;
         esac
-        entry_kind=${manifest_value%%|*}
+        entry_tool=${manifest_value%%|*}
         entry_remainder=${manifest_value#*|}
         entry_label=${entry_remainder%%|*}
         entry_version=${entry_remainder#*|}
         case "$entry_version" in *'|'*) return 1 ;; esac
-        shimmy_kind_name_validate "$entry_kind" || return 1
+        shimmy_tool_name_validate "$entry_tool" || return 1
         shimmy_version_token_validate "$entry_label" || return 1
         shimmy_version_token_validate "$entry_version" || return 1
-        shimmy_contains_line_list "$kind_version_lines" "$manifest_value" && return 1
-        kind_label=$entry_kind\|$entry_label
-        shimmy_contains_line_list "$kind_label_lines" "$kind_label" && return 1
-        kind_version_lines=$(shimmy_append_line_list "$kind_version_lines" "$manifest_value")
-        kind_label_lines=$(shimmy_append_line_list "$kind_label_lines" "$kind_label")
+        shimmy_contains_line_list "$tool_version_lines" "$manifest_value" && return 1
+        tool_label=$entry_tool\|$entry_label
+        shimmy_contains_line_list "$tool_label_lines" "$tool_label" && return 1
+        tool_version_lines=$(shimmy_append_line_list "$tool_version_lines" "$manifest_value")
+        tool_label_lines=$(shimmy_append_line_list "$tool_label_lines" "$tool_label")
         ;;
       source_checkout)
         [ "$profile_name" = upstream ] || return 1
@@ -167,7 +167,7 @@ shimmy_manifest_ownership_validate() {
         [ -n "$manifest_value" ] || return 1
         [ "$(shimmy_manifest_key_count "$manifest_file" "$manifest_key")" -eq 1 ] || return 1
         ;;
-      shimmy_layout|control_bin|install_dir|bin_dir|config_dir|profile_implementation_dir|activate_file|profile|default_kind|shim_source)
+      shimmy_layout|control_bin|install_dir|bin_dir|config_dir|profile_implementation_dir|activate_file|profile|default_tool|shim_source)
         return 1
         ;;
       shimmy_install_*|shimmy_profile_*|*)
@@ -176,12 +176,12 @@ shimmy_manifest_ownership_validate() {
     esac
   done < "$manifest_file"
 
-  while IFS= read -r kind_version_entry; do
-    [ -n "$kind_version_entry" ] || continue
-    entry_kind=${kind_version_entry%%|*}
-    shimmy_contains_line_list "$kind_lines" "$entry_kind" || return 1
+  while IFS= read -r tool_version_entry; do
+    [ -n "$tool_version_entry" ] || continue
+    entry_tool=${tool_version_entry%%|*}
+    shimmy_contains_line_list "$tool_lines" "$entry_tool" || return 1
   done <<EOF
-$kind_version_lines
+$tool_version_lines
 EOF
 
   if [ "$profile_name" = upstream ]; then
@@ -199,9 +199,9 @@ shimmy_profile_manifest_validate() {
     shimmy_profile_manifest_error "$manifest_file" "$profile_name"
     return 1
   }
-  shimmy_manifest_identity_value_validate "$manifest_file" shimmy_install_manifest_version 4 &&
+  shimmy_manifest_identity_value_validate "$manifest_file" shimmy_install_manifest_version 1 &&
     shimmy_manifest_identity_value_validate "$manifest_file" shimmy_install_layout profile-flat-root &&
-    shimmy_manifest_identity_value_validate "$manifest_file" shimmy_profile_manifest_version 4 &&
+    shimmy_manifest_identity_value_validate "$manifest_file" shimmy_profile_manifest_version 1 &&
     shimmy_manifest_identity_value_validate "$manifest_file" shimmy_profile_name "$profile_name" &&
     shimmy_manifest_ownership_validate "$manifest_file" "$profile_name" || {
       shimmy_profile_manifest_error "$manifest_file" "$profile_name"
@@ -244,8 +244,8 @@ shimmy_upstream_checkout_invalid_reason() {
     return 0
   }
   if [ -n "$shim_name" ]; then
-    kind_name=${shim_name%%@*}
-    [ -f "$checkout_dir/tools/$kind_name/tool.conf" ] || {
+    tool_name=${shim_name%%@*}
+    [ -f "$checkout_dir/tools/$tool_name/tool.conf" ] || {
       printf '%s\n' missing_upstream_shim_source
       return 0
     }

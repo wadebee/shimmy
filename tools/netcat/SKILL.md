@@ -9,7 +9,7 @@ Use this skill when working with the Netcat tool, its local image, its tests, it
 
 ## Files
 
-- Kind metadata: `tools/netcat/tool.conf`
+- Tool metadata: `tools/netcat/tool.conf`
 - Concrete runtime: `tools/netcat/versions/7.92/run.sh`
 - User guide: `tools/netcat/guide.md`
 - Tests: `tools/netcat/tests/netcat.sh`
@@ -45,7 +45,7 @@ removed repository `shims/` paths.
 
 ## Change Rules
 
-1. Keep package installation inside `tools/netcat/versions/7.92/container/Containerfile`, not the kind dispatcher.
+1. Keep package installation inside `tools/netcat/versions/7.92/container/Containerfile`, not the tool dispatcher.
 2. Use `SHIMMY_NETCAT_IMAGE` only as a full runtime image override; local build args apply only to Shimmy-built images.
 3. Keep `SHIMMY_NETCAT_IMAGE_PULL=always` scoped to external image overrides.
 4. Treat network probes as potentially environment-specific. Prefer `netcat --help` for routine validation.

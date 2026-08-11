@@ -39,7 +39,7 @@ shim_name_validate "$shim_name" || fail "invalid shim name for Shimmy dispatcher
 
 shimmy_profile_context_resolve "$profile_root" || fail "dispatcher is outside a canonical Shimmy profile root"
 shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" || fail "incomplete or damaged Shimmy profile at $SHIMMY_PROFILE_ROOT"
-shimmy_contains_manifest_kind "$SHIMMY_PROFILE_MANIFEST_PATH" "$shim_name" || fail "$shim_name is not owned by profile $SHIMMY_PROFILE_NAME"
+shimmy_manifest_tool_contains "$SHIMMY_PROFILE_MANIFEST_PATH" "$shim_name" || fail "$shim_name is not owned by profile $SHIMMY_PROFILE_NAME"
 
 if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then
   source_checkout=$(shimmy_read_manifest_value "$SHIMMY_PROFILE_MANIFEST_PATH" source_checkout || true)

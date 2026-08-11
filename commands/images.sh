@@ -33,7 +33,7 @@ usage() {
 Verify configured remote image indexes without pulling image layers.
 
 Usage:
-  shimmy images verify [--all | --shim <kind[@version]> ...]
+  shimmy images verify [--all | --shim <tool[@version]> ...]
                        [--public-only] [--require-current-upstream]
                        [--format human|manifest]
   ./commands/images.sh verify --all [the same verification options]
@@ -54,7 +54,7 @@ cleanup() {
 }
 
 output_result() {
-  result_kind=$1
+  result_tool=$1
   result_version=$2
   result_role=$3
   result_digest=$4
@@ -68,13 +68,13 @@ output_result() {
 
   if [ "$OUTPUT_FORMAT" = manifest ]; then
     printf 'image_verify=%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' \
-      "$result_kind" "$result_version" "$result_role" "$result_digest" \
+      "$result_tool" "$result_version" "$result_role" "$result_digest" \
       "$result_media_type" "$result_platforms" "$result_access" \
       "$result_drift" "$result_state" "$result_error"
   else
     printf '%s %s@%s %s digest=%s media=%s platforms=%s access=%s upstream=%s' \
       "$(printf '%s' "$result_state" | tr '[:lower:]' '[:upper:]')" \
-      "$result_kind" "$result_version" "$result_role" "$result_digest" \
+      "$result_tool" "$result_version" "$result_role" "$result_digest" \
       "$result_media_type" "$result_platforms" "$result_access" "$result_drift"
     [ "$result_error" = none ] || printf ' error=%s' "$result_error"
     printf '\n'
@@ -134,7 +134,7 @@ selection_resolve() {
 }
 
 verify_record() {
-  record_kind=$1
+  record_tool=$1
   record_version=$2
   record_role=$3
   upstream_ref=$4
@@ -150,12 +150,12 @@ verify_record() {
 
   if [ "$registry_access" = authenticated ]; then
     if [ "$PUBLIC_ONLY" -eq 1 ]; then
-      output_result "$record_kind" "$record_version" "$record_role" "$configured_digest" \
+      output_result "$record_tool" "$record_version" "$record_role" "$configured_digest" \
         "$media_type" "$platform_result" skipped "$drift_result" skip none
       return 0
     fi
     if [ -z "${SHIMMY_SKOPEO_AUTH_SECRET:-}" ]; then
-      output_result "$record_kind" "$record_version" "$record_role" "$configured_digest" \
+      output_result "$record_tool" "$record_version" "$record_role" "$configured_digest" \
         "$media_type" "$platform_result" missing "$drift_result" fail authentication-required
       return 1
     fi
@@ -163,7 +163,7 @@ verify_record() {
 
   shimmy_images_cache_inspect raw "$default_ref"
   if [ "$SHIMMY_IMAGES_CACHE_STATUS" != ok ]; then
-    output_result "$record_kind" "$record_version" "$record_role" "$configured_digest" \
+    output_result "$record_tool" "$record_version" "$record_role" "$configured_digest" \
       "$media_type" "$platform_result" "$access_result" "$drift_result" fail pinned-reference-unreachable
     return 1
   fi
@@ -178,7 +178,7 @@ verify_record() {
     platform_result=failed
   fi
   if [ "$parse_category" != verified ]; then
-    output_result "$record_kind" "$record_version" "$record_role" "$configured_digest" \
+    output_result "$record_tool" "$record_version" "$record_role" "$configured_digest" \
       "$media_type" "$platform_result" "$access_result" "$drift_result" fail "$parse_category"
     return 1
   fi
@@ -188,13 +188,13 @@ verify_record() {
     *)
       shimmy_images_cache_inspect digest "$upstream_ref"
       if [ "$SHIMMY_IMAGES_CACHE_STATUS" != ok ]; then
-        output_result "$record_kind" "$record_version" "$record_role" "$configured_digest" \
+        output_result "$record_tool" "$record_version" "$record_role" "$configured_digest" \
           "$media_type" "$platform_result" "$access_result" unreachable fail upstream-reference-unreachable
         return 1
       fi
       upstream_digest=$(sed -n '1p' "$SHIMMY_IMAGES_CACHE_FILE")
       if ! shimmy_images_digest_validate "$upstream_digest"; then
-        output_result "$record_kind" "$record_version" "$record_role" "$configured_digest" \
+        output_result "$record_tool" "$record_version" "$record_role" "$configured_digest" \
           "$media_type" "$platform_result" "$access_result" invalid fail upstream-digest-invalid
         return 1
       elif [ "$upstream_digest" = "$configured_digest" ]; then
@@ -211,7 +211,7 @@ verify_record() {
       ;;
   esac
 
-  output_result "$record_kind" "$record_version" "$record_role" "$configured_digest" \
+  output_result "$record_tool" "$record_version" "$record_role" "$configured_digest" \
     "$media_type" "$platform_result" "$access_result" "$drift_result" "$result_state" "$error_category"
   [ "$result_state" != fail ]
 }
@@ -238,14 +238,14 @@ main() {
   trap cleanup EXIT HUP INT TERM
 
   for version_name in $selected_versions; do
-    kind_name=$(shimmy_version_kind "$version_name") || fail "unknown selected concrete version: $version_name"
-    shimmy_images_config_records_print "$kind_name" "$version_name" >> "$records_file" || exit 1
+    tool_name=$(shimmy_tool_version_tool "$version_name") || fail "unknown selected concrete version: $version_name"
+    shimmy_images_config_records_print "$tool_name" "$version_name" >> "$records_file" || exit 1
   done
 
   verification_failed=0
-  while IFS='|' read -r record_kind record_version version_name record_role upstream_ref default_ref registry_access; do
-    [ -n "$record_kind" ] || continue
-    verify_record "$record_kind" "$record_version" "$record_role" "$upstream_ref" "$default_ref" "$registry_access" || verification_failed=1
+  while IFS='|' read -r record_tool record_version version_name record_role upstream_ref default_ref registry_access; do
+    [ -n "$record_tool" ] || continue
+    verify_record "$record_tool" "$record_version" "$record_role" "$upstream_ref" "$default_ref" "$registry_access" || verification_failed=1
   done < "$records_file"
   [ "$verification_failed" -eq 0 ]
 }

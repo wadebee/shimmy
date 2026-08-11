@@ -82,22 +82,22 @@ adapters containing only `SKILL.md`. Do not copy other repository metadata
 into those targets. The packaged management plugin is canonical source, not a
 writable skills target.
 
-## Shim Kind Workflow
+## Shim Tool Workflow
 
-Shimmy exposes logical tool kinds as the user-facing commands on `PATH`.
-Runtime behavior belongs in concrete major.minor version shims under those kinds.
+Shimmy exposes logical tools as the user-facing commands on `PATH`.
+Runtime behavior belongs in concrete major.minor version shims under those tools.
 
-- Tool kinds live at `tools/<kind>/tool.conf`; generic dispatch selects their default or selected version.
-- Concrete version runtimes live at `tools/<kind>/versions/<major.minor>/run.sh` and contain Podman, image, mount, credential, and local-build logic.
+- Tool tools live at `tools/<tool>/tool.conf`; generic dispatch selects their default or selected version.
+- Concrete version runtimes live at `tools/<tool>/versions/<major.minor>/run.sh` and contain Podman, image, mount, credential, and local-build logic.
 - Every concrete version owns exactly one validated `image.conf`. Repository
   defaults are immutable OCI-index or Docker-manifest-list digests that declare
   both required platforms. Direct runtimes read their default from that file;
   local Containerfiles receive configured base defaults as build arguments and
   do not duplicate them.
-- Every installable kind must have at least one concrete version and exactly one catalog default version.
-- `shimmy install --shim <kind>` installs the kind dispatcher plus its default version. Use `shimmy install --shim <kind>@<version-label>` when a non-default version is needed.
-- Profile manifests record `kind=` for installed user-facing commands and `kind_version=<kind>|<label>|<version>` for installed concrete versions.
-- Do not put tool-specific runtime behavior in a kind dispatcher. Add or update the relevant version shim instead.
+- Every installable tool must have at least one concrete version and exactly one catalog default version.
+- `shimmy install --shim <tool>` installs the tool dispatcher plus its default version. Use `shimmy install --shim <tool>@<version-label>` when a non-default version is needed.
+- Profile manifests record `tool=` for installed user-facing commands and `tool_version=<tool>|<label>|<version>` for installed concrete versions.
+- Do not put tool-specific runtime behavior in a tool dispatcher. Add or update the relevant version shim instead.
 
 ### Image selection and rotation
 

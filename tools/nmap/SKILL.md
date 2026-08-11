@@ -9,7 +9,7 @@ Use this skill when working with the Nmap tool, its tests, its docs, or Nmap usa
 
 ## Files
 
-- Kind metadata: `tools/nmap/tool.conf`
+- Tool metadata: `tools/nmap/tool.conf`
 - Concrete runtime: `tools/nmap/versions/7.98/run.sh`
 - User guide: `tools/nmap/guide.md`
 - Tests: `tools/nmap/tests/nmap.sh`

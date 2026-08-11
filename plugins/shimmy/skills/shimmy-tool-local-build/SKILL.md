@@ -10,7 +10,7 @@ description: Create, change, test, or troubleshoot a Shimmy concrete version tha
 A local-build concrete version owns its build context:
 
 ```text
-tools/<kind>/versions/<major.minor>/
+tools/<tool>/versions/<major.minor>/
   run.sh
   smoke.conf
   image.conf
@@ -22,7 +22,7 @@ image naming, hash labels, and platform selection in the shared helper; do not
 copy image-cache logic into a tool runtime.
 
 Do not restore the retired central `local_build_repo_for_shim` mapping or
-`images/<kind>_<version>/` layout. Version-owned `container/` directories and
+`images/<tool>_<version>/` layout. Version-owned `container/` directories and
 refresh hooks provide that behavior in the current tree.
 
 ## Rules
@@ -53,8 +53,8 @@ refresh hooks provide that behavior in the current tree.
 Use preview first:
 
 ```sh
-./commands/run-tool.sh <kind> --preview-shim --help
-./commands/images.sh verify --shim <kind>@<version>
+./commands/run-tool.sh <tool> --preview-shim --help
+./commands/images.sh verify --shim <tool>@<version>
 ```
 
 Use a live build only with explicit user authorization and a running Podman

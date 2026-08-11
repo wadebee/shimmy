@@ -9,5 +9,5 @@ Concrete-version lookup helpers resolve the version directory and its required
 `image.conf`; schema validation and image lifecycle behavior remain in
 `../runtime/image.sh`.
 
-See `CONTRIBUTING.md`, `tools/<kind>/tool.conf`, and each concrete version's
+See `CONTRIBUTING.md`, `tools/<tool>/tool.conf`, and each concrete version's
 `image.conf` for the metadata contract.

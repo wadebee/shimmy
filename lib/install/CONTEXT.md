@@ -13,8 +13,8 @@ process.
 ## Files
 
 - `request.sh` parses install inputs, resolves the canonical XDG profile path,
-  and validates requested tool kinds and versions.
-- `manifest.sh` preserves and renders the profile-local version-4 manifest.
+  and validates requested tools and versions.
+- `manifest.sh` preserves and renders the profile-local version-1 manifest.
 - `profile-assets.sh` stages the flat control/runtime payload, profile-local
   launcher, implementations, metadata, and dispatchers.
 - `launcher-template.sh` becomes the installed profile's self-contained

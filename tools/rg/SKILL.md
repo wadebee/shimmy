@@ -9,7 +9,7 @@ Use this skill when working with the ripgrep tool, its tests, its docs, or ripgr
 
 ## Files
 
-- Kind metadata: `tools/rg/tool.conf`
+- Tool metadata: `tools/rg/tool.conf`
 - Concrete runtime: `tools/rg/versions/15.1/run.sh`
 - User guide: `tools/rg/guide.md`
 - Tests: `tools/rg/tests/rg.sh`

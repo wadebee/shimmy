@@ -52,7 +52,7 @@ Every bootstrap installs jq and rg. After initialization, add other tools with
 the installed profile-local launcher:
 
 ```sh
-shimmy install --shim <kind>
+shimmy install --shim <tool>
 ```
 
 For an existing profile, select it by sourcing its generated `shell-init.sh`:

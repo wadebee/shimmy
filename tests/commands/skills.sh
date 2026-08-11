@@ -77,10 +77,10 @@ shimmy-tool-local-build'
   assert_equals "$plugin_skill_count" 5
 
   tool_skill_count=0
-  for kind_name in $(shimmy_kind_list); do
-    assert_file_exists "$ROOT_DIR/tools/$kind_name/SKILL.md"
-    assert_file_contains "$ROOT_DIR/tools/$kind_name/SKILL.md" "name: shimmy-tool-$kind_name"
-    assert_path_not_exists "$ROOT_DIR/tools/$kind_name/agent"
+  for tool_name in $(shimmy_tool_list); do
+    assert_file_exists "$ROOT_DIR/tools/$tool_name/SKILL.md"
+    assert_file_contains "$ROOT_DIR/tools/$tool_name/SKILL.md" "name: shimmy-tool-$tool_name"
+    assert_path_not_exists "$ROOT_DIR/tools/$tool_name/agent"
     tool_skill_count=$((tool_skill_count + 1))
   done
   assert_equals "$tool_skill_count" 18
@@ -88,28 +88,20 @@ shimmy-tool-local-build'
   pass "management plugin and co-located tool skills have the final split ownership"
 }
 
-test_commands_skills_semantic_parity() {
-  skills_root=$ROOT_DIR/.agents/skills
-  skills_manifest=$skills_root/.shimmy-skills-manifest.txt
+test_commands_skills_profile_payload_semantic_parity() {
+  for skill_name in shimmy-install shimmy-init shimmy-create-tool shimmy-escalation shimmy-tool-local-build; do
+    source_file=$(test_commands_skills_source_file_resolve "$skill_name")
+    installed_file=$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/$skill_name/SKILL.md
+    cmp -s "$source_file" "$installed_file" ||
+      fail_test "installed management skill differs from canonical SKILL.md: $skill_name"
+  done
 
-  while IFS= read -r manifest_line; do
-    case "$manifest_line" in
-      shimmy_skill=*)
-        skill_entry=${manifest_line#shimmy_skill=}
-        skill_entry=${skill_entry#*|}
-        skill_name=${skill_entry%%|*}
-        source_file=$(test_commands_skills_source_file_resolve "$skill_name")
-        assert_file_exists "$source_file"
-        generated_file_count=$(find "$skills_root/$skill_name" -type f | wc -l | tr -d ' ')
-        assert_equals "$generated_file_count" 1
-        assert_file_exists "$skills_root/$skill_name/SKILL.md"
-        cmp -s "$source_file" "$skills_root/$skill_name/SKILL.md" ||
-          fail_test "generated repository adapter differs from canonical SKILL.md: $skill_name"
-        ;;
-    esac
-  done < "$skills_manifest"
+  for tool_name in $(shimmy_tool_list); do
+    cmp -s "$ROOT_DIR/tools/$tool_name/SKILL.md" "$DEFAULT_PROFILE_ROOT/tools/$tool_name/SKILL.md" ||
+      fail_test "installed tool skill differs from canonical SKILL.md: shimmy-tool-$tool_name"
+  done
 
-  pass "repository adapters preserve one-file semantic parity with split canonical sources"
+  pass "profile payload preserves semantic parity with split canonical skill sources"
 }
 
 test_commands_skills_portable_exports() {
@@ -120,8 +112,8 @@ shimmy-create-tool
 shimmy-escalation
 shimmy-tool-local-build'
   all_skills=$control_skills
-  for kind_name in $(shimmy_kind_list); do
-    all_skills=$(shimmy_append_line_list "$all_skills" "shimmy-tool-$kind_name")
+  for tool_name in $(shimmy_tool_list); do
+    all_skills=$(shimmy_append_line_list "$all_skills" "shimmy-tool-$tool_name")
   done
 
   default_export_root=$SCENARIO_DIR/default-skills
@@ -351,7 +343,7 @@ test_commands_skills_external_failure_retry() {
 test_commands_skills_run() {
   test_commands_skills_manifest_fingerprints
   test_commands_skills_plugin_and_tool_inventory
-  test_commands_skills_semantic_parity
+  test_commands_skills_profile_payload_semantic_parity
   test_commands_skills_portable_exports
   test_commands_skills_stale_manifest_filtering
   test_commands_skills_removed_plugin_target

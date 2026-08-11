@@ -15,7 +15,7 @@ shimmy test --shim oc@4.18
 ```
 
 Installed test mode validates the invoking profile's manifest. By default it
-runs each installed public kind; `--all` also runs every installed concrete
+runs each installed public tool; `--all` also runs every installed concrete
 version. Those commands use live Podman only for the version-owned
 non-mutating smoke arguments.
 
@@ -28,7 +28,7 @@ The suite is POSIX shell and validates:
 - the retained `CONTEXT.md` hierarchy and parent-to-child links under root,
   `commands/`, `lib/`, and `tests/`, plus rejection of context files under
   `tools/` and `plugins/shimmy/`;
-- metadata-derived tool kinds, versions, immutable image defaults, configured
+- metadata-derived tools, versions, immutable image defaults, configured
   local bases, required platforms, and selectors;
 - negative schema coverage for missing, duplicate, unsafe, incomplete, tag-only,
   and illegal image metadata, including platform-neutral `scratch` handling;
@@ -41,7 +41,7 @@ The suite is POSIX shell and validates:
   authentication policy, drift handling, and stable output without contacting
   target registries;
 - shared fail-closed Podman OS/architecture and preview helpers plus POSIX syntax;
-- disposable version-4 flat default and upstream profile installs, installed
+- disposable version-1 flat default and upstream profile installs, installed
   command dispatch, status, update, legacy-layout rejection across management
   commands, and uninstall;
 - shell initialization, canonical skill export/removal, netinfo input
@@ -53,7 +53,7 @@ The suite is POSIX shell and validates:
 - idempotent shell initialization, default-only managed startup-block install
   and repair, and direct upstream shell initialization.
 - canonical skill-source export, target-owned portable manifests,
-  installed-kind selection, refresh, and explicit manifest-tracked cleanup.
+  installed-tool selection, refresh, and explicit manifest-tracked cleanup.
 - source and installed dispatcher validation, including selector, canonical
   profile identity, and recursion protections.
 - deterministic netinfo CIDR rendering, explicit-host precedence, help, and
@@ -92,7 +92,7 @@ results do not replace the two native container-architecture runs.
 The runner in `tests/test.sh` sources shared assertions from
 `tests/support.sh`, shared-library coverage from `tests/lib/`, and
 management-command coverage from `tests/commands/`. Tool-specific coverage
-belongs beside the tool in `tools/<kind>/`. Keep one assertion-focused scenario
+belongs beside the tool in `tools/<tool>/`. Keep one assertion-focused scenario
 per behavior and preserve executable bits on shell entrypoints.
 
 Disposable installation scenarios set absolute temporary `HOME` and

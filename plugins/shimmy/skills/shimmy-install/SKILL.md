@@ -13,7 +13,7 @@ description: Install, update, validate, initialize shells for, or remove Shimmy 
 - In an installed environment, use the desired profile's absolute
   `bin/shimmy` launcher or its `shimmy` command after sourcing `shell-init.sh`.
 - Inspect the invoking profile with `shimmy status --format manifest`.
-- Profile manifests are authoritative for installed tool kinds and concrete
+- Profile manifests are authoritative for installed tools and concrete
   versions. Do not edit manifests directly when a Shimmy command supports the
   action.
 
@@ -47,10 +47,10 @@ shimmy install --shim task
 For disposable validation, set an absolute temporary `XDG_CONFIG_HOME` and use
 `--no-startup`. Do not add an installation-directory override.
 
-Every repository bootstrap includes jq and rg. Add any other kind afterward
-through the installed `shimmy install --shim <kind>` command; it installs the
-kind dispatcher and its default concrete version. Use `--shim
-<kind>@<major.minor>` for a non-default version.
+Every repository bootstrap includes jq and rg. Add any other tool afterward
+through the installed `shimmy install --shim <tool>` command; it installs the
+tool dispatcher and its default concrete version. Use `--shim
+<tool>@<major.minor>` for a non-default version.
 
 ## Shell initialization and startup
 

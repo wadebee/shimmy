@@ -128,7 +128,7 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Establish the clean terminology and schema baseline
+- [x] Chunk 1 — Establish the clean terminology and schema baseline
 
 ## Execution protocol
 
@@ -189,26 +189,26 @@ All files in the verified implementation inventory. Generated adapters under
 
 ### Verification checklist
 
-- [ ] Fresh default and upstream profiles render valid version-1 manifests
+- [x] Fresh default and upstream profiles render valid version-1 manifests
   containing `tool=`/`tool_version=` and no legacy ownership keys.
-- [ ] Version-4 manifests and `kind=`/`kind_version=` records are unsupported;
+- [x] Version-4 manifests and `kind=`/`kind_version=` records are unsupported;
   no migration or compatibility reader exists.
-- [ ] Strict version-1 consumers reject non-version-1, mixed-schema, duplicate,
+- [x] Strict version-1 consumers reject non-version-1, mixed-schema, duplicate,
   contradictory, unsafe, malformed, and unknown ownership records before
   mutation.
-- [ ] Install, dispatch, status human/manifest output, skills selection,
+- [x] Install, dispatch, status human/manifest output, skills selection,
   images, test selection, update, and uninstall retain their existing behavior
   under the new vocabulary.
-- [ ] `shimmy status --format manifest` emits only the new tool-based keys, and
+- [x] `shimmy status --format manifest` emits only the new tool-based keys, and
   tests assert that legacy status keys are absent.
-- [ ] Catalog and command tests use only tool-based helper and variable names;
+- [x] Catalog and command tests use only tool-based helper and variable names;
   no compatibility aliases remain.
-- [ ] A repository terminology scan shows no active semantic `kind` uses;
+- [x] A repository terminology scan shows no active semantic `kind` uses;
   every remaining match is documented as an intentional exclusion.
-- [ ] Shell syntax checks, the default offline suite, affected focused suites,
+- [x] Shell syntax checks, the default offline suite, affected focused suites,
   and live non-mutating Podman smoke checks pass as required by repository
   guidance.
-- [ ] `git diff --check` passes, executable bits are preserved, and the
+- [x] `git diff --check` passes, executable bits are preserved, and the
   pre-existing `commands/README.md` work remains present.
 
 ### Human review gate
@@ -249,6 +249,20 @@ grouping work without a new approval.
 - Some `kind` matches belong to virtualization detection, sample code, or
   historical records and must remain unchanged.
 
+### Chunk 1
+
+- Manifest identity checks exist in both the shared profile validator and the
+  generated launcher template; changing only one produces fresh profiles that
+  their own installed launcher rejects.
+- Canonical skill guidance is packaged into fresh profiles, while checked-in
+  `.agents/skills/` adapters remain separately generated state. Verification
+  now checks canonical-to-profile payload parity without editing those adapters.
+- The remaining active-tree `kind` matches are intentional: virtualization
+  classification, a generic sample slug parameter, shim-source classification,
+  and negative assertions or fixtures proving legacy schema/status keys fail.
+- The complete offline suite passes all 103 tests, and a live Apple Silicon
+  Podman smoke reports `jq-1.8.1` through the source dispatcher.
+
 ## Session bootstrap
 
 Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, every applicable child
@@ -258,5 +272,4 @@ tool/tool-version schema with no migration or backward-compatibility path;
 apply general-to-specific segmentation to names already in scope. Do not rename
 `--shim`, rewrite POSIX shell architecture, edit generated
 `.agents/skills/`, overwrite user changes, or begin grouping work. Chunk 1 is
-the active and only implementation chunk. Complete its verification, update
-this plan, and stop at the human review gate.
+complete and verified; stop at the human review gate.

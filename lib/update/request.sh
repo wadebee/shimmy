@@ -28,7 +28,7 @@ Usage:
   shimmy update [--shim <name>] [--all] [--pull] [--build] [--repair-startup]
 
 The launcher manages only its enclosing profile. --all selects all installed
-tool kinds in that profile; it does not enumerate sibling profiles.
+tools in that profile; it does not enumerate sibling profiles.
 EOF
 }
 

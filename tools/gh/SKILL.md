@@ -9,7 +9,7 @@ Use this skill when working with the GitHub CLI tool, its tests, its docs, or Gi
 
 ## Files
 
-- Kind metadata: `tools/gh/tool.conf`
+- Tool metadata: `tools/gh/tool.conf`
 - Concrete runtime: `tools/gh/versions/2.94/run.sh`
 - User guide: `tools/gh/guide.md`
 - Tests: `tools/gh/tests/gh.sh`
@@ -50,7 +50,7 @@ removed repository `shims/` paths.
 1. Keep the configuration mount writable so `gh auth login` persists authentication between container runs.
 2. Do not create credentials or tokens automatically. Authentication is initiated explicitly by `gh auth login` or supplied through GitHub CLI's standard environment variables.
 3. Keep archive installation inside `tools/gh/versions/2.94/container/Containerfile`; the version shim should only coordinate local image selection and runtime behavior.
-4. Keep the local image tied to an official GitHub CLI release archive. Update the kind/version name, catalog, status, update behavior, docs, and tests together when changing versions.
+4. Keep the local image tied to an official GitHub CLI release archive. Update the tool/version name, catalog, status, update behavior, docs, and tests together when changing versions.
 5. Treat `GH_TOKEN` and other credentials as secrets; do not add them to logs, fixtures, or documentation examples.
 6. Use non-mutating validation commands such as `gh --version`, `gh auth status`, `gh pr list`, and `gh repo view` unless the user explicitly requests a write.
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `oc` shim is the user-facing kind dispatcher for several concrete
+The `oc` shim is the user-facing tool dispatcher for several concrete
 OpenShift CLI version shims. When no selector is set, `oc` dispatches to the
 catalog default version `oc_4_20`.
 
@@ -133,7 +133,7 @@ shimmy install --shim oc
 
 The oc shims are wired into Shimmy's catalog and installer:
 
-- Supported kind: `oc`.
+- Supported tool: `oc`.
 - Supported concrete versions: `oc_4_18`, `oc_4_20`, and `oc_4_22`.
 - Default version: `oc_4_20`.
 - `shimmy install --shim oc` installs the `oc` dispatcher and default `oc_4_20`.
@@ -154,7 +154,7 @@ oc version
 SHIMMY_OC_VERSION=4.18 oc version
 ```
 
-`shimmy status` reports `oc` as an installed kind, the default version, and each installed version label. `shimmy update --shim oc --build` refreshes the dispatcher and installed `oc_4_xx` local images for the invoking profile. `shimmy update --shim oc@4.18 --build` refreshes only the selected concrete version plus the required dispatcher.
+`shimmy status` reports `oc` as an installed tool, the default version, and each installed version label. `shimmy update --shim oc --build` refreshes the dispatcher and installed `oc_4_xx` local images for the invoking profile. `shimmy update --shim oc@4.18 --build` refreshes only the selected concrete version plus the required dispatcher.
 
 ## Extending to New Tracks
 
@@ -163,5 +163,5 @@ To add a new minor track in the future (for example, `5.1`):
 - Add a version directory such as `versions/5.1/` with its local-build configuration and `SHIMMY_OC_5_1_IMAGE` / `SHIMMY_OC_5_1_IMAGE_BUILD` env vars.
 - Add `versions/5.1/smoke.conf` with `shim_name=oc_5_1` and `smoke_arg=version`.
 - Extend the `oc` dispatcher to map `SHIMMY_OC_VERSION=5.1` to `oc_5_1`.
-- Update the catalog kind metadata, status, and update scripts to include the new concrete version.
+- Update the catalog tool metadata, status, and update scripts to include the new concrete version.
 - Update `tool.conf` only if the metadata default or dispatcher smoke version should change.

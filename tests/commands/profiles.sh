@@ -16,10 +16,10 @@ test_manifest_mutate() {
     version_two)
       sed 's/^shimmy_install_manifest_version=.*/shimmy_install_manifest_version=2/' "$manifest_file" > "$mutation_tmp"
       ;;
-    version_three)
+    version_four)
       sed \
-        -e 's/^shimmy_install_manifest_version=.*/shimmy_install_manifest_version=3/' \
-        -e 's/^shimmy_profile_manifest_version=.*/shimmy_profile_manifest_version=3/' \
+        -e 's/^shimmy_install_manifest_version=.*/shimmy_install_manifest_version=4/' \
+        -e 's/^shimmy_profile_manifest_version=.*/shimmy_profile_manifest_version=4/' \
         "$manifest_file" > "$mutation_tmp"
       ;;
     unknown_version)
@@ -31,19 +31,27 @@ test_manifest_mutate() {
     wrong_profile)
       sed 's/^shimmy_profile_name=.*/shimmy_profile_name=upstream/' "$manifest_file" > "$mutation_tmp"
       ;;
-    unsafe_kind)
-      sed 's/^kind=jq$/kind=..\/escape/' "$manifest_file" > "$mutation_tmp"
+    unsafe_tool)
+      sed 's/^tool=jq$/tool=..\/escape/' "$manifest_file" > "$mutation_tmp"
       ;;
     duplicate_ownership)
       cp "$manifest_file" "$mutation_tmp"
+      printf '%s\n' 'tool=jq' >> "$mutation_tmp"
+      ;;
+    duplicate_tool_version)
+      cp "$manifest_file" "$mutation_tmp"
+      sed -n '/^tool_version=/ { p; q; }' "$manifest_file" >> "$mutation_tmp"
+      ;;
+    contradictory_tool_version)
+      sed 's/^tool=jq$/tool=rg/' "$manifest_file" > "$mutation_tmp"
+      ;;
+    legacy_tool_key)
+      cp "$manifest_file" "$mutation_tmp"
       printf '%s\n' 'kind=jq' >> "$mutation_tmp"
       ;;
-    duplicate_kind_version)
+    legacy_tool_version_key)
       cp "$manifest_file" "$mutation_tmp"
-      sed -n '/^kind_version=/ { p; q; }' "$manifest_file" >> "$mutation_tmp"
-      ;;
-    contradictory_kind_version)
-      sed 's/^kind=jq$/kind=rg/' "$manifest_file" > "$mutation_tmp"
+      printf '%s\n' 'kind_version=jq|default|jq_1_8' >> "$mutation_tmp"
       ;;
     malformed_line)
       cp "$manifest_file" "$mutation_tmp"
@@ -69,7 +77,7 @@ test_commands_profiles_manifest_rejection() {
   launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")
   implementation_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")
 
-  for mutation_name in missing_identity duplicate_identity version_two version_three unknown_version wrong_label wrong_profile unsafe_kind duplicate_ownership duplicate_kind_version contradictory_kind_version malformed_line shell_payload; do
+  for mutation_name in missing_identity duplicate_identity version_two version_four unknown_version wrong_label wrong_profile unsafe_tool duplicate_ownership duplicate_tool_version contradictory_tool_version legacy_tool_key legacy_tool_version_key malformed_line shell_payload; do
     cp "$valid_manifest" "$manifest_file"
     test_manifest_mutate "$mutation_name" "$manifest_file"
     set +e
@@ -78,9 +86,9 @@ test_commands_profiles_manifest_rejection() {
     set -e
     [ "$rejection_status" -ne 0 ] || fail_test "invalid manifest unexpectedly accepted: $mutation_name"
     assert_contains "$rejection_output" 'invalid or unsupported Shimmy profile manifest'
-    if [ "$mutation_name" = version_three ]; then
-      assert_contains "$rejection_output" 'expected shimmy_install_manifest_version=4'
-      assert_contains "$rejection_output" 'shimmy_profile_manifest_version=4'
+    if [ "$mutation_name" = version_four ]; then
+      assert_contains "$rejection_output" 'expected shimmy_install_manifest_version=1'
+      assert_contains "$rejection_output" 'shimmy_profile_manifest_version=1'
     fi
     assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-manifest-sentinel"
     assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
@@ -89,15 +97,15 @@ test_commands_profiles_manifest_rejection() {
   done
 
   cp "$valid_manifest" "$manifest_file"
-  test_manifest_mutate version_three "$manifest_file"
+  test_manifest_mutate version_four "$manifest_file"
   set +e
-  v3_refresh_output=$(bootstrap_default 2>&1)
-  v3_refresh_status=$?
+  v4_refresh_output=$(bootstrap_default 2>&1)
+  v4_refresh_status=$?
   set -e
-  [ "$v3_refresh_status" -ne 0 ] || fail_test "manifest-v3 profile unexpectedly refreshed in place"
-  assert_contains "$v3_refresh_output" 'expected shimmy_install_manifest_version=4'
-  assert_file_contains "$manifest_file" 'shimmy_install_manifest_version=3'
-  assert_file_contains "$manifest_file" 'shimmy_profile_manifest_version=3'
+  [ "$v4_refresh_status" -ne 0 ] || fail_test "manifest-v4 profile unexpectedly refreshed in place"
+  assert_contains "$v4_refresh_output" 'expected shimmy_install_manifest_version=1'
+  assert_file_contains "$manifest_file" 'shimmy_install_manifest_version=4'
+  assert_file_contains "$manifest_file" 'shimmy_profile_manifest_version=4'
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
 

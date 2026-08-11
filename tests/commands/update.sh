@@ -35,7 +35,7 @@ setup_session_update_source_fixture() {
 test_commands_update_run() {
   setup_scenario_with_profiles default upstream
   default_shimmy install --shim task --shim oc@4.18 --no-startup >/dev/null
-  selection_before=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+  selection_before=$(sed -n '/^tool=/p; /^tool_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   update_source=$SHIMMY_TEST_UPDATE_SOURCE_REPOSITORY
   test_manifest_source_url_replace "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "$update_source"
   test_manifest_source_url_replace "$UPSTREAM_PROFILE_ROOT/install-manifest.txt" "$update_source"
@@ -52,7 +52,7 @@ test_commands_update_run() {
   assert_file_not_contains "$DEFAULT_PROFILE_ROOT/shell-init.sh" '# stale shell init marker'
   assert_file_mode "$DEFAULT_PROFILE_ROOT/shell-init.sh" 644
   assert_equals "$(readlink "$DEFAULT_PROFILE_ROOT/bin/jq")" '../commands/dispatch-tool.sh'
-  selection_after=$(sed -n '/^kind=/p; /^kind_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+  selection_after=$(sed -n '/^tool=/p; /^tool_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   assert_equals "$selection_after" "$selection_before"
   assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/implementations/oc_4_18"

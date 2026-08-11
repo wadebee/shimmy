@@ -29,17 +29,17 @@ Usage: shimmy status [--available] [--format human|manifest]
 EOF
 }
 
-kind_installed() {
+tool_installed() {
   manifest_file=$1
-  kind_name=$2
-  shimmy_contains_manifest_kind "$manifest_file" "$kind_name"
+  tool_name=$2
+  shimmy_manifest_tool_contains "$manifest_file" "$tool_name"
 }
 
 version_image_description() {
-  kind_name=$1
+  tool_name=$1
   version_name=$2
-  version_dir=$(shimmy_version_dir "$version_name") || fail "missing version directory for $kind_name: $version_name"
-  image_config_file=$(shimmy_version_image_config_file "$version_name") || fail "missing image configuration path for $kind_name: $version_name"
+  version_dir=$(shimmy_version_dir "$version_name") || fail "missing version directory for $tool_name: $version_name"
+  image_config_file=$(shimmy_version_image_config_file "$version_name") || fail "missing image configuration path for $tool_name: $version_name"
   shimmy_image_config_validate "$image_config_file" || exit 1
   image_source=$(shimmy_image_config_scalar_read "$image_config_file" image_source)
 
@@ -54,16 +54,16 @@ version_image_description() {
   esac
 }
 
-print_kind_human() {
+print_tool_human() {
   manifest_file=$1
-  kind_name=$2
-  default_version=$(shimmy_kind_default_version "$kind_name")
+  tool_name=$2
+  default_version=$(shimmy_tool_version_default "$tool_name")
   default_label=$(shimmy_version_label "$default_version")
-  printf -- '- %s\n' "$kind_name"
+  printf -- '- %s\n' "$tool_name"
   printf '  default: %s (%s)\n' "$default_label" "$default_version"
-  for version_name in $(shimmy_kind_version_list "$kind_name"); do
+  for version_name in $(shimmy_tool_version_list "$tool_name"); do
     version_label=$(shimmy_version_label "$version_name")
-    version_description=$(version_image_description "$kind_name" "$version_name") || return 1
+    version_description=$(version_image_description "$tool_name" "$version_name") || return 1
     printf '  version: %s (%s) %s\n' "$version_label" "$version_name" "$version_description"
   done
 }
@@ -86,21 +86,21 @@ print_status() {
     printf 'profile_root: %s\n' "$SHIMMY_PROFILE_ROOT"
   fi
 
-  for kind_name in $(shimmy_kind_list); do
-    if kind_installed "$manifest_file" "$kind_name"; then
+  for tool_name in $(shimmy_tool_list); do
+    if tool_installed "$manifest_file" "$tool_name"; then
       if [ "$OUTPUT_FORMAT" = manifest ]; then
-        printf 'shimmy_profile_kind=%s\n' "$kind_name"
-        for version_name in $(shimmy_kind_version_list "$kind_name"); do
-          printf 'shimmy_profile_kind_version=%s|%s|%s\n' "$kind_name" "$(shimmy_version_label "$version_name")" "$version_name"
+        printf 'shimmy_profile_tool=%s\n' "$tool_name"
+        for version_name in $(shimmy_tool_version_list "$tool_name"); do
+          printf 'shimmy_profile_tool_version=%s|%s|%s\n' "$tool_name" "$(shimmy_version_label "$version_name")" "$version_name"
         done
       else
-        print_kind_human "$manifest_file" "$kind_name"
+        print_tool_human "$manifest_file" "$tool_name"
       fi
     elif [ "$SHOW_AVAILABLE" -eq 1 ]; then
       if [ "$OUTPUT_FORMAT" = manifest ]; then
-        printf 'shimmy_available_kind=%s\n' "$kind_name"
+        printf 'shimmy_available_tool=%s\n' "$tool_name"
       else
-        printf 'available: %s\n' "$kind_name"
+        printf 'available: %s\n' "$tool_name"
       fi
     fi
   done
