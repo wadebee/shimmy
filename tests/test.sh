@@ -57,6 +57,8 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/commands/netinfo.sh"
 # shellcheck source=tools/aws/tests/aws.sh
 . "$ROOT_DIR/tools/aws/tests/aws.sh"
+# shellcheck source=tools/community-ansible-dev-tools/tests/community-ansible-dev-tools.sh
+. "$ROOT_DIR/tools/community-ansible-dev-tools/tests/community-ansible-dev-tools.sh"
 # shellcheck source=tools/gcloud/tests/gcloud.sh
 . "$ROOT_DIR/tools/gcloud/tests/gcloud.sh"
 # shellcheck source=tools/gdrive/tests/gdrive.sh
@@ -123,6 +125,7 @@ main() {
   test_commands_dispatcher_run
   test_commands_netinfo_run
   test_tools_aws_run
+  test_tools_community_ansible_dev_tools_run
   test_tools_gcloud_run
   test_tools_gdrive_run
   test_tools_gh_run
