@@ -37,6 +37,42 @@ publisher image's declared working directory and command-line usage. Project
 files such as `ansible.cfg`, inventories, playbooks, roles, and collections
 therefore remain visible to the contained tools.
 
+### Hello World Quick Start
+
+The repository includes the
+[Ansible Hello World sample](../../samples/ansible-hello/hello.yaml) and its
+local inventory under `samples/ansible-hello`. From the repository root, enter
+that directory so the shim can mount both files into the container:
+
+```sh
+cd samples/ansible-hello
+```
+
+Run the playbook against the local container:
+
+```sh
+community-ansible-dev-tools ansible-playbook -i inventory.ini hello.yaml
+```
+
+The play prints `Hello world from Ansible!` and should finish with
+`failed=0`. It uses Ansible's local connection, so it does not require an SSH
+server or credentials.
+
+Validate the playbook syntax without running its tasks:
+
+```sh
+community-ansible-dev-tools ansible-playbook \
+  -i inventory.ini \
+  hello.yaml \
+  --syntax-check
+```
+
+Lint the playbook for Ansible content and style issues:
+
+```sh
+community-ansible-dev-tools ansible-lint hello.yaml
+```
+
 Environment:
 
 - `SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_IMAGE` - override the container image.
