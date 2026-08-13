@@ -15,6 +15,18 @@ test_tools_community_ansible_dev_tools_default_preview() {
   pass "community-ansible-dev-tools preview keeps credentials and nested Podman privileges opt-in"
 }
 
+test_tools_community_ansible_dev_tools_mount_workdir_preview() {
+  setup_scenario
+  workdir_override=$SCENARIO_DIR/workdir-override
+  mkdir -p "$workdir_override"
+
+  output=$(run_in_repo ./commands/run-tool.sh community-ansible-dev-tools --preview-shim --mount-workdir "$workdir_override" ansible-playbook site.yml)
+
+  assert_contains "$output" "'$workdir_override:/workdir:rw'"
+  assert_contains "$output" "'ansible-playbook' 'site.yml'"
+  pass "community-ansible-dev-tools can override the /workdir mount from the command line"
+}
+
 test_tools_community_ansible_dev_tools_nested_podman_preview() {
   output=$(SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_NESTED_PODMAN=1 run_in_repo ./commands/run-tool.sh community-ansible-dev-tools --preview-shim --version)
 
@@ -57,11 +69,28 @@ test_tools_community_ansible_dev_tools_option_validation() {
 
   [ "$status_code" -ne 0 ] || fail_test "community-ansible-dev-tools accepted an invalid nested Podman setting"
   assert_contains "$output" "SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_NESTED_PODMAN must be 1, 0, or unset"
-  pass "community-ansible-dev-tools validates security-sensitive opt-in values"
+
+  set +e
+  output=$(run_in_repo ./commands/run-tool.sh community-ansible-dev-tools --preview-shim --mount-workdir relative-path --version 2>&1)
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "community-ansible-dev-tools accepted a relative mount-workdir path"
+  assert_contains "$output" "--mount-workdir requires an absolute host path: relative-path"
+
+  set +e
+  output=$(run_in_repo ./commands/run-tool.sh community-ansible-dev-tools --mount-workdir "$SCENARIO_DIR/missing-workdir" --version 2>&1)
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "community-ansible-dev-tools accepted a missing mount-workdir path"
+  assert_contains "$output" "workdir host path does not exist: $SCENARIO_DIR/missing-workdir"
+  pass "community-ansible-dev-tools validates security-sensitive opt-in values and workdir overrides"
 }
 
 test_tools_community_ansible_dev_tools_run() {
   test_tools_community_ansible_dev_tools_default_preview
+  test_tools_community_ansible_dev_tools_mount_workdir_preview
   test_tools_community_ansible_dev_tools_nested_podman_preview
   test_tools_community_ansible_dev_tools_credential_preview
   test_tools_community_ansible_dev_tools_option_validation

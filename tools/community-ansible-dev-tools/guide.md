@@ -19,39 +19,39 @@ capabilities, device, namespace, and security options.
 
 ## Shimmy Usage
 
-Run a bundled command by placing it after the shim name:
-
-```sh
-community-ansible-dev-tools --version
-community-ansible-dev-tools ansible-lint .
-community-ansible-dev-tools ansible-playbook -i inventory site.yml
-community-ansible-dev-tools ansible-navigator --version
-```
+The image bundles a multi-command Ansible development environment rather than a
+single CLI.
 
 Running the shim without arguments starts the image's default interactive
-`zsh` shell. `--version` is a shim shorthand for `adt --version`, which reports
+shell. `--version` is a shim shorthand for `adt --version`, which reports
 the bundled development-tool versions.
 
-The current directory is mounted read-write at `/workdir`, matching the
-publisher image's declared working directory and command-line usage. Project
-files such as `ansible.cfg`, inventories, playbooks, roles, and collections
-therefore remain visible to the contained tools.
+By default the current directory is mounted read-write at `/workdir`, matching
+the publisher image's declared working directory and command-line usage. Use
+`--mount-workdir /absolute/host/path` to mount a different host directory at
+`/workdir` when you need to run from one location while exposing another.
+Project files such as `ansible.cfg`, inventories, playbooks, roles, and
+collections therefore remain visible to the contained tools.
 
 ### Hello World Quick Start
 
 The repository includes the
 [Ansible Hello World sample](../../samples/ansible-hello/hello.yaml) and its
-local inventory under `samples/ansible-hello`. From the repository root, enter
-that directory so the shim can mount both files into the container:
+local inventory under `samples/ansible-hello`. Run the following from your host shell (non-interactive mode) and  the repository root. 
+
+Run the playbook against the mounted sample files from the shimmy container:
 
 ```sh
-cd samples/ansible-hello
+./commands/run-tool.sh community-ansible-dev-tools --mount-workdir /home/beewa/repos/GitHub/wadebee/shimmy/samples/ansible-hello ansible-playbook -i inventory.ini hello.yaml
 ```
 
-Run the playbook against the local container:
+If you need to invoke the shim from outside the playbook directory, override the
+mounted host path explicitly:
 
 ```sh
-community-ansible-dev-tools ansible-playbook -i inventory.ini hello.yaml
+community-ansible-dev-tools \
+  --mount-workdir /absolute/path/to/samples/ansible-hello \
+  ansible-playbook -i inventory.ini hello.yaml
 ```
 
 The play prints `Hello world from Ansible!` and should finish with
@@ -75,6 +75,7 @@ community-ansible-dev-tools ansible-lint hello.yaml
 
 Environment:
 
+- `--mount-workdir /absolute/host/path` - override the default `$PWD` host mount for `/workdir`.
 - `SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_IMAGE` - override the container image.
 - `SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_IMAGE_PULL=always` - force pulling the configured image.
 - `SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_SSH_AGENT=1` - mount and forward the host's existing `SSH_AUTH_SOCK` for remote-target authentication.
@@ -102,8 +103,89 @@ Runtime platform:
 - Linux or macOS on `amd64` -> `linux/amd64`
 - Linux or macOS on `arm64` -> `linux/arm64`
 
-## Quick-Start Prompts
+## Other Quick-Start Prompts
 
 - Home labber: "Run my inventory syntax check with `community-ansible-dev-tools ansible-inventory -i inventory --graph`."
 - Software developer: "Use `community-ansible-dev-tools ansible-lint .` and explain each actionable failure."
 - Platform engineer: "With SSH-agent forwarding enabled, run this playbook in check mode against the staging inventory."
+
+I’ll inspect the existing guide and related references, then I’ll give you the exact documentation additions I recommend, including a human-readable command table you can paste into the guide.
+
+### Interactive shell behavior
+
+Running `community-ansible-dev-tools` with no arguments starts the container's
+default interactive `zsh` shell in `/workdir`. This is expected behavior for
+the upstream development environment image rather than a prompt for special
+Shimmy input.
+
+```sh
+community-ansible-dev-tools
+```
+
+Inside that shell, use `adt` to inspect the top-level tool suite and its
+available commands:
+
+```sh
+adt --help
+adt --version
+```
+
+Use `adt --help` to see the top-level command groups exposed by the Ansible
+development environment. Use `adt --version` to confirm the bundled tool
+versions.
+
+After discovering a command, either run it directly inside the interactive
+shell:
+
+```sh
+ansible-lint .
+ansible-playbook -i inventory.ini hello.yaml
+ansible-navigator --version
+```
+
+or invoke it from the host shell through the shim:
+
+```sh
+community-ansible-dev-tools ansible-lint .
+community-ansible-dev-tools ansible-playbook -i inventory.ini hello.yaml
+community-ansible-dev-tools ansible-navigator --version
+```
+
+Exit the interactive shell with:
+
+```sh
+exit
+```
+
+## Non-Interactive / Automation Usage
+
+Run a bundled command by placing it after the shim name:
+
+```sh
+community-ansible-dev-tools --version
+community-ansible-dev-tools ansible-lint .
+community-ansible-dev-tools ansible-playbook -i inventory site.yml
+community-ansible-dev-tools ansible-navigator --version
+```
+
+### Top-level Command Reference
+
+For the latest and most authoritative command syntax and workflow details, consult the upstream
+Ansible development-tools and execution-environment documentation linked above.
+
+The following commands are commonly used from the interactive shell
+or through the shim.
+
+| Command | Purpose | Common examples |
+| --- | --- | --- |
+| `adt` | Top-level Ansible development tools entrypoint for inspecting the bundled tool suite and reporting version information. | `adt --help`<br>`adt --version` |
+| `ansible` | General Ansible command-line entrypoint for ad hoc automation and shared subcommands. | `ansible --version`<br>`ansible localhost -m ping` |
+| `ansible-playbook` | Run playbooks against inventories and managed nodes. | `ansible-playbook -i inventory.ini hello.yaml`<br>`ansible-playbook -i inventory site.yml --check` |
+| `ansible-lint` | Lint playbooks, roles, and collections for correctness and style issues. | `ansible-lint .`<br>`ansible-lint hello.yaml` |
+| `ansible-navigator` | TUI-oriented interface for running and inspecting Ansible workflows, inventories, and execution environments. | `ansible-navigator --version`<br>`ansible-navigator inventory -i inventory.ini --graph` |
+| `ansible-builder` | Build Ansible execution environment container images from `execution-environment.yml`. | `ansible-builder build`<br>`ansible-builder build -t my-ee:dev` |
+| `ansible-creator` | Scaffold new Ansible content such as collections and related project structure. | `ansible-creator --help`<br>`ansible-creator init collection my_namespace.my_collection` |
+| `ansible-sign` | Sign and verify Ansible content artifacts where signing workflows are in use. | `ansible-sign --help`<br>`ansible-sign verify --help` |
+| `molecule` | Test Ansible roles and collections across scenario-based lifecycle steps. | `molecule --help`<br>`molecule test` |
+| `pytest` | Run Python-based tests, including tests used by Ansible content projects. | `pytest`<br>`pytest tests/` |
+| `tox` | Run multi-environment test automation for projects that define tox environments. | `tox`<br>`tox -e py` |

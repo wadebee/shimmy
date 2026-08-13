@@ -15,9 +15,12 @@ SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_IMAGE_PULL=${SHIMMY_COMMUNITY_ANSIBLE_DEV_TOO
 SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_IO_ARG=-i
 SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_NESTED_PODMAN=${SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_NESTED_PODMAN:-}
 SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_NESTED_PODMAN_ENABLED=
+SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_PREVIEW=
 SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_PULL_ARG=
 SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_SSH_AGENT=${SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_SSH_AGENT:-}
 SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_SSH_AUTH_SOCK=
+SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_WORKDIR_HOST_PATH=$PWD
+SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_WORKDIR_HOST_PATH_INPUT=
 
 shimmy_community_ansible_dev_tools_boolean_validate() {
   variable_name=${1:?variable name is required}
@@ -32,6 +35,7 @@ shimmy_community_ansible_dev_tools_boolean_validate() {
       ;;
   esac
 }
+
 
 if [ ! -f "$SHIMMY_IMAGE_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_IMAGE_HELPER_FILE" >&2
@@ -87,16 +91,62 @@ if [ "$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_IMAGE_PULL" = always ]; then
   SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_PULL_ARG=--pull=always
 fi
 
+if shimmy_podman_is_preview; then
+  SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_PREVIEW=1
+fi
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --preview-shim)
+      shift
+      ;;
+    --mount-workdir)
+      [ "$#" -ge 2 ] || {
+        printf '%s\n' 'ERROR: --mount-workdir requires a host path argument' >&2
+        exit 1
+      }
+      SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_WORKDIR_HOST_PATH_INPUT=$2
+      shift 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [ -n "$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_WORKDIR_HOST_PATH_INPUT" ]; then
+  case "$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_WORKDIR_HOST_PATH_INPUT" in
+    /*)
+      SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_WORKDIR_HOST_PATH=$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_WORKDIR_HOST_PATH_INPUT
+      ;;
+    *)
+      printf 'ERROR: --mount-workdir requires an absolute host path: %s\n' "$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_WORKDIR_HOST_PATH_INPUT" >&2
+      exit 1
+      ;;
+  esac
+fi
+
+if ! shimmy_podman_is_preview && [ ! -d "$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_WORKDIR_HOST_PATH" ]; then
+  printf 'ERROR: workdir host path does not exist: %s\n' "$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_WORKDIR_HOST_PATH" >&2
+  exit 1
+fi
+
 if [ -t 0 ] && [ -t 1 ]; then
   SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_IO_ARG=-it
 fi
 
 case "$#:${1:-}:${2:-}" in
-  1:--version:)
-    set -- adt --version
+  0::)
+    if [ -n "$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_PREVIEW" ]; then
+      set -- --preview-shim
+    fi
     ;;
-  2:--preview-shim:--version)
-    set -- --preview-shim adt --version
+  1:--version:)
+    if [ -n "$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_PREVIEW" ]; then
+      set -- --preview-shim adt --version
+    else
+      set -- adt --version
+    fi
     ;;
 esac
 
@@ -122,7 +172,7 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   ${SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_NESTED_PODMAN_ENABLED:+"root"} \
   ${SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_NESTED_PODMAN_ENABLED:+"--userns"} \
   ${SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_NESTED_PODMAN_ENABLED:+"host"} \
-  -v "$PWD:/workdir:rw" \
+  -v "$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_WORKDIR_HOST_PATH:/workdir:rw" \
   -w /workdir \
   ${SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_GIT_CONFIG_PATH:+"-v"} \
   ${SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_GIT_CONFIG_PATH:+"$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_GIT_CONFIG_PATH:/root/.gitconfig:ro"} \

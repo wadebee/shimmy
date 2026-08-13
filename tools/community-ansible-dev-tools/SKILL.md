@@ -18,7 +18,7 @@ description: Use and maintain the community-ansible-dev-tools Shimmy tool, inclu
 
 - Default release: `v26.7.2`, pinned to the multi-platform index in `image.conf`.
 - Command model: no arguments starts the image's `zsh`; other arguments select any bundled command; shim `--version` maps to `adt --version`.
-- Working mount: `$PWD` to the upstream image's `/workdir`, read-write.
+- Working mount: `$PWD` to the upstream image's `/workdir`, read-write, unless `--mount-workdir /absolute/host/path` overrides the host source.
 - Runtime mode: stdin stays open and a TTY is allocated only when stdin and stdout are terminals.
 - Credentials: SSH-agent and host git-config mounts are separate explicit opt-ins.
 - Nested Podman: publisher-documented capabilities, `/dev/fuse`, host user namespace, root user, and unconfined security options are one explicit opt-in.
@@ -27,7 +27,7 @@ description: Use and maintain the community-ansible-dev-tools Shimmy tool, inclu
 ## Change Rules
 
 1. Preserve arbitrary bundled-command execution; this image is a development environment rather than a single executable image.
-2. Keep `/workdir` as the documented exception to Shimmy's normal `/work` mount unless upstream changes its working directory.
+2. Keep `/workdir` as the documented exception to Shimmy's normal `/work` mount unless upstream changes its working directory, and keep any override limited to selecting the host path mounted there.
 3. Keep SSH-agent, git-config, and nested-Podman behavior disabled by default and validate every opt-in value.
 4. Do not mount `$HOME/.ssh` or registry credentials implicitly.
 5. Keep the git-config mount read-only and the SSH socket mount limited to the existing `SSH_AUTH_SOCK` path.
@@ -37,6 +37,7 @@ description: Use and maintain the community-ansible-dev-tools Shimmy tool, inclu
 ## Validation
 
 - Preview: `./commands/run-tool.sh community-ansible-dev-tools --preview-shim --version`
+- Mount override preview: `./commands/run-tool.sh community-ansible-dev-tools --preview-shim --mount-workdir /absolute/host/path ansible-playbook -i inventory.ini hello.yaml`
 - Credential preview: `SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_SSH_AGENT=1 SSH_AUTH_SOCK=/example/agent.sock ./commands/run-tool.sh community-ansible-dev-tools --preview-shim ansible --version`
 - Nested-Podman preview: `SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_NESTED_PODMAN=1 ./commands/run-tool.sh community-ansible-dev-tools --preview-shim --version`
 - Image verification: `./commands/images.sh verify --shim community-ansible-dev-tools@26.7`
