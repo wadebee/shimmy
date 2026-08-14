@@ -5,7 +5,7 @@ test_commands_management_run() {
   assert_contains "$help_output" 'shimmy <command> [options]'
   assert_contains "$help_output" 'install    Add tool shims to this profile.'
   assert_contains "$help_output" 'images     Verify configured remote image indexes and upstream drift.'
-  assert_contains "$help_output" 'uninstall  Remove this profile and its managed startup integration.'
+  assert_contains "$help_output" 'uninstall  Remove this profile, or explicitly remove all Shimmy-owned state.'
   assert_contains "$help_output" 'netinfo    Show host, VM, and container network perspectives.'
   assert_contains "$help_output" 'skills     Install, update, uninstall, or export Shimmy agent skills.'
   assert_contains "$help_output" 'status     Show installed shims, versions, and profile details.'

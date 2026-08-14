@@ -9,7 +9,9 @@ a user's Shimmy installation or shell startup files.
 - `catalog.sh` covers exact schema rejection, live-checkout registration and
   explicit rebind, immediate dirty upstream visibility, clean committed
   publication, immutable provenance, ignored-content exclusion, and retained
-  rollback generation state and integrity plus final checkout-HEAD rechecking.
+  rollback generation state, atomic rollback, invalid-current recovery,
+  integrity rejection, explicit catalog-default profile update, and final
+  checkout-HEAD rechecking.
 - `images.sh` covers source and installed selection, fixture-driven OCI/Docker
   parsing, request deduplication, authentication skips/failures, drift policy,
   stable output, and command availability without target-registry access.
@@ -17,9 +19,10 @@ a user's Shimmy installation or shell startup files.
   retained context is [image-fixtures/CONTEXT.md](image-fixtures/CONTEXT.md).
 - `lifecycle.sh` covers install, selected-only materialization, catalog-loss
   execution, installed control-plane refresh boundaries, dispatch, status,
-  update, rollback, and uninstall. Its layout, launcher-refresh, isolation,
-  and profile-removal cases clone their initial profiles while retaining real
-  refresh, additive-install, and uninstall operations.
+  update, rollback, profile-only uninstall, and explicit global uninstall. Its
+  layout, launcher-refresh, isolation, and profile-removal cases clone their
+  initial profiles while retaining real refresh, additive-install, and
+  uninstall operations.
 - `onboarding.sh` covers sourced and executed repository onboarding, failure
   cleanup, the fixed jq/rg bootstrap baseline, explicit additive installed
   selection, direct shell initialization, PATH precedence, and profile-local

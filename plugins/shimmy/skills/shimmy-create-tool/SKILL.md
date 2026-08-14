@@ -74,6 +74,14 @@ Do not add central tool-name, status-image, or refresh case lists. Follow the
 existing catalog and lifecycle contracts until version-local refresh hooks
 replace the remaining update logic.
 
+A complete schema-valid tool added to the bound live upstream checkout is
+available to upstream catalog operations on the next command, including while
+the checkout is dirty. It reaches immutable default only through `shimmy
+catalog publish` from a clean commit. Publication changes availability but does
+not change installed profile versions; use an explicit profile install or
+update to adopt a new catalog default. Schema-invalid partial entries fail the
+whole catalog before mutation.
+
 For local builds, audit packages, install scripts, compiled dependencies, and
 release archive URLs for both target architectures. A compatible base index is
 necessary but not sufficient.

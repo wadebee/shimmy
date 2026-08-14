@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install or remove one canonical profile-flat Shimmy installation.
+# Install or remove canonical profile-local Shimmy state.
 set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
@@ -18,6 +18,7 @@ PROFILE_MANIFEST_TOOL_VERSIONS=
 PROFILE_MANIFEST_TOOLS=
 EXISTING_PROFILE_TOOLS=
 UNINSTALL=0
+GLOBAL_UNINSTALL=0
 PROFILE_EXISTS=0
 SHIMMY_STAGE_ROOT=
 SHIMMY_PROFILE_BACKUP_ROOT=
@@ -149,6 +150,37 @@ EOF
   printf '%s\n' "$merged_lines"
 }
 
+tool_version_line_list_merge() {
+  existing_lines=$1
+  additional_lines=$2
+  merged_lines=$existing_lines
+
+  while IFS= read -r additional_line; do
+    [ -n "$additional_line" ] || continue
+    shimmy_contains_line_list "$merged_lines" "$additional_line" && continue
+    additional_tool=${additional_line%%|*}
+    additional_remainder=${additional_line#*|}
+    additional_label=${additional_remainder%%|*}
+    retained_lines=
+    while IFS= read -r existing_line; do
+      [ -n "$existing_line" ] || continue
+      existing_tool=${existing_line%%|*}
+      existing_remainder=${existing_line#*|}
+      existing_label=${existing_remainder%%|*}
+      if [ "$existing_tool" = "$additional_tool" ] && [ "$existing_label" = "$additional_label" ]; then
+        continue
+      fi
+      retained_lines=$(shimmy_append_line_list "$retained_lines" "$existing_line")
+    done <<EOF
+$merged_lines
+EOF
+    merged_lines=$(shimmy_append_line_list "$retained_lines" "$additional_line")
+  done <<EOF
+$additional_lines
+EOF
+  printf '%s\n' "$merged_lines"
+}
+
 profile_source_checkout_resolve() {
   [ "$SHIMMY_PROFILE_RESOLVED" = upstream ] || { SHIMMY_PROFILE_SOURCE_CHECKOUT=; return 0; }
 
@@ -181,7 +213,7 @@ profile_selection_merge() {
   selected_entries=$(selected_tool_version_entries)
   selected_tools=$(tool_list_from_entries "$selected_entries")
   PROFILE_MANIFEST_TOOLS=$(line_list_merge "$PROFILE_MANIFEST_TOOLS" "$selected_tools")
-  PROFILE_MANIFEST_TOOL_VERSIONS=$(line_list_merge "$PROFILE_MANIFEST_TOOL_VERSIONS" "$selected_entries")
+  PROFILE_MANIFEST_TOOL_VERSIONS=$(tool_version_line_list_merge "$PROFILE_MANIFEST_TOOL_VERSIONS" "$selected_entries")
 }
 
 profile_stage_prepare() {
@@ -244,7 +276,9 @@ perform_install() {
   fi
   profile_source_checkout_resolve
   resolve_startup_settings
-  profile_selection_merge
+  if [ "${SHIMMY_UPDATE_MANAGEMENT_REFRESH:-0}" -ne 1 ]; then
+    profile_selection_merge
+  fi
   profile_stage_prepare
   profile_assets_commit
   profile_stage_cleanup
@@ -262,9 +296,14 @@ shimmy_install_run() {
 
   if [ "$UNINSTALL" -eq 1 ]; then
     [ -z "$REQUESTED_SHIMS" ] || fail "--shim cannot be combined with --uninstall"
-    perform_uninstall_profile
+    if [ "$GLOBAL_UNINSTALL" -eq 1 ]; then
+      perform_uninstall_global
+    else
+      perform_uninstall_profile
+    fi
     return 0
   fi
+  [ "$GLOBAL_UNINSTALL" -eq 0 ] || fail "--global requires --uninstall"
   [ -n "$REQUESTED_SHIMS" ] || fail "install requires at least one --shim <tool>"
   perform_install
 }

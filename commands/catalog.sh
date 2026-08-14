@@ -40,11 +40,13 @@ Manage the fixed shared Shimmy catalogs.
 
 Usage:
   shimmy catalog publish
+  shimmy catalog rollback
   shimmy catalog rebind --checkout <absolute-path>
 
 publish validates and publishes clean committed upstream content as a new
-immutable default generation. rebind explicitly replaces only the live
-upstream registry path after validating the replacement checkout.
+immutable default generation. rollback atomically restores the retained prior
+default generation. rebind explicitly replaces only the live upstream registry
+path after validating the replacement checkout.
 EOF
 }
 
@@ -52,20 +54,27 @@ main() {
   catalog_action=${1:-help}
   case "$catalog_action" in
     help|-h|--help) usage; return 0 ;;
-    publish|rebind) shift ;;
+    publish|rebind|rollback) shift ;;
     *) fail "unknown catalog command: $catalog_action" ;;
   esac
 
   shimmy_profile_context_resolve "$ROOT_DIR" || fail 'catalog management must run from a canonical installed profile'
   shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_PROFILE_NAME" || exit 1
   profile_catalog_name=$(shimmy_read_manifest_value "$SHIMMY_PROFILE_MANIFEST_PATH" catalog || true)
-  [ "$SHIMMY_PROFILE_NAME" = upstream ] && [ "$profile_catalog_name" = upstream ] || fail 'catalog publish and rebind require the upstream profile bound to the upstream catalog'
+  [ "$SHIMMY_PROFILE_NAME" = upstream ] && [ "$profile_catalog_name" = upstream ] || fail 'catalog publish, rollback, and rebind require the upstream profile bound to the upstream catalog'
 
   case "$catalog_action" in
     publish)
       [ "$#" -eq 0 ] || fail "unknown argument: $1"
       shimmy_catalog_default_publish "$SHIMMY_CONFIG_ROOT" || fail "$SHIMMY_CATALOG_ERROR"
       printf 'Published default catalog generation: %s\n' "$SHIMMY_CATALOG_GENERATION"
+      printf 'source_commit=%s\n' "$SHIMMY_CATALOG_SOURCE_COMMIT"
+      printf 'content_fingerprint=%s\n' "$SHIMMY_CATALOG_CONTENT_FINGERPRINT"
+      ;;
+    rollback)
+      [ "$#" -eq 0 ] || fail "unknown argument: $1"
+      shimmy_catalog_default_rollback "$SHIMMY_CONFIG_ROOT" || fail "$SHIMMY_CATALOG_ERROR"
+      printf 'Rolled back default catalog generation: %s\n' "$SHIMMY_CATALOG_GENERATION"
       printf 'source_commit=%s\n' "$SHIMMY_CATALOG_SOURCE_COMMIT"
       printf 'content_fingerprint=%s\n' "$SHIMMY_CATALOG_CONTENT_FINGERPRINT"
       ;;

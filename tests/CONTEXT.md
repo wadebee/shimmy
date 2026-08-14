@@ -31,6 +31,12 @@ semantics.
 every concrete tool version's executable runtime and refresh hook plus its
 smoke and image metadata.
 
+Lifecycle coverage includes isolated default/upstream bootstrap, clean
+publication, retained-generation rollback (including invalid-current
+recovery), catalog-default adoption only on explicit update, source-loss
+execution independence, profile-only uninstall, and explicit global removal
+that preserves bound checkouts and external skill exports.
+
 ## Child contexts
 
 - [shared-library behavior](lib/CONTEXT.md)

@@ -11,8 +11,9 @@ is the bootstrap entrypoint for creating a profile.
 ## Table of contents
 
 - [`images`](#images) — verify remote image indexes and upstream drift
+- [`catalog`](#catalog) — publish, roll back, or rebind shared catalogs
 - [`install`](#install) — add tool shims to the current profile
-- [`uninstall`](#uninstall) — remove the current profile
+- [`uninstall`](#uninstall) — remove one profile or all owned Shimmy state
 - [`netinfo`](#netinfo) — show host, VM, and container network perspectives
 - [`skills`](#skills) — manage or export Shimmy agent skills
 - [`status`](#status) — inspect the current profile and its tool catalog
@@ -20,6 +21,24 @@ is the bootstrap entrypoint for creating a profile.
 - [`update`](#update) — refresh the current profile and its tool images
 
 Run `shimmy <command> --help` for the command's authoritative usage text.
+
+## `catalog`
+
+Manage the fixed shared named catalogs from the installed upstream profile.
+
+```text
+shimmy catalog publish
+shimmy catalog rollback
+shimmy catalog rebind --checkout <absolute-path>
+```
+
+`publish` stages and validates tracked content from the clean committed
+upstream `HEAD`, then atomically advances the immutable default generation.
+`rollback` atomically restores the retained prior valid default generation,
+including recovery when the current generation is invalid. `rebind` validates
+and atomically replaces only the live upstream checkout path; it does not
+modify either checkout. None of these operations changes an installed
+profile's recorded tool versions.
 
 ## `images`
 
@@ -104,15 +123,19 @@ shimmy install --shim oc@4.20 --no-startup
 
 ## `uninstall`
 
-Remove the current profile and its managed startup integration. This command
-operates only on the profile containing the invoked launcher.
+Remove the current profile and its managed startup integration. Without
+`--global`, this command operates only on the profile containing the invoked
+launcher and preserves sibling profiles and shared catalogs.
 
 ```text
-shimmy uninstall [--shell <name>] [--startup-file <path> ...]
+shimmy uninstall [--global] [--shell <name>] [--startup-file <path> ...]
 ```
 
 Options:
 
+- `--global` removes every valid manifest-owned profile and registry-owned
+  shared catalog. It preserves source checkouts and external skill exports and
+  refuses unrecognized shared state.
 - `--shell <name>` overrides shell detection for startup cleanup.
 - `--startup-file <path>` selects a startup file from which managed integration
   is removed. Repeat it to select multiple files.
@@ -202,8 +225,10 @@ shimmy skills install --export ./shimmy-skills.zip
 ## `status`
 
 Show the current profile's identity and root, its installed tools, and the
-catalog versions and configured image references for those tools. Optionally
-include tools that are available in the catalog but not installed.
+catalog source type/path, generation provenance, schema, content fingerprint,
+health, and configured image references. Optionally include tools that are
+available in the catalog but not installed. Invalid or unavailable catalog
+state is reported and returns failure without changing the profile.
 
 ```text
 shimmy status [--available] [--format human|manifest]
@@ -277,8 +302,10 @@ Options:
 - `-h`, `--help` shows command help.
 
 With neither `--all` nor `--shim`, the command updates all tools already
-installed in the current profile. Startup repair options are unavailable for
-the `upstream` profile.
+installed in the current profile. A selected tool adopts the current catalog
+default while retaining any other explicitly installed concrete versions.
+Catalog publication alone never changes the profile. Startup repair options
+are unavailable for the `upstream` profile.
 
 Examples:
 

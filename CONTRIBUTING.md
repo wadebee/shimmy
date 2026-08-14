@@ -64,6 +64,14 @@ entrypoint, while status shows that profile's manifest-derived metadata.
 selects the absolute source checkout recorded when `./install.sh --profile
 upstream` runs; it never relocates installed profile state.
 
+The shared `upstream` catalog is a live binding to that validated checkout.
+The shared `default` catalog is an immutable generation published only from a
+clean committed upstream `HEAD`. Publication changes availability, not an
+installed profile's materialization; selected tools adopt a new catalog
+default only through an explicit profile install or update. Keep publication,
+retained-generation rollback, explicit checkout rebind, profile uninstall, and
+global owned-state uninstall as separate validated transactions.
+
 Only `default` may create, repair, or remove Shimmy's persistent shell-startup
 blocks. An unqualified checkout bootstrap manages zsh plus Bash login and
 non-login interactive startup files; explicit startup options remain

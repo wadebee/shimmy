@@ -45,9 +45,9 @@ EOF
   set +e
   if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then
     source_checkout=$(shimmy_read_manifest_value "$manifest_file" source_checkout)
-    SHIMMY_UPSTREAM_CHECKOUT_DIR=$source_checkout SHIMMY_PREVIOUS_SOURCE_REF=$previous_source_ref "$@"
+    SHIMMY_UPDATE_MANAGEMENT_REFRESH=1 SHIMMY_UPSTREAM_CHECKOUT_DIR=$source_checkout SHIMMY_PREVIOUS_SOURCE_REF=$previous_source_ref "$@"
   else
-    SHIMMY_PREVIOUS_SOURCE_REF=$previous_source_ref "$@"
+    SHIMMY_UPDATE_MANAGEMENT_REFRESH=1 SHIMMY_PREVIOUS_SOURCE_REF=$previous_source_ref "$@"
   fi
   update_status=$?
   set -e

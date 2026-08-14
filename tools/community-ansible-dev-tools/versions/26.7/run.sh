@@ -36,6 +36,43 @@ shimmy_community_ansible_dev_tools_boolean_validate() {
   esac
 }
 
+shimmy_community_ansible_dev_tools_workdir_preflight_validate() {
+  workdir_host_path=$PWD
+  workdir_input=
+  workdir_preview=0
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --preview-shim)
+        workdir_preview=1
+        shift
+        ;;
+      --mount-workdir)
+        [ "$#" -ge 2 ] || {
+          printf '%s\n' 'ERROR: --mount-workdir requires a host path argument' >&2
+          exit 1
+        }
+        workdir_input=$2
+        shift 2
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  if [ -n "$workdir_input" ]; then
+    case "$workdir_input" in
+      /*) workdir_host_path=$workdir_input ;;
+      *) printf 'ERROR: --mount-workdir requires an absolute host path: %s\n' "$workdir_input" >&2; exit 1 ;;
+    esac
+  fi
+  if [ "$workdir_preview" -eq 0 ] && [ ! -d "$workdir_host_path" ]; then
+    printf 'ERROR: workdir host path does not exist: %s\n' "$workdir_host_path" >&2
+    exit 1
+  fi
+}
+
 
 if [ ! -f "$SHIMMY_IMAGE_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_IMAGE_HELPER_FILE" >&2
@@ -47,8 +84,6 @@ fi
 
 SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_IMAGE=${SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_IMAGE:-$(shimmy_image_external_default_read "$SHIMMY_IMAGE_CONFIG_FILE")}
 
-shimmy_podman_preflight_or_preview_require "the community-ansible-dev-tools shim" "$@"
-
 shimmy_community_ansible_dev_tools_boolean_validate \
   SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_GIT_CONFIG \
   "$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_GIT_CONFIG"
@@ -58,6 +93,9 @@ shimmy_community_ansible_dev_tools_boolean_validate \
 shimmy_community_ansible_dev_tools_boolean_validate \
   SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_SSH_AGENT \
   "$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_SSH_AGENT"
+shimmy_community_ansible_dev_tools_workdir_preflight_validate "$@"
+
+shimmy_podman_preflight_or_preview_require "the community-ansible-dev-tools shim" "$@"
 
 if [ "$SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_NESTED_PODMAN" = 1 ]; then
   SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_NESTED_PODMAN_ENABLED=1

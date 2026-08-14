@@ -25,6 +25,11 @@ and initialize it in the current shell:
 . ./install.sh
 ```
 
+The initial default bootstrap requires a clean committed Git checkout. It
+creates an immutable `default` catalog generation through the same staged
+schema validation used by later publication, records `catalog=default`, and
+does not create or change an upstream profile.
+
 An unqualified default bootstrap installs a managed startup block in `.zshrc`,
 `.bashrc`, and the active Bash login file (`.bash_profile`, `.bash_login`, or
 `.profile`; `.bash_profile` is created when none exists). This covers zsh plus
@@ -39,14 +44,21 @@ need its parent shell initialized:
 ```
 
 Only the checkout bootstrap selects a profile. Maintainers can bootstrap the
-`upstream` profile, which records the source checkout used by generated tool
-implementations:
+`upstream` profile, which records `catalog=upstream` and binds that catalog to
+the live source checkout without creating or changing `default`:
 
 ```sh
 SHIMMY_UPSTREAM_CHECKOUT_DIR=/absolute/path/to/shimmy
 export SHIMMY_UPSTREAM_CHECKOUT_DIR
 . ./install.sh --profile upstream
 ```
+
+A different checkout cannot silently replace an existing upstream binding.
+From the installed upstream profile, use `shimmy catalog rebind --checkout
+<absolute-path>` for an explicit validated replacement. Complete schema-valid
+catalog edits in the bound checkout are visible to upstream operations on the
+next command; publishing to immutable `default` requires those changes to be
+committed and the checkout to be clean.
 
 Every bootstrap installs jq and rg. After initialization, add other tools with
 the installed profile-local launcher:
@@ -102,3 +114,22 @@ shimmy skills install --target profile
 Shimmy stages and validates the complete output before changing either target.
 Profile or catalog removal does not remove an existing export; its target
 manifest remains authoritative for standalone `shimmy skills uninstall`.
+
+## Catalog recovery and removal
+
+Inspect catalog identity, provenance, schema, fingerprint, and health with:
+
+```sh
+shimmy status --format manifest
+```
+
+From the upstream profile, `shimmy catalog publish` advances immutable
+`default`, `shimmy catalog rollback` restores its retained prior valid
+generation, and `shimmy catalog rebind --checkout <absolute-path>` recovers a
+missing or moved live checkout. Invalid or unsupported catalog schema blocks
+catalog-dependent mutation but does not stop already-materialized tools.
+
+`shimmy uninstall` removes only its enclosing profile. Use `shimmy uninstall
+--global` only when every owned profile and shared catalog should be removed.
+Global uninstall preserves source checkouts and independently manifest-owned
+repository or home skill exports.

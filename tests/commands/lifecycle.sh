@@ -136,11 +136,19 @@ test_commands_lifecycle_install_shapes() {
   bootstrap_default >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
+  assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf"
+  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream"
+  default_generation=$(profile_manifest_value "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf" catalog_generation_current)
+  assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$default_generation/generation.conf"
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'catalog=default'
 
   setup_scenario
   bootstrap_upstream >/dev/null
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+  assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf"
+  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default"
+  assert_file_contains "$UPSTREAM_PROFILE_ROOT/install-manifest.txt" 'catalog=upstream'
 
   bootstrap_default >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
@@ -185,6 +193,43 @@ test_commands_lifecycle_empty_container_cleanup() {
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
   assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf"
   pass "profile removal preserves sibling profiles and independently owned shared catalogs"
+}
+
+test_commands_lifecycle_global_uninstall() {
+  setup_scenario_with_profiles default upstream
+  replacement_checkout=$SCENARIO_DIR/global-uninstall-checkout
+  cp -R "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$replacement_checkout"
+  upstream_shimmy catalog rebind --checkout "$replacement_checkout" >/dev/null
+  (
+    cd "$WORK_DIR"
+    default_shimmy skills install --target repo >/dev/null
+  )
+  exported_skill_file=$WORK_DIR/.agents/skills/shimmy-install/SKILL.md
+  exported_manifest=$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt
+  assert_file_exists "$exported_skill_file"
+  assert_file_exists "$exported_manifest"
+
+  printf '%s\n' unmanaged > "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/unmanaged-sentinel"
+  set +e
+  unsafe_output=$(default_shimmy uninstall --global 2>&1)
+  unsafe_status=$?
+  set -e
+  [ "$unsafe_status" -ne 0 ] || fail_test 'global uninstall unexpectedly removed unrecognized catalog state'
+  assert_contains "$unsafe_output" 'refusing to remove unrecognized shared catalog state'
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
+  rm -f "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/unmanaged-sentinel"
+
+  relocated_checkout=$SCENARIO_DIR/relocated-global-uninstall-checkout
+  mv "$replacement_checkout" "$relocated_checkout"
+  default_shimmy uninstall --global >/dev/null
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+  assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
+  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
+  assert_dir_exists "$relocated_checkout"
+  assert_file_exists "$exported_skill_file"
+  assert_file_exists "$exported_manifest"
+  pass "explicit global uninstall removes only owned profiles and catalogs while preserving checkouts and external skill exports"
 }
 
 test_commands_lifecycle_catalog_independent_execution() {
@@ -279,4 +324,5 @@ test_commands_lifecycle_complete() {
   test_commands_lifecycle_legacy_agent_refresh
   test_commands_lifecycle_legacy_agent_rollback
   test_commands_lifecycle_empty_container_cleanup
+  test_commands_lifecycle_global_uninstall
 }

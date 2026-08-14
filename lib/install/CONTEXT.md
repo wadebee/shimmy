@@ -19,7 +19,9 @@ process.
   rebind plus clean-HEAD, same-filesystem staged publication of immutable
   `default` generations. It validates and fingerprints the one archived
   payload copy, rechecks checkout state, atomically advances the registry, and
-  retains the prior valid generation.
+  retains the prior valid generation. Explicit rollback validates the retained
+  generation and atomically swaps registry authority, including recovery from
+  an invalid current generation.
 - `manifest.sh` preserves and renders the profile-local version-2 manifest,
   including its fixed `catalog=default` or `catalog=upstream` binding.
 - `profile-assets.sh` stages the profile-local control plane, launcher,
@@ -32,8 +34,10 @@ process.
   persistent startup integration only for `default`. Unqualified checkout
   bootstraps manage zsh and both Bash startup modes; explicit startup options
   remain authoritative.
-- `uninstall.sh` removes only validated assets owned by the enclosing profile,
-  then attempts to remove empty merge-owned parent directories.
+- `uninstall.sh` ordinarily removes only validated assets owned by the
+  enclosing profile. Explicit global uninstall prevalidates all profile and
+  catalog ownership, removes every owned profile and shared registry, and
+  preserves bound source checkouts and external skill exports.
 
 Profiles contain no canonical management plugin or tool skill sources; those
 remain in the named catalog. Manifest version 2 and the

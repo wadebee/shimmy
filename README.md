@@ -32,9 +32,10 @@ Each installed launcher exposes this management surface:
 
 | Command | Purpose |
 |---|---|
+| `shimmy catalog` | Publish or roll back `default`, or explicitly rebind `upstream`. |
 | `shimmy images` | Verify pinned remote image indexes and report upstream drift. |
 | `shimmy install` | Add explicitly selected tool shims to the profile. |
-| `shimmy uninstall` | Remove the profile and its managed startup integration. |
+| `shimmy uninstall` | Remove one profile, or explicitly remove all Shimmy-owned state. |
 | `shimmy netinfo` | Show host, VM, and container network perspectives. |
 | `shimmy skills` | Install, update, uninstall, or export Shimmy agent skills. |
 | `shimmy status` | Show installed shims, versions, and profile details. |
@@ -64,12 +65,37 @@ directly from an existing profile, source its generated asset:
 Each profile has its own self-contained `bin/shimmy`, and installed launchers
 manage only their enclosing profile.
 
-Profiles are independent flat installations below an absolute
+Profiles are independent materialized installations below an absolute
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>` root. A relative,
 non-empty `XDG_CONFIG_HOME` is rejected. The `default` profile alone may own a
 persistent startup block; `upstream` never changes shell startup files. Switch
 profiles by sourcing the desired profile's `shell-init.sh`, not with an
 installed command option or environment selector.
+
+Shared named catalogs live beside profiles under the same `shimmy/` config
+root. `upstream` is a validated live binding to one Git checkout, so a complete
+schema-valid tool or skill edit is visible to upstream catalog operations on
+the next command. `default` is an immutable generation published only from a
+clean committed upstream checkout. Publication changes catalog availability;
+installed profile versions remain materialized and unchanged until an explicit
+`shimmy update` or `shimmy install --shim` operation selects the newer catalog
+default.
+
+Use the upstream profile for catalog administration:
+
+```sh
+shimmy catalog publish
+shimmy catalog rollback
+shimmy catalog rebind --checkout /absolute/path/to/shimmy
+```
+
+Catalog-dependent operations fail before mutation when a registry, checkout,
+generation, or schema is unavailable or invalid. Existing materialized tool
+commands continue to run. Ordinary `shimmy uninstall` removes only the
+invoking profile and leaves shared catalogs and sibling profiles intact;
+`shimmy uninstall --global` explicitly removes every valid owned profile and
+shared catalog, without deleting a bound source checkout or external skill
+export.
 
 Agent skills exported to a repository or home agent profile are external,
 target-manifest-owned state. Canonical management and tool skills remain in

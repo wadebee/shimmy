@@ -225,6 +225,63 @@ shimmy_catalog_default_publish() {
   shimmy_catalog_registry_resolve "$catalog_config_root" default
 }
 
+shimmy_catalog_default_rollback() {
+  catalog_config_root=$1
+  catalog_default_dir=$catalog_config_root/catalogs/default
+  catalog_default_registry_file=$catalog_default_dir/registry.conf
+
+  shimmy_catalog_lock_acquire "$catalog_config_root" || return 1
+  shimmy__catalog_registry_file_validate "$catalog_default_registry_file" default || {
+    shimmy_catalog_lock_release
+    return 1
+  }
+  [ "$SHIMMY_CATALOG_SOURCE_TYPE" = generation ] || {
+    shimmy_catalog_lock_release
+    shimmy_catalog_error_set 'default catalog registry must use generation source type'
+    return 1
+  }
+
+  catalog_current_generation=$(shimmy__catalog_config_value_read "$catalog_default_registry_file" catalog_generation_current)
+  catalog_rollback_generation=$(shimmy__catalog_config_value_read "$catalog_default_registry_file" catalog_generation_previous)
+  [ -n "$catalog_rollback_generation" ] || {
+    shimmy_catalog_lock_release
+    shimmy_catalog_error_set 'default catalog has no retained previous generation to roll back to'
+    return 1
+  }
+  shimmy_catalog_generation_record_validate "$catalog_default_dir/generations/$catalog_rollback_generation" "$catalog_rollback_generation" || {
+    shimmy_catalog_lock_release
+    return 1
+  }
+  catalog_rollback_commit=$SHIMMY_CATALOG_VALIDATED_GENERATION_COMMIT
+  catalog_rollback_fingerprint=$SHIMMY_CATALOG_VALIDATED_GENERATION_FINGERPRINT
+
+  catalog_new_previous=
+  if shimmy_catalog_generation_record_validate "$catalog_default_dir/generations/$catalog_current_generation" "$catalog_current_generation"; then
+    catalog_new_previous=$catalog_current_generation
+  fi
+
+  catalog_registry_tmp=$catalog_default_dir/.registry.conf.tmp.$$
+  [ ! -e "$catalog_registry_tmp" ] && [ ! -L "$catalog_registry_tmp" ] || {
+    shimmy_catalog_lock_release
+    shimmy_catalog_error_set "catalog registry temporary path collision: $catalog_registry_tmp"
+    return 1
+  }
+  shimmy_catalog_registry_generation_render default "$catalog_rollback_generation" "$catalog_new_previous" "$catalog_rollback_commit" "$catalog_rollback_fingerprint" > "$catalog_registry_tmp"
+  shimmy__catalog_registry_file_validate "$catalog_registry_tmp" default || {
+    rm -f "$catalog_registry_tmp"
+    shimmy_catalog_lock_release
+    return 1
+  }
+  mv "$catalog_registry_tmp" "$catalog_default_registry_file" || {
+    rm -f "$catalog_registry_tmp"
+    shimmy_catalog_lock_release
+    shimmy_catalog_error_set 'unable to atomically roll back the default catalog generation'
+    return 1
+  }
+  shimmy_catalog_lock_release
+  shimmy_catalog_registry_resolve "$catalog_config_root" default
+}
+
 shimmy_catalog_generation_stage() {
   catalog_generation_stage=$1
   catalog_generation_archive=$SHIMMY_CATALOG_LIFECYCLE_STAGE/catalog.tar
@@ -251,6 +308,31 @@ shimmy_catalog_generation_stage() {
   } > "$catalog_generation_stage/generation.conf"
   chmod 644 "$catalog_generation_stage/generation.conf"
   shimmy__catalog_generation_metadata_validate "$catalog_generation_stage"
+}
+
+shimmy_catalog_generation_record_validate() {
+  catalog_generation_root=$1
+  catalog_generation_name=$2
+
+  shimmy_catalog_generation_name_validate "$catalog_generation_name" || {
+    shimmy_catalog_error_set "invalid catalog generation name: $catalog_generation_name"
+    return 1
+  }
+  shimmy_catalog_payload_validate "$catalog_generation_root" default || return 1
+  shimmy__catalog_generation_metadata_validate "$catalog_generation_root" || return 1
+  catalog_generation_commit=$(shimmy__catalog_config_value_read "$catalog_generation_root/generation.conf" catalog_source_commit)
+  catalog_generation_fingerprint=$(shimmy__catalog_config_value_read "$catalog_generation_root/generation.conf" catalog_content_fingerprint)
+  [ "$(shimmy_catalog_generation_name_render "$catalog_generation_fingerprint")" = "$catalog_generation_name" ] || {
+    shimmy_catalog_error_set "catalog generation metadata does not match its name: $catalog_generation_name"
+    return 1
+  }
+  catalog_generation_resolved_fingerprint=$(shimmy_catalog_fingerprint_render "$catalog_generation_root") || return 1
+  [ "$catalog_generation_resolved_fingerprint" = "$catalog_generation_fingerprint" ] || {
+    shimmy_catalog_error_set "catalog generation content fingerprint mismatch: $catalog_generation_name"
+    return 1
+  }
+  SHIMMY_CATALOG_VALIDATED_GENERATION_COMMIT=$catalog_generation_commit
+  SHIMMY_CATALOG_VALIDATED_GENERATION_FINGERPRINT=$catalog_generation_fingerprint
 }
 
 shimmy_catalog_lifecycle_cleanup() {
@@ -290,6 +372,125 @@ shimmy_catalog_lock_release() {
   rm -f "$SHIMMY_CATALOG_LIFECYCLE_LOCK/pid"
   rmdir "$SHIMMY_CATALOG_LIFECYCLE_LOCK" 2>/dev/null || true
   SHIMMY_CATALOG_LIFECYCLE_LOCK=
+}
+
+shimmy_catalog_owned_state_remove() {
+  catalog_config_root=$1
+  catalog_catalogs_root=$catalog_config_root/catalogs
+
+  [ -e "$catalog_catalogs_root" ] || [ -L "$catalog_catalogs_root" ] || return 0
+  shimmy_catalog_owned_state_validate "$catalog_config_root" 0 || return 1
+  shimmy_catalog_lock_acquire "$catalog_config_root" || return 1
+  shimmy_catalog_owned_state_validate "$catalog_config_root" 1 || {
+    shimmy_catalog_lock_release
+    return 1
+  }
+  for catalog_name in default upstream; do
+    catalog_owned_dir=$catalog_catalogs_root/$catalog_name
+    [ -e "$catalog_owned_dir" ] || [ -L "$catalog_owned_dir" ] || continue
+    rm -rf "$catalog_owned_dir" || {
+      shimmy_catalog_lock_release
+      shimmy_catalog_error_set "unable to remove owned catalog state: $catalog_owned_dir"
+      return 1
+    }
+  done
+  shimmy_catalog_lock_release
+  rmdir "$catalog_catalogs_root" 2>/dev/null || true
+}
+
+shimmy_catalog_owned_state_validate() {
+  catalog_config_root=$1
+  catalog_allow_lock=${2:-0}
+  catalog_catalogs_root=$catalog_config_root/catalogs
+
+  [ -e "$catalog_catalogs_root" ] || [ -L "$catalog_catalogs_root" ] || return 0
+  [ -d "$catalog_catalogs_root" ] && [ ! -L "$catalog_catalogs_root" ] || {
+    shimmy_catalog_error_set "shared catalog root must be a regular directory: $catalog_catalogs_root"
+    return 1
+  }
+  shimmy_catalog_path_parent_chain_validate "$catalog_catalogs_root" || {
+    shimmy_catalog_error_set "catalog registry root has a symbolic-link path component: $catalog_catalogs_root"
+    return 1
+  }
+
+  for catalog_owned_entry in "$catalog_catalogs_root"/* "$catalog_catalogs_root"/.[!.]* "$catalog_catalogs_root"/..?*; do
+    [ -e "$catalog_owned_entry" ] || [ -L "$catalog_owned_entry" ] || continue
+    catalog_owned_name=$(basename -- "$catalog_owned_entry")
+    case "$catalog_owned_name" in
+      default|upstream) ;;
+      .catalog-transaction-lock)
+        [ "$catalog_allow_lock" -eq 1 ] || {
+          shimmy_catalog_error_set "refusing global uninstall while a catalog transaction is active: $catalog_owned_entry"
+          return 1
+        }
+        continue
+        ;;
+      *)
+        shimmy_catalog_error_set "refusing to remove unrecognized shared catalog state: $catalog_owned_entry"
+        return 1
+        ;;
+    esac
+    [ -d "$catalog_owned_entry" ] && [ ! -L "$catalog_owned_entry" ] || {
+      shimmy_catalog_error_set "catalog registry entry must be a regular directory: $catalog_owned_entry"
+      return 1
+    }
+  done
+
+  catalog_upstream_dir=$catalog_catalogs_root/upstream
+  if [ -e "$catalog_upstream_dir" ] || [ -L "$catalog_upstream_dir" ]; then
+    for catalog_owned_entry in "$catalog_upstream_dir"/* "$catalog_upstream_dir"/.[!.]* "$catalog_upstream_dir"/..?*; do
+      [ -e "$catalog_owned_entry" ] || [ -L "$catalog_owned_entry" ] || continue
+      [ "$catalog_owned_entry" = "$catalog_upstream_dir/registry.conf" ] || {
+        shimmy_catalog_error_set "refusing to remove unrecognized upstream catalog state: $catalog_owned_entry"
+        return 1
+      }
+    done
+    shimmy__catalog_registry_file_validate "$catalog_upstream_dir/registry.conf" upstream || return 1
+    [ "$SHIMMY_CATALOG_SOURCE_TYPE" = checkout ] || {
+      shimmy_catalog_error_set 'upstream catalog registry must use checkout source type'
+      return 1
+    }
+    catalog_owned_source=$(shimmy__catalog_config_value_read "$catalog_upstream_dir/registry.conf" catalog_source_path)
+    case "$catalog_owned_source" in /*) ;; *) shimmy_catalog_error_set "upstream catalog records a relative checkout path: $catalog_owned_source"; return 1 ;; esac
+  fi
+
+  catalog_default_dir=$catalog_catalogs_root/default
+  if [ -e "$catalog_default_dir" ] || [ -L "$catalog_default_dir" ]; then
+    for catalog_owned_entry in "$catalog_default_dir"/* "$catalog_default_dir"/.[!.]* "$catalog_default_dir"/..?*; do
+      [ -e "$catalog_owned_entry" ] || [ -L "$catalog_owned_entry" ] || continue
+      case "$catalog_owned_entry" in
+        "$catalog_default_dir/registry.conf"|"$catalog_default_dir/generations") ;;
+        *) shimmy_catalog_error_set "refusing to remove unrecognized default catalog state: $catalog_owned_entry"; return 1 ;;
+      esac
+    done
+    shimmy__catalog_registry_file_validate "$catalog_default_dir/registry.conf" default || return 1
+    [ "$SHIMMY_CATALOG_SOURCE_TYPE" = generation ] || {
+      shimmy_catalog_error_set 'default catalog registry must use generation source type'
+      return 1
+    }
+    [ -d "$catalog_default_dir/generations" ] && [ ! -L "$catalog_default_dir/generations" ] || {
+      shimmy_catalog_error_set "default catalog generations must be a regular directory: $catalog_default_dir/generations"
+      return 1
+    }
+    for catalog_generation_dir in "$catalog_default_dir"/generations/*; do
+      [ -e "$catalog_generation_dir" ] || [ -L "$catalog_generation_dir" ] || continue
+      [ -d "$catalog_generation_dir" ] && [ ! -L "$catalog_generation_dir" ] || {
+        shimmy_catalog_error_set "catalog generation must be a regular directory: $catalog_generation_dir"
+        return 1
+      }
+      catalog_generation_name=$(basename -- "$catalog_generation_dir")
+      shimmy_catalog_generation_name_validate "$catalog_generation_name" || {
+        shimmy_catalog_error_set "unsafe catalog generation directory: $catalog_generation_name"
+        return 1
+      }
+      shimmy__catalog_generation_metadata_validate "$catalog_generation_dir" || return 1
+      catalog_generation_fingerprint=$(shimmy__catalog_config_value_read "$catalog_generation_dir/generation.conf" catalog_content_fingerprint)
+      [ "$(shimmy_catalog_generation_name_render "$catalog_generation_fingerprint")" = "$catalog_generation_name" ] || {
+        shimmy_catalog_error_set "catalog generation metadata does not match its directory: $catalog_generation_name"
+        return 1
+      }
+    done
+  fi
 }
 
 shimmy_catalog_registry_checkout_render() {

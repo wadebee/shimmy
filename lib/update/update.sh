@@ -45,8 +45,9 @@ shimmy_update_run() {
   fi
 
   selected_tools=$(shimmy_update_selected_tools_resolve "$SHIMMY_PROFILE_MANIFEST_PATH")
-  selected_versions=$(shimmy_update_selected_versions_resolve "$SHIMMY_PROFILE_MANIFEST_PATH" "$selected_tools")
   shimmy_update_management_run "$SHIMMY_PROFILE_MANIFEST_PATH"
+  shimmy_update_profile_materialization_run "$selected_tools"
+  selected_versions=$(shimmy_update_selected_versions_resolve "$SHIMMY_PROFILE_MANIFEST_PATH" "$selected_tools")
 
   [ "$PULL_IMAGES" -eq 0 ] || shimmy_update_refresh_hooks_run pull "$selected_versions"
   [ "$BUILD_IMAGES" -eq 0 ] || shimmy_update_refresh_hooks_run build "$selected_versions"

@@ -31,6 +31,12 @@ Shimmy provides independent `default` and `upstream` profiles below
 - Use `SHIMMY_UPSTREAM_CHECKOUT_DIR` only to select the absolute checkout
   recorded while bootstrapping `upstream`; it never relocates installed state.
 
+Each profile records one fixed named-catalog binding. `upstream` resolves a
+validated live Git checkout on every catalog-aware invocation, while `default`
+resolves a Shimmy-owned immutable generation. Valid upstream edits are visible
+on the next command. Default changes only after clean committed publication,
+and existing profile materializations remain unchanged until explicit update.
+
 ## Lifecycle commands
 
 ```sh
@@ -42,6 +48,8 @@ shimmy install --shim task
 "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" status --format manifest
 "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" update --shim jq
 "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" uninstall
+"${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy" catalog publish
+"${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy" catalog rollback
 ```
 
 For disposable validation, set an absolute temporary `XDG_CONFIG_HOME` and use
@@ -51,6 +59,12 @@ Every repository bootstrap includes jq and rg. Add any other tool afterward
 through the installed `shimmy install --shim <tool>` command; it installs the
 tool dispatcher and its default concrete version. Use `--shim
 <tool>@<major.minor>` for a non-default version.
+
+Catalog-dependent install, update, status, image, and skill operations validate
+the registry and exact schema before mutation. Already-materialized tools do
+not require the catalog to run. Recover a moved upstream checkout with explicit
+`shimmy catalog rebind --checkout <absolute-path>` and recover default with
+`shimmy catalog rollback` when a retained valid generation exists.
 
 ## Shell initialization and startup
 
@@ -84,6 +98,12 @@ is unavailable:
 ```sh
 shimmy skills uninstall --target <repo|profile>
 ```
+
+Ordinary `shimmy uninstall` removes only the invoking profile and preserves
+sibling profiles and shared catalogs. Explicit `shimmy uninstall --global`
+removes all valid manifest-owned profiles and registry-owned catalogs while
+preserving bound checkouts and these external exports; it refuses unrecognized
+shared state.
 
 ## Podman and validation
 

@@ -1,5 +1,38 @@
 #!/bin/sh
-# Remove only schema-owned assets from the invoking profile.
+# Remove only manifest- or registry-owned Shimmy assets.
+
+perform_uninstall_global() {
+  global_config_root=$SHIMMY_CONFIG_ROOT
+  global_profiles_root=$SHIMMY_PROFILES_ROOT
+
+  shimmy_catalog_owned_state_validate "$global_config_root" 0 || fail "$SHIMMY_CATALOG_ERROR"
+  for global_profile_name in default upstream; do
+    shimmy_profile_paths_resolve "$global_profile_name" || fail "unable to resolve canonical $global_profile_name profile"
+    if [ -e "$SHIMMY_PROFILE_ROOT" ] || [ -L "$SHIMMY_PROFILE_ROOT" ]; then
+      [ -f "$SHIMMY_PROFILE_MANIFEST_PATH" ] && [ ! -L "$SHIMMY_PROFILE_MANIFEST_PATH" ] ||
+        fail "refusing global uninstall with unmanaged or incomplete profile state: $SHIMMY_PROFILE_ROOT"
+      shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$global_profile_name" || exit 1
+    fi
+  done
+
+  for global_profile_name in default upstream; do
+    shimmy_profile_paths_resolve "$global_profile_name" || fail "unable to resolve canonical $global_profile_name profile"
+    [ -f "$SHIMMY_PROFILE_MANIFEST_PATH" ] || continue
+    SHIMMY_PROFILE_RESOLVED=$global_profile_name
+    SHIMMY_BIN_DIR=$SHIMMY_PROFILE_BIN_DIR
+    SHIMMY_CONTROL_BIN=$SHIMMY_BIN_DIR/shimmy
+    SHIMMY_SHELL_INIT_FILE=$SHIMMY_PROFILE_ROOT/shell-init.sh
+    INSTALL_MANIFEST_FILE=$SHIMMY_PROFILE_MANIFEST_PATH
+    perform_uninstall_profile
+  done
+
+  SHIMMY_CONFIG_ROOT=$global_config_root
+  SHIMMY_PROFILES_ROOT=$global_profiles_root
+  shimmy_catalog_owned_state_remove "$SHIMMY_CONFIG_ROOT" || fail "$SHIMMY_CATALOG_ERROR"
+  rmdir "$SHIMMY_PROFILES_ROOT" 2>/dev/null || true
+  rmdir "$SHIMMY_CONFIG_ROOT" 2>/dev/null || true
+  log_info "Removed all manifest-owned Shimmy profiles and shared catalogs from $SHIMMY_CONFIG_ROOT"
+}
 
 profile_owned_path_remove() {
   path_value=$1

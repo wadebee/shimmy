@@ -416,9 +416,9 @@ None.
   catalog consumers atomically.
 - [x] Chunk 2 — Materialize only selected tools into recreated profile-local
   control planes.
-- [ ] Chunk 3 — Move canonical skill resolution to the catalog and preserve
+- [x] Chunk 3 — Move canonical skill resolution to the catalog and preserve
   explicit export ownership.
-- [ ] Chunk 4 — Complete lifecycle, uninstall, documentation, and full
+- [x] Chunk 4 — Complete lifecycle, uninstall, documentation, and full
   regression verification.
 
 ## Execution protocol
@@ -679,6 +679,9 @@ Shimmy remain explicit and independently owned.
 
 ## Chunk 4 — Lifecycle integration, documentation, and regression
 
+Status: implemented and verified on 2026-08-14; awaiting human review at the
+Chunk 4 gate.
+
 ### Goal
 
 Complete the fixed catalog update, rollback, bootstrap, status, and uninstall
@@ -704,25 +707,54 @@ the complete affected test matrix, `README.md`, `BOOTSTRAP.md`,
 
 ### Verification checklist
 
-- [ ] Default bootstrap from no installed state and a clean committed checkout
+- [x] Default bootstrap from no installed state and a clean committed checkout
   creates the immutable default generation through the same staged validation
   used by later publication and records `catalog=default` without creating an
   upstream profile.
-- [ ] Upstream bootstrap validates and binds its live checkout and records
+- [x] Upstream bootstrap validates and binds its live checkout and records
   `catalog=upstream` without creating or changing a default profile; a
   conflicting existing binding requires the explicit rebind transaction.
-- [ ] Profile uninstall cannot remove the shared catalog or sibling profile
+- [x] Profile uninstall cannot remove the shared catalog or sibling profile
   assets; global uninstall removes only owned shared catalog state and never a
   user-owned source checkout or external skill export.
-- [ ] Catalog source loss, invalid edits or generations, dirty-publication
+- [x] Catalog source loss, invalid edits or generations, dirty-publication
   attempts, replacement conflicts, failed updates, and rollback match the
   recorded lifecycle and preserve installed execution.
-- [ ] Catalog default changes leave recorded profile versions unchanged until
+- [x] Catalog default changes leave recorded profile versions unchanged until
   explicit update.
-- [ ] Default offline tests, shell checks, context-tree checks, obsolete-term
+- [x] Default offline tests, shell checks, context-tree checks, obsolete-term
   searches, and live non-mutating Podman smokes pass.
-- [ ] Documentation and canonical skills describe named catalogs, recreation,
+- [x] Documentation and canonical skills describe named catalogs, recreation,
   immediate visibility, schema failures, skill export, and recovery accurately.
+
+Verification evidence:
+
+- Default and upstream bootstrap isolation now asserts the expected catalog
+  registry, immutable generation metadata, fixed profile binding, and absence
+  of the sibling profile/catalog.
+- `shimmy catalog rollback` validates and atomically activates the retained
+  generation. Coverage includes upstream checkout loss, corrupt-retained
+  rejection without registry mutation, and recovery when the current
+  generation is invalid.
+- Selected `shimmy update` operations adopt the current catalog default through
+  an atomic profile materialization while retaining other explicit concrete
+  versions. Publication alone leaves profile manifests and runtime assets
+  unchanged.
+- Ordinary uninstall preserves sibling profiles and shared catalogs. Explicit
+  `shimmy uninstall --global` rejects unrecognized state, removes only valid
+  manifest/registry-owned state, and preserves moved source checkouts plus
+  independently owned skill exports.
+- `git diff --check`, POSIX `sh -n` over repository shell files,
+  `./tests/context-tree.sh`, and the obsolete-term audit passed. The remaining
+  `profile-flat-root` search hit is a deliberate legacy-rejection fixture; the
+  skill-copy hits state that canonical skills are not copied into profiles.
+- `./tests/test.sh` passed all 120 tests. The suite remains offline for default
+  runtime coverage; local Ansible workdir validation now occurs before Podman
+  preflight.
+- Direct Podman reported `linux/arm64`; live non-mutating jq, rg, and
+  community-ansible-dev-tools version smokes passed on Apple Silicon macOS.
+  Native Linux `amd64` acceptance was not available in this environment and
+  remains a release-platform verification item.
 
 ### Human review gate
 
@@ -817,6 +849,27 @@ message.
   repository-only tool suites; selected-only profile payloads intentionally do
   not carry every catalog tool's contributor tests.
 
+### Chunk 4
+
+- POSIX shell functions share caller variables, including internal validator
+  names. A rollback validator initially replaced the caller's destination path
+  with its temporary registry path; distinct transaction-specific names and a
+  real registry-swap test are required for atomic-file code.
+- Catalog rollback must validate the retained target independently of the
+  current authority. Requiring the current generation to resolve would make
+  rollback unusable for the corruption case it is intended to recover.
+- Management refresh and catalog-default adoption are separate operations.
+  Preserving the manifest during control refresh, then atomically replacing
+  only selected tool/version labels, prevents unrelated catalog defaults from
+  changing during a targeted update.
+- A global uninstall is safe only after complete ownership preflight. Rejecting
+  unknown shared entries before removing any profile keeps the destructive
+  boundary explicit while still allowing uninstall when an external upstream
+  checkout has moved or disappeared.
+- Deterministic local request validation must precede Podman preflight. A
+  missing host mount is actionable without an engine and must not turn an
+  offline regression test into a sandbox or machine-readiness test.
+
 ## Session bootstrap
 
 In a fresh implementation session, read `AGENTS.md`, `CONTRIBUTING.md`, root
@@ -827,6 +880,6 @@ plane, separate live `upstream` and immutable `default` catalogs, explicit
 profile bindings, schema version 1, no backwards compatibility or migration,
 next-command upstream catalog-entry availability, clean committed-content-only
 publication, one explicit upstream rebind, and catalog-owned canonical skills
-as non-negotiable. Chunks 1 and 2 are implemented and awaiting their respective
-human review gates. Chunk 3 requires explicit authorization. Execute only the
-authorized chunk, update this plan, and stop at its human review gate.
+as non-negotiable. Chunks 1 through 4 are implemented and verified, with native
+Linux `amd64` acceptance still recorded as a release-platform verification
+item. Stop at the Chunk 4 human review gate.

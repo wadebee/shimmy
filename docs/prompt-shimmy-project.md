@@ -12,8 +12,10 @@ change. Tool and management-plugin directories do not own context files.
   resolution.
 - Root `install.sh` bootstraps one profile; the repository contains no runnable
   `shimmy` launcher. Sourcing it initializes the caller; execution is for
-  automation. Every bootstrap includes jq and rg, and each installed flat
-  profile owns its own `bin/shimmy`.
+  automation. Every bootstrap includes jq and rg, and each installed
+  materialized profile owns its own `bin/shimmy`.
+- Shared named catalogs live outside profiles: `upstream` is a live validated
+  checkout binding and `default` is a published immutable generation.
 - `tools/<tool>/tool.conf` defines a tool's default version and selector.
 - `tools/<tool>/versions/<major.minor>/run.sh` is the concrete runtime.
 - Every concrete version owns `image.conf`, which records external or
@@ -78,6 +80,12 @@ skill adapters are independently manifest-owned external state, staged from a
 validated catalog, and written or removed only through explicit standalone
 `shimmy skills ... --target repo|profile` operations. Profile and catalog
 lifecycle operations do not remove those exports.
+Catalog-aware operations resolve and validate the profile's named catalog on
+every invocation. Valid upstream edits are immediately visible; default sees
+them only after clean committed publication. Publication does not change
+profile materializations until explicit update. Profile uninstall preserves
+shared catalogs; explicit global uninstall preserves bound checkouts and
+external skill exports.
 
 ## Verification
 

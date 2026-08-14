@@ -1,6 +1,20 @@
 #!/bin/sh
 # Profile-local update helpers.
 
+shimmy_update_profile_materialization_run() {
+  selected_tools=$1
+  [ -n "$selected_tools" ] || return 0
+
+  set -- "$SHIMMY_PROFILE_ROOT/commands/install.sh" --no-startup
+  while IFS= read -r tool_name; do
+    [ -n "$tool_name" ] || continue
+    set -- "$@" --shim "$tool_name"
+  done <<EOF
+$selected_tools
+EOF
+  "$@"
+}
+
 shimmy_update_profile_validate() {
   shimmy_profile_context_resolve "$ROOT_DIR" || fail "update must run from a canonical installed profile"
   shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" || fail "incomplete or damaged Shimmy profile at $SHIMMY_PROFILE_ROOT"

@@ -29,10 +29,11 @@ description: Use and maintain the community-ansible-dev-tools Shimmy tool, inclu
 1. Preserve arbitrary bundled-command execution; this image is a development environment rather than a single executable image.
 2. Keep `/workdir` as the documented exception to Shimmy's normal `/work` mount unless upstream changes its working directory, and keep any override limited to selecting the host path mounted there.
 3. Keep SSH-agent, git-config, and nested-Podman behavior disabled by default and validate every opt-in value.
-4. Do not mount `$HOME/.ssh` or registry credentials implicitly.
-5. Keep the git-config mount read-only and the SSH socket mount limited to the existing `SSH_AUTH_SOCK` path.
-6. Do not add a fixed Podman container name; short-lived shim invocations must remain parallel-safe.
-7. When rotating the release, verify that the selected top-level digest still contains both required platforms and that `latest` identifies the intended released stream.
+4. Validate local workdir overrides and opt-in syntax before Podman preflight so local request errors remain deterministic when the engine is unavailable.
+5. Do not mount `$HOME/.ssh` or registry credentials implicitly.
+6. Keep the git-config mount read-only and the SSH socket mount limited to the existing `SSH_AUTH_SOCK` path.
+7. Do not add a fixed Podman container name; short-lived shim invocations must remain parallel-safe.
+8. When rotating the release, verify that the selected top-level digest still contains both required platforms and that `latest` identifies the intended released stream.
 
 ## Validation
 

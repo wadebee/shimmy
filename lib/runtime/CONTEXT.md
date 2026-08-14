@@ -9,5 +9,6 @@
 - `log.sh` provides shared runtime logging.
 
 Callers sourcing `image.sh` must set `SHIMMY_RUNTIME_DIR` to this directory so
-its sibling modules resolve correctly. Installed copies live in each flat
-profile's `lib/runtime/` directory and do not depend on a shared payload.
+its sibling modules resolve correctly. Installed copies live in each
+materialized profile's `lib/runtime/` directory and do not depend on a shared
+payload.

@@ -24,6 +24,7 @@ Options:
   --startup-file <path>  Override startup file updates. Repeatable.
   --no-startup           Skip persistent startup-file updates during install
   --uninstall            Remove the invoking profile
+  --global               With --uninstall, remove all profiles and shared catalogs
   -h, --help             Show help
 EOF
 }
@@ -194,6 +195,10 @@ shimmy_install_request_parse() {
         ;;
       --uninstall)
         UNINSTALL=1
+        shift
+        ;;
+      --global)
+        GLOBAL_UNINSTALL=1
         shift
         ;;
       -h|--help)

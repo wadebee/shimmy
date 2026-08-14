@@ -74,10 +74,10 @@ Usage:
   shimmy <command> --help
 
 Commands:
-  catalog    Publish the default catalog or explicitly rebind upstream.
+  catalog    Publish, roll back, or explicitly rebind shared catalogs.
   images     Verify configured remote image indexes and upstream drift.
   install    Add tool shims to this profile.
-  uninstall  Remove this profile and its managed startup integration.
+  uninstall  Remove this profile, or explicitly remove all Shimmy-owned state.
   netinfo    Show host, VM, and container network perspectives.
   skills     Install, update, uninstall, or export Shimmy agent skills.
   status     Show installed shims, versions, and profile details.

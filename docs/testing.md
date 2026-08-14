@@ -41,15 +41,17 @@ The suite is POSIX shell and validates:
   authentication policy, drift handling, and stable output without contacting
   target registries;
 - shared fail-closed Podman OS/architecture and preview helpers plus POSIX syntax;
-- disposable version-1 flat default and upstream profile installs, installed
-  command dispatch, status, update, legacy-layout rejection across management
-  commands, and uninstall;
+- disposable version-2 materialized default and upstream profile installs,
+  named-catalog bootstrap isolation, installed command dispatch, status,
+  catalog-default update, rollback, legacy-layout rejection, profile-isolated
+  uninstall, and explicit global uninstall;
 - shell initialization, canonical skill export/removal, netinfo input
   rendering, and management-command argument validation;
 - bootstrap-only profile selection, profile-isolated uninstalls, status
   availability, and profile-specific repair guidance;
-- selected-shim profile-local update refreshes, manifest lifecycle-field
-  preservation, request validation, and installed-management source refresh;
+- selected-shim profile-local default adoption and image refreshes, manifest
+  lifecycle-field preservation, request validation, failed-update safety, and
+  installed-management source refresh;
 - idempotent shell initialization, default-only managed startup-block install
   and repair, and direct upstream shell initialization.
 - canonical skill-source export, target-owned portable manifests,

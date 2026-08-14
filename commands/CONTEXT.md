@@ -10,7 +10,8 @@ reusable behavior belongs in `../lib/`.
 
 - `install.sh` installs or removes the enclosing canonical profile.
 - `catalog.sh` publishes clean committed `upstream` content to an immutable
-  `default` generation or explicitly rebinds the live upstream registry.
+  `default` generation, atomically restores its retained prior generation, or
+  explicitly rebinds the live upstream registry.
 - `dispatch-tool.sh` dispatches a profile-local installed tool command without
   resolving or validating the catalog checkout.
 - `run-tool.sh` dispatches materialized tool runtime assets; it does not act as
