@@ -67,10 +67,10 @@ upstream` runs; it never relocates installed profile state.
 Only `default` may create, repair, or remove Shimmy's persistent shell-startup
 blocks. An unqualified checkout bootstrap manages zsh plus Bash login and
 non-login interactive startup files; explicit startup options remain
-authoritative. `upstream` never changes shell startup files. The canonical five-skill
-management plugin and co-located tool skills are included unconditionally in
-each profile; shared repository and home agent skill adapters live outside
-profile roots and are owned by their target's
+authoritative. `upstream` never changes shell startup files. Canonical
+management and tool skills remain in the selected named catalog and are not
+copied into profiles. Shared repository and home agent skill adapters live
+outside profile roots and are owned by their target's
 `.shimmy-skills-manifest.txt`. Profile lifecycle operations never implicitly
 refresh or remove them. Use explicit standalone `shimmy skills install
 --target repo|profile` or `shimmy skills update --target repo|profile`

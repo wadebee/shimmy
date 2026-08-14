@@ -71,7 +71,6 @@ EOF
 profile_shim_assets_stage() {
   shim_name=$1
   source_root=$SHIMMY_PROFILE_ROOT
-  [ "$SHIMMY_PROFILE_RESOLVED" != upstream ] || source_root=$SHIMMY_PROFILE_SOURCE_CHECKOUT
 
   render_shim_exec_wrapper "$shim_name" "$source_root" > "$SHIMMY_STAGE_ROOT/implementations/$shim_name"
   chmod 755 "$SHIMMY_STAGE_ROOT/implementations/$shim_name"
@@ -87,13 +86,85 @@ profile_control_assets_stage() {
   for asset_name in commands lib tests; do
     profile_asset_directory_stage "$ROOT_DIR/$asset_name" "$SHIMMY_STAGE_ROOT/$asset_name"
   done
-  profile_asset_directory_stage "$SHIMMY_CATALOG_AUTHORITY_ROOT/tools" "$SHIMMY_STAGE_ROOT/tools"
-  profile_asset_directory_stage "$SHIMMY_CATALOG_AUTHORITY_ROOT/plugins" "$SHIMMY_STAGE_ROOT/plugins"
-  mkdir -p "$SHIMMY_STAGE_ROOT/config/shims" "$SHIMMY_STAGE_ROOT/implementations" "$SHIMMY_STAGE_ROOT/bin"
+  mkdir -p "$SHIMMY_STAGE_ROOT/config/shims" "$SHIMMY_STAGE_ROOT/implementations" "$SHIMMY_STAGE_ROOT/bin" "$SHIMMY_STAGE_ROOT/tools"
 
   [ -f "$ROOT_DIR/lib/install/launcher-template.sh" ] || fail "missing launcher template"
   cp "$ROOT_DIR/lib/install/launcher-template.sh" "$SHIMMY_STAGE_ROOT/bin/shimmy"
   chmod 755 "$SHIMMY_STAGE_ROOT/bin/shimmy"
+}
+
+profile_materialization_assets_stage() {
+  materialized_versions=
+
+  while IFS= read -r tool_name; do
+    [ -n "$tool_name" ] || continue
+    tool_source=$SHIMMY_CATALOG_TOOLS_DIR/$tool_name
+    tool_target=$SHIMMY_STAGE_ROOT/tools/$tool_name
+    [ -d "$tool_source" ] && [ ! -L "$tool_source" ] || fail "missing catalog tool source: $tool_source"
+    mkdir -p "$tool_target/versions"
+    cp "$tool_source/tool.conf" "$tool_target/tool.conf"
+    chmod 644 "$tool_target/tool.conf"
+  done <<EOF
+$PROFILE_MANIFEST_TOOLS
+EOF
+
+  while IFS= read -r tool_version_entry; do
+    [ -n "$tool_version_entry" ] || continue
+    tool_name=${tool_version_entry%%|*}
+    version_name=${tool_version_entry##*|}
+    version_label=$(shimmy_version_label "$version_name") || fail "missing catalog version label for $version_name"
+    materialized_version=$tool_name\|$version_label
+    shimmy_contains_line_list "$materialized_versions" "$materialized_version" && continue
+    materialized_versions=$(shimmy_append_line_list "$materialized_versions" "$materialized_version")
+    version_source=$SHIMMY_CATALOG_TOOLS_DIR/$tool_name/versions/$version_label
+    version_target=$SHIMMY_STAGE_ROOT/tools/$tool_name/versions/$version_label
+    profile_asset_directory_stage "$version_source" "$version_target"
+  done <<EOF
+$PROFILE_MANIFEST_TOOL_VERSIONS
+EOF
+}
+
+profile_materialization_catalog_snapshot_record() {
+  SHIMMY_MATERIALIZATION_CATALOG_NAME=$SHIMMY_CATALOG_NAME
+  SHIMMY_MATERIALIZATION_CATALOG_SOURCE_TYPE=$SHIMMY_CATALOG_SOURCE_TYPE
+  SHIMMY_MATERIALIZATION_CATALOG_SOURCE_PATH=$SHIMMY_CATALOG_SOURCE_PATH
+  SHIMMY_MATERIALIZATION_CATALOG_GENERATION=$SHIMMY_CATALOG_GENERATION
+  SHIMMY_MATERIALIZATION_CATALOG_SCHEMA=$SHIMMY_CATALOG_SCHEMA
+  SHIMMY_MATERIALIZATION_CATALOG_FINGERPRINT=$SHIMMY_CATALOG_CONTENT_FINGERPRINT
+}
+
+profile_materialization_catalog_snapshot_validate() {
+  shimmy_catalog_registry_resolve "$SHIMMY_CONFIG_ROOT" "$SHIMMY_PROFILE_CATALOG_NAME" || fail "$SHIMMY_CATALOG_ERROR"
+  [ "$SHIMMY_CATALOG_NAME" = "$SHIMMY_MATERIALIZATION_CATALOG_NAME" ] &&
+    [ "$SHIMMY_CATALOG_SOURCE_TYPE" = "$SHIMMY_MATERIALIZATION_CATALOG_SOURCE_TYPE" ] &&
+    [ "$SHIMMY_CATALOG_SOURCE_PATH" = "$SHIMMY_MATERIALIZATION_CATALOG_SOURCE_PATH" ] &&
+    [ "$SHIMMY_CATALOG_GENERATION" = "$SHIMMY_MATERIALIZATION_CATALOG_GENERATION" ] &&
+    [ "$SHIMMY_CATALOG_SCHEMA" = "$SHIMMY_MATERIALIZATION_CATALOG_SCHEMA" ] &&
+    [ "$SHIMMY_CATALOG_CONTENT_FINGERPRINT" = "$SHIMMY_MATERIALIZATION_CATALOG_FINGERPRINT" ] ||
+    fail "catalog $SHIMMY_PROFILE_CATALOG_NAME changed during profile materialization; no profile changes were committed"
+
+  while IFS= read -r tool_name; do
+    [ -n "$tool_name" ] || continue
+    cmp -s "$SHIMMY_CATALOG_TOOLS_DIR/$tool_name/tool.conf" "$SHIMMY_STAGE_ROOT/tools/$tool_name/tool.conf" ||
+      fail "catalog tool changed during profile materialization: $tool_name"
+  done <<EOF
+$PROFILE_MANIFEST_TOOLS
+EOF
+
+  materialized_versions=
+  while IFS= read -r tool_version_entry; do
+    [ -n "$tool_version_entry" ] || continue
+    tool_name=${tool_version_entry%%|*}
+    version_name=${tool_version_entry##*|}
+    version_label=$(shimmy_version_label "$version_name") || fail "catalog version changed during profile materialization: $version_name"
+    materialized_version=$tool_name\|$version_label
+    shimmy_contains_line_list "$materialized_versions" "$materialized_version" && continue
+    materialized_versions=$(shimmy_append_line_list "$materialized_versions" "$materialized_version")
+    diff -r "$SHIMMY_CATALOG_TOOLS_DIR/$tool_name/versions/$version_label" "$SHIMMY_STAGE_ROOT/tools/$tool_name/versions/$version_label" >/dev/null ||
+      fail "catalog version changed during profile materialization: $tool_name@$version_label"
+  done <<EOF
+$PROFILE_MANIFEST_TOOL_VERSIONS
+EOF
 }
 
 profile_commit_temporary_files_cleanup() {
@@ -162,7 +233,7 @@ profile_shell_init_collision_validate() {
 }
 
 profile_owned_directories_restore() {
-  for asset_name in agent commands config implementations lib tools tests plugins; do
+  for asset_name in agent commands config implementations lib tools tests; do
     target_path=$SHIMMY_PROFILE_ROOT/$asset_name
     backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/$asset_name
     if shimmy_contains_line_list "$SHIMMY_PROFILE_DIRECTORIES_REPLACED" "$asset_name" &&
@@ -218,7 +289,7 @@ profile_replace_owned_directories() {
   SHIMMY_PROFILE_BACKUP_ROOT=$SHIMMY_PROFILES_ROOT/."$SHIMMY_PROFILE_RESOLVED".backup.$$
   SHIMMY_PROFILE_DIRECTORIES_REPLACED=
   mkdir -p "$SHIMMY_PROFILE_BACKUP_ROOT"
-  for asset_name in agent commands config implementations lib tools tests plugins; do
+  for asset_name in agent commands config implementations lib tools tests; do
     target_path=$SHIMMY_PROFILE_ROOT/$asset_name
     backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/$asset_name
     if [ -e "$target_path" ] || [ -L "$target_path" ]; then
@@ -227,7 +298,7 @@ profile_replace_owned_directories() {
     fi
   done
 
-  for asset_name in commands config implementations lib tools tests plugins; do
+  for asset_name in commands config implementations lib tools tests; do
     target_path=$SHIMMY_PROFILE_ROOT/$asset_name
     mv "$SHIMMY_STAGE_ROOT/$asset_name" "$target_path" || { profile_owned_directories_restore; return 1; }
     if ! shimmy_contains_line_list "$SHIMMY_PROFILE_DIRECTORIES_REPLACED" "$asset_name"; then

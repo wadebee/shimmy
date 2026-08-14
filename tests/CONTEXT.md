@@ -17,8 +17,8 @@ clean committed source checkout, then creates pristine shared catalogs plus
 default and upstream profiles once per session. Scenarios that do not need to
 exercise bootstrap or registration clone those catalog and profile fixtures
 using APFS copy-on-write when available and a recursive copy fallback
-elsewhere. Clones relocate the generated `shell-init.sh` path and default
-implementation runtime roots before use. Dirty-publication and live-upstream
+elsewhere. Clones relocate the generated `shell-init.sh` path and every
+implementation runtime root before use. Dirty-publication and live-upstream
 tests use isolated Git checkout copies. The immutable committed source
 repository used by self-update scenarios is also created once per session.
 Onboarding coverage sources the root

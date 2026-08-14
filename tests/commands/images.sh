@@ -224,6 +224,7 @@ test_commands_images_fixture_parsing() {
 
 test_commands_images_installed_selection() {
   setup_scenario_with_profiles default
+  default_shimmy install --shim skopeo --no-startup >/dev/null
   images_fixture_fake_runtimes_write "$DEFAULT_PROFILE_ROOT"
   IMAGES_FIXTURE_CALL_LOG=$SCENARIO_DIR/image-calls
   IMAGES_FIXTURE_RESPONSES=$SCENARIO_DIR/image-responses
@@ -244,7 +245,7 @@ test_commands_images_installed_selection() {
     SHIMMY_TEST_IMAGES_FIXTURE_DIR="$ROOT_DIR/tests/commands/image-fixtures" \
     SHIMMY_TEST_IMAGES_RESPONSE_FILE="$IMAGES_FIXTURE_RESPONSES" \
     XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    "$DEFAULT_PROFILE_ROOT/bin/shimmy" images verify --format manifest)
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" images verify --shim jq --shim rg --format manifest)
   assert_equals "$(printf '%s\n' "$installed_output" | awk '/^image_verify=/ { count++ } END { print count + 0 }')" 2
   assert_contains "$installed_output" 'image_verify=jq|1.8|runtime|'
   assert_contains "$installed_output" 'image_verify=rg|15.1|runtime|'

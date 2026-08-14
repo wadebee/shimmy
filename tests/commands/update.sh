@@ -75,12 +75,13 @@ test_commands_update_run() {
   env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" TMPDIR="$update_tmp" "$UPSTREAM_PROFILE_ROOT/bin/shimmy" update --shim jq >/dev/null
   source_checkout_after=$(sed -n 's/^source_checkout=//p' "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
   assert_equals "$source_checkout_after" "$source_checkout_before"
-  assert_file_contains "$UPSTREAM_PROFILE_ROOT/implementations/jq" "$source_checkout_before"
+  assert_file_contains "$UPSTREAM_PROFILE_ROOT/implementations/jq" "$UPSTREAM_PROFILE_ROOT"
+  assert_file_not_contains "$UPSTREAM_PROFILE_ROOT/implementations/jq" "$source_checkout_before"
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$default_launcher_checksum"
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$default_manifest_checksum"
   for update_entry in "$update_tmp"/shimmy-self-update.*; do
     [ ! -e "$update_entry" ] && [ ! -L "$update_entry" ] || fail_test "self-update temporary source was not removed: $update_entry"
   done
   XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$UPSTREAM_PROFILE_ROOT/bin/jq" --preview-shim --version >/dev/null
-  pass "self-update is profile-local, cleans temporary source, rejects profile selection, and preserves upstream checkout dispatch"
+  pass "self-update is profile-local, cleans temporary source, rejects profile selection, and preserves profile-owned upstream dispatch"
 }

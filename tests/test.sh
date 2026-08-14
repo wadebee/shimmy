@@ -27,6 +27,7 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/images/images.sh"
 # shellcheck source=tests/profile-smoke.sh
 . "$SCRIPT_DIR/profile-smoke.sh"
+if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 # shellcheck source=tests/lib/catalog.sh
 . "$SCRIPT_DIR/lib/catalog.sh"
 # shellcheck source=tests/lib/runtime.sh
@@ -99,6 +100,7 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/commands/install.sh"
 # shellcheck source=tests/commands/test.sh
 . "$SCRIPT_DIR/commands/test.sh"
+fi
 
 trap shimmy_test_cleanup EXIT HUP INT TERM
 

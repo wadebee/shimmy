@@ -230,14 +230,6 @@ test_profile_smoke_run() {
   profile_implementation_dir=$SHIMMY_PROFILE_IMPLEMENTATION_DIR
   shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" || fail_test "incomplete or damaged Shimmy profile"
 
-  if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then
-    source_checkout=$(shimmy_read_manifest_value "$profile_manifest_file" source_checkout || true)
-    upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" || true)
-    if [ -n "$upstream_invalid_reason" ]; then
-      fail_test "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout; rerun shimmy install --profile upstream from the desired Shimmy checkout"
-    fi
-  fi
-
   public_bin_dir=$SHIMMY_PROFILE_BIN_DIR
   config_dir=$SHIMMY_PROFILE_CONFIG_DIR
   test_profile_request_resolve "$profile_manifest_file"

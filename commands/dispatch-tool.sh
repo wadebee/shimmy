@@ -41,12 +41,6 @@ shimmy_profile_context_resolve "$profile_root" || fail "dispatcher is outside a 
 shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" || fail "incomplete or damaged Shimmy profile at $SHIMMY_PROFILE_ROOT"
 shimmy_manifest_tool_contains "$SHIMMY_PROFILE_MANIFEST_PATH" "$shim_name" || fail "$shim_name is not owned by profile $SHIMMY_PROFILE_NAME"
 
-if [ "$SHIMMY_PROFILE_NAME" = upstream ]; then
-  source_checkout=$(shimmy_read_manifest_value "$SHIMMY_PROFILE_MANIFEST_PATH" source_checkout || true)
-  upstream_invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$source_checkout" "$shim_name" || true)
-  [ -z "$upstream_invalid_reason" ] || fail "invalid upstream Shimmy checkout ($upstream_invalid_reason): $source_checkout"
-fi
-
 target_path=$SHIMMY_PROFILE_IMPLEMENTATION_DIR/$shim_name
 [ -f "$target_path" ] && [ ! -L "$target_path" ] || fail "invalid Shimmy implementation for $shim_name: $target_path"
 [ -x "$target_path" ] || fail "Shimmy implementation is not executable: $target_path"

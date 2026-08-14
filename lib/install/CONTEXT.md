@@ -20,10 +20,12 @@ process.
   `default` generations. It validates and fingerprints the one archived
   payload copy, rechecks checkout state, atomically advances the registry, and
   retains the prior valid generation.
-- `manifest.sh` preserves and renders the profile-local version-1 manifest,
+- `manifest.sh` preserves and renders the profile-local version-2 manifest,
   including its fixed `catalog=default` or `catalog=upstream` binding.
-- `profile-assets.sh` stages the flat control/runtime payload, profile-local
-  launcher, implementations, metadata, and dispatchers.
+- `profile-assets.sh` stages the profile-local control plane, launcher,
+  implementations, dispatchers, and only manifest-selected tool metadata and
+  concrete version assets. It re-resolves and compares the catalog before
+  commit so a live catalog change cannot produce a mixed materialization.
 - `launcher-template.sh` becomes the installed profile's self-contained
   `bin/shimmy`.
 - `startup.sh` renders the profile's `shell-init.sh` asset and applies
@@ -33,13 +35,13 @@ process.
 - `uninstall.sh` removes only validated assets owned by the enclosing profile,
   then attempts to remove empty merge-owned parent directories.
 
-Every profile payload unconditionally includes the canonical management
-plugin under `plugins/` and co-located tool skills under `tools/`. A successful
-refresh transaction removes a legacy top-level `agent/` payload and restores
-it with the other owned directories if the commit fails. Profile install and
-uninstall do not write or remove repository or home shared-skill targets;
-those targets are managed only through explicit standalone `shimmy skills`
-commands. Uninstall still removes a legacy `agent/` when present.
+Profiles contain no canonical management plugin or tool skill sources; those
+remain in the named catalog. Manifest version 2 and the
+`profile-materialized-root` identity reject legacy, mixed, and damaged layouts
+before install or refresh mutation. Profile install and uninstall do not write
+or remove repository or home shared-skill targets; those targets are managed
+only through explicit standalone `shimmy skills` commands. Uninstall still
+removes legacy `agent/` or `plugins/` directories from a valid current profile.
 
 Profile uninstall never removes shared catalog registry state. Initial
 default bootstrap publishes from a clean committed checkout through the same

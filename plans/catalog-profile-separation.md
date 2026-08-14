@@ -412,9 +412,9 @@ None.
   schema, naming, compatibility, publication, clean-checkout, live-code-scope,
   multiple-checkout, upstream-immediacy, and skill decisions are recorded and
   internally consistent.
-- [ ] Chunk 1 — Implement the shared named-catalog contract and convert all
+- [x] Chunk 1 — Implement the shared named-catalog contract and convert all
   catalog consumers atomically.
-- [ ] Chunk 2 — Materialize only selected tools into recreated profile-local
+- [x] Chunk 2 — Materialize only selected tools into recreated profile-local
   control planes.
 - [ ] Chunk 3 — Move canonical skill resolution to the catalog and preserve
   explicit export ownership.
@@ -545,6 +545,9 @@ fallbacks that recreate profile-local availability snapshots.
 
 ## Chunk 2 — Profile-local materialization and recreation
 
+Status: implemented and verified on 2026-08-14; awaiting human review at the
+Chunk 2 gate. Chunk 3 has not started.
+
 ### Goal
 
 Rebuild profiles as independent control planes containing only their selected
@@ -575,22 +578,36 @@ contexts.
 
 ### Verification checklist
 
-- [ ] Installing a catalog tool into one profile changes only that profile's
+- [x] Installing a catalog tool into one profile changes only that profile's
   dispatcher, manifest, and materialized assets.
-- [ ] New and recreated profiles record and validate the fixed bindings:
+- [x] New and recreated profiles record and validate the fixed bindings:
   default binds `default` and upstream binds `upstream` while retaining
   independent selections.
-- [ ] Changing or removing the catalog does not change or break execution of
+- [x] Changing or removing the catalog does not change or break execution of
   already-materialized tools.
-- [ ] Editing checkout `commands/` or `lib/` does not change installed upstream
+- [x] Editing checkout `commands/` or `lib/` does not change installed upstream
   management behavior; recreating or explicitly refreshing the upstream
   profile is required to test those control-plane changes as installed code.
-- [ ] A failed materialization or commit restores the prior coherent profile
+- [x] A failed materialization or commit restores the prior coherent profile
   and does not change sibling profiles or catalog state.
-- [ ] Legacy and mixed layouts are rejected before mutation; clean uninstall
+- [x] Legacy and mixed layouts are rejected before mutation; clean uninstall
   followed by recreation succeeds.
-- [ ] Profile payload inspection confirms that unselected catalog tools and
+- [x] Profile payload inspection confirms that unselected catalog tools and
   canonical skill sources are absent.
+
+Verification evidence:
+
+- `git diff --check` and POSIX `sh -n` over command, library, and test shell
+  files passed.
+- `./tests/context-tree.sh` passed.
+- The obsolete-layout audit found only deliberate manifest-v1 rejection
+  fixtures and assertions proving profile skill/plugin absence; no production
+  `profile-flat-root` identity or checkout-bound implementation root remains.
+- `./tests/test.sh` passed all 116 tests with live non-mutating Podman access.
+- Lifecycle coverage verifies profile-only additive mutation, selected-version
+  payload shape, catalog-loss execution, explicit upstream control-plane
+  refresh, fixed catalog bindings, mixed-layout rejection and recreation,
+  late-commit rollback, and sibling/catalog checksum preservation.
 
 ### Human review gate
 
@@ -763,6 +780,24 @@ message.
   schema, generation metadata, name/fingerprint identity, and content hash so
   the recorded rollback target is demonstrably valid.
 
+### Chunk 2
+
+- A profile format identity must describe its ownership boundary, not only its
+  directory shape. Bumping both manifest versions and naming the
+  `profile-materialized-root` layout makes full-catalog and mixed profiles
+  unambiguously rejectable instead of silently refreshing them in place.
+- A whole-catalog fingerprint recheck detects authority changes, but it does
+  not by itself prove a copy made during transient live edits is coherent.
+  Comparing every staged selected metadata file and version directory against
+  the re-resolved authority closes that gap before commit.
+- Installed upstream execution independence requires both halves of the
+  boundary: generated implementations must point at the profile root, and
+  dispatch/smoke paths must not require the recorded checkout to remain
+  available.
+- Installed test mode must select its profile-smoke surface before sourcing
+  repository-only tool suites; selected-only profile payloads intentionally do
+  not carry every catalog tool's contributor tests.
+
 ## Session bootstrap
 
 In a fresh implementation session, read `AGENTS.md`, `CONTRIBUTING.md`, root
@@ -773,5 +808,6 @@ plane, separate live `upstream` and immutable `default` catalogs, explicit
 profile bindings, schema version 1, no backwards compatibility or migration,
 next-command upstream catalog-entry availability, clean committed-content-only
 publication, one explicit upstream rebind, and catalog-owned canonical skills
-as non-negotiable. Chunk 1 is active after authorization. Execute only Chunk 1,
-update this plan, and stop at its human review gate.
+as non-negotiable. Chunks 1 and 2 are implemented and awaiting their respective
+human review gates. Chunk 3 requires explicit authorization. Execute only the
+authorized chunk, update this plan, and stop at its human review gate.

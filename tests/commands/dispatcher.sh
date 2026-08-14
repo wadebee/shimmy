@@ -23,7 +23,7 @@ test_commands_dispatcher_run() {
   recursive_status=$?
   set -e
   [ "$recursive_status" -ne 0 ] || fail_test "symlinked implementation unexpectedly dispatched"
-  assert_contains "$recursive_output" 'invalid Shimmy implementation'
+  assert_contains "$recursive_output" 'incomplete or damaged Shimmy profile'
 
   setup_scenario_with_profiles default
   chmod 644 "$DEFAULT_PROFILE_ROOT/implementations/jq"
@@ -32,7 +32,7 @@ test_commands_dispatcher_run() {
   non_executable_status=$?
   set -e
   [ "$non_executable_status" -ne 0 ] || fail_test "non-executable implementation unexpectedly dispatched"
-  assert_contains "$non_executable_output" 'implementation is not executable'
+  assert_contains "$non_executable_output" 'incomplete or damaged Shimmy profile'
 
   setup_scenario_with_profiles default
   set +e

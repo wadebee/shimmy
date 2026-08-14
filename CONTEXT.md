@@ -20,9 +20,11 @@ management-plugin directories deliberately have no context-file hierarchy.
 - `plugins/shimmy/skills/` owns the five canonical control-plane skills.
 - `tests/` contains the POSIX test runner and shared test support.
 
-Installed profiles are independent flat control/runtime trees under
+Installed profiles are independent materialized control/runtime trees under
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`. Each owns its
 own `bin/shimmy`; no installed control payload is shared between profiles.
+Each `tools/` tree contains only manifest-selected tool metadata and concrete
+version assets. Canonical skills remain catalog-owned.
 
 ## Invariants
 

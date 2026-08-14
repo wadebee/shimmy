@@ -219,20 +219,18 @@ setup_scenario_with_profiles() {
     mv "$shell_init_tmp" "$shell_init_file"
     chmod 644 "$shell_init_file"
 
-    if [ "$profile_name" = default ]; then
-      quoted_profile_root=$(shimmy_quote_shell_word "$profile_target")
-      for implementation_file in "$profile_target"/implementations/*; do
-        [ -f "$implementation_file" ] || continue
-        implementation_tmp=$implementation_file.fixture.tmp
-        awk -v source_root="$quoted_profile_root" '
-          /^shimmy_source_root=/ { print "shimmy_source_root=" source_root; next }
-          { print }
-        ' "$implementation_file" > "$implementation_tmp"
-        mv "$implementation_tmp" "$implementation_file"
-        chmod 755 "$implementation_file"
-        assert_file_contains "$implementation_file" "shimmy_source_root=$quoted_profile_root"
-      done
-    fi
+    quoted_profile_root=$(shimmy_quote_shell_word "$profile_target")
+    for implementation_file in "$profile_target"/implementations/*; do
+      [ -f "$implementation_file" ] || continue
+      implementation_tmp=$implementation_file.fixture.tmp
+      awk -v source_root="$quoted_profile_root" '
+        /^shimmy_source_root=/ { print "shimmy_source_root=" source_root; next }
+        { print }
+      ' "$implementation_file" > "$implementation_tmp"
+      mv "$implementation_tmp" "$implementation_file"
+      chmod 755 "$implementation_file"
+      assert_file_contains "$implementation_file" "shimmy_source_root=$quoted_profile_root"
+    done
 
     shimmy_profile_manifest_validate "$profile_target/install-manifest.txt" "$profile_name" ||
       fail_test "invalid cloned $profile_name profile fixture"

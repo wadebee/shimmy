@@ -88,20 +88,16 @@ shimmy-tool-local-build'
   pass "management plugin and co-located tool skills have the final split ownership"
 }
 
-test_commands_skills_profile_payload_semantic_parity() {
+test_commands_skills_profile_payload_absence() {
   for skill_name in shimmy-install shimmy-init shimmy-create-tool shimmy-escalation shimmy-tool-local-build; do
-    source_file=$(test_commands_skills_source_file_resolve "$skill_name")
-    installed_file=$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/$skill_name/SKILL.md
-    cmp -s "$source_file" "$installed_file" ||
-      fail_test "installed management skill differs from canonical SKILL.md: $skill_name"
+    assert_path_not_exists "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/$skill_name/SKILL.md"
   done
 
   for tool_name in $(shimmy_tool_list); do
-    cmp -s "$ROOT_DIR/tools/$tool_name/SKILL.md" "$DEFAULT_PROFILE_ROOT/tools/$tool_name/SKILL.md" ||
-      fail_test "installed tool skill differs from canonical SKILL.md: shimmy-tool-$tool_name"
+    assert_path_not_exists "$DEFAULT_PROFILE_ROOT/tools/$tool_name/SKILL.md"
   done
 
-  pass "profile payload preserves semantic parity with split canonical skill sources"
+  pass "profile payload excludes catalog-owned management and tool skill sources"
 }
 
 test_commands_skills_portable_exports() {
@@ -166,7 +162,7 @@ test_commands_skills_stale_manifest_filtering() {
   setup_scenario_with_profiles default
   repo_skills_root=$WORK_DIR/.agents/skills
   mkdir -p "$repo_skills_root/shimmy-install" "$repo_skills_root/shimmy-tool-retired"
-  cp "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/shimmy-install/SKILL.md" \
+  cp "$ROOT_DIR/plugins/shimmy/skills/shimmy-install/SKILL.md" \
     "$repo_skills_root/shimmy-install/SKILL.md"
   printf '%s\n' stale > "$repo_skills_root/shimmy-tool-retired/SKILL.md"
   printf '%s\n' \
@@ -190,7 +186,7 @@ test_commands_skills_stale_manifest_filtering() {
 
 test_commands_skills_removed_plugin_target() {
   setup_scenario_with_profiles default
-  plugin_sentinel=$DEFAULT_PROFILE_ROOT/plugins/shimmy/plugin-sentinel
+  plugin_sentinel=$DEFAULT_PROFILE_ROOT/unmanaged-plugin-sentinel
   override_root=$SCENARIO_DIR/plugin-override
   printf '%s\n' keep > "$plugin_sentinel"
   mkdir -p "$override_root"
@@ -246,10 +242,10 @@ test_commands_skills_target_ownership() {
   assert_path_not_exists "$profile_skills_root"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/agent"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/agent"
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/shimmy-install/SKILL.md"
-  assert_file_exists "$UPSTREAM_PROFILE_ROOT/plugins/shimmy/skills/shimmy-install/SKILL.md"
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/jq/SKILL.md"
-  assert_file_exists "$UPSTREAM_PROFILE_ROOT/tools/rg/SKILL.md"
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/plugins"
+  assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/plugins"
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/tools/jq/SKILL.md"
+  assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/tools/rg/SKILL.md"
 
   (
     cd "$WORK_DIR"
@@ -343,7 +339,7 @@ test_commands_skills_external_failure_retry() {
 test_commands_skills_run() {
   test_commands_skills_manifest_fingerprints
   test_commands_skills_plugin_and_tool_inventory
-  test_commands_skills_profile_payload_semantic_parity
+  test_commands_skills_profile_payload_absence
   test_commands_skills_portable_exports
   test_commands_skills_stale_manifest_filtering
   test_commands_skills_removed_plugin_target

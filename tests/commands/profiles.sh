@@ -11,10 +11,14 @@ test_manifest_mutate() {
       ;;
     duplicate_identity)
       cp "$manifest_file" "$mutation_tmp"
-      printf '%s\n' 'shimmy_install_layout=profile-flat-root' >> "$mutation_tmp"
+      printf '%s\n' 'shimmy_install_layout=profile-materialized-root' >> "$mutation_tmp"
       ;;
-    version_two)
-      sed 's/^shimmy_install_manifest_version=.*/shimmy_install_manifest_version=2/' "$manifest_file" > "$mutation_tmp"
+    legacy_version_one)
+      sed \
+        -e 's/^shimmy_install_manifest_version=.*/shimmy_install_manifest_version=1/' \
+        -e 's/^shimmy_install_layout=.*/shimmy_install_layout=profile-flat-root/' \
+        -e 's/^shimmy_profile_manifest_version=.*/shimmy_profile_manifest_version=1/' \
+        "$manifest_file" > "$mutation_tmp"
       ;;
     version_four)
       sed \
@@ -80,7 +84,7 @@ test_commands_profiles_manifest_rejection() {
   launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")
   implementation_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")
 
-  for mutation_name in missing_identity duplicate_identity version_two version_four unknown_version wrong_label wrong_profile wrong_catalog unsafe_tool duplicate_ownership duplicate_tool_version contradictory_tool_version legacy_tool_key legacy_tool_version_key malformed_line shell_payload; do
+  for mutation_name in missing_identity duplicate_identity legacy_version_one version_four unknown_version wrong_label wrong_profile wrong_catalog unsafe_tool duplicate_ownership duplicate_tool_version contradictory_tool_version legacy_tool_key legacy_tool_version_key malformed_line shell_payload; do
     cp "$valid_manifest" "$manifest_file"
     test_manifest_mutate "$mutation_name" "$manifest_file"
     set +e
@@ -90,8 +94,8 @@ test_commands_profiles_manifest_rejection() {
     [ "$rejection_status" -ne 0 ] || fail_test "invalid manifest unexpectedly accepted: $mutation_name"
     assert_contains "$rejection_output" 'invalid or unsupported Shimmy profile manifest'
     if [ "$mutation_name" = version_four ]; then
-      assert_contains "$rejection_output" 'expected shimmy_install_manifest_version=1'
-      assert_contains "$rejection_output" 'shimmy_profile_manifest_version=1'
+      assert_contains "$rejection_output" 'expected shimmy_install_manifest_version=2'
+      assert_contains "$rejection_output" 'shimmy_profile_manifest_version=2'
     fi
     assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-manifest-sentinel"
     assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
@@ -106,7 +110,7 @@ test_commands_profiles_manifest_rejection() {
   v4_refresh_status=$?
   set -e
   [ "$v4_refresh_status" -ne 0 ] || fail_test "manifest-v4 profile unexpectedly refreshed in place"
-  assert_contains "$v4_refresh_output" 'expected shimmy_install_manifest_version=1'
+  assert_contains "$v4_refresh_output" 'expected shimmy_install_manifest_version=2'
   assert_file_contains "$manifest_file" 'shimmy_install_manifest_version=4'
   assert_file_contains "$manifest_file" 'shimmy_profile_manifest_version=4'
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
@@ -133,7 +137,7 @@ test_commands_profiles_manifest_rejection() {
   pass "strict manifest parsing rejects malformed identity and ownership data without evaluating or mutating assets"
 }
 
-test_commands_profiles_upstream_checkout_rejection() {
+test_commands_profiles_upstream_materialization_independence() {
   setup_scenario_with_profiles upstream
   manifest_file=$UPSTREAM_PROFILE_ROOT/install-manifest.txt
   valid_manifest=$SCENARIO_DIR/upstream-manifest.txt
@@ -153,20 +157,15 @@ test_commands_profiles_upstream_checkout_rejection() {
   assert_contains "$relative_output" 'invalid or unsupported Shimmy profile manifest'
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
 
-  for invalid_checkout in "$SCENARIO_DIR/missing-checkout"; do
-    awk -v checkout="$invalid_checkout" '
-      /^source_checkout=/ { print "source_checkout=" checkout; next }
-      { print }
-    ' "$valid_manifest" > "$manifest_file"
-    set +e
-    checkout_output=$(upstream_shimmy test --shim jq 2>&1)
-    checkout_status=$?
-    set -e
-    [ "$checkout_status" -ne 0 ] || fail_test "invalid upstream checkout unexpectedly accepted: $invalid_checkout"
-    assert_contains "$checkout_output" 'invalid upstream Shimmy checkout'
-    assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
-  done
-  pass "upstream smoke rejects malformed and stale recorded source checkouts without mutation"
+  missing_checkout=$SCENARIO_DIR/missing-checkout
+  awk -v checkout="$missing_checkout" '
+    /^source_checkout=/ { print "source_checkout=" checkout; next }
+    { print }
+  ' "$valid_manifest" > "$manifest_file"
+  checkout_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$UPSTREAM_PROFILE_ROOT/bin/jq" --preview-shim --version)
+  assert_contains "$checkout_output" 'ghcr.io/jqlang/jq@sha256:'
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
+  pass "upstream dispatch rejects malformed bindings but remains independent of a stale checkout"
 }
 
 test_commands_profiles_partial_shape() {
@@ -234,7 +233,7 @@ test_commands_profiles_shell_init_shape() {
       refresh_status=$?
       set -e
       [ "$refresh_status" -ne 0 ] || fail_test "$shell_init_mutation shell init collision unexpectedly refreshed"
-      assert_contains "$refresh_output" 'installed shell init must be a regular non-symlink file'
+      assert_contains "$refresh_output" 'legacy, mixed, or damaged Shimmy profile'
       case "$shell_init_mutation" in
         symlink)
           assert_path_symlink "$shell_init_file"
@@ -278,7 +277,7 @@ test_commands_profiles_identity() {
 test_commands_profiles_run() {
   test_commands_profiles_identity
   test_commands_profiles_manifest_rejection
-  test_commands_profiles_upstream_checkout_rejection
+  test_commands_profiles_upstream_materialization_independence
   test_commands_profiles_partial_shape
   test_commands_profiles_shell_init_shape
 }

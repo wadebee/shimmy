@@ -6,16 +6,16 @@
 test_commands_lifecycle_prepare() {
   setup_scenario_with_profiles default upstream
 
-  for asset_name in shell-init.sh install-manifest.txt bin/shimmy commands config implementations lib plugins tests tools; do
-    [ -e "$DEFAULT_PROFILE_ROOT/$asset_name" ] || fail_test "missing flat profile asset: $asset_name"
+  for asset_name in shell-init.sh install-manifest.txt bin/shimmy commands config implementations lib tests tools; do
+    [ -e "$DEFAULT_PROFILE_ROOT/$asset_name" ] || fail_test "missing materialized profile asset: $asset_name"
   done
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/core"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/agent"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/agent"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/.agents"
-  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_manifest_version=1'
-  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_layout=profile-flat-root'
-  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_manifest_version=1'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_manifest_version=2'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_layout=profile-materialized-root'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_manifest_version=2'
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_name=default'
   assert_equals "$(readlink "$DEFAULT_PROFILE_ROOT/bin/jq")" '../commands/dispatch-tool.sh'
   assert_regular_file_not_symlink "$DEFAULT_PROFILE_ROOT/bin/shimmy"
@@ -24,19 +24,20 @@ test_commands_lifecycle_prepare() {
   assert_file_mode "$DEFAULT_PROFILE_ROOT/shell-init.sh" 644
   assert_file_executable "$DEFAULT_PROFILE_ROOT/commands/install.sh"
   assert_file_executable "$DEFAULT_PROFILE_ROOT/lib/catalog/catalog.sh"
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/shimmy-install/SKILL.md"
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/shimmy-tool-local-build/SKILL.md"
-  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/.shimmy-skills-manifest.txt"
-  for tool_name in $(shimmy_tool_list); do
-    assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/$tool_name/SKILL.md"
-    assert_file_exists "$UPSTREAM_PROFILE_ROOT/tools/$tool_name/SKILL.md"
-    assert_path_not_exists "$DEFAULT_PROFILE_ROOT/tools/$tool_name/agent"
-    assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/tools/$tool_name/agent"
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/plugins"
+  assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/plugins"
+  for tool_name in jq rg; do
+    assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/$tool_name/tool.conf"
+    assert_file_exists "$UPSTREAM_PROFILE_ROOT/tools/$tool_name/tool.conf"
+    assert_path_not_exists "$DEFAULT_PROFILE_ROOT/tools/$tool_name/SKILL.md"
+    assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/tools/$tool_name/SKILL.md"
   done
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/tools/task"
+  assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/tools/task"
 
   output=$(XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version)
   assert_contains "$output" "ghcr.io/jqlang/jq@sha256:4f34c6d23f4b1372ac789752cc955dc67c2ae177eb1b5860b75cdc5091ce6f91"
-  pass "flat default and upstream profiles bootstrap and default dispatch works"
+  pass "materialized default and upstream profiles contain only selected tools and default dispatch works"
 }
 
 test_commands_lifecycle_legacy_agent_refresh() {
@@ -44,12 +45,18 @@ test_commands_lifecycle_legacy_agent_refresh() {
   mkdir -p "$DEFAULT_PROFILE_ROOT/agent/core"
   printf '%s\n' legacy > "$DEFAULT_PROFILE_ROOT/agent/core/sentinel"
 
+  set +e
+  refresh_output=$(bootstrap_default 2>&1)
+  refresh_status=$?
+  set -e
+  [ "$refresh_status" -ne 0 ] || fail_test "mixed profile layout unexpectedly refreshed"
+  assert_contains "$refresh_output" 'legacy, mixed, or damaged Shimmy profile'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/agent/core/sentinel" legacy
+  default_shimmy uninstall >/dev/null
   bootstrap_default >/dev/null
-
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/agent"
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/plugins/shimmy/skills/shimmy-install/SKILL.md"
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/jq/SKILL.md"
-  pass "successful profile refresh removes the retired legacy agent payload"
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/plugins"
+  pass "mixed profile layout is rejected without mutation and clean uninstall plus recreation succeeds"
 }
 
 test_commands_lifecycle_legacy_agent_rollback() {
@@ -59,7 +66,7 @@ test_commands_lifecycle_legacy_agent_rollback() {
   transaction_profiles_root=$SCENARIO_DIR/profiles
   mkdir -p "$transaction_profile_root/bin" "$transaction_stage_root/bin" "$transaction_profiles_root"
 
-  for asset_name in agent commands config implementations lib tools tests plugins; do
+  for asset_name in agent commands config implementations lib tools tests; do
     mkdir -p "$transaction_profile_root/$asset_name"
     printf '%s\n' "old-$asset_name" > "$transaction_profile_root/$asset_name/sentinel"
     if [ "$asset_name" != agent ]; then
@@ -113,7 +120,7 @@ test_commands_lifecycle_legacy_agent_rollback() {
     fail_test "induced late profile commit failure unexpectedly succeeded"
   fi
 
-  for asset_name in agent commands config implementations lib tools tests plugins; do
+  for asset_name in agent commands config implementations lib tools tests; do
     assert_file_contains "$transaction_profile_root/$asset_name/sentinel" "old-$asset_name"
   done
   assert_file_contains "$transaction_profile_root/shell-init.sh" old-shell-init
@@ -138,7 +145,7 @@ test_commands_lifecycle_install_shapes() {
   bootstrap_default >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
-  pass "default-only, upstream-only, and combined profile installs use independent flat roots"
+  pass "default-only, upstream-only, and combined installs use independent materialized profile roots"
 }
 
 test_commands_lifecycle_launcher_refresh() {
@@ -180,6 +187,71 @@ test_commands_lifecycle_empty_container_cleanup() {
   pass "profile removal preserves sibling profiles and independently owned shared catalogs"
 }
 
+test_commands_lifecycle_catalog_independent_execution() {
+  setup_scenario_with_profiles default upstream
+  default_registry=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf
+  upstream_registry=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf
+  mv "$default_registry" "$default_registry.unavailable"
+  mv "$upstream_registry" "$upstream_registry.unavailable"
+
+  default_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version)
+  upstream_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$UPSTREAM_PROFILE_ROOT/bin/rg" --preview-shim --version)
+  assert_contains "$default_output" 'ghcr.io/jqlang/jq@sha256:'
+  assert_contains "$upstream_output" 'docker.io/vszl/ripgrep@sha256:'
+  set +e
+  status_output=$(default_shimmy status --format manifest 2>&1)
+  status_code=$?
+  set -e
+  [ "$status_code" -ne 0 ] || fail_test "catalog-dependent status unexpectedly accepted a missing registry"
+  assert_contains "$status_output" 'shimmy_catalog_health=invalid'
+  pass "materialized tool execution survives catalog loss while catalog-dependent management fails closed"
+}
+
+test_commands_lifecycle_control_plane_refresh() {
+  setup_scenario
+  control_checkout=$SCENARIO_DIR/control-checkout
+  setup_clean_source_fixture "$control_checkout"
+  (
+    cd "$control_checkout"
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream --no-startup
+  ) >/dev/null
+
+  printf '%s\n' '# chunk-2 command marker' >> "$control_checkout/commands/status.sh"
+  printf '%s\n' '# chunk-2 library marker' >> "$control_checkout/lib/common/common.sh"
+  assert_file_not_contains "$UPSTREAM_PROFILE_ROOT/commands/status.sh" 'chunk-2 command marker'
+  assert_file_not_contains "$UPSTREAM_PROFILE_ROOT/lib/common/common.sh" 'chunk-2 library marker'
+  upstream_shimmy status --format manifest >/dev/null
+
+  (
+    cd "$control_checkout"
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream --no-startup
+  ) >/dev/null
+  assert_file_contains "$UPSTREAM_PROFILE_ROOT/commands/status.sh" 'chunk-2 command marker'
+  assert_file_contains "$UPSTREAM_PROFILE_ROOT/lib/common/common.sh" 'chunk-2 library marker'
+  pass "upstream control-plane edits remain inactive until explicit profile refresh"
+}
+
+test_commands_lifecycle_profile_materialization_isolation() {
+  setup_scenario_with_profiles default upstream
+  upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
+  upstream_implementation_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")
+  default_registry_checksum=$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf")
+  upstream_registry_checksum=$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf")
+
+  default_shimmy install --shim task --no-startup >/dev/null
+  assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/task/tool.conf"
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/task/versions/3.45/run.sh"
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/tools/task/SKILL.md"
+  assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/bin/task"
+  assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/tools/task"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")" "$upstream_implementation_checksum"
+  assert_equals "$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf")" "$default_registry_checksum"
+  assert_equals "$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf")" "$upstream_registry_checksum"
+  pass "tool installation changes only the invoking profile materialization and manifest"
+}
+
 test_commands_lifecycle_complete() {
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
   printf '%s\n' sibling > "$UPSTREAM_PROFILE_ROOT/sibling-sentinel"
@@ -201,6 +273,9 @@ test_commands_lifecycle_complete() {
 
   test_commands_lifecycle_install_shapes
   test_commands_lifecycle_launcher_refresh
+  test_commands_lifecycle_profile_materialization_isolation
+  test_commands_lifecycle_catalog_independent_execution
+  test_commands_lifecycle_control_plane_refresh
   test_commands_lifecycle_legacy_agent_refresh
   test_commands_lifecycle_legacy_agent_rollback
   test_commands_lifecycle_empty_container_cleanup

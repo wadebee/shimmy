@@ -26,6 +26,12 @@ SHIMMY_PROFILE_FILES_REPLACED=
 SHIMMY_MANIFEST_COMMIT_TMP=
 SHIMMY_SHELL_INIT_COMMIT_TMP=
 SHIMMY_PROFILE_CATALOG_NAME=
+SHIMMY_MATERIALIZATION_CATALOG_NAME=
+SHIMMY_MATERIALIZATION_CATALOG_SOURCE_TYPE=
+SHIMMY_MATERIALIZATION_CATALOG_SOURCE_PATH=
+SHIMMY_MATERIALIZATION_CATALOG_GENERATION=
+SHIMMY_MATERIALIZATION_CATALOG_SCHEMA=
+SHIMMY_MATERIALIZATION_CATALOG_FINGERPRINT=
 LOG_LEVEL=${LOG_LEVEL:-info}
 
 log_level_value() {
@@ -159,6 +165,8 @@ profile_source_checkout_resolve() {
 profile_existing_state_read() {
   if [ -f "$INSTALL_MANIFEST_FILE" ] || [ -L "$INSTALL_MANIFEST_FILE" ]; then
     shimmy_profile_manifest_validate "$INSTALL_MANIFEST_FILE" "$SHIMMY_PROFILE_RESOLVED" || exit 1
+    shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_RESOLVED" ||
+      fail "legacy, mixed, or damaged Shimmy profile at $SHIMMY_PROFILE_ROOT; uninstall it with the Shimmy version that created it, then recreate that profile"
     PROFILE_EXISTS=1
     EXISTING_PROFILE_TOOLS=$(shimmy_manifest_tool_list_read "$INSTALL_MANIFEST_FILE" || true)
     PROFILE_MANIFEST_TOOLS=$EXISTING_PROFILE_TOOLS
@@ -181,6 +189,7 @@ profile_stage_prepare() {
   SHIMMY_STAGE_ROOT=$SHIMMY_PROFILES_ROOT/."$SHIMMY_PROFILE_RESOLVED".stage.$$
   [ ! -e "$SHIMMY_STAGE_ROOT" ] || fail "staging path already exists: $SHIMMY_STAGE_ROOT"
   profile_control_assets_stage
+  profile_materialization_assets_stage
 
   while IFS= read -r tool_name; do
     [ -n "$tool_name" ] || continue
@@ -204,6 +213,9 @@ EOF
   profile_manifest_render > "$SHIMMY_STAGE_ROOT/install-manifest.txt"
   chmod 644 "$SHIMMY_STAGE_ROOT/install-manifest.txt"
   shimmy_profile_manifest_validate "$SHIMMY_STAGE_ROOT/install-manifest.txt" "$SHIMMY_PROFILE_RESOLVED" || exit 1
+  shimmy_profile_structure_validate "$SHIMMY_STAGE_ROOT" "$SHIMMY_PROFILE_RESOLVED" ||
+    fail "staged profile materialization is incomplete or invalid"
+  profile_materialization_catalog_snapshot_validate
 }
 
 profile_stage_cleanup() {
@@ -224,6 +236,9 @@ perform_install() {
   profile_catalog_prepare
   validate_requested_shims
   profile_catalog_register
+  shimmy_catalog_registry_resolve "$SHIMMY_CONFIG_ROOT" "$SHIMMY_PROFILE_CATALOG_NAME" || fail "$SHIMMY_CATALOG_ERROR"
+  validate_requested_shims
+  profile_materialization_catalog_snapshot_record
   if [ "$PROFILE_EXISTS" -eq 1 ] && [ "$STARTUP_OPTION_REQUESTED" -eq 0 ] && [ -z "${SHIMMY_BOOTSTRAP_PROFILE:-}" ]; then
     SKIP_STARTUP=1
   fi

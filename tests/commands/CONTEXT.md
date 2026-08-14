@@ -15,10 +15,11 @@ a user's Shimmy installation or shell startup files.
   stable output, and command availability without target-registry access.
 - `image-fixtures/` owns committed raw manifest responses for those tests. Its
   retained context is [image-fixtures/CONTEXT.md](image-fixtures/CONTEXT.md).
-- `lifecycle.sh` covers install, dispatch, status, update, and uninstall. Its
-  layout, launcher-refresh, and profile-removal cases clone their initial
-  profiles while retaining real refresh, additive-install, and uninstall
-  operations.
+- `lifecycle.sh` covers install, selected-only materialization, catalog-loss
+  execution, installed control-plane refresh boundaries, dispatch, status,
+  update, rollback, and uninstall. Its layout, launcher-refresh, isolation,
+  and profile-removal cases clone their initial profiles while retaining real
+  refresh, additive-install, and uninstall operations.
 - `onboarding.sh` covers sourced and executed repository onboarding, failure
   cleanup, the fixed jq/rg bootstrap baseline, explicit additive installed
   selection, direct shell initialization, PATH precedence, and profile-local
@@ -47,10 +48,11 @@ a user's Shimmy installation or shell startup files.
   repair behavior without a separate initialization command. Its
   upstream-isolation case clones upstream while retaining the real default
   startup installation.
-- `skills.sh` covers split canonical skill sources, checked-in adapter
-  fingerprints, one-file repository/home and portable exports, management
-  plugin discovery, installed-tool selection, unconditional profile payload,
-  lifecycle isolation, refresh, and manifest-tracked cleanup. Its
+- `skills.sh` covers split catalog-owned canonical skill sources, checked-in
+  adapter fingerprints, one-file repository/home and portable exports,
+  management plugin discovery, installed-tool selection, absence of canonical
+  skill sources from profile payloads, lifecycle isolation, refresh, and
+  manifest-tracked cleanup. Its
   target-ownership lifecycle and retryable external-target failure start from
   pristine profile clones.
 - `dispatcher.sh` covers profile-bound installed dispatchers, ownership, and
