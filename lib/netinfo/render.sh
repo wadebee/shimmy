@@ -138,5 +138,11 @@ Notes:
   Crostini shells commonly report hostname "penguin". That is the Linux shell
   hostname, not the Chromebook DHCP/DNS name. Use --host-name with the name your
   router or local DNS resolves for the Chromebook.
+
+Examples:
+  shimmy netinfo
+  shimmy netinfo --target 8.8.8.8 --target 192.168.1.1
+  shimmy netinfo --host-name workstation.home.arpa --host-prefix 24
+  shimmy netinfo --host-ip 192.168.1.20 --host-lan 192.168.1.0/24 --format manifest
 EOF
 }

@@ -25,7 +25,20 @@ fail() {
 
 usage() {
   cat <<'EOF'
-Usage: shimmy status [--available] [--format human|manifest]
+Show installed tools, versions, catalog provenance, and profile details.
+
+Usage:
+  shimmy status [--available] [--format human|manifest]
+
+Options:
+  --available              Include catalog tools that are not installed.
+  --format human|manifest  Select output format. Default: human.
+  -h, --help               Show this help.
+
+Examples:
+  shimmy status
+  shimmy status --available
+  shimmy status --format manifest
 EOF
 }
 

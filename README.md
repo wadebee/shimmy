@@ -42,7 +42,10 @@ Each installed launcher exposes this management surface:
 | `shimmy test` | Validate the profile with non-mutating shim smoke commands. |
 | `shimmy update` | Refresh the profile and optionally pull or build tool images. |
 
-Run `shimmy <command> --help` for command-specific options.
+Every second-level command supports `shimmy <command> --help` with its usage,
+options, and examples. Command groups also summarize their third-level actions
+when invoked without one; use `shimmy <group> <action> --help` for action
+requirements and examples.
 
 The repository contains only the minimal `install.sh` bootstrap; it does not
 contain a runnable `shimmy` launcher. Source `. ./install.sh` to bootstrap

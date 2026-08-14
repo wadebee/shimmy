@@ -31,7 +31,26 @@ fail() {
 . "$PROFILE_HELPER_FILE"
 . "$IMAGES_HELPER_FILE"
 
-usage() {
+shimmy__images_usage_print() {
+  cat <<'EOF'
+Verify configured remote image indexes and upstream drift.
+
+Usage:
+  shimmy images <command>
+  shimmy images <command> --help
+
+Commands:
+  verify  Validate configured image indexes without pulling image layers.
+
+Examples:
+  shimmy images verify
+  shimmy images verify --all --public-only
+
+Run 'shimmy images verify --help' for verification options.
+EOF
+}
+
+shimmy__images_verify_usage_print() {
   cat <<'EOF'
 Verify configured remote image indexes without pulling image layers.
 
@@ -41,8 +60,22 @@ Usage:
                        [--format human|manifest]
   ./commands/images.sh verify --all [the same verification options]
 
+Options:
+  --all                       Verify every catalog version.
+  --shim <tool[@version]>     Verify one tool or version. Repeatable.
+  --public-only               Skip authenticated registry entries visibly.
+  --require-current-upstream  Treat upstream tag drift as a failure.
+  --format human|manifest     Select output format. Default: human.
+  -h, --help                  Show this help.
+
 Installed use defaults to concrete versions recorded in the invoking profile.
 Source-checkout use requires --all or at least one --shim selection.
+
+Examples:
+  shimmy images verify
+  shimmy images verify --shim terraform --shim aws@2.31
+  shimmy images verify --all --public-only
+  shimmy images verify --require-current-upstream --format manifest
 EOF
 }
 
@@ -86,8 +119,8 @@ output_result() {
 
 parse_request() {
   [ "${1:-}" = verify ] || {
-    case "${1:-}" in -h|--help|'') usage; exit 0 ;; esac
-    fail "unknown images command: ${1:-}"
+    case "${1:-}" in help|-h|--help|'') shimmy__images_usage_print; exit 0 ;; esac
+    fail "unknown images command: ${1:-}. Run 'shimmy images --help' for available commands"
   }
   shift
 
@@ -106,7 +139,7 @@ parse_request() {
         OUTPUT_FORMAT=$2
         shift 2
         ;;
-      -h|--help) usage; exit 0 ;;
+      -h|--help) shimmy__images_verify_usage_print; exit 0 ;;
       *) fail "unknown argument: $1" ;;
     esac
   done

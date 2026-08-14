@@ -12,20 +12,47 @@ requested_shim_append() {
 }
 
 usage() {
-  cat <<'EOF'
-Install or uninstall assets in the invoking Shimmy profile.
+  if [ "$UNINSTALL" -eq 1 ]; then
+    cat <<'EOF'
+Remove the invoking Shimmy profile or all Shimmy-owned state.
 
 Usage:
-  commands/install.sh [options]
+  shimmy uninstall [--global] [--shell <name>] [--startup-file <path> ...]
 
 Options:
-  --shim <name>          Install the named shim if missing. Required; repeatable.
-  --shell <name>         Override shell detection for startup-file updates
-  --startup-file <path>  Override startup file updates. Repeatable.
-  --no-startup           Skip persistent startup-file updates during install
-  --uninstall            Remove the invoking profile
-  --global               With --uninstall, remove all profiles and shared catalogs
-  -h, --help             Show help
+  --global               Remove all owned profiles and shared catalogs.
+  --shell <name>         Override shell detection for startup cleanup.
+  --startup-file <path>  Select a startup file to clean. Repeatable.
+  -h, --help             Show this help.
+
+Without --global, uninstall removes only the profile containing the invoked
+launcher. Source checkouts and external skill exports are preserved.
+
+Examples:
+  shimmy uninstall
+  shimmy uninstall --startup-file "$HOME/.zshrc"
+EOF
+    return 0
+  fi
+
+  cat <<'EOF'
+Add one or more tools to the invoking Shimmy profile.
+
+Usage:
+  shimmy install --shim <tool[@version]> [--shim <tool[@version]> ...]
+                 [--shell <name>] [--startup-file <path> ...] [--no-startup]
+
+Options:
+  --shim <tool[@version]>  Select a tool or concrete version. Required; repeatable.
+  --shell <name>           Override shell detection for startup-file updates.
+  --startup-file <path>    Select a startup file to update. Repeatable.
+  --no-startup             Skip persistent startup-file updates.
+  -h, --help               Show this help.
+
+Examples:
+  shimmy install --shim task
+  shimmy install --shim aws --shim terraform
+  shimmy install --shim oc@4.20 --no-startup
 EOF
 }
 

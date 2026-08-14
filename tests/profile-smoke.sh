@@ -75,6 +75,13 @@ commands through its installed wrappers.
 Options:
   --shim <name>        Test one installed tool or concrete tool@version.
   --all                Test installed public tools and every installed concrete version.
+  -h, --help           Show this help.
+
+Examples:
+  shimmy test
+  shimmy test --shim jq
+  shimmy test --shim aws@2.31
+  shimmy test --all
 EOF
 }
 

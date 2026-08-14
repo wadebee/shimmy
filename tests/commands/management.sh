@@ -1,6 +1,7 @@
 #!/bin/sh
 
-test_commands_management_run() {
+test_commands_management_guidance() {
+  setup_scenario_with_profiles default
   help_output=$(default_shimmy)
   assert_contains "$help_output" 'shimmy <command> [options]'
   assert_contains "$help_output" 'install    Add tool shims to this profile.'
@@ -18,6 +19,75 @@ test_commands_management_run() {
 
   explicit_help_output=$(default_shimmy help)
   assert_equals "$explicit_help_output" "$help_output"
+
+  profile_manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+
+  for command_name in catalog images install uninstall netinfo skills status test update; do
+    command_help=$(default_shimmy "$command_name" --help)
+    assert_contains "$command_help" 'Usage:'
+    assert_contains "$command_help" 'Examples:'
+    case "$command_name" in
+      catalog|images|skills) assert_contains "$command_help" 'Commands:' ;;
+      *) assert_contains "$command_help" 'Options:' ;;
+    esac
+  done
+
+  catalog_help=$(default_shimmy catalog)
+  assert_contains "$catalog_help" 'Commands:'
+  assert_contains "$catalog_help" 'publish   Publish clean committed upstream content'
+  assert_contains "$catalog_help" "Run 'shimmy catalog <command> --help'"
+  assert_equals "$(default_shimmy catalog --help)" "$catalog_help"
+
+  images_help=$(default_shimmy images)
+  assert_contains "$images_help" 'Commands:'
+  assert_contains "$images_help" 'verify  Validate configured image indexes'
+  assert_contains "$images_help" "Run 'shimmy images verify --help'"
+  assert_equals "$(default_shimmy images --help)" "$images_help"
+
+  skills_help=$(default_shimmy skills)
+  assert_contains "$skills_help" 'Commands:'
+  assert_contains "$skills_help" 'install    Install selected or profile-derived skills'
+  assert_contains "$skills_help" "Run 'shimmy skills <command> --help'"
+  assert_equals "$(default_shimmy skills --help)" "$skills_help"
+
+  for command_path in \
+    'catalog publish' \
+    'catalog rollback' \
+    'catalog rebind' \
+    'images verify' \
+    'skills install' \
+    'skills update' \
+    'skills uninstall'
+  do
+    set -- $command_path
+    action_help=$(default_shimmy "$@" --help)
+    assert_contains "$action_help" 'Usage:'
+    assert_contains "$action_help" 'Options:'
+    assert_contains "$action_help" 'Examples:'
+  done
+
+  assert_contains "$(default_shimmy catalog publish --help)" 'Run this command from the upstream profile.'
+  assert_contains "$(default_shimmy catalog rollback --help)" 'A valid retained prior default'
+  assert_contains "$(default_shimmy catalog rebind --help)" '--checkout <path>'
+  assert_contains "$(default_shimmy images verify --help)" '--require-current-upstream'
+  assert_contains "$(default_shimmy skills install --help)" '--export <path>'
+  assert_contains "$(default_shimmy skills update --help)" 'prefers skills already tracked'
+  assert_contains "$(default_shimmy skills uninstall --help)" '.shimmy-skills-manifest.txt'
+  assert_contains "$(default_shimmy uninstall --help)" 'shimmy uninstall [--global]'
+  assert_not_contains "$(default_shimmy uninstall --help)" '--shim <tool'
+
+  set +e
+  catalog_profile_error=$(default_shimmy catalog publish 2>&1)
+  catalog_profile_status=$?
+  set -e
+  [ "$catalog_profile_status" -ne 0 ] || fail_test 'default profile unexpectedly published the catalog'
+  assert_contains "$catalog_profile_error" "Run 'shimmy catalog publish --help' for requirements"
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$profile_manifest_checksum"
+  pass "every second- and third-level management command exposes usage, options, and examples without mutation"
+}
+
+test_commands_management_profile_binding() {
+  setup_scenario_with_profiles default
 
   set +e
   error_output=$(default_shimmy status --profile upstream 2>&1)
@@ -37,5 +107,10 @@ test_commands_management_run() {
 
   netinfo_output=$(run_in_repo ./commands/netinfo.sh --host-ip 192.0.2.10 --host-prefix 24 --format manifest)
   assert_contains "$netinfo_output" 'host_lan=192.0.2.0/24'
-  pass "installed management help summarizes each command and every command remains profile-bound"
+  pass "every installed management command remains profile-bound"
+}
+
+test_commands_management_run() {
+  test_commands_management_guidance
+  test_commands_management_profile_binding
 }

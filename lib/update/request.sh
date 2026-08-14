@@ -25,11 +25,29 @@ shimmy_update_usage_print() {
 Refresh the invoking installed Shimmy profile.
 
 Usage:
-  shimmy update [--shim <name>] [--all] [--pull] [--build] [--repair-startup]
+  shimmy update [--shim <name> ... | --all] [--pull] [--build]
+                [--repair-startup] [--shell <name>]
+                [--startup-file <path> ...]
+
+Options:
+  --shim <name>          Select an installed tool. Repeatable.
+  --all                  Select all installed tools; incompatible with --shim.
+  --pull                 Pull selected external images.
+  --build                Build selected local images.
+  --repair-startup       Repair managed startup integration.
+  --shell <name>         Override shell detection during startup repair.
+  --startup-file <path>  Select a startup file to repair. Repeatable.
+  -h, --help             Show this help.
 
 The launcher manages only its enclosing profile. --all selects all installed
 tools in that profile; it does not enumerate sibling profiles. Selected tools
 adopt their current catalog defaults before optional image refresh hooks run.
+
+Examples:
+  shimmy update
+  shimmy update --shim terraform --pull
+  shimmy update --all --pull --build
+  shimmy update --repair-startup --shell zsh
 EOF
 }
 

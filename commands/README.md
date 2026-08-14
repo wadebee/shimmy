@@ -20,7 +20,10 @@ is the bootstrap entrypoint for creating a profile.
 - [`test`](#test) — run non-mutating profile and shim smoke tests
 - [`update`](#update) — refresh the current profile and its tool images
 
-Run `shimmy <command> --help` for the command's authoritative usage text.
+Every second-level command supports `shimmy <command> --help` with authoritative
+usage, options, and examples. `catalog`, `images`, and `skills` also summarize
+their third-level actions when invoked without one; use
+`shimmy <group> <action> --help` for action-specific guidance.
 
 ## `catalog`
 

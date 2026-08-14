@@ -13,8 +13,9 @@ process.
 
 ## Files
 
-- `request.sh` parses install inputs, resolves the canonical XDG profile path,
-  and validates requested tools and versions.
+- `request.sh` parses install inputs, renders distinct installed `install` and
+  `uninstall` guidance, resolves the canonical XDG profile path, and validates
+  requested tools and versions.
 - `catalog-lifecycle.sh` owns serialized `upstream` registration and explicit
   rebind plus clean-HEAD, same-filesystem staged publication of immutable
   `default` generations. It validates and fingerprints the one archived

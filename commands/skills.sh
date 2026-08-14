@@ -82,28 +82,102 @@ log_info() {
   printf 'INFO: %s\n' "$*" >&2
 }
 
-usage() {
+shimmy__skills_install_usage_print() {
+  cat <<'EOF'
+Install Shimmy agent skills into a target or portable export.
+
+Usage:
+  shimmy skills install [options] [skill...]
+
+Options:
+  --target repo       Write skills to .agents/skills in the current directory.
+  --target profile    Write skills to ~/.agents/skills.
+  --export <path>     Export a portable skills folder, or a .zip archive.
+  --manifest <path>   Read installed tools from this profile manifest if present.
+  -h, --help          Show this help.
+
+With no explicit skill names, install selects the core Shimmy management
+skills plus tool skills for tools recorded in the install manifest.
+
+Examples:
+  shimmy skills install --target repo
+  shimmy skills install --target profile shimmy-install shimmy-tool-rg
+  shimmy skills install --export ./shimmy-skills.zip
+EOF
+}
+
+shimmy__skills_uninstall_usage_print() {
+  cat <<'EOF'
+Remove manifest-tracked Shimmy agent skills from a target.
+
+Usage:
+  shimmy skills uninstall [--target repo|profile]
+
+Options:
+  --target repo       Remove tracked skills from .agents/skills.
+  --target profile    Remove tracked skills from ~/.agents/skills.
+  -h, --help          Show this help.
+
+Uninstall removes only entries recorded in the target's
+.shimmy-skills-manifest.txt. It does not require the source catalog.
+
+Examples:
+  shimmy skills uninstall --target repo
+  shimmy skills uninstall --target profile
+EOF
+}
+
+shimmy__skills_update_usage_print() {
+  cat <<'EOF'
+Refresh Shimmy agent skills in a target or portable export.
+
+Usage:
+  shimmy skills update [options] [skill...]
+
+Options:
+  --target repo       Update skills in .agents/skills in the current directory.
+  --target profile    Update skills in ~/.agents/skills.
+  --export <path>     Export refreshed skills as a folder or .zip archive.
+  --manifest <path>   Read installed tools from this profile manifest if present.
+  -h, --help          Show this help.
+
+Update prefers skills already tracked by the target manifest. If no target
+manifest exists, it selects the core management and installed-tool skills.
+
+Examples:
+  shimmy skills update --target repo
+  shimmy skills update --target profile shimmy-tool-rg
+EOF
+}
+
+shimmy__skills_usage_print() {
   cat <<'EOF'
 Install, update, uninstall, or export Shimmy agent skills.
 
 Usage:
-  commands/skills.sh install [options] [skill...]
-  commands/skills.sh update [options] [skill...]
-  commands/skills.sh uninstall [options]
+  shimmy skills <command> [options]
+  shimmy skills <command> --help
 
-Options:
-  --target repo       Write skills to .agents/skills in the current directory
-  --target profile    Write skills to ~/.agents/skills
-  --export <path>     Export a portable skills folder, or a .zip archive
-  --manifest <path>   Read installed tools from the given profile manifest if present
-  -h, --help          Show help
+Commands:
+  install    Install selected or profile-derived skills into a target or export.
+  update     Refresh manifest-tracked skills in a target or export.
+  uninstall  Remove only the skills tracked by a target manifest.
 
-With no explicit skill names, install writes the core Shimmy management skills
-plus tool skills for tools recorded in the install manifest.
-Update refreshes manifest-tracked skills for the target, falling back to the
-core management and installed-tool skills when no target manifest exists yet.
-Uninstall removes skills recorded in the selected target manifest.
+Examples:
+  shimmy skills install --target repo
+  shimmy skills update --target profile
+  shimmy skills uninstall --target repo
+
+Run 'shimmy skills <command> --help' for command-specific options.
 EOF
+}
+
+shimmy__skills_action_usage_print() {
+  case "$1" in
+    install) shimmy__skills_install_usage_print ;;
+    uninstall) shimmy__skills_uninstall_usage_print ;;
+    update) shimmy__skills_update_usage_print ;;
+  esac
 }
 
 requested_skill_append() {
@@ -770,11 +844,19 @@ main() {
       shift
       ;;
     help|-h|--help)
-      usage
+      shimmy__skills_usage_print
       exit 0
       ;;
     *)
-      fail "unknown skills command: $ACTION"
+      fail "unknown skills command: $ACTION. Run 'shimmy skills --help' for available commands"
+      ;;
+  esac
+
+  case "${1:-}" in
+    help|-h|--help)
+      [ "$#" -eq 1 ] || fail "unknown argument after ${1}: $2"
+      shimmy__skills_action_usage_print "$ACTION"
+      exit 0
       ;;
   esac
 
@@ -797,7 +879,7 @@ main() {
         shift 2
         ;;
       -h|--help)
-        usage
+        shimmy__skills_action_usage_print "$ACTION"
         exit 0
         ;;
       --*)

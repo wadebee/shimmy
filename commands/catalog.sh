@@ -34,34 +34,117 @@ cleanup() {
   shimmy_catalog_lock_release
 }
 
-usage() {
+shimmy__catalog_publish_usage_print() {
+  cat <<'EOF'
+Publish the live upstream catalog as a new immutable default generation.
+
+Usage:
+  shimmy catalog publish
+
+Options:
+  -h, --help  Show this help.
+
+Requirements:
+  Run this command from the upstream profile. The bound checkout must have a
+  clean worktree and index, and HEAD must contain all content to publish.
+
+Examples:
+  . "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh"
+  shimmy catalog publish
+EOF
+}
+
+shimmy__catalog_rebind_usage_print() {
+  cat <<'EOF'
+Replace the live upstream catalog binding with another checkout.
+
+Usage:
+  shimmy catalog rebind --checkout <absolute-path>
+
+Options:
+  --checkout <path>  Bind the upstream catalog to this validated absolute path.
+  -h, --help         Show this help.
+
+Requirements:
+  Run this command from the upstream profile. Rebinding changes only the live
+  upstream registry path; it does not modify either checkout.
+
+Examples:
+  shimmy catalog rebind --checkout /absolute/path/to/shimmy
+EOF
+}
+
+shimmy__catalog_rollback_usage_print() {
+  cat <<'EOF'
+Restore the retained prior immutable default catalog generation.
+
+Usage:
+  shimmy catalog rollback
+
+Options:
+  -h, --help  Show this help.
+
+Requirements:
+  Run this command from the upstream profile. A valid retained prior default
+  generation must exist.
+
+Examples:
+  shimmy catalog rollback
+EOF
+}
+
+shimmy__catalog_usage_print() {
   cat <<'EOF'
 Manage the fixed shared Shimmy catalogs.
 
 Usage:
-  shimmy catalog publish
-  shimmy catalog rollback
-  shimmy catalog rebind --checkout <absolute-path>
+  shimmy catalog <command>
+  shimmy catalog <command> --help
 
-publish validates and publishes clean committed upstream content as a new
-immutable default generation. rollback atomically restores the retained prior
-default generation. rebind explicitly replaces only the live upstream registry
-path after validating the replacement checkout.
+Commands:
+  publish   Publish clean committed upstream content as a new default generation.
+  rollback  Restore the retained prior default generation.
+  rebind    Replace the live upstream registry path with a validated checkout.
+
+Examples:
+  shimmy catalog publish
+  shimmy catalog rebind --checkout /absolute/path/to/shimmy
+
+Run 'shimmy catalog <command> --help' for command-specific options and
+requirements.
 EOF
+}
+
+shimmy__catalog_action_usage_print() {
+  case "$1" in
+    publish) shimmy__catalog_publish_usage_print ;;
+    rebind) shimmy__catalog_rebind_usage_print ;;
+    rollback) shimmy__catalog_rollback_usage_print ;;
+  esac
 }
 
 main() {
   catalog_action=${1:-help}
   case "$catalog_action" in
-    help|-h|--help) usage; return 0 ;;
+    help|-h|--help) shimmy__catalog_usage_print; return 0 ;;
     publish|rebind|rollback) shift ;;
-    *) fail "unknown catalog command: $catalog_action" ;;
+    *) fail "unknown catalog command: $catalog_action. Run 'shimmy catalog --help' for available commands" ;;
+  esac
+
+  case "${1:-}" in
+    help|-h|--help)
+      [ "$#" -eq 1 ] || fail "unknown argument after ${1}: $2"
+      shimmy__catalog_action_usage_print "$catalog_action"
+      return 0
+      ;;
   esac
 
   shimmy_profile_context_resolve "$ROOT_DIR" || fail 'catalog management must run from a canonical installed profile'
   shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_PROFILE_NAME" || exit 1
   profile_catalog_name=$(shimmy_read_manifest_value "$SHIMMY_PROFILE_MANIFEST_PATH" catalog || true)
-  [ "$SHIMMY_PROFILE_NAME" = upstream ] && [ "$profile_catalog_name" = upstream ] || fail 'catalog publish, rollback, and rebind require the upstream profile bound to the upstream catalog'
+  [ "$SHIMMY_PROFILE_NAME" = upstream ] && [ "$profile_catalog_name" = upstream ] ||
+    fail "catalog $catalog_action requires the upstream profile bound to the upstream catalog." \
+      "Run 'shimmy catalog $catalog_action --help' for requirements"
 
   case "$catalog_action" in
     publish)
@@ -88,7 +171,7 @@ main() {
             catalog_checkout=$2
             shift 2
             ;;
-          -h|--help) usage; return 0 ;;
+          -h|--help) shimmy__catalog_rebind_usage_print; return 0 ;;
           *) fail "unknown argument: $1" ;;
         esac
       done

@@ -30,6 +30,10 @@ Installed commands derive profile identity from their profile root, resolve
 its fixed named catalog through shared XDG registry state on every
 catalog-aware invocation, and reject profile and installation-location
 selectors. Missing or invalid catalog state fails before command mutation.
+Every second-level command provides authoritative usage, options, and examples
+through `--help`. The `catalog`, `images`, and `skills` command groups also
+provide action discovery without an action and action-specific third-level
+help before profile or catalog validation.
 Canonical skill sources are read from the resolved catalog; repository and
 home exports are written only by explicit standalone skills operations and
 are owned by the target manifest. Repository and home

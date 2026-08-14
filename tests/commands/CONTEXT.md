@@ -33,8 +33,9 @@ a user's Shimmy installation or shell startup files.
 - `status.sh` covers profile-local installed and available status output from
   validated version-owned image configuration. It starts from pristine profile
   clones and retains a real additive install for local-build status coverage.
-- `management.sh` covers the installed command surface, skills, and netinfo
-  behavior.
+- `management.sh` covers the installed command surface, complete second- and
+  third-level help discovery, action guidance before validation, profile
+  binding, skills, and netinfo behavior.
 - `profiles.sh` covers profile precedence, profile-isolated uninstalls, status
   availability and version-owned image descriptions, and profile error
   guidance. Its identity, malformed-manifest, invalid-upstream-checkout,
