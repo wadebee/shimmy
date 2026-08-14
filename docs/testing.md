@@ -48,7 +48,7 @@ The suite is POSIX shell and validates:
 - shell initialization, canonical skill export/removal, netinfo input
   rendering, and management-command argument validation;
 - bootstrap-only profile selection, profile-isolated uninstalls, status
-  availability, and profile-specific repair guidance;
+  identity, named catalog listing, and profile-specific repair guidance;
 - selected-shim profile-local default adoption and image refreshes, manifest
   lifecycle-field preservation, request validation, failed-update safety, and
   installed-management source refresh;

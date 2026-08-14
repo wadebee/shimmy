@@ -32,7 +32,7 @@ Each installed launcher exposes this management surface:
 
 | Command | Purpose |
 |---|---|
-| `shimmy catalog` | Publish or roll back `default`, or explicitly rebind `upstream`. |
+| `shimmy catalog` | List catalog tools, publish or roll back `default`, or rebind `upstream`. |
 | `shimmy images` | Verify pinned remote image indexes and report upstream drift. |
 | `shimmy install` | Add explicitly selected tool shims to the profile. |
 | `shimmy uninstall` | Remove one profile, or explicitly remove all Shimmy-owned state. |
@@ -83,6 +83,14 @@ clean committed upstream checkout. Publication changes catalog availability;
 installed profile versions remain materialized and unchanged until an explicit
 `shimmy update` or `shimmy install --shim` operation selects the newer catalog
 default.
+
+List the complete tool membership of the invoking profile's recorded catalog,
+or select either named catalog without changing the active profile:
+
+```sh
+shimmy catalog list
+shimmy catalog list --name upstream --format manifest
+```
 
 Use the upstream profile for catalog administration:
 

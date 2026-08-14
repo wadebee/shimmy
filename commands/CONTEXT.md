@@ -9,18 +9,20 @@ reusable behavior belongs in `../lib/`.
 ## Key files
 
 - `install.sh` installs or removes the enclosing canonical profile.
-- `catalog.sh` publishes clean committed `upstream` content to an immutable
-  `default` generation, atomically restores its retained prior generation, or
-  explicitly rebinds the live upstream registry.
+- `catalog.sh` lists complete validated membership from the invoking profile's
+  recorded catalog or an explicitly named registry. Its mutation actions
+  publish clean committed `upstream` content to an immutable `default`
+  generation, atomically restore its retained prior generation, or explicitly
+  rebind the live upstream registry.
 - `dispatch-tool.sh` dispatches a profile-local installed tool command without
   resolving or validating the catalog checkout.
 - `run-tool.sh` dispatches materialized tool runtime assets; it does not act as
   catalog availability authority.
 - `agent-preflight.sh` validates concrete-version `image.conf` metadata and
   adds preview-only smoke arguments for local builds.
-- `status.sh` resolves the enclosing profile's named catalog and reports its
-  source, generation provenance, schema, fingerprint, and health together
-  with validated tool metadata;
+- `status.sh` resolves the enclosing profile's named catalog and reports
+  installed profile state and validated tool metadata together with catalog
+  source, generation provenance, schema, fingerprint, and health;
 - `images.sh` provides explicit, non-mutating remote index and upstream-drift
   verification through catalog-default profile-local Skopeo and jq runtimes;
   `update.sh`, `skills.sh`, and `netinfo.sh` retain their corresponding public

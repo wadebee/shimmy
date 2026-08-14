@@ -1,5 +1,5 @@
 #!/bin/sh
-# Report installed and available metadata-driven Shimmy tools.
+# Report installed metadata-driven Shimmy tools and profile state.
 set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
@@ -11,7 +11,6 @@ PROFILE_HELPER_FILE=$ROOT_DIR/lib/profile/profile.sh
 SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 IMAGE_HELPER_FILE=$SHIMMY_RUNTIME_DIR/image.sh
 OUTPUT_FORMAT=human
-SHOW_AVAILABLE=0
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -28,24 +27,16 @@ usage() {
 Show installed tools, versions, catalog provenance, and profile details.
 
 Usage:
-  shimmy status [--available] [--format human|manifest]
+  shimmy status [--format human|manifest]
 
 Options:
-  --available              Include catalog tools that are not installed.
   --format human|manifest  Select output format. Default: human.
   -h, --help               Show this help.
 
 Examples:
   shimmy status
-  shimmy status --available
   shimmy status --format manifest
 EOF
-}
-
-tool_installed() {
-  manifest_file=$1
-  tool_name=$2
-  shimmy_manifest_tool_contains "$manifest_file" "$tool_name"
 }
 
 profile_version_image_description() {
@@ -161,24 +152,16 @@ EOF
       print_tool_human "$manifest_file" "$tool_name"
     fi
   done
-
-  [ "$SHOW_AVAILABLE" -eq 1 ] || return 0
-  for tool_name in $(shimmy_tool_list); do
-    if ! tool_installed "$manifest_file" "$tool_name"; then
-      if [ "$OUTPUT_FORMAT" = manifest ]; then
-        printf 'shimmy_available_tool=%s\n' "$tool_name"
-      else
-        printf 'available: %s\n' "$tool_name"
-      fi
-    fi
-  done
 }
 
 main() {
   while [ "$#" -gt 0 ]; do
     case "$1" in
-      --available) SHOW_AVAILABLE=1; shift ;;
-      --format) OUTPUT_FORMAT=${2:?missing value for --format}; shift 2 ;;
+      --format)
+        [ "$#" -ge 2 ] || fail 'missing value for --format'
+        OUTPUT_FORMAT=$2
+        shift 2
+        ;;
       -h|--help) usage; exit 0 ;;
       *) fail "unknown argument: $1" ;;
     esac

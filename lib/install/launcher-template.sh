@@ -74,7 +74,7 @@ Usage:
   shimmy <command> --help
 
 Commands:
-  catalog    Publish, roll back, or explicitly rebind shared catalogs.
+  catalog    List or manage shared catalogs.
   images     Verify configured remote image indexes and upstream drift.
   install    Add tool shims to this profile.
   uninstall  Remove this profile, or explicitly remove all Shimmy-owned state.

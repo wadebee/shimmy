@@ -163,9 +163,9 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Move catalog tool discovery to named `shimmy catalog list`,
+- [x] Chunk 1 — Move catalog tool discovery to named `shimmy catalog list`,
   remove `status --available` and its obsolete tests, and realign maintained
-  tests and documentation. **Active chunk after approval.**
+  tests and documentation. **Completed; awaiting human review.**
 
 ## Execution protocol
 
@@ -268,35 +268,35 @@ discovers a required dependency and records the divergence before editing it.
 
 ### Verification checklist
 
-- [ ] `sh -n` succeeds for every changed executable shell file.
-- [ ] Catalog group and list help expose `list`, its format contract, and
+- [x] `sh -n` succeeds for every changed executable shell file.
+- [x] Catalog group and list help expose `list`, its format contract, and
   catalog-name selection contract and examples before profile/catalog
   validation.
-- [ ] Default and upstream `catalog list` manifest output identify their own
+- [x] Default and upstream `catalog list` manifest output identify their own
   catalog and contain the same complete baseline tool set in lexical order.
-- [ ] From either activated profile, `catalog list --name default|upstream`
+- [x] From either activated profile, `catalog list --name default|upstream`
   reads the requested catalog without changing activation, `PATH`, profile
   manifests, or catalog state; omitted `--name` uses the activated profile's
   recorded default catalog binding.
-- [ ] Catalog list includes both installed baseline tools and tools not
+- [x] Catalog list includes both installed baseline tools and tools not
   installed in the invoking profile; human and manifest output contain no
   `shimmy_available_tool` compatibility records.
-- [ ] Invalid list options, formats, name values, missing named catalogs, and
+- [x] Invalid list options, formats, name values, missing named catalogs, and
   invalid named catalogs fail with specific nonzero diagnostics without
   mutating profile or catalog state.
-- [ ] Live upstream, default publication, and rollback membership tests pass
+- [x] Live upstream, default publication, and rollback membership tests pass
   through `catalog list` at their existing authority boundaries.
-- [ ] Missing or invalid catalog state makes `catalog list` fail before partial
+- [x] Missing or invalid catalog state makes `catalog list` fail before partial
   output while status still reports `shimmy_catalog_health=invalid` and
   installed tool wrappers remain executable from materialized state.
-- [ ] The complete `./tests/test.sh` suite passes.
-- [ ] `rg` confirms no active source, current docs, or test references remain
+- [x] The complete `./tests/test.sh` suite passes. (122 tests.)
+- [x] `rg` confirms no active source, current docs, or test references remain
   for `status --available`, `SHOW_AVAILABLE`, or `shimmy_available_tool`, with
   historical plan matches explicitly classified and retained.
-- [ ] Tests whose only purpose was the removed status availability behavior are
+- [x] Tests whose only purpose was the removed status availability behavior are
   absent; remaining tests protect current catalog-list, lifecycle, validation,
   isolation, and status contracts.
-- [ ] `git diff --check` passes, executable modes are preserved, and the final
+- [x] `git diff --check` passes, executable modes are preserved, and the final
   diff contains no unrelated changes.
 
 ### Human review gate
@@ -358,6 +358,18 @@ implementation chunk.
   activated profile manifest, while `shimmy_catalog_registry_resolve` supplies
   explicit named-catalog lookup without selecting or activating another
   profile.
+
+### Implementation
+
+- Parsing and resolving `catalog list` before installing the lifecycle cleanup
+  trap keeps the read-only action independent of catalog mutation helpers while
+  preserving the existing cleanup boundary for publish, rollback, and rebind.
+- Resolver diagnostics are intentionally reused verbatim for missing and
+  invalid named catalogs, which keeps list failures aligned with the catalog
+  authority instead of introducing command-local error translations.
+- Complete catalog membership can be asserted against metadata-derived tool
+  names without hard-coding a central expected tool list; this preserves
+  deterministic lexical-order coverage as the catalog evolves.
 
 ## Session bootstrap
 

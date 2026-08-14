@@ -11,7 +11,7 @@ is the bootstrap entrypoint for creating a profile.
 ## Table of contents
 
 - [`images`](#images) — verify remote image indexes and upstream drift
-- [`catalog`](#catalog) — publish, roll back, or rebind shared catalogs
+- [`catalog`](#catalog) — list or manage shared catalogs
 - [`install`](#install) — add tool shims to the current profile
 - [`uninstall`](#uninstall) — remove one profile or all owned Shimmy state
 - [`netinfo`](#netinfo) — show host, VM, and container network perspectives
@@ -27,13 +27,24 @@ their third-level actions when invoked without one; use
 
 ## `catalog`
 
-Manage the fixed shared named catalogs from the installed upstream profile.
+List a resolved named catalog from either installed profile. Publish, roll
+back, and rebind remain restricted to the installed upstream profile.
 
 ```text
+shimmy catalog list [--name <catalog>] [--format human|manifest]
 shimmy catalog publish
 shimmy catalog rollback
 shimmy catalog rebind --checkout <absolute-path>
 ```
+
+`list` resolves and validates the complete selected catalog before output. With
+no `--name`, it uses the invoking profile's recorded catalog binding. An
+explicit `--name <catalog>` reads that named registry without selecting
+another profile or changing profile or catalog state. Human output identifies
+the catalog and prints one bullet per tool. Manifest output emits
+`shimmy_catalog_name` followed by one `shimmy_catalog_tool` record per tool.
+Tools already installed in the invoking profile remain in this complete
+catalog-membership view.
 
 `publish` stages and validates tracked content from the clean committed
 upstream `HEAD`, then atomically advances the immutable default generation.
@@ -42,6 +53,14 @@ including recovery when the current generation is invalid. `rebind` validates
 and atomically replaces only the live upstream checkout path; it does not
 modify either checkout. None of these operations changes an installed
 profile's recorded tool versions.
+
+List examples:
+
+```sh
+shimmy catalog list
+shimmy catalog list --name upstream
+shimmy catalog list --format manifest --name default
+```
 
 ## `images`
 
@@ -229,17 +248,16 @@ shimmy skills install --export ./shimmy-skills.zip
 
 Show the current profile's identity and root, its installed tools, and the
 catalog source type/path, generation provenance, schema, content fingerprint,
-health, and configured image references. Optionally include tools that are
-available in the catalog but not installed. Invalid or unavailable catalog
-state is reported and returns failure without changing the profile.
+health, and configured image references. Invalid or unavailable catalog state
+is reported and returns failure without changing the profile. Use `shimmy
+catalog list` for complete catalog membership.
 
 ```text
-shimmy status [--available] [--format human|manifest]
+shimmy status [--format human|manifest]
 ```
 
 Options:
 
-- `--available` includes catalog tools that are not installed.
 - `--format human|manifest` selects human-readable or machine-readable output.
   The default is `human`.
 - `-h`, `--help` shows command help.
@@ -248,7 +266,6 @@ Examples:
 
 ```sh
 shimmy status
-shimmy status --available
 shimmy status --format manifest
 ```
 

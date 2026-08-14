@@ -24,6 +24,84 @@ test_catalog_jq_version_create() {
   mv "$catalog_checkout/tools/jq/tool.conf.tmp" "$catalog_checkout/tools/jq/tool.conf"
 }
 
+test_catalog_list_failure() {
+  expected_error=$1
+  shift
+
+  set +e
+  catalog_list_failure_output=$(default_shimmy catalog list "$@" 2>&1)
+  catalog_list_failure_status=$?
+  set -e
+  [ "$catalog_list_failure_status" -ne 0 ] || fail_test "catalog list unexpectedly accepted: $*"
+  assert_contains "$catalog_list_failure_output" "$expected_error"
+}
+
+test_commands_catalog_list() {
+  setup_scenario_with_profiles default upstream
+  default_manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+  upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
+  default_shell_init_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/shell-init.sh")
+  upstream_shell_init_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/shell-init.sh")
+  default_registry=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf
+  upstream_registry=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf
+  default_registry_checksum=$(cksum < "$default_registry")
+  upstream_registry_checksum=$(cksum < "$upstream_registry")
+
+  default_manifest=$(default_shimmy catalog list --format manifest)
+  upstream_manifest=$(upstream_shimmy catalog list --format manifest)
+  assert_contains "$default_manifest" 'shimmy_catalog_name=default'
+  assert_contains "$upstream_manifest" 'shimmy_catalog_name=upstream'
+  assert_contains "$default_manifest" 'shimmy_catalog_tool=jq'
+  assert_contains "$default_manifest" 'shimmy_catalog_tool=rg'
+  assert_contains "$default_manifest" 'shimmy_catalog_tool=task'
+  expected_tools=$(
+    for tool_file in "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"/tools/*/tool.conf; do
+      basename "$(dirname "$tool_file")"
+    done | sort
+  )
+  default_tools=$(printf '%s\n' "$default_manifest" | sed -n 's/^shimmy_catalog_tool=//p')
+  upstream_tools=$(printf '%s\n' "$upstream_manifest" | sed -n 's/^shimmy_catalog_tool=//p')
+  assert_equals "$default_tools" "$expected_tools"
+  assert_equals "$upstream_tools" "$expected_tools"
+
+  default_human=$(default_shimmy catalog list)
+  assert_contains "$default_human" 'Shimmy Catalog'
+  assert_contains "$default_human" 'catalog: default'
+  assert_contains "$default_human" '- jq'
+  assert_contains "$default_human" '- rg'
+  assert_contains "$default_human" '- task'
+  assert_equals "$(printf '%s\n' "$default_human" | sed -n 's/^- //p')" "$expected_tools"
+  assert_not_contains "$default_human" 'available:'
+
+  test_catalog_list_failure 'missing value for --format' --format
+  test_catalog_list_failure '--format may be specified only once' --format human --format manifest
+  test_catalog_list_failure 'unsupported catalog list format: json' --format json
+  test_catalog_list_failure 'missing value for --name' --name
+  test_catalog_list_failure '--name may be specified only once' --name default --name upstream
+  test_catalog_list_failure 'unsafe catalog name: ../default' --name ../default
+  test_catalog_list_failure 'unknown argument: --unknown' --unknown
+  test_catalog_list_failure 'missing catalog registry entry:' --name missing
+
+  mkdir "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/broken"
+  : > "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/broken/registry.conf"
+  test_catalog_list_failure 'catalog_source_type is required exactly once' --name broken
+
+  list_help=$(run_in_repo ./commands/catalog.sh list --help)
+  assert_contains "$list_help" 'shimmy catalog list [--name <catalog>] [--format human|manifest]'
+  assert_contains "$list_help" 'shimmy_catalog_tool'
+  mv "$default_registry" "$default_registry.unavailable"
+  assert_contains "$(default_shimmy catalog list --help)" 'List every tool in a resolved named catalog.'
+  mv "$default_registry.unavailable" "$default_registry"
+
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$default_manifest_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/shell-init.sh")" "$default_shell_init_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/shell-init.sh")" "$upstream_shell_init_checksum"
+  assert_equals "$(cksum < "$default_registry")" "$default_registry_checksum"
+  assert_equals "$(cksum < "$upstream_registry")" "$upstream_registry_checksum"
+  pass "catalog list renders complete deterministic named catalog membership without mutation"
+}
+
 test_commands_catalog_dirty_initial_publication_rejection() {
   setup_scenario
   dirty_checkout=$SCENARIO_DIR/dirty-checkout
@@ -119,10 +197,10 @@ test_commands_catalog_rebind_and_publish() {
   sed 's|^image_upstream_ref=ghcr.io/jqlang/jq:1.8.1$|image_upstream_ref=ghcr.io/jqlang/jq:catalog-new|' "$replacement_checkout/tools/jq/versions/1.8/image.conf" > "$replacement_checkout/tools/jq/versions/1.8/image.conf.tmp"
   mv "$replacement_checkout/tools/jq/versions/1.8/image.conf.tmp" "$replacement_checkout/tools/jq/versions/1.8/image.conf"
 
-  upstream_available=$(upstream_shimmy status --available --format manifest)
-  assert_contains "$upstream_available" 'shimmy_available_tool=instant'
-  default_available=$(default_shimmy status --available --format manifest)
-  assert_not_contains "$default_available" 'shimmy_available_tool=instant'
+  upstream_catalog=$(upstream_shimmy catalog list --format manifest)
+  assert_contains "$upstream_catalog" 'shimmy_catalog_tool=instant'
+  default_catalog=$(default_shimmy catalog list --format manifest)
+  assert_not_contains "$default_catalog" 'shimmy_catalog_tool=instant'
 
   set +e
   dirty_publish_output=$(upstream_shimmy catalog publish 2>&1)
@@ -160,8 +238,9 @@ test_commands_catalog_rebind_and_publish() {
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$published_generation/tools/instant/ignored-publication-sentinel"
   assert_file_contains "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$published_generation/generation.conf" "catalog_source_commit=$published_head"
   assert_file_contains "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$published_generation/generation.conf" "catalog_content_fingerprint=$published_fingerprint"
-  published_default_status=$(default_shimmy status --available --format manifest)
-  assert_contains "$published_default_status" 'shimmy_available_tool=instant'
+  published_default_catalog=$(default_shimmy catalog list --format manifest)
+  assert_contains "$published_default_catalog" 'shimmy_catalog_tool=instant'
+  published_default_status=$(default_shimmy status --format manifest)
   assert_contains "$published_default_status" 'shimmy_profile_tool_version=jq|1.8|jq_1_8'
   assert_not_contains "$published_default_status" 'shimmy_profile_tool_version=jq|1.9|jq_1_9'
   SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=$DEFAULT_PROFILE_ROOT/tools
@@ -227,13 +306,13 @@ test_commands_catalog_rollback_recovery() {
   initial_generation=$(profile_manifest_value "$default_registry" catalog_generation_current)
   upstream_shimmy catalog publish >/dev/null
   published_generation=$(profile_manifest_value "$default_registry" catalog_generation_current)
-  assert_contains "$(default_shimmy status --available --format manifest)" 'shimmy_available_tool=rollback-tool'
+  assert_contains "$(default_shimmy catalog list --format manifest)" 'shimmy_catalog_tool=rollback-tool'
 
   relocated_checkout=$SCENARIO_DIR/relocated-rollback-checkout
   mv "$replacement_checkout" "$relocated_checkout"
   rollback_output=$(upstream_shimmy catalog rollback)
   assert_contains "$rollback_output" "Rolled back default catalog generation: $initial_generation"
-  assert_not_contains "$(default_shimmy status --available --format manifest)" 'shimmy_available_tool=rollback-tool'
+  assert_not_contains "$(default_shimmy catalog list --format manifest)" 'shimmy_catalog_tool=rollback-tool'
   assert_contains "$(default_shimmy status --format manifest)" 'shimmy_catalog_health=ok'
   assert_equals "$(profile_manifest_value "$default_registry" catalog_generation_previous)" "$published_generation"
 
@@ -247,7 +326,7 @@ test_commands_catalog_rollback_recovery() {
 
   recovery_output=$(upstream_shimmy catalog rollback)
   assert_contains "$recovery_output" "Rolled back default catalog generation: $published_generation"
-  assert_contains "$(default_shimmy status --available --format manifest)" 'shimmy_available_tool=rollback-tool'
+  assert_contains "$(default_shimmy catalog list --format manifest)" 'shimmy_catalog_tool=rollback-tool'
   assert_equals "$(profile_manifest_value "$default_registry" catalog_generation_previous)" ''
   assert_dir_exists "$relocated_checkout"
   assert_contains "$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version)" 'ghcr.io/jqlang/jq@sha256:'
@@ -255,6 +334,7 @@ test_commands_catalog_rollback_recovery() {
 }
 
 test_commands_catalog_run() {
+  test_commands_catalog_list
   test_commands_catalog_dirty_initial_publication_rejection
   test_commands_catalog_registration_collision
   test_commands_catalog_registry_symlink_rejection

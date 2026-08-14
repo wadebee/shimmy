@@ -244,6 +244,14 @@ test_commands_lifecycle_catalog_independent_execution() {
   assert_contains "$default_output" 'ghcr.io/jqlang/jq@sha256:'
   assert_contains "$upstream_output" 'docker.io/vszl/ripgrep@sha256:'
   set +e
+  catalog_list_output=$(default_shimmy catalog list --format manifest 2>&1)
+  catalog_list_code=$?
+  set -e
+  [ "$catalog_list_code" -ne 0 ] || fail_test "catalog list unexpectedly accepted a missing registry"
+  assert_contains "$catalog_list_output" 'missing catalog registry entry:'
+  assert_not_contains "$catalog_list_output" 'shimmy_catalog_name='
+  assert_not_contains "$catalog_list_output" 'shimmy_catalog_tool='
+  set +e
   status_output=$(default_shimmy status --format manifest 2>&1)
   status_code=$?
   set -e

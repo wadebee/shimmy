@@ -16,10 +16,6 @@ test_commands_status_run() {
   assert_contains "$upstream_status" 'shimmy_profile_tool=rg'
   assert_contains "$upstream_status" 'shimmy_profile_tool=jq'
 
-  available_status=$(default_shimmy status --available --format manifest)
-  assert_contains "$available_status" 'shimmy_available_tool=task'
-  assert_not_contains "$available_status" 'shimmy_available_tool=rg'
-  assert_not_contains "$available_status" 'shimmy_available_kind='
   assert_contains "$(default_shimmy status)" 'ghcr.io/jqlang/jq@sha256:4f34c6d23f4b1372ac789752cc955dc67c2ae177eb1b5860b75cdc5091ce6f91'
 
   default_shimmy install --shim netcat >/dev/null

@@ -6,12 +6,13 @@ a user's Shimmy installation or shell startup files.
 
 ## Files
 
-- `catalog.sh` covers exact schema rejection, live-checkout registration and
-  explicit rebind, immediate dirty upstream visibility, clean committed
-  publication, immutable provenance, ignored-content exclusion, and retained
-  rollback generation state, atomic rollback, invalid-current recovery,
-  integrity rejection, explicit catalog-default profile update, and final
-  checkout-HEAD rechecking.
+- `catalog.sh` covers complete deterministic named-catalog listing, list input
+  validation and non-mutation, exact schema rejection, live-checkout
+  registration and explicit rebind, immediate dirty upstream visibility,
+  clean committed publication, immutable provenance, ignored-content
+  exclusion, and retained rollback generation state, atomic rollback,
+  invalid-current recovery, integrity rejection, explicit catalog-default
+  profile update, and final checkout-HEAD rechecking.
 - `images.sh` covers source and installed selection, fixture-driven OCI/Docker
   parsing, request deduplication, authentication skips/failures, drift policy,
   stable output, and command availability without target-registry access.
@@ -30,14 +31,14 @@ a user's Shimmy installation or shell startup files.
   bootstrap fixtures for initial default/upstream baselines while retaining an
   isolated rejected request and a real default refresh after additive install;
   shell-initialization PATH behavior also runs against relocated clones.
-- `status.sh` covers profile-local installed and available status output from
-  validated version-owned image configuration. It starts from pristine profile
-  clones and retains a real additive install for local-build status coverage.
+- `status.sh` covers profile-local installed status output from validated
+  version-owned image configuration. It starts from pristine profile clones
+  and retains a real additive install for local-build status coverage.
 - `management.sh` covers the installed command surface, complete second- and
   third-level help discovery, action guidance before validation, profile
   binding, skills, and netinfo behavior.
 - `profiles.sh` covers profile precedence, profile-isolated uninstalls, status
-  availability and version-owned image descriptions, and profile error
+  identity and version-owned image descriptions, and profile error
   guidance. Its identity, malformed-manifest, invalid-upstream-checkout,
   partial-profile, and independent shell-init damage cases start from pristine
   profile clones while retaining real invalid-XDG and bootstrap
