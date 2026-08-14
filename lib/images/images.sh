@@ -85,11 +85,38 @@ shimmy_images_catalog_selection_all() {
   done
 }
 
+shimmy_images_materialized_version_resolve() {
+  materialized_version_name=$1
+  SHIMMY_IMAGES_MATERIALIZED_TOOL=
+  SHIMMY_IMAGES_MATERIALIZED_LABEL=
+  SHIMMY_IMAGES_MATERIALIZED_VERSION_DIR=
+  [ -n "${SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR:-}" ] || return 1
+
+  for materialized_smoke_file in "$SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR"/*/versions/*/smoke.conf; do
+    [ -f "$materialized_smoke_file" ] && [ ! -L "$materialized_smoke_file" ] || continue
+    [ "$(sed -n 's/^shim_name=//p' "$materialized_smoke_file" | sed -n '1p')" = "$materialized_version_name" ] || continue
+    materialized_version_dir=$(dirname -- "$materialized_smoke_file")
+    materialized_tool_dir=$(dirname -- "$(dirname -- "$materialized_version_dir")")
+    SHIMMY_IMAGES_MATERIALIZED_TOOL=$(basename -- "$materialized_tool_dir")
+    SHIMMY_IMAGES_MATERIALIZED_LABEL=$(basename -- "$materialized_version_dir")
+    SHIMMY_IMAGES_MATERIALIZED_VERSION_DIR=$materialized_version_dir
+    return 0
+  done
+  return 1
+}
+
 shimmy_images_config_records_print() {
   tool_name=$1
   version_name=$2
-  version_label=$(shimmy_version_label "$version_name") || return 1
-  config_file=$(shimmy_version_image_config_file "$version_name") || return 1
+  if [ "${SHIMMY_IMAGES_USE_PROFILE_METADATA:-0}" -eq 1 ]; then
+    shimmy_images_materialized_version_resolve "$version_name" || return 1
+    [ "$SHIMMY_IMAGES_MATERIALIZED_TOOL" = "$tool_name" ] || return 1
+    version_label=$SHIMMY_IMAGES_MATERIALIZED_LABEL
+    config_file=$SHIMMY_IMAGES_MATERIALIZED_VERSION_DIR/image.conf
+  else
+    version_label=$(shimmy_version_label "$version_name") || return 1
+    config_file=$(shimmy_version_image_config_file "$version_name") || return 1
+  fi
 
   shimmy_image_config_validate "$config_file" || return 1
   image_source=$(shimmy_image_config_scalar_read "$config_file" image_source)
@@ -193,7 +220,12 @@ shimmy_images_request_selection() {
 shimmy_images_runtime_resolve() {
   runtime_tool=$1
   runtime_version=$(shimmy_tool_version_default "$runtime_tool") || return 1
-  runtime_dir=$(shimmy_version_dir "$runtime_version") || return 1
+  if [ -n "${SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR:-}" ]; then
+    runtime_label=$(shimmy_version_label "$runtime_version") || return 1
+    runtime_dir=$SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR/$runtime_tool/versions/$runtime_label
+  else
+    runtime_dir=$(shimmy_version_dir "$runtime_version") || return 1
+  fi
   runtime_file=$runtime_dir/run.sh
   [ -x "$runtime_file" ] || return 1
   printf '%s\n' "$runtime_file"

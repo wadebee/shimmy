@@ -1,6 +1,12 @@
 #!/bin/sh
 # Metadata and source-dispatch behavior tests.
 
+test_lib_catalog_activate() {
+  # shellcheck source=lib/catalog/catalog.sh
+  . "$ROOT_DIR/lib/catalog/catalog.sh"
+  shimmy_catalog_checkout_resolve "$ROOT_DIR" upstream || fail_test "$SHIMMY_CATALOG_ERROR"
+}
+
 test_lib_catalog_context_tree() {
   "$ROOT_DIR/tests/context-tree.sh"
   pass "retained CONTEXT tree"
@@ -22,9 +28,61 @@ test_lib_catalog_context_tree_rejects_prohibited_file() {
   pass "prohibited tool and plugin context files are rejected"
 }
 
+test_lib_catalog_contract_fixture_create() {
+  catalog_fixture_root=$1
+  mkdir -p "$catalog_fixture_root/tools"
+  cp "$ROOT_DIR/catalog.conf" "$catalog_fixture_root/catalog.conf"
+  cp -R "$ROOT_DIR/plugins" "$catalog_fixture_root/plugins"
+  cp -R "$ROOT_DIR/tools/jq" "$catalog_fixture_root/tools/jq"
+}
+
+test_lib_catalog_contract_rejection() {
+  for catalog_mutation in missing-format duplicate-schema unknown-key unsupported-schema missing-skill unsafe-link orphan-tool duplicate-version; do
+    setup_scenario
+    catalog_fixture_root=$SCENARIO_DIR/catalog
+    test_lib_catalog_contract_fixture_create "$catalog_fixture_root"
+    case "$catalog_mutation" in
+      missing-format)
+        sed '/^catalog_format=/d' "$catalog_fixture_root/catalog.conf" > "$catalog_fixture_root/catalog.conf.tmp"
+        mv "$catalog_fixture_root/catalog.conf.tmp" "$catalog_fixture_root/catalog.conf"
+        ;;
+      duplicate-schema)
+        printf 'catalog_schema=1\n' >> "$catalog_fixture_root/catalog.conf"
+        ;;
+      unknown-key)
+        printf 'catalog_mode=legacy\n' >> "$catalog_fixture_root/catalog.conf"
+        ;;
+      unsupported-schema)
+        printf '%s\n' 'catalog_format=shimmy-catalog' 'catalog_schema=2' > "$catalog_fixture_root/catalog.conf"
+        ;;
+      missing-skill)
+        rm -rf "$catalog_fixture_root/plugins/shimmy/skills/shimmy-init"
+        ;;
+      unsafe-link)
+        ln -s "$SCENARIO_DIR" "$catalog_fixture_root/tools/jq/escape"
+        ;;
+      orphan-tool)
+        cp -R "$catalog_fixture_root/tools/jq" "$catalog_fixture_root/tools/orphan"
+        rm "$catalog_fixture_root/tools/orphan/tool.conf"
+        ;;
+      duplicate-version)
+        cp -R "$catalog_fixture_root/tools/jq" "$catalog_fixture_root/tools/other"
+        sed 's/^shim_name=jq$/shim_name=other/' "$catalog_fixture_root/tools/other/tool.conf" > "$catalog_fixture_root/tools/other/tool.conf.tmp"
+        mv "$catalog_fixture_root/tools/other/tool.conf.tmp" "$catalog_fixture_root/tools/other/tool.conf"
+        ;;
+    esac
+
+    if shimmy_catalog_checkout_resolve "$catalog_fixture_root" upstream >/dev/null 2>&1; then
+      fail_test "invalid schema-1 catalog unexpectedly passed: $catalog_mutation"
+    fi
+    assert_not_empty "$SHIMMY_CATALOG_ERROR"
+  done
+  test_lib_catalog_activate
+  pass "catalog schema rejects missing, duplicate, unknown, unsafe, incompatible, and duplicate logical data"
+}
+
 test_lib_catalog_discovery() {
-  # shellcheck source=lib/catalog/catalog.sh
-  . "$ROOT_DIR/lib/catalog/catalog.sh"
+  test_lib_catalog_activate
 
   tools=$(shimmy_tool_list)
   assert_contains "$tools" jq
@@ -220,8 +278,7 @@ test_lib_catalog_preview_dispatch() {
 }
 
 test_lib_catalog_all_previews() {
-  # shellcheck source=lib/catalog/catalog.sh
-  . "$ROOT_DIR/lib/catalog/catalog.sh"
+  test_lib_catalog_activate
 
   for tool_name in $(shimmy_tool_list); do
     case "$tool_name" in
@@ -238,8 +295,7 @@ test_lib_catalog_all_previews() {
 }
 
 test_lib_catalog_concrete_version_previews() {
-  # shellcheck source=lib/catalog/catalog.sh
-  . "$ROOT_DIR/lib/catalog/catalog.sh"
+  test_lib_catalog_activate
 
   for tool_name in $(shimmy_tool_list); do
     default_label=$(sed -n 's/^tool_default_version=//p' "$ROOT_DIR/tools/$tool_name/tool.conf" | sed -n '1p')
@@ -327,6 +383,7 @@ linux/arm64'
 test_lib_catalog_run() {
   test_lib_catalog_context_tree
   test_lib_catalog_context_tree_rejects_prohibited_file
+  test_lib_catalog_contract_rejection
   test_lib_catalog_discovery
   test_lib_catalog_image_config_validation
   test_lib_catalog_local_image_identity

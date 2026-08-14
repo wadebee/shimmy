@@ -28,10 +28,10 @@ shim_source_config_path_resolve() {
   shim_name=$1
   tool_name=$(shim_name_tool_resolve "$shim_name") || return 1
   if shimmy_tool_exists "$shim_name"; then
-    printf '%s/tools/%s/tool.conf\n' "$ROOT_DIR" "$tool_name"
+    printf '%s/%s/tool.conf\n' "$SHIMMY_CATALOG_TOOLS_DIR" "$tool_name"
   else
     version_label=$(shim_name_version_label_resolve "$shim_name") || return 1
-    printf '%s/tools/%s/versions/%s/smoke.conf\n' "$ROOT_DIR" "$tool_name" "$version_label"
+    printf '%s/%s/versions/%s/smoke.conf\n' "$SHIMMY_CATALOG_TOOLS_DIR" "$tool_name" "$version_label"
   fi
 }
 
@@ -84,9 +84,11 @@ profile_shim_assets_stage() {
 
 profile_control_assets_stage() {
   mkdir -p "$SHIMMY_STAGE_ROOT"
-  for asset_name in commands lib tools tests plugins; do
+  for asset_name in commands lib tests; do
     profile_asset_directory_stage "$ROOT_DIR/$asset_name" "$SHIMMY_STAGE_ROOT/$asset_name"
   done
+  profile_asset_directory_stage "$SHIMMY_CATALOG_AUTHORITY_ROOT/tools" "$SHIMMY_STAGE_ROOT/tools"
+  profile_asset_directory_stage "$SHIMMY_CATALOG_AUTHORITY_ROOT/plugins" "$SHIMMY_STAGE_ROOT/plugins"
   mkdir -p "$SHIMMY_STAGE_ROOT/config/shims" "$SHIMMY_STAGE_ROOT/implementations" "$SHIMMY_STAGE_ROOT/bin"
 
   [ -f "$ROOT_DIR/lib/install/launcher-template.sh" ] || fail "missing launcher template"

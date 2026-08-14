@@ -19,7 +19,7 @@ image_registry_access=$registry_access
 image_platform=linux/amd64
 image_platform=linux/arm64
 EOF
-  printf 'shim_name=%s\n' "$version_name" > "$version_dir/smoke.conf"
+  printf 'shim_config_version=1\nshim_name=%s\nsmoke_arg=--version\n' "$version_name" > "$version_dir/smoke.conf"
   printf '%s\n' '#!/bin/sh' 'exit 0' > "$version_dir/run.sh"
   printf '%s\n' '#!/bin/sh' 'exit 0' > "$version_dir/refresh.sh"
   chmod 755 "$version_dir/run.sh" "$version_dir/refresh.sh"
@@ -95,10 +95,13 @@ images_fixture_source_setup() {
   IMAGES_FIXTURE_CALL_LOG=$SCENARIO_DIR/image-calls
   IMAGES_FIXTURE_RESPONSES=$SCENARIO_DIR/image-responses
   mkdir -p "$IMAGES_FIXTURE_ROOT" "$IMAGES_FIXTURE_ROOT/tools"
+  cp "$ROOT_DIR/catalog.conf" "$IMAGES_FIXTURE_ROOT/catalog.conf"
   cp -R "$ROOT_DIR/commands" "$ROOT_DIR/lib" "$IMAGES_FIXTURE_ROOT/"
+  cp -R "$ROOT_DIR/plugins" "$IMAGES_FIXTURE_ROOT/plugins"
   cp -R "$ROOT_DIR/tools/jq" "$ROOT_DIR/tools/skopeo" "$IMAGES_FIXTURE_ROOT/tools/"
   mkdir -p "$IMAGES_FIXTURE_ROOT/tools/alpha"
-  printf 'tool_default_version=1.0\n' > "$IMAGES_FIXTURE_ROOT/tools/alpha/tool.conf"
+  printf '%s\n' 'shim_config_version=1' 'shim_name=alpha' 'tool_default_version=1.0' 'tool_selector_env=' 'smoke_arg=--version' > "$IMAGES_FIXTURE_ROOT/tools/alpha/tool.conf"
+  printf '%s\n' '---' 'name: shimmy-tool-alpha' '---' > "$IMAGES_FIXTURE_ROOT/tools/alpha/SKILL.md"
   images_fixture_alpha_config_write "$IMAGES_FIXTURE_ROOT" 1.0 public \
     registry.example/alpha:current \
     registry.example/alpha@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

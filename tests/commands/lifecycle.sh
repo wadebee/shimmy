@@ -167,7 +167,7 @@ test_commands_lifecycle_empty_container_cleanup() {
   default_shimmy uninstall >/dev/null
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
-  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy"
+  assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf"
 
   setup_scenario_with_profiles default upstream
   default_shimmy uninstall >/dev/null
@@ -175,8 +175,9 @@ test_commands_lifecycle_empty_container_cleanup() {
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
   assert_dir_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
   upstream_shimmy uninstall >/dev/null
-  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy"
-  pass "profile removal preserves siblings and removes only empty merge-owned containers"
+  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
+  assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf"
+  pass "profile removal preserves sibling profiles and independently owned shared catalogs"
 }
 
 test_commands_lifecycle_complete() {

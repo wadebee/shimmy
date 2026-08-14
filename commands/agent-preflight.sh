@@ -8,11 +8,13 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
+SHIMMY_CONTROL_ROOT=$ROOT_DIR
+COMMON_HELPER_FILE=$ROOT_DIR/lib/common/common.sh
 SHIMMY_PODMAN_HELPER_FILE=$ROOT_DIR/lib/runtime/podman.sh
 SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 SHIMMY_IMAGE_HELPER_FILE=$SHIMMY_RUNTIME_DIR/image.sh
-SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
 CATALOG_HELPER_FILE=$ROOT_DIR/lib/catalog/catalog.sh
+PROFILE_HELPER_FILE=$ROOT_DIR/lib/profile/profile.sh
 RUN_SMOKE=no
 PREFLIGHT_STATUS=0
 ACTIVE_SHIM_SEEN=
@@ -60,7 +62,7 @@ if [ ! -f "$SHIMMY_IMAGE_HELPER_FILE" ]; then
   exit 1
 fi
 
-if [ ! -f "$CATALOG_HELPER_FILE" ]; then
+if [ ! -f "$COMMON_HELPER_FILE" ] || [ ! -f "$CATALOG_HELPER_FILE" ] || [ ! -f "$PROFILE_HELPER_FILE" ]; then
   printf 'ERROR: missing catalog helper: %s\n' "$CATALOG_HELPER_FILE" >&2
   exit 1
 fi
@@ -69,8 +71,12 @@ fi
 . "$SHIMMY_PODMAN_HELPER_FILE"
 # shellcheck source=lib/runtime/image.sh
 . "$SHIMMY_IMAGE_HELPER_FILE"
+# shellcheck source=lib/common/common.sh
+. "$COMMON_HELPER_FILE"
 # shellcheck source=lib/catalog/catalog.sh
 . "$CATALOG_HELPER_FILE"
+# shellcheck source=lib/profile/profile.sh
+. "$PROFILE_HELPER_FILE"
 
 shimmy_agent_json_string_print() {
   json_value=$1
@@ -137,7 +143,7 @@ shimmy_agent_smoke_args_render() {
     printf '%s\n' '--version'
     return 0
   }
-  version_dir=$ROOT_DIR/tools/$tool_name/versions/$version_label
+  version_dir=$SHIMMY_CATALOG_TOOLS_DIR/$tool_name/versions/$version_label
   smoke_file=$version_dir/smoke.conf
   image_config_file=$version_dir/image.conf
 
@@ -291,7 +297,7 @@ shimmy_agent_path_shims_discover() {
 }
 
 shimmy_agent_repo_shims_discover() {
-  tools_dir=$ROOT_DIR/tools
+  tools_dir=$SHIMMY_CATALOG_TOOLS_DIR
 
   [ -d "$tools_dir" ] || return 0
 
@@ -332,6 +338,17 @@ $shim_name
     fi
   done
 }
+
+if shimmy_profile_context_resolve "$ROOT_DIR" 2>/dev/null; then
+  shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_PROFILE_NAME" || exit 1
+  shimmy_catalog_profile_resolve "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_CONFIG_ROOT" || {
+    printf 'ERROR: %s\n' "$SHIMMY_CATALOG_ERROR" >&2
+    exit 1
+  }
+elif ! shimmy_catalog_checkout_resolve "$ROOT_DIR" upstream; then
+  printf 'ERROR: %s\n' "$SHIMMY_CATALOG_ERROR" >&2
+  exit 1
+fi
 
 printf 'Shimmy AI Agent preflight\n'
 printf 'run_smoke=%s\n' "$RUN_SMOKE"

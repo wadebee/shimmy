@@ -442,6 +442,9 @@ explicit authorization.
 
 ## Chunk 1 — Shared catalog contract and consumers
 
+Status: implemented and verified on 2026-08-14; awaiting human review at the
+Chunk 1 gate. Chunk 2 has not started.
+
 ### Goal
 
 Introduce named catalog registry entries, the schema-1 payload validator, and
@@ -482,32 +485,57 @@ and their tests and contexts.
 
 ### Verification checklist
 
-- [ ] A valid `upstream` catalog is discovered by the upstream profile without
-  shell reinitialization or profile refresh.
-- [ ] Completing a valid new upstream tool entry, including a valid dirty edit,
+- [x] A valid `upstream` catalog is discovered by the upstream profile without
+  shell reinitialization or profile refresh. Installed upstream status resolves
+  the registered checkout on every invocation.
+- [x] Completing a valid new upstream tool entry, including a valid dirty edit,
   makes it available to the upstream profile on the next command with no
-  separate synchronization step.
-- [ ] The default profile does not see a new upstream entry until its changes
+  separate synchronization step. The `instant` fixture proves next-command
+  visibility.
+- [x] The default profile does not see a new upstream entry until its changes
   are committed and successful publication atomically advances the immutable
-  default generation.
-- [ ] Publication from a dirty checkout is rejected without an override and
+  default generation. The same fixture proves isolation before publication and
+  visibility after it.
+- [x] Publication from a dirty checkout is rejected without an override and
   without staging, generation, current-reference, profile, or export mutation;
-  the diagnostic requires the maintainer to commit the changes.
-- [ ] Publication records the source commit and content fingerprint,
+  the diagnostic requires the maintainer to commit the changes. Initial and
+  later publication rejection are both covered.
+- [x] Publication records the source commit and content fingerprint,
   materializes and validates one staged copy from the recorded commit, excludes
   working-tree-only and ignored content, rejects a concurrent checkout or
   `HEAD` change, and retains the immediately prior generation for rollback.
-- [ ] Missing, duplicate, unknown, malformed, unsafe, or schema-incompatible
-  catalog data fails before mutation with precise diagnostics.
-- [ ] A second checkout cannot silently replace the registered `upstream`
-  source.
-- [ ] An explicit upstream rebind validates before mutation, atomically updates
+  Tests verify provenance, ignored-file exclusion, final `HEAD` rejection, and
+  retained-generation integrity; the transaction uses one `git archive` staged
+  on the registry filesystem.
+- [x] Missing, duplicate, unknown, malformed, unsafe, or schema-incompatible
+  catalog data fails before mutation with precise diagnostics. Schema fixtures
+  cover identity keys, unsupported schema, required skills, unsafe links, and
+  duplicate logical versions; existing image-schema fixtures cover malformed
+  version metadata.
+- [x] A second checkout cannot silently replace the registered `upstream`
+  source. The registration collision test verifies the registry and profile
+  remain unchanged.
+- [x] An explicit upstream rebind validates before mutation, atomically updates
   only the registry entry, reports both absolute paths, and leaves both
-  checkouts untouched; a failed rebind preserves the prior binding.
-- [ ] Every former direct catalog-root consumer is proven to use the shared
-  resolver; an obsolete-path search is classified and clean.
-- [ ] Failed catalog registration, rebind, or publication preserves the prior
-  valid authority.
+  checkouts untouched; a failed rebind preserves the prior binding. Both the
+  failed and successful paths are covered.
+- [x] Every former direct catalog-root consumer is proven to use the shared
+  resolver; an obsolete-path search is classified and clean. No
+  `SHIMMY_TOOLS_DIR` compatibility surface remains. Residual direct `tools/`
+  references are profile execution materialization, source runtime/test
+  discovery, checkout validation, or fixtures—not availability resolution.
+- [x] Failed catalog registration, rebind, or publication preserves the prior
+  valid authority. Collision, invalid-rebind, dirty-initialization, and
+  dirty-publish tests verify the relevant registry and profile checksums.
+
+Verification evidence:
+
+- `git diff --check` and POSIX `sh -n` over command, library, and test shell
+  files passed.
+- `./tests/context-tree.sh` passed.
+- The obsolete-path audit used the installed Shimmy `rg` wrapper and found no
+  legacy `SHIMMY_TOOLS_DIR` reference.
+- `./tests/test.sh` passed all 113 tests with live non-mutating Podman access.
 
 ### Human review gate
 
@@ -716,6 +744,24 @@ message.
 - A single staged copy materialized from the recorded commit plus a final
   `HEAD` and cleanliness check prevents the published generation from drifting
   away from its provenance or including ignored working-tree content.
+
+### Chunk 1
+
+- POSIX shell helpers share variable scope. Validating the retained rollback
+  generation initially overwrote the current generation path; keeping current
+  and previous identity variables distinct and testing both payloads prevents
+  mixed metadata/payload resolution.
+- Publication tests cannot bootstrap immutable default state from a dirty
+  developer checkout. A disposable clean committed source fixture makes the
+  clean-HEAD boundary deterministic while isolated copies exercise dirty and
+  committed transitions.
+- Catalog availability and installed execution need visibly different path
+  variables during the staged refactor. `SHIMMY_CATALOG_TOOLS_DIR` is authority;
+  `SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR` and source `ROOT_DIR/tools` are
+  execution or test roots pending Chunk 2 materialization changes.
+- Retaining a rollback directory is insufficient; resolution must validate its
+  schema, generation metadata, name/fingerprint identity, and content hash so
+  the recorded rollback target is demonstrably valid.
 
 ## Session bootstrap
 

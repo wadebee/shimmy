@@ -8,9 +8,10 @@ SCRIPT_DIR=$(
 ROOT_DIR=$(
   cd -- "$SCRIPT_DIR/.." && pwd
 )
-SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
+SHIMMY_CONTROL_ROOT=$ROOT_DIR
 COMMON_HELPER_FILE=$ROOT_DIR/lib/common/common.sh
 CATALOG_HELPER_FILE=$ROOT_DIR/lib/catalog/catalog.sh
+PROFILE_HELPER_FILE=$ROOT_DIR/lib/profile/profile.sh
 
 REQUESTED_MANIFEST_FILE=
 REQUESTED_SKILLS=
@@ -33,7 +34,7 @@ fail() {
   exit 1
 }
 
-for helper_file in "$COMMON_HELPER_FILE" "$CATALOG_HELPER_FILE"; do
+for helper_file in "$COMMON_HELPER_FILE" "$CATALOG_HELPER_FILE" "$PROFILE_HELPER_FILE"; do
   [ -f "$helper_file" ] || fail "missing shared helper: $helper_file"
 done
 
@@ -41,6 +42,17 @@ done
 . "$COMMON_HELPER_FILE"
 # shellcheck source=lib/catalog/catalog.sh
 . "$CATALOG_HELPER_FILE"
+# shellcheck source=lib/profile/profile.sh
+. "$PROFILE_HELPER_FILE"
+
+catalog_context_resolve() {
+  if shimmy_profile_context_resolve "$ROOT_DIR" 2>/dev/null; then
+    shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_PROFILE_NAME" || exit 1
+    shimmy_catalog_profile_resolve "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_CONFIG_ROOT" || fail "$SHIMMY_CATALOG_ERROR"
+  else
+    shimmy_catalog_checkout_resolve "$ROOT_DIR" upstream || fail "$SHIMMY_CATALOG_ERROR"
+  fi
+}
 
 ensure_safe_root() {
   root_path=$1
@@ -130,7 +142,7 @@ skill_source_file_resolve() {
   skill_name=$1
 
   if shimmy_contains_line_list "$CONTROL_PLANE_SKILLS" "$skill_name"; then
-    source_file=$ROOT_DIR/plugins/shimmy/skills/$skill_name/SKILL.md
+    source_file=$SHIMMY_CATALOG_AUTHORITY_ROOT/plugins/shimmy/skills/$skill_name/SKILL.md
     [ -f "$source_file" ] || fail "missing canonical source skill: $skill_name"
     printf '%s\n' "$source_file"
     return 0
@@ -139,8 +151,8 @@ skill_source_file_resolve() {
   case "$skill_name" in
     shimmy-tool-*)
       tool_name=${skill_name#shimmy-tool-}
-      if shimmy_tool_exists "$tool_name" && [ -f "$ROOT_DIR/tools/$tool_name/SKILL.md" ]; then
-        printf '%s/tools/%s/SKILL.md\n' "$ROOT_DIR" "$tool_name"
+      if shimmy_tool_exists "$tool_name" && [ -f "$SHIMMY_CATALOG_TOOLS_DIR/$tool_name/SKILL.md" ]; then
+        printf '%s/%s/SKILL.md\n' "$SHIMMY_CATALOG_TOOLS_DIR" "$tool_name"
         return 0
       fi
       ;;
@@ -606,6 +618,10 @@ main() {
         ;;
     esac
   done
+
+  if [ "$ACTION" != uninstall ]; then
+    catalog_context_resolve
+  fi
 
   if [ -n "$EXPORT_PATH" ]; then
     [ "$ACTION" != uninstall ] || fail "--export is not supported with skills uninstall"

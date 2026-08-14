@@ -23,6 +23,7 @@ profile_manifest_render() {
   printf 'shimmy_install_layout=profile-flat-root\n'
   printf 'shimmy_profile_manifest_version=1\n'
   printf 'shimmy_profile_name=%s\n' "$SHIMMY_PROFILE_RESOLVED"
+  printf 'catalog=%s\n' "$SHIMMY_PROFILE_CATALOG_NAME"
   if [ "$SHIMMY_PROFILE_RESOLVED" = upstream ]; then
     printf 'source_checkout=%s\n' "$SHIMMY_PROFILE_SOURCE_CHECKOUT"
   fi

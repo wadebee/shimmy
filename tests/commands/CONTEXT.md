@@ -6,6 +6,10 @@ a user's Shimmy installation or shell startup files.
 
 ## Files
 
+- `catalog.sh` covers exact schema rejection, live-checkout registration and
+  explicit rebind, immediate dirty upstream visibility, clean committed
+  publication, immutable provenance, ignored-content exclusion, and retained
+  rollback generation state and integrity plus final checkout-HEAD rechecking.
 - `images.sh` covers source and installed selection, fixture-driven OCI/Docker
   parsing, request deduplication, authentication skips/failures, drift policy,
   stable output, and command availability without target-registry access.

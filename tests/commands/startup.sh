@@ -2,7 +2,7 @@
 
 test_commands_startup_default_bootstrap_shells() {
   setup_scenario
-  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHELL=/bin/sh ./install.sh --profile default >/dev/null
+  run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHELL=/bin/sh ./install.sh --profile default >/dev/null
 
   for startup_file in "$HOME_DIR/.zshrc" "$HOME_DIR/.bashrc" "$HOME_DIR/.bash_profile"; do
     assert_file_contains "$startup_file" '# >>> shimmy default profile >>>'
@@ -15,11 +15,11 @@ test_commands_startup_default_bootstrap_shells() {
 
 test_commands_startup_default_bootstrap_repairs_existing_profile() {
   setup_scenario
-  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --shell zsh >/dev/null
+  run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --shell zsh >/dev/null
   assert_path_not_exists "$HOME_DIR/.bashrc"
   assert_path_not_exists "$HOME_DIR/.bash_profile"
 
-  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default >/dev/null
+  run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default >/dev/null
   assert_file_contains "$HOME_DIR/.zshrc" "$DEFAULT_PROFILE_ROOT/shell-init.sh"
   assert_file_contains "$HOME_DIR/.bashrc" "$DEFAULT_PROFILE_ROOT/shell-init.sh"
   assert_file_contains "$HOME_DIR/.bash_profile" "$DEFAULT_PROFILE_ROOT/shell-init.sh"
@@ -29,7 +29,7 @@ test_commands_startup_default_bootstrap_repairs_existing_profile() {
 test_commands_startup_default_ownership() {
   setup_scenario
   startup_file=$SCENARIO_DIR/zshrc
-  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --shell zsh --startup-file "$startup_file" >/dev/null
+  run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --shell zsh --startup-file "$startup_file" >/dev/null
   assert_file_contains "$startup_file" '# >>> shimmy default profile >>>'
   assert_file_contains "$startup_file" "$DEFAULT_PROFILE_ROOT/shell-init.sh"
 
@@ -44,7 +44,7 @@ test_commands_startup_upstream_isolation() {
   setup_scenario_with_profiles upstream
   default_startup_file=$SCENARIO_DIR/default-zshrc
   upstream_startup_file=$SCENARIO_DIR/upstream-zshrc
-  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --shell zsh --startup-file "$default_startup_file" >/dev/null
+  run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --shell zsh --startup-file "$default_startup_file" >/dev/null
   default_manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
   startup_checksum=$(cksum < "$default_startup_file")
@@ -73,7 +73,7 @@ test_commands_startup_external_failure_retry() {
   invalid_startup_file=$SCENARIO_DIR/startup-as-directory
   mkdir -p "$invalid_startup_file"
   set +e
-  failure_output=$(run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --shell zsh --startup-file "$invalid_startup_file" 2>&1)
+  failure_output=$(run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --shell zsh --startup-file "$invalid_startup_file" 2>&1)
   failure_status=$?
   set -e
   [ "$failure_status" -ne 0 ] || fail_test "invalid startup target unexpectedly succeeded"

@@ -142,8 +142,18 @@ run_in_repo() {
   )
 }
 
+run_in_clean_source() {
+  (
+    cd "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
+    "$@"
+  )
+}
+
 bootstrap_default() {
-  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --no-startup "$@"
+  (
+    cd "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --no-startup "$@"
+  )
 }
 
 bootstrap_upstream() {
@@ -177,6 +187,7 @@ setup_scenario() {
 setup_scenario_with_profiles() {
   setup_scenario
   mkdir -p "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
+  cp -R "$SHIMMY_TEST_CATALOG_FIXTURES_ROOT" "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
 
   for profile_name in "$@"; do
     case "$profile_name" in
@@ -229,8 +240,24 @@ setup_scenario_with_profiles() {
   done
 }
 
+setup_clean_source_fixture() {
+  clean_source_target=$1
+  case "$clean_source_target" in "$TMP_ROOT"/*) ;; *) fail_test "unsafe clean source fixture target: $clean_source_target" ;; esac
+  [ ! -e "$clean_source_target" ] || fail_test "clean source fixture target already exists: $clean_source_target"
+  cp -R "$ROOT_DIR" "$clean_source_target"
+  [ -d "$clean_source_target/.git" ] || fail_test "copied source fixture is missing Git metadata"
+  rm -rf "$clean_source_target/.git"
+  git -C "$clean_source_target" init -q
+  git -C "$clean_source_target" config user.email shimmy-tests@example.invalid
+  git -C "$clean_source_target" config user.name 'Shimmy Tests'
+  git -C "$clean_source_target" add -A
+  git -C "$clean_source_target" commit -qm fixture
+}
+
 setup_session_profile_fixtures() {
   SHIMMY_TEST_PROFILE_FIXTURES_ROOT=$TMP_ROOT/profile-fixtures
+  SHIMMY_TEST_CATALOG_FIXTURES_ROOT=$TMP_ROOT/catalog-fixtures
+  SHIMMY_TEST_CLEAN_SOURCE_ROOT=$TMP_ROOT/clean-source
   fixture_home=$TMP_ROOT/profile-fixture-home
   fixture_config=$TMP_ROOT/profile-fixture-config
   copy_probe_source=$TMP_ROOT/copy-on-write-source
@@ -242,15 +269,20 @@ setup_session_profile_fixtures() {
   SHIMMY_TEST_COPY_ON_WRITE=0
 
   mkdir -p "$fixture_home" "$fixture_config" "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT"
+  setup_clean_source_fixture "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
   printf '%s\n' probe > "$copy_probe_source"
   if cp -c "$copy_probe_source" "$copy_probe_target" 2>/dev/null; then
     SHIMMY_TEST_COPY_ON_WRITE=1
   fi
 
-  bootstrap_default >/dev/null 2>&1
+  (
+    cd "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --no-startup
+  ) >/dev/null 2>&1
   bootstrap_upstream >/dev/null 2>&1
   mv "$DEFAULT_PROFILE_ROOT" "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/default"
   mv "$UPSTREAM_PROFILE_ROOT" "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/upstream"
+  mv "$fixture_config/shimmy/catalogs" "$SHIMMY_TEST_CATALOG_FIXTURES_ROOT"
 }
 
 shimmy_test_cleanup() {

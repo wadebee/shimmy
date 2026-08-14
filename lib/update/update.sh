@@ -4,7 +4,7 @@ set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
+SHIMMY_CONTROL_ROOT=$ROOT_DIR
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2

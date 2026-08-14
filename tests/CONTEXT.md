@@ -12,13 +12,16 @@ Linux/Darwin and amd64/arm64 host matrix.
 
 Installation scenarios isolate state with absolute disposable `HOME` and
 `XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or
-installed profile-selection override. The runner creates pristine default and
-upstream profiles once per session; scenarios that do not need to exercise the
-bootstrap itself clone those fixtures using APFS copy-on-write when available
-and a recursive copy fallback elsewhere. Clones relocate the generated
-`shell-init.sh` path and default implementation runtime roots before use. The
-immutable committed source repository used by self-update scenarios is also
-created once per session. Onboarding coverage sources the root
+installed profile-selection override. The runner first creates one disposable
+clean committed source checkout, then creates pristine shared catalogs plus
+default and upstream profiles once per session. Scenarios that do not need to
+exercise bootstrap or registration clone those catalog and profile fixtures
+using APFS copy-on-write when available and a recursive copy fallback
+elsewhere. Clones relocate the generated `shell-init.sh` path and default
+implementation runtime roots before use. Dirty-publication and live-upstream
+tests use isolated Git checkout copies. The immutable committed source
+repository used by self-update scenarios is also created once per session.
+Onboarding coverage sources the root
 bootstrap to initialize PATH and executes it separately to verify automation
 semantics.
 

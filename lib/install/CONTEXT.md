@@ -5,7 +5,8 @@
 bootstrap one canonical profile with internally supplied jq/rg requests; an
 installed profile-local launcher invokes it only for its enclosing profile and
 requires one or more explicit `--shim` requests. It selects fresh, additive,
-refresh, or uninstall lifecycle flows without a shared installed control root.
+refresh, or uninstall lifecycle flows while resolving availability from the
+profile's shared named catalog.
 The root entrypoint sources the installed `shell-init.sh` into its caller when
 it is sourced; execution retains initialization only inside the bootstrap
 process.
@@ -14,7 +15,13 @@ process.
 
 - `request.sh` parses install inputs, resolves the canonical XDG profile path,
   and validates requested tools and versions.
-- `manifest.sh` preserves and renders the profile-local version-1 manifest.
+- `catalog-lifecycle.sh` owns serialized `upstream` registration and explicit
+  rebind plus clean-HEAD, same-filesystem staged publication of immutable
+  `default` generations. It validates and fingerprints the one archived
+  payload copy, rechecks checkout state, atomically advances the registry, and
+  retains the prior valid generation.
+- `manifest.sh` preserves and renders the profile-local version-1 manifest,
+  including its fixed `catalog=default` or `catalog=upstream` binding.
 - `profile-assets.sh` stages the flat control/runtime payload, profile-local
   launcher, implementations, metadata, and dispatchers.
 - `launcher-template.sh` becomes the installed profile's self-contained
@@ -33,3 +40,8 @@ it with the other owned directories if the commit fails. Profile install and
 uninstall do not write or remove repository or home shared-skill targets;
 those targets are managed only through explicit standalone `shimmy skills`
 commands. Uninstall still removes a legacy `agent/` when present.
+
+Profile uninstall never removes shared catalog registry state. Initial
+default bootstrap publishes from a clean committed checkout through the same
+generation transaction used later; initial upstream bootstrap registers its
+live checkout without replacing an existing different binding.

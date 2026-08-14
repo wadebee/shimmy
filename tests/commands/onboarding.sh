@@ -178,7 +178,7 @@ test_commands_onboarding_shell_sources() {
     [ -x "$source_shell" ] || continue
     setup_scenario
     source_output=$(
-      env TEST_ROOT_DIR="$ROOT_DIR" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+      env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
         PATH=/usr/bin:/bin "$source_shell" -c '
           cd "$TEST_ROOT_DIR"
           source ./install.sh --profile default --no-startup >/dev/null
@@ -240,7 +240,7 @@ test_commands_onboarding_shell_init_rejection() {
 test_commands_onboarding_sourced_state() {
   setup_scenario
   sourced_output=$(
-    env TEST_ROOT_DIR="$ROOT_DIR" TEST_DEFAULT_PROFILE_ROOT="$DEFAULT_PROFILE_ROOT" \
+    env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" TEST_DEFAULT_PROFILE_ROOT="$DEFAULT_PROFILE_ROOT" \
       XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
         cd "$TEST_ROOT_DIR"
         set -- first "second value"
@@ -293,7 +293,7 @@ test_commands_onboarding_startup_failure() {
   invalid_startup_file=$SCENARIO_DIR/startup-directory
   mkdir "$invalid_startup_file"
   failure_output=$(
-    env TEST_ROOT_DIR="$ROOT_DIR" TEST_INVALID_STARTUP_FILE="$invalid_startup_file" \
+    env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" TEST_INVALID_STARTUP_FILE="$invalid_startup_file" \
       XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
         cd "$TEST_ROOT_DIR"
         path_before=$PATH
@@ -315,7 +315,7 @@ test_commands_onboarding_startup_failure() {
 test_commands_onboarding_switch_profiles() {
   setup_scenario
   switch_output=$(
-    env TEST_ROOT_DIR="$ROOT_DIR" TEST_DEFAULT_PROFILE_ROOT="$DEFAULT_PROFILE_ROOT" \
+    env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" TEST_DEFAULT_PROFILE_ROOT="$DEFAULT_PROFILE_ROOT" \
       TEST_UPSTREAM_PROFILE_ROOT="$UPSTREAM_PROFILE_ROOT" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" \
       HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
         cd "$TEST_ROOT_DIR"

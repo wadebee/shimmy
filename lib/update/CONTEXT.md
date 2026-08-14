@@ -3,6 +3,9 @@
 `update.sh` is the sourceable implementation for the public
 `commands/update.sh` entrypoint. It refreshes management assets, remote images,
 local images, and stale local-image state for the invoking profile only.
+Catalog availability is resolved from the profile's fixed shared registry
+binding before any update mutation; refresh hooks continue to execute from
+the profile-owned materialization root.
 
 An update preserves the profile's canonical root and, for `upstream`, its
 recorded source checkout. It never selects or mutates a sibling profile,

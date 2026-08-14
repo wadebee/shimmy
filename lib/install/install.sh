@@ -4,7 +4,7 @@ set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
+SHIMMY_CONTROL_ROOT=$ROOT_DIR
 INSTALL_MODULE_DIR=$ROOT_DIR/lib/install
 
 REQUESTED_SHIMS=
@@ -25,6 +25,7 @@ SHIMMY_PROFILE_DIRECTORIES_REPLACED=
 SHIMMY_PROFILE_FILES_REPLACED=
 SHIMMY_MANIFEST_COMMIT_TMP=
 SHIMMY_SHELL_INIT_COMMIT_TMP=
+SHIMMY_PROFILE_CATALOG_NAME=
 LOG_LEVEL=${LOG_LEVEL:-info}
 
 log_level_value() {
@@ -68,6 +69,8 @@ done
 . "$ROOT_DIR/lib/profile/profile.sh"
 # shellcheck source=lib/startup/startup.sh
 . "$ROOT_DIR/lib/startup/startup.sh"
+# shellcheck source=lib/install/catalog-lifecycle.sh
+. "$INSTALL_MODULE_DIR/catalog-lifecycle.sh"
 # shellcheck source=lib/install/request.sh
 . "$INSTALL_MODULE_DIR/request.sh"
 # shellcheck source=lib/install/manifest.sh
@@ -87,6 +90,44 @@ profile_root_is_empty() {
     return 1
   done
   return 0
+}
+
+profile_catalog_prepare() {
+  if [ "$PROFILE_EXISTS" -eq 1 ]; then
+    SHIMMY_PROFILE_CATALOG_NAME=$(shimmy_read_manifest_value "$INSTALL_MANIFEST_FILE" catalog || true)
+    shimmy_catalog_profile_resolve "$INSTALL_MANIFEST_FILE" "$SHIMMY_CONFIG_ROOT" || fail "$SHIMMY_CATALOG_ERROR"
+    return 0
+  fi
+
+  SHIMMY_PROFILE_CATALOG_NAME=$SHIMMY_PROFILE_RESOLVED
+  if [ "$SHIMMY_PROFILE_RESOLVED" = default ] && [ -f "$SHIMMY_CONFIG_ROOT/catalogs/default/registry.conf" ]; then
+    shimmy_catalog_registry_resolve "$SHIMMY_CONFIG_ROOT" default || fail "$SHIMMY_CATALOG_ERROR"
+    return 0
+  fi
+
+  catalog_checkout_candidate=$ROOT_DIR
+  if [ "$SHIMMY_PROFILE_RESOLVED" = upstream ]; then
+    catalog_checkout_candidate=${SHIMMY_UPSTREAM_CHECKOUT_DIR:-$ROOT_DIR}
+  fi
+  shimmy_catalog_checkout_resolve "$catalog_checkout_candidate" "$SHIMMY_PROFILE_CATALOG_NAME" || fail "$SHIMMY_CATALOG_ERROR"
+}
+
+profile_catalog_register() {
+  [ "$PROFILE_EXISTS" -eq 0 ] || return 0
+
+  case "$SHIMMY_PROFILE_RESOLVED" in
+    default)
+      if [ ! -f "$SHIMMY_CONFIG_ROOT/catalogs/default/registry.conf" ]; then
+        shimmy_catalog_default_initialize "$SHIMMY_CONFIG_ROOT" "$ROOT_DIR" || fail "$SHIMMY_CATALOG_ERROR"
+      else
+        shimmy_catalog_registry_resolve "$SHIMMY_CONFIG_ROOT" default || fail "$SHIMMY_CATALOG_ERROR"
+      fi
+      ;;
+    upstream)
+      upstream_catalog_checkout=${SHIMMY_UPSTREAM_CHECKOUT_DIR:-$ROOT_DIR}
+      shimmy_catalog_upstream_register "$SHIMMY_CONFIG_ROOT" "$upstream_catalog_checkout" || fail "$SHIMMY_CATALOG_ERROR"
+      ;;
+  esac
 }
 
 line_list_merge() {
@@ -166,6 +207,8 @@ EOF
 }
 
 profile_stage_cleanup() {
+  shimmy_catalog_lifecycle_cleanup
+  shimmy_catalog_lock_release
   profile_commit_temporary_files_cleanup
   if [ -n "$SHIMMY_PROFILE_BACKUP_ROOT" ] && [ -d "$SHIMMY_PROFILE_BACKUP_ROOT" ]; then
     profile_commit_restore
@@ -177,8 +220,10 @@ profile_stage_cleanup() {
 }
 
 perform_install() {
-  validate_requested_shims
   profile_existing_state_read
+  profile_catalog_prepare
+  validate_requested_shims
+  profile_catalog_register
   if [ "$PROFILE_EXISTS" -eq 1 ] && [ "$STARTUP_OPTION_REQUESTED" -eq 0 ] && [ -z "${SHIMMY_BOOTSTRAP_PROFILE:-}" ]; then
     SKIP_STARTUP=1
   fi

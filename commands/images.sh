@@ -4,7 +4,7 @@ set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
+SHIMMY_CONTROL_ROOT=$ROOT_DIR
 COMMON_HELPER_FILE=$ROOT_DIR/lib/common/common.sh
 CATALOG_HELPER_FILE=$ROOT_DIR/lib/catalog/catalog.sh
 PROFILE_HELPER_FILE=$ROOT_DIR/lib/profile/profile.sh
@@ -16,6 +16,9 @@ PUBLIC_ONLY=0
 REQUIRE_CURRENT_UPSTREAM=0
 SELECT_ALL=0
 REQUESTED_SHIMS=
+SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=
+SHIMMY_IMAGES_PROFILE_CONTEXT=0
+SHIMMY_IMAGES_USE_PROFILE_METADATA=0
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -112,9 +115,20 @@ parse_request() {
   [ "$SELECT_ALL" -eq 0 ] || [ -z "$REQUESTED_SHIMS" ] || fail "--all cannot be combined with --shim"
 }
 
-selection_resolve() {
+catalog_context_resolve() {
   if shimmy_profile_context_resolve "$ROOT_DIR" 2>/dev/null; then
     shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_PROFILE_NAME" || exit 1
+    shimmy_catalog_profile_resolve "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_CONFIG_ROOT" || fail "$SHIMMY_CATALOG_ERROR"
+    SHIMMY_IMAGES_PROFILE_CONTEXT=1
+    return 0
+  fi
+
+  SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=
+  shimmy_catalog_checkout_resolve "$ROOT_DIR" upstream || fail "$SHIMMY_CATALOG_ERROR"
+}
+
+selection_resolve() {
+  if [ "$SHIMMY_IMAGES_PROFILE_CONTEXT" -eq 1 ]; then
     if [ "$SELECT_ALL" -eq 1 ]; then
       shimmy_images_catalog_selection_all
     elif [ -n "$REQUESTED_SHIMS" ]; then
@@ -218,6 +232,11 @@ verify_record() {
 
 main() {
   parse_request "$@"
+  catalog_context_resolve
+
+  if [ "$SHIMMY_IMAGES_PROFILE_CONTEXT" -eq 1 ] && [ "$SELECT_ALL" -eq 0 ] && [ -z "$REQUESTED_SHIMS" ]; then
+    SHIMMY_IMAGES_USE_PROFILE_METADATA=1
+  fi
 
   selected_versions=$(selection_resolve) || exit 1
   [ -n "$selected_versions" ] || fail "image verification selection is empty"
@@ -238,7 +257,12 @@ main() {
   trap cleanup EXIT HUP INT TERM
 
   for version_name in $selected_versions; do
-    tool_name=$(shimmy_tool_version_tool "$version_name") || fail "unknown selected concrete version: $version_name"
+    if [ "$SHIMMY_IMAGES_USE_PROFILE_METADATA" -eq 1 ]; then
+      shimmy_images_materialized_version_resolve "$version_name" || fail "missing materialized selected concrete version: $version_name"
+      tool_name=$SHIMMY_IMAGES_MATERIALIZED_TOOL
+    else
+      tool_name=$(shimmy_tool_version_tool "$version_name") || fail "unknown selected concrete version: $version_name"
+    fi
     shimmy_images_config_records_print "$tool_name" "$version_name" >> "$records_file" || exit 1
   done
 

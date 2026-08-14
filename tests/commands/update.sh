@@ -4,6 +4,7 @@ test_update_source_repository_create() {
   source_repo=$1
   mkdir -p "$source_repo"
   cp "$ROOT_DIR/install.sh" "$source_repo/install.sh"
+  cp "$ROOT_DIR/catalog.conf" "$source_repo/catalog.conf"
   for asset_name in commands lib plugins tests tools; do
     cp -R "$ROOT_DIR/$asset_name" "$source_repo/$asset_name"
   done

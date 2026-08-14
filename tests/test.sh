@@ -3,7 +3,7 @@ set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-SHIMMY_TOOLS_DIR=$ROOT_DIR/tools
+SHIMMY_CONTROL_ROOT=$ROOT_DIR
 TMP_PARENT=${TMPDIR:-/tmp}
 
 case "$TMP_PARENT" in
@@ -19,6 +19,8 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/support.sh"
 # shellcheck source=lib/common/common.sh
 . "$ROOT_DIR/lib/common/common.sh"
+# shellcheck source=lib/catalog/catalog.sh
+. "$ROOT_DIR/lib/catalog/catalog.sh"
 # shellcheck source=lib/profile/profile.sh
 . "$ROOT_DIR/lib/profile/profile.sh"
 # shellcheck source=lib/images/images.sh
@@ -33,6 +35,8 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/lib/update.sh"
 # shellcheck source=tests/commands/agent-preflight.sh
 . "$SCRIPT_DIR/commands/agent-preflight.sh"
+# shellcheck source=tests/commands/catalog.sh
+. "$SCRIPT_DIR/commands/catalog.sh"
 # shellcheck source=tests/commands/images.sh
 . "$SCRIPT_DIR/commands/images.sh"
 # shellcheck source=tests/commands/lifecycle.sh
@@ -106,12 +110,14 @@ main() {
     return 0
   fi
 
+  shimmy_catalog_checkout_resolve "$ROOT_DIR" upstream || fail_test "$SHIMMY_CATALOG_ERROR"
   setup_session_profile_fixtures
   setup_session_update_source_fixture
   test_lib_catalog_run
   test_lib_runtime_run
   test_lib_update_run
   test_commands_agent_preflight_run
+  test_commands_catalog_run
   test_commands_images_run
   test_commands_lifecycle_prepare
   test_commands_management_run

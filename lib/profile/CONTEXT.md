@@ -6,6 +6,10 @@ validity. The canonical roots are
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`; a non-empty
 relative `XDG_CONFIG_HOME` is invalid. Installed launchers and dispatchers
 derive identity from their enclosing canonical profile and never select a
-sibling profile. Shell selection is performed by sourcing that profile's
-generated `shell-init.sh`. A valid current profile contains `plugins/` and
-`tools/` but does not require the retired top-level `agent/` directory.
+sibling profile. Each manifest must bind `default` to the shared `default`
+catalog or `upstream` to the shared `upstream` catalog; missing, mismatched,
+duplicate, or unsafe bindings reject the profile before mutation. Shell
+selection is performed by sourcing that profile's generated `shell-init.sh`.
+A valid current profile contains `plugins/` and `tools/` as materialized
+payload but does not use them as catalog availability authority and does not
+require the retired top-level `agent/` directory.

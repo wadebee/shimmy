@@ -31,6 +31,9 @@ test_manifest_mutate() {
     wrong_profile)
       sed 's/^shimmy_profile_name=.*/shimmy_profile_name=upstream/' "$manifest_file" > "$mutation_tmp"
       ;;
+    wrong_catalog)
+      sed 's/^catalog=.*/catalog=upstream/' "$manifest_file" > "$mutation_tmp"
+      ;;
     unsafe_tool)
       sed 's/^tool=jq$/tool=..\/escape/' "$manifest_file" > "$mutation_tmp"
       ;;
@@ -77,7 +80,7 @@ test_commands_profiles_manifest_rejection() {
   launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")
   implementation_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")
 
-  for mutation_name in missing_identity duplicate_identity version_two version_four unknown_version wrong_label wrong_profile unsafe_tool duplicate_ownership duplicate_tool_version contradictory_tool_version legacy_tool_key legacy_tool_version_key malformed_line shell_payload; do
+  for mutation_name in missing_identity duplicate_identity version_two version_four unknown_version wrong_label wrong_profile wrong_catalog unsafe_tool duplicate_ownership duplicate_tool_version contradictory_tool_version legacy_tool_key legacy_tool_version_key malformed_line shell_payload; do
     cp "$valid_manifest" "$manifest_file"
     test_manifest_mutate "$mutation_name" "$manifest_file"
     set +e

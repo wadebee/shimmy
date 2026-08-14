@@ -6,7 +6,7 @@ set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-TOOLS_DIR=${SHIMMY_TOOLS_DIR:-$ROOT_DIR/tools}
+MATERIALIZATION_TOOLS_DIR=$ROOT_DIR/tools
 
 tool_metadata_read() {
   metadata_file=$1
@@ -33,7 +33,7 @@ main() {
     exit 1
   }
 
-  tool_dir=$TOOLS_DIR/$tool_name
+  tool_dir=$MATERIALIZATION_TOOLS_DIR/$tool_name
   tool_file=$tool_dir/tool.conf
   [ -f "$tool_file" ] || {
     printf 'ERROR: unsupported Shimmy tool: %s\n' "$tool_name" >&2

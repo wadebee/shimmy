@@ -54,6 +54,7 @@ shimmy_profile_paths_resolve() {
   SHIMMY_PROFILE_BIN_DIR=$SHIMMY_PROFILE_ROOT/bin
   SHIMMY_PROFILE_CONFIG_DIR=$SHIMMY_PROFILE_ROOT/config
   SHIMMY_PROFILE_IMPLEMENTATION_DIR=$SHIMMY_PROFILE_ROOT/implementations
+  SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=$SHIMMY_PROFILE_ROOT/tools
   shimmy_path_parent_chain_validate "$SHIMMY_PROFILE_ROOT"
 }
 
@@ -71,7 +72,7 @@ shimmy_profile_manifest_error() {
   manifest_file=$1
   profile_name=$2
 
-  printf 'invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=1, shimmy_install_layout=profile-flat-root, shimmy_profile_manifest_version=1, and shimmy_profile_name=%s); inspect or uninstall it with the Shimmy version that created it, then reinstall that profile\n' "$manifest_file" "$profile_name" >&2
+  printf 'invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=1, shimmy_install_layout=profile-flat-root, shimmy_profile_manifest_version=1, shimmy_profile_name=%s, and one explicit catalog binding); uninstall it with the Shimmy version that created it, then recreate that profile\n' "$manifest_file" "$profile_name" >&2
 }
 
 shimmy_manifest_key_count() {
@@ -111,6 +112,7 @@ shimmy_manifest_ownership_validate() {
   tool_version_lines=
   tool_label_lines=
   startup_file_lines=
+  catalog_count=0
 
   while IFS= read -r manifest_line || [ -n "$manifest_line" ]; do
     case "$manifest_line" in
@@ -122,6 +124,14 @@ shimmy_manifest_ownership_validate() {
     manifest_value=${manifest_line#*=}
     case "$manifest_key" in
       shimmy_install_manifest_version|shimmy_install_layout|shimmy_profile_manifest_version|shimmy_profile_name)
+        ;;
+      catalog)
+        catalog_count=$((catalog_count + 1))
+        [ "$catalog_count" -eq 1 ] || return 1
+        case "$manifest_value" in
+          ''|-*|*--*|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) return 1 ;;
+        esac
+        [ "$manifest_value" = "$profile_name" ] || return 1
         ;;
       tool)
         shimmy_tool_name_validate "$manifest_value" || return 1
@@ -189,6 +199,7 @@ EOF
   else
     [ "$(shimmy_manifest_key_count "$manifest_file" source_checkout)" -eq 0 ] || return 1
   fi
+  [ "$catalog_count" -eq 1 ]
 }
 
 shimmy_profile_manifest_validate() {

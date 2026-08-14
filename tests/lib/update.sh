@@ -3,7 +3,8 @@
 test_lib_update_run() {
   setup_scenario
   SHIMMY_PROFILE_ROOT=$SCENARIO_DIR/profile
-  refresh_dir=$SHIMMY_PROFILE_ROOT/tools/jq/versions/1.8
+  SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=$SHIMMY_PROFILE_ROOT/tools
+  refresh_dir=$SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR/jq/versions/1.8
   refresh_log=$SCENARIO_DIR/refresh.log
   mkdir -p "$refresh_dir"
   {
