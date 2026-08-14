@@ -616,6 +616,9 @@ and bounded ownership for recreated profiles before accepting the new layout.
 
 ## Chunk 3 — Catalog-owned skills and explicit exports
 
+Status: implemented and verified on 2026-08-14; awaiting human review at the
+Chunk 3 gate. Chunk 4 has not started.
+
 ### Goal
 
 Resolve all canonical skill sources from the named catalog while retaining
@@ -641,17 +644,33 @@ documentation.
   them, and catalog unavailability does not make existing exports unusable.
 
 ### Verification checklist
-
-- [ ] A newly created valid upstream tool skill can be explicitly exported by
+- [x] A newly created valid upstream tool skill can be explicitly exported by
   the upstream profile on the next command without profile refresh; default
   can export it only after clean committed content is published successfully.
-- [ ] Default skill export includes core management skills and only the
+- [x] Default skill export includes core management skills and only the
   invoking profile's installed-tool skills.
-- [ ] Project and agent user-profile targets remain isolated and their
+- [x] Project and agent user-profile targets remain isolated and their
   manifests govern update/uninstall behavior.
-- [ ] Catalog loss or schema mismatch fails an install/update/export before
+- [x] Catalog loss or schema mismatch fails an install/update/export before
   target mutation; manifest-owned uninstall behavior remains safe.
-- [ ] Profile and catalog uninstall leave external exported skills untouched.
+- [x] Profile and catalog uninstall leave external exported skills untouched.
+
+Verification evidence:
+
+- Catalog validation now verifies the exact five-skill management layout and
+  matching non-empty skill frontmatter for every management and tool skill.
+- Skills install, update, folder export, and archive export stage complete
+  one-file adapters plus their target manifest, revalidate one coherent
+  catalog snapshot, and commit only after validation; target commits restore
+  prior owned entries on failure.
+- Lifecycle coverage verifies immediate dirty live-upstream skill visibility,
+  clean-publication-gated immutable-default visibility, invoking-profile
+  default selection, repository/home isolation, external-target preservation,
+  schema and registry failure before mutation, and catalog-independent
+  manifest-owned uninstall.
+- `git diff --check`, POSIX `sh -n` over changed shell files, and
+  `./tests/context-tree.sh` passed.
+- `./tests/test.sh` passed all 118 tests with live non-mutating Podman access.
 
 ### Human review gate
 

@@ -88,12 +88,17 @@ jq --version
 rg --version
 ```
 
-Each profile already contains the five-skill management plugin and the
-canonical skill beside every tool. Repository and home `.agents/skills/`
+Canonical management and tool skills remain in the profile's named catalog;
+they are not copied into the profile. Repository and home `.agents/skills/`
 adapters are separate, manifest-owned targets and are written only by an
-explicit request:
+explicit request. A default selection exports the core management skills plus
+skills for tools installed in the invoking profile:
 
 ```sh
 shimmy skills install --target repo
 shimmy skills install --target profile
 ```
+
+Shimmy stages and validates the complete output before changing either target.
+Profile or catalog removal does not remove an existing export; its target
+manifest remains authoritative for standalone `shimmy skills uninstall`.

@@ -72,10 +72,12 @@ after onboarding with installed `shimmy install --shim <tool>`. Source a
 profile's `shell-init.sh` to select it in an existing shell. Only `default`
 owns persistent startup blocks for zsh and Bash by default; explicit startup
 options may narrow the targets, and `upstream` never changes startup files.
-The five-skill management plugin and co-located tool skills are unconditional
-profile payload. Repository and home agent skill adapters are external state
-owned by the selected target manifest and are written or removed only with explicit standalone
-`shimmy skills ... --target repo|profile` operations.
+The five canonical management skills and co-located tool skills remain in the
+selected named catalog and are not profile payload. Repository and home agent
+skill adapters are independently manifest-owned external state, staged from a
+validated catalog, and written or removed only through explicit standalone
+`shimmy skills ... --target repo|profile` operations. Profile and catalog
+lifecycle operations do not remove those exports.
 
 ## Verification
 

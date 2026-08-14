@@ -72,13 +72,16 @@ profiles by sourcing the desired profile's `shell-init.sh`, not with an
 installed command option or environment selector.
 
 Agent skills exported to a repository or home agent profile are external,
-target-manifest-owned state. Every profile payload already includes the
-five-skill management plugin and every co-located tool skill. Profile install,
-update, and uninstall do not implicitly refresh or remove repository or home exports. Use
-the standalone `shimmy skills install --target repo|profile` or `shimmy skills
-update --target repo|profile` operation to write those external targets, and
-`shimmy skills uninstall --target repo|profile` to remove their manifest-owned
-entries.
+target-manifest-owned state. Canonical management and tool skills remain in
+the invoking profile's named catalog and are not copied into profile payloads.
+With no explicit skill names, export selects the core management skills plus
+skills for tools installed in the invoking profile. The complete output is
+staged and catalog-validated before the target changes. Profile and catalog
+lifecycle operations do not implicitly refresh or remove repository or home
+exports. Use the standalone `shimmy skills install --target repo|profile` or
+`shimmy skills update --target repo|profile` operation to write those external
+targets, and `shimmy skills uninstall --target repo|profile` to remove their
+manifest-owned entries even if the source catalog is unavailable.
 
 Earlier installation layouts are intentionally unsupported. Remove them with
 the Shimmy version that created them, then bootstrap the desired profile.

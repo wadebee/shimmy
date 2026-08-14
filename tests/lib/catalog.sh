@@ -37,7 +37,7 @@ test_lib_catalog_contract_fixture_create() {
 }
 
 test_lib_catalog_contract_rejection() {
-  for catalog_mutation in missing-format duplicate-schema unknown-key unsupported-schema missing-skill unsafe-link orphan-tool duplicate-version; do
+  for catalog_mutation in missing-format duplicate-schema unknown-key unsupported-schema missing-skill invalid-skill-name unexpected-management-skill unsafe-link orphan-tool duplicate-version; do
     setup_scenario
     catalog_fixture_root=$SCENARIO_DIR/catalog
     test_lib_catalog_contract_fixture_create "$catalog_fixture_root"
@@ -57,6 +57,13 @@ test_lib_catalog_contract_rejection() {
         ;;
       missing-skill)
         rm -rf "$catalog_fixture_root/plugins/shimmy/skills/shimmy-init"
+        ;;
+      invalid-skill-name)
+        sed 's/^name: shimmy-tool-jq$/name: shimmy-tool-wrong/' "$catalog_fixture_root/tools/jq/SKILL.md" > "$catalog_fixture_root/tools/jq/SKILL.md.tmp"
+        mv "$catalog_fixture_root/tools/jq/SKILL.md.tmp" "$catalog_fixture_root/tools/jq/SKILL.md"
+        ;;
+      unexpected-management-skill)
+        cp -R "$catalog_fixture_root/plugins/shimmy/skills/shimmy-init" "$catalog_fixture_root/plugins/shimmy/skills/shimmy-extra"
         ;;
       unsafe-link)
         ln -s "$SCENARIO_DIR" "$catalog_fixture_root/tools/jq/escape"

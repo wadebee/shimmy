@@ -70,13 +70,16 @@ default-profile startup changes; `upstream` never changes shell startup files.
 
 ## Shared skills
 
-The canonical five-skill management plugin and co-located tool skills are
-included unconditionally in every profile payload. Install or update agent
-skill adapters in a repository or home agent profile only when the user
-explicitly selects that target through standalone `shimmy skills` commands.
-The target's `.shimmy-skills-manifest.txt` owns those entries; no profile manifest owns the
-target. Profile install, update, and uninstall never implicitly refresh or
-remove it. Remove target-owned shared skills only with:
+The canonical five-skill management plugin and co-located tool skills remain
+in the invoking profile's named catalog; they are not copied into the profile.
+Install or update agent skill adapters in a repository or home agent profile
+only when the user explicitly selects that target through standalone `shimmy
+skills` commands. Shimmy stages the complete adapter set and validates the
+catalog again before changing the target. The target's
+`.shimmy-skills-manifest.txt` owns those entries; no profile manifest owns the
+target. Profile and catalog install, update, and uninstall never implicitly
+refresh or remove it. Target-owned uninstall remains available if the catalog
+is unavailable:
 
 ```sh
 shimmy skills uninstall --target <repo|profile>

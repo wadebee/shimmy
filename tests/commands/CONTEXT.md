@@ -51,10 +51,11 @@ a user's Shimmy installation or shell startup files.
 - `skills.sh` covers split catalog-owned canonical skill sources, checked-in
   adapter fingerprints, one-file repository/home and portable exports,
   management plugin discovery, installed-tool selection, absence of canonical
-  skill sources from profile payloads, lifecycle isolation, refresh, and
-  manifest-tracked cleanup. Its
-  target-ownership lifecycle and retryable external-target failure start from
-  pristine profile clones.
+  skill sources from profile payloads, live-upstream versus published-default
+  visibility, coherent staged target replacement, catalog failure boundaries,
+  lifecycle isolation, refresh, and manifest-tracked cleanup. Its
+  target-ownership lifecycle, catalog-authority cases, and retryable
+  external-target failure start from pristine profile clones.
 - `dispatcher.sh` covers profile-bound installed dispatchers, ownership, and
   recursion protections using isolated pristine clones for destructive cases;
   repository previews use `commands/run-tool.sh`.

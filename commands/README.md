@@ -162,8 +162,11 @@ shimmy netinfo --host-ip 192.168.1.20 --host-lan 192.168.1.0/24 --format manifes
 
 Install, update, uninstall, or export Shimmy agent skills. With no explicit
 skill names, installation selects the core management skills plus tool skills
-for tools in the chosen install manifest. Updates prefer the skills already
-tracked by the target's skills manifest.
+for tools in the invoking profile manifest. Canonical sources resolve from
+that profile's validated named catalog, not from the profile payload. Updates
+prefer the skills already tracked by the target's skills manifest. Install,
+update, and export stage and validate complete output before changing the
+destination.
 
 ```text
 shimmy skills install [options] [skill...]
@@ -183,7 +186,8 @@ Options:
 - `-h`, `--help` shows command help.
 
 Uninstall removes only skills recorded in the selected target's
-`.shimmy-skills-manifest.txt`; it does not accept individual skill names.
+`.shimmy-skills-manifest.txt`; it does not accept individual skill names and
+does not require the source catalog to remain available.
 
 Examples:
 

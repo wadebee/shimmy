@@ -75,7 +75,8 @@ outside profile roots and are owned by their target's
 refresh or remove them. Use explicit standalone `shimmy skills install
 --target repo|profile` or `shimmy skills update --target repo|profile`
 operations to write them and `shimmy skills uninstall --target repo|profile`
-for removal.
+for removal. Stage and validate complete skill output against one coherent
+catalog snapshot before changing an external target.
 
 Repository and home `.agents/skills/<name>/` targets are one-file compatibility
 adapters containing only `SKILL.md`. Do not copy other repository metadata

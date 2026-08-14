@@ -11,6 +11,8 @@ test_catalog_tool_create() {
   mv "$catalog_checkout/tools/$catalog_tool_name/tool.conf.tmp" "$catalog_checkout/tools/$catalog_tool_name/tool.conf"
   sed "s/^shim_name=jq_1_8$/shim_name=${catalog_tool_name}_1_8/" "$catalog_checkout/tools/$catalog_tool_name/versions/1.8/smoke.conf" > "$catalog_checkout/tools/$catalog_tool_name/versions/1.8/smoke.conf.tmp"
   mv "$catalog_checkout/tools/$catalog_tool_name/versions/1.8/smoke.conf.tmp" "$catalog_checkout/tools/$catalog_tool_name/versions/1.8/smoke.conf"
+  sed "s/^name: shimmy-tool-jq$/name: shimmy-tool-$catalog_tool_name/" "$catalog_checkout/tools/$catalog_tool_name/SKILL.md" > "$catalog_checkout/tools/$catalog_tool_name/SKILL.md.tmp"
+  mv "$catalog_checkout/tools/$catalog_tool_name/SKILL.md.tmp" "$catalog_checkout/tools/$catalog_tool_name/SKILL.md"
 }
 
 test_commands_catalog_dirty_initial_publication_rejection() {

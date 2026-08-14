@@ -101,7 +101,7 @@ images_fixture_source_setup() {
   cp -R "$ROOT_DIR/tools/jq" "$ROOT_DIR/tools/skopeo" "$IMAGES_FIXTURE_ROOT/tools/"
   mkdir -p "$IMAGES_FIXTURE_ROOT/tools/alpha"
   printf '%s\n' 'shim_config_version=1' 'shim_name=alpha' 'tool_default_version=1.0' 'tool_selector_env=' 'smoke_arg=--version' > "$IMAGES_FIXTURE_ROOT/tools/alpha/tool.conf"
-  printf '%s\n' '---' 'name: shimmy-tool-alpha' '---' > "$IMAGES_FIXTURE_ROOT/tools/alpha/SKILL.md"
+  printf '%s\n' '---' 'name: shimmy-tool-alpha' 'description: Image verification fixture skill.' '---' > "$IMAGES_FIXTURE_ROOT/tools/alpha/SKILL.md"
   images_fixture_alpha_config_write "$IMAGES_FIXTURE_ROOT" 1.0 public \
     registry.example/alpha:current \
     registry.example/alpha@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

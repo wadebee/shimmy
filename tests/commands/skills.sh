@@ -336,6 +336,95 @@ test_commands_skills_external_failure_retry() {
   pass "standalone skills failure leaves the installed profile unchanged and can be retried directly"
 }
 
+test_commands_skills_catalog_authority() {
+  setup_scenario_with_profiles default upstream
+  live_checkout=$SCENARIO_DIR/live-checkout
+  cp -R "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$live_checkout"
+  upstream_shimmy catalog rebind --checkout "$live_checkout" >/dev/null
+  default_manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+  upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
+
+  test_catalog_tool_create "$live_checkout" instant
+  printf '%s\n' 'Live upstream skill marker.' >> "$live_checkout/tools/instant/SKILL.md"
+  upstream_export=$SCENARIO_DIR/upstream-instant
+  upstream_shimmy skills install --export "$upstream_export" shimmy-tool-instant >/dev/null
+  assert_file_contains "$upstream_export/shimmy-tool-instant/SKILL.md" 'Live upstream skill marker.'
+
+  default_unpublished_export=$SCENARIO_DIR/default-unpublished
+  set +e
+  default_unpublished_output=$(default_shimmy skills install --export "$default_unpublished_export" shimmy-tool-instant 2>&1)
+  default_unpublished_status=$?
+  set -e
+  [ "$default_unpublished_status" -ne 0 ] || fail_test 'default catalog exported an unpublished upstream skill'
+  assert_contains "$default_unpublished_output" 'missing canonical source skill: shimmy-tool-instant'
+  assert_path_not_exists "$default_unpublished_export"
+
+  git -C "$live_checkout" add tools/instant
+  git -C "$live_checkout" commit -qm 'add instant tool skill'
+  upstream_shimmy catalog publish >/dev/null
+
+  default_export=$SCENARIO_DIR/default-instant
+  default_shimmy skills install --export "$default_export" shimmy-tool-instant >/dev/null
+  assert_file_contains "$default_export/shimmy-tool-instant/SKILL.md" 'Live upstream skill marker.'
+  default_selection_export=$SCENARIO_DIR/default-selection
+  default_shimmy skills install --export "$default_selection_export" >/dev/null
+  assert_file_exists "$default_selection_export/shimmy-install/SKILL.md"
+  assert_file_exists "$default_selection_export/shimmy-tool-jq/SKILL.md"
+  assert_file_exists "$default_selection_export/shimmy-tool-rg/SKILL.md"
+  assert_path_not_exists "$default_selection_export/shimmy-tool-instant"
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$default_manifest_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"
+  pass "skills resolve live upstream additions immediately and immutable default additions only after publication"
+}
+
+test_commands_skills_catalog_failure_boundaries() {
+  setup_scenario_with_profiles default
+  repo_skills_root=$WORK_DIR/.agents/skills
+  (
+    cd "$WORK_DIR"
+    default_shimmy skills install --target repo >/dev/null
+  )
+  skills_manifest_checksum=$(cksum < "$repo_skills_root/.shimmy-skills-manifest.txt")
+  install_skill_checksum=$(cksum < "$repo_skills_root/shimmy-install/SKILL.md")
+  default_registry=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf
+  default_generation=$(profile_manifest_value "$default_registry" catalog_generation_current)
+  default_catalog_file=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$default_generation/catalog.conf
+  cp "$default_catalog_file" "$SCENARIO_DIR/catalog.conf.valid"
+  printf '%s\n' 'catalog_format=shimmy-catalog' 'catalog_schema=2' > "$default_catalog_file"
+
+  set +e
+  schema_output=$(
+    cd "$WORK_DIR"
+    default_shimmy skills update --target repo 2>&1
+  )
+  schema_status=$?
+  set -e
+  [ "$schema_status" -ne 0 ] || fail_test 'schema-incompatible catalog unexpectedly updated a skills target'
+  assert_contains "$schema_output" "accepted schema: 1"
+  assert_equals "$(cksum < "$repo_skills_root/.shimmy-skills-manifest.txt")" "$skills_manifest_checksum"
+  assert_equals "$(cksum < "$repo_skills_root/shimmy-install/SKILL.md")" "$install_skill_checksum"
+
+  (
+    cd "$WORK_DIR"
+    default_shimmy skills uninstall --target repo >/dev/null
+  )
+  assert_path_not_exists "$repo_skills_root/.shimmy-skills-manifest.txt"
+  assert_path_not_exists "$repo_skills_root/shimmy-install"
+  cp "$SCENARIO_DIR/catalog.conf.valid" "$default_catalog_file"
+
+  mv "$default_registry" "$SCENARIO_DIR/default-registry.conf"
+  unavailable_export=$SCENARIO_DIR/unavailable-export
+  set +e
+  unavailable_output=$(default_shimmy skills install --export "$unavailable_export" 2>&1)
+  unavailable_status=$?
+  set -e
+  [ "$unavailable_status" -ne 0 ] || fail_test 'missing catalog registry unexpectedly allowed a skills export'
+  assert_contains "$unavailable_output" 'missing catalog registry entry'
+  assert_path_not_exists "$unavailable_export"
+  mv "$SCENARIO_DIR/default-registry.conf" "$default_registry"
+  pass "catalog loss and schema mismatch fail before mutation while manifest-owned uninstall remains available"
+}
+
 test_commands_skills_run() {
   test_commands_skills_manifest_fingerprints
   test_commands_skills_plugin_and_tool_inventory
@@ -345,4 +434,6 @@ test_commands_skills_run() {
   test_commands_skills_removed_plugin_target
   test_commands_skills_target_ownership
   test_commands_skills_external_failure_retry
+  test_commands_skills_catalog_authority
+  test_commands_skills_catalog_failure_boundaries
 }

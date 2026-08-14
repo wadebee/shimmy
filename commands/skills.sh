@@ -28,6 +28,20 @@ CONTROL_PLANE_SKILLS="$CORE_SKILLS
 shimmy-tool-local-build"
 
 SKILLS_MANIFEST_NAME=.shimmy-skills-manifest.txt
+SKILLS_BACKED_UP_NAMES=
+SKILLS_BACKUP_ROOT=
+SKILLS_CATALOG_FINGERPRINT=
+SKILLS_CATALOG_GENERATION=
+SKILLS_CATALOG_NAME=
+SKILLS_CATALOG_SCHEMA=
+SKILLS_CATALOG_SOURCE_PATH=
+SKILLS_CATALOG_SOURCE_TYPE=
+SKILLS_COMMITTED_NAMES=
+SKILLS_EXPORT_TMP_DIR=
+SKILLS_MANIFEST_BACKED_UP=0
+SKILLS_MANIFEST_COMMITTED=0
+SKILLS_STAGE_ROOT=
+SKILLS_TARGET_ROOT=
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -327,6 +341,38 @@ $skill_names
 EOF
 }
 
+skills_catalog_snapshot_record() {
+  SKILLS_CATALOG_NAME=$SHIMMY_CATALOG_NAME
+  SKILLS_CATALOG_SOURCE_TYPE=$SHIMMY_CATALOG_SOURCE_TYPE
+  SKILLS_CATALOG_SOURCE_PATH=$SHIMMY_CATALOG_SOURCE_PATH
+  SKILLS_CATALOG_GENERATION=$SHIMMY_CATALOG_GENERATION
+  SKILLS_CATALOG_SCHEMA=$SHIMMY_CATALOG_SCHEMA
+  SKILLS_CATALOG_FINGERPRINT=$SHIMMY_CATALOG_CONTENT_FINGERPRINT
+}
+
+skills_catalog_snapshot_validate() {
+  staged_root=$1
+  skill_names=$2
+
+  catalog_context_resolve
+  [ "$SHIMMY_CATALOG_NAME" = "$SKILLS_CATALOG_NAME" ] &&
+    [ "$SHIMMY_CATALOG_SOURCE_TYPE" = "$SKILLS_CATALOG_SOURCE_TYPE" ] &&
+    [ "$SHIMMY_CATALOG_SOURCE_PATH" = "$SKILLS_CATALOG_SOURCE_PATH" ] &&
+    [ "$SHIMMY_CATALOG_GENERATION" = "$SKILLS_CATALOG_GENERATION" ] &&
+    [ "$SHIMMY_CATALOG_SCHEMA" = "$SKILLS_CATALOG_SCHEMA" ] &&
+    [ "$SHIMMY_CATALOG_CONTENT_FINGERPRINT" = "$SKILLS_CATALOG_FINGERPRINT" ] ||
+    fail "catalog $SKILLS_CATALOG_NAME changed while skills were staged; target was not changed"
+
+  while IFS= read -r skill_name; do
+    [ -n "$skill_name" ] || continue
+    source_skill_file=$(skill_source_file_resolve "$skill_name")
+    cmp -s "$source_skill_file" "$staged_root/$skill_name/SKILL.md" ||
+      fail "catalog skill changed while skills were staged: $skill_name"
+  done <<EOF
+$skill_names
+EOF
+}
+
 skill_fingerprint_render() {
   skill_dir=$1
 
@@ -341,33 +387,6 @@ skill_fingerprint_render() {
   )
   set -- $fingerprint_output
   printf '%s-%s\n' "$1" "$2"
-}
-
-skill_file_install() {
-  source_skill_file=$1
-  target_dir=$2
-  skill_name=$3
-  target_skill_file=$target_dir/SKILL.md
-  target_entry_count=0
-
-  if [ -d "$target_dir" ]; then
-    for target_entry in "$target_dir"/* "$target_dir"/.[!.]* "$target_dir"/..?*; do
-      [ -e "$target_entry" ] || [ -L "$target_entry" ] || continue
-      target_entry_count=$((target_entry_count + 1))
-    done
-  fi
-
-  [ -f "$source_skill_file" ] || fail "missing canonical skill file: $source_skill_file"
-  if [ -d "$target_dir" ] && [ "$target_entry_count" -eq 1 ] &&
-    [ -f "$target_skill_file" ] && cmp -s "$source_skill_file" "$target_skill_file"; then
-    log_info "Skill already current: $skill_name"
-    return 0
-  fi
-
-  rm -rf "$target_dir"
-  mkdir -p "$target_dir"
-  cp "$source_skill_file" "$target_skill_file"
-  log_info "Installed skill: $skill_name"
 }
 
 skills_manifest_root_render() {
@@ -432,6 +451,63 @@ EOF
   mv "$manifest_tmp" "$manifest_file"
 }
 
+skills_output_stage() {
+  target_name=$1
+  staged_root=$2
+  skill_names=$3
+
+  [ ! -e "$staged_root" ] && [ ! -L "$staged_root" ] || fail "skills staging path already exists: $staged_root"
+  mkdir "$staged_root"
+  while IFS= read -r skill_name; do
+    [ -n "$skill_name" ] || continue
+    source_skill_file=$(skill_source_file_resolve "$skill_name")
+    mkdir "$staged_root/$skill_name"
+    cp "$source_skill_file" "$staged_root/$skill_name/SKILL.md"
+    chmod 644 "$staged_root/$skill_name/SKILL.md"
+  done <<EOF
+$skill_names
+EOF
+  skills_manifest_write "$target_name" "$staged_root" "$skill_names"
+  skills_output_validate "$target_name" "$staged_root" "$skill_names"
+}
+
+skills_output_validate() {
+  target_name=$1
+  staged_root=$2
+  skill_names=$3
+  expected_entry_count=1
+  actual_entry_count=0
+
+  [ -d "$staged_root" ] && [ ! -L "$staged_root" ] || fail "invalid staged skills root: $staged_root"
+  assert_manifest=$staged_root/$SKILLS_MANIFEST_NAME
+  [ -f "$assert_manifest" ] && [ ! -L "$assert_manifest" ] || fail "staged skills manifest is missing or unsafe"
+  [ "$(sed -n 's/^shimmy_skills_manifest_version=//p' "$assert_manifest")" = 1 ] || fail "staged skills manifest has invalid version"
+  [ "$(sed -n 's/^shimmy_skills_target=//p' "$assert_manifest")" = "$target_name" ] || fail "staged skills manifest has invalid target"
+
+  while IFS= read -r skill_name; do
+    [ -n "$skill_name" ] || continue
+    skill_name_validate "$skill_name"
+    staged_skill_dir=$staged_root/$skill_name
+    [ -d "$staged_skill_dir" ] && [ ! -L "$staged_skill_dir" ] || fail "invalid staged skill directory: $skill_name"
+    [ -f "$staged_skill_dir/SKILL.md" ] && [ ! -L "$staged_skill_dir/SKILL.md" ] || fail "invalid staged skill file: $skill_name"
+    staged_skill_entry_count=0
+    for staged_skill_entry in "$staged_skill_dir"/* "$staged_skill_dir"/.[!.]* "$staged_skill_dir"/..?*; do
+      [ -e "$staged_skill_entry" ] || [ -L "$staged_skill_entry" ] || continue
+      staged_skill_entry_count=$((staged_skill_entry_count + 1))
+    done
+    [ "$staged_skill_entry_count" -eq 1 ] || fail "staged skill must contain only SKILL.md: $skill_name"
+    expected_entry_count=$((expected_entry_count + 1))
+  done <<EOF
+$skill_names
+EOF
+
+  for staged_entry in "$staged_root"/* "$staged_root"/.[!.]* "$staged_root"/..?*; do
+    [ -e "$staged_entry" ] || [ -L "$staged_entry" ] || continue
+    actual_entry_count=$((actual_entry_count + 1))
+  done
+  [ "$actual_entry_count" -eq "$expected_entry_count" ] || fail "staged skills output contains unexpected entries"
+}
+
 install_manifest_file_resolve() {
   if [ -n "$REQUESTED_MANIFEST_FILE" ]; then
     printf '%s\n' "$REQUESTED_MANIFEST_FILE"
@@ -446,24 +522,143 @@ install_manifest_skills_update() {
   return 0
 }
 
-skills_sync_to_root() {
-  target_name=$1
-  target_root=$2
-  skill_names=$3
+skills_commit_restore() {
+  target_root=$1
 
-  ensure_safe_root "$target_root"
-  skill_sources_validate "$skill_names"
-  mkdir -p "$target_root"
+  if [ "$SKILLS_MANIFEST_COMMITTED" -eq 1 ]; then
+    rm -f "$target_root/$SKILLS_MANIFEST_NAME"
+  fi
+  if [ "$SKILLS_MANIFEST_BACKED_UP" -eq 1 ]; then
+    mv "$SKILLS_BACKUP_ROOT/$SKILLS_MANIFEST_NAME" "$target_root/$SKILLS_MANIFEST_NAME"
+  fi
+  while IFS= read -r skill_name; do
+    [ -n "$skill_name" ] || continue
+    target_skill_dir=$target_root/$skill_name
+    if [ -e "$target_skill_dir" ] || [ -L "$target_skill_dir" ]; then
+      if [ -L "$target_skill_dir" ]; then rm -f "$target_skill_dir"; else rm -rf "$target_skill_dir"; fi
+    fi
+  done <<EOF
+$SKILLS_COMMITTED_NAMES
+EOF
+  while IFS= read -r skill_name; do
+    [ -n "$skill_name" ] || continue
+    backup_skill_dir=$SKILLS_BACKUP_ROOT/$skill_name
+    [ ! -e "$backup_skill_dir" ] && [ ! -L "$backup_skill_dir" ] || mv "$backup_skill_dir" "$target_root/$skill_name"
+  done <<EOF
+$SKILLS_BACKED_UP_NAMES
+EOF
+  SKILLS_BACKED_UP_NAMES=
+  SKILLS_COMMITTED_NAMES=
+  SKILLS_MANIFEST_BACKED_UP=0
+  SKILLS_MANIFEST_COMMITTED=0
+}
+
+skills_output_commit() {
+  target_root=$1
+  skill_names=$2
+  SKILLS_TARGET_ROOT=$target_root
+
+  if [ -e "$target_root" ] || [ -L "$target_root" ]; then
+    [ -d "$target_root" ] && [ ! -L "$target_root" ] || fail "skills target must be a regular directory: $target_root"
+  else
+    mkdir "$target_root"
+  fi
+  mkdir "$SKILLS_BACKUP_ROOT"
 
   while IFS= read -r skill_name; do
     [ -n "$skill_name" ] || continue
-    source_skill_file=$(skill_source_file_resolve "$skill_name")
-    skill_file_install "$source_skill_file" "$target_root/$skill_name" "$skill_name"
+    target_skill_dir=$target_root/$skill_name
+    backup_skill_dir=$SKILLS_BACKUP_ROOT/$skill_name
+    if [ -e "$target_skill_dir" ] || [ -L "$target_skill_dir" ]; then
+      mv "$target_skill_dir" "$backup_skill_dir" || {
+        skills_commit_restore "$target_root"
+        fail "unable to back up target skill: $skill_name"
+      }
+      SKILLS_BACKED_UP_NAMES=$(shimmy_append_line_list "$SKILLS_BACKED_UP_NAMES" "$skill_name")
+    fi
+    mv "$SKILLS_STAGE_ROOT/$skill_name" "$target_skill_dir" || {
+      skills_commit_restore "$target_root"
+      fail "unable to commit target skill: $skill_name"
+    }
+    SKILLS_COMMITTED_NAMES=$(shimmy_append_line_list "$SKILLS_COMMITTED_NAMES" "$skill_name")
   done <<EOF
 $skill_names
 EOF
 
-  skills_manifest_write "$target_name" "$target_root" "$skill_names"
+  target_manifest=$target_root/$SKILLS_MANIFEST_NAME
+  backup_manifest=$SKILLS_BACKUP_ROOT/$SKILLS_MANIFEST_NAME
+  if [ -e "$target_manifest" ] || [ -L "$target_manifest" ]; then
+    mv "$target_manifest" "$backup_manifest" || {
+      skills_commit_restore "$target_root"
+      fail "unable to back up target skills manifest"
+    }
+    SKILLS_MANIFEST_BACKED_UP=1
+  fi
+  mv "$SKILLS_STAGE_ROOT/$SKILLS_MANIFEST_NAME" "$target_manifest" || {
+    skills_commit_restore "$target_root"
+    fail "unable to commit target skills manifest"
+  }
+  SKILLS_MANIFEST_COMMITTED=1
+
+  rm -rf "$SKILLS_BACKUP_ROOT"
+  rmdir "$SKILLS_STAGE_ROOT" 2>/dev/null || true
+  SKILLS_BACKED_UP_NAMES=
+  SKILLS_BACKUP_ROOT=
+  SKILLS_COMMITTED_NAMES=
+  SKILLS_MANIFEST_BACKED_UP=0
+  SKILLS_MANIFEST_COMMITTED=0
+  SKILLS_STAGE_ROOT=
+  SKILLS_TARGET_ROOT=
+}
+
+skills_stage_paths_prepare() {
+  target_root=$1
+  target_parent=$(dirname -- "$target_root")
+  target_base=$(basename -- "$target_root")
+
+  mkdir -p "$target_parent"
+  target_parent=$(cd -- "$target_parent" && pwd)
+  SKILLS_STAGE_ROOT=$target_parent/.$target_base.shimmy-stage.$$
+  SKILLS_BACKUP_ROOT=$target_parent/.$target_base.shimmy-backup.$$
+  [ ! -e "$SKILLS_STAGE_ROOT" ] && [ ! -L "$SKILLS_STAGE_ROOT" ] || fail "skills staging path already exists: $SKILLS_STAGE_ROOT"
+  [ ! -e "$SKILLS_BACKUP_ROOT" ] && [ ! -L "$SKILLS_BACKUP_ROOT" ] || fail "skills backup path already exists: $SKILLS_BACKUP_ROOT"
+}
+
+skills_temporary_cleanup() {
+  if [ -n "$SKILLS_BACKUP_ROOT" ] && [ -d "$SKILLS_BACKUP_ROOT" ]; then
+    case "$SKILLS_BACKUP_ROOT" in
+      */.*.shimmy-backup.$$)
+        [ -n "$SKILLS_TARGET_ROOT" ] && [ -d "$SKILLS_TARGET_ROOT" ] && skills_commit_restore "$SKILLS_TARGET_ROOT"
+        rm -rf "$SKILLS_BACKUP_ROOT"
+        ;;
+    esac
+  fi
+  if [ -n "$SKILLS_STAGE_ROOT" ]; then
+    case "$SKILLS_STAGE_ROOT" in */.*.shimmy-stage.$$) rm -rf "$SKILLS_STAGE_ROOT" ;; esac
+  fi
+  if [ -n "$SKILLS_EXPORT_TMP_DIR" ]; then
+    case "$SKILLS_EXPORT_TMP_DIR" in */shimmy-skills-export.*) rm -rf "$SKILLS_EXPORT_TMP_DIR" ;; esac
+  fi
+}
+
+skills_sync_to_root() {
+  skills_sync_target_name=$1
+  skills_sync_target_root=$2
+  skills_sync_skill_names=$3
+
+  ensure_safe_root "$skills_sync_target_root"
+  skill_sources_validate "$skills_sync_skill_names"
+  skills_catalog_snapshot_record
+  skills_stage_paths_prepare "$skills_sync_target_root"
+  skills_output_stage "$skills_sync_target_name" "$SKILLS_STAGE_ROOT" "$skills_sync_skill_names"
+  skills_catalog_snapshot_validate "$SKILLS_STAGE_ROOT" "$skills_sync_skill_names"
+  skills_output_commit "$skills_sync_target_root" "$skills_sync_skill_names"
+  while IFS= read -r skill_name; do
+    [ -n "$skill_name" ] || continue
+    log_info "Installed skill: $skill_name"
+  done <<EOF
+$skills_sync_skill_names
+EOF
 }
 
 skills_target_sync() {
@@ -513,7 +708,6 @@ export_zip_create() {
   export_path=$1
   export_source_dir=$2
 
-  rm -f "$export_path"
   if command -v zip >/dev/null 2>&1; then
     (
       cd -- "$(dirname "$export_source_dir")"
@@ -543,30 +737,27 @@ skills_export() {
       export_base=$(basename "$export_path")
       mkdir -p "$export_dir"
       export_dir_real=$(cd -- "$export_dir" && pwd)
-      export_path=$export_dir_real/$export_base
+      export_destination_path=$export_dir_real/$export_base
       export_parent=${TMPDIR:-/tmp}
-      export_tmp_dir=$(mktemp -d "$export_parent/shimmy-skills-export.XXXXXX") || fail "unable to create export temp directory"
-      export_root=$export_tmp_dir/shimmy-skills
+      SKILLS_EXPORT_TMP_DIR=$(mktemp -d "$export_parent/shimmy-skills-export.XXXXXX") || fail "unable to create export temp directory"
+      export_root=$SKILLS_EXPORT_TMP_DIR/shimmy-skills
       target_manifest_file=$export_root/$SKILLS_MANIFEST_NAME
       skill_names=$(selected_skill_names_resolve "$target_manifest_file")
-      skills_sync_to_root export "$export_root" "$skill_names"
-      export_zip_create "$export_path" "$export_root"
-      rm -rf "$export_tmp_dir"
-      log_info "Exported skills archive: $export_path"
+      skill_sources_validate "$skill_names"
+      skills_catalog_snapshot_record
+      skills_output_stage export "$export_root" "$skill_names"
+      skills_catalog_snapshot_validate "$export_root" "$skill_names"
+      staged_archive=$SKILLS_EXPORT_TMP_DIR/shimmy-skills.zip
+      export_zip_create "$staged_archive" "$export_root"
+      mv "$staged_archive" "$export_destination_path"
+      rm -rf "$SKILLS_EXPORT_TMP_DIR"
+      SKILLS_EXPORT_TMP_DIR=
+      log_info "Exported skills archive: $export_destination_path"
       ;;
     *)
       export_root=$(shimmy_trim_path_trailing_slash "$export_path")
       target_manifest_file=$export_root/$SKILLS_MANIFEST_NAME
       skill_names=$(selected_skill_names_resolve "$target_manifest_file")
-      mkdir -p "$export_root"
-      while IFS= read -r skill_name; do
-        [ -n "$skill_name" ] || continue
-        skill_name_validate "$skill_name"
-        rm -rf "$export_root/$skill_name"
-      done <<EOF
-$skill_names
-EOF
-      rm -f "$target_manifest_file"
       skills_sync_to_root export "$export_root" "$skill_names"
       log_info "Exported skills folder: $export_root"
       ;;
@@ -621,6 +812,7 @@ main() {
 
   if [ "$ACTION" != uninstall ]; then
     catalog_context_resolve
+    trap skills_temporary_cleanup EXIT HUP INT TERM
   fi
 
   if [ -n "$EXPORT_PATH" ]; then
