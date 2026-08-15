@@ -540,8 +540,12 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Add explicit profile engine activation and update canonical agent/profile workflows (active only after explicit approval)
-- [ ] Chunk 2 — Add strict profile registry redirects, engine projection, Skopeo integration, and lifecycle completion (blocked on accepted Chunk 1)
+- [ ] Chunk 1 — Add the profile-bound engine activation control plane (active only after explicit approval)
+- [ ] Chunk 2 — Migrate agent workflows and canonical activation guidance (blocked on accepted Chunk 1)
+- [ ] Chunk 3 — Add profile registry files, strict redirect CRUD, and profile transaction support (blocked on accepted Chunk 2)
+- [ ] Chunk 4 — Activate and validate strict registry policy on Linux (blocked on accepted Chunk 3)
+- [ ] Chunk 5 — Project and validate strict registry policy in Darwin machines (blocked on accepted Chunk 4)
+- [ ] Chunk 6 — Integrate Skopeo and complete cross-surface registry verification (blocked on accepted Chunk 5)
 
 ## Execution protocol
 
@@ -559,15 +563,15 @@ For every chunk:
 Repository paths in this plan are relative to `<repo>` so it remains portable
 across workstations and sessions.
 
-## Chunk 1 — Profile engine activation and agent workflows
+## Chunk 1 — Profile engine activation control plane
 
 ### Goal
 
 Deliver a coherent, independently useful `shimmy profile status/activate`
 control plane with deterministic Darwin machines, workload-aware switching,
-connection affinity, rollback, non-mutating shell initialization, canonical
-agent behavior, tests, and user/contributor guidance. This chunk does not add
-registry files or redirect commands.
+connection affinity, rollback, non-mutating shell initialization, tests, and
+the minimum user guidance required to operate it. This chunk does not add
+registry files, redirect commands, or agent-skill changes.
 
 ### Files
 
@@ -596,34 +600,24 @@ Tests and test contexts:
 - `tests/commands/startup.sh`
 - `tests/commands/onboarding.sh`
 - `tests/commands/install.sh`
-- `tests/commands/skills.sh`
 - `tests/commands/CONTEXT.md`
 - `tests/lib/CONTEXT.md`
 - `tests/CONTEXT.md`
 - `tests/test.sh`
 
-Canonical skills and guidance:
+Required operating guidance:
 
-- `plugins/shimmy/skills/shimmy-init/SKILL.md`
-- `plugins/shimmy/skills/shimmy-install/SKILL.md`
-- `plugins/shimmy/skills/shimmy-escalation/SKILL.md`
-- `plugins/shimmy/skills/shimmy-create-tool/SKILL.md` (consistency review)
-- `plugins/shimmy/skills/shimmy-tool-local-build/SKILL.md` (consistency review)
-- `plugins/shimmy/.agent-plugin/plugin.json`
-- `docs/templates/generic-shim/SKILL.md`
-- `tools/*/SKILL.md` profile-selection paragraphs
-- `tools/task/guide.md` and `tools/task/SKILL.md` override caveat
 - `README.md`
 - `BOOTSTRAP.md`
 - `commands/README.md`
 - `docs/podman.md`
-- `CONTRIBUTING.md`
-- `AGENTS.md`
-- `docs/prompt-shimmy-project.md`
 
 Expected unchanged surfaces that must be checked:
 
 - `.agents/skills/**`
+- `plugins/shimmy/**`
+- `docs/templates/generic-shim/**`
+- `tools/*/SKILL.md`
 - registry/image configuration and all `image.conf` files
 - `lib/images/images.sh` and `commands/images.sh`
 - tool runtimes except generic affinity behavior inherited from shared Podman
@@ -681,37 +675,11 @@ Expected unchanged surfaces that must be checked:
 12. Keep `shell-init.sh` PATH-only and source-safe. Update comments/help/tests to
     explicitly separate PATH selection from engine activation; do not insert
     Podman calls or connection variables into startup files.
-13. Update bootstrap success/help and onboarding docs to show explicit named
-    machine creation as a user prerequisite on macOS, then profile activation.
-    Explain that existing `podman-machine-default` data is not migrated or
-    removed by Shimmy.
-14. Rewrite `shimmy-init` so it may inspect state and, for an explicit desired
-    profile or a failed wrapper with an identifiable profile, request approval
-    for the exact absolute profile-local `bin/shimmy profile activate` command.
-    It must use dry-run/status first, stop on missing machines with exact
-    user-shell init guidance, and ask for separate confirmation before adding
-    `--stop-running`.
-15. Update `shimmy-install` to activate the target via its absolute launcher
-    before telling a user/agent to source its shell init. Record that agent
-    shells do not retain sourcing across tool calls and should use absolute
-    paths or same-command sourcing.
-16. Update `shimmy-escalation` to run `shimmy-init` profile readiness before
-    wrapper smoke approvals, delegate lifecycle mutation to the exact
-    profile-activate command, and retain narrow non-mutating wrapper prefixes.
-    Remove the blanket prohibition on agent machine start only where the new
-    control plane and explicit activation approval apply.
-17. Keep machine provisioning and removal prohibited in every skill. An old
-    installed profile lacking `profile activate` falls back to user-shell
-    guidance, not direct agent `podman machine start/stop` orchestration.
-18. Update the packaged plugin description and canonical generic/tool skill
-    profile-selection paragraphs. Use a terminology inventory to update all 19
-    canonical tool skills without altering tool-specific meanings of profile,
-    connection, privilege, or credentials.
-19. Add skill export tests proving refreshed portable/target outputs contain
-    activation and workload-guard guidance. Preserve checked-in generated
-    adapter files/fingerprints and document the explicit post-release `shimmy
-    skills update` action.
-20. Update root and child contexts with the new control-plane ownership. Keep
+13. Update bootstrap success/help and the minimum operating docs to show named
+    machine creation as an explicit user prerequisite on macOS, followed by
+    profile activation and shell selection. Explain that existing
+    `podman-machine-default` data is not migrated or removed by Shimmy.
+14. Update root and child contexts with the new control-plane ownership. Keep
     manifest schemas unchanged and ensure full-tree profile update
     materializes the new command/library atomically.
 
@@ -748,19 +716,11 @@ Expected unchanged surfaces that must be checked:
 - [ ] Generated shell init and managed startup blocks remain PATH-only,
   idempotent, safe under `set -e`/conditional sourcing, and free of Podman
   lifecycle or connection mutation.
-- [ ] `shimmy-init`, `shimmy-install`, and `shimmy-escalation` consistently use
-  exact profile-local activation approvals, workload confirmation, no machine
-  provisioning, and narrow wrapper smokes.
-- [ ] Canonical generic and tool skills no longer describe source-only profile
-  switching; tool-specific connection/credential semantics remain intact.
-- [ ] Skill portable/target export tests contain new canonical behavior while
-  `.agents/skills/` generated copies remain unchanged.
 - [ ] Fresh and refreshed disposable profiles contain and dispatch
   `commands/profile.sh` plus `lib/profile/activation.sh` without a manifest
   schema change; sibling profile and catalog isolation still pass.
-- [ ] Updated README, bootstrap, Podman, command, contributor, agent, project
-  prompt, template, plugin, and tool guidance all distinguish provisioning,
-  engine activation, shell selection, and wrapper approval.
+- [ ] README, bootstrap, command, and Podman guidance distinguish provisioning,
+  engine activation, shell selection, and existing default-machine data.
 - [ ] New/changed runnable shell files pass `dash -n`, retain executable modes,
   and context/test runners include the new modules.
 - [ ] `./tests/test.sh` passes without starting or stopping any real machine.
@@ -776,80 +736,141 @@ Expected unchanged surfaces that must be checked:
 Reviewers must confirm the explicit activation UX, deterministic names,
 pre-existing-machine requirement, global default-connection behavior,
 workload acknowledgement, rollback limitations, source-only PATH boundary,
-agent approval model, and broad canonical guidance update. All automated checks
-must pass and native Darwin acceptance must be complete or explicitly deferred
-as `[~]`. Stop before Chunk 2.
+and runtime affinity behavior. All automated checks must pass and native Darwin
+acceptance must be complete or explicitly deferred as `[~]`. Stop before Chunk
+2.
 
-## Chunk 2 — Strict registry redirects and profile projection
+## Chunk 2 — Agent workflow and activation guidance migration
 
 ### Goal
 
-Extend the accepted activation model with profile-owned strict registry files,
-Linux activation links, deterministic Darwin projection/ownership, redirect
-commands, Skopeo integration, complete install/uninstall transactions, tests,
-and registry documentation without changing logical image references.
+Adopt the accepted profile activation command across canonical agent skills,
+tool skills, exported-skill tests, contributor rules, and project guidance.
+This chunk changes guidance and agent authority only; it does not reopen the
+activation state machine or add registry behavior.
 
 ### Files
 
-Primary implementation and contexts:
+- `tests/commands/skills.sh`
+- `plugins/shimmy/skills/shimmy-init/SKILL.md`
+- `plugins/shimmy/skills/shimmy-install/SKILL.md`
+- `plugins/shimmy/skills/shimmy-escalation/SKILL.md`
+- `plugins/shimmy/skills/shimmy-create-tool/SKILL.md` (consistency review)
+- `plugins/shimmy/skills/shimmy-tool-local-build/SKILL.md` (consistency review)
+- `plugins/shimmy/.agent-plugin/plugin.json`
+- `docs/templates/generic-shim/SKILL.md`
+- `tools/*/SKILL.md` profile-selection paragraphs
+- `tools/task/guide.md`
+- `tools/task/SKILL.md`
+- `CONTRIBUTING.md`
+- `AGENTS.md`
+- `docs/prompt-shimmy-project.md`
+- activation-related follow-up in `README.md`, `BOOTSTRAP.md`,
+  `commands/README.md`, and `docs/podman.md` when consistency requires it
+
+Expected unchanged surfaces that must be checked:
+
+- `.agents/skills/**`
+- activation shell implementation and tests from Chunk 1
+- registry/image configuration and tool runtimes
+
+### Implementation requirements
+
+1. Rewrite `shimmy-init` so it may inspect the selected profile and request
+   approval for the exact absolute profile-local `bin/shimmy profile activate`
+   command. Require status/dry-run first, stop on missing machines with exact
+   user-run provisioning guidance, and require separate confirmation before
+   adding `--stop-running`.
+2. Update `shimmy-install` to activate the target through its absolute launcher
+   before recommending shell selection. Explain that agent tool calls do not
+   retain a prior sourcing operation and must use absolute paths or same-command
+   sourcing.
+3. Update `shimmy-escalation` to delegate inactive-profile remediation to
+   `shimmy-init` before wrapper smoke approval while retaining exact narrow
+   outer wrapper prefixes.
+4. Keep direct Podman machine provisioning, deletion, rename, and broad Podman
+   approval prohibited. An installed profile lacking `profile activate` falls
+   back to user-shell guidance rather than direct agent lifecycle commands.
+5. Update the packaged plugin description and the canonical generic/tool skill
+   profile-selection paragraphs. Inventory all canonical tool skills and change
+   only the common profile workflow; preserve tool-specific connection,
+   privilege, credential, and cloud-profile meanings.
+6. Update Task guidance for `CONTAINER_HOST`/`CONTAINER_CONNECTION` conflicts
+   with deterministic activation.
+7. Add export tests proving refreshed portable and target skill outputs contain
+   profile-local activation, workload confirmation, and provisioning limits.
+   Preserve checked-in generated adapters and fingerprints.
+8. Update contributor, agent, and reusable-project guidance with the accepted
+   activation ownership and explicit `shimmy skills update` lifecycle.
+
+### Verification checklist
+
+- [ ] The three canonical management skills use status/dry-run, exact absolute
+  activation commands, separate workload acknowledgement, and narrow wrapper
+  smoke approval.
+- [ ] No skill provisions, deletes, renames, or adopts a machine, and legacy
+  installed profiles produce user-shell fallback guidance.
+- [ ] All canonical generic and tool skill profile-selection passages use the
+  new activation sequence without changing unrelated tool semantics.
+- [ ] Task guidance identifies masking connection variables without exposing
+  their contents.
+- [ ] Portable/target export tests contain the new canonical behavior while
+  checked-in `.agents/skills/` copies and fingerprints remain unchanged.
+- [ ] Plugin, contributor, agent, project-prompt, and user guidance agree on
+  provisioning, activation, shell selection, and approval ownership.
+- [ ] Activation implementation and its automated tests remain unchanged and
+  `./tests/test.sh` passes.
+
+### Human review gate
+
+Reviewers must confirm the narrowed agent authority, exact approval boundary,
+legacy fallback behavior, generated-adapter non-mutation, and semantic accuracy
+of the broad skill migration. Stop before Chunk 3.
+
+## Chunk 3 — Registry configuration and redirect transactions
+
+### Goal
+
+Add profile-owned strict `registries.conf` data, redirect CRUD, validation, and
+install/update/uninstall transaction support. The result intentionally supports
+safe profile preparation only: status and documentation must not claim an
+engine consumes the policy until the platform projection chunks are accepted.
+
+### Files
 
 - `commands/profile.sh`
 - `commands/CONTEXT.md`
-- `lib/profile/activation.sh`
 - `lib/profile/profile.sh`
 - `lib/profile/CONTEXT.md`
 - `lib/registries/registries.sh` (new)
 - `lib/registries/CONTEXT.md` (new)
 - `lib/CONTEXT.md`
-- `lib/runtime/podman.sh` and `lib/runtime/CONTEXT.md`
 - `lib/install/profile-assets.sh`
 - `lib/install/install.sh`
 - `lib/install/uninstall.sh`
 - `lib/install/request.sh`
 - `lib/install/CONTEXT.md`
 - `CONTEXT.md`
-
-Tests and test contexts:
-
-- `tests/commands/profile.sh` (redirect/projection portion)
-- `tests/lib/profile-activation.sh`
+- `tests/commands/profile.sh` (redirect CRUD portion)
 - `tests/commands/management.sh`
 - `tests/commands/lifecycle.sh`
 - `tests/commands/onboarding.sh`
 - `tests/commands/profiles.sh`
-- `tests/commands/startup.sh`
 - `tests/commands/install.sh`
-- `tests/commands/images.sh`
-- `tests/commands/skills.sh`
 - `tests/commands/CONTEXT.md`
 - `tests/lib/CONTEXT.md`
 - `tests/CONTEXT.md`
 - `tests/context-tree.sh`
 - `tests/test.sh`
-
-Registry-client and canonical guidance:
-
-- `tools/skopeo/versions/1.22/run.sh`
-- `tools/skopeo/tests/skopeo.sh`
-- `tools/skopeo/guide.md`
-- `tools/skopeo/SKILL.md`
-- `tools/oc/guide.md`
-- `tools/oc/SKILL.md`
-- `plugins/shimmy/skills/shimmy-init/SKILL.md`
-- `plugins/shimmy/skills/shimmy-install/SKILL.md`
+- `docs/registries.md` (new; preparation and format sections)
 - `README.md`
-- `BOOTSTRAP.md`
 - `commands/README.md`
-- `docs/registries.md` (new)
-- `docs/podman.md`
-- `CONTRIBUTING.md`
-- `AGENTS.md`
-- `docs/prompt-shimmy-project.md`
-- `docs/templates/generic-shim/AGENTS.md`
 
-Expected unchanged surfaces that must still be checked:
+Expected unchanged surfaces that must be checked:
 
 - `.agents/skills/**`
+- profile activation behavior and agent skills from Chunks 1-2
+- `tools/skopeo/versions/1.22/run.sh`
 - `lib/runtime/image.sh`
 - `lib/images/images.sh`
 - `commands/images.sh`
@@ -859,168 +880,330 @@ Expected unchanged surfaces that must still be checked:
 
 ### Implementation requirements
 
-1. Add redirect group/upsert/list/remove help and parsing to `commands/profile.sh`
-   without reopening accepted activation semantics. Preserve direct option-form
-   upsert and reject `mirror`, `set`, `registries`, `--machine`, and profile
-   selectors.
-2. Add canonical registry/projection paths during profile resolution. Require a
-   valid profile-specific `registries.conf`; allow an optional exact projection
-   record only on Darwin-aware lifecycle paths.
-3. Implement strict endpoint parsing, exact managed-file parsing, deterministic
-   rendering, upsert, exact removal, full removal, list/status reporting,
-   locking, temporary staging, atomic rename, rollback, and mount resolution in
-   `lib/registries/registries.sh`.
-4. On new install or valid pre-feature upgrade, stage an empty authoritative
-   config. On update/additive install, hold the registry lock through profile
-   commit and preserve validated config and optional record byte-for-byte.
-   Refuse malformed, symlinked, wrong-profile, or unmanaged collisions before
-   replacing any profile asset.
-5. Add both top-level formats to profile structure validation, backup/restore,
-   staged commit, rollback, fixtures, and owned cleanup. Keep manifest version 2
-   because canonical filenames/markers provide ownership; a required schema
-   change is a plan divergence requiring review.
-6. Extend Linux `profile activate` to validate registry environment overrides,
-   safely create the user drop-in directory, and atomically install the exact
-   Linux active link before fresh local-rootless engine validation. Roll back
-   link/default profile state on failure.
-7. Extend Darwin activation to validate same-path target readability and manage
-   only `/etc/containers/registries.conf.d/shimmy-profile.conf` through a fixed
-   root SSH script with validated arguments. Never interpolate registry
-   endpoints or untrusted machine output into remote shell code.
-8. Install the projection before the first target engine policy validation.
-   Accept an absent path or exact recognized Shimmy link; refuse regular files,
-   directories, foreign links, wrong targets, or unsafe parent state. Create the
-   local projection record with the exact current config fingerprint only after
-   remote validation; roll back both states together on failure.
-9. If an already-running target lacks a valid required projection or its
-   projection record fingerprint differs from the current config, do not repair
-   or claim readiness without a restart. Apply accepted `--restart` and
-   `--stop-running` semantics. A stopped target may be started, projected before
-   first registry-sensitive validation, and accepted without an extra restart
-   only when native acceptance proves the cache has not loaded earlier; update
-   the record fingerprint only after successful validation.
-10. Make `profile status` and redirect list report authoritative config health,
-    projection record/link health, active/inactive profile, masking registry
-    variables, and Darwin cache freshness as `current`, `restart-required`, or
-    `unverified` only when evidence supports it. Do not invent a freshness claim
-    from file existence alone.
-11. Keep redirect edits engine-independent. Inactive edits never contact
-    Podman. Active Linux edits perform fresh process validation and roll back on
-    parse failure. Active Darwin edits commit the valid profile file and print
-    the exact restart command; they do not stop the machine themselves.
-12. Implement `remove --all --detach` with exact ownership. Linux removes only
-    the invoking profile's active link. Darwin requires the expected machine
-    running/reachable to inspect/remove the exact VM link, or proves the machine
-    absent before clearing a stale ownership record. A stopped existing machine
-    fails with activation guidance and no detach mutation.
-13. Make profile/global uninstall refuse any valid projection record and print
-    exact detach guidance. After detach, uninstall removes the valid
-    authoritative file and exact Linux link if applicable while preserving
-    sibling configs, machines, connections, operator policy, and external skill
-    exports.
-14. Reject non-empty `CONTAINERS_REGISTRIES_CONF` and
-    `CONTAINERS_REGISTRIES_CONF_OVERRIDE` before active link/projection or
-    active-engine validation. Inactive config edits remain available with
-    explicit unvalidated status.
-15. Add a shared runtime resolver that accepts only a valid authoritative file
-    belonging to the active invoking profile. Missing Shimmy activation may
-    mean no mount; an inactive invoking profile, dangling/foreign link, invalid
-    projection record, malformed config, or unsafe path fails closed before
-    registry traffic.
-16. Mount the resolved config read-only in Skopeo at
-    `/etc/containers/registries.conf.d/shimmy-profile.conf`. Preserve image,
-    pull, platform, workdir, I/O, and auth-secret argv exactly. On Darwin rely
-    only on a profile path whose same-path VM visibility activation verified.
-17. Keep Skopeo as the only version-1 opt-in. `shimmy images verify` inherits
-    the mount without changes to its image references or verification logic.
-    Non-Skopeo runtimes remain unchanged.
-18. Create `docs/registries.md` as normative guidance for strict location
-    replacement, command examples, namespace matching, independent profile
-    preparation, activation/restart, list/remove/detach, config precedence,
-    no-fallback behavior, credentials/CA/signatures, Skopeo coverage, and
-    uninstall recovery.
-19. Keep `docs/podman.md` normative for deterministic machine creation,
-    same-path volume visibility, activation switching, workload interruption,
-    rootless connections, registry cache restart, and manual remote/rootful
-    cases. Link rather than duplicate between the two guides.
-20. Update OC and Skopeo guidance, generic template/agent guidance, README,
-    bootstrap, commands, contributor, project prompt, and canonical management
-    skills so no surface reintroduces mirror terminology, source-only
-    activation, arbitrary machines, automatic provisioning, or broad approval.
-21. Explain that `[[registry.mirror]]` falls back to the primary, physical
-    registries must preserve digests, Skopeo's auth secret remains independent,
-    and mounting registry policy does not install a corporate CA.
-22. Verify complete-tree materialization, sibling isolation, default/upstream
-    independent redirects, catalog operations, update rollback, profile
-    uninstall, global uninstall, skill export, and source-loss runtime behavior
-    against the new required/optional top-level files.
+1. Add redirect upsert/list/remove help and parsing without adding aliases.
+   Preserve direct option-form upsert and reject `mirror`, `set`, `registries`,
+   profile selectors, machine selectors, and unknown inputs before mutation.
+2. Add canonical authoritative config paths during profile resolution. Require
+   a regular, non-symlink profile-specific file with exact ownership/version
+   markers.
+3. Implement strict endpoint parsing, managed-file parsing, deterministic
+   rendering, no-op/upsert/removal, locking, non-`.conf` same-directory staging,
+   atomic rename, mode `0644`, cleanup, and exact rollback.
+4. Accept only the recorded fully qualified prefix/location grammar. Reject
+   schemes, wildcard syntax, tags, digests, traversal, empty path segments,
+   trailing slashes, quotes, whitespace, and unsupported characters; allow
+   ports and safe namespaces.
+5. On fresh install or a valid pre-feature upgrade, create an empty managed
+   config. On update/additive install, lock through profile commit and preserve
+   the validated file byte-for-byte. Reject malformed, symlinked, wrong-profile,
+   or unmanaged collisions before replacing any profile asset.
+6. Add the config to structure validation, backup/restore, staged commit,
+   rollback, fixtures, and owned cleanup without changing manifest version 2.
+7. Keep redirect mutation independent of Podman. Dry-run renders the full
+   candidate without a lock or filesystem mutation. Until Chunk 4 or 5 applies
+   a platform projection, status/list must label the policy `prepared` or
+   `inactive`, never `current`.
+8. Document strict replacement/no-fallback semantics, deterministic CRUD,
+   independent profile preparation, and the temporary projection boundary.
 
 ### Verification checklist
 
-- [ ] Redirect help, upsert/list/remove, dry-run, detach constraints, and all
-  unknown/obsolete inputs are complete and non-mutating.
+- [ ] Redirect help, CRUD, formats, dry-run, and rejected aliases/options are
+  complete and non-mutating.
 - [ ] Endpoint validation accepts hosts, ports, and safe namespace paths and
   rejects schemes, wildcards, tags, digests, traversal, empty segments,
   trailing slashes, quotes, whitespace, and unsafe characters.
 - [ ] Managed parsing accepts only exact profile/version markers and strict
   tables; deterministic rendering, no-op upsert, replacement, exact removal,
   full removal, and profile isolation pass.
-- [ ] Fresh installs/upgrades create empty configs; refresh/additive install
-  preserve config/record bytes; invalid files/records fail before mutation;
-  profile transaction rollback restores every top-level asset.
-- [ ] Linux activation link creation/switch/idempotence/collision/rollback and
-  local-rootless validation work only in disposable config roots and preserve
-  all operator files.
-- [ ] Darwin tests prove deterministic target projection, same-path visibility,
-  fixed root-write/rootless-validation separation, exact link collision
-  handling, record creation/fingerprint freshness, rollback, restart
-  requirements, and no profile content copy.
-- [ ] Active Darwin redirect edits never restart automatically and produce the
-  exact profile-local `activate --restart` command; workload guard behavior is
-  inherited from Chunk 1.
-- [ ] Detach removes only exact owned links/records, handles a proven missing
-  machine, refuses a stopped/unreachable existing machine, and never starts,
-  stops, provisions, deletes, or renames a machine.
-- [ ] Profile/global uninstall refuse recorded projection ownership and succeed
-  after detach while preserving machines, connections, sibling profiles,
-  catalogs, operator policy, and external skills.
-- [ ] Registry environment overrides block active mutation/validation, appear
-  in status/list, and do not prevent inactive profile preparation.
-- [ ] Config/link/record transaction tests prove lock exclusion,
-  same-directory staging, mode `0644`, atomic replacement, exact rollback,
-  cleanup, and unsafe-path refusal.
-- [ ] Registry-client resolution emits the exact mount only for an active valid
-  invoking profile, omits it only for valid absent activation, and fails closed
-  for profile mismatch or damaged state.
-- [ ] Skopeo previews contain the exact read-only mount while preserving all
-  existing argv/auth behavior; `images verify` inherits it and non-Skopeo
-  runtime previews remain unchanged.
-- [ ] Canonical skills and docs consistently distinguish profile activation,
-  machine provisioning, registry redirects, cache restart, auth/trust, and
-  fallback mirrors; generated `.agents/skills/` copies remain unchanged.
-- [ ] Default tests use disposable state/command seams and neither pull images,
-  contact corporate registries, nor mutate a developer machine.
-- [ ] New/changed shell files pass `dash -n`, executable modes and retained
-  contexts are correct, and `./tests/test.sh` passes.
-- [ ] Dedicated rootless Linux acceptance configures distinct redirects in both
-  profiles, activates each, proves Podman and direct Skopeo use the physical
-  digest endpoint, proves `images verify` inherits it, proves no fallback when
-  the physical endpoint is unavailable, and detaches cleanly.
-- [ ] Dedicated macOS acceptance uses pre-provisioned deterministic machines,
-  proves each machine retains only its owning profile projection, switches in
-  both directions, validates restart after active edits, proves Podman/Skopeo/
-  `images verify` route to the physical endpoint with no public fallback, and
-  verifies detach/uninstall boundaries. Record unavailable infrastructure as
-  `[~]` with exact impact and proposed disposition.
+- [ ] Locking, staging, permissions, atomic replacement, rollback, cleanup, and
+  unsafe-path refusal pass failure-injection tests.
+- [ ] Fresh installs and valid upgrades create empty configs; update/additive
+  install preserves valid bytes; invalid assets fail before profile mutation.
+- [ ] Profile/global uninstall removes only valid owned unprojected configs and
+  preserves sibling profiles, catalogs, operator policy, and external skills.
+- [ ] Status and docs state that prepared redirects are not active engine policy
+  before the applicable projection chunk.
+- [ ] Context coverage, shell syntax/modes, full materialization, source-loss
+  behavior, and `./tests/test.sh` pass without contacting Podman or registries.
 
 ### Human review gate
 
-Reviewers must confirm strict redirect/no-fallback semantics, profile config
-ownership, Linux versus Darwin projection, deterministic machine lifecycle,
-projection record/uninstall recovery, registry cache restart behavior, Skopeo
-scope, and all documentation/skill boundaries. All automated checks must pass,
-and every live acceptance item must be complete or explicitly dispositioned as
-`[~]`. Stop after this review; there is no later chunk.
+Reviewers must confirm the managed format, endpoint grammar, transaction and
+upgrade behavior, manifest-version decision, profile isolation, and explicit
+prepared-only boundary. Stop before Chunk 4.
+
+## Chunk 4 — Linux registry activation
+
+### Goal
+
+Make strict redirects operational for the supported local-rootless Linux
+engine through one exact active-profile link, fresh-process validation,
+active-edit rollback, detach, and lifecycle cleanup. Darwin remains explicitly
+prepared-only until Chunk 5.
+
+### Files
+
+- `commands/profile.sh`
+- `commands/CONTEXT.md`
+- `lib/profile/activation.sh`
+- `lib/profile/profile.sh`
+- `lib/profile/CONTEXT.md`
+- `lib/registries/registries.sh`
+- `lib/registries/CONTEXT.md`
+- `lib/runtime/podman.sh`
+- `lib/runtime/CONTEXT.md`
+- `lib/install/uninstall.sh`
+- `lib/install/CONTEXT.md`
+- `tests/commands/profile.sh` (Linux projection portion)
+- `tests/lib/profile-activation.sh`
+- `tests/commands/lifecycle.sh`
+- `tests/commands/profiles.sh`
+- `tests/commands/CONTEXT.md`
+- `tests/lib/CONTEXT.md`
+- `docs/registries.md`
+- `docs/podman.md`
+- `README.md`, `commands/README.md`, and relevant context files
+
+### Implementation requirements
+
+1. Extend Linux activation to reject masking registry variables, validate safe
+   parent directories, and atomically point only
+   `shimmy-active-profile.conf` at the invoking profile config before starting
+   a fresh local-rootless validation process.
+2. Refuse foreign files, directories, unsafe parents, dangling links, and
+   unrecognized targets. Preserve every operator main file and other drop-in.
+3. Roll back the link and reported active profile exactly when validation
+   fails. Keep Linux remote/rootful engines and lifecycle flags non-mutating
+   failures with manual guidance.
+4. Make active Linux redirect edits validate with a fresh process and restore
+   the prior file on failure. Inactive-profile edits remain engine-independent.
+5. Implement Linux `remove --all --detach` only when the exact active link
+   points to the invoking profile. Profile/global uninstall removes that exact
+   owned link when applicable and never touches foreign paths.
+6. Extend status/list with config health, active-link ownership, masking
+   variables, and evidence-based `current`, `inactive`, or `invalid` policy
+   state.
+7. Update Linux operating guidance and tests without claiming Skopeo container
+   coverage, which remains Chunk 6.
+
+### Verification checklist
+
+- [ ] Link create/switch/idempotence/collision/rollback cases use disposable
+  config roots and preserve operator files and sibling profiles.
+- [ ] Local-rootless validation occurs after the candidate link is installed;
+  remote/rootful state and masking variables fail before mutation.
+- [ ] Active edits validate in a fresh process and roll back exact bytes on
+  failure; inactive edits do not contact Podman.
+- [ ] Status/list classifications follow actual config/link evidence and do not
+  overclaim client coverage.
+- [ ] Detach and uninstall remove only exact owned Linux state and refuse
+  damaged or foreign state.
+- [ ] Default tests neither contact registries nor mutate host configuration;
+  syntax, contexts, and `./tests/test.sh` pass.
+- [ ] Dedicated rootless Linux acceptance proves Podman resolves a digest-pinned
+  logical reference through the physical location and does not fall back when
+  that location is unavailable. Record infrastructure gaps as `[~]`.
+
+### Human review gate
+
+Reviewers must confirm Linux link ownership, validation and rollback ordering,
+remote/rootful refusal, detach/uninstall behavior, and native route evidence.
+Stop before Chunk 5.
+
+## Chunk 5 — Darwin registry projection and cache lifecycle
+
+### Goal
+
+Make strict redirects operational in each deterministic Darwin machine through
+an exact VM-side projection, local ownership record, restart-aware cache
+freshness, rollback, detach, and uninstall refusal. This completes engine
+projection on both supported platforms but does not yet opt Skopeo containers
+into policy mounting.
+
+### Files
+
+- `commands/profile.sh`
+- `commands/CONTEXT.md`
+- `lib/profile/activation.sh`
+- `lib/profile/profile.sh`
+- `lib/profile/CONTEXT.md`
+- `lib/registries/registries.sh`
+- `lib/registries/CONTEXT.md`
+- `lib/runtime/podman.sh`
+- `lib/runtime/CONTEXT.md`
+- `lib/install/profile-assets.sh`
+- `lib/install/install.sh`
+- `lib/install/uninstall.sh`
+- `lib/install/CONTEXT.md`
+- `tests/commands/profile.sh` (Darwin projection portion)
+- `tests/lib/profile-activation.sh`
+- `tests/commands/lifecycle.sh`
+- `tests/commands/profiles.sh`
+- `tests/commands/install.sh`
+- `tests/commands/CONTEXT.md`
+- `tests/lib/CONTEXT.md`
+- `docs/registries.md`
+- `docs/podman.md`
+- `README.md`, `BOOTSTRAP.md`, `commands/README.md`, and relevant context files
+
+### Implementation requirements
+
+1. Validate same-path host-home readability inside the expected machine and
+   manage only `/etc/containers/registries.conf.d/shimmy-profile.conf` through
+   a fixed root SSH script with validated arguments. Never interpolate endpoint
+   content or untrusted machine output into remote code.
+2. Install the projection before the first target engine policy validation.
+   Accept only an absent path or the exact recognized Shimmy symlink; refuse
+   regular files, directories, foreign links, wrong targets, and unsafe parent
+   state.
+3. Create the strict local projection record only after remote validation. Store
+   the deterministic config fingerprint and include record/link state in every
+   activation rollback boundary and profile update transaction.
+4. If an already-running target lacks a valid projection or has a stale
+   fingerprint, ordinary activation fails with the exact `--restart` command.
+   Restart uses Chunk 1 workload acknowledgement and rollback semantics.
+5. On a stopped target, project before the first registry-sensitive validation
+   and record freshness only after native acceptance supports that ordering.
+   Never copy registry content into the VM.
+6. Active Darwin redirect edits commit locally and print the exact profile-local
+   restart command; they never stop/restart automatically. Inactive edits remain
+   engine-independent.
+7. Implement Darwin detach only for the exact recognized VM link/record. Require
+   the expected machine to be running/reachable or prove it absent; a stopped
+   existing machine fails without mutation.
+8. Make profile/global uninstall refuse a valid projection record with exact
+   detach guidance. After detach, remove only valid owned profile data; never
+   stop, provision, delete, or rename a machine.
+9. Extend status/list with link/record health, masking registry variables, and
+   evidence-based `current`, `restart-required`, or `unverified` freshness.
+
+### Verification checklist
+
+- [ ] Same-path visibility, fixed root-write/rootless-validation separation,
+  exact collision refusal, and no-content-copy behavior pass.
+- [ ] Projection precedes first policy validation; record creation/fingerprint
+  freshness and every rollback boundary are failure-injection tested.
+- [ ] Already-running stale/missing projection requires explicit restart and
+  inherits workload guard and rollback behavior from Chunk 1.
+- [ ] Active edits never restart automatically and print the exact absolute
+  restart command; inactive edits do not contact Podman.
+- [ ] Detach handles exact owned state and a proven missing machine, while
+  refusing stopped/unreachable or foreign state without mutation.
+- [ ] Update preserves valid config/record bytes; profile/global uninstall
+  refuses attached projections and succeeds after exact detach.
+- [ ] Status freshness labels are evidence-based and registry environment
+  overrides block active mutation without blocking inactive preparation.
+- [ ] Default tests use command seams and do not touch a developer machine;
+  syntax, contexts, and `./tests/test.sh` pass.
+- [ ] Dedicated macOS acceptance switches both pre-provisioned profile machines,
+  proves each retains only its own redirect, requires restart after active
+  edits, routes Podman through the physical digest endpoint with no fallback,
+  and verifies detach/uninstall. Record infrastructure gaps as `[~]`.
+
+### Human review gate
+
+Reviewers must confirm VM path ownership, projection timing, cache-freshness
+evidence, restart/workload behavior, rollback, and detach-before-uninstall.
+Stop before Chunk 6.
+
+## Chunk 6 — Registry client integration and final consistency
+
+### Goal
+
+Opt only the verified Skopeo client into the active profile policy, prove that
+`shimmy images verify` inherits it, complete registry-specific canonical
+guidance, and run final cross-platform/cross-surface verification without
+changing logical image references.
+
+### Files
+
+- `lib/registries/registries.sh`
+- `lib/registries/CONTEXT.md`
+- `lib/runtime/podman.sh` and `lib/runtime/CONTEXT.md` if the shared resolver
+  boundary requires them
+- `tools/skopeo/versions/1.22/run.sh`
+- `tools/skopeo/tests/skopeo.sh`
+- `tools/skopeo/guide.md`
+- `tools/skopeo/SKILL.md`
+- `tools/oc/guide.md`
+- `tools/oc/SKILL.md`
+- `tests/commands/images.sh`
+- `tests/commands/skills.sh`
+- `tests/commands/lifecycle.sh`
+- `tests/commands/profile.sh`
+- `tests/commands/CONTEXT.md`
+- `docs/registries.md`
+- `docs/podman.md`
+- `README.md`, `BOOTSTRAP.md`, `commands/README.md`
+- `CONTRIBUTING.md`, `AGENTS.md`, `docs/prompt-shimmy-project.md`
+- `plugins/shimmy/skills/shimmy-init/SKILL.md`
+- `plugins/shimmy/skills/shimmy-install/SKILL.md`
+- `docs/templates/generic-shim/AGENTS.md`
+
+Expected unchanged surfaces that must be checked:
+
+- `.agents/skills/**`
+- `lib/runtime/image.sh`, `lib/images/images.sh`, and `commands/images.sh`
+- all image references, `image.conf` files, Containerfiles, refresh hooks, and
+  non-Skopeo tool runtimes
+
+### Implementation requirements
+
+1. Add a shared resolver that returns a registry-client mount only for a valid
+   active invoking profile. Valid absence of any Shimmy activation omits the
+   mount; profile mismatch, damaged link/record, invalid config, unsafe path,
+   stale Darwin projection, or masking variables fail closed.
+2. Mount the authoritative config read-only in Skopeo at
+   `/etc/containers/registries.conf.d/shimmy-profile.conf`. Preserve image,
+   pull, platform, workdir, I/O, auth-secret, and argv behavior exactly.
+3. Keep Skopeo as the only initial opt-in. `shimmy images verify` inherits the
+   mount through its existing Skopeo path without image rewriting. Every other
+   tool runtime remains unchanged.
+4. Complete normative registry guidance for strict replacement, namespaces,
+   profile preparation, activation/restart, list/remove/detach, precedence,
+   no fallback, credentials/CA/signatures, cache behavior, Skopeo coverage, and
+   uninstall recovery.
+5. Update OC language from fallback-capable mirror terminology to strict
+   redirects while retaining Red Hat signature-policy caveats. Preserve
+   Skopeo's independent auth-secret behavior and explain that policy mounting
+   does not install credentials or a corporate CA.
+6. Update canonical management/template guidance only where registry readiness
+   changes the accepted activation workflow. Verify exported outputs without
+   editing checked-in generated adapters.
+7. Perform a final terminology and behavior inventory across producers,
+   consumers, validators, fixtures, transaction/rollback paths, contexts,
+   skills, and docs. Remove no compatibility surface beyond the recorded plan.
+
+### Verification checklist
+
+- [ ] Resolver returns the exact mount only for active, valid, current profile
+  state; valid no-activation omits it; every mismatch/damaged/stale/overridden
+  state fails closed.
+- [ ] Skopeo previews contain the exact read-only mount and preserve every
+  existing argv/auth behavior; non-Skopeo previews are unchanged.
+- [ ] `images verify` inherits the Skopeo policy without changes to logical
+  references or verification code.
+- [ ] Canonical skills/docs consistently distinguish activation, provisioning,
+  redirects, cache restart, auth/trust, signature policy, and fallback mirrors;
+  generated `.agents/skills/` copies remain unchanged.
+- [ ] Full install/update/rollback/profile-uninstall/global-uninstall, sibling
+  isolation, catalog, skill export, source-loss runtime, context, syntax, and
+  `./tests/test.sh` coverage passes.
+- [ ] Dedicated Linux acceptance proves Podman, direct Skopeo, and `images
+  verify` route to the physical digest endpoint with no public fallback, then
+  detach cleanly.
+- [ ] Dedicated macOS acceptance proves the same clients use each machine's
+  owning profile policy, restart after active edits, switch both directions,
+  and preserve detach/uninstall boundaries. Record unavailable infrastructure
+  as `[~]` with impact and proposed disposition.
+
+### Human review gate
+
+Reviewers must confirm the fail-closed client resolver, Skopeo-only initial
+scope, no logical-reference changes, auth/trust boundaries, terminology
+consistency, and disposition of every live acceptance item. Stop after this
+review; there is no later chunk.
 
 ## Risk register
 
@@ -1118,28 +1301,39 @@ and every live acceptance item must be complete or explicitly dispositioned as
 - Canonical skills are catalog-owned; checked-in and external adapters are
   separate explicit exports. Updating agent behavior does not authorize
   rewriting generated `.agents/skills/` copies.
+- The expanded scope crosses six independently reviewable boundaries: engine
+  lifecycle, agent authority, registry data transactions, Linux projection,
+  Darwin projection/cache ownership, and registry-client consumption. Keeping
+  those in two chunks would make failure diagnosis and human acceptance
+  unnecessarily coupled.
 
 ## Session bootstrap
 
 For a fresh implementation session:
 
 1. Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, this complete plan,
-   and every retained child context for the active chunk. Read the three
-   canonical management skills and the exact source/test files listed by that
-   chunk.
+   and every retained child context for the active chunk. Read the exact
+   source, test, skill, and documentation files listed by that chunk.
 2. Recheck the worktree and preserve the unrelated untracked
    `plans/registry-image-remap.md`. Treat the verified inventory as a baseline
    and add newly discovered dependencies without reopening recorded decisions.
 3. Start only the first unchecked chunk. Chunk 1's non-negotiable boundaries
    are: explicit profile-bound activation; deterministic `shimmy-default` and
    `shimmy-upstream`; no Podman provisioning/removal; workload guard; global
-   connection commit last; PATH-only shell init; exact agent approval; no
-   registry implementation yet.
-4. After Chunk 1 is accepted, Chunk 2's non-negotiable boundaries are: shared
-   containers/image `prefix`/`location`; no mirrors or Shimmy mapper; one
-   profile-owned config; Linux-only active host link; direct deterministic
-   Darwin projection plus ownership record; restart after active remote edits;
-   Skopeo-only initial mount; detach before uninstall; no auth/CA management.
+   connection commit last; PATH-only shell init; no registry implementation or
+   skill migration yet.
+4. Continue only after each preceding review gate is explicitly accepted. The
+   remaining non-negotiable boundaries are:
+   - Chunk 2: exact profile-local agent approval, no machine provisioning, and
+     no generated-adapter mutation.
+   - Chunk 3: strict `prefix`/`location`, no mirrors or Shimmy mapper, atomic
+     profile-owned data, and no claim of engine activation.
+   - Chunk 4: Linux-only exact active link, fresh local-rootless validation,
+     and no operator-file mutation.
+   - Chunk 5: direct deterministic Darwin projection, ownership record, explicit
+     cache restart, and detach before uninstall.
+   - Chunk 6: Skopeo-only initial client mount, unchanged logical references,
+     and no auth, CA, or signature-policy management.
 5. Implement and verify only the active chunk, update its checklist and Lessons
    learned, and stop at its human review gate. Surface every `[~]` item with
    completed evidence, remaining gap, impact, next action, and whether
