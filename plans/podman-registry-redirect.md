@@ -539,11 +539,8 @@ during implementation.
 None.
 
 ## Progress Checklist
-
-- [~] Chunk 1 — Profile-bound engine activation control plane implemented; all
-  automated checks pass, with dedicated two-machine macOS acceptance deferred
-  pending infrastructure and human review
-- [ ] Chunk 2 — Migrate agent workflows and canonical activation guidance (blocked on accepted Chunk 1)
+  [x] Chunk 1 — Profile-bound engine activation control plane accepted after automated verification and native macOS acceptance
+- [ ] Chunk 2 — Migrate agent workflows and canonical activation guidance
 - [ ] Chunk 3 — Add profile registry files, strict redirect CRUD, and profile transaction support (blocked on accepted Chunk 2)
 - [ ] Chunk 4 — Activate and validate strict registry policy on Linux (blocked on accepted Chunk 3)
 - [ ] Chunk 5 — Project and validate strict registry policy in Darwin machines (blocked on accepted Chunk 4)
@@ -726,17 +723,23 @@ Expected unchanged surfaces that must be checked:
 - [x] New/changed runnable shell files pass `dash -n`, retain executable modes,
   and context/test runners include the new modules.
 - [x] `./tests/test.sh` passes without starting or stopping any real machine.
-- [~] On a dedicated macOS acceptance host with pre-provisioned
-  `shimmy-default` and `shimmy-upstream`, activate each direction, verify global
-  default/rootless affinity, verify idle switching, verify workload refusal,
-  exercise an explicitly authorized workload switch, and verify rollback from
-  an induced target-start failure. Deferred on 2026-08-14: the available macOS
-  host has only the running `podman-machine-default` and its rootless/root
-  connections; neither required Shimmy machine exists. Automated seam coverage
-  proves transition and rollback ordering but cannot replace native two-machine
-  and workload acceptance. Next action is user provisioning of both named
-  machines on a dedicated host, followed by this acceptance run. Human
-  acceptance requires explicit deferral of this item.
+- [x] Native macOS acceptance completed on 2026-08-15. Validated:
+    - deterministic machine provisioning (`shimmy-default`,`shimmy-upstream`);
+    - status classification against `podman-machine-default`;
+    - non-mutating `--dry-run`;
+    - `default -> upstream -> default` switching;
+    - idempotent activation;
+    - running-container refusal without `--stop-running`;
+    - explicitly acknowledged workload interruption with `--stop-running`;
+    - `CONTAINER_CONNECTION` override refusal without leaking values;
+    - `CONTAINER_HOST` override refusal without leaking values;
+    - installed-wrapper runtime-affinity enforcement after PATH-only shell
+      selection.
+
+    Native rollback fault injection remained intentionally deferred. Automated
+    failure-injection coverage already verifies target cleanup, prior-machine
+    restart, prior-default restoration, rollback ordering, and workload rollback
+    reporting.
 
 ### Human review gate
 
@@ -744,8 +747,14 @@ Reviewers must confirm the explicit activation UX, deterministic names,
 pre-existing-machine requirement, global default-connection behavior,
 workload acknowledgement, rollback limitations, source-only PATH boundary,
 and runtime affinity behavior. All automated checks must pass and native Darwin
-acceptance must be complete or explicitly deferred as `[~]`. Stop before Chunk
-2.
+acceptance must be complete or explicitly deferred as `[~]`. Stop before Chunk 2.
+
+Accepted 2026-08-15 after native macOS validation.
+
+Additional documentation requirement: macOS onboarding guidance must
+explicitly warn that Podman on MacOS permits only one managed VM at a time and that
+activating a Shimmy profile may stop `podman-machine-default` or another
+running Podman VM, interrupting any workloads hosted there.
 
 ## Chunk 2 — Agent workflow and activation guidance migration
 
