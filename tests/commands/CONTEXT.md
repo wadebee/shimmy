@@ -43,6 +43,9 @@ a user's Shimmy installation or shell startup files.
   partial-profile, and independent shell-init damage cases start from pristine
   profile clones while retaining real invalid-XDG and bootstrap
   repair-rejection checks.
+- `profile.sh` covers profile command help and rejection, installed control
+  materialization, read-only state, deterministic profile identity, and
+  connection-override redaction through the fake Podman seam.
 - `update.sh` covers selected-shim and all-profile refresh behavior, version-
   local irrelevant image-refresh actions, manifest-preserving self-update for
   non-baseline tools and concrete versions, and update request validation. Its

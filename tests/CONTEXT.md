@@ -10,6 +10,11 @@ preferred where it proves the same behavior. The default suite validates image
 metadata offline and previews every concrete runtime across the supported
 Linux/Darwin and amd64/arm64 host matrix.
 
+Profile activation tests use a purpose-built Podman command seam and disposable
+configuration roots. They verify discovery, workload guards, transition and
+rollback ordering, and installed-runtime affinity without changing a developer
+machine.
+
 Installation scenarios isolate state with absolute disposable `HOME` and
 `XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or
 installed profile-selection override. The runner first creates one disposable

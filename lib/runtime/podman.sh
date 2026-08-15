@@ -61,16 +61,117 @@ shimmy_podman_failure_print_unreachable() {
 
   printf 'ERROR: podman was found at %s but could not talk to the engine for %s.\n' "$podman_bin" "$context_label" >&2
   printf '%s\n' 'Verify that `podman info` succeeds in your shell.' >&2
-  printf '%s\n' 'On macOS, start the engine from a normal user shell with: podman machine start' >&2
+  printf '%s\n' 'On macOS, inspect the selected profile with: shimmy profile status' >&2
   printf '%s\n' 'If you use a non-default connection, review: podman system connection list' >&2
   if [ -n "${CONTAINER_HOST:-}" ]; then
-    printf 'Current CONTAINER_HOST=%s\n' "$CONTAINER_HOST" >&2
-    printf '%s\n' 'Confirm that CONTAINER_HOST points at a reachable Podman service or unset it to use the default connection.' >&2
+    printf '%s\n' 'CONTAINER_HOST is set; its value is hidden. Unset it to use profile activation.' >&2
   else
     printf '%s\n' 'If you use CONTAINER_HOST, confirm it points at a reachable Podman service.' >&2
   fi
   printf '%s\n' 'AI Agent note: if `podman info` succeeds but this shim still fails, request approval for the dry-run smoke command prefix, for example ["rg","--version"] or ["./commands/run-tool.sh","rg","--version"].' >&2
   printf '%s\n' 'Approving `podman info` alone does not approve Podman access through a Shimmy wrapper.' >&2
+}
+
+shimmy_podman_profile_affinity_fail() {
+  affinity_profile=$1
+  affinity_profile_root=$2
+  affinity_reason=$3
+
+  printf 'ERROR: installed Shimmy profile %s cannot run against the current Darwin Podman engine: %s.\n' "$affinity_profile" "$affinity_reason" >&2
+  printf "Activate it with: '%s/bin/shimmy' profile activate\n" "$affinity_profile_root" >&2
+  printf "Then select its PATH in this shell with: . '%s/shell-init.sh'\n" "$affinity_profile_root" >&2
+  return 1
+}
+
+shimmy_podman_profile_affinity_require() {
+  [ -n "${SHIMMY_RUNTIME_DIR:-}" ] || return 0
+  runtime_profile_root=$(cd -- "$SHIMMY_RUNTIME_DIR/../.." 2>/dev/null && pwd -P) || return 0
+  runtime_profile=$(basename -- "$runtime_profile_root")
+  case "$runtime_profile" in default|upstream) ;; *) return 0 ;; esac
+
+  if [ -n "${XDG_CONFIG_HOME:-}" ]; then
+    case "$XDG_CONFIG_HOME" in /*) affinity_config_home=$XDG_CONFIG_HOME ;; *) return 0 ;; esac
+  else
+    case "${HOME:-}" in /*) affinity_config_home=$HOME/.config ;; *) return 0 ;; esac
+  fi
+  while [ "$affinity_config_home" != / ]; do
+    case "$affinity_config_home" in */) affinity_config_home=${affinity_config_home%/} ;; *) break ;; esac
+  done
+  if [ "$affinity_config_home" = / ]; then
+    affinity_expected_root=/shimmy/profiles/$runtime_profile
+  else
+    affinity_expected_root=$affinity_config_home/shimmy/profiles/$runtime_profile
+  fi
+  [ "$runtime_profile_root" = "$affinity_expected_root" ] || return 0
+
+  affinity_manifest=$runtime_profile_root/install-manifest.txt
+  if [ ! -f "$affinity_manifest" ] || [ -L "$affinity_manifest" ]; then
+    shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'profile manifest is missing or invalid'
+    return 1
+  fi
+  affinity_manifest_profile=$(sed -n 's/^shimmy_profile_name=//p' "$affinity_manifest" | sed -n '1p')
+  affinity_manifest_layout=$(sed -n 's/^shimmy_install_layout=//p' "$affinity_manifest" | sed -n '1p')
+  if [ "$affinity_manifest_profile" != "$runtime_profile" ] || [ "$affinity_manifest_layout" != profile-materialized-root ]; then
+    shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'profile manifest identity is invalid'
+    return 1
+  fi
+
+  if [ "${SHIMMY_TEST_OS+x}" = x ]; then affinity_host_os=$SHIMMY_TEST_OS; else affinity_host_os=$(uname -s 2>/dev/null || true); fi
+  [ "$affinity_host_os" = Darwin ] || return 0
+  if [ -n "${CONTAINER_CONNECTION:-}" ]; then
+    shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'CONTAINER_CONNECTION masks the global default (value hidden)'
+    return 1
+  fi
+  if [ -n "${CONTAINER_HOST:-}" ]; then
+    shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'CONTAINER_HOST masks the global default (value hidden)'
+    return 1
+  fi
+
+  affinity_expected_connection=shimmy-$runtime_profile
+  if ! affinity_connections=$("$SHIMMY_PODMAN_BIN" system connection list --format '{{.Name}}|{{.URI}}|{{.Default}}' 2>/dev/null); then
+    shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'connection metadata is unreachable'
+    return 1
+  fi
+  affinity_default=
+  affinity_default_count=0
+  affinity_expected_count=0
+  affinity_expected_rootless=0
+  while IFS='|' read -r affinity_name affinity_uri affinity_is_default affinity_extra; do
+    [ -n "$affinity_name" ] || continue
+    if [ -n "$affinity_extra" ]; then
+      shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'connection metadata is invalid'
+      return 1
+    fi
+    if [ "$affinity_is_default" = true ]; then
+      affinity_default_count=$((affinity_default_count + 1))
+      affinity_default=$affinity_name
+    fi
+    if [ "$affinity_name" = "$affinity_expected_connection" ]; then
+      affinity_expected_count=$((affinity_expected_count + 1))
+      case "$affinity_uri" in
+        ssh://root@*) ;;
+        ssh://*/*/run/user/*/podman/podman.sock|ssh://*/run/user/*/podman/podman.sock) affinity_expected_rootless=1 ;;
+      esac
+    fi
+  done <<EOF
+$affinity_connections
+EOF
+  if [ "$affinity_default_count" -ne 1 ] || [ "$affinity_expected_count" -ne 1 ] || [ "$affinity_expected_rootless" -ne 1 ]; then
+    shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'expected same-name rootless connection metadata is invalid'
+    return 1
+  fi
+  if [ "$affinity_default" != "$affinity_expected_connection" ]; then
+    shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" "global default connection is not $affinity_expected_connection"
+    return 1
+  fi
+  if ! affinity_info=$("$SHIMMY_PODMAN_BIN" --connection "$affinity_expected_connection" info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}' 2>/dev/null); then
+    shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" "connection $affinity_expected_connection is unreachable"
+    return 1
+  fi
+  if [ "$affinity_info" != 'true|true' ]; then
+    shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" "connection $affinity_expected_connection is not a rootless machine engine"
+    return 1
+  fi
 }
 
 shimmy_podman_is_preview() {
@@ -183,6 +284,7 @@ shimmy_podman_preflight_require() {
 
   shimmy_podman_bin_require "$context_label" || return 1
   shimmy_podman_platform_resolve
+  shimmy_podman_profile_affinity_require || return 1
 
   if ! "$SHIMMY_PODMAN_BIN" info >/dev/null 2>&1; then
     shimmy_podman_failure_print_unreachable "$context_label" "$SHIMMY_PODMAN_BIN"

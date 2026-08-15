@@ -44,6 +44,7 @@ write_shell_init_file() {
 
   {
     printf 'shimmy_shell_init_bin_dir=%s\n' "$quoted_bin_dir"
+    printf '%s\n' '# Selects this Shimmy profile on PATH only; run `shimmy profile activate` explicitly for its Podman engine.'
     printf 'if [ -d "$shimmy_shell_init_bin_dir" ]; then\n'
     printf '  shimmy_shell_init_path_input=${PATH-}\n'
     printf '  shimmy_shell_init_path_output=\n'

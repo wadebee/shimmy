@@ -287,7 +287,8 @@ perform_install() {
   fi
 
   log_info "Installed Shimmy $SHIMMY_PROFILE_RESOLVED profile at $SHIMMY_PROFILE_ROOT"
-  log_info "Initialize this shell with: . '$SHIMMY_SHELL_INIT_FILE'"
+  log_info "Inspect or activate its engine with: '$SHIMMY_CONTROL_BIN' profile status"
+  log_info "Select its PATH in this shell with: . '$SHIMMY_SHELL_INIT_FILE'"
 }
 
 shimmy_install_run() {

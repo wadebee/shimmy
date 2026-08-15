@@ -9,12 +9,19 @@ repository-local `shimmy` launcher.
 - A complete Shimmy source checkout with `install.sh`, `commands/`, `lib/`, and
   `tools/`.
 - A POSIX-compatible `/bin/sh`.
-- The Podman CLI and a reachable Podman engine. Shimmy treats Podman as an
-  explicit dependency and does not install or start it.
+- The Podman CLI and a local rootless Podman engine. Shimmy treats Podman as an
+  explicit dependency and does not install or provision it.
 
 On macOS, the official package may install Podman at
-`/opt/podman/bin/podman`. Start the Podman machine and confirm `podman info`
-from the invoking shell before bootstrapping.
+`/opt/podman/bin/podman`. Before tool use, create the deterministic machines
+needed by installed profiles in a normal user shell:
+
+```sh
+podman machine init shimmy-default
+podman machine init shimmy-upstream
+```
+
+Shimmy does not adopt, rename, migrate, or remove `podman-machine-default`.
 
 ## Public entrypoints
 
@@ -67,11 +74,19 @@ the installed profile-local launcher:
 shimmy install --shim <tool>
 ```
 
-For an existing profile, select it by sourcing its generated `shell-init.sh`:
+For an existing profile, activate its engine explicitly, then select its PATH:
 
 ```sh
-. "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/shell-init.sh"
+profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
+"$profile_root/bin/shimmy" profile status
+"$profile_root/bin/shimmy" profile activate
+. "$profile_root/shell-init.sh"
 ```
+
+On macOS, activation uses only `shimmy-default` or `shimmy-upstream` and
+refuses to interrupt displayed running containers without `--stop-running`.
+On Linux it validates the current user's local rootless engine without managing
+a VM. Sourcing `shell-init.sh` is PATH-only and never activates an engine.
 
 ## Implementation routing
 
@@ -96,6 +111,7 @@ Verify the selected profile without changing external state:
 
 ```sh
 shimmy status --format manifest
+shimmy profile status --format manifest
 jq --version
 rg --version
 ```

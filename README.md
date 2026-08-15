@@ -8,11 +8,20 @@ overrides through `SHIMMY_*` environment variables.
 ## Requirements
 
 - POSIX-compatible `/bin/sh`
-- Podman CLI and a reachable engine in the shell that invokes Shimmy
+- Podman CLI and a reachable local rootless engine in the shell that invokes
+  Shimmy
 
 On macOS, the Podman pkg installer may place the binary at
-`/opt/podman/bin/podman`. Run `podman machine start` and `podman info` from a
-normal user shell before running a shim.
+`/opt/podman/bin/podman`. Each profile uses a pre-existing named rootless
+machine created explicitly in a normal user shell:
+
+```sh
+podman machine init shimmy-default
+podman machine init shimmy-upstream
+```
+
+Shimmy never provisions, adopts, renames, or removes machines. Existing data
+in `podman-machine-default` is not migrated or removed.
 
 ## Install and use
 
@@ -37,6 +46,7 @@ Each installed launcher exposes this management surface:
 | `shimmy install` | Add explicitly selected tool shims to the profile. |
 | `shimmy uninstall` | Remove one profile, or explicitly remove all Shimmy-owned state. |
 | `shimmy netinfo` | Show host, VM, and container network perspectives. |
+| `shimmy profile` | Inspect or explicitly activate the profile-bound Podman engine. |
 | `shimmy skills` | Install, update, uninstall, or export Shimmy agent skills. |
 | `shimmy status` | Show installed shims, versions, and profile details. |
 | `shimmy test` | Validate the profile with non-mutating shim smoke commands. |
@@ -68,12 +78,31 @@ directly from an existing profile, source its generated asset:
 Each profile has its own self-contained `bin/shimmy`, and installed launchers
 manage only their enclosing profile.
 
+On macOS, engine activation and shell selection are separate. The launcher
+fixes the engine name (`default -> shimmy-default`, `upstream ->
+shimmy-upstream`) and activation may stop one idle alternate machine. Running
+containers are displayed and block a stop unless interruption is explicitly
+acknowledged with `--stop-running`:
+
+```sh
+profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
+"$profile_root/bin/shimmy" profile status
+"$profile_root/bin/shimmy" profile activate --dry-run
+"$profile_root/bin/shimmy" profile activate
+. "$profile_root/shell-init.sh"
+```
+
+On Linux, activation validates the current user's local rootless engine and
+never manages a VM. Non-empty `CONTAINER_CONNECTION` or `CONTAINER_HOST` must
+be unset; status reports only the masking variable name, never its value.
+
 Profiles are independent materialized installations below an absolute
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>` root. A relative,
 non-empty `XDG_CONFIG_HOME` is rejected. The `default` profile alone may own a
-persistent startup block; `upstream` never changes shell startup files. Switch
-profiles by sourcing the desired profile's `shell-init.sh`, not with an
-installed command option or environment selector.
+persistent startup block; `upstream` never changes shell startup files. Source
+the desired profile's `shell-init.sh` to select PATH only; it never starts or
+stops Podman or sets connection variables. Installed commands accept no profile
+or machine selector.
 
 Shared named catalogs live beside profiles under the same `shimmy/` config
 root. `upstream` is a validated live binding to one Git checkout, so a complete

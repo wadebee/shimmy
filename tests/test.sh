@@ -32,6 +32,8 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$SCRIPT_DIR/lib/catalog.sh"
 # shellcheck source=tests/lib/runtime.sh
 . "$SCRIPT_DIR/lib/runtime.sh"
+# shellcheck source=tests/lib/profile-activation.sh
+. "$SCRIPT_DIR/lib/profile-activation.sh"
 # shellcheck source=tests/lib/update.sh
 . "$SCRIPT_DIR/lib/update.sh"
 # shellcheck source=tests/commands/agent-preflight.sh
@@ -48,6 +50,8 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$SCRIPT_DIR/commands/onboarding.sh"
 # shellcheck source=tests/commands/profiles.sh
 . "$SCRIPT_DIR/commands/profiles.sh"
+# shellcheck source=tests/commands/profile.sh
+. "$SCRIPT_DIR/commands/profile.sh"
 # shellcheck source=tests/commands/status.sh
 . "$SCRIPT_DIR/commands/status.sh"
 # shellcheck source=tests/commands/update.sh
@@ -117,6 +121,7 @@ main() {
   setup_session_update_source_fixture
   test_lib_catalog_run
   test_lib_runtime_run
+  test_lib_profile_activation_run
   test_lib_update_run
   test_commands_agent_preflight_run
   test_commands_catalog_run
@@ -126,6 +131,7 @@ main() {
   test_commands_onboarding_run
   test_commands_lifecycle_complete
   test_commands_profiles_run
+  test_commands_profile_run
   test_commands_status_run
   test_commands_update_run
   test_commands_startup_run

@@ -540,7 +540,9 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Add the profile-bound engine activation control plane (active only after explicit approval)
+- [~] Chunk 1 — Profile-bound engine activation control plane implemented; all
+  automated checks pass, with dedicated two-machine macOS acceptance deferred
+  pending infrastructure and human review
 - [ ] Chunk 2 — Migrate agent workflows and canonical activation guidance (blocked on accepted Chunk 1)
 - [ ] Chunk 3 — Add profile registry files, strict redirect CRUD, and profile transaction support (blocked on accepted Chunk 2)
 - [ ] Chunk 4 — Activate and validate strict registry policy on Linux (blocked on accepted Chunk 3)
@@ -685,51 +687,56 @@ Expected unchanged surfaces that must be checked:
 
 ### Verification checklist
 
-- [ ] Launcher/group/action help is complete and non-mutating; `--profile`,
+- [x] Launcher/group/action help is complete and non-mutating; `--profile`,
   `--machine`, arbitrary names, obsolete aliases, and unknown options fail.
-- [ ] Status deterministically classifies Linux local readiness and Darwin
+- [x] Status deterministically classifies Linux local readiness and Darwin
   missing, stopped, target-running, alternate-running, mismatched-default,
   overridden, unreachable, and invalid metadata states.
-- [ ] Activation maps only `default -> shimmy-default` and `upstream ->
+- [x] Activation maps only `default -> shimmy-default` and `upstream ->
   shimmy-upstream`; a missing target prints exact user-run init guidance and
   never adopts `podman-machine-default`.
-- [ ] Idle alternate-machine switching stops the exact prior machine, starts
+- [x] Idle alternate-machine switching stops the exact prior machine, starts
   the target, validates its rootless connection, and commits the global default
   last; already-active activation is a no-op.
-- [ ] Running-container discovery blocks before stop without
+- [x] Running-container discovery blocks before stop without
   `--stop-running`; dry-run and error output identify workloads; explicit
   acknowledgement reaches the stop path.
-- [ ] `--restart` uses the same guard; irrelevant `--stop-running`, Linux
+- [x] `--restart` uses the same guard; irrelevant `--stop-running`, Linux
   restart flags, uninspectable workloads, and concurrent activation locks fail
   without mutation.
-- [ ] Failure-injection tests verify target cleanup, previous-machine restart,
+- [x] Failure-injection tests verify target cleanup, previous-machine restart,
   prior-default restoration, exact rollback reporting, and workload rollback
   uncertainty after acknowledged interruption.
-- [ ] Start is noninteractive and compatible with the supported Podman client
+- [x] Start is noninteractive and compatible with the supported Podman client
   lacking `--update-connection`; tests prove no implicit/default connection
   change occurs before the explicit final commit.
-- [ ] Non-empty `CONTAINER_CONNECTION` and `CONTAINER_HOST` block activation and
+- [x] Non-empty `CONTAINER_CONNECTION` and `CONTAINER_HOST` block activation and
   appear in status without secret/URI leakage.
-- [ ] Darwin installed wrappers reject inactive-profile/default-connection
+- [x] Darwin installed wrappers reject inactive-profile/default-connection
   mismatch with the exact activation command; source previews and existing
   Linux runtime behavior remain unchanged.
-- [ ] Generated shell init and managed startup blocks remain PATH-only,
+- [x] Generated shell init and managed startup blocks remain PATH-only,
   idempotent, safe under `set -e`/conditional sourcing, and free of Podman
   lifecycle or connection mutation.
-- [ ] Fresh and refreshed disposable profiles contain and dispatch
+- [x] Fresh and refreshed disposable profiles contain and dispatch
   `commands/profile.sh` plus `lib/profile/activation.sh` without a manifest
   schema change; sibling profile and catalog isolation still pass.
-- [ ] README, bootstrap, command, and Podman guidance distinguish provisioning,
+- [x] README, bootstrap, command, and Podman guidance distinguish provisioning,
   engine activation, shell selection, and existing default-machine data.
-- [ ] New/changed runnable shell files pass `dash -n`, retain executable modes,
+- [x] New/changed runnable shell files pass `dash -n`, retain executable modes,
   and context/test runners include the new modules.
-- [ ] `./tests/test.sh` passes without starting or stopping any real machine.
-- [ ] On a dedicated macOS acceptance host with pre-provisioned
+- [x] `./tests/test.sh` passes without starting or stopping any real machine.
+- [~] On a dedicated macOS acceptance host with pre-provisioned
   `shimmy-default` and `shimmy-upstream`, activate each direction, verify global
   default/rootless affinity, verify idle switching, verify workload refusal,
   exercise an explicitly authorized workload switch, and verify rollback from
-  an induced target-start failure. Record `[~]` with exact infrastructure gaps
-  if this dedicated environment is unavailable.
+  an induced target-start failure. Deferred on 2026-08-14: the available macOS
+  host has only the running `podman-machine-default` and its rootless/root
+  connections; neither required Shimmy machine exists. Automated seam coverage
+  proves transition and rollback ordering but cannot replace native two-machine
+  and workload acceptance. Next action is user provisioning of both named
+  machines on a dedicated host, followed by this acceptance run. Human
+  acceptance requires explicit deferral of this item.
 
 ### Human review gate
 
@@ -1306,6 +1313,26 @@ review; there is no later chunk.
   Darwin projection/cache ownership, and registry-client consumption. Keeping
   those in two chunks would make failure diagnosis and human acceptance
   unnecessarily coupled.
+
+### Chunk 1 implementation
+
+- Podman 5.8.1's formatted machine name includes a trailing `*` for the
+  selected running machine while JSON does not. Normalizing only that exact
+  suffix keeps the POSIX state parser independent of jq without accepting
+  arbitrary machine metadata.
+- The first assignment in generated `shell-init.sh` is also a fixture-relocation
+  contract. PATH-only explanatory comments must follow it so cloned profiles
+  continue to replace the canonical bin path correctly.
+- Installed runtime affinity can be derived centrally from
+  `SHIMMY_RUNTIME_DIR`: canonical materialized profile roots require their
+  same-name rootless default connection, while source roots and previews remain
+  outside that check.
+- Failure injection needs independent primary-transition and rollback-failure
+  controls. One selector cannot prove target cleanup, prior restart, and
+  default restoration after a later commit failure.
+- Profile help must dispatch before launcher manifest validation, while status
+  and activation still revalidate the enclosing canonical profile in the
+  command entrypoint. Early group dispatch satisfies both boundaries.
 
 ## Session bootstrap
 

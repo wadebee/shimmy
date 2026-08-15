@@ -20,6 +20,9 @@ reusable behavior belongs in `../lib/`.
   catalog availability authority.
 - `agent-preflight.sh` validates concrete-version `image.conf` metadata and
   adds preview-only smoke arguments for local builds.
+- `profile.sh` reports or explicitly activates the invoking profile's
+  deterministic Podman engine and never selects an arbitrary profile or
+  machine.
 - `status.sh` resolves the enclosing profile's named catalog and reports
   installed profile state and validated tool metadata together with catalog
   source, generation provenance, schema, fingerprint, and health;
@@ -33,7 +36,7 @@ its fixed named catalog through shared XDG registry state on every
 catalog-aware invocation, and reject profile and installation-location
 selectors. Missing or invalid catalog state fails before command mutation.
 Every second-level command provides authoritative usage, options, and examples
-through `--help`. The `catalog`, `images`, and `skills` command groups also
+through `--help`. The `catalog`, `images`, `profile`, and `skills` command groups also
 provide action discovery without an action and action-specific third-level
 help before profile or catalog validation.
 Canonical skill sources are read from the resolved catalog; repository and

@@ -8,12 +8,13 @@ test_commands_management_guidance() {
   assert_contains "$help_output" 'images     Verify configured remote image indexes and upstream drift.'
   assert_contains "$help_output" 'uninstall  Remove this profile, or explicitly remove all Shimmy-owned state.'
   assert_contains "$help_output" 'netinfo    Show host, VM, and container network perspectives.'
+  assert_contains "$help_output" "profile    Inspect or activate this profile's deterministic Podman engine."
   assert_contains "$help_output" 'skills     Install, update, uninstall, or export Shimmy agent skills.'
   assert_contains "$help_output" 'status     Show installed shims, versions, and profile details.'
   assert_contains "$help_output" 'test       Validate this profile with non-mutating shim smoke commands.'
   assert_contains "$help_output" 'update     Refresh this profile and optionally pull or build tool images.'
   assert_contains "$help_output" 'shimmy install --shim jq'
-  assert_not_contains "$help_output" 'activate'
+  assert_contains "$help_output" 'shimmy profile status'
   assert_contains "$help_output" "Run 'shimmy <command> --help' for command-specific options."
   assert_not_contains "$help_output" '<install|uninstall|activate|netinfo|skills|status|test|update>'
 
@@ -22,12 +23,12 @@ test_commands_management_guidance() {
 
   profile_manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
 
-  for command_name in catalog images install uninstall netinfo skills status test update; do
+  for command_name in catalog images install uninstall netinfo profile skills status test update; do
     command_help=$(default_shimmy "$command_name" --help)
     assert_contains "$command_help" 'Usage:'
     assert_contains "$command_help" 'Examples:'
     case "$command_name" in
-      catalog|images|skills) assert_contains "$command_help" 'Commands:' ;;
+      catalog|images|profile|skills) assert_contains "$command_help" 'Commands:' ;;
       *) assert_contains "$command_help" 'Options:' ;;
     esac
   done
@@ -115,7 +116,7 @@ test_commands_management_profile_binding() {
   [ "$error_status" -ne 0 ] || fail_test "installed status unexpectedly accepted --profile"
   assert_contains "$error_output" 'unknown argument: --profile'
 
-  for command_name in catalog images install netinfo skills status test uninstall update; do
+  for command_name in catalog images install netinfo profile skills status test uninstall update; do
     set +e
     bound_output=$(default_shimmy "$command_name" --profile upstream 2>&1)
     bound_status=$?

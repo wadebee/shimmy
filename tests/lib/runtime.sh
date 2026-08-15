@@ -67,6 +67,47 @@ test_lib_runtime_preview_helpers() {
   pass "Podman preview helpers strip and quote preview commands"
 }
 
+test_lib_runtime_profile_affinity() {
+  setup_scenario
+  affinity_profile_root=$XDG_CONFIG_HOME_DIR/shimmy/profiles/default
+  affinity_runtime_dir=$affinity_profile_root/lib/runtime
+  fake_podman=$SCENARIO_DIR/podman
+  fake_log=$SCENARIO_DIR/podman.log
+  mkdir -p "$affinity_runtime_dir"
+  printf '%s\n' 'shimmy_profile_name=default' 'shimmy_install_layout=profile-materialized-root' > "$affinity_profile_root/install-manifest.txt"
+  profile_activation_fake_create "$fake_podman"
+  : > "$fake_log"
+  affinity_connections='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
+podman-machine-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+
+  set +e
+  affinity_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
+    SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" FAKE_PODMAN_LOG="$fake_log" \
+    FAKE_CONNECTION_LIST="$affinity_connections" /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require' sh "$ROOT_DIR/lib/runtime/podman.sh" 2>&1)
+  affinity_status=$?
+  set -e
+  [ "$affinity_status" -ne 0 ] || fail_test "inactive installed profile unexpectedly passed Darwin affinity"
+  assert_contains "$affinity_output" "'$affinity_profile_root/bin/shimmy' profile activate"
+
+  secret_uri='ssh://secret@example.invalid/run/user/1/podman/podman.sock'
+  set +e
+  override_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
+    CONTAINER_HOST="$secret_uri" SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" \
+    FAKE_PODMAN_LOG="$fake_log" FAKE_CONNECTION_LIST="$affinity_connections" \
+    /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require' sh "$ROOT_DIR/lib/runtime/podman.sh" 2>&1)
+  override_status=$?
+  set -e
+  [ "$override_status" -ne 0 ] || fail_test "connection override unexpectedly passed Darwin affinity"
+  assert_contains "$override_output" 'CONTAINER_HOST masks the global default'
+  assert_not_contains "$override_output" "$secret_uri"
+
+  source_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
+    SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$ROOT_DIR/lib/runtime" FAKE_PODMAN_LOG="$fake_log" \
+    FAKE_CONNECTION_LIST="$affinity_connections" /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require; printf source-ok' sh "$ROOT_DIR/lib/runtime/podman.sh")
+  assert_equals "$source_output" source-ok
+  pass "Darwin installed runtimes enforce exact profile connection affinity without affecting source execution or exposing overrides"
+}
+
 test_lib_runtime_posix_syntax() {
   command -v dash >/dev/null 2>&1 || fail_test "dash is required for parser checks"
 
@@ -137,6 +178,7 @@ test_lib_runtime_run() {
   test_lib_runtime_platform
   test_lib_runtime_platform_failures
   test_lib_runtime_preview_helpers
+  test_lib_runtime_profile_affinity
   test_lib_runtime_posix_syntax
   test_lib_runtime_executable_contract
   test_lib_runtime_source_checkout_contract

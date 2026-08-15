@@ -14,3 +14,8 @@ A valid current profile has no `plugins/` or retired `agent/` directory. Its
 `tools/`, `implementations/`, and shim configuration contain exactly the tools
 and concrete versions recorded by the manifest; canonical skills and
 unselected catalog entries are invalid mixed-layout payload.
+
+`activation.sh` owns deterministic engine discovery, read-only status,
+workload-guarded Darwin transitions, commit-last default selection, rollback
+reporting, and local-rootless Linux validation. Only `shimmy profile activate`
+uses its machine start/stop operations; it never provisions or removes a VM.

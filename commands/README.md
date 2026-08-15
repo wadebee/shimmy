@@ -1,8 +1,8 @@
 # Shimmy commands
 
 The profile-local `shimmy` launcher manages the profile that contains it. It
-does not accept a profile selector; switch profiles by sourcing the desired
-profile's `shell-init.sh`.
+does not accept a profile or machine selector. Engine activation and PATH
+selection are separate; sourcing `shell-init.sh` changes PATH only.
 
 Repository entrypoints in this directory implement the installed management
 commands and orchestrate shared behavior from `../lib/`. The root `install.sh`
@@ -15,6 +15,7 @@ is the bootstrap entrypoint for creating a profile.
 - [`install`](#install) — add tool shims to the current profile
 - [`uninstall`](#uninstall) — remove one profile or all owned Shimmy state
 - [`netinfo`](#netinfo) — show host, VM, and container network perspectives
+- [`profile`](#profile) — inspect or activate the deterministic profile engine
 - [`skills`](#skills) — manage or export Shimmy agent skills
 - [`status`](#status) — inspect the current profile and its tool catalog
 - [`test`](#test) — run non-mutating profile and shim smoke tests
@@ -24,6 +25,31 @@ Every second-level command supports `shimmy <command> --help` with authoritative
 usage, options, and examples. `catalog`, `images`, and `skills` also summarize
 their third-level actions when invoked without one; use
 `shimmy <group> <action> --help` for action-specific guidance.
+
+## `profile`
+
+Inspect or explicitly activate the invoking profile's deterministic Podman
+engine:
+
+```text
+shimmy profile status [--format human|manifest]
+shimmy profile activate [--restart] [--stop-running] [--dry-run]
+```
+
+On macOS, `default` maps only to the pre-existing `shimmy-default` machine and
+same-name rootless connection; `upstream` maps only to `shimmy-upstream`.
+Activation may stop one idle alternate VM, starts and validates the target, and
+commits Podman's global default connection last. Running containers block a
+stop unless `--stop-running` explicitly acknowledges their interruption.
+`--restart` applies the same guard to the expected machine. A dry run inspects
+and prints the transition without changing machine or connection state.
+
+On Linux, activation validates only the current user's local rootless engine;
+it rejects VM lifecycle flags, remote engines, and rootful engines. Both
+platforms reject non-empty `CONTAINER_CONNECTION` and `CONTAINER_HOST` without
+printing their values. Shimmy never creates, adopts, renames, or removes Podman
+machines. Source the exact profile `shell-init.sh` after activation to select
+PATH.
 
 ## `catalog`
 

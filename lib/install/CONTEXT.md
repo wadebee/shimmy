@@ -9,7 +9,8 @@ refresh, or uninstall lifecycle flows while resolving availability from the
 profile's shared named catalog.
 The root entrypoint sources the installed `shell-init.sh` into its caller when
 it is sourced; execution retains initialization only inside the bootstrap
-process.
+process. The generated asset changes PATH only and does not activate Podman or
+set connection variables.
 
 ## Files
 
@@ -30,7 +31,7 @@ process.
   concrete version assets. It re-resolves and compares the catalog before
   commit so a live catalog change cannot produce a mixed materialization.
 - `launcher-template.sh` becomes the installed profile's self-contained
-  `bin/shimmy`.
+  `bin/shimmy`, including dispatch for the profile engine control plane.
 - `startup.sh` renders the profile's `shell-init.sh` asset and applies
   persistent startup integration only for `default`. Unqualified checkout
   bootstraps manage zsh and both Bash startup modes; explicit startup options

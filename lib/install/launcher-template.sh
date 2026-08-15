@@ -37,6 +37,13 @@ fi
 if [ "$config_home" = / ]; then expected_root=/shimmy/profiles/$profile_name; else expected_root=$config_home/shimmy/profiles/$profile_name; fi
 [ "$profile_root" = "$expected_root" ] || fail "damaged Shimmy profile: launcher is outside its canonical profile root $expected_root"
 
+# Profile command help and parsing precede manifest and Podman validation. The
+# command validates the enclosing profile before status or activation work.
+if [ "${1:-}" = profile ]; then
+  shift
+  exec "$profile_root/commands/profile.sh" "$@"
+fi
+
 manifest_file=$profile_root/install-manifest.txt
 manifest_fail() {
   printf 'ERROR: invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=2, shimmy_install_layout=profile-materialized-root, shimmy_profile_manifest_version=2, shimmy_profile_name=%s, and one explicit catalog binding); uninstall it with the Shimmy version that created it, then recreate that profile\n' "$manifest_file" "$profile_name" >&2
@@ -62,7 +69,9 @@ case "$catalog_name" in ''|-*|*--*|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) m
 [ "$catalog_name" = "$profile_name" ] || manifest_fail
 
 for launcher_arg in "$@"; do
-  [ "$launcher_arg" != --profile ] || fail "unknown argument: --profile"
+  case "$launcher_arg" in
+    --profile|--machine) fail "unknown argument: $launcher_arg" ;;
+  esac
 done
 
 usage() {
@@ -79,6 +88,7 @@ Commands:
   install    Add tool shims to this profile.
   uninstall  Remove this profile, or explicitly remove all Shimmy-owned state.
   netinfo    Show host, VM, and container network perspectives.
+  profile    Inspect or activate this profile's deterministic Podman engine.
   skills     Install, update, uninstall, or export Shimmy agent skills.
   status     Show installed shims, versions, and profile details.
   test       Validate this profile with non-mutating shim smoke commands.
@@ -86,6 +96,7 @@ Commands:
 
 Examples:
   shimmy status
+  shimmy profile status
   shimmy install --shim jq
 
 Run 'shimmy <command> --help' for command-specific options.

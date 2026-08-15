@@ -21,32 +21,35 @@ Official Podman installation guide: <https://podman.io/docs/installation>
    podman --version
    ```
 
-3. On macOS, initialize and start the Podman machine if needed:
+3. On macOS, initialize the deterministic machine for the profile you will use:
 
    ```sh
-   podman machine init
-   podman machine start
+   podman machine init shimmy-default
    ```
 
-4. Verify that the engine is reachable:
+   Use `shimmy-upstream` for the maintainer profile. Shimmy never runs machine
+   initialization itself.
+
+4. Verify that the named machine exists:
 
    ```sh
-   podman info
+   podman machine list
 
    ```
-   If `podman info` fails, fix Podman before troubleshooting Shimmy. Shimmy wrappers
-   cannot work until Podman can start containers from your user shell.
+   Do not substitute or rename `podman-machine-default`; Shimmy does not adopt
+   it.
 
-5. Run a lightweight container smoke check:
-
-   ```sh
-   podman run --rm quay.io/podman/hello
-   ```
-
-6. Source the Shimmy bootstrap, then run a shim smoke check:
+5. Source the Shimmy bootstrap and explicitly activate its engine:
 
    ```sh
    . ./install.sh
+   shimmy profile activate
+   ```
+
+6. Verify the selected engine and run a shim smoke check:
+
+   ```sh
+   podman info
    jq --version
    rg --version
    ```
@@ -193,16 +196,16 @@ Changing your existing Podman storage driver requires a `podman system reset`, w
 
 On macOS, Podman runs Linux containers inside a small virtual machine. Install
 Podman with the official installer or another trusted package source, then run
-the setup commands from a normal user shell:
+the provisioning command for each profile you need from a normal user shell:
 
 ```sh
-podman machine init
-podman machine start
-podman info
+podman machine init shimmy-default
+podman machine init shimmy-upstream
 ```
 
-If the machine already exists, `podman machine init` may report that and no
-longer be needed. The important check is that `podman info` succeeds.
+If a named machine already exists, `podman machine init` may report that and no
+longer be needed. Do not substitute `podman-machine-default`; Shimmy neither
+adopts it nor migrates its data.
 
 The official macOS pkg installer may place the binary at:
 
@@ -223,13 +226,17 @@ podman machine list
 podman system connection list
 ```
 
-When Podman is unreachable on macOS, the usual fix is:
+After installing a profile, activate and validate its engine explicitly:
 
 ```sh
-podman machine start
+shimmy profile status
+shimmy profile activate --dry-run
+shimmy profile activate
+podman info
 ```
 
-Run that in the same normal user environment where you intend to use Shimmy.
+Activation uses the invoking profile's deterministic machine, not an arbitrary
+default machine.
 
 ## Verification Checks
 
@@ -293,9 +300,41 @@ rg --version
 Every bootstrap includes jq and rg; add other tools afterward with the
 installed `shimmy install --shim <tool>` command. Executing the bootstrap is
 suitable for automation but cannot change its parent shell. To select an
-existing profile, source its generated `shell-init.sh`. Installed commands
-manage only the profile whose `bin/shimmy` launcher invoked them. The
-`upstream` profile never manages persistent shell startup files.
+existing profile, activate its engine through the absolute profile launcher,
+then source its generated `shell-init.sh`. The latter selects PATH only.
+Installed commands manage only the profile whose `bin/shimmy` launcher invoked
+them. The `upstream` profile never manages persistent shell startup files.
+
+### macOS profile machines
+
+Create required machines explicitly in a normal user shell:
+
+```sh
+podman machine init shimmy-default
+podman machine init shimmy-upstream
+```
+
+Shimmy does not create, adopt, rename, migrate, or remove Podman machines.
+`podman-machine-default` remains external and its data is untouched. If a
+custom XDG configuration home is outside the normal home share, expose that
+same absolute path when creating the machine.
+
+Activate and select a profile in two phases:
+
+```sh
+profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
+"$profile_root/bin/shimmy" profile status
+"$profile_root/bin/shimmy" profile activate --dry-run
+"$profile_root/bin/shimmy" profile activate
+. "$profile_root/shell-init.sh"
+```
+
+Activation can stop one idle alternate machine, but displays and refuses
+running containers unless `--stop-running` is supplied. A failed post-stop
+transition attempts target cleanup, prior-machine restart, and prior-default
+restoration. Acknowledged workloads may not resume automatically. Non-empty
+`CONTAINER_CONNECTION` or `CONTAINER_HOST` blocks activation and its value is
+not displayed.
 
 `shimmy test` uses live Podman execution for supported tools. It is a stronger
 check than `podman info` because it verifies that Shimmy's wrappers can actually
@@ -327,10 +366,13 @@ podman info
 podman system connection list
 ```
 
-On macOS, start the VM:
+On macOS, inspect and activate the invoking installed profile rather than
+starting an arbitrary default VM:
 
 ```sh
-podman machine start
+shimmy profile status
+shimmy profile activate --dry-run
+shimmy profile activate
 ```
 
 If you use `CONTAINER_HOST`, verify that it points at a reachable Podman service

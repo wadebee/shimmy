@@ -42,6 +42,14 @@ shimmy_profile_name_validate() {
   esac
 }
 
+shimmy_profile_engine_identity_resolve() {
+  profile_name=${1:-}
+  shimmy_profile_name_validate "$profile_name" || return 1
+
+  SHIMMY_PROFILE_EXPECTED_MACHINE=shimmy-$profile_name
+  SHIMMY_PROFILE_EXPECTED_CONNECTION=$SHIMMY_PROFILE_EXPECTED_MACHINE
+}
+
 shimmy_profile_paths_resolve() {
   profile_name=$1
   shimmy_profile_name_validate "$profile_name" || return 1

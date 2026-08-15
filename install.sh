@@ -54,6 +54,11 @@ Executing performs the same install for automation; shell initialization ends
 with that process. Every bootstrap includes jq and rg. Profile selection is
 bootstrap-only; install additional tools afterward with the installed command:
   shimmy install --shim <tool>
+
+Shell initialization selects PATH only. On macOS, first create the deterministic
+machine in a normal user shell (`podman machine init shimmy-default` or
+`podman machine init shimmy-upstream`), then run `shimmy profile activate`.
+Shimmy does not migrate or remove data in podman-machine-default.
 EOF
     return 0
   fi
