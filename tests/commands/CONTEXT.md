@@ -58,6 +58,7 @@ a user's Shimmy installation or shell startup files.
   startup installation.
 - `skills.sh` covers split catalog-owned canonical skill sources, checked-in
   adapter fingerprints, one-file repository/home and portable exports,
+  profile-local activation/workload/provisioning guidance in refreshed exports,
   management plugin discovery, installed-tool selection, absence of canonical
   skill sources from profile payloads, live-upstream versus published-default
   visibility, coherent staged target replacement, catalog failure boundaries,

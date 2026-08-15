@@ -1,5 +1,22 @@
 #!/bin/sh
 
+test_commands_skills_activation_guidance_assert() {
+  skills_root=$1
+
+  assert_file_contains "$skills_root/shimmy-init/SKILL.md" '"$profile_root/bin/shimmy" profile activate --dry-run'
+  assert_file_contains "$skills_root/shimmy-init/SKILL.md" 'separate explicit user confirmation'
+  assert_file_contains "$skills_root/shimmy-init/SKILL.md" 'podman machine init shimmy-<profile>'
+  assert_file_contains "$skills_root/shimmy-init/SKILL.md" 'Do not provision, delete, rename, or adopt a machine.'
+  assert_file_contains "$skills_root/shimmy-install/SKILL.md" 'exact absolute `bin/shimmy profile activate` command'
+  assert_file_contains "$skills_root/shimmy-install/SKILL.md" 'separate explicit confirmation'
+  assert_file_contains "$skills_root/shimmy-install/SKILL.md" 'podman machine init'
+  assert_file_contains "$skills_root/shimmy-escalation/SKILL.md" 'delegate remediation to'
+  assert_file_contains "$skills_root/shimmy-escalation/SKILL.md" 'exact outer-wrapper'
+  assert_file_contains "$skills_root/shimmy-tool-jq/SKILL.md" '"$profile_root/bin/shimmy" profile activate --dry-run'
+  assert_file_contains "$skills_root/shimmy-tool-jq/SKILL.md" 'Running containers'
+  assert_file_contains "$skills_root/shimmy-tool-jq/SKILL.md" 'agents never run direct Podman'
+}
+
 test_commands_skills_source_file_resolve() {
   skill_name=$1
 
@@ -136,6 +153,8 @@ shimmy-tool-local-build'
   assert_path_not_exists "$export_root/shimmy-tool-task/tool.conf"
   assert_path_not_exists "$export_root/shimmy-tool-task/tests"
   assert_path_not_exists "$export_root/shimmy-tool-task/versions"
+  test_commands_skills_activation_guidance_assert "$export_root"
+  assert_file_contains "$export_root/shimmy-tool-task/SKILL.md" 'never print its value'
 
   export_archive=$SCENARIO_DIR/exported-skills.zip
   archive_extract_root=$SCENARIO_DIR/archive
@@ -155,6 +174,7 @@ shimmy-tool-local-build'
     assert_equals "$archived_file_count" 1
   done
   assert_path_not_exists "$archive_extract_root/shimmy-skills/shimmy-tool-task/guide.md"
+  test_commands_skills_activation_guidance_assert "$archive_extract_root/shimmy-skills"
   pass "portable directory and archive exports contain one SKILL.md per selected skill"
 }
 
@@ -262,6 +282,7 @@ test_commands_skills_target_ownership() {
     assert_file_exists "$skills_root/shimmy-tool-rg/SKILL.md"
     generated_file_count=$(find "$skills_root/shimmy-tool-jq" -type f | wc -l | tr -d ' ')
     assert_equals "$generated_file_count" 1
+    test_commands_skills_activation_guidance_assert "$skills_root"
     printf '%s\n' keep > "$skills_root/unknown-sibling"
   done
   repo_skills_manifest_checksum=$(cksum < "$repo_skills_manifest")

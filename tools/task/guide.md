@@ -53,6 +53,14 @@ Forwarded environment:
 - `SHIMMY_HOST_PATH`.
 - `HOME` when the home directory mount is enabled.
 
+`CONTAINER_HOST` and `CONTAINER_CONNECTION` also override Podman's selected
+connection, so any non-empty value blocks deterministic `shimmy profile
+activate`. Inspect `shimmy profile status`; it reports only the masking variable
+name and never its value. Unset the conflicting variable before activation.
+After activation, set `CONTAINER_HOST` again only when a Taskfile intentionally
+needs that explicit socket forwarded into nested container workflows. Do not
+print either variable's contents while troubleshooting.
+
 Runtime platform:
 
 - Linux or macOS on `amd64` -> `linux/amd64`

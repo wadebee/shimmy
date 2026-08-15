@@ -79,12 +79,15 @@ For an existing profile, activate its engine explicitly, then select its PATH:
 ```sh
 profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
 "$profile_root/bin/shimmy" profile status
+"$profile_root/bin/shimmy" profile activate --dry-run
 "$profile_root/bin/shimmy" profile activate
 . "$profile_root/shell-init.sh"
 ```
 
 On macOS, activation uses only `shimmy-default` or `shimmy-upstream` and
-refuses to interrupt displayed running containers without `--stop-running`.
+Podman permits only one managed VM to run at a time. Activation may therefore
+stop another VM and interrupt its workloads; it refuses to interrupt displayed
+running containers without `--stop-running`.
 On Linux it validates the current user's local rootless engine without managing
 a VM. Sourcing `shell-init.sh` is PATH-only and never activates an engine.
 
@@ -125,11 +128,15 @@ skills for tools installed in the invoking profile:
 ```sh
 shimmy skills install --target repo
 shimmy skills install --target profile
+shimmy skills update --target repo
+shimmy skills update --target profile
 ```
 
 Shimmy stages and validates the complete output before changing either target.
 Profile or catalog removal does not remove an existing export; its target
 manifest remains authoritative for standalone `shimmy skills uninstall`.
+Use explicit `skills update` after accepting canonical changes in a newer
+catalog; profile lifecycle commands never refresh generated adapters.
 
 ## Catalog recovery and removal
 

@@ -158,8 +158,9 @@ Options:
 - `--no-startup` skips persistent startup-file updates.
 - `-h`, `--help` shows command help.
 
-The `upstream` profile never modifies persistent startup files. Source its
-generated `shell-init.sh` to activate it in the current shell.
+The `upstream` profile never modifies persistent startup files. Activate its
+engine through its absolute profile-local launcher, then source its generated
+`shell-init.sh` to select it in the current shell.
 
 Examples:
 

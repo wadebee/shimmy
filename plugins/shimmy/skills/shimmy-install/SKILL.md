@@ -66,6 +66,31 @@ not require the catalog to run. Recover a moved upstream checkout with explicit
 `shimmy catalog rebind --checkout <absolute-path>` and recover default with
 `shimmy catalog rollback` when a retained valid generation exists.
 
+## Profile activation
+
+After installing or updating a target profile, activate it before recommending
+shell selection or tool use:
+
+```sh
+profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
+"$profile_root/bin/shimmy" profile status
+"$profile_root/bin/shimmy" profile activate --dry-run
+"$profile_root/bin/shimmy" profile activate
+```
+
+Use the target profile's validated absolute launcher even when another profile
+is selected on `PATH`. Run status and dry-run first. Request approval only for
+the exact absolute `bin/shimmy profile activate` command. If the workload guard
+lists running containers, stop and obtain separate explicit confirmation before
+adding `--stop-running`.
+
+Never provision, delete, rename, or adopt a Podman machine. If the expected
+machine is missing, repeat Shimmy's exact `podman machine init
+shimmy-<profile>` guidance, including its same-path volume form when shown, for
+the user to run in a normal shell. If an older installed profile lacks `profile
+activate`, stop and guide the user to update or reinstall it; do not run direct
+Podman machine lifecycle commands as a fallback.
+
 ## Shell initialization and startup
 
 Sourcing the repository bootstrap installs the profile and sources its
@@ -76,11 +101,17 @@ for automation, but initialization ends with that process.
 . "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh"
 ```
 
-Switch profiles by sourcing the desired profile's absolute `shell-init.sh`.
+After successful activation, users can switch their current shell by sourcing
+the desired profile's absolute `shell-init.sh`.
 Only `default` may manage persistent startup blocks. An unqualified checkout
 bootstrap manages `.zshrc`, `.bashrc`, and the active Bash login file. Use
 explicit `--shell` and `--startup-file` only when the user authorizes narrower
 default-profile startup changes; `upstream` never changes shell startup files.
+
+AI Agent tool calls do not retain a sourcing operation performed in an earlier
+tool call. For a later management or tool command, use the absolute target
+dispatcher or source `shell-init.sh` and invoke the command within the same
+shell command. Sourcing selects PATH only and never activates an engine.
 
 ## Shared skills
 
@@ -96,6 +127,7 @@ refresh or remove it. Target-owned uninstall remains available if the catalog
 is unavailable:
 
 ```sh
+shimmy skills update --target <repo|profile>
 shimmy skills uninstall --target <repo|profile>
 ```
 

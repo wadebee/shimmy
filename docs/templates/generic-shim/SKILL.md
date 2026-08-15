@@ -9,6 +9,21 @@ Read root `CONTEXT.md`, `CONTRIBUTING.md`, and the guide and canonical skill
 for the closest existing tool. Create one self-contained `tools/<tool>/`
 directory.
 
+## Installed profile workflow
+
+When a generated tool skill describes installed use, require the target
+profile's absolute launcher to run `profile status`, `profile activate
+--dry-run`, and then the exact approved `profile activate` command. Running
+containers require separate explicit confirmation before `--stop-running` is
+added. A missing `shimmy-<profile>` machine is provisioned only by the user in
+a normal shell with the exact guidance emitted by Shimmy; agents never run
+direct Podman machine lifecycle commands.
+
+After activation, sourcing the profile's `shell-init.sh` selects PATH only.
+AI Agent tool calls do not retain earlier sourcing, so later calls use the
+absolute profile dispatcher or source `shell-init.sh` in the same command.
+Installed commands never accept a profile selector.
+
 ## Required structure
 
 ```text

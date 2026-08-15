@@ -38,14 +38,26 @@ The root `install.sh` is a minimal bootstrap and the repository has no runnable
 tool commands have no profile-selection option or environment selector.
 
 For source changes that should be tested through normal installed commands,
-source the bootstrap for the upstream profile:
+bootstrap the upstream profile, activate its deterministic engine through the
+absolute launcher, then select its PATH:
 
 ```sh
 . ./install.sh --profile upstream
-shimmy status --format manifest
-shimmy test
+profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream
+"$profile_root/bin/shimmy" profile status
+"$profile_root/bin/shimmy" profile activate --dry-run
+"$profile_root/bin/shimmy" profile activate
+. "$profile_root/shell-init.sh"
+"$profile_root/bin/shimmy" status --format manifest
+"$profile_root/bin/shimmy" test
 rg --version
 ```
+
+On macOS, activation may stop the one alternate Podman-managed VM. Running
+containers block that stop unless interruption is separately acknowledged with
+`--stop-running`. Contributors and agents must never provision, delete, rename,
+or adopt machines through Shimmy workflows; a missing deterministic machine is
+created by the user in a normal shell from the exact diagnostic guidance.
 
 Every bootstrap installs jq and rg. Add other tools afterward through the
 installed command, for example `shimmy install --shim task`. Executing
@@ -85,6 +97,11 @@ refresh or remove them. Use explicit standalone `shimmy skills install
 operations to write them and `shimmy skills uninstall --target repo|profile`
 for removal. Stage and validate complete skill output against one coherent
 catalog snapshot before changing an external target.
+
+After accepting canonical skill changes in a newer catalog generation, refresh
+an existing repository or home adapter only through the explicit profile-local
+`shimmy skills update --target repo|profile` operation. Never edit generated
+`.agents/skills/` copies directly.
 
 Repository and home `.agents/skills/<name>/` targets are one-file compatibility
 adapters containing only `SKILL.md`. Do not copy other repository metadata

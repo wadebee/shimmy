@@ -203,6 +203,11 @@ podman machine init shimmy-default
 podman machine init shimmy-upstream
 ```
 
+Podman permits only one managed VM to run at a time on macOS. Activating a
+Shimmy profile may stop `podman-machine-default` or another running Podman VM
+and interrupt workloads hosted there; Shimmy requires explicit
+`--stop-running` acknowledgement when it can identify running containers.
+
 If a named machine already exists, `podman machine init` may report that and no
 longer be needed. Do not substitute `podman-machine-default`; Shimmy neither
 adopts it nor migrates its data.
@@ -379,10 +384,12 @@ If you use `CONTAINER_HOST`, verify that it points at a reachable Podman service
 or unset it to use the default connection:
 
 ```sh
-printf '%s\n' "$CONTAINER_HOST"
 unset CONTAINER_HOST
 podman info
 ```
+
+Do not print connection-variable contents in shared diagnostics; `shimmy
+profile status` reports only the masking variable name.
 
 ### Shimmy fails but `podman info` works
 

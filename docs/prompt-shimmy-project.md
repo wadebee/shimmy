@@ -71,7 +71,14 @@ Install profiles below an absolute
 commands derive identity from their enclosing profile and do not accept
 installation-location or profile-selection overrides. Add non-baseline tools
 after onboarding with installed `shimmy install --shim <tool>`. Source a
-profile's `shell-init.sh` to select it in an existing shell. Only `default`
+profile's `shell-init.sh` to select it in an existing shell only after using
+its absolute launcher for `profile status`, `profile activate --dry-run`, and
+explicit `profile activate`. Running containers require separate confirmation
+before `--stop-running`. Missing deterministic macOS machines are provisioned
+only by the user from Shimmy's exact normal-shell guidance; agents never
+provision, delete, rename, or adopt machines. AI Agent calls do not retain
+earlier sourcing, so later calls use an absolute profile dispatcher or
+same-command sourcing. Only `default`
 owns persistent startup blocks for zsh and Bash by default; explicit startup
 options may narrow the targets, and `upstream` never changes startup files.
 The five canonical management skills and co-located tool skills remain in the
@@ -80,6 +87,9 @@ skill adapters are independently manifest-owned external state, staged from a
 validated catalog, and written or removed only through explicit standalone
 `shimmy skills ... --target repo|profile` operations. Profile and catalog
 lifecycle operations do not remove those exports.
+After accepting canonical skill changes, refresh an existing target only with
+explicit `shimmy skills update --target repo|profile`; do not edit generated
+adapters directly.
 Catalog-aware operations resolve and validate the profile's named catalog on
 every invocation. Valid upstream edits are immediately visible; default sees
 them only after clean committed publication. Publication does not change

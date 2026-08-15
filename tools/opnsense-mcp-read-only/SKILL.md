@@ -22,10 +22,23 @@ Use this skill when working with the opnsense-mcp-read-only tool, its tests, its
 ## Installed Workflow
 
 When the installed profile is selected on `PATH`, invoke `opnsense-mcp-read-only` normally
-and inspect the invoking profile with `shimmy status --format manifest`. Select an
-existing profile by sourcing its generated `shell-init.sh`; installed commands do
-not accept a profile selector. To test `upstream`, source
-`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh`.
+and inspect the invoking profile with `shimmy status --format manifest`.
+
+Before using another existing profile, resolve its absolute `profile_root` and
+run `"$profile_root/bin/shimmy" profile status`, then
+`"$profile_root/bin/shimmy" profile activate --dry-run`, then request approval
+for the exact absolute
+`"$profile_root/bin/shimmy" profile activate` command. Running containers
+require separate explicit confirmation before adding `--stop-running`. A missing
+machine must be provisioned by the user in a normal shell with the exact
+`podman machine init shimmy-<profile>` guidance; agents never run direct Podman
+machine lifecycle commands.
+
+After activation, source `"$profile_root/shell-init.sh"` to select PATH.
+Installed commands do not accept a profile selector. AI Agent calls do not
+retain earlier sourcing, so invoke the absolute profile dispatcher or source
+`shell-init.sh` in the same command as the tool. To test `upstream`, use the
+absolute root `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream`.
 
 For source validation, use `./commands/run-tool.sh opnsense-mcp-read-only --preview-shim --help`
 or the concrete `tools/opnsense-mcp-read-only/versions/0.4/run.sh` runtime. Do not use

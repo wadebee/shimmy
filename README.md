@@ -80,7 +80,9 @@ manage only their enclosing profile.
 
 On macOS, engine activation and shell selection are separate. The launcher
 fixes the engine name (`default -> shimmy-default`, `upstream ->
-shimmy-upstream`) and activation may stop one idle alternate machine. Running
+shimmy-upstream`). Podman permits only one managed VM to run at a time, so
+activation may stop one idle alternate machine and can interrupt workloads
+hosted there. Running
 containers are displayed and block a stop unless interruption is explicitly
 acknowledged with `--stop-running`:
 
@@ -148,6 +150,9 @@ exports. Use the standalone `shimmy skills install --target repo|profile` or
 `shimmy skills update --target repo|profile` operation to write those external
 targets, and `shimmy skills uninstall --target repo|profile` to remove their
 manifest-owned entries even if the source catalog is unavailable.
+After accepting canonical skill changes in a newer catalog generation, use the
+explicit `skills update` operation to refresh an existing target; generated
+adapters are never refreshed by profile lifecycle commands.
 
 Earlier installation layouts are intentionally unsupported. Remove them with
 the Shimmy version that created them, then bootstrap the desired profile.
