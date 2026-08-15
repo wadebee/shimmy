@@ -8,7 +8,7 @@ test_commands_management_guidance() {
   assert_contains "$help_output" 'images     Verify configured remote image indexes and upstream drift.'
   assert_contains "$help_output" 'uninstall  Remove this profile, or explicitly remove all Shimmy-owned state.'
   assert_contains "$help_output" 'netinfo    Show host, VM, and container network perspectives.'
-  assert_contains "$help_output" "profile    Inspect or activate this profile's deterministic Podman engine."
+  assert_contains "$help_output" 'profile    Inspect or activate its engine and prepare registry redirects.'
   assert_contains "$help_output" 'skills     Install, update, uninstall, or export Shimmy agent skills.'
   assert_contains "$help_output" 'status     Show installed shims, versions, and profile details.'
   assert_contains "$help_output" 'test       Validate this profile with non-mutating shim smoke commands.'
@@ -58,6 +58,8 @@ test_commands_management_guidance() {
     'catalog rollback' \
     'catalog rebind' \
     'images verify' \
+    'profile redirect list' \
+    'profile redirect remove' \
     'skills install' \
     'skills update' \
     'skills uninstall'

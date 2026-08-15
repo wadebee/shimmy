@@ -12,6 +12,7 @@ profiles below `shimmy/profiles/<profile>`.
 - [catalog](catalog/CONTEXT.md)
 - [common helpers](common/CONTEXT.md)
 - [profiles](profile/CONTEXT.md)
+- [registry redirects](registries/CONTEXT.md)
 - [runtime](runtime/CONTEXT.md)
 - [startup](startup/CONTEXT.md)
 - [network information](netinfo/CONTEXT.md)

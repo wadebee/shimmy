@@ -32,10 +32,13 @@ shim_name_validate "$shim_name" || fail "invalid shim name for Shimmy dispatcher
 
 [ -f "$profile_root/lib/common/common.sh" ] || fail "missing Shimmy common helper"
 [ -f "$profile_root/lib/profile/profile.sh" ] || fail "missing Shimmy profile helper"
+[ -f "$profile_root/lib/registries/registries.sh" ] || fail "missing Shimmy registries helper"
 # shellcheck source=lib/common/common.sh
 . "$profile_root/lib/common/common.sh"
 # shellcheck source=lib/profile/profile.sh
 . "$profile_root/lib/profile/profile.sh"
+# shellcheck source=lib/registries/registries.sh
+. "$profile_root/lib/registries/registries.sh"
 
 shimmy_profile_context_resolve "$profile_root" || fail "dispatcher is outside a canonical Shimmy profile root"
 shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" || fail "incomplete or damaged Shimmy profile at $SHIMMY_PROFILE_ROOT"

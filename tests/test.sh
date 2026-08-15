@@ -23,6 +23,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/catalog/catalog.sh"
 # shellcheck source=lib/profile/profile.sh
 . "$ROOT_DIR/lib/profile/profile.sh"
+# shellcheck source=lib/registries/registries.sh
+. "$ROOT_DIR/lib/registries/registries.sh"
 # shellcheck source=lib/images/images.sh
 . "$ROOT_DIR/lib/images/images.sh"
 # shellcheck source=tests/profile-smoke.sh
@@ -34,6 +36,8 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$SCRIPT_DIR/lib/runtime.sh"
 # shellcheck source=tests/lib/profile-activation.sh
 . "$SCRIPT_DIR/lib/profile-activation.sh"
+# shellcheck source=tests/lib/registries.sh
+. "$SCRIPT_DIR/lib/registries.sh"
 # shellcheck source=tests/lib/update.sh
 . "$SCRIPT_DIR/lib/update.sh"
 # shellcheck source=tests/commands/agent-preflight.sh
@@ -122,6 +126,7 @@ main() {
   test_lib_catalog_run
   test_lib_runtime_run
   test_lib_profile_activation_run
+  test_lib_registries_run
   test_lib_update_run
   test_commands_agent_preflight_run
   test_commands_catalog_run

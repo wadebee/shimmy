@@ -12,6 +12,12 @@ perform_uninstall_global() {
       [ -f "$SHIMMY_PROFILE_MANIFEST_PATH" ] && [ ! -L "$SHIMMY_PROFILE_MANIFEST_PATH" ] ||
         fail "refusing global uninstall with unmanaged or incomplete profile state: $SHIMMY_PROFILE_ROOT"
       shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$global_profile_name" || exit 1
+      if [ -e "$SHIMMY_PROFILE_REGISTRIES_PATH" ] || [ -L "$SHIMMY_PROFILE_REGISTRIES_PATH" ]; then
+        shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$global_profile_name" ||
+          fail "refusing global uninstall with invalid registry configuration: $SHIMMY_PROFILE_REGISTRIES_PATH"
+      fi
+      [ ! -e "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" ] && [ ! -L "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" ] ||
+        fail "refusing global uninstall while a registry transaction is active or damaged: $SHIMMY_PROFILE_REGISTRIES_LOCK_PATH"
     fi
   done
 
@@ -52,6 +58,11 @@ profile_owned_path_remove() {
 perform_uninstall_profile() {
   [ -f "$INSTALL_MANIFEST_FILE" ] || fail "no Shimmy profile manifest found at $INSTALL_MANIFEST_FILE"
   shimmy_profile_manifest_validate "$INSTALL_MANIFEST_FILE" "$SHIMMY_PROFILE_RESOLVED" || exit 1
+  if [ -e "$SHIMMY_PROFILE_REGISTRIES_PATH" ] || [ -L "$SHIMMY_PROFILE_REGISTRIES_PATH" ]; then
+    shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_RESOLVED" ||
+      fail "refusing to remove invalid or unmanaged registry configuration: $SHIMMY_PROFILE_REGISTRIES_PATH"
+  fi
+  shimmy_registries_lock_acquire || fail "unable to lock registry configuration for profile uninstall"
 
   installed_tools=$(shimmy_manifest_tool_list_read "$INSTALL_MANIFEST_FILE" || true)
   startup_files=
@@ -70,6 +81,7 @@ $installed_tools
 EOF
   profile_owned_path_remove "$SHIMMY_CONTROL_BIN"
   profile_owned_path_remove "$SHIMMY_SHELL_INIT_FILE"
+  profile_owned_path_remove "$SHIMMY_PROFILE_REGISTRIES_PATH"
   profile_owned_path_remove "$INSTALL_MANIFEST_FILE"
 
   while IFS= read -r startup_file; do
@@ -80,6 +92,7 @@ EOF
 $startup_files
 EOF
 
+  shimmy_registries_lock_release
   rmdir "$SHIMMY_BIN_DIR" 2>/dev/null || true
   rmdir "$SHIMMY_PROFILE_ROOT" 2>/dev/null || true
   rmdir "$SHIMMY_PROFILES_ROOT" 2>/dev/null || true

@@ -46,7 +46,7 @@ Each installed launcher exposes this management surface:
 | `shimmy install` | Add explicitly selected tool shims to the profile. |
 | `shimmy uninstall` | Remove one profile, or explicitly remove all Shimmy-owned state. |
 | `shimmy netinfo` | Show host, VM, and container network perspectives. |
-| `shimmy profile` | Inspect or explicitly activate the profile-bound Podman engine. |
+| `shimmy profile` | Inspect or activate the engine and prepare strict registry redirects. |
 | `shimmy skills` | Install, update, uninstall, or export Shimmy agent skills. |
 | `shimmy status` | Show installed shims, versions, and profile details. |
 | `shimmy test` | Validate the profile with non-mutating shim smoke commands. |
@@ -97,6 +97,22 @@ profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
 On Linux, activation validates the current user's local rootless engine and
 never manages a VM. Non-empty `CONTAINER_CONNECTION` or `CONTAINER_HOST` must
 be unset; status reports only the masking variable name, never its value.
+
+Each profile also owns a strict generated `registries.conf`. Redirect CRUD is
+deterministic and profile-local:
+
+```sh
+shimmy profile redirect --prefix docker.io --location registry.corp.example/docker
+shimmy profile redirect list
+shimmy profile redirect remove --prefix docker.io
+```
+
+Chunk 3 is preparation only: non-empty redirect policy is reported as
+`prepared`, not active or current engine policy, because no Linux or macOS
+projection is installed yet. Redirects use replacement `location` with no
+configured mirror fallback. See [docs/registries.md](docs/registries.md) for
+the accepted grammar, managed format, lifecycle, and temporary projection
+boundary.
 
 Profiles are independent materialized installations below an absolute
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>` root. A relative,

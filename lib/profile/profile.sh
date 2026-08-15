@@ -59,6 +59,8 @@ shimmy_profile_paths_resolve() {
   SHIMMY_PROFILE_NAME=$profile_name
   SHIMMY_PROFILE_ROOT=$SHIMMY_PROFILES_ROOT/$profile_name
   SHIMMY_PROFILE_MANIFEST_PATH=$SHIMMY_PROFILE_ROOT/install-manifest.txt
+  SHIMMY_PROFILE_REGISTRIES_PATH=$SHIMMY_PROFILE_ROOT/registries.conf
+  SHIMMY_PROFILE_REGISTRIES_LOCK_PATH=$SHIMMY_PROFILE_ROOT/.registries.lock
   SHIMMY_PROFILE_BIN_DIR=$SHIMMY_PROFILE_ROOT/bin
   SHIMMY_PROFILE_CONFIG_DIR=$SHIMMY_PROFILE_ROOT/config
   SHIMMY_PROFILE_IMPLEMENTATION_DIR=$SHIMMY_PROFILE_ROOT/implementations
@@ -231,11 +233,17 @@ shimmy_profile_manifest_validate() {
 shimmy_profile_structure_validate() {
   profile_root=$1
   profile_name=$2
+  allow_missing_registries=${3:-0}
   manifest_file=$profile_root/install-manifest.txt
 
   shimmy_profile_manifest_validate "$manifest_file" "$profile_name" || return 1
   [ -f "$profile_root/shell-init.sh" ] && [ ! -L "$profile_root/shell-init.sh" ] || return 1
   [ -x "$profile_root/bin/shimmy" ] && [ ! -L "$profile_root/bin/shimmy" ] || return 1
+  if [ -e "$profile_root/registries.conf" ] || [ -L "$profile_root/registries.conf" ]; then
+    shimmy_registries_config_validate "$profile_root/registries.conf" "$profile_name" || return 1
+  else
+    [ "$allow_missing_registries" -eq 1 ] || return 1
+  fi
   for required_dir in commands config implementations lib tests tools; do
     [ -d "$profile_root/$required_dir" ] && [ ! -L "$profile_root/$required_dir" ] || return 1
   done

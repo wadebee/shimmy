@@ -88,7 +88,7 @@ Commands:
   install    Add tool shims to this profile.
   uninstall  Remove this profile, or explicitly remove all Shimmy-owned state.
   netinfo    Show host, VM, and container network perspectives.
-  profile    Inspect or activate this profile's deterministic Podman engine.
+  profile    Inspect or activate its engine and prepare registry redirects.
   skills     Install, update, uninstall, or export Shimmy agent skills.
   status     Show installed shims, versions, and profile details.
   test       Validate this profile with non-mutating shim smoke commands.

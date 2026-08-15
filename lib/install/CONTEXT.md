@@ -28,8 +28,10 @@ set connection variables.
   including its fixed `catalog=default` or `catalog=upstream` binding.
 - `profile-assets.sh` stages the profile-local control plane, launcher,
   implementations, dispatchers, and only manifest-selected tool metadata and
-  concrete version assets. It re-resolves and compares the catalog before
-  commit so a live catalog change cannot produce a mixed materialization.
+  concrete version assets plus the authoritative registry file. It re-resolves
+  and compares the catalog before commit so a live catalog change cannot
+  produce a mixed materialization. Fresh and valid pre-feature profiles receive
+  an empty managed file; later transactions lock and preserve validated bytes.
 - `launcher-template.sh` becomes the installed profile's self-contained
   `bin/shimmy`, including dispatch for the profile engine control plane.
 - `startup.sh` renders the profile's `shell-init.sh` asset and applies
@@ -53,3 +55,6 @@ Profile uninstall never removes shared catalog registry state. Initial
 default bootstrap publishes from a clean committed checkout through the same
 generation transaction used later; initial upstream bootstrap registers its
 live checkout without replacing an existing different binding.
+Profile and global uninstall remove only validated profile-owned registry
+files. Operator containers configuration and sibling profile files remain
+outside that ownership boundary.

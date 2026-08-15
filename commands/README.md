@@ -15,25 +15,28 @@ is the bootstrap entrypoint for creating a profile.
 - [`install`](#install) — add tool shims to the current profile
 - [`uninstall`](#uninstall) — remove one profile or all owned Shimmy state
 - [`netinfo`](#netinfo) — show host, VM, and container network perspectives
-- [`profile`](#profile) — inspect or activate the deterministic profile engine
+- [`profile`](#profile) — inspect or activate the engine and prepare registry redirects
 - [`skills`](#skills) — manage or export Shimmy agent skills
 - [`status`](#status) — inspect the current profile and its tool catalog
 - [`test`](#test) — run non-mutating profile and shim smoke tests
 - [`update`](#update) — refresh the current profile and its tool images
 
 Every second-level command supports `shimmy <command> --help` with authoritative
-usage, options, and examples. `catalog`, `images`, and `skills` also summarize
+usage, options, and examples. `catalog`, `images`, `profile`, and `skills` also summarize
 their third-level actions when invoked without one; use
 `shimmy <group> <action> --help` for action-specific guidance.
 
 ## `profile`
 
 Inspect or explicitly activate the invoking profile's deterministic Podman
-engine:
+engine and prepare strict registry redirects:
 
 ```text
 shimmy profile status [--format human|manifest]
 shimmy profile activate [--restart] [--stop-running] [--dry-run]
+shimmy profile redirect --prefix <logical-prefix> --location <physical-location> [--dry-run]
+shimmy profile redirect list [--format human|manifest]
+shimmy profile redirect remove (--prefix <logical-prefix> | --all) [--detach] [--dry-run]
 ```
 
 On macOS, `default` maps only to the pre-existing `shimmy-default` machine and
@@ -50,6 +53,15 @@ platforms reject non-empty `CONTAINER_CONNECTION` and `CONTAINER_HOST` without
 printing their values. Shimmy never creates, adopts, renames, or removes Podman
 machines. Source the exact profile `shell-init.sh` after activation to select
 PATH.
+
+Redirect operations edit only the invoking profile's strict generated
+`registries.conf`. They use replacement `location`, never a fallback-capable
+mirror. Upsert is exact-prefix keyed and prefix-sorted; removal is exact, and
+`--all` retains the required empty managed file. Dry-run renders the complete
+candidate without a lock or filesystem mutation. In this implementation no
+platform projection exists, so list and status report redirects as `prepared`
+or `inactive`, never current engine policy; `--detach` has no external state to
+remove and is valid only with `--all`. See [registry redirect guidance](../docs/registries.md).
 
 ## `catalog`
 

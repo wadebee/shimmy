@@ -14,7 +14,8 @@ fail() {
 for helper_file in \
   "$ROOT_DIR/lib/common/common.sh" \
   "$ROOT_DIR/lib/catalog/catalog.sh" \
-  "$ROOT_DIR/lib/profile/profile.sh"
+  "$ROOT_DIR/lib/profile/profile.sh" \
+  "$ROOT_DIR/lib/registries/registries.sh"
 do
   [ -f "$helper_file" ] || fail "missing update helper: $helper_file"
 done
@@ -25,6 +26,8 @@ done
 . "$ROOT_DIR/lib/catalog/catalog.sh"
 # shellcheck source=lib/profile/profile.sh
 . "$ROOT_DIR/lib/profile/profile.sh"
+# shellcheck source=lib/registries/registries.sh
+. "$ROOT_DIR/lib/registries/registries.sh"
 # shellcheck source=lib/update/request.sh
 . "$ROOT_DIR/lib/update/request.sh"
 # shellcheck source=lib/update/selection.sh

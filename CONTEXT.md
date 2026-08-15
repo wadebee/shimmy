@@ -10,6 +10,8 @@ management-plugin directories deliberately have no context-file hierarchy.
 - `commands/` is the public management-command surface.
 - `lib/` contains shared catalog, profile, runtime, startup, and networking
   modules.
+- `lib/registries/` owns strict profile registry redirect data and atomic
+  profile-local transactions; platform projection is a separate lifecycle.
 - `commands/profile.sh` and `lib/profile/activation.sh` own explicit
   profile-bound Podman engine status and activation. Shell initialization owns
   PATH selection only.
@@ -38,6 +40,8 @@ version assets. Canonical skills remain catalog-owned.
   `linux/amd64` or `linux/arm64` image platform; unsupported hosts fail closed.
 - Every concrete version owns validated `image.conf` metadata with immutable
   multi-platform defaults.
+- Every current profile owns one mode-`0644`, regular non-symlink
+  `registries.conf` with exact profile/version markers.
 - Podman is an explicit dependency; do not provision it from Shimmy.
 - Darwin profiles map deterministically to pre-existing `shimmy-default` and
   `shimmy-upstream` rootless engines; activation is workload-guarded and

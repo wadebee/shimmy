@@ -19,3 +19,9 @@ unselected catalog entries are invalid mixed-layout payload.
 workload-guarded Darwin transitions, commit-last default selection, rollback
 reporting, and local-rootless Linux validation. Only `shimmy profile activate`
 uses its machine start/stop operations; it never provisions or removes a VM.
+
+Path resolution also records the authoritative profile-specific
+`registries.conf` and adjacent transaction lock. Current profiles require that
+file to be a regular non-symlink with exact profile/version markers; only the
+installer may recognize its complete absence as the valid pre-feature upgrade
+shape.

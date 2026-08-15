@@ -25,7 +25,10 @@ SHIMMY_PROFILE_BACKUP_ROOT=
 SHIMMY_PROFILE_DIRECTORIES_REPLACED=
 SHIMMY_PROFILE_FILES_REPLACED=
 SHIMMY_MANIFEST_COMMIT_TMP=
+SHIMMY_REGISTRIES_COMMIT_TMP=
+SHIMMY_REGISTRIES_LOCK_HELD=0
 SHIMMY_SHELL_INIT_COMMIT_TMP=
+SHIMMY_PROFILE_REGISTRIES_EXISTED=0
 SHIMMY_PROFILE_CATALOG_NAME=
 SHIMMY_MATERIALIZATION_CATALOG_NAME=
 SHIMMY_MATERIALIZATION_CATALOG_SOURCE_TYPE=
@@ -63,6 +66,7 @@ for helper_file in \
   "$ROOT_DIR/lib/common/common.sh" \
   "$ROOT_DIR/lib/catalog/catalog.sh" \
   "$ROOT_DIR/lib/profile/profile.sh" \
+  "$ROOT_DIR/lib/registries/registries.sh" \
   "$ROOT_DIR/lib/startup/startup.sh"
 do
   [ -f "$helper_file" ] || fail "missing shared helper: $helper_file"
@@ -74,6 +78,8 @@ done
 . "$ROOT_DIR/lib/catalog/catalog.sh"
 # shellcheck source=lib/profile/profile.sh
 . "$ROOT_DIR/lib/profile/profile.sh"
+# shellcheck source=lib/registries/registries.sh
+. "$ROOT_DIR/lib/registries/registries.sh"
 # shellcheck source=lib/startup/startup.sh
 . "$ROOT_DIR/lib/startup/startup.sh"
 # shellcheck source=lib/install/catalog-lifecycle.sh
@@ -197,8 +203,11 @@ profile_source_checkout_resolve() {
 profile_existing_state_read() {
   if [ -f "$INSTALL_MANIFEST_FILE" ] || [ -L "$INSTALL_MANIFEST_FILE" ]; then
     shimmy_profile_manifest_validate "$INSTALL_MANIFEST_FILE" "$SHIMMY_PROFILE_RESOLVED" || exit 1
-    shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_RESOLVED" ||
+    shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_RESOLVED" 1 ||
       fail "legacy, mixed, or damaged Shimmy profile at $SHIMMY_PROFILE_ROOT; uninstall it with the Shimmy version that created it, then recreate that profile"
+    if [ -f "$SHIMMY_PROFILE_REGISTRIES_PATH" ] && [ ! -L "$SHIMMY_PROFILE_REGISTRIES_PATH" ]; then
+      SHIMMY_PROFILE_REGISTRIES_EXISTED=1
+    fi
     PROFILE_EXISTS=1
     EXISTING_PROFILE_TOOLS=$(shimmy_manifest_tool_list_read "$INSTALL_MANIFEST_FILE" || true)
     PROFILE_MANIFEST_TOOLS=$EXISTING_PROFILE_TOOLS
@@ -222,6 +231,12 @@ profile_stage_prepare() {
   [ ! -e "$SHIMMY_STAGE_ROOT" ] || fail "staging path already exists: $SHIMMY_STAGE_ROOT"
   profile_control_assets_stage
   profile_materialization_assets_stage
+  if [ "$SHIMMY_PROFILE_REGISTRIES_EXISTED" -eq 1 ]; then
+    cp "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_STAGE_ROOT/registries.conf"
+  else
+    shimmy_registries_config_render "$SHIMMY_PROFILE_RESOLVED" '' > "$SHIMMY_STAGE_ROOT/registries.conf"
+  fi
+  chmod 0644 "$SHIMMY_STAGE_ROOT/registries.conf"
 
   while IFS= read -r tool_name; do
     [ -n "$tool_name" ] || continue
@@ -257,10 +272,12 @@ profile_stage_cleanup() {
   if [ -n "$SHIMMY_PROFILE_BACKUP_ROOT" ] && [ -d "$SHIMMY_PROFILE_BACKUP_ROOT" ]; then
     profile_commit_restore
   fi
-  [ -n "$SHIMMY_STAGE_ROOT" ] || return 0
-  case "$SHIMMY_STAGE_ROOT" in
-    "$SHIMMY_PROFILES_ROOT"/.*.stage.*) rm -rf "$SHIMMY_STAGE_ROOT" ;;
-  esac
+  if [ -n "$SHIMMY_STAGE_ROOT" ]; then
+    case "$SHIMMY_STAGE_ROOT" in
+      "$SHIMMY_PROFILES_ROOT"/.*.stage.*) rm -rf "$SHIMMY_STAGE_ROOT" ;;
+    esac
+  fi
+  shimmy_registries_lock_release
 }
 
 perform_install() {
@@ -279,6 +296,8 @@ perform_install() {
   if [ "${SHIMMY_UPDATE_MANAGEMENT_REFRESH:-0}" -ne 1 ]; then
     profile_selection_merge
   fi
+  mkdir -p "$SHIMMY_CONFIG_ROOT" "$SHIMMY_PROFILES_ROOT" "$SHIMMY_PROFILE_ROOT"
+  shimmy_registries_lock_acquire || fail "unable to lock registry configuration for profile install"
   profile_stage_prepare
   profile_assets_commit
   profile_stage_cleanup

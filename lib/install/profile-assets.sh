@@ -168,20 +168,21 @@ EOF
 }
 
 profile_commit_temporary_files_cleanup() {
-  for temporary_path in "$SHIMMY_MANIFEST_COMMIT_TMP" "$SHIMMY_SHELL_INIT_COMMIT_TMP"; do
+  for temporary_path in "$SHIMMY_MANIFEST_COMMIT_TMP" "$SHIMMY_REGISTRIES_COMMIT_TMP" "$SHIMMY_SHELL_INIT_COMMIT_TMP"; do
     [ -n "$temporary_path" ] || continue
     case "$temporary_path" in
-      "$SHIMMY_PROFILE_ROOT"/.install-manifest.txt.tmp.*|"$SHIMMY_PROFILE_ROOT"/.shell-init.sh.tmp.*) ;;
+      "$SHIMMY_PROFILE_ROOT"/.install-manifest.txt.tmp.*|"$SHIMMY_PROFILE_ROOT"/.registries.tmp.*|"$SHIMMY_PROFILE_ROOT"/.shell-init.sh.tmp.*) ;;
       *) continue ;;
     esac
     [ ! -f "$temporary_path" ] && [ ! -L "$temporary_path" ] || rm -f "$temporary_path"
   done
   SHIMMY_MANIFEST_COMMIT_TMP=
+  SHIMMY_REGISTRIES_COMMIT_TMP=
   SHIMMY_SHELL_INIT_COMMIT_TMP=
 }
 
 profile_commit_backup_cleanup() {
-  for relative_path in shell-init.sh install-manifest.txt bin/shimmy; do
+  for relative_path in shell-init.sh registries.conf install-manifest.txt bin/shimmy; do
     backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/$relative_path
     [ ! -e "$backup_path" ] && [ ! -L "$backup_path" ] || rm -f "$backup_path"
   done
@@ -247,7 +248,7 @@ profile_owned_directories_restore() {
 
 profile_owned_files_backup() {
   mkdir -p "$SHIMMY_PROFILE_BACKUP_ROOT/bin"
-  for relative_path in shell-init.sh install-manifest.txt bin/shimmy; do
+  for relative_path in shell-init.sh registries.conf install-manifest.txt bin/shimmy; do
     source_path=$SHIMMY_PROFILE_ROOT/$relative_path
     target_path=$SHIMMY_PROFILE_BACKUP_ROOT/$relative_path
     [ ! -e "$source_path" ] && [ ! -L "$source_path" ] || cp -R "$source_path" "$target_path"
@@ -262,7 +263,7 @@ EOF
 }
 
 profile_owned_files_restore() {
-  for relative_path in shell-init.sh install-manifest.txt bin/shimmy; do
+  for relative_path in shell-init.sh registries.conf install-manifest.txt bin/shimmy; do
     target_path=$SHIMMY_PROFILE_ROOT/$relative_path
     backup_path=$SHIMMY_PROFILE_BACKUP_ROOT/$relative_path
     if shimmy_contains_line_list "$SHIMMY_PROFILE_FILES_REPLACED" "$relative_path"; then
@@ -343,6 +344,14 @@ profile_assets_commit() {
   mv "$SHIMMY_SHELL_INIT_COMMIT_TMP" "$SHIMMY_SHELL_INIT_FILE"
   SHIMMY_PROFILE_FILES_REPLACED=$(shimmy_append_line_list "$SHIMMY_PROFILE_FILES_REPLACED" shell-init.sh)
   SHIMMY_SHELL_INIT_COMMIT_TMP=
+
+  SHIMMY_REGISTRIES_COMMIT_TMP=$SHIMMY_PROFILE_ROOT/.registries.tmp.$$
+  [ ! -e "$SHIMMY_REGISTRIES_COMMIT_TMP" ] && [ ! -L "$SHIMMY_REGISTRIES_COMMIT_TMP" ] || fail "registries temporary path collision: $SHIMMY_REGISTRIES_COMMIT_TMP"
+  cp "$SHIMMY_STAGE_ROOT/registries.conf" "$SHIMMY_REGISTRIES_COMMIT_TMP"
+  chmod 644 "$SHIMMY_REGISTRIES_COMMIT_TMP"
+  mv "$SHIMMY_REGISTRIES_COMMIT_TMP" "$SHIMMY_PROFILE_REGISTRIES_PATH"
+  SHIMMY_PROFILE_FILES_REPLACED=$(shimmy_append_line_list "$SHIMMY_PROFILE_FILES_REPLACED" registries.conf)
+  SHIMMY_REGISTRIES_COMMIT_TMP=
 
   SHIMMY_MANIFEST_COMMIT_TMP=$SHIMMY_PROFILE_ROOT/.install-manifest.txt.tmp.$$
   [ ! -e "$SHIMMY_MANIFEST_COMMIT_TMP" ] && [ ! -L "$SHIMMY_MANIFEST_COMMIT_TMP" ] || fail "manifest temporary path collision: $SHIMMY_MANIFEST_COMMIT_TMP"

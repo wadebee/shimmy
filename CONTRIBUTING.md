@@ -12,6 +12,10 @@ Use it as the source of truth for repository contribution guidance that should b
   guide plus the tool guide or canonical skill; those trees do not own
   `CONTEXT.md` files.
 - Update related implementation, tests, installer behavior, and user-facing docs together when behavior changes.
+- When implementing a retained plan chunk, reconcile its objective verification
+  checklist in the same change after validation. Mark only evidence-backed
+  items complete; leave human review or acceptance gates pending until a human
+  explicitly accepts them.
 - Reuse established repo patterns before introducing new structure or naming.
 - Keep runnable shell files executable.
 - Follow `docs/testing.md` for POSIX-only test structure, shared assertions, and default-suite scope.

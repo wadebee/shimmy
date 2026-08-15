@@ -15,6 +15,10 @@ configuration roots. They verify discovery, workload guards, transition and
 rollback ordering, and installed-runtime affinity without changing a developer
 machine.
 
+Registry redirect tests use only disposable profile roots. They validate
+strict parsing, deterministic rendering, locking, transaction rollback, and
+install/uninstall preservation without contacting Podman or a registry.
+
 Installation scenarios isolate state with absolute disposable `HOME` and
 `XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or
 installed profile-selection override. The runner first creates one disposable

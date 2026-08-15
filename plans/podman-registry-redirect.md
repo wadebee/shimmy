@@ -539,9 +539,9 @@ during implementation.
 None.
 
 ## Progress Checklist
-  [x] Chunk 1 — Profile-bound engine activation control plane accepted after automated verification and native macOS acceptance
-- [ ] Chunk 2 — Migrate agent workflows and canonical activation guidance
-- [ ] Chunk 3 — Add profile registry files, strict redirect CRUD, and profile transaction support (blocked on accepted Chunk 2)
+- [x] Chunk 1 — Profile-bound engine activation control plane accepted after automated verification and native macOS acceptance
+- [x] Chunk 2 — Agent workflows and canonical activation guidance accepted after automated verification and human review
+- [~] Chunk 3 — Profile registry files, strict redirect CRUD, and profile transaction support implemented and verified; pending human review
 - [ ] Chunk 4 — Activate and validate strict registry policy on Linux (blocked on accepted Chunk 3)
 - [ ] Chunk 5 — Project and validate strict registry policy in Darwin machines (blocked on accepted Chunk 4)
 - [ ] Chunk 6 — Integrate Skopeo and complete cross-surface registry verification (blocked on accepted Chunk 5)
@@ -821,20 +821,20 @@ Expected unchanged surfaces that must be checked:
 
 ### Verification checklist
 
-- [ ] The three canonical management skills use status/dry-run, exact absolute
+- [x] The three canonical management skills use status/dry-run, exact absolute
   activation commands, separate workload acknowledgement, and narrow wrapper
   smoke approval.
-- [ ] No skill provisions, deletes, renames, or adopts a machine, and legacy
+- [x] No skill provisions, deletes, renames, or adopts a machine, and legacy
   installed profiles produce user-shell fallback guidance.
-- [ ] All canonical generic and tool skill profile-selection passages use the
+- [x] All canonical generic and tool skill profile-selection passages use the
   new activation sequence without changing unrelated tool semantics.
-- [ ] Task guidance identifies masking connection variables without exposing
+- [x] Task guidance identifies masking connection variables without exposing
   their contents.
-- [ ] Portable/target export tests contain the new canonical behavior while
+- [x] Portable/target export tests contain the new canonical behavior while
   checked-in `.agents/skills/` copies and fingerprints remain unchanged.
-- [ ] Plugin, contributor, agent, project-prompt, and user guidance agree on
+- [x] Plugin, contributor, agent, project-prompt, and user guidance agree on
   provisioning, activation, shell selection, and approval ownership.
-- [ ] Activation implementation and its automated tests remain unchanged and
+- [x] Activation implementation and its automated tests remain unchanged and
   `./tests/test.sh` passes.
 
 ### Human review gate
@@ -924,23 +924,23 @@ Expected unchanged surfaces that must be checked:
 
 ### Verification checklist
 
-- [ ] Redirect help, CRUD, formats, dry-run, and rejected aliases/options are
+- [x] Redirect help, CRUD, formats, dry-run, and rejected aliases/options are
   complete and non-mutating.
-- [ ] Endpoint validation accepts hosts, ports, and safe namespace paths and
+- [x] Endpoint validation accepts hosts, ports, and safe namespace paths and
   rejects schemes, wildcards, tags, digests, traversal, empty segments,
   trailing slashes, quotes, whitespace, and unsafe characters.
-- [ ] Managed parsing accepts only exact profile/version markers and strict
+- [x] Managed parsing accepts only exact profile/version markers and strict
   tables; deterministic rendering, no-op upsert, replacement, exact removal,
   full removal, and profile isolation pass.
-- [ ] Locking, staging, permissions, atomic replacement, rollback, cleanup, and
+- [x] Locking, staging, permissions, atomic replacement, rollback, cleanup, and
   unsafe-path refusal pass failure-injection tests.
-- [ ] Fresh installs and valid upgrades create empty configs; update/additive
+- [x] Fresh installs and valid upgrades create empty configs; update/additive
   install preserves valid bytes; invalid assets fail before profile mutation.
-- [ ] Profile/global uninstall removes only valid owned unprojected configs and
+- [x] Profile/global uninstall removes only valid owned unprojected configs and
   preserves sibling profiles, catalogs, operator policy, and external skills.
-- [ ] Status and docs state that prepared redirects are not active engine policy
+- [x] Status and docs state that prepared redirects are not active engine policy
   before the applicable projection chunk.
-- [ ] Context coverage, shell syntax/modes, full materialization, source-loss
+- [x] Context coverage, shell syntax/modes, full materialization, source-loss
   behavior, and `./tests/test.sh` pass without contacting Podman or registries.
 
 ### Human review gate
@@ -1342,6 +1342,29 @@ review; there is no later chunk.
 - Profile help must dispatch before launcher manifest validation, while status
   and activation still revalidate the enclosing canonical profile in the
   command entrypoint. Early group dispatch satisfies both boundaries.
+
+### Chunk 3 implementation
+
+- A profile-root lock lets install, additive refresh, redirect mutation, and
+  uninstall serialize the one authoritative file without extending manifest
+  version 2. Global uninstall must preflight every sibling lock before removing
+  the first profile or it can become a partial cross-profile transaction.
+- Valid pre-feature profiles are distinguishable from damaged current profiles
+  only when `registries.conf` is completely absent. Any file, link, wrong mode,
+  wrong marker, or malformed table at that path is a collision and must fail
+  before profile assets change.
+- Exact generated parsing needs more than TOML-shaped input: canonical marker
+  lines, final newline, table key order, prefix sort order, endpoint validation,
+  and mode `0644` together keep later platform projection from adopting
+  operator-authored or ambiguous policy.
+- Same-directory non-`.conf` staging prevents containers/image drop-in readers
+  from observing transaction files. A validated pre-rename candidate plus an
+  exact rollback copy makes injected post-commit failure recoverable without
+  contacting Podman.
+- The honest pre-projection status is data-derived: an empty managed file is
+  `inactive`, a non-empty valid file is `prepared`, and neither is `current`.
+  This preserves a useful independent preparation workflow without implying
+  Linux, Darwin, or Skopeo consumption.
 
 ## Session bootstrap
 

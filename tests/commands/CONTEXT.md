@@ -45,7 +45,9 @@ a user's Shimmy installation or shell startup files.
   repair-rejection checks.
 - `profile.sh` covers profile command help and rejection, installed control
   materialization, read-only state, deterministic profile identity, and
-  connection-override redaction through the fake Podman seam.
+  connection-override redaction through the fake Podman seam. It also covers
+  strict prepared redirect CRUD, formats, dry runs, rejected aliases/options,
+  and profile isolation without Podman access.
 - `update.sh` covers selected-shim and all-profile refresh behavior, version-
   local irrelevant image-refresh actions, manifest-preserving self-update for
   non-baseline tools and concrete versions, and update request validation. Its

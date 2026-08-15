@@ -6,7 +6,7 @@
 test_commands_lifecycle_prepare() {
   setup_scenario_with_profiles default upstream
 
-  for asset_name in shell-init.sh install-manifest.txt bin/shimmy commands config implementations lib tests tools; do
+  for asset_name in shell-init.sh registries.conf install-manifest.txt bin/shimmy commands config implementations lib tests tools; do
     [ -e "$DEFAULT_PROFILE_ROOT/$asset_name" ] || fail_test "missing materialized profile asset: $asset_name"
   done
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/core"
@@ -22,6 +22,9 @@ test_commands_lifecycle_prepare() {
   assert_file_executable "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_regular_file_not_symlink "$DEFAULT_PROFILE_ROOT/shell-init.sh"
   assert_file_mode "$DEFAULT_PROFILE_ROOT/shell-init.sh" 644
+  assert_regular_file_not_symlink "$DEFAULT_PROFILE_ROOT/registries.conf"
+  assert_file_mode "$DEFAULT_PROFILE_ROOT/registries.conf" 644
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/registries.conf" '# shimmy_registry_redirects_version=1'
   assert_file_executable "$DEFAULT_PROFILE_ROOT/commands/install.sh"
   assert_file_executable "$DEFAULT_PROFILE_ROOT/lib/catalog/catalog.sh"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/plugins"
@@ -75,10 +78,12 @@ test_commands_lifecycle_legacy_agent_rollback() {
     fi
   done
   printf '%s\n' old-shell-init > "$transaction_profile_root/shell-init.sh"
+  printf '%s\n' old-registries > "$transaction_profile_root/registries.conf"
   printf '%s\n' old-manifest > "$transaction_profile_root/install-manifest.txt"
   printf '%s\n' old-launcher > "$transaction_profile_root/bin/shimmy"
   ln -s old-dispatcher "$transaction_profile_root/bin/jq"
   printf '%s\n' new-shell-init > "$transaction_stage_root/shell-init.sh"
+  printf '%s\n' new-registries > "$transaction_stage_root/registries.conf"
   printf '%s\n' new-manifest > "$transaction_stage_root/install-manifest.txt"
   printf '%s\n' new-launcher > "$transaction_stage_root/bin/shimmy"
 
@@ -90,6 +95,8 @@ test_commands_lifecycle_legacy_agent_rollback() {
   SHIMMY_BIN_DIR=$transaction_profile_root/bin
   SHIMMY_CONTROL_BIN=$transaction_profile_root/bin/shimmy
   SHIMMY_SHELL_INIT_FILE=$transaction_profile_root/shell-init.sh
+  SHIMMY_PROFILE_REGISTRIES_PATH=$transaction_profile_root/registries.conf
+  SHIMMY_PROFILE_REGISTRIES_LOCK_PATH=$transaction_profile_root/.registries.lock
   INSTALL_MANIFEST_FILE=$transaction_profile_root/install-manifest.txt
   EXISTING_PROFILE_TOOLS=jq
   PROFILE_MANIFEST_TOOLS=jq
@@ -97,6 +104,7 @@ test_commands_lifecycle_legacy_agent_rollback() {
   SHIMMY_PROFILE_DIRECTORIES_REPLACED=
   SHIMMY_PROFILE_FILES_REPLACED=
   SHIMMY_MANIFEST_COMMIT_TMP=
+  SHIMMY_REGISTRIES_COMMIT_TMP=
   SHIMMY_SHELL_INIT_COMMIT_TMP=
 
   set +e
@@ -124,6 +132,7 @@ test_commands_lifecycle_legacy_agent_rollback() {
     assert_file_contains "$transaction_profile_root/$asset_name/sentinel" "old-$asset_name"
   done
   assert_file_contains "$transaction_profile_root/shell-init.sh" old-shell-init
+  assert_file_contains "$transaction_profile_root/registries.conf" old-registries
   assert_file_contains "$transaction_profile_root/install-manifest.txt" old-manifest
   assert_file_contains "$transaction_profile_root/bin/shimmy" old-launcher
   assert_equals "$(readlink "$transaction_profile_root/bin/jq")" old-dispatcher
@@ -135,6 +144,7 @@ test_commands_lifecycle_install_shapes() {
   setup_scenario
   bootstrap_default >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/registries.conf"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
   assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream"
@@ -145,6 +155,7 @@ test_commands_lifecycle_install_shapes() {
   setup_scenario
   bootstrap_upstream >/dev/null
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
+  assert_file_exists "$UPSTREAM_PROFILE_ROOT/registries.conf"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default"
@@ -177,17 +188,77 @@ test_commands_lifecycle_launcher_refresh() {
   pass "launcher refresh replaces only owned entries in the invoking profile bin directory"
 }
 
+test_commands_lifecycle_registry_upgrade_and_preservation() {
+  setup_scenario_with_profiles default upstream
+  default_config=$DEFAULT_PROFILE_ROOT/registries.conf
+  upstream_config=$UPSTREAM_PROFILE_ROOT/registries.conf
+  default_shimmy profile redirect --prefix docker.io --location registry.corp.example/docker
+  configured_bytes=$SCENARIO_DIR/configured-registries
+  cp "$default_config" "$configured_bytes"
+  upstream_checksum=$(cksum < "$upstream_config")
+
+  default_shimmy install --shim task --no-startup >/dev/null
+  cmp -s "$configured_bytes" "$default_config" || fail_test "additive install changed valid registry bytes"
+  bootstrap_default >/dev/null
+  cmp -s "$configured_bytes" "$default_config" || fail_test "profile refresh changed valid registry bytes"
+  assert_equals "$(cksum < "$upstream_config")" "$upstream_checksum"
+
+  setup_scenario_with_profiles default
+  rm -f "$DEFAULT_PROFILE_ROOT/registries.conf"
+  bootstrap_default >/dev/null
+  assert_regular_file_not_symlink "$DEFAULT_PROFILE_ROOT/registries.conf"
+  assert_file_mode "$DEFAULT_PROFILE_ROOT/registries.conf" 644
+  assert_contains "$(default_shimmy profile redirect list --format manifest)" 'registry_policy=inactive'
+
+  for invalid_shape in wrong_profile malformed symlink wrong_mode; do
+    setup_scenario_with_profiles default
+    registry_config=$DEFAULT_PROFILE_ROOT/registries.conf
+    launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")
+    case "$invalid_shape" in
+      wrong_profile) sed 's/profile "default"/profile "upstream"/' "$registry_config" > "$registry_config.tmp"; mv "$registry_config.tmp" "$registry_config" ;;
+      malformed) printf '%s\n' unmanaged > "$registry_config" ;;
+      symlink) printf '%s\n' keep > "$SCENARIO_DIR/registry-target"; rm -f "$registry_config"; ln -s "$SCENARIO_DIR/registry-target" "$registry_config" ;;
+      wrong_mode) chmod 600 "$registry_config" ;;
+    esac
+    set +e
+    invalid_output=$(bootstrap_default 2>&1)
+    invalid_status=$?
+    set -e
+    [ "$invalid_status" -ne 0 ] || fail_test "invalid registry asset unexpectedly refreshed: $invalid_shape"
+    assert_contains "$invalid_output" 'legacy, mixed, or damaged Shimmy profile'
+    assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
+    assert_path_not_exists "$DEFAULT_PROFILE_ROOT/.registries.lock"
+  done
+
+  setup_scenario_with_profiles default
+  printf '%s\n' unmanaged > "$DEFAULT_PROFILE_ROOT/registries.conf"
+  launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")
+  set +e
+  uninstall_output=$(default_shimmy uninstall 2>&1)
+  uninstall_status=$?
+  set -e
+  [ "$uninstall_status" -ne 0 ] || fail_test "uninstall unexpectedly removed malformed registry state"
+  assert_contains "$uninstall_output" 'invalid or unmanaged registry configuration'
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/registries.conf" unmanaged
+  pass "pre-feature upgrade creates an empty config, valid installs preserve exact bytes, and invalid registry assets fail before profile mutation"
+}
+
 test_commands_lifecycle_empty_container_cleanup() {
   setup_scenario_with_profiles default
+  default_registry_config=$DEFAULT_PROFILE_ROOT/registries.conf
   default_shimmy uninstall >/dev/null
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+  assert_path_not_exists "$default_registry_config"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
   assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf"
 
   setup_scenario_with_profiles default upstream
+  upstream_registry_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/registries.conf")
   default_shimmy uninstall >/dev/null
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/registries.conf")" "$upstream_registry_checksum"
   assert_dir_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
   upstream_shimmy uninstall >/dev/null
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
@@ -208,6 +279,8 @@ test_commands_lifecycle_global_uninstall() {
   exported_manifest=$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt
   assert_file_exists "$exported_skill_file"
   assert_file_exists "$exported_manifest"
+  mkdir -p "$XDG_CONFIG_HOME_DIR/containers"
+  printf '%s\n' operator-policy > "$XDG_CONFIG_HOME_DIR/containers/registries.conf"
 
   printf '%s\n' unmanaged > "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/unmanaged-sentinel"
   set +e
@@ -220,6 +293,17 @@ test_commands_lifecycle_global_uninstall() {
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
   rm -f "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/unmanaged-sentinel"
 
+  mkdir "$UPSTREAM_PROFILE_ROOT/.registries.lock"
+  set +e
+  lock_output=$(default_shimmy uninstall --global 2>&1)
+  lock_status=$?
+  set -e
+  [ "$lock_status" -ne 0 ] || fail_test 'global uninstall unexpectedly crossed a sibling registry transaction lock'
+  assert_contains "$lock_output" 'registry transaction is active or damaged'
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
+  rmdir "$UPSTREAM_PROFILE_ROOT/.registries.lock"
+
   relocated_checkout=$SCENARIO_DIR/relocated-global-uninstall-checkout
   mv "$replacement_checkout" "$relocated_checkout"
   default_shimmy uninstall --global >/dev/null
@@ -229,6 +313,7 @@ test_commands_lifecycle_global_uninstall() {
   assert_dir_exists "$relocated_checkout"
   assert_file_exists "$exported_skill_file"
   assert_file_exists "$exported_manifest"
+  assert_file_contains "$XDG_CONFIG_HOME_DIR/containers/registries.conf" operator-policy
   pass "explicit global uninstall removes only owned profiles and catalogs while preserving checkouts and external skill exports"
 }
 
@@ -326,6 +411,7 @@ test_commands_lifecycle_complete() {
 
   test_commands_lifecycle_install_shapes
   test_commands_lifecycle_launcher_refresh
+  test_commands_lifecycle_registry_upgrade_and_preservation
   test_commands_lifecycle_profile_materialization_isolation
   test_commands_lifecycle_catalog_independent_execution
   test_commands_lifecycle_control_plane_refresh

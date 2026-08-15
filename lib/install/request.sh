@@ -26,7 +26,8 @@ Options:
   -h, --help             Show this help.
 
 Without --global, uninstall removes only the profile containing the invoked
-launcher. Source checkouts and external skill exports are preserved.
+launcher, including its valid prepared registry redirect file. Source
+checkouts, operator registry policy, and external skill exports are preserved.
 
 Examples:
   shimmy uninstall
@@ -53,6 +54,9 @@ Examples:
   shimmy install --shim task
   shimmy install --shim aws --shim terraform
   shimmy install --shim oc@4.20 --no-startup
+
+Additive installs and profile refreshes preserve a valid profile-specific
+registries.conf byte-for-byte.
 EOF
 }
 

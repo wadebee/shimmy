@@ -15,5 +15,8 @@ without starting tool containers. They are sourced by `../test.sh` and use
 - `profile-activation.sh` validates deterministic engine state, workload-aware
   Darwin switching, dry runs, commit-last connection selection, and
   failure-injected rollback reporting through a fake Podman command seam.
+- `registries.sh` validates strict endpoint grammar, exact managed-file
+  parsing/rendering, deterministic mutation, side-effect-free dry runs,
+  adjacent locking, and exact rollback after injected post-commit failure.
 - `update.sh` validates generic dispatch to version-local refresh hooks and the
   shared `pull`/`build` contract.
