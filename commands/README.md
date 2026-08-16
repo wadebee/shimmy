@@ -42,10 +42,14 @@ shimmy profile redirect remove (--prefix <logical-prefix> | --all) [--detach] [-
 On macOS, `default` maps only to the pre-existing `shimmy-default` machine and
 same-name rootless connection; `upstream` maps only to `shimmy-upstream`.
 Activation may stop one idle alternate VM, starts and validates the target, and
-commits Podman's global default connection last. Running containers block a
-stop unless `--stop-running` explicitly acknowledges their interruption.
-`--restart` applies the same guard to the expected machine. A dry run inspects
-and prints the transition without changing machine or connection state.
+projects the invoking profile through the exact VM-side
+`/etc/containers/registries.conf.d/shimmy-profile.conf` symlink before engine
+policy validation. Rootless validation and a local fingerprint record precede
+Podman's global default connection commit. Running containers block a stop
+unless `--stop-running` explicitly acknowledges their interruption.
+`--restart` applies the same guard to the expected machine and refreshes stale
+projection state. A dry run inspects and prints the transition without changing
+machine, projection, record, or connection state.
 
 On Linux, activation atomically selects the invoking profile through the exact
 user `shimmy-active-profile.conf` drop-in, then validates a fresh current-user
@@ -62,9 +66,12 @@ mirror. Upsert is exact-prefix keyed and prefix-sorted; removal is exact, and
 `--all` retains the required empty managed file. Dry-run renders the complete
 candidate without a lock or filesystem mutation. Linux active edits validate
 with a fresh process and roll back exact bytes on failure; inactive edits do
-not contact Podman. `--detach` is valid only with `--all` and on Linux removes
-only the exact active link for the invoking profile. Darwin remains
-preparation-only. See [registry redirect guidance](../docs/registries.md).
+not contact Podman. Darwin active edits commit locally, print the exact
+profile-local restart command, and never restart automatically. `--detach` is
+valid only with `--all`; it removes only the exact invoking-profile Linux link
+or Darwin VM link and local record. A stopped Darwin machine must be activated
+first, while a machine proven absent permits record-only detach. See [registry
+redirect guidance](../docs/registries.md).
 
 ## `catalog`
 

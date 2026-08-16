@@ -79,11 +79,13 @@ test_commands_lifecycle_legacy_agent_rollback() {
   done
   printf '%s\n' old-shell-init > "$transaction_profile_root/shell-init.sh"
   printf '%s\n' old-registries > "$transaction_profile_root/registries.conf"
+  printf '%s\n' old-machine-projection > "$transaction_profile_root/machine-projection.txt"
   printf '%s\n' old-manifest > "$transaction_profile_root/install-manifest.txt"
   printf '%s\n' old-launcher > "$transaction_profile_root/bin/shimmy"
   ln -s old-dispatcher "$transaction_profile_root/bin/jq"
   printf '%s\n' new-shell-init > "$transaction_stage_root/shell-init.sh"
   printf '%s\n' new-registries > "$transaction_stage_root/registries.conf"
+  printf '%s\n' new-machine-projection > "$transaction_stage_root/machine-projection.txt"
   printf '%s\n' new-manifest > "$transaction_stage_root/install-manifest.txt"
   printf '%s\n' new-launcher > "$transaction_stage_root/bin/shimmy"
 
@@ -96,6 +98,7 @@ test_commands_lifecycle_legacy_agent_rollback() {
   SHIMMY_CONTROL_BIN=$transaction_profile_root/bin/shimmy
   SHIMMY_SHELL_INIT_FILE=$transaction_profile_root/shell-init.sh
   SHIMMY_PROFILE_REGISTRIES_PATH=$transaction_profile_root/registries.conf
+  SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH=$transaction_profile_root/machine-projection.txt
   SHIMMY_PROFILE_REGISTRIES_LOCK_PATH=$transaction_profile_root/.registries.lock
   INSTALL_MANIFEST_FILE=$transaction_profile_root/install-manifest.txt
   EXISTING_PROFILE_TOOLS=jq
@@ -104,6 +107,7 @@ test_commands_lifecycle_legacy_agent_rollback() {
   SHIMMY_PROFILE_DIRECTORIES_REPLACED=
   SHIMMY_PROFILE_FILES_REPLACED=
   SHIMMY_MANIFEST_COMMIT_TMP=
+  SHIMMY_MACHINE_PROJECTION_COMMIT_TMP=
   SHIMMY_REGISTRIES_COMMIT_TMP=
   SHIMMY_SHELL_INIT_COMMIT_TMP=
 
@@ -133,6 +137,7 @@ test_commands_lifecycle_legacy_agent_rollback() {
   done
   assert_file_contains "$transaction_profile_root/shell-init.sh" old-shell-init
   assert_file_contains "$transaction_profile_root/registries.conf" old-registries
+  assert_file_contains "$transaction_profile_root/machine-projection.txt" old-machine-projection
   assert_file_contains "$transaction_profile_root/install-manifest.txt" old-manifest
   assert_file_contains "$transaction_profile_root/bin/shimmy" old-launcher
   assert_equals "$(readlink "$transaction_profile_root/bin/jq")" old-dispatcher
@@ -195,12 +200,17 @@ test_commands_lifecycle_registry_upgrade_and_preservation() {
   default_shimmy profile redirect --prefix docker.io --location registry.corp.example/docker
   configured_bytes=$SCENARIO_DIR/configured-registries
   cp "$default_config" "$configured_bytes"
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  configured_projection=$SCENARIO_DIR/configured-machine-projection
+  cp "$DEFAULT_PROFILE_ROOT/machine-projection.txt" "$configured_projection"
   upstream_checksum=$(cksum < "$upstream_config")
 
   default_shimmy install --shim task --no-startup >/dev/null
   cmp -s "$configured_bytes" "$default_config" || fail_test "additive install changed valid registry bytes"
+  cmp -s "$configured_projection" "$DEFAULT_PROFILE_ROOT/machine-projection.txt" || fail_test "additive install changed valid machine projection record bytes"
   bootstrap_default >/dev/null
   cmp -s "$configured_bytes" "$default_config" || fail_test "profile refresh changed valid registry bytes"
+  cmp -s "$configured_projection" "$DEFAULT_PROFILE_ROOT/machine-projection.txt" || fail_test "profile refresh changed valid machine projection record bytes"
   assert_equals "$(cksum < "$upstream_config")" "$upstream_checksum"
 
   setup_scenario_with_profiles default
@@ -242,6 +252,30 @@ test_commands_lifecycle_registry_upgrade_and_preservation() {
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
   assert_file_contains "$DEFAULT_PROFILE_ROOT/registries.conf" unmanaged
   pass "pre-feature upgrade creates an empty config, valid installs preserve exact bytes, and invalid registry assets fail before profile mutation"
+}
+
+test_commands_lifecycle_darwin_projection_uninstall_refusal() {
+  setup_scenario_with_profiles default upstream
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  set +e
+  profile_output=$(default_shimmy uninstall 2>&1)
+  profile_status=$?
+  set -e
+  [ "$profile_status" -ne 0 ] || fail_test 'profile uninstall unexpectedly removed an attached Darwin projection record'
+  assert_contains "$profile_output" "'$DEFAULT_PROFILE_ROOT/bin/shimmy' profile redirect remove --all --detach"
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/machine-projection.txt"
+
+  profile_projection_record_write "$UPSTREAM_PROFILE_ROOT" upstream
+  set +e
+  global_output=$(default_shimmy uninstall --global 2>&1)
+  global_status=$?
+  set -e
+  [ "$global_status" -ne 0 ] || fail_test 'global uninstall unexpectedly crossed an attached Darwin projection record'
+  assert_contains "$global_output" 'profile default remains projected'
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
+  pass 'profile and global uninstall refuse valid Darwin projection records before removing any profile state'
 }
 
 test_commands_lifecycle_empty_container_cleanup() {
@@ -455,5 +489,6 @@ test_commands_lifecycle_complete() {
   test_commands_lifecycle_legacy_agent_rollback
   test_commands_lifecycle_empty_container_cleanup
   test_commands_lifecycle_linux_registry_activation_cleanup
+  test_commands_lifecycle_darwin_projection_uninstall_refusal
   test_commands_lifecycle_global_uninstall
 }

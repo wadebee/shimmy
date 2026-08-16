@@ -38,7 +38,8 @@ Options:
   --format human|manifest  Select human-readable or stable key/value output.
 
 Linux reports current policy only for the exact active profile link and a
-reachable local-rootless engine. Darwin remains preparation-only.
+reachable local-rootless engine. Darwin reports VM link, record, and cache
+freshness for the deterministic profile machine.
 
 Examples:
   shimmy profile redirect list
@@ -60,8 +61,9 @@ Options:
   --detach                   Also detach owned projection state when supported.
   --dry-run                  Render the full candidate without filesystem changes.
 
-On Linux, --detach requires the exact active link to point to this profile. It
-is valid only with --all. Darwin remains preparation-only in this release.
+On Linux, --detach requires the exact active link to point to this profile. On
+Darwin it requires the exact recorded VM projection or proof that the expected
+machine no longer exists. It is valid only with --all.
 
 Examples:
   shimmy profile redirect remove --prefix docker.io
@@ -85,8 +87,8 @@ Commands:
   remove  Remove one exact prefix or all redirects.
 
 The direct option form atomically upserts one [[registry]] prefix/location
-replacement. It does not create a mirror or fallback. Linux activation selects
-the invoking profile; Darwin redirects remain prepared-only.
+replacement. It does not create a mirror or fallback. Activation selects the
+invoking profile policy on Linux and in the deterministic Darwin machine.
 
 Examples:
   shimmy profile redirect --prefix docker.io --location registry.corp.example/docker
@@ -205,12 +207,20 @@ case "$operation" in
     shimmy_registries_active_link_state_read
     shimmy_registries_override_read
     registry_policy=$(shimmy_registries_policy_state_read)
+    registry_machine_link=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE:-not_applicable}
+    registry_projection_record=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE:-not_applicable}
+    registry_config_fingerprint=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT:-not_applicable}
+    registry_applied_fingerprint=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORDED_FINGERPRINT:-not_applicable}
     case "$output_format" in
       manifest)
         printf '%s\n' 'registry_config=valid'
         printf 'registry_active_link=%s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE"
         printf 'registry_active_profile=%s\n' "$SHIMMY_REGISTRIES_ACTIVE_PROFILE"
         printf 'registry_override=%s\n' "$SHIMMY_REGISTRIES_OVERRIDE"
+        printf 'registry_machine_link=%s\n' "$registry_machine_link"
+        printf 'registry_projection_record=%s\n' "$registry_projection_record"
+        printf 'registry_config_fingerprint=%s\n' "$registry_config_fingerprint"
+        printf 'registry_applied_fingerprint=%s\n' "$registry_applied_fingerprint"
         printf 'registry_policy=%s\n' "$registry_policy"
         ;;
       human)
@@ -218,6 +228,10 @@ case "$operation" in
         printf 'Registry active link: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE"
         printf 'Registry active profile: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_PROFILE"
         printf 'Registry override: %s\n' "$SHIMMY_REGISTRIES_OVERRIDE"
+        printf 'Registry machine link: %s\n' "$registry_machine_link"
+        printf 'Registry projection record: %s\n' "$registry_projection_record"
+        printf 'Registry config fingerprint: %s\n' "$registry_config_fingerprint"
+        printf 'Registry applied fingerprint: %s\n' "$registry_applied_fingerprint"
         printf 'Registry policy: %s\n' "$registry_policy"
         ;;
     esac
@@ -261,17 +275,33 @@ case "$operation" in
           exit 1
         }
         shimmy_registries_host_os_resolve
-        if [ "$SHIMMY_REGISTRIES_HOST_OS" = linux ]; then
-          shimmy_profile_state_read
-        fi
+        case "$SHIMMY_REGISTRIES_HOST_OS" in
+          linux) shimmy_profile_state_read ;;
+          darwin)
+            shimmy_registries_machine_projection_record_read
+            if [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" = valid ]; then
+              shimmy_profile_state_read
+            else
+              SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE=unverified
+              SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT=$(shimmy_registries_config_fingerprint_render "$SHIMMY_PROFILE_REGISTRIES_PATH")
+              SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=unverified
+            fi
+            ;;
+        esac
         shimmy_registries_active_link_state_read
         shimmy_registries_override_read
         registry_policy=$(shimmy_registries_policy_state_read)
+        registry_machine_link=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE:-not_applicable}
+        registry_projection_record=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE:-not_applicable}
+        registry_config_fingerprint=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT:-not_applicable}
+        registry_applied_fingerprint=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORDED_FINGERPRINT:-not_applicable}
         case "$output_format" in
           manifest)
             printf 'profile=%s\nregistry_config=valid\n' "$SHIMMY_PROFILE_NAME"
             printf 'registry_active_link=%s\nregistry_active_profile=%s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" "$SHIMMY_REGISTRIES_ACTIVE_PROFILE"
             printf 'registry_override=%s\nregistry_policy=%s\n' "$SHIMMY_REGISTRIES_OVERRIDE" "$registry_policy"
+            printf 'registry_machine_link=%s\nregistry_projection_record=%s\n' "$registry_machine_link" "$registry_projection_record"
+            printf 'registry_config_fingerprint=%s\nregistry_applied_fingerprint=%s\n' "$registry_config_fingerprint" "$registry_applied_fingerprint"
             while IFS= read -r registry_entry; do [ -z "$registry_entry" ] || printf 'redirect=%s\n' "$registry_entry"; done <<EOF
 $registry_entries
 EOF
@@ -279,6 +309,7 @@ EOF
           human)
             printf 'Profile: %s\nConfiguration: valid\n' "$SHIMMY_PROFILE_NAME"
             printf 'Active link: %s\nActive profile: %s\nRegistry override: %s\nPolicy: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" "$SHIMMY_REGISTRIES_ACTIVE_PROFILE" "$SHIMMY_REGISTRIES_OVERRIDE" "$registry_policy"
+            printf 'Machine link: %s\nProjection record: %s\nConfig fingerprint: %s\nApplied fingerprint: %s\n' "$registry_machine_link" "$registry_projection_record" "$registry_config_fingerprint" "$registry_applied_fingerprint"
             if [ -z "$registry_entries" ]; then
               printf '%s\n' 'Redirects: none'
             else

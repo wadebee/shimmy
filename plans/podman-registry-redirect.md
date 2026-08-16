@@ -542,8 +542,8 @@ None.
 - [x] Chunk 1 — Profile-bound engine activation control plane accepted after automated verification and native macOS acceptance
 - [x] Chunk 2 — Agent workflows and canonical activation guidance accepted after automated verification and human review
 - [x] Chunk 3 — Profile registry files, strict redirect CRUD, and profile transaction support accepted after automated verification and human review
-- [~] Chunk 4 — Linux registry activation implemented and automated verification complete; native rootless Linux route acceptance pending human review/deferral
-- [ ] Chunk 5 — Project and validate strict registry policy in Darwin machines (blocked on accepted Chunk 4)
+- [x] Chunk 4 — Linux registry activation accepted 2026-08-15 with explicit user deferral of native rootless Linux route acceptance
+- [~] Chunk 5 — Darwin projection/cache lifecycle implemented; automated verification and native ownership/restart/switch/detach acceptance complete, physical digest route acceptance pending
 - [ ] Chunk 6 — Integrate Skopeo and complete cross-surface registry verification (blocked on accepted Chunk 5)
 
 ## Execution protocol
@@ -1039,6 +1039,10 @@ Reviewers must confirm Linux link ownership, validation and rollback ordering,
 remote/rootful refusal, detach/uninstall behavior, and native route evidence.
 Stop before Chunk 5.
 
+Accepted 2026-08-15 after automated verification and human review. The user
+explicitly deferred the dedicated native rootless Linux route/no-fallback item;
+it remains a release follow-up with the evidence and impact recorded above.
+
 ## Chunk 5 — Darwin registry projection and cache lifecycle
 
 ### Goal
@@ -1108,26 +1112,45 @@ into policy mounting.
 
 ### Verification checklist
 
-- [ ] Same-path visibility, fixed root-write/rootless-validation separation,
+- [x] Same-path visibility, fixed root-write/rootless-validation separation,
   exact collision refusal, and no-content-copy behavior pass.
-- [ ] Projection precedes first policy validation; record creation/fingerprint
+- [x] Projection precedes first policy validation; record creation/fingerprint
   freshness and every rollback boundary are failure-injection tested.
-- [ ] Already-running stale/missing projection requires explicit restart and
+- [x] Already-running stale/missing projection requires explicit restart and
   inherits workload guard and rollback behavior from Chunk 1.
-- [ ] Active edits never restart automatically and print the exact absolute
+- [x] Active edits never restart automatically and print the exact absolute
   restart command; inactive edits do not contact Podman.
-- [ ] Detach handles exact owned state and a proven missing machine, while
+- [x] Detach handles exact owned state and a proven missing machine, while
   refusing stopped/unreachable or foreign state without mutation.
-- [ ] Update preserves valid config/record bytes; profile/global uninstall
+- [x] Update preserves valid config/record bytes; profile/global uninstall
   refuses attached projections and succeeds after exact detach.
-- [ ] Status freshness labels are evidence-based and registry environment
+- [x] Status freshness labels are evidence-based and registry environment
   overrides block active mutation without blocking inactive preparation.
-- [ ] Default tests use command seams and do not touch a developer machine;
+- [x] Default tests use command seams and do not touch a developer machine;
   syntax, contexts, and `./tests/test.sh` pass.
-- [ ] Dedicated macOS acceptance switches both pre-provisioned profile machines,
+- [~] Dedicated macOS acceptance switches both pre-provisioned profile machines,
   proves each retains only its own redirect, requires restart after active
   edits, routes Podman through the physical digest endpoint with no fallback,
   and verifies detach/uninstall. Record infrastructure gaps as `[~]`.
+
+  Native macOS acceptance on 2026-08-15 validated both pre-provisioned
+  `shimmy-default` and `shimmy-upstream` machines, same-path host/VM
+  readability, the exact root-managed link, rootless fingerprint validation,
+  current and restart-required status, ordinary stale-activation refusal,
+  explicit restart, profile-isolated policy across switches, installed `rg`
+  runtime affinity, exact detach, and restoration of both original empty
+  configs. Automated disposable tests additionally cover stopped, missing,
+  unreachable, foreign, uninstall-refusal, and detach/config rollback paths.
+
+  No physical digest registry endpoint was available, so native Podman route
+  selection and no-public-fallback behavior remain unverified. Live uninstall
+  was not performed against the developer's installed profiles; automated
+  profile/global refusal and post-detach success cover that destructive
+  boundary. The impact is limited to upstream containers/image routing and
+  live uninstall evidence, not ownership, transaction, cache, or switch
+  behavior. Run the dedicated digest endpoint/no-fallback scenario and a
+  disposable installed-profile uninstall before release. Explicit deferral is
+  required to accept Chunk 5 and begin Chunk 6.
 
 ### Human review gate
 
@@ -1399,6 +1422,30 @@ review; there is no later chunk.
   release gate because symlink loading and no-fallback routing are upstream
   runtime behavior.
 
+### Chunk 5 implementation
+
+- The VM projection can remain a symlink to the authoritative host path; a
+  rootless same-path checksum before and after the fixed root link operation
+  proves visibility without copying policy content into the machine.
+- Link presence and file readability are not cache-freshness evidence. A
+  strict local record of the fingerprint accepted at machine start provides
+  the restart boundary while allowing the host-backed file itself to change
+  immediately.
+- Remote readability can briefly differ from the host after an active edit.
+  That is actionable stale state, not foreign ownership: status reports
+  `restart-required`, and restart re-runs same-path reconciliation before
+  claiming the policy current.
+- Projection record location and recorded target are distinct during a staged
+  profile update. Structure validation therefore accepts an explicit installed
+  target while still validating the staged record's exact bytes and mode.
+- Darwin detach needs one rollback unit spanning the VM link, local record,
+  and managed config. Failure after remote detach must recreate only the exact
+  link and restore only the validated record; it must not restart or otherwise
+  manage the machine.
+- Installed Darwin runtimes must recheck link, rootless-visible fingerprint,
+  record, and registry overrides in addition to the global connection. A
+  connection match alone can otherwise run through a stale engine cache.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -1409,11 +1456,12 @@ For a fresh implementation session:
 2. Recheck the worktree and preserve the unrelated untracked
    `plans/registry-image-remap.md`. Treat the verified inventory as a baseline
    and add newly discovered dependencies without reopening recorded decisions.
-3. Resume Chunk 4 at its human review gate. Automated implementation and the
-   default suite are complete; the dedicated native rootless Linux route item
-   remains `[~]` because this session ran on Darwin. Do not begin Chunk 5 until
-   the reviewer accepts Chunk 4 and explicitly defers that native item or the
-   route scenario passes on a supported Linux host.
+3. Resume Chunk 5 at its human review gate. Chunk 4 was accepted with explicit
+   deferral of native rootless Linux route evidence. Chunk 5 implementation,
+   automated verification, and native macOS ownership/restart/switch/detach
+   acceptance are complete; physical digest routing/no-fallback evidence and a
+   disposable live uninstall remain `[~]`. Do not begin Chunk 6 until the
+   reviewer explicitly accepts those deferrals or the scenarios pass.
 4. Continue only after each preceding review gate is explicitly accepted. The
    remaining non-negotiable boundaries are:
    - Chunk 2: exact profile-local agent approval, no machine provisioning, and

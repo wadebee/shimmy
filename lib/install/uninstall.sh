@@ -16,6 +16,11 @@ perform_uninstall_global() {
         shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$global_profile_name" ||
           fail "refusing global uninstall with invalid registry configuration: $SHIMMY_PROFILE_REGISTRIES_PATH"
       fi
+      if [ -e "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] || [ -L "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ]; then
+        shimmy_registries_machine_projection_record_validate "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" "$global_profile_name" ||
+          fail "refusing global uninstall with invalid Darwin machine projection record: $SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
+        fail "refusing global uninstall while profile $global_profile_name remains projected; detach it first with: '$SHIMMY_PROFILE_ROOT/bin/shimmy' profile redirect remove --all --detach"
+      fi
       [ ! -e "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" ] && [ ! -L "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" ] ||
         fail "refusing global uninstall while a registry transaction is active or damaged: $SHIMMY_PROFILE_REGISTRIES_LOCK_PATH"
       shimmy_registries_active_link_state_read
@@ -65,6 +70,11 @@ perform_uninstall_profile() {
     shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_RESOLVED" ||
       fail "refusing to remove invalid or unmanaged registry configuration: $SHIMMY_PROFILE_REGISTRIES_PATH"
   fi
+  if [ -e "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] || [ -L "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ]; then
+    shimmy_registries_machine_projection_record_validate "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" "$SHIMMY_PROFILE_RESOLVED" ||
+      fail "refusing to remove invalid Darwin machine projection record: $SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
+    fail "refusing to remove profile $SHIMMY_PROFILE_RESOLVED while its Darwin projection is attached; detach it first with: '$SHIMMY_CONTROL_BIN' profile redirect remove --all --detach"
+  fi
   shimmy_registries_lock_acquire || fail "unable to lock registry configuration for profile uninstall"
   shimmy_registries_active_link_state_read
   case "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" in
@@ -89,6 +99,7 @@ $installed_tools
 EOF
   profile_owned_path_remove "$SHIMMY_CONTROL_BIN"
   profile_owned_path_remove "$SHIMMY_SHELL_INIT_FILE"
+  profile_owned_path_remove "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
   profile_owned_path_remove "$SHIMMY_PROFILE_REGISTRIES_PATH"
   profile_owned_path_remove "$INSTALL_MANIFEST_FILE"
 

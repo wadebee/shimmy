@@ -18,7 +18,19 @@ absolute symlink to one canonical profile config. Link creation/switching and
 active edits validate fresh local-rootless Podman processes and restore exact
 prior state on failure. Detach and uninstall remove only the exact invoking
 profile link. Foreign, dangling, unsafe, or masking state fails closed.
-Darwin machine projection and tool-container mounting are not implemented yet.
+
+On Darwin, activation owns only the exact root-managed VM symlink
+`/etc/containers/registries.conf.d/shimmy-profile.conf` and the strict local
+`<profile-root>/machine-projection.txt` identity/fingerprint record. A fixed
+root SSH script accepts only validated action/path arguments, while a separate
+rootless SSH process validates same-path source visibility, exact link target,
+readability, and fingerprint. Projection precedes engine validation; record
+creation and global default selection follow it. Rollback covers link and
+record state. Stale running policy requires explicit restart. Detach accepts
+only exact owned state or a valid record with a machine proven absent; stopped,
+unreachable, foreign, and damaged state fails without mutation. Uninstall
+refuses any retained valid record. Tool-container policy mounting remains
+unimplemented.
 
 ## Parent context
 

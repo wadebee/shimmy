@@ -114,10 +114,17 @@ shimmy profile redirect remove --prefix docker.io
 Linux status reports `current` only for the exact active profile link with a
 reachable local-rootless engine; sibling or absent state is `inactive`, and
 damaged, foreign, or masked state is `invalid`. Active Linux edits validate in
-a fresh process and restore prior bytes on failure. `remove --all --detach`
-removes only the invoking profile's exact active link. Darwin remains
-preparation-only, and tool containers do not yet inherit the policy. Redirects
-use replacement `location` with no configured mirror fallback. See
+a fresh process and restore prior bytes on failure.
+
+On macOS, activation installs only
+`/etc/containers/registries.conf.d/shimmy-profile.conf` in the deterministic
+profile machine as a same-path symlink to the host profile config, validates it
+as the rootless VM user, and records its fingerprint locally. Active edits do
+not restart the machine; they print the exact profile-local `profile activate
+--restart` command. `remove --all --detach` removes only the invoking profile's
+recognized Linux link or Darwin link/record. Uninstall refuses an attached
+Darwin record. Tool containers do not yet inherit an explicit policy mount.
+Redirects use replacement `location` with no configured mirror fallback. See
 [docs/registries.md](docs/registries.md) for the full ownership and lifecycle
 contract.
 

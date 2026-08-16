@@ -28,10 +28,11 @@ set connection variables.
   including its fixed `catalog=default` or `catalog=upstream` binding.
 - `profile-assets.sh` stages the profile-local control plane, launcher,
   implementations, dispatchers, and only manifest-selected tool metadata and
-  concrete version assets plus the authoritative registry file. It re-resolves
-  and compares the catalog before commit so a live catalog change cannot
-  produce a mixed materialization. Fresh and valid pre-feature profiles receive
-  an empty managed file; later transactions lock and preserve validated bytes.
+  concrete version assets plus the authoritative registry file and optional
+  Darwin projection record. It re-resolves and compares the catalog before
+  commit so a live catalog change cannot produce a mixed materialization.
+  Fresh and valid pre-feature profiles receive an empty managed file; later
+  transactions lock and preserve validated config and record bytes.
 - `launcher-template.sh` becomes the installed profile's self-contained
   `bin/shimmy`, including dispatch for the profile engine control plane.
 - `startup.sh` renders the profile's `shell-init.sh` asset and applies
@@ -57,5 +58,7 @@ generation transaction used later; initial upstream bootstrap registers its
 live checkout without replacing an existing different binding.
 Profile and global uninstall remove only validated profile-owned registry
 files and, on Linux, the exact active Shimmy link when it targets the profile
-being removed. Foreign links, operator containers configuration, and sibling
-profile files remain outside that ownership boundary.
+being removed. A retained Darwin projection record blocks both profile and
+global uninstall with exact detach guidance; detach owns removal of the exact
+VM link and record. Foreign links, operator containers configuration, and
+sibling profile files remain outside that ownership boundary.

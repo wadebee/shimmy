@@ -25,10 +25,12 @@ SHIMMY_PROFILE_BACKUP_ROOT=
 SHIMMY_PROFILE_DIRECTORIES_REPLACED=
 SHIMMY_PROFILE_FILES_REPLACED=
 SHIMMY_MANIFEST_COMMIT_TMP=
+SHIMMY_MACHINE_PROJECTION_COMMIT_TMP=
 SHIMMY_REGISTRIES_COMMIT_TMP=
 SHIMMY_REGISTRIES_LOCK_HELD=0
 SHIMMY_SHELL_INIT_COMMIT_TMP=
 SHIMMY_PROFILE_REGISTRIES_EXISTED=0
+SHIMMY_PROFILE_MACHINE_PROJECTION_EXISTED=0
 SHIMMY_PROFILE_CATALOG_NAME=
 SHIMMY_MATERIALIZATION_CATALOG_NAME=
 SHIMMY_MATERIALIZATION_CATALOG_SOURCE_TYPE=
@@ -208,6 +210,11 @@ profile_existing_state_read() {
     if [ -f "$SHIMMY_PROFILE_REGISTRIES_PATH" ] && [ ! -L "$SHIMMY_PROFILE_REGISTRIES_PATH" ]; then
       SHIMMY_PROFILE_REGISTRIES_EXISTED=1
     fi
+    if [ -f "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] && [ ! -L "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ]; then
+      shimmy_registries_machine_projection_record_validate "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" "$SHIMMY_PROFILE_RESOLVED" ||
+        fail "invalid Darwin machine projection record: $SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
+      SHIMMY_PROFILE_MACHINE_PROJECTION_EXISTED=1
+    fi
     PROFILE_EXISTS=1
     EXISTING_PROFILE_TOOLS=$(shimmy_manifest_tool_list_read "$INSTALL_MANIFEST_FILE" || true)
     PROFILE_MANIFEST_TOOLS=$EXISTING_PROFILE_TOOLS
@@ -237,6 +244,10 @@ profile_stage_prepare() {
     shimmy_registries_config_render "$SHIMMY_PROFILE_RESOLVED" '' > "$SHIMMY_STAGE_ROOT/registries.conf"
   fi
   chmod 0644 "$SHIMMY_STAGE_ROOT/registries.conf"
+  if [ "$SHIMMY_PROFILE_MACHINE_PROJECTION_EXISTED" -eq 1 ]; then
+    cp "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" "$SHIMMY_STAGE_ROOT/machine-projection.txt"
+    chmod 0644 "$SHIMMY_STAGE_ROOT/machine-projection.txt"
+  fi
 
   while IFS= read -r tool_name; do
     [ -n "$tool_name" ] || continue
@@ -260,7 +271,8 @@ EOF
   profile_manifest_render > "$SHIMMY_STAGE_ROOT/install-manifest.txt"
   chmod 644 "$SHIMMY_STAGE_ROOT/install-manifest.txt"
   shimmy_profile_manifest_validate "$SHIMMY_STAGE_ROOT/install-manifest.txt" "$SHIMMY_PROFILE_RESOLVED" || exit 1
-  shimmy_profile_structure_validate "$SHIMMY_STAGE_ROOT" "$SHIMMY_PROFILE_RESOLVED" ||
+  shimmy_profile_structure_validate \
+    "$SHIMMY_STAGE_ROOT" "$SHIMMY_PROFILE_RESOLVED" 0 "$SHIMMY_PROFILE_REGISTRIES_PATH" ||
     fail "staged profile materialization is incomplete or invalid"
   profile_materialization_catalog_snapshot_validate
 }

@@ -285,6 +285,16 @@ EOF
   else
     SHIMMY_PROFILE_ACTIVATION_STATE=active
   fi
+  if command -v shimmy_registries_machine_projection_state_read >/dev/null 2>&1; then
+    shimmy_registries_machine_projection_state_read
+    if [ "$SHIMMY_PROFILE_ACTIVATION_STATE" = active ]; then
+      case "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE" in
+        current) ;;
+        restart-required|unverified) SHIMMY_PROFILE_ACTIVATION_STATE=registry_restart_required ;;
+        *) SHIMMY_PROFILE_ACTIVATION_STATE=invalid_registry ;;
+      esac
+    fi
+  fi
 }
 
 shimmy_profile_state_linux_read() {
@@ -425,6 +435,13 @@ shimmy_profile_activation_rollback() {
   rollback_complete=1
   printf 'ERROR: profile activation failed: %s\n' "$rollback_reason" >&2
 
+  if [ "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_CHANGED:-0}" -eq 1 ] ||
+    [ "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_CHANGED:-0}" -eq 1 ]; then
+    if ! shimmy_registries_machine_projection_rollback; then
+      rollback_complete=0
+    fi
+  fi
+
   if [ "${SHIMMY_PROFILE_TARGET_START_ATTEMPTED:-0}" -eq 1 ]; then
     if shimmy_profile_podman_run machine stop "$SHIMMY_PROFILE_EXPECTED_MACHINE" </dev/null >/dev/null 2>&1; then
       printf 'Rollback: target cleanup succeeded for %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
@@ -467,15 +484,27 @@ shimmy_profile_activate_darwin() {
   dry_run_requested=$3
 
   shimmy_profile_activation_override_reject || return 1
+  shimmy_registries_override_reject || return 1
   shimmy_profile_podman_bin_require || {
     printf '%s\n' 'ERROR: Podman is required for profile activation.' >&2
     return 1
   }
   if [ "$dry_run_requested" -eq 1 ]; then
     shimmy_profile_activation_lock_check || return 1
+    shimmy_registries_lock_check || return 1
   else
     shimmy_profile_activation_lock_acquire || return 1
+    shimmy_registries_lock_acquire || return 1
   fi
+  shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_NAME" || {
+    printf 'ERROR: invalid managed registry redirect configuration: %s\n' "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
+    return 1
+  }
+  shimmy_registries_machine_projection_record_read
+  [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" != invalid ] || {
+    printf 'ERROR: invalid Darwin machine projection record: %s\n' "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" >&2
+    return 1
+  }
   shimmy_profile_state_darwin_read
 
   [ "$SHIMMY_PROFILE_MACHINE_METADATA" = valid ] || {
@@ -491,6 +520,11 @@ shimmy_profile_activate_darwin() {
       printf 'ERROR: required same-name rootless Podman connection is missing or invalid: %s\n' "$SHIMMY_PROFILE_EXPECTED_CONNECTION" >&2
       return 1
     }
+  if [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" = running ] &&
+    [ "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE:-unverified}" = invalid ]; then
+    printf 'ERROR: refusing activation with invalid or foreign Darwin registry projection in %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
+    return 1
+  fi
 
   stop_planned=0
   if [ "$SHIMMY_PROFILE_RUNNING_MACHINE_COUNT" -eq 1 ]; then
@@ -523,11 +557,27 @@ shimmy_profile_activate_darwin() {
     printf 'ERROR: expected rootless engine is unreachable through %s; retry with --restart if a restart is intended\n' "$SHIMMY_PROFILE_EXPECTED_CONNECTION" >&2
     return 1
   fi
+  if [ "$target_start_planned" -eq 0 ]; then
+    case "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE:-unverified}" in
+      current) ;;
+      invalid)
+        printf 'ERROR: refusing activation with invalid or foreign Darwin registry projection in %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
+        return 1
+        ;;
+      *)
+        printf "ERROR: Darwin registry projection for profile %s is missing, stale, or unverified; restart it with: '%s/bin/shimmy' profile activate --restart\n" "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_ROOT" >&2
+        return 1
+        ;;
+    esac
+  fi
 
   if [ "$dry_run_requested" -eq 1 ]; then
     printf 'dry_run=yes\nprofile=%s\n' "$SHIMMY_PROFILE_NAME"
     if [ "$stop_planned" -eq 1 ]; then printf 'would_stop=%s\n' "$SHIMMY_PROFILE_RUNNING_MACHINE"; fi
     if [ "$target_start_planned" -eq 1 ]; then printf 'would_start=%s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE"; fi
+    if [ "$target_start_planned" -eq 1 ]; then
+      printf 'would_project=%s\nwould_record=%s\n' "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
+    fi
     if [ "$SHIMMY_PROFILE_DEFAULT_CONNECTION" != "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ]; then
       printf 'would_set_default_connection=%s\n' "$SHIMMY_PROFILE_EXPECTED_CONNECTION"
     fi
@@ -543,6 +593,8 @@ shimmy_profile_activate_darwin() {
   SHIMMY_PROFILE_PRIOR_STOP_ATTEMPTED=0
   SHIMMY_PROFILE_TARGET_START_ATTEMPTED=0
   SHIMMY_PROFILE_WORKLOAD_INTERRUPTED=0
+  SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_CHANGED=0
+  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_CHANGED=0
   if [ "$stop_planned" -eq 1 ]; then
     SHIMMY_PROFILE_PRIOR_RUNNING_MACHINE=$SHIMMY_PROFILE_RUNNING_MACHINE
     SHIMMY_PROFILE_PRIOR_STOP_ATTEMPTED=1
@@ -559,16 +611,26 @@ shimmy_profile_activate_darwin() {
     shimmy_profile_podman_run machine start "$SHIMMY_PROFILE_EXPECTED_MACHINE" </dev/null ||
       shimmy_profile_activation_rollback "unable to start $SHIMMY_PROFILE_EXPECTED_MACHINE"
   fi
+  if [ "$target_start_planned" -eq 1 ]; then
+    shimmy_registries_machine_projection_reconcile ||
+      shimmy_profile_activation_rollback "unable to project registry policy into $SHIMMY_PROFILE_EXPECTED_MACHINE"
+  fi
   target_info=$(shimmy_profile_podman_run --connection "$SHIMMY_PROFILE_EXPECTED_CONNECTION" info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}' 2>/dev/null) ||
     shimmy_profile_activation_rollback "unable to validate $SHIMMY_PROFILE_EXPECTED_CONNECTION"
   [ "$target_info" = 'true|true' ] ||
     shimmy_profile_activation_rollback "connection $SHIMMY_PROFILE_EXPECTED_CONNECTION is not a rootless Podman machine engine"
+
+  if [ "$target_start_planned" -eq 1 ]; then
+    shimmy_registries_machine_projection_record_apply "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT" ||
+      shimmy_profile_activation_rollback "unable to record registry projection ownership for $SHIMMY_PROFILE_EXPECTED_MACHINE"
+  fi
 
   if [ "$SHIMMY_PROFILE_DEFAULT_CONNECTION" != "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ]; then
     printf 'Selecting Podman default connection: %s\n' "$SHIMMY_PROFILE_EXPECTED_CONNECTION"
     shimmy_profile_podman_run system connection default "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ||
       shimmy_profile_activation_rollback "unable to select default connection $SHIMMY_PROFILE_EXPECTED_CONNECTION"
   fi
+  shimmy_registries_machine_projection_commit
   if [ "$SHIMMY_PROFILE_WORKLOAD_INTERRUPTED" -eq 1 ]; then
     printf '%s\n' 'WARNING: acknowledged workloads were interrupted; verify that they resumed as intended.' >&2
   fi

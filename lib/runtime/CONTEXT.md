@@ -5,7 +5,10 @@
   that required-platform set, and owns preview, privileged-connection, and
   installed Darwin profile-affinity checks. Real installed tool runs require
   the invoking profile's rootless connection to be the reachable global
-  default; source previews retain their behavior.
+  default and require a valid, current Darwin registry projection whose VM
+  link, rootless-visible fingerprint, and local record match the authoritative
+  profile config. Registry and connection overrides fail closed. Source
+  previews retain their behavior.
 - `image.sh` validates version-owned `image.conf` metadata, supplies configured
   external defaults and local base-image build arguments, hashes complete local
   image inputs, and removes stale tagged images after a version-owned rebuild.

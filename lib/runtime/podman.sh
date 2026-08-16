@@ -172,6 +172,48 @@ EOF
     shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" "connection $affinity_expected_connection is not a rootless machine engine"
     return 1
   fi
+  shimmy_podman_profile_registry_affinity_require "$runtime_profile" "$runtime_profile_root" "$affinity_expected_connection"
+}
+
+shimmy_podman_profile_registry_affinity_require() {
+  affinity_profile=$1
+  affinity_profile_root=$2
+  affinity_expected_connection=$3
+  for affinity_helper in \
+    "$affinity_profile_root/lib/common/common.sh" \
+    "$affinity_profile_root/lib/profile/profile.sh" \
+    "$affinity_profile_root/lib/registries/registries.sh"
+  do
+    [ -f "$affinity_helper" ] && [ ! -L "$affinity_helper" ] || {
+      shimmy_podman_profile_affinity_fail "$affinity_profile" "$affinity_profile_root" 'registry projection helpers are missing or invalid'
+      return 1
+    }
+  done
+  . "$affinity_profile_root/lib/common/common.sh"
+  . "$affinity_profile_root/lib/profile/profile.sh"
+  . "$affinity_profile_root/lib/registries/registries.sh"
+  shimmy_profile_paths_resolve "$affinity_profile" || {
+    shimmy_podman_profile_affinity_fail "$affinity_profile" "$affinity_profile_root" 'registry projection paths are invalid'
+    return 1
+  }
+  SHIMMY_PROFILE_PODMAN_BIN=$SHIMMY_PODMAN_BIN
+  SHIMMY_PROFILE_EXPECTED_MACHINE=$affinity_expected_connection
+  SHIMMY_PROFILE_EXPECTED_MACHINE_STATE=running
+  SHIMMY_PROFILE_ENGINE_REACHABLE=true
+  shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$affinity_profile" || {
+    shimmy_podman_profile_affinity_fail "$affinity_profile" "$affinity_profile_root" 'registry configuration is invalid'
+    return 1
+  }
+  shimmy_registries_override_read
+  [ "$SHIMMY_REGISTRIES_OVERRIDE" = none ] || {
+    shimmy_podman_profile_affinity_fail "$affinity_profile" "$affinity_profile_root" "$SHIMMY_REGISTRIES_OVERRIDE masks the active registry projection (value hidden)"
+    return 1
+  }
+  shimmy_registries_machine_projection_state_read
+  [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE" = current ] || {
+    shimmy_podman_profile_affinity_fail "$affinity_profile" "$affinity_profile_root" "registry projection is $SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE"
+    return 1
+  }
 }
 
 shimmy_podman_is_preview() {

@@ -73,8 +73,19 @@ test_lib_runtime_profile_affinity() {
   affinity_runtime_dir=$affinity_profile_root/lib/runtime
   fake_podman=$SCENARIO_DIR/podman
   fake_log=$SCENARIO_DIR/podman.log
-  mkdir -p "$affinity_runtime_dir"
+  mkdir -p "$affinity_runtime_dir" "$affinity_profile_root/lib/common" "$affinity_profile_root/lib/profile" "$affinity_profile_root/lib/registries"
+  cp "$ROOT_DIR/lib/common/common.sh" "$affinity_profile_root/lib/common/common.sh"
+  cp "$ROOT_DIR/lib/profile/profile.sh" "$affinity_profile_root/lib/profile/profile.sh"
+  cp "$ROOT_DIR/lib/registries/registries.sh" "$affinity_profile_root/lib/registries/registries.sh"
   printf '%s\n' 'shimmy_profile_name=default' 'shimmy_install_layout=profile-materialized-root' > "$affinity_profile_root/install-manifest.txt"
+  shimmy_registries_config_render default '' > "$affinity_profile_root/registries.conf"
+  chmod 0644 "$affinity_profile_root/registries.conf"
+  affinity_fingerprint=$(shimmy_registries_config_fingerprint_render "$affinity_profile_root/registries.conf")
+  (
+    SHIMMY_CONFIG_ROOT=$XDG_CONFIG_HOME_DIR/shimmy
+    shimmy_registries_machine_projection_record_render default "$affinity_fingerprint"
+  ) > "$affinity_profile_root/machine-projection.txt"
+  chmod 0644 "$affinity_profile_root/machine-projection.txt"
   profile_activation_fake_create "$fake_podman"
   : > "$fake_log"
   affinity_connections='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
@@ -101,11 +112,31 @@ podman-machine-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|tru
   assert_contains "$override_output" 'CONTAINER_HOST masks the global default'
   assert_not_contains "$override_output" "$secret_uri"
 
+  active_connections='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  active_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
+    SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" FAKE_PODMAN_LOG="$fake_log" \
+    FAKE_CONNECTION_LIST="$active_connections" FAKE_DARWIN_PROJECTION_STATE=current \
+    /bin/sh -c 'set -e; . "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require; printf active-ok' sh "$ROOT_DIR/lib/runtime/podman.sh")
+  assert_equals "$active_output" active-ok
+
+  sed 's/^config_fingerprint=.*/config_fingerprint=0-0/' "$affinity_profile_root/machine-projection.txt" > "$affinity_profile_root/machine-projection.tmp"
+  mv "$affinity_profile_root/machine-projection.tmp" "$affinity_profile_root/machine-projection.txt"
+  chmod 0644 "$affinity_profile_root/machine-projection.txt"
+  set +e
+  stale_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
+    SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" FAKE_PODMAN_LOG="$fake_log" \
+    FAKE_CONNECTION_LIST="$active_connections" FAKE_DARWIN_PROJECTION_STATE=current \
+    /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require' sh "$ROOT_DIR/lib/runtime/podman.sh" 2>&1)
+  stale_status=$?
+  set -e
+  [ "$stale_status" -ne 0 ] || fail_test 'stale Darwin registry projection unexpectedly passed runtime affinity'
+  assert_contains "$stale_output" 'registry projection is restart-required'
+
   source_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
     SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$ROOT_DIR/lib/runtime" FAKE_PODMAN_LOG="$fake_log" \
     FAKE_CONNECTION_LIST="$affinity_connections" /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require; printf source-ok' sh "$ROOT_DIR/lib/runtime/podman.sh")
   assert_equals "$source_output" source-ok
-  pass "Darwin installed runtimes enforce exact profile connection affinity without affecting source execution or exposing overrides"
+  pass "Darwin installed runtimes enforce exact profile connection and current registry projection affinity without affecting source execution or exposing overrides"
 }
 
 test_lib_runtime_posix_syntax() {

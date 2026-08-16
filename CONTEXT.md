@@ -11,8 +11,8 @@ management-plugin directories deliberately have no context-file hierarchy.
 - `lib/` contains shared catalog, profile, runtime, startup, and networking
   modules.
 - `lib/registries/` owns strict profile registry redirect data, atomic
-  profile-local transactions, and the exact Linux active-profile drop-in;
-  Darwin projection remains a separate lifecycle.
+  profile-local transactions, the exact Linux active-profile drop-in, and the
+  exact Darwin VM projection plus local fingerprint record lifecycle.
 - `commands/profile.sh` and `lib/profile/activation.sh` own explicit
   profile-bound Podman engine status and activation. Shell initialization owns
   PATH selection only.
@@ -46,10 +46,15 @@ version assets. Canonical skills remain catalog-owned.
 - Linux activation owns only the exact user
   `registries.conf.d/shimmy-active-profile.conf` symlink and validates policy
   with a fresh local-rootless Podman process.
+- Darwin activation owns only the exact VM-side
+  `/etc/containers/registries.conf.d/shimmy-profile.conf` symlink and a strict
+  profile-local projection record; same-path rootless validation precedes
+  engine validation and the global connection commit.
 - Podman is an explicit dependency; do not provision it from Shimmy.
 - Darwin profiles map deterministically to pre-existing `shimmy-default` and
   `shimmy-upstream` rootless engines; activation is workload-guarded and
-  commits the global default connection last.
+  commits the global default connection last. Stale policy requires explicit
+  restart, and uninstall refuses a retained projection record until detach.
 
 ## Child contexts
 

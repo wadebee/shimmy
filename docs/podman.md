@@ -156,6 +156,13 @@ Unset `CONTAINER_CONNECTION`, `CONTAINER_HOST`,
 [Registry redirects](registries.md) for link ownership, rollback, detach, and
 status semantics.
 
+Darwin activation projects the same profile policy into the deterministic
+machine through only
+`/etc/containers/registries.conf.d/shimmy-profile.conf`. It verifies the host
+config at the same absolute VM path, root-writes the exact symlink,
+rootless-validates its fingerprint, and only then validates the target engine.
+No registry content is copied into the VM.
+
 ### Rootless ID Ranges
 
 Some minimal Linux environments, including Chromebook Crostini, may not have
@@ -355,8 +362,22 @@ Activation can stop one idle alternate machine, but displays and refuses
 running containers unless `--stop-running` is supplied. A failed post-stop
 transition attempts target cleanup, prior-machine restart, and prior-default
 restoration. Acknowledged workloads may not resume automatically. Non-empty
-`CONTAINER_CONNECTION` or `CONTAINER_HOST` blocks activation and its value is
-not displayed.
+`CONTAINER_CONNECTION`, `CONTAINER_HOST`, `CONTAINERS_REGISTRIES_CONF`, or
+`CONTAINERS_REGISTRIES_CONF_OVERRIDE` blocks active projection mutation and its
+value is not displayed.
+
+Successful activation stores a strict local projection record and config
+fingerprint. If a running machine's projection is absent or stale, use the
+exact absolute `profile activate --restart` command printed by Shimmy. The
+normal workload guard still applies. Active redirect edits never restart a VM.
+Before uninstall, detach the exact VM link and record with:
+
+```sh
+"$profile_root/bin/shimmy" profile redirect remove --all --detach
+```
+
+A stopped existing machine must be activated before detach. A machine proven
+absent permits record-only cleanup. Shimmy never removes the machine itself.
 
 `shimmy test` uses live Podman execution for supported tools. It is a stronger
 check than `podman info` because it verifies that Shimmy's wrappers can actually

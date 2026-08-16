@@ -17,7 +17,8 @@ machine.
 
 Registry redirect tests use disposable profile and containers configuration
 roots. They validate strict parsing, deterministic rendering, locking, Linux
-link ownership, fresh-process seams, transaction rollback, detach, and
+link ownership, Darwin same-path projection/link/record seams, fingerprint
+freshness, restart requirements, transaction rollback, detach, and
 install/uninstall preservation without contacting a registry or host engine.
 
 Installation scenarios isolate state with absolute disposable `HOME` and

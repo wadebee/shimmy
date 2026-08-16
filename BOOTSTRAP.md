@@ -87,7 +87,13 @@ profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
 On macOS, activation uses only `shimmy-default` or `shimmy-upstream` and
 Podman permits only one managed VM to run at a time. Activation may therefore
 stop another VM and interrupt its workloads; it refuses to interrupt displayed
-running containers without `--stop-running`.
+running containers without `--stop-running`. Activation also projects the
+profile's registry policy through the fixed VM-side
+`/etc/containers/registries.conf.d/shimmy-profile.conf` symlink and records its
+fingerprint. The profile root must be visible at the same absolute path inside
+the machine. After an active redirect edit, run the exact printed `profile
+activate --restart` command. Detach with `profile redirect remove --all
+--detach` before uninstalling a projected profile.
 On Linux it validates the current user's local rootless engine without managing
 a VM. Sourcing `shell-init.sh` is PATH-only and never activates an engine.
 

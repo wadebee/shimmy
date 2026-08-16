@@ -1,6 +1,17 @@
 #!/bin/sh
 # Installed profile command tests.
 
+profile_projection_record_write() {
+  profile_root=$1
+  profile_name=$2
+  projection_fingerprint=$(shimmy_registries_config_fingerprint_render "$profile_root/registries.conf")
+  (
+    SHIMMY_CONFIG_ROOT=$XDG_CONFIG_HOME_DIR/shimmy
+    shimmy_registries_machine_projection_record_render "$profile_name" "$projection_fingerprint"
+  ) > "$profile_root/machine-projection.txt"
+  chmod 0644 "$profile_root/machine-projection.txt"
+}
+
 test_commands_profile_help_and_validation() {
   setup_scenario_with_profiles default
   help_output=$(default_shimmy profile --help)
@@ -9,7 +20,7 @@ test_commands_profile_help_and_validation() {
   assert_contains "$help_output" 'shimmy profile redirect'
   assert_contains "$(default_shimmy profile status --help)" 'without mutation'
   assert_contains "$(default_shimmy profile activate --help)" '--stop-running'
-  assert_contains "$(default_shimmy profile redirect --help)" 'Darwin redirects remain prepared-only'
+  assert_contains "$(default_shimmy profile redirect --help)" 'deterministic Darwin machine'
   assert_contains "$(default_shimmy profile redirect list --help)" '--format human|manifest'
   assert_contains "$(default_shimmy profile redirect remove --help)" '--detach'
 
@@ -50,9 +61,9 @@ shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
 shimmy-upstream|false' FAKE_CONNECTION_LIST="$fake_connections" \
     "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile status --format manifest)
   assert_contains "$status_output" 'profile=default'
-  assert_contains "$status_output" 'activation=active'
+  assert_contains "$status_output" 'activation=registry_restart_required'
   assert_contains "$status_output" 'registry_config=valid'
-  assert_contains "$status_output" 'registry_policy=inactive'
+  assert_contains "$status_output" 'registry_policy=restart-required'
   assert_file_executable "$DEFAULT_PROFILE_ROOT/commands/profile.sh"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/lib/profile/activation.sh"
   assert_equals "$(profile_manifest_value "$DEFAULT_PROFILE_ROOT/install-manifest.txt" shimmy_install_manifest_version)" 2
@@ -90,7 +101,7 @@ test_commands_profile_redirect_crud() {
   assert_regular_file_not_symlink "$default_config"
   assert_file_mode "$default_config" 644
   prepared_output=$(default_shimmy profile redirect list --format manifest)
-  assert_contains "$prepared_output" 'registry_policy=prepared'
+  assert_contains "$prepared_output" 'registry_policy=unverified'
   redirect_lines=$(printf '%s\n' "$prepared_output" | sed -n 's/^redirect=//p')
   assert_equals "$redirect_lines" 'docker.io|registry.corp.example/docker
 quay.io/team|registry.corp.example:5443/quay'
@@ -112,7 +123,7 @@ quay.io/team|registry.corp.example:5443/quay'
   default_shimmy profile redirect remove --prefix docker.io
   assert_file_not_contains "$default_config" 'prefix = "docker.io"'
   assert_file_contains "$default_config" 'prefix = "quay.io/team"'
-  default_shimmy profile redirect remove --all --detach
+  default_shimmy profile redirect remove --all
   final_output=$(default_shimmy profile redirect list)
   assert_contains "$final_output" 'Policy: inactive'
   assert_contains "$final_output" 'Redirects: none'
@@ -189,6 +200,122 @@ test_commands_profile_linux_detach_refuses_sibling() {
   pass 'Linux detach is bound to the invoking active profile'
 }
 
+test_commands_profile_darwin_projection_edit_and_detach() {
+  setup_scenario_with_profiles default upstream
+  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
+  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$FAKE_PODMAN_BIN"
+  : > "$FAKE_PODMAN_LOG"
+  default_config=$DEFAULT_PROFILE_ROOT/registries.conf
+  record_path=$DEFAULT_PROFILE_ROOT/machine-projection.txt
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  fake_connections='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+
+  edit_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
+    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=current \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect --prefix docker.io --location registry.corp.example/docker)
+  assert_contains "$edit_output" "'$DEFAULT_PROFILE_ROOT/bin/shimmy' profile activate --restart"
+  assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop'
+  stale_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
+    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=current \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect list --format manifest)
+  assert_contains "$stale_output" 'registry_machine_link=current'
+  assert_contains "$stale_output" 'registry_projection_record=valid'
+  assert_contains "$stale_output" 'registry_policy=restart-required'
+
+  dry_run_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
+    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=current \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach --dry-run)
+  assert_contains "$dry_run_output" "would_detach=shimmy-default:/etc/containers/registries.conf.d/shimmy-profile.conf"
+  assert_file_exists "$record_path"
+  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
+    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=current \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach
+  assert_path_not_exists "$record_path"
+  assert_file_not_contains "$default_config" '[[registry]]'
+  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh --username root shimmy-default /bin/sh -s -- detach'
+
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  before_stopped=$(cksum < "$record_path")
+  set +e
+  stopped_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|false' \
+    FAKE_CONNECTION_LIST="$fake_connections" "$DEFAULT_PROFILE_ROOT/bin/shimmy" \
+    profile redirect remove --all --detach 2>&1)
+  stopped_status=$?
+  set -e
+  [ "$stopped_status" -ne 0 ] || fail_test 'stopped existing Darwin machine unexpectedly detached'
+  assert_contains "$stopped_output" "'$DEFAULT_PROFILE_ROOT/bin/shimmy' profile activate"
+  assert_equals "$(cksum < "$record_path")" "$before_stopped"
+
+  : > "$FAKE_PODMAN_LOG"
+  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='other|false' \
+    FAKE_CONNECTION_LIST="$fake_connections" "$DEFAULT_PROFILE_ROOT/bin/shimmy" \
+    profile redirect remove --all --detach
+  assert_path_not_exists "$record_path"
+  assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh'
+
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  set +e
+  foreign_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
+    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=foreign \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach 2>&1)
+  foreign_status=$?
+  set -e
+  [ "$foreign_status" -ne 0 ] || fail_test 'foreign Darwin projection unexpectedly detached'
+  assert_contains "$foreign_output" 'foreign, absent, or invalid machine projection'
+  assert_file_exists "$record_path"
+
+  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
+    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=current \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect --prefix docker.io --location registry.corp.example/docker >/dev/null
+  failure_bin=$SCENARIO_DIR/failure-bin
+  real_mv=$(command -v mv)
+  mkdir "$failure_bin"
+  {
+    printf '%s\n' '#!/bin/sh' 'set -eu'
+    printf '%s\n' 'if [ "${FAKE_FAIL_REGISTRY_REPLACE:-0}" -eq 1 ] && [ "${2:-}" = "${FAKE_FAIL_REGISTRY_PATH:-}" ]; then exit 77; fi'
+    printf '%s\n' 'exec "$FAKE_REAL_MV" "$@"'
+  } > "$failure_bin/mv"
+  chmod 755 "$failure_bin/mv"
+  before_failure_record=$(cksum < "$record_path")
+  before_failure_config=$(cksum < "$default_config")
+  : > "$FAKE_PODMAN_LOG"
+  set +e
+  rollback_output=$(env PATH="$failure_bin:$PATH" FAKE_REAL_MV="$real_mv" \
+    FAKE_FAIL_REGISTRY_REPLACE=1 FAKE_FAIL_REGISTRY_PATH="$default_config" \
+    XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
+    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=current \
+    FAKE_DARWIN_APPLY_RESULT=changed \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach 2>&1)
+  rollback_status=$?
+  set -e
+  [ "$rollback_status" -ne 0 ] || fail_test 'failed Darwin detach transaction unexpectedly succeeded'
+  assert_contains "$rollback_output" 'prior projection and record restored'
+  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh --username root shimmy-default /bin/sh -s -- detach'
+  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh --username root shimmy-default /bin/sh -s -- apply'
+  assert_equals "$(cksum < "$record_path")" "$before_failure_record"
+  assert_equals "$(cksum < "$default_config")" "$before_failure_config"
+  pass 'Darwin active edits require restart and detach handles exact, stopped, missing-machine, foreign, and rollback state'
+}
+
 test_commands_profile_redirect_rejection() {
   setup_scenario_with_profiles default
   config_file=$DEFAULT_PROFILE_ROOT/registries.conf
@@ -224,4 +351,5 @@ test_commands_profile_run() {
   test_commands_profile_redirect_rejection
   test_commands_profile_linux_registry_activation_and_edit
   test_commands_profile_linux_detach_refuses_sibling
+  test_commands_profile_darwin_projection_edit_and_detach
 }

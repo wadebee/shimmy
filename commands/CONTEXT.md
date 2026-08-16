@@ -23,7 +23,9 @@ reusable behavior belongs in `../lib/`.
 - `profile.sh` reports or explicitly activates the invoking profile's
   deterministic Podman engine, and manages strict profile-owned registry
   redirects without selecting an arbitrary profile or machine. Linux
-  activation owns one exact user drop-in; Darwin remains preparation-only.
+  activation owns one exact user drop-in; Darwin activation projects one exact
+  VM link, reports record/fingerprint freshness, requires explicit restart for
+  stale running policy, and detaches only recognized invoking-profile state.
 - `status.sh` resolves the enclosing profile's named catalog and reports
   installed profile state and validated tool metadata together with catalog
   source, generation provenance, schema, fingerprint, and health;

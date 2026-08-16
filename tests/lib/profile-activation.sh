@@ -23,6 +23,40 @@ profile_activation_fake_create() {
       '    if [ -n "${FAKE_FAIL_LINUX_CONFIG_PATTERN:-}" ] && [ -f "${FAKE_ACTIVE_CONFIG:-}" ]; then case "$(cat "$FAKE_ACTIVE_CONFIG")" in *"$FAKE_FAIL_LINUX_CONFIG_PATTERN"*) exit 51 ;; esac; fi' \
       "    printf '%s\\n' \"\${FAKE_LINUX_INFO:-true|false}\"" \
       '    ;;' \
+      '  "machine ssh "*)' \
+      '    if [ "${3:-}" = --username ]; then' \
+      '      action=${9:-}' \
+      '      case "$action" in' \
+      '        inspect)' \
+      '          [ "${FAKE_FAIL_ACTION:-}" != projection_inspect ] || exit 52' \
+      "          printf '%s\\n' \"\${FAKE_DARWIN_PROJECTION_STATE:-current}\"" \
+      '          ;;' \
+      '        apply)' \
+      '          [ "${FAKE_FAIL_ACTION:-}" != projection_apply ] || exit 53' \
+      '          if [ -n "${FAKE_DARWIN_APPLY_RESULT:-}" ]; then printf "%s\n" "$FAKE_DARWIN_APPLY_RESULT"; else case "${FAKE_DARWIN_PROJECTION_STATE:-current}" in absent) printf "%s\n" changed ;; current) printf "%s\n" unchanged ;; *) exit 54 ;; esac; fi' \
+      '          ;;' \
+      '        detach|rollback)' \
+      '          [ "${FAKE_FAIL_ACTION:-}" != projection_detach ] || exit 55' \
+      '          printf "%s\n" detached' \
+      '          ;;' \
+      '        *) exit 91 ;;' \
+      '      esac' \
+      '    else' \
+      '      action=${7:-}' \
+      '      target=${8:-}' \
+      '      case "$action" in' \
+      '        source) [ "${FAKE_FAIL_ACTION:-}" != projection_source ] || exit 56 ;;' \
+      '        projection) [ "${FAKE_FAIL_ACTION:-}" != projection_validation ] || exit 57 ;;' \
+      '        *) exit 92 ;;' \
+      '      esac' \
+      '      if [ -n "${FAKE_DARWIN_PROJECTION_FINGERPRINT:-}" ]; then' \
+      '        printf "%s\n" "$FAKE_DARWIN_PROJECTION_FINGERPRINT"' \
+      '      else' \
+      '        set -- $(cksum < "$target")' \
+      '        printf "%s-%s\n" "$1" "$2"' \
+      '      fi' \
+      '    fi' \
+      '    ;;' \
       '  "machine stop "*)' \
       '    machine_name=${3:-}' \
       '    if [ "${FAKE_FAIL_ACTION:-}" = stop ] && [ "$machine_name" = "${FAKE_PRIOR_MACHINE:-}" ]; then exit 44; fi' \
@@ -55,6 +89,9 @@ profile_activation_library_run() {
     FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST="${FAKE_MACHINE_LIST:-}" \
     FAKE_CONNECTION_LIST="${FAKE_CONNECTION_LIST:-}" FAKE_WORKLOADS="${FAKE_WORKLOADS:-}" \
     FAKE_DARWIN_INFO="${FAKE_DARWIN_INFO:-true|true}" FAKE_LINUX_INFO="${FAKE_LINUX_INFO:-true|false}" \
+    FAKE_DARWIN_PROJECTION_STATE="${FAKE_DARWIN_PROJECTION_STATE:-current}" \
+    FAKE_DARWIN_PROJECTION_FINGERPRINT="${FAKE_DARWIN_PROJECTION_FINGERPRINT:-}" \
+    FAKE_DARWIN_RECORD_STATE="${FAKE_DARWIN_RECORD_STATE:-valid}" \
     FAKE_ACTIVE_LINK="${FAKE_ACTIVE_LINK:-}" FAKE_ACTIVE_CONFIG="${FAKE_ACTIVE_CONFIG:-}" \
     FAKE_FAIL_LINUX_TARGET="${FAKE_FAIL_LINUX_TARGET:-}" FAKE_FAIL_LINUX_CONFIG_PATTERN="${FAKE_FAIL_LINUX_CONFIG_PATTERN:-}" \
     FAKE_FAIL_ACTION="${FAKE_FAIL_ACTION:-}" FAKE_ROLLBACK_FAIL="${FAKE_ROLLBACK_FAIL:-}" FAKE_PRIOR_MACHINE="${FAKE_PRIOR_MACHINE:-}" \
@@ -71,8 +108,22 @@ profile_activation_library_run() {
         shimmy_registries_config_render "$SHIMMY_PROFILE_NAME" "" > "$SHIMMY_PROFILE_REGISTRIES_PATH"
         chmod 0644 "$SHIMMY_PROFILE_REGISTRIES_PATH"
       fi
+      if [ "$SHIMMY_TEST_PROFILE_OS" = Darwin ]; then
+        projection_fingerprint=$(shimmy_registries_config_fingerprint_render "$SHIMMY_PROFILE_REGISTRIES_PATH")
+        case "$FAKE_DARWIN_RECORD_STATE" in
+          valid) shimmy_registries_machine_projection_record_render "$SHIMMY_PROFILE_NAME" "$projection_fingerprint" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
+          stale) shimmy_registries_machine_projection_record_render "$SHIMMY_PROFILE_NAME" 0-0 > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
+          invalid) printf "%s\n" invalid > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
+          absent) rm -f "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
+        esac
+        [ ! -f "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] || chmod 0644 "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
+      fi
       SHIMMY_PROFILE_ACTIVATION_LOCK_HELD=0
-      trap shimmy_profile_activation_lock_release EXIT
+      SHIMMY_REGISTRIES_LOCK_HELD=0
+      trap "shimmy_registries_lock_release; shimmy_profile_activation_lock_release" EXIT
+      if [ "$FAKE_FAIL_ACTION" = projection_record ]; then
+        shimmy_registries_machine_projection_record_apply() { return 1; }
+      fi
       case "$SHIMMY_TEST_PROFILE_ACTION" in
         status) shimmy_profile_status_print manifest ;;
         activate) shimmy_profile_activate "$2" "$3" "$4" ;;
@@ -186,12 +237,125 @@ test_lib_profile_activation_linux_registry_projection() {
   pass 'Linux activation creates, switches, validates, rolls back, and refuses masked, foreign, dangling, or unsafe registry state'
 }
 
+test_lib_profile_activation_darwin_registry_projection() {
+  setup_scenario
+  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
+  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$FAKE_PODMAN_BIN"
+  : > "$FAKE_PODMAN_LOG"
+  FAKE_MACHINE_LIST='shimmy-default|false'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_WORKLOADS=
+  FAKE_PRIOR_MACHINE=
+  FAKE_TARGET_MACHINE=shimmy-default
+  FAKE_PRIOR_DEFAULT=shimmy-default
+  FAKE_DARWIN_PROJECTION_STATE=absent
+  FAKE_DARWIN_PROJECTION_FINGERPRINT=
+  FAKE_DARWIN_RECORD_STATE=absent
+  FAKE_FAIL_ACTION=
+  FAKE_ROLLBACK_FAIL=
+
+  activation_output=$(profile_activation_library_run default Darwin activate 0 0 0)
+  assert_contains "$activation_output" 'Activated Shimmy profile default'
+  record_path=$XDG_CONFIG_HOME_DIR/shimmy/profiles/default/machine-projection.txt
+  assert_regular_file_not_symlink "$record_path"
+  assert_file_mode "$record_path" 644
+  shimmy_registries_machine_projection_record_validate "$record_path" default ||
+    fail_test 'first Darwin activation did not create a valid projection record'
+  source_line=$(sed -n '/^machine ssh shimmy-default \/bin\/sh -s -- source /=' "$FAKE_PODMAN_LOG")
+  apply_line=$(sed -n '/^machine ssh --username root shimmy-default \/bin\/sh -s -- apply /=' "$FAKE_PODMAN_LOG")
+  projection_line=$(sed -n '/^machine ssh shimmy-default \/bin\/sh -s -- projection /=' "$FAKE_PODMAN_LOG")
+  info_line=$(sed -n '/^--connection shimmy-default info /=' "$FAKE_PODMAN_LOG" | tail -n 1)
+  [ "$source_line" -lt "$apply_line" ] && [ "$apply_line" -lt "$projection_line" ] &&
+    [ "$projection_line" -lt "$info_line" ] ||
+    fail_test 'Darwin projection did not validate same-path source, root-write the link, rootless-validate it, then validate the engine'
+  assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'cp '
+
+  FAKE_MACHINE_LIST='shimmy-default|true'
+  FAKE_DARWIN_PROJECTION_STATE=current
+  FAKE_DARWIN_RECORD_STATE=stale
+  : > "$FAKE_PODMAN_LOG"
+  set +e
+  stale_output=$(profile_activation_library_run default Darwin activate 0 0 0 2>&1)
+  stale_status=$?
+  set -e
+  [ "$stale_status" -ne 0 ] || fail_test 'stale running Darwin projection unexpectedly passed ordinary activation'
+  assert_contains "$stale_output" "'$XDG_CONFIG_HOME_DIR/shimmy/profiles/default/bin/shimmy' profile activate --restart"
+  assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop'
+
+  : > "$FAKE_PODMAN_LOG"
+  profile_activation_library_run default Darwin activate 1 0 0 >/dev/null
+  updated_fingerprint=$(sed -n 's/^config_fingerprint=//p' "$record_path")
+  expected_fingerprint=$(shimmy_registries_config_fingerprint_render "$XDG_CONFIG_HOME_DIR/shimmy/profiles/default/registries.conf")
+  assert_equals "$updated_fingerprint" "$expected_fingerprint"
+  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop shimmy-default'
+
+  for failure_action in projection_source projection_apply projection_validation projection_record; do
+    : > "$FAKE_PODMAN_LOG"
+    FAKE_MACHINE_LIST='shimmy-default|false'
+    FAKE_DARWIN_PROJECTION_STATE=absent
+    FAKE_DARWIN_RECORD_STATE=absent
+    FAKE_FAIL_ACTION=$failure_action
+    set +e
+    failure_output=$(profile_activation_library_run default Darwin activate 0 0 0 2>&1)
+    failure_status=$?
+    set -e
+    [ "$failure_status" -ne 0 ] || fail_test "Darwin projection failure unexpectedly succeeded: $failure_action"
+    case "$failure_action" in
+      projection_validation|projection_record)
+        assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh --username root shimmy-default /bin/sh -s -- rollback'
+        ;;
+      *)
+        assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh --username root shimmy-default /bin/sh -s -- rollback'
+        ;;
+    esac
+    assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop shimmy-default'
+    assert_path_not_exists "$record_path"
+  done
+
+  : > "$FAKE_PODMAN_LOG"
+  FAKE_MACHINE_LIST='shimmy-default|false'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
+other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_PRIOR_DEFAULT=other
+  FAKE_FAIL_ACTION=default_commit
+  FAKE_DARWIN_PROJECTION_STATE=absent
+  FAKE_DARWIN_RECORD_STATE=absent
+  set +e
+  commit_output=$(profile_activation_library_run default Darwin activate 0 0 0 2>&1)
+  commit_status=$?
+  set -e
+  [ "$commit_status" -ne 0 ] || fail_test 'Darwin default-connection failure unexpectedly retained projection state'
+  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh --username root shimmy-default /bin/sh -s -- rollback'
+  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'system connection default other'
+  assert_path_not_exists "$record_path"
+
+  : > "$FAKE_PODMAN_LOG"
+  FAKE_FAIL_ACTION=
+  FAKE_PRIOR_DEFAULT=shimmy-default
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_DARWIN_PROJECTION_STATE=foreign
+  FAKE_DARWIN_RECORD_STATE=absent
+  set +e
+  collision_output=$(profile_activation_library_run default Darwin activate 0 0 0 2>&1)
+  collision_status=$?
+  set -e
+  [ "$collision_status" -ne 0 ] || fail_test 'foreign Darwin projection unexpectedly replaced'
+  assert_contains "$collision_output" 'foreign or invalid Darwin registry projection'
+  assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" ' /bin/sh -s -- apply '
+  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop shimmy-default'
+  pass 'Darwin activation projects before engine validation, records freshness, requires restart, and rolls back every projection boundary'
+}
+
 test_lib_profile_activation_mapping_and_status() {
   setup_scenario
   FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
   FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
   profile_activation_fake_create "$FAKE_PODMAN_BIN"
   : > "$FAKE_PODMAN_LOG"
+  FAKE_DARWIN_PROJECTION_STATE=current
+  FAKE_DARWIN_PROJECTION_FINGERPRINT=
+  FAKE_DARWIN_RECORD_STATE=valid
 
   FAKE_MACHINE_LIST='shimmy-default|false'
   FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
@@ -202,6 +366,11 @@ test_lib_profile_activation_mapping_and_status() {
   FAKE_MACHINE_LIST='shimmy-default|true'
   status_output=$(profile_activation_library_run default Darwin status)
   assert_contains "$status_output" 'activation=active'
+
+  FAKE_DARWIN_PROJECTION_FINGERPRINT=0-0
+  status_output=$(profile_activation_library_run default Darwin status)
+  assert_contains "$status_output" 'activation=registry_restart_required'
+  FAKE_DARWIN_PROJECTION_FINGERPRINT=
 
   FAKE_FAIL_ACTION=target_validation
   status_output=$(profile_activation_library_run default Darwin status)
@@ -253,6 +422,9 @@ test_lib_profile_activation_idempotence_and_rejections() {
   FAKE_PRIOR_DEFAULT=shimmy-default
   FAKE_FAIL_ACTION=
   FAKE_ROLLBACK_FAIL=
+  FAKE_DARWIN_PROJECTION_STATE=current
+  FAKE_DARWIN_PROJECTION_FINGERPRINT=
+  FAKE_DARWIN_RECORD_STATE=valid
 
   export CONTAINER_CONNECTION='secret-connection-value'
   set +e
@@ -343,6 +515,9 @@ shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
   FAKE_TARGET_MACHINE=shimmy-default
   FAKE_PRIOR_DEFAULT=shimmy-upstream
   FAKE_FAIL_ACTION=
+  FAKE_DARWIN_PROJECTION_STATE=current
+  FAKE_DARWIN_PROJECTION_FINGERPRINT=
+  FAKE_DARWIN_RECORD_STATE=valid
 
   activation_output=$(profile_activation_library_run default Darwin activate 0 0 0)
   assert_contains "$activation_output" 'Stopping Podman machine: shimmy-upstream'
@@ -354,9 +529,11 @@ shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
   stop_line=$(sed -n '/^machine stop shimmy-upstream$/=' "$FAKE_PODMAN_LOG")
   start_line=$(sed -n '/^machine start shimmy-default$/=' "$FAKE_PODMAN_LOG")
   validate_line=$(sed -n '/^--connection shimmy-default info /=' "$FAKE_PODMAN_LOG" | tail -n 1)
+  projection_line=$(sed -n '/^machine ssh shimmy-default \/bin\/sh -s -- projection /=' "$FAKE_PODMAN_LOG" | tail -n 1)
   default_line=$(sed -n '/^system connection default shimmy-default$/=' "$FAKE_PODMAN_LOG")
-  [ "$stop_line" -lt "$start_line" ] && [ "$start_line" -lt "$validate_line" ] && [ "$validate_line" -lt "$default_line" ] ||
-    fail_test "activation did not commit the default connection last"
+  [ "$stop_line" -lt "$start_line" ] && [ "$start_line" -lt "$projection_line" ] &&
+    [ "$projection_line" -lt "$validate_line" ] && [ "$validate_line" -lt "$default_line" ] ||
+    fail_test "activation did not project policy before engine validation and commit the default connection last"
 
   : > "$FAKE_PODMAN_LOG"
   FAKE_WORKLOADS='abc123|important'
@@ -388,6 +565,9 @@ shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
   FAKE_PRIOR_MACHINE=shimmy-upstream
   FAKE_TARGET_MACHINE=shimmy-default
   FAKE_PRIOR_DEFAULT=shimmy-upstream
+  FAKE_DARWIN_PROJECTION_STATE=current
+  FAKE_DARWIN_PROJECTION_FINGERPRINT=
+  FAKE_DARWIN_RECORD_STATE=valid
 
   FAKE_ROLLBACK_FAIL=
   for failure_action in stop target_start target_validation default_commit; do
@@ -423,6 +603,7 @@ shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
 test_lib_profile_activation_run() {
   test_lib_profile_activation_mapping_and_status
   test_lib_profile_activation_linux_registry_projection
+  test_lib_profile_activation_darwin_registry_projection
   test_lib_profile_activation_idempotence_and_rejections
   test_lib_profile_activation_switch_and_guard
   test_lib_profile_activation_rollback

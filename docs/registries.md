@@ -94,11 +94,73 @@ Unset `CONTAINERS_REGISTRIES_CONF` and
 `CONTAINERS_REGISTRIES_CONF_OVERRIDE` before Linux activation or active edits.
 Shimmy reports only the masking variable name, never its value.
 
+## Darwin activation
+
+On macOS, `shimmy profile activate` projects the invoking profile into its
+deterministic Podman machine at exactly:
+
+```text
+/etc/containers/registries.conf.d/shimmy-profile.conf
+```
+
+The VM path is an absolute symlink to the authoritative host profile path,
+which must be readable at the same absolute path inside the machine. Shimmy
+never copies registry content into the VM. A fixed root SSH script may create
+or remove only that exact link after validating its arguments and parent
+directories. A separate rootless SSH process validates the same-path source,
+the exact link target, readability, and content fingerprint before Podman
+engine policy validation runs. Regular files, directories, foreign links,
+wrong targets, unsafe parents, and masking registry variables fail closed.
+
+After remote validation, Shimmy writes a strict mode-`0644` local ownership
+record at `<profile-root>/machine-projection.txt`. It binds the profile,
+machine, target, and deterministic configuration fingerprint. Activation and
+profile updates include the link and record in their rollback and preservation
+boundaries.
+
+If the expected machine is already running and its link or recorded
+fingerprint is absent or stale, ordinary activation makes no change and prints
+the exact required command:
+
+```sh
+"$profile_root/bin/shimmy" profile activate --restart
+```
+
+Restart uses the normal workload guard; running containers require explicit
+`--stop-running` acknowledgement. Editing a running Darwin profile commits the
+local file without restarting the VM and prints the same absolute restart
+command. A profile with no projection record remains engine-independent while
+redirects are prepared.
+
+Darwin detach uses the same public command as Linux:
+
+```sh
+shimmy profile redirect remove --all --detach
+```
+
+For a running, reachable expected machine, detach removes only the exact VM
+link and matching record, then empties the managed file as one rollback-aware
+transaction. A stopped existing machine must first be activated. If machine
+metadata proves the expected machine is absent, Shimmy may remove the valid
+record locally without SSH. Foreign or damaged state is never replaced.
+Profile and global uninstall refuse an attached record and print exact detach
+guidance.
+
+Darwin status reports link state, record path, current and recorded
+fingerprints, and evidence-based policy freshness:
+
+- `current` means the exact link and record match the current config in a
+  reachable expected machine and no registry override masks it.
+- `restart-required` means a running machine needs explicit reprojection.
+- `unverified` means the stopped, missing, or unreachable machine prevents
+  current remote evidence.
+- `invalid` means local or remote owned state is malformed, foreign, masked,
+  or inconsistent.
+
 ## Current client boundary
 
-Darwin remains preparation-only until its machine projection is implemented:
-an empty policy is `inactive` and a non-empty policy is `prepared`. Tool
-containers, including Skopeo, do not yet receive this file. Linux activation
-applies the policy to fresh host-side Podman processes only; it does not claim
-container-client coverage. Preparing an inactive profile does not contact
-Podman or a registry.
+Linux activation applies the policy to fresh host-side Podman processes, and
+Darwin activation applies it to the selected machine's Podman engine. Tool
+containers, including Skopeo, do not yet receive an explicit policy mount;
+that integration remains separate. Preparing an unprojected profile does not
+contact Podman or a registry.

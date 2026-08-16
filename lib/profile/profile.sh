@@ -60,11 +60,13 @@ shimmy_profile_paths_resolve() {
   SHIMMY_PROFILE_NAME=$profile_name
   SHIMMY_PROFILE_ROOT=$SHIMMY_PROFILES_ROOT/$profile_name
   SHIMMY_PROFILE_MANIFEST_PATH=$SHIMMY_PROFILE_ROOT/install-manifest.txt
+  SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH=$SHIMMY_PROFILE_ROOT/machine-projection.txt
   SHIMMY_PROFILE_REGISTRIES_PATH=$SHIMMY_PROFILE_ROOT/registries.conf
   SHIMMY_PROFILE_REGISTRIES_LOCK_PATH=$SHIMMY_PROFILE_ROOT/.registries.lock
   SHIMMY_REGISTRIES_CONFIG_DIR=$SHIMMY_CONFIG_HOME/containers
   SHIMMY_REGISTRIES_DROPIN_DIR=$SHIMMY_REGISTRIES_CONFIG_DIR/registries.conf.d
   SHIMMY_REGISTRIES_ACTIVE_LINK=$SHIMMY_REGISTRIES_DROPIN_DIR/shimmy-active-profile.conf
+  SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK=/etc/containers/registries.conf.d/shimmy-profile.conf
   SHIMMY_PROFILE_BIN_DIR=$SHIMMY_PROFILE_ROOT/bin
   SHIMMY_PROFILE_CONFIG_DIR=$SHIMMY_PROFILE_ROOT/config
   SHIMMY_PROFILE_IMPLEMENTATION_DIR=$SHIMMY_PROFILE_ROOT/implementations
@@ -238,6 +240,7 @@ shimmy_profile_structure_validate() {
   profile_root=$1
   profile_name=$2
   allow_missing_registries=${3:-0}
+  machine_projection_target=${4:-$profile_root/registries.conf}
   manifest_file=$profile_root/install-manifest.txt
 
   shimmy_profile_manifest_validate "$manifest_file" "$profile_name" || return 1
@@ -247,6 +250,10 @@ shimmy_profile_structure_validate() {
     shimmy_registries_config_validate "$profile_root/registries.conf" "$profile_name" || return 1
   else
     [ "$allow_missing_registries" -eq 1 ] || return 1
+  fi
+  if [ -e "$profile_root/machine-projection.txt" ] || [ -L "$profile_root/machine-projection.txt" ]; then
+    shimmy_registries_machine_projection_record_validate \
+      "$profile_root/machine-projection.txt" "$profile_name" "$machine_projection_target" || return 1
   fi
   for required_dir in commands config implementations lib tests tools; do
     [ -d "$profile_root/$required_dir" ] && [ ! -L "$profile_root/$required_dir" ] || return 1

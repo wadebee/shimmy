@@ -23,7 +23,9 @@ a user's Shimmy installation or shell startup files.
   update, rollback, profile-only uninstall, and explicit global uninstall. Its
   layout, launcher-refresh, isolation, and profile-removal cases clone their
   initial profiles while retaining real refresh, additive-install, and
-  uninstall operations.
+  uninstall operations. Registry lifecycle cases preserve valid Darwin
+  projection-record bytes across update and require detach before profile or
+  global uninstall.
 - `onboarding.sh` covers sourced and executed repository onboarding, failure
   cleanup, the fixed jq/rg bootstrap baseline, explicit additive installed
   selection, direct shell initialization, PATH precedence, and profile-local
@@ -47,7 +49,9 @@ a user's Shimmy installation or shell startup files.
   materialization, read-only state, deterministic profile identity, and
   override redaction through the fake Podman seam. It also covers strict
   redirect CRUD, Linux link activation/current status, active-edit rollback,
-  inactive edits, detach, rejected aliases/options, and profile isolation.
+  inactive edits, detach, Darwin active-edit restart guidance, projection
+  freshness status, exact/stopped/missing/foreign detach behavior, rejected
+  aliases/options, and profile isolation.
 - `update.sh` covers selected-shim and all-profile refresh behavior, version-
   local irrelevant image-refresh actions, manifest-preserving self-update for
   non-baseline tools and concrete versions, and update request validation. Its
