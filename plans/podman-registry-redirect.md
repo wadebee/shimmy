@@ -542,9 +542,9 @@ None.
 - [x] Chunk 1 — Profile-bound engine activation control plane accepted after automated verification and native macOS acceptance
 - [x] Chunk 2 — Agent workflows and canonical activation guidance accepted after automated verification and human review
 - [x] Chunk 3 — Profile registry files, strict redirect CRUD, and profile transaction support accepted after automated verification and human review
-- [x] Chunk 4 — Linux registry activation accepted 2026-08-15 with explicit user deferral of native rootless Linux route acceptance
+- [x] Chunk 4 — Linux registry activation accepted 2026-08-15; deferred native rootless Linux route acceptance passed 2026-08-16
 - [x] Chunk 5 — Darwin projection/cache lifecycle accepted 2026-08-15 with explicit user deferral of physical digest routing/no-fallback and disposable live uninstall evidence
-- [~] Chunk 6 — Skopeo integration and final consistency implemented and automatically verified 2026-08-15; native physical digest route acceptance remains pending at the final human review gate
+- [~] Chunk 6 — Skopeo integration and final consistency implemented and automatically verified 2026-08-15; native Linux acceptance passed 2026-08-16, while native macOS physical digest route acceptance remains pending at the final human review gate
 
 ## Execution protocol
 
@@ -1019,19 +1019,19 @@ prepared-only until Chunk 5.
   damaged or foreign state.
 - [x] Default tests neither contact registries nor mutate host configuration;
   syntax, contexts, and `./tests/test.sh` pass.
-- [~] Dedicated rootless Linux acceptance proves Podman resolves a digest-pinned
+- [x] Dedicated rootless Linux acceptance proves Podman resolves a digest-pinned
   logical reference through the physical location and does not fall back when
   that location is unavailable. Record infrastructure gaps as `[~]`.
 
-  Automated disposable-root coverage proves link installation order,
-  local-rootless/remote/rootful classification, fresh-process calls, strict
-  replacement rendering, active-edit rollback, and no-fallback configuration
-  shape. A native Linux host is not available in this Darwin implementation
-  session, so actual registry routing remains unverified. The impact is limited
-  to native containers/image symlink-loader and route evidence; it does not
-  weaken the verified ownership or transaction behavior. Run the dedicated
-  route scenario on a supported rootless Linux host before release. This item
-  requires explicit deferral to accept Chunk 4 without that native evidence.
+  Passed on a native rootless Linux host 2026-08-16. `shimmy profile activate`
+  selected the profile through the exact user drop-in symlink, Podman resolved
+  a digest-pinned logical reference through the configured physical location,
+  and a deliberately unavailable replacement location failed with the
+  rewritten physical repository in the error rather than falling back to the
+  logical upstream. `profile redirect remove --all --detach` then removed only
+  the owned active link, retained the managed config as a valid empty policy,
+  emptied the redirect list, and returned the profile to ready with registry
+  policy inactive.
 
 ### Human review gate
 
@@ -1039,9 +1039,9 @@ Reviewers must confirm Linux link ownership, validation and rollback ordering,
 remote/rootful refusal, detach/uninstall behavior, and native route evidence.
 Stop before Chunk 5.
 
-Accepted 2026-08-15 after automated verification and human review. The user
-explicitly deferred the dedicated native rootless Linux route/no-fallback item;
-it remains a release follow-up with the evidence and impact recorded above.
+Accepted 2026-08-15 after automated verification and human review. The
+previously deferred native rootless Linux route/no-fallback acceptance passed
+2026-08-16 with the evidence recorded above; Chunk 4 now has no deferred item.
 
 ## Chunk 5 — Darwin registry projection and cache lifecycle
 
@@ -1247,19 +1247,22 @@ Expected unchanged surfaces that must be checked:
 - [x] Full install/update/rollback/profile-uninstall/global-uninstall, sibling
   isolation, catalog, skill export, source-loss runtime, context, syntax, and
   `./tests/test.sh` coverage passes.
-- [~] Dedicated Linux acceptance proves Podman, direct Skopeo, and `images
+- [x] Dedicated Linux acceptance proves Podman, direct Skopeo, and `images
   verify` route to the physical digest endpoint with no public fallback, then
   detach cleanly.
 
-  Disposable automated coverage proves the exact read-only Skopeo mount,
-  no-activation omission, invoking-profile isolation, masking-variable
-  refusal/redaction, unsafe-path and damaged-policy refusal, unchanged logical
-  references, and inheritance through the unchanged `images verify` Skopeo
-  call path. No native Linux host or physical digest endpoint was available in
-  this implementation session. The remaining risk is upstream
-  containers/image route and no-fallback behavior on a native rootless Linux
-  host. Run the dedicated endpoint scenario before release. This item requires
-  explicit deferral to accept finalization without that native evidence.
+  Passed on a native rootless Linux host 2026-08-16. Podman and installed
+  Shimmy Skopeo resolved the digest-pinned logical reference through the
+  physical Skopeo image location while preserving the logical name and digest
+  in Skopeo output. `shimmy images verify --shim skopeo` passed under the active
+  profile policy. With the physical location changed to a deliberately absent
+  repository, Podman and Skopeo both failed with that rewritten repository in
+  their errors even though their commands contained only the logical reference,
+  proving strict replacement without fallback. Clean detach left no active
+  link or redirects and retained the authoritative managed config as a valid
+  empty policy file. Direct `skopeo inspect` used `--no-tags` because the public
+  Quay endpoint rejected its unrelated repository-tags request with 401 while
+  digest inspection itself succeeded.
 
 - [~] Dedicated macOS acceptance proves the same clients use each machine's
   owning profile policy, restart after active edits, switch both directions,
@@ -1286,8 +1289,9 @@ scope, no logical-reference changes, auth/trust boundaries, terminology
 consistency, and disposition of every live acceptance item. Stop after this
 review; there is no later chunk.
 
-Implemented and automatically verified 2026-08-15. Final human review remains
-pending for the two explicitly surfaced native route items above.
+Implemented and automatically verified 2026-08-15. Native Linux acceptance
+passed 2026-08-16. Final human review remains pending for the explicitly
+surfaced native macOS route item above.
 
 ## Risk register
 
@@ -1503,6 +1507,16 @@ pending for the two explicitly surfaced native route items above.
 - Full automated composition and failure-state coverage cannot substitute for
   a physical digest endpoint. Native direct-client and no-fallback routing
   remain distinct release evidence on Linux and Darwin.
+- Native Linux acceptance confirmed that containers/image preserves the
+  logical reference while resolving the configured physical endpoint for
+  Podman, direct Skopeo, and `images verify`; failures naming a deliberately
+  broken physical repository provide direct no-fallback evidence.
+- Use `skopeo inspect --no-tags` for the public Quay digest-route acceptance
+  scenario when repository tag enumeration returns 401. Tag-list permission is
+  independent of successful digest inspection and redirect behavior.
+- Linux detach acceptance confirmed the final ownership boundary: remove only
+  the exact active link, preserve the managed config as a valid empty policy,
+  and report the profile ready with registry policy inactive.
 
 ## Session bootstrap
 
@@ -1515,12 +1529,13 @@ For a fresh implementation session:
    `plans/registry-image-remap.md`. Treat the verified inventory as a baseline
    and add newly discovered dependencies without reopening recorded decisions.
 3. Resume Chunk 6 at its final human review gate. Chunks 1 through 5 are
-   accepted. Chunk 4 retains the explicit native rootless Linux route
-   deferral, and Chunk 5 retains the explicit physical digest routing/no-
-   fallback plus disposable live-uninstall deferrals. Chunk 6 implementation
-   and all 144 automated tests are complete; its native Linux and macOS
-   physical digest route/no-fallback items remain `[~]` and require explicit
-   deferral or new evidence before final acceptance.
+   accepted. Chunk 4's previously deferred native rootless Linux route item
+   passed 2026-08-16. Chunk 5 retains its macOS physical digest routing/no-
+   fallback and disposable live-uninstall deferrals. Chunk 6 implementation
+   and all 144 automated tests are complete; its native Linux route,
+   no-fallback, `images verify`, and detach acceptance passed 2026-08-16. The
+   native macOS physical digest route/no-fallback item remains `[~]` and
+   requires explicit deferral or new evidence before final acceptance.
 4. There is no later implementation chunk. The retained non-negotiable
    boundaries are:
    - Chunk 2: exact profile-local agent approval, no machine provisioning, and
