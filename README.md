@@ -46,7 +46,7 @@ Each installed launcher exposes this management surface:
 | `shimmy install` | Add explicitly selected tool shims to the profile. |
 | `shimmy uninstall` | Remove one profile, or explicitly remove all Shimmy-owned state. |
 | `shimmy netinfo` | Show host, VM, and container network perspectives. |
-| `shimmy profile` | Inspect or activate the engine and prepare strict registry redirects. |
+| `shimmy profile` | Inspect or activate the engine and manage strict registry redirects. |
 | `shimmy skills` | Install, update, uninstall, or export Shimmy agent skills. |
 | `shimmy status` | Show installed shims, versions, and profile details. |
 | `shimmy test` | Validate the profile with non-mutating shim smoke commands. |
@@ -94,9 +94,13 @@ profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
 . "$profile_root/shell-init.sh"
 ```
 
-On Linux, activation validates the current user's local rootless engine and
-never manages a VM. Non-empty `CONTAINER_CONNECTION` or `CONTAINER_HOST` must
-be unset; status reports only the masking variable name, never its value.
+On Linux, activation atomically selects the invoking profile's registry policy
+through the exact user drop-in
+`containers/registries.conf.d/shimmy-active-profile.conf`, then validates a
+fresh current-user local-rootless Podman process. It never manages a VM.
+Non-empty `CONTAINER_CONNECTION`, `CONTAINER_HOST`,
+`CONTAINERS_REGISTRIES_CONF`, or `CONTAINERS_REGISTRIES_CONF_OVERRIDE` must be
+unset; status reports only the masking variable name, never its value.
 
 Each profile also owns a strict generated `registries.conf`. Redirect CRUD is
 deterministic and profile-local:
@@ -107,12 +111,15 @@ shimmy profile redirect list
 shimmy profile redirect remove --prefix docker.io
 ```
 
-Chunk 3 is preparation only: non-empty redirect policy is reported as
-`prepared`, not active or current engine policy, because no Linux or macOS
-projection is installed yet. Redirects use replacement `location` with no
-configured mirror fallback. See [docs/registries.md](docs/registries.md) for
-the accepted grammar, managed format, lifecycle, and temporary projection
-boundary.
+Linux status reports `current` only for the exact active profile link with a
+reachable local-rootless engine; sibling or absent state is `inactive`, and
+damaged, foreign, or masked state is `invalid`. Active Linux edits validate in
+a fresh process and restore prior bytes on failure. `remove --all --detach`
+removes only the invoking profile's exact active link. Darwin remains
+preparation-only, and tool containers do not yet inherit the policy. Redirects
+use replacement `location` with no configured mirror fallback. See
+[docs/registries.md](docs/registries.md) for the full ownership and lifecycle
+contract.
 
 Profiles are independent materialized installations below an absolute
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>` root. A relative,

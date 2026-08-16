@@ -9,7 +9,7 @@ test_commands_profile_help_and_validation() {
   assert_contains "$help_output" 'shimmy profile redirect'
   assert_contains "$(default_shimmy profile status --help)" 'without mutation'
   assert_contains "$(default_shimmy profile activate --help)" '--stop-running'
-  assert_contains "$(default_shimmy profile redirect --help)" 'not active engine policy'
+  assert_contains "$(default_shimmy profile redirect --help)" 'Darwin redirects remain prepared-only'
   assert_contains "$(default_shimmy profile redirect list --help)" '--format human|manifest'
   assert_contains "$(default_shimmy profile redirect remove --help)" '--detach'
 
@@ -114,10 +114,79 @@ quay.io/team|registry.corp.example:5443/quay'
   assert_file_contains "$default_config" 'prefix = "quay.io/team"'
   default_shimmy profile redirect remove --all --detach
   final_output=$(default_shimmy profile redirect list)
-  assert_contains "$final_output" 'Policy: inactive (not active engine policy)'
+  assert_contains "$final_output" 'Policy: inactive'
   assert_contains "$final_output" 'Redirects: none'
   assert_equals "$(cksum < "$upstream_config")" "$upstream_checksum"
   pass "profile redirect dry-run, sorted upsert, no-op, replacement, exact removal, full removal, formats, and profile isolation are deterministic"
+}
+
+test_commands_profile_linux_registry_activation_and_edit() {
+  setup_scenario_with_profiles default upstream
+  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
+  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$FAKE_PODMAN_BIN"
+  : > "$FAKE_PODMAN_LOG"
+  active_link=$XDG_CONFIG_HOME_DIR/containers/registries.conf.d/shimmy-active-profile.conf
+  default_config=$DEFAULT_PROFILE_ROOT/registries.conf
+  common_env="XDG_CONFIG_HOME=$XDG_CONFIG_HOME_DIR HOME=$HOME_DIR SHIMMY_TEST_PROFILE_OS=Linux SHIMMY_TEST_PROFILE_PODMAN_BIN=$FAKE_PODMAN_BIN FAKE_PODMAN_LOG=$FAKE_PODMAN_LOG FAKE_LINUX_INFO=true|false FAKE_ACTIVE_LINK=$active_link FAKE_ACTIVE_CONFIG=$default_config"
+
+  activation_output=$(env $common_env "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile activate)
+  assert_contains "$activation_output" 'Activated Shimmy profile default registry policy'
+  assert_path_symlink "$active_link"
+  assert_equals "$(readlink "$active_link")" "$default_config"
+
+  env $common_env "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect --prefix docker.io --location registry.corp.example/docker
+  current_output=$(env $common_env "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect list --format manifest)
+  assert_contains "$current_output" 'registry_active_link=current'
+  assert_contains "$current_output" 'registry_active_profile=default'
+  assert_contains "$current_output" 'registry_override=none'
+  assert_contains "$current_output" 'registry_policy=current'
+
+  before_failure=$SCENARIO_DIR/before-active-edit
+  cp "$default_config" "$before_failure"
+  set +e
+  failed_edit_output=$(env $common_env FAKE_FAIL_LINUX_CONFIG_PATTERN=registry.fail.example \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect --prefix docker.io --location registry.fail.example/docker 2>&1)
+  failed_edit_status=$?
+  set -e
+  [ "$failed_edit_status" -ne 0 ] || fail_test 'active Linux edit unexpectedly survived fresh-process validation failure'
+  assert_contains "$failed_edit_output" 'prior configuration restored'
+  cmp -s "$before_failure" "$default_config" || fail_test 'active Linux edit rollback did not restore exact prior bytes'
+
+  upstream_before=$(cksum < "$UPSTREAM_PROFILE_ROOT/registries.conf")
+  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_TEST_PROFILE_OS=Linux \
+    SHIMMY_TEST_PROFILE_PODMAN_BIN="$SCENARIO_DIR/missing-podman" \
+    "$UPSTREAM_PROFILE_ROOT/bin/shimmy" profile redirect --prefix quay.io --location registry.corp.example/quay
+  [ "$(cksum < "$UPSTREAM_PROFILE_ROOT/registries.conf")" != "$upstream_before" ] || fail_test 'inactive Linux profile edit was not committed'
+
+  detach_dry_run=$(env $common_env "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach --dry-run)
+  assert_contains "$detach_dry_run" "would_detach=$active_link"
+  assert_path_symlink "$active_link"
+  env $common_env "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach
+  assert_path_not_exists "$active_link"
+  assert_contains "$(env $common_env "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect list --format manifest)" 'registry_policy=inactive'
+  pass 'installed Linux profile activation, current status, active-edit rollback, inactive edits, and detach are isolated'
+}
+
+test_commands_profile_linux_detach_refuses_sibling() {
+  setup_scenario_with_profiles default upstream
+  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
+  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$FAKE_PODMAN_BIN"
+  active_link=$XDG_CONFIG_HOME_DIR/containers/registries.conf.d/shimmy-active-profile.conf
+  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_TEST_PROFILE_OS=Linux \
+    SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_LINUX_INFO='true|false' \
+    FAKE_ACTIVE_LINK="$active_link" FAKE_ACTIVE_CONFIG="$DEFAULT_PROFILE_ROOT/registries.conf" \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile activate >/dev/null
+  set +e
+  detach_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_TEST_PROFILE_OS=Linux \
+    "$UPSTREAM_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach 2>&1)
+  detach_status=$?
+  set -e
+  [ "$detach_status" -ne 0 ] || fail_test 'inactive sibling unexpectedly detached the active Linux profile'
+  assert_contains "$detach_output" 'not actively linked to profile upstream'
+  assert_equals "$(readlink "$active_link")" "$DEFAULT_PROFILE_ROOT/registries.conf"
+  pass 'Linux detach is bound to the invoking active profile'
 }
 
 test_commands_profile_redirect_rejection() {
@@ -153,4 +222,6 @@ test_commands_profile_run() {
   test_commands_profile_installed_status_and_materialization
   test_commands_profile_redirect_crud
   test_commands_profile_redirect_rejection
+  test_commands_profile_linux_registry_activation_and_edit
+  test_commands_profile_linux_detach_refuses_sibling
 }

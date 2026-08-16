@@ -266,6 +266,42 @@ test_commands_lifecycle_empty_container_cleanup() {
   pass "profile removal preserves sibling profiles and independently owned shared catalogs"
 }
 
+test_commands_lifecycle_linux_registry_activation_cleanup() {
+  setup_scenario_with_profiles default upstream
+  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
+  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$FAKE_PODMAN_BIN"
+  active_link=$XDG_CONFIG_HOME_DIR/containers/registries.conf.d/shimmy-active-profile.conf
+  operator_file=$XDG_CONFIG_HOME_DIR/containers/registries.conf
+  mkdir -p "$XDG_CONFIG_HOME_DIR/containers"
+  printf '%s\n' operator-policy > "$operator_file"
+  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_TEST_PROFILE_OS=Linux \
+    SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_LINUX_INFO='true|false' \
+    FAKE_ACTIVE_LINK="$active_link" FAKE_ACTIVE_CONFIG="$DEFAULT_PROFILE_ROOT/registries.conf" \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile activate >/dev/null
+  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_TEST_PROFILE_OS=Linux \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" uninstall >/dev/null
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+  assert_path_not_exists "$active_link"
+  assert_file_exists "$UPSTREAM_PROFILE_ROOT/registries.conf"
+  assert_file_contains "$operator_file" operator-policy
+
+  setup_scenario_with_profiles default
+  active_link=$XDG_CONFIG_HOME_DIR/containers/registries.conf.d/shimmy-active-profile.conf
+  mkdir -p "$(dirname "$active_link")"
+  printf '%s\n' foreign > "$active_link"
+  set +e
+  foreign_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_TEST_PROFILE_OS=Linux \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" uninstall 2>&1)
+  foreign_status=$?
+  set -e
+  [ "$foreign_status" -ne 0 ] || fail_test 'profile uninstall unexpectedly removed foreign Linux registry state'
+  assert_contains "$foreign_output" 'invalid or foreign registry activation state'
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_file_contains "$active_link" foreign
+  pass 'Linux profile uninstall removes only its exact active link and refuses foreign state'
+}
+
 test_commands_lifecycle_global_uninstall() {
   setup_scenario_with_profiles default upstream
   replacement_checkout=$SCENARIO_DIR/global-uninstall-checkout
@@ -418,5 +454,6 @@ test_commands_lifecycle_complete() {
   test_commands_lifecycle_legacy_agent_refresh
   test_commands_lifecycle_legacy_agent_rollback
   test_commands_lifecycle_empty_container_cleanup
+  test_commands_lifecycle_linux_registry_activation_cleanup
   test_commands_lifecycle_global_uninstall
 }

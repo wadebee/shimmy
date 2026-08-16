@@ -300,7 +300,17 @@ shimmy_profile_state_linux_read() {
   SHIMMY_PROFILE_CONNECTION_METADATA=not_applicable
   SHIMMY_PROFILE_MACHINE_METADATA=not_applicable
   shimmy_profile_activation_override_read
+  if command -v shimmy_registries_override_read >/dev/null 2>&1; then
+    shimmy_registries_override_read
+  else
+    SHIMMY_REGISTRIES_OVERRIDE=none
+  fi
   if [ "$SHIMMY_PROFILE_CONNECTION_OVERRIDE" != none ]; then
+    SHIMMY_PROFILE_ENGINE_REACHABLE=unknown
+    SHIMMY_PROFILE_ACTIVATION_STATE=overridden
+    return 0
+  fi
+  if [ "$SHIMMY_REGISTRIES_OVERRIDE" != none ]; then
     SHIMMY_PROFILE_ENGINE_REACHABLE=unknown
     SHIMMY_PROFILE_ACTIVATION_STATE=overridden
     return 0
@@ -312,13 +322,39 @@ shimmy_profile_state_linux_read() {
   fi
   if linux_info=$(shimmy_profile_podman_run info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}' 2>/dev/null); then
     case "$linux_info" in
-      'true|false') SHIMMY_PROFILE_ENGINE_REACHABLE=true; SHIMMY_PROFILE_ACTIVATION_STATE=ready ;;
+      'true|false')
+        SHIMMY_PROFILE_ENGINE_REACHABLE=true
+        SHIMMY_PROFILE_ACTIVATION_STATE=ready
+        if command -v shimmy_registries_active_link_state_read >/dev/null 2>&1; then
+          shimmy_registries_active_link_state_read
+          case "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" in
+            current) SHIMMY_PROFILE_ACTIVATION_STATE=active ;;
+            absent|sibling) ;;
+            *) SHIMMY_PROFILE_ACTIVATION_STATE=invalid_registry ;;
+          esac
+        fi
+        ;;
       *) SHIMMY_PROFILE_ENGINE_REACHABLE=false; SHIMMY_PROFILE_ACTIVATION_STATE=unsupported_engine ;;
     esac
   else
     SHIMMY_PROFILE_ENGINE_REACHABLE=false
     SHIMMY_PROFILE_ACTIVATION_STATE=unreachable
   fi
+}
+
+shimmy_profile_linux_engine_validate() {
+  shimmy_profile_podman_bin_require || {
+    printf '%s\n' 'ERROR: Podman is required for Linux registry activation.' >&2
+    return 1
+  }
+  linux_info=$(shimmy_profile_podman_run info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}' 2>/dev/null) || {
+    printf '%s\n' 'ERROR: local Linux Podman engine is unreachable' >&2
+    return 1
+  }
+  [ "$linux_info" = 'true|false' ] || {
+    printf '%s\n' 'ERROR: Linux activation requires the current user local rootless Podman engine; remote and rootful engines are unsupported' >&2
+    return 1
+  }
 }
 
 shimmy_profile_state_read() {
@@ -547,26 +583,59 @@ shimmy_profile_activate_linux() {
   [ "$restart_requested" -eq 0 ] || { printf '%s\n' 'ERROR: --restart is not supported for local Linux profile activation' >&2; return 1; }
   [ "$stop_running_requested" -eq 0 ] || { printf '%s\n' 'ERROR: --stop-running is not supported for local Linux profile activation' >&2; return 1; }
   shimmy_profile_activation_override_reject || return 1
+  shimmy_registries_override_reject || return 1
   shimmy_profile_podman_bin_require || { printf '%s\n' 'ERROR: Podman is required for profile activation.' >&2; return 1; }
   if [ "$dry_run_requested" -eq 1 ]; then
     shimmy_profile_activation_lock_check || return 1
+    shimmy_registries_lock_check || return 1
   else
     shimmy_profile_activation_lock_acquire || return 1
+    shimmy_registries_lock_acquire || return 1
   fi
-  linux_info=$(shimmy_profile_podman_run info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}' 2>/dev/null) || {
-    printf '%s\n' 'ERROR: local Linux Podman engine is unreachable' >&2
+  shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_NAME" || {
+    printf 'ERROR: invalid managed registry redirect configuration: %s\n' "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
+    shimmy_registries_lock_release
     return 1
   }
-  [ "$linux_info" = 'true|false' ] || {
-    printf '%s\n' 'ERROR: Linux activation requires the current user local rootless Podman engine; remote and rootful engines are unsupported' >&2
+  shimmy_registries_active_link_state_read
+  case "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" in
+    absent|current|sibling) ;;
+    *)
+      printf 'ERROR: refusing Linux activation with invalid or foreign registry path: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK" >&2
+      shimmy_registries_lock_release
+      return 1
+      ;;
+  esac
+  if ! shimmy_profile_linux_engine_validate; then
+    shimmy_registries_lock_release
     return 1
-  }
+  fi
   if [ "$dry_run_requested" -eq 1 ]; then
-    printf 'dry_run=yes\nprofile=%s\nwould_change=nothing\n' "$SHIMMY_PROFILE_NAME"
-  else
-    printf 'Shimmy profile %s is ready with the local rootless Podman engine.\n' "$SHIMMY_PROFILE_NAME"
-    printf "Select this profile in the current shell with: . '%s/shell-init.sh'\n" "$SHIMMY_PROFILE_ROOT"
+    printf 'dry_run=yes\nprofile=%s\n' "$SHIMMY_PROFILE_NAME"
+    if [ "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" = current ]; then
+      printf '%s\n' 'would_change=nothing'
+    else
+      printf 'would_link=%s\nwould_target=%s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK" "$SHIMMY_PROFILE_REGISTRIES_PATH"
+    fi
+    return 0
   fi
+  if ! shimmy_registries_active_link_apply; then
+    shimmy_registries_lock_release
+    return 1
+  fi
+  if ! shimmy_profile_linux_engine_validate; then
+    if shimmy_registries_active_link_rollback; then
+      printf '%s\n' 'ERROR: Linux registry activation validation failed; prior active profile restored' >&2
+    else
+      printf '%s\n' 'ERROR: Linux registry activation validation failed and active-profile rollback was incomplete' >&2
+    fi
+    shimmy_registries_lock_release
+    return 1
+  fi
+  shimmy_registries_active_link_commit
+  shimmy_registries_lock_release
+  printf 'Activated Shimmy profile %s registry policy with the local rootless Podman engine.\n' "$SHIMMY_PROFILE_NAME"
+  printf "Select this profile in the current shell with: . '%s/shell-init.sh'\n" "$SHIMMY_PROFILE_ROOT"
 }
 
 shimmy_profile_activate() {

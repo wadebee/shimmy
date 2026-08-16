@@ -5,7 +5,7 @@ set -eu
 profile_usage() {
   cat <<'EOF'
 Manage this installed Shimmy profile's Podman engine and strict registry
-redirect preparation.
+redirects.
 
 Usage:
   shimmy profile --help
@@ -16,7 +16,7 @@ Usage:
 Commands:
   status    Inspect profile-bound engine and connection state without mutation.
   activate  Select and validate this profile's deterministic engine.
-  redirect  Prepare strict registry prefix replacement for this profile.
+  redirect  Manage strict registry prefix replacement for this profile.
 
 PATH selection is separate: source the profile's shell-init.sh after activation.
 
@@ -29,7 +29,7 @@ EOF
 
 profile_redirect_list_usage() {
   cat <<'EOF'
-List this profile's prepared strict registry redirects.
+List this profile's strict registry redirects and activation state.
 
 Usage:
   shimmy profile redirect list [--format human|manifest]
@@ -37,8 +37,8 @@ Usage:
 Options:
   --format human|manifest  Select human-readable or stable key/value output.
 
-Prepared redirects are not active engine policy until profile projection is
-implemented and explicitly activated.
+Linux reports current policy only for the exact active profile link and a
+reachable local-rootless engine. Darwin remains preparation-only.
 
 Examples:
   shimmy profile redirect list
@@ -60,8 +60,8 @@ Options:
   --detach                   Also detach owned projection state when supported.
   --dry-run                  Render the full candidate without filesystem changes.
 
-Chunk 3 creates no platform projection, so --detach has no external state to
-remove. It is valid only with --all.
+On Linux, --detach requires the exact active link to point to this profile. It
+is valid only with --all. Darwin remains preparation-only in this release.
 
 Examples:
   shimmy profile redirect remove --prefix docker.io
@@ -71,7 +71,7 @@ EOF
 
 profile_redirect_usage() {
   cat <<'EOF'
-Prepare strict registry prefix replacement for this profile.
+Manage strict registry prefix replacement for this profile.
 
 Usage:
   shimmy profile redirect --prefix <logical-prefix> --location <physical-location>
@@ -85,9 +85,8 @@ Commands:
   remove  Remove one exact prefix or all redirects.
 
 The direct option form atomically upserts one [[registry]] prefix/location
-replacement. It does not create a mirror or fallback. Prepared redirects are
-not active engine policy until a later platform-projection implementation is
-accepted and explicitly activated.
+replacement. It does not create a mirror or fallback. Linux activation selects
+the invoking profile; Darwin redirects remain prepared-only.
 
 Examples:
   shimmy profile redirect --prefix docker.io --location registry.corp.example/docker
@@ -98,7 +97,7 @@ EOF
 
 profile_status_usage() {
   cat <<'EOF'
-Inspect this profile's engine and prepared registry state without mutation.
+Inspect this profile's engine and registry state without mutation.
 
 Usage:
   shimmy profile status [--format human|manifest]
@@ -202,19 +201,24 @@ case "$operation" in
       esac
     done
     case "$output_format" in human|manifest) ;; *) printf 'ERROR: unsupported profile status format: %s\n' "$output_format" >&2; exit 1 ;; esac
-    registry_policy=$(shimmy_registries_policy_state_read) || {
-      printf 'ERROR: invalid managed registry redirect configuration: %s\n' "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
-      exit 1
-    }
     shimmy_profile_status_print "$output_format"
+    shimmy_registries_active_link_state_read
+    shimmy_registries_override_read
+    registry_policy=$(shimmy_registries_policy_state_read)
     case "$output_format" in
       manifest)
         printf '%s\n' 'registry_config=valid'
+        printf 'registry_active_link=%s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE"
+        printf 'registry_active_profile=%s\n' "$SHIMMY_REGISTRIES_ACTIVE_PROFILE"
+        printf 'registry_override=%s\n' "$SHIMMY_REGISTRIES_OVERRIDE"
         printf 'registry_policy=%s\n' "$registry_policy"
         ;;
       human)
         printf '%s\n' 'Registry configuration: valid'
-        printf 'Registry policy: %s (not active engine policy)\n' "$registry_policy"
+        printf 'Registry active link: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE"
+        printf 'Registry active profile: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_PROFILE"
+        printf 'Registry override: %s\n' "$SHIMMY_REGISTRIES_OVERRIDE"
+        printf 'Registry policy: %s\n' "$registry_policy"
         ;;
     esac
     ;;
@@ -256,16 +260,25 @@ case "$operation" in
           printf 'ERROR: invalid managed registry redirect configuration: %s\n' "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
           exit 1
         }
+        shimmy_registries_host_os_resolve
+        if [ "$SHIMMY_REGISTRIES_HOST_OS" = linux ]; then
+          shimmy_profile_state_read
+        fi
+        shimmy_registries_active_link_state_read
+        shimmy_registries_override_read
         registry_policy=$(shimmy_registries_policy_state_read)
         case "$output_format" in
           manifest)
-            printf 'profile=%s\nregistry_policy=%s\n' "$SHIMMY_PROFILE_NAME" "$registry_policy"
+            printf 'profile=%s\nregistry_config=valid\n' "$SHIMMY_PROFILE_NAME"
+            printf 'registry_active_link=%s\nregistry_active_profile=%s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" "$SHIMMY_REGISTRIES_ACTIVE_PROFILE"
+            printf 'registry_override=%s\nregistry_policy=%s\n' "$SHIMMY_REGISTRIES_OVERRIDE" "$registry_policy"
             while IFS= read -r registry_entry; do [ -z "$registry_entry" ] || printf 'redirect=%s\n' "$registry_entry"; done <<EOF
 $registry_entries
 EOF
             ;;
           human)
-            printf 'Profile: %s\nPolicy: %s (not active engine policy)\n' "$SHIMMY_PROFILE_NAME" "$registry_policy"
+            printf 'Profile: %s\nConfiguration: valid\n' "$SHIMMY_PROFILE_NAME"
+            printf 'Active link: %s\nActive profile: %s\nRegistry override: %s\nPolicy: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" "$SHIMMY_REGISTRIES_ACTIVE_PROFILE" "$SHIMMY_REGISTRIES_OVERRIDE" "$registry_policy"
             if [ -z "$registry_entries" ]; then
               printf '%s\n' 'Redirects: none'
             else
@@ -304,7 +317,11 @@ EOF
         if [ "$remove_all" -eq 0 ] && [ -z "$remove_prefix" ]; then printf '%s\n' 'ERROR: redirect remove requires --prefix or --all' >&2; exit 1; fi
         [ "$detach_requested" -eq 0 ] || [ "$remove_all" -eq 1 ] || { printf '%s\n' 'ERROR: --detach requires --all' >&2; exit 1; }
         if [ "$remove_all" -eq 1 ]; then
-          shimmy_registries_mutate remove_all '' '' "$dry_run_requested"
+          if [ "$detach_requested" -eq 1 ]; then
+            shimmy_registries_mutate_remove_all_detach "$dry_run_requested"
+          else
+            shimmy_registries_mutate remove_all '' '' "$dry_run_requested"
+          fi
         else
           shimmy_registries_mutate remove "$remove_prefix" '' "$dry_run_requested"
         fi

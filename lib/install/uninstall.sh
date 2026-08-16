@@ -18,6 +18,9 @@ perform_uninstall_global() {
       fi
       [ ! -e "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" ] && [ ! -L "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" ] ||
         fail "refusing global uninstall while a registry transaction is active or damaged: $SHIMMY_PROFILE_REGISTRIES_LOCK_PATH"
+      shimmy_registries_active_link_state_read
+      [ "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" != invalid ] ||
+        fail "refusing global uninstall with invalid or foreign registry activation state: $SHIMMY_REGISTRIES_ACTIVE_LINK"
     fi
   done
 
@@ -63,6 +66,11 @@ perform_uninstall_profile() {
       fail "refusing to remove invalid or unmanaged registry configuration: $SHIMMY_PROFILE_REGISTRIES_PATH"
   fi
   shimmy_registries_lock_acquire || fail "unable to lock registry configuration for profile uninstall"
+  shimmy_registries_active_link_state_read
+  case "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" in
+    current) shimmy_registries_active_link_detach || fail "unable to detach active Linux registry policy" ;;
+    invalid) fail "refusing to remove profile with invalid or foreign registry activation state: $SHIMMY_REGISTRIES_ACTIVE_LINK" ;;
+  esac
 
   installed_tools=$(shimmy_manifest_tool_list_read "$INSTALL_MANIFEST_FILE" || true)
   startup_files=

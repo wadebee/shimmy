@@ -17,11 +17,12 @@ unselected catalog entries are invalid mixed-layout payload.
 
 `activation.sh` owns deterministic engine discovery, read-only status,
 workload-guarded Darwin transitions, commit-last default selection, rollback
-reporting, and local-rootless Linux validation. Only `shimmy profile activate`
-uses its machine start/stop operations; it never provisions or removes a VM.
+reporting, and Linux active-link plus fresh local-rootless validation. Only
+`shimmy profile activate` uses its machine start/stop operations; it never
+provisions or removes a VM.
 
 Path resolution also records the authoritative profile-specific
-`registries.conf` and adjacent transaction lock. Current profiles require that
-file to be a regular non-symlink with exact profile/version markers; only the
-installer may recognize its complete absence as the valid pre-feature upgrade
-shape.
+`registries.conf`, adjacent transaction lock, and exact Linux user drop-in.
+Current profiles require the authoritative file to be a regular non-symlink
+with exact profile/version markers; only the installer may recognize its
+complete absence as the valid pre-feature upgrade shape.

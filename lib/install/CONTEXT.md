@@ -56,5 +56,6 @@ default bootstrap publishes from a clean committed checkout through the same
 generation transaction used later; initial upstream bootstrap registers its
 live checkout without replacing an existing different binding.
 Profile and global uninstall remove only validated profile-owned registry
-files. Operator containers configuration and sibling profile files remain
-outside that ownership boundary.
+files and, on Linux, the exact active Shimmy link when it targets the profile
+being removed. Foreign links, operator containers configuration, and sibling
+profile files remain outside that ownership boundary.

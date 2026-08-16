@@ -541,8 +541,8 @@ None.
 ## Progress Checklist
 - [x] Chunk 1 — Profile-bound engine activation control plane accepted after automated verification and native macOS acceptance
 - [x] Chunk 2 — Agent workflows and canonical activation guidance accepted after automated verification and human review
-- [~] Chunk 3 — Profile registry files, strict redirect CRUD, and profile transaction support implemented and verified; pending human review
-- [ ] Chunk 4 — Activate and validate strict registry policy on Linux (blocked on accepted Chunk 3)
+- [x] Chunk 3 — Profile registry files, strict redirect CRUD, and profile transaction support accepted after automated verification and human review
+- [~] Chunk 4 — Linux registry activation implemented and automated verification complete; native rootless Linux route acceptance pending human review/deferral
 - [ ] Chunk 5 — Project and validate strict registry policy in Darwin machines (blocked on accepted Chunk 4)
 - [ ] Chunk 6 — Integrate Skopeo and complete cross-surface registry verification (blocked on accepted Chunk 5)
 
@@ -949,6 +949,8 @@ Reviewers must confirm the managed format, endpoint grammar, transaction and
 upgrade behavior, manifest-version decision, profile isolation, and explicit
 prepared-only boundary. Stop before Chunk 4.
 
+Accepted 2026-08-15 after automated verification and human review.
+
 ## Chunk 4 — Linux registry activation
 
 ### Goal
@@ -1005,21 +1007,31 @@ prepared-only until Chunk 5.
 
 ### Verification checklist
 
-- [ ] Link create/switch/idempotence/collision/rollback cases use disposable
+- [x] Link create/switch/idempotence/collision/rollback cases use disposable
   config roots and preserve operator files and sibling profiles.
-- [ ] Local-rootless validation occurs after the candidate link is installed;
+- [x] Local-rootless validation occurs after the candidate link is installed;
   remote/rootful state and masking variables fail before mutation.
-- [ ] Active edits validate in a fresh process and roll back exact bytes on
+- [x] Active edits validate in a fresh process and roll back exact bytes on
   failure; inactive edits do not contact Podman.
-- [ ] Status/list classifications follow actual config/link evidence and do not
+- [x] Status/list classifications follow actual config/link evidence and do not
   overclaim client coverage.
-- [ ] Detach and uninstall remove only exact owned Linux state and refuse
+- [x] Detach and uninstall remove only exact owned Linux state and refuse
   damaged or foreign state.
-- [ ] Default tests neither contact registries nor mutate host configuration;
+- [x] Default tests neither contact registries nor mutate host configuration;
   syntax, contexts, and `./tests/test.sh` pass.
-- [ ] Dedicated rootless Linux acceptance proves Podman resolves a digest-pinned
+- [~] Dedicated rootless Linux acceptance proves Podman resolves a digest-pinned
   logical reference through the physical location and does not fall back when
   that location is unavailable. Record infrastructure gaps as `[~]`.
+
+  Automated disposable-root coverage proves link installation order,
+  local-rootless/remote/rootful classification, fresh-process calls, strict
+  replacement rendering, active-edit rollback, and no-fallback configuration
+  shape. A native Linux host is not available in this Darwin implementation
+  session, so actual registry routing remains unverified. The impact is limited
+  to native containers/image symlink-loader and route evidence; it does not
+  weaken the verified ownership or transaction behavior. Run the dedicated
+  route scenario on a supported rootless Linux host before release. This item
+  requires explicit deferral to accept Chunk 4 without that native evidence.
 
 ### Human review gate
 
@@ -1366,6 +1378,27 @@ review; there is no later chunk.
   This preserves a useful independent preparation workflow without implying
   Linux, Darwin, or Skopeo consumption.
 
+### Chunk 4 implementation
+
+- Linux activation must hold both the config-root activation lock and the
+  invoking profile's registry lock. This prevents a redirect edit from changing
+  the authoritative bytes between link selection and fresh-process validation.
+- Exact active-link classification is sufficient for safe switching and
+  lifecycle cleanup only when recognized sibling targets also validate their
+  own profile marker, mode, and generated structure. A path-shaped symlink is
+  not ownership evidence by itself.
+- Detach is safest as one profile-locked transaction: remove the exact active
+  link, render the required empty config, and restore the prior link if config
+  replacement fails. It does not need to contact Podman after policy is no
+  longer selected.
+- Active Linux edits need both pre-mutation local-rootless classification and
+  post-commit fresh-process validation. The existing exact-byte rollback then
+  restores policy without adding a second file transaction mechanism.
+- Native route acceptance cannot be inferred from fake-process ordering or
+  valid containers/image syntax. The supported-host test remains a distinct
+  release gate because symlink loading and no-fallback routing are upstream
+  runtime behavior.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -1376,11 +1409,11 @@ For a fresh implementation session:
 2. Recheck the worktree and preserve the unrelated untracked
    `plans/registry-image-remap.md`. Treat the verified inventory as a baseline
    and add newly discovered dependencies without reopening recorded decisions.
-3. Start only the first unchecked chunk. Chunk 1's non-negotiable boundaries
-   are: explicit profile-bound activation; deterministic `shimmy-default` and
-   `shimmy-upstream`; no Podman provisioning/removal; workload guard; global
-   connection commit last; PATH-only shell init; no registry implementation or
-   skill migration yet.
+3. Resume Chunk 4 at its human review gate. Automated implementation and the
+   default suite are complete; the dedicated native rootless Linux route item
+   remains `[~]` because this session ran on Darwin. Do not begin Chunk 5 until
+   the reviewer accepts Chunk 4 and explicitly defers that native item or the
+   route scenario passes on a supported Linux host.
 4. Continue only after each preceding review gate is explicitly accepted. The
    remaining non-negotiable boundaries are:
    - Chunk 2: exact profile-local agent approval, no machine provisioning, and

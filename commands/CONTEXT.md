@@ -21,9 +21,9 @@ reusable behavior belongs in `../lib/`.
 - `agent-preflight.sh` validates concrete-version `image.conf` metadata and
   adds preview-only smoke arguments for local builds.
 - `profile.sh` reports or explicitly activates the invoking profile's
-  deterministic Podman engine, and prepares strict profile-owned registry
-  redirects without selecting an arbitrary profile or machine. Prepared
-  redirect data is not active engine policy before platform projection.
+  deterministic Podman engine, and manages strict profile-owned registry
+  redirects without selecting an arbitrary profile or machine. Linux
+  activation owns one exact user drop-in; Darwin remains preparation-only.
 - `status.sh` resolves the enclosing profile's named catalog and reports
   installed profile state and validated tool metadata together with catalog
   source, generation provenance, schema, fingerprint, and health;

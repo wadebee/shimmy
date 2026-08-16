@@ -51,11 +51,54 @@ Additive installs and updates validate and preserve an existing file
 byte-for-byte. Each profile is independent; uninstall removes only its valid
 owned file and preserves operator policy and sibling profiles.
 
-## Prepared-only boundary
+## Linux activation
 
-Chunk 3 stores and validates policy but does not project it into a Linux engine,
-a macOS Podman machine, or a tool container. `profile status` and `redirect
-list` therefore report an empty policy as `inactive` and a non-empty policy as
-`prepared`, never `current`. Preparing a redirect does not contact Podman or a
-registry and does not mean an engine consumes it. Platform projection and
-fresh-process validation require later reviewed chunks.
+On Linux, `shimmy profile activate` atomically selects the invoking profile by
+managing only this user drop-in:
+
+```text
+${XDG_CONFIG_HOME:-$HOME/.config}/containers/registries.conf.d/shimmy-active-profile.conf
+```
+
+The path is an absolute symlink to that profile's authoritative
+`registries.conf`. Activation first rejects remote or rootful engines,
+connection overrides, registry configuration overrides, unsafe parent paths,
+and foreign or damaged content at the owned link. It then installs or switches
+the link and validates a fresh local-rootless Podman process. Failed validation
+restores the exact prior link. Operator `registries.conf` files and every other
+drop-in are preserved.
+
+An edit to the active Linux profile is also validated in a fresh Podman process
+after the new file is installed. Failure restores the prior file bytes.
+Inactive-profile edits remain engine-independent. Use the exact active profile
+to detach and empty its policy:
+
+```sh
+shimmy profile redirect remove --all --detach
+```
+
+Detach refuses an absent, sibling-owned, foreign, or damaged link. Profile and
+global uninstall remove the exact active link only when it targets the profile
+being removed. The containing operator-owned directories are retained.
+
+`profile status` and `profile redirect list` report config health, active-link
+ownership, masking variable names, and an evidence-based policy state:
+
+- `current` means the exact Linux link selects this profile, no masking
+  registry variable is set, and a fresh local-rootless engine is reachable.
+- `inactive` means no Shimmy link exists or a valid sibling profile is active.
+- `invalid` means owned-path state is damaged or foreign, a registry override
+  masks the link, or the selected policy cannot be validated.
+
+Unset `CONTAINERS_REGISTRIES_CONF` and
+`CONTAINERS_REGISTRIES_CONF_OVERRIDE` before Linux activation or active edits.
+Shimmy reports only the masking variable name, never its value.
+
+## Current client boundary
+
+Darwin remains preparation-only until its machine projection is implemented:
+an empty policy is `inactive` and a non-empty policy is `prepared`. Tool
+containers, including Skopeo, do not yet receive this file. Linux activation
+applies the policy to fresh host-side Podman processes only; it does not claim
+container-client coverage. Preparing an inactive profile does not contact
+Podman or a registry.

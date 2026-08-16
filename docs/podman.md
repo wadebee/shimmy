@@ -139,6 +139,23 @@ Shimmy expects a working rootless Podman setup for normal tool execution. In
 rootless mode, containers run as your user instead of requiring a root-owned
 daemon.
 
+After installing a profile, activate its strict registry policy explicitly:
+
+```sh
+shimmy profile status
+shimmy profile activate --dry-run
+shimmy profile activate
+```
+
+Linux activation manages no VM or system connection. It selects only the
+invoking profile's user registry drop-in and validates a fresh local-rootless
+Podman process. Remote and rootful engines are rejected before link mutation.
+Unset `CONTAINER_CONNECTION`, `CONTAINER_HOST`,
+`CONTAINERS_REGISTRIES_CONF`, and
+`CONTAINERS_REGISTRIES_CONF_OVERRIDE` before activation. See
+[Registry redirects](registries.md) for link ownership, rollback, detach, and
+status semantics.
+
 ### Rootless ID Ranges
 
 Some minimal Linux environments, including Chromebook Crostini, may not have

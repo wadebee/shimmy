@@ -13,8 +13,9 @@ without starting tool containers. They are sourced by `../test.sh` and use
   platforms, fail-closed behavior, preview helpers, and installed Darwin
   profile-affinity enforcement.
 - `profile-activation.sh` validates deterministic engine state, workload-aware
-  Darwin switching, dry runs, commit-last connection selection, and
-  failure-injected rollback reporting through a fake Podman command seam.
+  Darwin switching, Linux registry-link transitions, dry runs, fresh-process
+  validation, commit-last selection, and failure-injected rollback reporting
+  through a fake Podman command seam.
 - `registries.sh` validates strict endpoint grammar, exact managed-file
   parsing/rendering, deterministic mutation, side-effect-free dry runs,
   adjacent locking, and exact rollback after injected post-commit failure.

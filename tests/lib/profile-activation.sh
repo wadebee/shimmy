@@ -19,6 +19,8 @@ profile_activation_fake_create() {
       "    printf '%s\\n' \"\${FAKE_DARWIN_INFO:-true|true}\"" \
       '    ;;' \
       '  "info --format {{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}")' \
+      '    if [ -n "${FAKE_FAIL_LINUX_TARGET:-}" ] && [ -L "${FAKE_ACTIVE_LINK:-}" ] && [ "$(readlink "$FAKE_ACTIVE_LINK")" = "$FAKE_FAIL_LINUX_TARGET" ]; then exit 50; fi' \
+      '    if [ -n "${FAKE_FAIL_LINUX_CONFIG_PATTERN:-}" ] && [ -f "${FAKE_ACTIVE_CONFIG:-}" ]; then case "$(cat "$FAKE_ACTIVE_CONFIG")" in *"$FAKE_FAIL_LINUX_CONFIG_PATTERN"*) exit 51 ;; esac; fi' \
       "    printf '%s\\n' \"\${FAKE_LINUX_INFO:-true|false}\"" \
       '    ;;' \
       '  "machine stop "*)' \
@@ -53,6 +55,8 @@ profile_activation_library_run() {
     FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST="${FAKE_MACHINE_LIST:-}" \
     FAKE_CONNECTION_LIST="${FAKE_CONNECTION_LIST:-}" FAKE_WORKLOADS="${FAKE_WORKLOADS:-}" \
     FAKE_DARWIN_INFO="${FAKE_DARWIN_INFO:-true|true}" FAKE_LINUX_INFO="${FAKE_LINUX_INFO:-true|false}" \
+    FAKE_ACTIVE_LINK="${FAKE_ACTIVE_LINK:-}" FAKE_ACTIVE_CONFIG="${FAKE_ACTIVE_CONFIG:-}" \
+    FAKE_FAIL_LINUX_TARGET="${FAKE_FAIL_LINUX_TARGET:-}" FAKE_FAIL_LINUX_CONFIG_PATTERN="${FAKE_FAIL_LINUX_CONFIG_PATTERN:-}" \
     FAKE_FAIL_ACTION="${FAKE_FAIL_ACTION:-}" FAKE_ROLLBACK_FAIL="${FAKE_ROLLBACK_FAIL:-}" FAKE_PRIOR_MACHINE="${FAKE_PRIOR_MACHINE:-}" \
     FAKE_TARGET_MACHINE="${FAKE_TARGET_MACHINE:-}" FAKE_PRIOR_DEFAULT="${FAKE_PRIOR_DEFAULT:-}" \
     /bin/sh -c '
@@ -60,10 +64,13 @@ profile_activation_library_run() {
       . "$1/lib/common/common.sh"
       . "$1/lib/profile/profile.sh"
       . "$1/lib/profile/activation.sh"
-      SHIMMY_PROFILE_NAME=$SHIMMY_TEST_PROFILE_NAME
-      SHIMMY_CONFIG_ROOT=$XDG_CONFIG_HOME/shimmy
-      SHIMMY_PROFILE_ROOT=$SHIMMY_CONFIG_ROOT/profiles/$SHIMMY_PROFILE_NAME
-      mkdir -p "$SHIMMY_CONFIG_ROOT"
+      . "$1/lib/registries/registries.sh"
+      shimmy_profile_paths_resolve "$SHIMMY_TEST_PROFILE_NAME"
+      mkdir -p "$SHIMMY_PROFILE_ROOT"
+      if [ ! -e "$SHIMMY_PROFILE_REGISTRIES_PATH" ] && [ ! -L "$SHIMMY_PROFILE_REGISTRIES_PATH" ]; then
+        shimmy_registries_config_render "$SHIMMY_PROFILE_NAME" "" > "$SHIMMY_PROFILE_REGISTRIES_PATH"
+        chmod 0644 "$SHIMMY_PROFILE_REGISTRIES_PATH"
+      fi
       SHIMMY_PROFILE_ACTIVATION_LOCK_HELD=0
       trap shimmy_profile_activation_lock_release EXIT
       case "$SHIMMY_TEST_PROFILE_ACTION" in
@@ -71,6 +78,112 @@ profile_activation_library_run() {
         activate) shimmy_profile_activate "$2" "$3" "$4" ;;
       esac
     ' sh "$ROOT_DIR" "$@"
+}
+
+test_lib_profile_activation_linux_registry_projection() {
+  setup_scenario
+  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
+  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$FAKE_PODMAN_BIN"
+  : > "$FAKE_PODMAN_LOG"
+  FAKE_LINUX_INFO='true|false'
+  FAKE_ACTIVE_LINK=$XDG_CONFIG_HOME_DIR/containers/registries.conf.d/shimmy-active-profile.conf
+  FAKE_ACTIVE_CONFIG=$XDG_CONFIG_HOME_DIR/shimmy/profiles/default/registries.conf
+  FAKE_FAIL_LINUX_TARGET=
+  FAKE_FAIL_LINUX_CONFIG_PATTERN=
+
+  dry_run_output=$(profile_activation_library_run default Linux activate 0 0 1)
+  assert_contains "$dry_run_output" "would_link=$FAKE_ACTIVE_LINK"
+  assert_path_not_exists "$FAKE_ACTIVE_LINK"
+
+  activation_output=$(profile_activation_library_run default Linux activate 0 0 0)
+  assert_contains "$activation_output" 'Activated Shimmy profile default registry policy'
+  assert_path_symlink "$FAKE_ACTIVE_LINK"
+  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$FAKE_ACTIVE_CONFIG"
+  profile_activation_library_run default Linux activate 0 0 0 >/dev/null
+  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$FAKE_ACTIVE_CONFIG"
+  status_output=$(profile_activation_library_run default Linux status)
+  assert_contains "$status_output" 'activation=active'
+
+  profile_activation_library_run upstream Linux status >/dev/null
+  upstream_config=$XDG_CONFIG_HOME_DIR/shimmy/profiles/upstream/registries.conf
+  profile_activation_library_run upstream Linux activate 0 0 0 >/dev/null
+  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$upstream_config"
+
+  FAKE_FAIL_LINUX_TARGET=$FAKE_ACTIVE_CONFIG
+  set +e
+  rollback_output=$(profile_activation_library_run default Linux activate 0 0 0 2>&1)
+  rollback_status=$?
+  set -e
+  [ "$rollback_status" -ne 0 ] || fail_test 'failed Linux validation unexpectedly committed an active link'
+  assert_contains "$rollback_output" 'prior active profile restored'
+  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$upstream_config"
+  FAKE_FAIL_LINUX_TARGET=
+
+  secret_registry_path=$SCENARIO_DIR/secret-registry-path
+  export CONTAINERS_REGISTRIES_CONF=$secret_registry_path
+  set +e
+  override_output=$(profile_activation_library_run default Linux activate 0 0 0 2>&1)
+  override_status=$?
+  set -e
+  unset CONTAINERS_REGISTRIES_CONF
+  [ "$override_status" -ne 0 ] || fail_test 'masking registry override unexpectedly allowed Linux activation'
+  assert_contains "$override_output" 'CONTAINERS_REGISTRIES_CONF masks Shimmy registry activation'
+  assert_not_contains "$override_output" "$secret_registry_path"
+  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$upstream_config"
+
+  export CONTAINERS_REGISTRIES_CONF_OVERRIDE=$secret_registry_path
+  set +e
+  override_output=$(profile_activation_library_run default Linux activate 0 0 0 2>&1)
+  override_status=$?
+  set -e
+  unset CONTAINERS_REGISTRIES_CONF_OVERRIDE
+  [ "$override_status" -ne 0 ] || fail_test 'masking registry override file unexpectedly allowed Linux activation'
+  assert_contains "$override_output" 'CONTAINERS_REGISTRIES_CONF_OVERRIDE masks Shimmy registry activation'
+  assert_not_contains "$override_output" "$secret_registry_path"
+  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$upstream_config"
+
+  rm -f "$FAKE_ACTIVE_LINK"
+  printf '%s\n' foreign > "$FAKE_ACTIVE_LINK"
+  set +e
+  collision_output=$(profile_activation_library_run default Linux activate 0 0 0 2>&1)
+  collision_status=$?
+  set -e
+  [ "$collision_status" -ne 0 ] || fail_test 'foreign Linux activation file unexpectedly replaced'
+  assert_contains "$collision_output" 'invalid or foreign registry path'
+  assert_file_contains "$FAKE_ACTIVE_LINK" foreign
+
+  rm -f "$FAKE_ACTIVE_LINK"
+  mkdir "$FAKE_ACTIVE_LINK"
+  if profile_activation_library_run default Linux activate 0 0 0 >/dev/null 2>&1; then
+    fail_test 'foreign Linux activation directory unexpectedly replaced'
+  fi
+  assert_dir_exists "$FAKE_ACTIVE_LINK"
+  rmdir "$FAKE_ACTIVE_LINK"
+
+  ln -s "$SCENARIO_DIR/missing-registry-config" "$FAKE_ACTIVE_LINK"
+  if profile_activation_library_run default Linux activate 0 0 0 >/dev/null 2>&1; then
+    fail_test 'dangling Linux activation link unexpectedly replaced'
+  fi
+  assert_path_symlink "$FAKE_ACTIVE_LINK"
+  rm -f "$FAKE_ACTIVE_LINK"
+
+  printf '%s\n' foreign > "$SCENARIO_DIR/foreign-registry-config"
+  ln -s "$SCENARIO_DIR/foreign-registry-config" "$FAKE_ACTIVE_LINK"
+  if profile_activation_library_run default Linux activate 0 0 0 >/dev/null 2>&1; then
+    fail_test 'unrecognized Linux activation target unexpectedly replaced'
+  fi
+  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$SCENARIO_DIR/foreign-registry-config"
+  rm -f "$FAKE_ACTIVE_LINK"
+
+  rmdir "$(dirname "$FAKE_ACTIVE_LINK")"
+  mv "$XDG_CONFIG_HOME_DIR/containers" "$XDG_CONFIG_HOME_DIR/containers-real"
+  ln -s "$XDG_CONFIG_HOME_DIR/containers-real" "$XDG_CONFIG_HOME_DIR/containers"
+  if profile_activation_library_run default Linux activate 0 0 0 >/dev/null 2>&1; then
+    fail_test 'symlinked Linux registry parent unexpectedly accepted'
+  fi
+  assert_path_symlink "$XDG_CONFIG_HOME_DIR/containers"
+  pass 'Linux activation creates, switches, validates, rolls back, and refuses masked, foreign, dangling, or unsafe registry state'
 }
 
 test_lib_profile_activation_mapping_and_status() {
@@ -211,6 +324,7 @@ other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   set -e
   [ "$linux_status" -ne 0 ] || fail_test "remote Linux engine unexpectedly succeeded"
   assert_contains "$linux_output" 'local rootless Podman engine'
+  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/containers/registries.conf.d/shimmy-active-profile.conf"
   pass "activation is idempotent and rejects irrelevant acknowledgements, guarded restarts, locks, missing machines, and remote Linux"
 }
 
@@ -308,6 +422,7 @@ shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
 
 test_lib_profile_activation_run() {
   test_lib_profile_activation_mapping_and_status
+  test_lib_profile_activation_linux_registry_projection
   test_lib_profile_activation_idempotence_and_rejections
   test_lib_profile_activation_switch_and_guard
   test_lib_profile_activation_rollback

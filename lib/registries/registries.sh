@@ -1,6 +1,215 @@
 #!/bin/sh
 # Strict profile-owned containers/image registry redirect data.
 
+shimmy_registries_active_link_parent_validate() {
+  [ -n "${SHIMMY_REGISTRIES_CONFIG_DIR:-}" ] &&
+    [ -n "${SHIMMY_REGISTRIES_DROPIN_DIR:-}" ] &&
+    [ -n "${SHIMMY_REGISTRIES_ACTIVE_LINK:-}" ] || return 1
+  [ "$SHIMMY_REGISTRIES_DROPIN_DIR" = "$SHIMMY_REGISTRIES_CONFIG_DIR/registries.conf.d" ] &&
+    [ "$SHIMMY_REGISTRIES_ACTIVE_LINK" = "$SHIMMY_REGISTRIES_DROPIN_DIR/shimmy-active-profile.conf" ] &&
+    shimmy_path_parent_chain_validate "$SHIMMY_REGISTRIES_CONFIG_DIR" || return 1
+  for parent_path in "$SHIMMY_REGISTRIES_CONFIG_DIR" "$SHIMMY_REGISTRIES_DROPIN_DIR"; do
+    if [ -e "$parent_path" ] || [ -L "$parent_path" ]; then
+      [ -d "$parent_path" ] && [ ! -L "$parent_path" ] || return 1
+    fi
+  done
+}
+
+shimmy_registries_active_link_state_read() {
+  SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=not_applicable
+  SHIMMY_REGISTRIES_ACTIVE_PROFILE=none
+  shimmy_registries_host_os_resolve
+  [ "$SHIMMY_REGISTRIES_HOST_OS" = linux ] || return 0
+
+  if ! shimmy_registries_active_link_parent_validate; then
+    SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=invalid
+    SHIMMY_REGISTRIES_ACTIVE_PROFILE=unknown
+    return 0
+  fi
+  if [ -L "$SHIMMY_REGISTRIES_ACTIVE_LINK" ]; then
+    active_target=$(readlink "$SHIMMY_REGISTRIES_ACTIVE_LINK" 2>/dev/null) || {
+      SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=invalid
+      SHIMMY_REGISTRIES_ACTIVE_PROFILE=unknown
+      return 0
+    }
+    for active_profile in default upstream; do
+      expected_target=$SHIMMY_CONFIG_ROOT/profiles/$active_profile/registries.conf
+      [ "$active_target" = "$expected_target" ] || continue
+      if ! shimmy_registries_config_validate "$expected_target" "$active_profile"; then
+        SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=invalid
+        SHIMMY_REGISTRIES_ACTIVE_PROFILE=unknown
+        return 0
+      fi
+      SHIMMY_REGISTRIES_ACTIVE_PROFILE=$active_profile
+      if [ "$active_profile" = "$SHIMMY_PROFILE_NAME" ] &&
+        [ "$active_target" = "$SHIMMY_PROFILE_REGISTRIES_PATH" ]; then
+        SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=current
+      else
+        SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=sibling
+      fi
+      return 0
+    done
+    SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=invalid
+    SHIMMY_REGISTRIES_ACTIVE_PROFILE=unknown
+    return 0
+  fi
+  if [ -e "$SHIMMY_REGISTRIES_ACTIVE_LINK" ]; then
+    SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=invalid
+    SHIMMY_REGISTRIES_ACTIVE_PROFILE=unknown
+    return 0
+  fi
+  SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=absent
+}
+
+shimmy_registries_active_link_prepare() {
+  SHIMMY_REGISTRIES_CREATED_CONFIG_DIR=0
+  SHIMMY_REGISTRIES_CREATED_DROPIN_DIR=0
+  shimmy_registries_active_link_parent_validate || {
+    printf 'ERROR: unsafe containers registry configuration path: %s\n' "$SHIMMY_REGISTRIES_DROPIN_DIR" >&2
+    return 1
+  }
+  if [ ! -d "$SHIMMY_REGISTRIES_CONFIG_DIR" ]; then
+    mkdir "$SHIMMY_REGISTRIES_CONFIG_DIR" || return 1
+    SHIMMY_REGISTRIES_CREATED_CONFIG_DIR=1
+  fi
+  if [ ! -d "$SHIMMY_REGISTRIES_DROPIN_DIR" ]; then
+    if ! mkdir "$SHIMMY_REGISTRIES_DROPIN_DIR"; then
+      [ "$SHIMMY_REGISTRIES_CREATED_CONFIG_DIR" -eq 0 ] || rmdir "$SHIMMY_REGISTRIES_CONFIG_DIR" 2>/dev/null || true
+      return 1
+    fi
+    SHIMMY_REGISTRIES_CREATED_DROPIN_DIR=1
+  fi
+  shimmy_registries_active_link_parent_validate
+}
+
+shimmy_registries_active_link_apply() {
+  shimmy_registries_active_link_state_read
+  case "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" in
+    current)
+      SHIMMY_REGISTRIES_ACTIVE_LINK_CHANGED=0
+      SHIMMY_REGISTRIES_ACTIVE_LINK_PRIOR_TARGET=$SHIMMY_PROFILE_REGISTRIES_PATH
+      return 0
+      ;;
+    absent) SHIMMY_REGISTRIES_ACTIVE_LINK_PRIOR_TARGET= ;;
+    sibling) SHIMMY_REGISTRIES_ACTIVE_LINK_PRIOR_TARGET=$(readlink "$SHIMMY_REGISTRIES_ACTIVE_LINK") ;;
+    *)
+      printf 'ERROR: refusing to replace invalid or foreign registry activation path: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK" >&2
+      return 1
+      ;;
+  esac
+
+  shimmy_registries_active_link_prepare || return 1
+  link_stage=$SHIMMY_REGISTRIES_DROPIN_DIR/.shimmy-active-profile.tmp.$$
+  [ ! -e "$link_stage" ] && [ ! -L "$link_stage" ] || {
+    printf 'ERROR: registry activation staging path collision: %s\n' "$link_stage" >&2
+    shimmy_registries_active_link_created_dirs_remove
+    return 1
+  }
+  ln -s "$SHIMMY_PROFILE_REGISTRIES_PATH" "$link_stage" || {
+    shimmy_registries_active_link_created_dirs_remove
+    return 1
+  }
+  if [ -n "$SHIMMY_REGISTRIES_ACTIVE_LINK_PRIOR_TARGET" ]; then
+    [ -L "$SHIMMY_REGISTRIES_ACTIVE_LINK" ] &&
+      [ "$(readlink "$SHIMMY_REGISTRIES_ACTIVE_LINK" 2>/dev/null || true)" = "$SHIMMY_REGISTRIES_ACTIVE_LINK_PRIOR_TARGET" ] || {
+        rm -f "$link_stage"
+        printf 'ERROR: registry activation path changed during transition: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK" >&2
+        return 1
+      }
+  elif [ -e "$SHIMMY_REGISTRIES_ACTIVE_LINK" ] || [ -L "$SHIMMY_REGISTRIES_ACTIVE_LINK" ]; then
+    rm -f "$link_stage"
+    printf 'ERROR: registry activation path appeared during transition: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK" >&2
+    return 1
+  fi
+  if ! mv "$link_stage" "$SHIMMY_REGISTRIES_ACTIVE_LINK"; then
+    rm -f "$link_stage"
+    shimmy_registries_active_link_created_dirs_remove
+    return 1
+  fi
+  SHIMMY_REGISTRIES_ACTIVE_LINK_CHANGED=1
+}
+
+shimmy_registries_active_link_created_dirs_remove() {
+  [ "${SHIMMY_REGISTRIES_CREATED_DROPIN_DIR:-0}" -eq 0 ] || rmdir "$SHIMMY_REGISTRIES_DROPIN_DIR" 2>/dev/null || true
+  [ "${SHIMMY_REGISTRIES_CREATED_CONFIG_DIR:-0}" -eq 0 ] || rmdir "$SHIMMY_REGISTRIES_CONFIG_DIR" 2>/dev/null || true
+  SHIMMY_REGISTRIES_CREATED_DROPIN_DIR=0
+  SHIMMY_REGISTRIES_CREATED_CONFIG_DIR=0
+}
+
+shimmy_registries_active_link_rollback() {
+  [ "${SHIMMY_REGISTRIES_ACTIVE_LINK_CHANGED:-0}" -eq 1 ] || return 0
+  rollback_stage=$SHIMMY_REGISTRIES_DROPIN_DIR/.shimmy-active-profile.rollback.$$
+  [ ! -e "$rollback_stage" ] && [ ! -L "$rollback_stage" ] || {
+    printf 'ERROR: registry activation rollback path collision: %s\n' "$rollback_stage" >&2
+    return 1
+  }
+  [ -L "$SHIMMY_REGISTRIES_ACTIVE_LINK" ] &&
+    [ "$(readlink "$SHIMMY_REGISTRIES_ACTIVE_LINK" 2>/dev/null || true)" = "$SHIMMY_PROFILE_REGISTRIES_PATH" ] || {
+      printf 'ERROR: registry activation rollback refused changed path: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK" >&2
+      return 1
+    }
+  if [ -n "${SHIMMY_REGISTRIES_ACTIVE_LINK_PRIOR_TARGET:-}" ]; then
+    if ! ln -s "$SHIMMY_REGISTRIES_ACTIVE_LINK_PRIOR_TARGET" "$rollback_stage" ||
+      ! mv "$rollback_stage" "$SHIMMY_REGISTRIES_ACTIVE_LINK"; then
+      rm -f "$rollback_stage"
+      printf 'ERROR: registry activation rollback failed for %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK" >&2
+      return 1
+    fi
+  else
+    rm -f "$SHIMMY_REGISTRIES_ACTIVE_LINK" || return 1
+  fi
+  shimmy_registries_active_link_created_dirs_remove
+  SHIMMY_REGISTRIES_ACTIVE_LINK_CHANGED=0
+}
+
+shimmy_registries_active_link_commit() {
+  SHIMMY_REGISTRIES_ACTIVE_LINK_CHANGED=0
+  SHIMMY_REGISTRIES_CREATED_DROPIN_DIR=0
+  SHIMMY_REGISTRIES_CREATED_CONFIG_DIR=0
+}
+
+shimmy_registries_active_link_detach() {
+  shimmy_registries_active_link_state_read
+  [ "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" = current ] || {
+    printf 'ERROR: registry policy is not actively linked to profile %s; refusing --detach\n' "$SHIMMY_PROFILE_NAME" >&2
+    return 1
+  }
+  [ -L "$SHIMMY_REGISTRIES_ACTIVE_LINK" ] &&
+    [ "$(readlink "$SHIMMY_REGISTRIES_ACTIVE_LINK" 2>/dev/null || true)" = "$SHIMMY_PROFILE_REGISTRIES_PATH" ] || return 1
+  rm -f "$SHIMMY_REGISTRIES_ACTIVE_LINK"
+}
+
+shimmy_registries_host_os_resolve() {
+  if [ "${SHIMMY_TEST_PROFILE_OS+x}" = x ]; then
+    registries_host_os=$SHIMMY_TEST_PROFILE_OS
+  else
+    registries_host_os=$(uname -s 2>/dev/null) || registries_host_os=
+  fi
+  case "$registries_host_os" in
+    Linux) SHIMMY_REGISTRIES_HOST_OS=linux ;;
+    Darwin) SHIMMY_REGISTRIES_HOST_OS=darwin ;;
+    *) SHIMMY_REGISTRIES_HOST_OS=unsupported ;;
+  esac
+}
+
+shimmy_registries_override_read() {
+  SHIMMY_REGISTRIES_OVERRIDE=none
+  if [ -n "${CONTAINERS_REGISTRIES_CONF:-}" ] && [ -n "${CONTAINERS_REGISTRIES_CONF_OVERRIDE:-}" ]; then
+    SHIMMY_REGISTRIES_OVERRIDE=CONTAINERS_REGISTRIES_CONF,CONTAINERS_REGISTRIES_CONF_OVERRIDE
+  elif [ -n "${CONTAINERS_REGISTRIES_CONF:-}" ]; then
+    SHIMMY_REGISTRIES_OVERRIDE=CONTAINERS_REGISTRIES_CONF
+  elif [ -n "${CONTAINERS_REGISTRIES_CONF_OVERRIDE:-}" ]; then
+    SHIMMY_REGISTRIES_OVERRIDE=CONTAINERS_REGISTRIES_CONF_OVERRIDE
+  fi
+}
+
+shimmy_registries_override_reject() {
+  shimmy_registries_override_read
+  [ "$SHIMMY_REGISTRIES_OVERRIDE" = none ] && return 0
+  printf 'ERROR: %s masks Shimmy registry activation; unset it and retry (its value was not displayed)\n' "$SHIMMY_REGISTRIES_OVERRIDE" >&2
+  return 1
+}
+
 shimmy_registries_candidate_entries_render() {
   current_entries=$1
   mutation_action=$2
@@ -213,6 +422,29 @@ shimmy_registries_file_replace() {
   rm -f "$rollback_path"
 }
 
+shimmy_registries_linux_active_edit_prepare() {
+  SHIMMY_REGISTRIES_ACTIVE_EDIT=0
+  shimmy_registries_host_os_resolve
+  [ "$SHIMMY_REGISTRIES_HOST_OS" = linux ] || return 0
+  shimmy_registries_active_link_state_read
+  case "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" in
+    current)
+      shimmy_registries_override_reject || return 1
+      command -v shimmy_profile_linux_engine_validate >/dev/null 2>&1 || {
+        printf '%s\n' 'ERROR: Linux registry activation validation is unavailable' >&2
+        return 1
+      }
+      shimmy_profile_linux_engine_validate || return 1
+      SHIMMY_REGISTRIES_ACTIVE_EDIT=1
+      ;;
+    absent|sibling) ;;
+    *)
+      printf 'ERROR: refusing registry mutation with invalid or foreign activation path: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK" >&2
+      return 1
+      ;;
+  esac
+}
+
 shimmy_registries_lock_acquire() {
   lock_path=$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH
   [ "$SHIMMY_PROFILE_REGISTRIES_PATH" = "$SHIMMY_PROFILE_ROOT/registries.conf" ] &&
@@ -230,6 +462,17 @@ shimmy_registries_lock_acquire() {
     return 1
   fi
   SHIMMY_REGISTRIES_LOCK_HELD=1
+}
+
+shimmy_registries_lock_check() {
+  lock_path=$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH
+  [ "$SHIMMY_PROFILE_REGISTRIES_PATH" = "$SHIMMY_PROFILE_ROOT/registries.conf" ] &&
+    [ "$lock_path" = "$SHIMMY_PROFILE_ROOT/.registries.lock" ] &&
+    shimmy_path_parent_chain_validate "$SHIMMY_PROFILE_ROOT" || return 1
+  if [ -e "$lock_path" ] || [ -L "$lock_path" ]; then
+    printf 'ERROR: another registry transaction holds %s; dry-run made no changes\n' "$lock_path" >&2
+    return 1
+  fi
 }
 
 shimmy_registries_lock_release() {
@@ -270,15 +513,98 @@ shimmy_registries_mutate() {
     shimmy_registries_lock_release
     return 0
   fi
+  if ! shimmy_registries_linux_active_edit_prepare; then
+    shimmy_registries_lock_release
+    return 1
+  fi
   mutation_status=0
   shimmy_registries_file_replace "$candidate_entries" || mutation_status=$?
   shimmy_registries_lock_release
   return "$mutation_status"
 }
 
+shimmy_registries_mutate_remove_all_detach() {
+  dry_run_requested=${1:-0}
+  existing_entries=$(shimmy_registries_config_entries_read "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_NAME") || {
+    printf 'ERROR: invalid managed registry redirect configuration: %s\n' "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
+    return 1
+  }
+  shimmy_registries_host_os_resolve
+  if [ "$SHIMMY_REGISTRIES_HOST_OS" != linux ]; then
+    shimmy_registries_mutate remove_all '' '' "$dry_run_requested"
+    return $?
+  fi
+
+  shimmy_registries_active_link_state_read
+  [ "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" = current ] || {
+    printf 'ERROR: registry policy is not actively linked to profile %s; refusing --detach\n' "$SHIMMY_PROFILE_NAME" >&2
+    return 1
+  }
+  shimmy_registries_override_reject || return 1
+  if [ "$dry_run_requested" -eq 1 ]; then
+    shimmy_registries_config_render "$SHIMMY_PROFILE_NAME" ''
+    printf 'would_detach=%s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK"
+    return 0
+  fi
+
+  shimmy_registries_lock_acquire || return 1
+  existing_entries=$(shimmy_registries_config_entries_read "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_NAME") || {
+    shimmy_registries_lock_release
+    return 1
+  }
+  shimmy_registries_active_link_state_read
+  [ "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" = current ] || {
+    shimmy_registries_lock_release
+    printf 'ERROR: registry policy changed before detach for profile %s\n' "$SHIMMY_PROFILE_NAME" >&2
+    return 1
+  }
+  prior_target=$(readlink "$SHIMMY_REGISTRIES_ACTIVE_LINK") || {
+    shimmy_registries_lock_release
+    return 1
+  }
+  shimmy_registries_active_link_detach || {
+    shimmy_registries_lock_release
+    return 1
+  }
+  mutation_status=0
+  if [ -n "$existing_entries" ] && ! shimmy_registries_file_replace ''; then
+    mutation_status=1
+    restore_stage=$SHIMMY_REGISTRIES_DROPIN_DIR/.shimmy-active-profile.detach-rollback.$$
+    if [ ! -e "$restore_stage" ] && [ ! -L "$restore_stage" ] &&
+      [ ! -e "$SHIMMY_REGISTRIES_ACTIVE_LINK" ] && [ ! -L "$SHIMMY_REGISTRIES_ACTIVE_LINK" ] &&
+      ln -s "$prior_target" "$restore_stage" && mv "$restore_stage" "$SHIMMY_REGISTRIES_ACTIVE_LINK"; then
+      printf '%s\n' 'ERROR: registry detach transaction failed; prior activation link restored' >&2
+    else
+      rm -f "$restore_stage"
+      printf '%s\n' 'ERROR: registry detach transaction failed and activation link rollback was incomplete' >&2
+    fi
+  fi
+  shimmy_registries_lock_release
+  return "$mutation_status"
+}
+
 shimmy_registries_policy_state_read() {
-  registry_entries=$(shimmy_registries_config_entries_read "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_NAME") || return 1
-  if [ -n "$registry_entries" ]; then
+  registry_entries=$(shimmy_registries_config_entries_read "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_NAME") || {
+    printf '%s\n' invalid
+    return 0
+  }
+  shimmy_registries_override_read
+  shimmy_registries_host_os_resolve
+  if [ "$SHIMMY_REGISTRIES_HOST_OS" = linux ]; then
+    shimmy_registries_active_link_state_read
+    case "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" in
+      absent|sibling) printf '%s\n' inactive ;;
+      current)
+        if [ "$SHIMMY_REGISTRIES_OVERRIDE" = none ] &&
+          [ "${SHIMMY_PROFILE_ENGINE_REACHABLE:-unknown}" = true ]; then
+          printf '%s\n' current
+        else
+          printf '%s\n' invalid
+        fi
+        ;;
+      *) printf '%s\n' invalid ;;
+    esac
+  elif [ -n "$registry_entries" ]; then
     printf '%s\n' prepared
   else
     printf '%s\n' inactive
@@ -286,5 +612,7 @@ shimmy_registries_policy_state_read() {
 }
 
 shimmy_registries_post_commit_validate() {
-  shimmy_registries_config_validate "$1" "$SHIMMY_PROFILE_NAME"
+  shimmy_registries_config_validate "$1" "$SHIMMY_PROFILE_NAME" || return 1
+  [ "${SHIMMY_REGISTRIES_ACTIVE_EDIT:-0}" -eq 1 ] || return 0
+  shimmy_profile_linux_engine_validate
 }

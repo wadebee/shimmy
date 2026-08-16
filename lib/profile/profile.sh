@@ -54,6 +54,7 @@ shimmy_profile_paths_resolve() {
   profile_name=$1
   shimmy_profile_name_validate "$profile_name" || return 1
 
+  SHIMMY_CONFIG_HOME=$(shimmy_config_home_resolve) || return 1
   SHIMMY_CONFIG_ROOT=$(shimmy_config_root_resolve) || return 1
   SHIMMY_PROFILES_ROOT=$SHIMMY_CONFIG_ROOT/profiles
   SHIMMY_PROFILE_NAME=$profile_name
@@ -61,6 +62,9 @@ shimmy_profile_paths_resolve() {
   SHIMMY_PROFILE_MANIFEST_PATH=$SHIMMY_PROFILE_ROOT/install-manifest.txt
   SHIMMY_PROFILE_REGISTRIES_PATH=$SHIMMY_PROFILE_ROOT/registries.conf
   SHIMMY_PROFILE_REGISTRIES_LOCK_PATH=$SHIMMY_PROFILE_ROOT/.registries.lock
+  SHIMMY_REGISTRIES_CONFIG_DIR=$SHIMMY_CONFIG_HOME/containers
+  SHIMMY_REGISTRIES_DROPIN_DIR=$SHIMMY_REGISTRIES_CONFIG_DIR/registries.conf.d
+  SHIMMY_REGISTRIES_ACTIVE_LINK=$SHIMMY_REGISTRIES_DROPIN_DIR/shimmy-active-profile.conf
   SHIMMY_PROFILE_BIN_DIR=$SHIMMY_PROFILE_ROOT/bin
   SHIMMY_PROFILE_CONFIG_DIR=$SHIMMY_PROFILE_ROOT/config
   SHIMMY_PROFILE_IMPLEMENTATION_DIR=$SHIMMY_PROFILE_ROOT/implementations
