@@ -2,17 +2,21 @@
 name: plan-review-act
 description: Investigate a software task without making changes, resolve material ambiguities, and produce a decision-complete implementation plan for review before acting. Use when the user asks to plan, design, scope, architect, migrate, refactor, create a resumable context-window-aware execution plan, or explicitly requests PLAN -> REVIEW -> ACT behavior, iterative chunks, progress checklists, human review gates, or lessons learned.
 ---
-
+ 
 # Plan, Review, Act
-
+ 
 Produce an evidence-based implementation plan and stop for review. Treat every
 review gate as authorization-sensitive: planning does not authorize changes,
 and acceptance of one chunk does not authorize later chunks.
-
+ 
 ## Respect the execution boundary
-
+ 
 - Start in `PLAN` and remain read-only.
-- Plan output should be created in a markdown document in the root of the repo under /plans folder. Name the plan with a succinct extract (40 chars or less) of the primary high-level goal.
+- Resolve the required logical input `planning-path` before creating or updating
+  the plan. The caller may provide it explicitly; otherwise resolve it
+  interactively as described in **Resolve plan identity and location**.
+- Store the plan at the canonical path
+  `<repo>/<planning-path>/<plan-slug>.md`.
 - With the exception of the plan itself, do not edit files, install dependencies, format code, create commits, mutate
   external systems, or perform destructive actions while planning.
 - Permit read-only discovery such as reading files, searching source, checking
@@ -22,8 +26,67 @@ and acceptance of one chunk does not authorize later chunks.
 - Preserve unrelated user changes and treat a dirty worktree as evidence, not
   permission to modify or discard it.
 
-## PLAN
+## Resolve plan identity and location
 
+Treat `planning-path` as a required logical input whose selected value must be
+known before writing the plan. It is a repository-relative directory path under
+`<repo>`, not an absolute filesystem path.
+
+1. If the caller explicitly provides `planning-path`, use that value.
+2. Otherwise, inspect repository guidance and established directory patterns
+   for a sensible repo-specific default. Prefer a clearly designated existing
+   planning directory when one can be inferred.
+3. Prompt the user interactively to select or confirm `planning-path`. Offer
+   the inferred repository-specific value as the default; if no reliable value
+   can be inferred, offer `plans` as the default. If a structured user-input
+   tool is available, use it; otherwise ask one concise plain-text question.
+4. Resolve the selected value under `<repo>` and reject absolute paths or paths
+   that escape the repository.
+5. If the selected directory does not exist, request explicit user permission
+   to create that exact directory. Do not create it, create the plan file, or
+   continue planning until permission is granted. Creating a different path
+   requires a new selection or confirmation.
+
+Derive `plan-slug` from a succinct extract of the primary high-level goal:
+
+- use lowercase kebab-case containing only lowercase letters, digits, and
+  single hyphens;
+- limit it to 40 characters, excluding the `.md` extension;
+- trim leading or trailing hyphens and avoid truncating in the middle of a
+  word when a shorter clear slug is available.
+
+The resulting canonical plan identity is:
+
+```text
+<repo>/<planning-path>/<lowercase-kebab-goal-max-40>.md
+```
+
+If that canonical file already exists, treat it as the candidate plan to
+resume. Read it and confirm that it represents the same objective; do not
+silently overwrite an unrelated plan. Record the selected repository-relative
+plan path in the plan so later sessions can identify it without relying on chat
+history.
+
+## Treat the plan as authoritative persistent state
+
+Once selected, the canonical plan file is the single authoritative persistent
+state for `PLAN`, `REVIEW`, `ACT`, resumptions, progress, verification results,
+and lessons learned. Chat messages summarize or request decisions; they do not
+replace the plan file.
+
+- Read the canonical plan before resuming or acting, and update that same file
+  rather than creating a second plan for the objective.
+- Record resolved decisions, review outcomes, approved scope, active chunk,
+  progress states, verification evidence and partial items, remaining risks,
+  and cumulative lessons in the canonical plan before each review gate.
+- When chat history, a handoff summary, or memory conflicts with the canonical
+  plan, stop and reconcile the discrepancy with the user before acting.
+- Change the canonical plan identity only with explicit user direction. Record
+  the old and new repository-relative paths in the moved or replacement plan
+  so resumptions can follow the transition.
+ 
+## PLAN
+ 
 1. Restate the objective, deliverables, constraints, and explicit exclusions.
 2. Read applicable `AGENTS.md`, repository guidance, and context files before
    evaluating implementation details.
@@ -35,12 +98,12 @@ and acceptance of one chunk does not authorize later chunks.
    unfamiliar facts with authoritative sources when browsing is available or
    required.
 6. Separate confirmed facts, reasonable inferences, and unresolved decisions.
-
+ 
 Do not present a plan that merely says to investigate facts that can be
 discovered safely during `PLAN`. Perform that investigation first.
-
+ 
 ## Resolve ambiguity and unresolved decisions
-
+ 
 - Make a reasonable, reversible assumption when it does not materially alter
   scope, architecture, compatibility, security, cost, or user-visible behavior.
 - Ask only when the answer cannot be discovered and different choices would
@@ -54,12 +117,12 @@ discovered safely during `PLAN`. Perform that investigation first.
 - Move resolved items into recorded design decisions. A decision-complete plan
   must retain `## Unresolved` and state `None`.
 - Stop when an unresolved decision would make the plan speculative or unsafe.
-
+ 
 ## Build the planning preamble
-
+ 
 For substantial changes, establish a stable vocabulary and target before
 describing implementation:
-
+ 
 1. Write `## Objective` with the intended outcome, success conditions, and
    explicit exclusions.
 2. Write `## Target layout and terminology` when paths, ownership, boundaries,
@@ -75,12 +138,12 @@ describing implementation:
    permission to ignore newly discovered dependencies.
 5. Write `## Risk register` when failure modes, destructive behavior,
    compatibility, or cross-component coordination materially affect execution.
-
+ 
 Omit a preamble section only when it adds no implementation value. Never omit
 `## Unresolved`.
-
+ 
 ## Choose and size implementation chunks
-
+ 
 - Keep straightforward work in one implementation unit.
 - Split substantial work into ordered chunks when context-window limits,
   dependency boundaries, atomic transitions, or human reviewability justify it.
@@ -105,144 +168,146 @@ Omit a preamble section only when it adds no implementation value. Never omit
 - Make verification items observable and acceptance-oriented. Include success,
   failure, regression, isolation, migration, and documentation checks as
   appropriate.
-
+ 
 ## Maintain the progress checklist
-
+ 
 Add a cumulative `## Progress Checklist` before the chunks. Identify the
 active chunk and use these states consistently:
-
+ 
 - `[ ]` means not started or not verified.
 - `[~]` means partially complete and requires a follow-on decision and/or notes.
 - `[x]` means complete and verified.
-
+ 
 For every `[~]` item, record what passed, what remains, why it remains, its
 risk or impact, and the proposed next action. Update the checklist before every
 review gate so a new session can resume after a transient failure without
 reconstructing status from chat history.
-
+ 
 For every chunked plan, include the following section verbatim.
-
+ 
 ## Execution protocol
-
+ 
 For every chunk:
 
 1. Read `AGENTS.md`, `CONTEXT.md`, every child context on the path to a changed
-   file, this plan, and the chunk's target files.
+   file, the canonical plan file, and the chunk's target files.
 2. Execute only that chunk's scope.
 3. Run its verification checklist and record `[x]`, `[ ]`, or `[~]` with notes.
 4. Update the cumulative **Lessons learned** block.
 5. Summarize changes, tests, failures, uncertainties, and remaining risks.
 6. Stop for human review and explicit acceptance before starting the next
    chunk.
-
+ 
 Repository paths in this plan are relative to `<repo>` so it remains portable
 across workstations and sessions.
-
+ 
 ## Preserve lessons and session handoff
-
+ 
 - Add cumulative `## Lessons learned` with an `### Initial` subsection and one
   subsection per executed chunk.
 - Record concise, durable findings that improve later chunks or future work.
   Do not duplicate fixed design decisions or retain incidental debugging logs.
 - Update lessons after verification and before the human review gate.
 - For multi-session work, add `## Session bootstrap` that tells the next agent
-  which guidance, plan sections, contexts, and target files to read; restates
-  the target and non-negotiable boundaries; identifies the active chunk; and
-  requires stopping at that chunk's human review gate.
-
+  the repository-relative canonical plan path and which guidance, plan
+  sections, contexts, and target files to read; restates the target and
+  non-negotiable boundaries; identifies the active chunk; and requires
+  stopping at that chunk's human review gate.
+ 
 ## REVIEW
-
+ 
 For substantial or chunked work, return a plan using this order:
-
+ 
 ```markdown
 # <Plan title>
-
+ 
 ## Objective
 <outcome, success conditions, and exclusions>
-
+ 
 ## Target layout and terminology
 <target state and stable definitions, when relevant>
-
+ 
 ## Recorded design decisions
 <implementation decisions that must not be reopened>
-
+ 
 ## Verified implementation inventory
 <known change surface, when relevant>
-
+ 
 ## Unresolved
 None
-
+ 
 ## Progress Checklist
 - [ ] Chunk 1 — <goal>
-
+ 
 ## Execution protocol
 <the required verbatim protocol>
-
+ 
 ## Chunk 1 — <name>
-
+ 
 ### Goal
 <atomic outcome>
-
+ 
 ### Files
 <primary change surface>
-
+ 
 ### Implementation requirements
 <decision-complete requirements>
-
+ 
 ### Verification checklist
 - [ ] <observable acceptance check>
-
+ 
 ### Human review gate
 <what the reviewer must confirm before accepting the chunk>
-
+ 
 ## Risk register
 <material risks and mitigations, when relevant>
-
+ 
 ## Lessons learned
-
+ 
 ### Initial
 <durable planning findings>
-
+ 
 ## Session bootstrap
 <instructions for a fresh implementation session>
 ```
-
+ 
 For straightforward work, keep the plan concise and unchunked while preserving
 the objective, implementation decisions, verification, unresolved status, and
 review boundary.
-
+ 
 Call out meaningful risks and tradeoffs next to the requirement they affect.
 Request approval or revisions without implying approval has already been given.
-
+ 
 ## Review completed chunks
-
+ 
 At every chunk review gate, surface the execution result directly in the
 user-facing response. Include changes, tests, failures, uncertainties,
 remaining risks, progress, and lessons learned.
-
+ 
 Add a distinct `### Partial verification items` section to the review output.
 List every verification or progress item marked `[~]`, preserving the item text
 and reporting:
-
+ 
 - what completed or passed;
 - what remains incomplete or unverified;
 - why it remains partial;
 - its impact or risk;
 - the proposed next action; and
 - whether it blocks acceptance or is proposed for explicit deferral.
-
+ 
 Do not bury `[~]` items in general notes or only record them in the plan file.
 If no item is partial, output `None`. Do not start the next chunk until the user
 explicitly accepts the current chunk, including the disposition of every
 surfaced `[~]` item.
-
+ 
 ## ACT
-
+ 
 Enter `ACT` only after the user explicitly approves implementation in a later
 message or explicitly waives the initial review gate before planning begins.
 On entry:
 
-1. Recheck applicable instructions and repository state.
+1. Recheck applicable instructions, the canonical plan file, and repository
+   state.
 2. Implement only the approved chunk or unchunked scope.
 3. Report material divergence and seek direction instead of silently changing
    the approved design.
@@ -250,5 +315,5 @@ On entry:
 5. Run the approved verification and prepare the required review output.
 6. Stop at the human review gate. Do not begin another chunk without explicit
    acceptance.
-
+ 
 If the user requested only a plan, never enter `ACT` within that request.
