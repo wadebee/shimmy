@@ -12,11 +12,10 @@ and acceptance of one chunk does not authorize later chunks.
 ## Respect the execution boundary
  
 - Start in `PLAN` and remain read-only.
-- Resolve the required logical input `planning-path` before creating or updating
-  the plan. The caller may provide it explicitly; otherwise resolve it
-  interactively as described in **Resolve plan identity and location**.
-- Store the plan at the canonical path
-  `<repo>/<planning-path>/<plan-slug>.md`.
+- Store the authoritative plan at
+  `<repo>/<planning-path>/<plan-slug>.md`, using the resolved inputs and naming
+  rules below. The plan itself is the only repository artifact that may be
+  created or edited during `PLAN`.
 - With the exception of the plan itself, do not edit files, install dependencies, format code, create commits, mutate
   external systems, or perform destructive actions while planning.
 - Permit read-only discovery such as reading files, searching source, checking
@@ -26,64 +25,109 @@ and acceptance of one chunk does not authorize later chunks.
 - Preserve unrelated user changes and treat a dirty worktree as evidence, not
   permission to modify or discard it.
 
-## Resolve plan identity and location
+## Inputs
 
-Treat `planning-path` as a required logical input whose selected value must be
-known before writing the plan. It is a repository-relative directory path under
-`<repo>`, not an absolute filesystem path.
+This skill accepts logical inputs through the user's request, interactive
+resolution, and repository context. These are not CLI arguments.
 
-1. If the caller explicitly provides `planning-path`, use that value.
-2. Otherwise, inspect repository guidance and established directory patterns
-   for a sensible repo-specific default. Prefer a clearly designated existing
-   planning directory when one can be inferred.
-3. Prompt the user interactively to select or confirm `planning-path`. Offer
-   the inferred repository-specific value as the default; if no reliable value
-   can be inferred, offer `plans` as the default. If a structured user-input
-   tool is available, use it; otherwise ask one concise plain-text question.
-4. Resolve the selected value under `<repo>` and reject absolute paths or paths
-   that escape the repository.
-5. If the selected directory does not exist, request explicit user permission
-   to create that exact directory. Do not create it, create the plan file, or
-   continue planning until permission is granted. Creating a different path
-   requires a new selection or confirmation.
+### Required logical inputs
 
-Derive `plan-slug` from a succinct extract of the primary high-level goal:
+- `objective` — the software change, investigation, migration, refactor,
+  architecture decision, or implementation outcome to plan. The resolved
+  objective determines the default plan title and filename.
 
-- use lowercase kebab-case containing only lowercase letters, digits, and
-  single hyphens;
-- limit it to 40 characters, excluding the `.md` extension;
-- trim leading or trailing hyphens and avoid truncating in the middle of a
-  word when a shorter clear slug is available.
+- `planning-path` — the repository-relative directory in which planning
+  artifacts are stored.
 
-The resulting canonical plan identity is:
+Resolve `objective` in this order:
 
-```text
-<repo>/<planning-path>/<lowercase-kebab-goal-max-40>.md
-```
+1. Infer a concise objective from the prompt that launched the skill.
+2. Prompt the user to confirm or replace it, offering the inferred objective as
+   the recommended default.
+3. Do not create or select the plan file until the objective is confirmed.
 
-If that canonical file already exists, treat it as the candidate plan to
-resume. Read it and confirm that it represents the same objective; do not
-silently overwrite an unrelated plan. Record the selected repository-relative
-plan path in the plan so later sessions can identify it without relying on chat
-history.
+Resolve `planning-path` in this order:
 
-## Treat the plan as authoritative persistent state
+1. Use an explicitly supplied value when present.
+2. Otherwise infer an established repository convention from applicable
+   instructions and existing planning artifacts.
+3. Prompt the user to confirm or replace the path, offering the inferred path
+   as the recommended default; if no convention can be inferred, offer `plans`.
+4. Require a repository-relative path that remains within `<repo>`.
+5. If the selected directory does not exist, obtain explicit permission before
+   creating it.
 
-Once selected, the canonical plan file is the single authoritative persistent
-state for `PLAN`, `REVIEW`, `ACT`, resumptions, progress, verification results,
-and lessons learned. Chat messages summarize or request decisions; they do not
-replace the plan file.
+When a structured user-input tool is available, resolve missing or unconfirmed
+required inputs in no more than three short questions. Otherwise ask concise
+plain-text questions. A required logical input may be resolved through explicit
+user input, repository evidence, and interactive confirmation, but every
+required input must be confirmed before the plan artifact is created or
+updated.
 
-- Read the canonical plan before resuming or acting, and update that same file
-  rather than creating a second plan for the objective.
-- Record resolved decisions, review outcomes, approved scope, active chunk,
-  progress states, verification evidence and partial items, remaining risks,
-  and cumulative lessons in the canonical plan before each review gate.
-- When chat history, a handoff summary, or memory conflicts with the canonical
-  plan, stop and reconcile the discrepancy with the user before acting.
-- Change the canonical plan identity only with explicit user direction. Record
-  the old and new repository-relative paths in the moved or replacement plan
-  so resumptions can follow the transition.
+### Discovered inputs
+
+Discover these during `PLAN` rather than requiring the user to supply them:
+
+- `repo-root`
+- applicable `AGENTS.md`, `CONTEXT.md`, and repository-local instructions
+- relevant source, tests, configuration, documentation, and generated artifacts
+- ownership, lifecycle, compatibility, and migration boundaries
+- existing plans associated with the objective
+
+### Optional inputs
+
+The user may provide:
+
+- an explicit plan filename or existing plan file to resume
+- inclusions or exclusions
+- compatibility or migration constraints
+- implementation boundaries
+- required or prohibited technologies
+- desired chunking or review constraints
+
+Do not ask the user for information that can be safely and reliably discovered
+during `PLAN`, except for the required confirmation of `objective` and
+`planning-path`.
+
+## Outputs
+
+The primary output is one authoritative Markdown plan stored at:
+
+`<repo>/<planning-path>/<plan-slug>.md`
+
+Unless the user supplies an explicit filename, derive `plan-slug` from the
+confirmed `objective` using these rules:
+
+- lowercase kebab-case
+- `.md` extension
+- no more than 40 characters excluding `.md`
+- concise and stable across sessions
+- descriptive enough to distinguish the objective from unrelated plans
+
+Before creating a plan, inspect the resolved planning directory for an existing
+plan that unambiguously represents the same objective:
+
+- Resume and update it when it is clearly authoritative.
+- Ask the user when multiple plausible plans exist.
+- If the target filename belongs to a different objective, ask the user to
+  choose a different filename or explicitly authorize replacement.
+- Never silently overwrite or replace an existing plan.
+
+The plan document is the persistent source of truth for:
+
+- objective, scope, exclusions, and success conditions
+- recorded design decisions and unresolved items
+- implementation chunks and verification requirements
+- progress state and partial verification notes
+- risks, lessons learned, and session handoff
+- review gates and implementation authorization boundaries
+
+The user-facing `REVIEW` response must identify the authoritative plan path,
+summarize the proposed implementation and material decisions, surface unresolved
+decisions, risks, and tradeoffs, and request approval or revisions without
+implying that implementation has been authorized.
+
+Chat history may supplement the plan but must not be required to resume it.
  
 ## PLAN
  
@@ -188,9 +232,9 @@ For every chunked plan, include the following section verbatim.
 ## Execution protocol
  
 For every chunk:
-
+ 
 1. Read `AGENTS.md`, `CONTEXT.md`, every child context on the path to a changed
-   file, the canonical plan file, and the chunk's target files.
+   file, this plan, and the chunk's target files.
 2. Execute only that chunk's scope.
 3. Run its verification checklist and record `[x]`, `[ ]`, or `[~]` with notes.
 4. Update the cumulative **Lessons learned** block.
@@ -209,11 +253,43 @@ across workstations and sessions.
   Do not duplicate fixed design decisions or retain incidental debugging logs.
 - Update lessons after verification and before the human review gate.
 - For multi-session work, add `## Session bootstrap` that tells the next agent
-  the repository-relative canonical plan path and which guidance, plan
-  sections, contexts, and target files to read; restates the target and
-  non-negotiable boundaries; identifies the active chunk; and requires
-  stopping at that chunk's human review gate.
- 
+  which guidance, plan sections, contexts, and target files to read; restates
+  the target and non-negotiable boundaries; identifies the active chunk; and
+  requires stopping at that chunk's human review gate.
+
+## Plan self-check
+
+Before presenting a plan for `REVIEW`, verify it against this checklist. Correct
+discoverable deficiencies before asking the user to review it.
+
+- [ ] The `objective` and `planning-path` were confirmed by the user.
+- [ ] The authoritative plan path is repository-relative, remains within
+      `<repo>`, and is explicit and unambiguous.
+- [ ] The filename follows the canonical naming rules unless the user explicitly
+      overrode it.
+- [ ] An existing authoritative plan was resumed, or filename collisions were
+      resolved without silent replacement.
+- [ ] Applicable repository and path-specific instructions were read.
+- [ ] The objective states the outcome, success conditions, and exclusions.
+- [ ] Confirmed facts, reasonable inferences, and decisions are not conflated.
+- [ ] Material decisions are resolved or recorded under `## Unresolved`.
+- [ ] `## Unresolved` exists and says `None` when the plan is decision-complete.
+- [ ] Affected producers, consumers, interfaces, tests, documentation, generated
+      artifacts, and lifecycle boundaries were investigated as applicable.
+- [ ] Each implementation requirement is specific enough for a fresh session to
+      execute without reopening settled design decisions.
+- [ ] Every chunk leaves the repository coherent at its review gate.
+- [ ] Verification checks are observable and cover relevant success, failure,
+      regression, migration, isolation, and documentation behavior.
+- [ ] Risks and partial states include their impact and proposed handling.
+- [ ] The progress checklist, lessons learned, and session bootstrap are present
+      when required.
+- [ ] The plan does not implicitly authorize implementation or later chunks.
+
+Do not present a plan as decision-complete if any applicable self-check item
+fails. Resolve the deficiency during `PLAN`, or record the blocking decision
+under `## Unresolved` and stop for user input.
+
 ## REVIEW
  
 For substantial or chunked work, return a plan using this order:
@@ -305,9 +381,8 @@ surfaced `[~]` item.
 Enter `ACT` only after the user explicitly approves implementation in a later
 message or explicitly waives the initial review gate before planning begins.
 On entry:
-
-1. Recheck applicable instructions, the canonical plan file, and repository
-   state.
+ 
+1. Recheck applicable instructions and repository state.
 2. Implement only the approved chunk or unchunked scope.
 3. Report material divergence and seek direction instead of silently changing
    the approved design.
@@ -317,3 +392,4 @@ On entry:
    acceptance.
  
 If the user requested only a plan, never enter `ACT` within that request.
+ 
