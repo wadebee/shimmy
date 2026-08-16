@@ -8,7 +8,9 @@
   default and require a valid, current Darwin registry projection whose VM
   link, rootless-visible fingerprint, and local record match the authoritative
   profile config. Registry and connection overrides fail closed. Source
-  previews retain their behavior.
+  previews retain their behavior. Successful Darwin registry affinity leaves
+  current-state evidence for the shared registry-client mount resolver so a
+  Skopeo run does not repeat remote projection inspection.
 - `image.sh` validates version-owned `image.conf` metadata, supplies configured
   external defaults and local base-image build arguments, hashes complete local
   image inputs, and removes stale tagged images after a version-owned rebuild.

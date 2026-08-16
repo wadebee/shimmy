@@ -77,6 +77,14 @@ arguments are part of cache identity, so an override selects a distinct cache
 without requiring `IMAGE_BUILD=always`; that option remains available for an
 explicit rebuild.
 
+For corporate, proxy, or air-gapped use, configure a strict profile redirect
+for `registry.redhat.io` and activate or restart that profile. Shimmy uses a
+replacement `location`, not a fallback-capable mirror: an unavailable physical
+endpoint or missing digest fails without contacting the public registry.
+Redirects do not install Red Hat signatures, registry credentials, corporate
+CA trust, or `policy.json`; copy images and signatures together and configure
+those trust inputs separately before relying on the local build.
+
 Runtime behavior for each versioned shim:
 
 - Uses Shimmy's shared Podman helper to select the native `linux/amd64` or

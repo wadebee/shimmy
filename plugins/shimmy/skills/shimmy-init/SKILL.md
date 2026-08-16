@@ -69,6 +69,10 @@ scripting-language approval.
      containers will resume during rollback.
 7. Verify the result:
    - Run `"$profile_root/bin/shimmy" profile status` and `podman info`.
+   - If registry redirects are configured, require status to report current
+     policy. Use the exact printed `profile activate --restart` command for a
+     stale Darwin projection; do not let Skopeo silently omit a prepared or
+     stale policy.
    - If direct Podman access succeeds but a wrapper remains sandbox-blocked,
      delegate its exact non-mutating smoke approval to `shimmy-escalation`.
    - For a tool call in a separate AI Agent command, invoke the absolute

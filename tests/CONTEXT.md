@@ -20,6 +20,9 @@ roots. They validate strict parsing, deterministic rendering, locking, Linux
 link ownership, Darwin same-path projection/link/record seams, fingerprint
 freshness, restart requirements, transaction rollback, detach, and
 install/uninstall preservation without contacting a registry or host engine.
+Skopeo previews additionally prove exact read-only client mounting for the
+active invoking profile, omission with no activation, and fail-closed sibling
+or masking state.
 
 Installation scenarios isolate state with absolute disposable `HOME` and
 `XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or

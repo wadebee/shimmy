@@ -29,8 +29,15 @@ creation and global default selection follow it. Rollback covers link and
 record state. Stale running policy requires explicit restart. Detach accepts
 only exact owned state or a valid record with a machine proven absent; stopped,
 unreachable, foreign, and damaged state fails without mutation. Uninstall
-refuses any retained valid record. Tool-container policy mounting remains
-unimplemented.
+refuses any retained valid record.
+
+The registry-client resolver recognizes only canonical materialized profiles.
+It omits a mount when no Shimmy activation exists, returns the invoking
+profile's authoritative config for current Linux or Darwin state, and fails
+closed on sibling, damaged, unsafe, stale, or registry-overridden state.
+Skopeo is the only initial consumer and mounts the result read-only at the
+same fixed container drop-in path; image verification inherits that behavior
+through its existing Skopeo runtime.
 
 ## Parent context
 

@@ -96,6 +96,10 @@ activate --restart` command. Detach with `profile redirect remove --all
 --detach` before uninstalling a projected profile.
 On Linux it validates the current user's local rootless engine without managing
 a VM. Sourcing `shell-init.sh` is PATH-only and never activates an engine.
+When Skopeo is installed, it mounts only the valid current invoking profile's
+registry policy read-only; `shimmy images verify` inherits that policy.
+Profiles with no activation omit the mount, while mismatched, damaged, stale,
+unsafe, or registry-overridden installed state fails closed.
 
 ## Implementation routing
 

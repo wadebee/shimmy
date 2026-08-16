@@ -52,6 +52,9 @@ The authoritative Shimmy control-plane skills are under
 - Mount `$PWD` to `/work` unless the shim has a documented reason not to.
 - Use `SHIMMY_{TOOL_PREFIX}_IMAGE` for image override and `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` for pull policy.
 - Use Shimmy's shared Podman helper for runtime platform selection instead of hardcoding per-shim OS or architecture checks.
+- Treat registry redirect mounting as an explicit client capability. Skopeo is
+  the only initial tool-container consumer; `shimmy images verify` inherits it
+  through Skopeo, while other runtimes remain unchanged.
 - Any Shimmy-defined user-facing environment variable must use the `SHIMMY_` prefix, including image overrides, pull or build flags, opt-in behavior switches, and secret-name selectors.
 - Update shim helper code, install script, tests, and README together when behavior changes.
 - Treat Podman as an explicit dependency. Do not add Shimmy-side installation or provisioning steps for it.

@@ -7,9 +7,11 @@ test_commands_skills_activation_guidance_assert() {
   assert_file_contains "$skills_root/shimmy-init/SKILL.md" 'separate explicit user confirmation'
   assert_file_contains "$skills_root/shimmy-init/SKILL.md" 'podman machine init shimmy-<profile>'
   assert_file_contains "$skills_root/shimmy-init/SKILL.md" 'Do not provision, delete, rename, or adopt a machine.'
+  assert_file_contains "$skills_root/shimmy-init/SKILL.md" 'require status to report current'
   assert_file_contains "$skills_root/shimmy-install/SKILL.md" 'exact absolute `bin/shimmy profile activate` command'
   assert_file_contains "$skills_root/shimmy-install/SKILL.md" 'separate explicit confirmation'
   assert_file_contains "$skills_root/shimmy-install/SKILL.md" 'podman machine init'
+  assert_file_contains "$skills_root/shimmy-install/SKILL.md" '`shimmy images verify` mount only a valid current'
   assert_file_contains "$skills_root/shimmy-escalation/SKILL.md" 'delegate remediation to'
   assert_file_contains "$skills_root/shimmy-escalation/SKILL.md" 'exact outer-wrapper'
   assert_file_contains "$skills_root/shimmy-tool-jq/SKILL.md" '"$profile_root/bin/shimmy" profile activate --dry-run'
@@ -154,6 +156,8 @@ shimmy-tool-local-build'
   assert_path_not_exists "$export_root/shimmy-tool-task/tests"
   assert_path_not_exists "$export_root/shimmy-tool-task/versions"
   test_commands_skills_activation_guidance_assert "$export_root"
+  assert_file_contains "$export_root/shimmy-tool-skopeo/SKILL.md" 'strict redirect policy read-only'
+  assert_file_contains "$export_root/shimmy-tool-oc/SKILL.md" 'replacement location has no configured upstream fallback'
   assert_file_contains "$export_root/shimmy-tool-task/SKILL.md" 'never print its value'
 
   export_archive=$SCENARIO_DIR/exported-skills.zip

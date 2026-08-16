@@ -139,6 +139,10 @@ Installed use defaults to concrete versions recorded in the current profile.
 Direct source-checkout use requires `--all` or at least one `--shim`.
 Authenticated verification uses the Skopeo runtime's configured
 `SHIMMY_SKOPEO_AUTH_SECRET`.
+The same Skopeo runtime mounts a valid current invoking-profile registry policy
+read-only, so verification inherits strict redirects without rewriting its
+logical image references. Valid no-activation state omits the mount; invalid,
+mismatched, stale, unsafe, or masking state fails closed.
 
 Examples:
 

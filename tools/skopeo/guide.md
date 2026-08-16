@@ -41,6 +41,11 @@ Environment:
 Mounts:
 
 - `$PWD` -> `/work` read-write.
+- The active invoking profile's valid, current `registries.conf` ->
+  `/etc/containers/registries.conf.d/shimmy-profile.conf` read-only. A valid
+  profile with no Shimmy activation omits this mount; mismatched, damaged,
+  stale, unsafe, connection-overridden, or registry-overridden installed state
+  fails closed.
 - `SHIMMY_SKOPEO_AUTH_SECRET` -> `/run/secrets/skopeo-auth.json` read-only when set.
 
 Forwarded environment:
@@ -63,6 +68,16 @@ rm "$auth_tmp"
 SHIMMY_SKOPEO_AUTH_SECRET=registry-example-auth \
   skopeo inspect docker://registry.example.com/project/image:tag
 ```
+
+Registry redirects use containers/image `prefix`/replacement `location`
+semantics. The logical `docker://` reference remains unchanged and there is no
+configured upstream fallback. `shimmy images verify` uses this same runtime,
+so it inherits the active profile policy automatically.
+
+The policy mount does not provide credentials, install a corporate CA, or
+change signature policy. Keep using the explicit auth secret above. Private CA
+trust must already exist in the selected Skopeo image; Shimmy does not mount
+host trust directories or weaken TLS verification.
 
 Runtime platform:
 

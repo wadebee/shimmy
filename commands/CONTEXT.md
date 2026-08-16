@@ -31,6 +31,8 @@ reusable behavior belongs in `../lib/`.
   source, generation provenance, schema, fingerprint, and health;
 - `images.sh` provides explicit, non-mutating remote index and upstream-drift
   verification through catalog-default profile-local Skopeo and jq runtimes;
+  the Skopeo runtime inherits a valid current invoking-profile redirect mount
+  without changing the logical references supplied by image verification;
   `update.sh`, `skills.sh`, and `netinfo.sh` retain their corresponding public
   capabilities.
 

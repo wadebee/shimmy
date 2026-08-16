@@ -88,6 +88,13 @@ shimmy images verify --all --public-only
 SHIMMY_SKOPEO_AUTH_SECRET=registry-auth shimmy images verify --all
 ```
 
+For an installed active profile, the Skopeo runtime mounts that profile's
+strict registry policy read-only, so `images verify` inherits redirects without
+changing logical image references. Skopeo is the only initial tool-container
+opt-in. The mount supplies neither credentials nor private CA or signature
+trust; configure those separately. No activation omits the mount, while
+mismatched, damaged, stale, unsafe, or registry-overridden state fails closed.
+
 For tools that do not ship a usable upstream image, Shimmy builds and caches a
 local image from a checked-in `Containerfile` context. The local image tag is
 derived from the complete context, exact image configuration, ordered effective

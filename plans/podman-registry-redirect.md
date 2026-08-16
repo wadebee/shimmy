@@ -543,8 +543,8 @@ None.
 - [x] Chunk 2 — Agent workflows and canonical activation guidance accepted after automated verification and human review
 - [x] Chunk 3 — Profile registry files, strict redirect CRUD, and profile transaction support accepted after automated verification and human review
 - [x] Chunk 4 — Linux registry activation accepted 2026-08-15 with explicit user deferral of native rootless Linux route acceptance
-- [~] Chunk 5 — Darwin projection/cache lifecycle implemented; automated verification and native ownership/restart/switch/detach acceptance complete, physical digest route acceptance pending
-- [ ] Chunk 6 — Integrate Skopeo and complete cross-surface registry verification (blocked on accepted Chunk 5)
+- [x] Chunk 5 — Darwin projection/cache lifecycle accepted 2026-08-15 with explicit user deferral of physical digest routing/no-fallback and disposable live uninstall evidence
+- [~] Chunk 6 — Skopeo integration and final consistency implemented and automatically verified 2026-08-15; native physical digest route acceptance remains pending at the final human review gate
 
 ## Execution protocol
 
@@ -1158,6 +1158,12 @@ Reviewers must confirm VM path ownership, projection timing, cache-freshness
 evidence, restart/workload behavior, rollback, and detach-before-uninstall.
 Stop before Chunk 6.
 
+Accepted 2026-08-15 after automated verification, native macOS
+ownership/restart/switch/detach acceptance, and human review. The user
+explicitly deferred physical digest routing/no-fallback and disposable live
+uninstall evidence; both remain release follow-ups with their evidence and
+impact recorded above.
+
 ## Chunk 6 — Registry client integration and final consistency
 
 ### Goal
@@ -1228,26 +1234,50 @@ Expected unchanged surfaces that must be checked:
 
 ### Verification checklist
 
-- [ ] Resolver returns the exact mount only for active, valid, current profile
+- [x] Resolver returns the exact mount only for active, valid, current profile
   state; valid no-activation omits it; every mismatch/damaged/stale/overridden
   state fails closed.
-- [ ] Skopeo previews contain the exact read-only mount and preserve every
+- [x] Skopeo previews contain the exact read-only mount and preserve every
   existing argv/auth behavior; non-Skopeo previews are unchanged.
-- [ ] `images verify` inherits the Skopeo policy without changes to logical
+- [x] `images verify` inherits the Skopeo policy without changes to logical
   references or verification code.
-- [ ] Canonical skills/docs consistently distinguish activation, provisioning,
+- [x] Canonical skills/docs consistently distinguish activation, provisioning,
   redirects, cache restart, auth/trust, signature policy, and fallback mirrors;
   generated `.agents/skills/` copies remain unchanged.
-- [ ] Full install/update/rollback/profile-uninstall/global-uninstall, sibling
+- [x] Full install/update/rollback/profile-uninstall/global-uninstall, sibling
   isolation, catalog, skill export, source-loss runtime, context, syntax, and
   `./tests/test.sh` coverage passes.
-- [ ] Dedicated Linux acceptance proves Podman, direct Skopeo, and `images
+- [~] Dedicated Linux acceptance proves Podman, direct Skopeo, and `images
   verify` route to the physical digest endpoint with no public fallback, then
   detach cleanly.
-- [ ] Dedicated macOS acceptance proves the same clients use each machine's
+
+  Disposable automated coverage proves the exact read-only Skopeo mount,
+  no-activation omission, invoking-profile isolation, masking-variable
+  refusal/redaction, unsafe-path and damaged-policy refusal, unchanged logical
+  references, and inheritance through the unchanged `images verify` Skopeo
+  call path. No native Linux host or physical digest endpoint was available in
+  this implementation session. The remaining risk is upstream
+  containers/image route and no-fallback behavior on a native rootless Linux
+  host. Run the dedicated endpoint scenario before release. This item requires
+  explicit deferral to accept finalization without that native evidence.
+
+- [~] Dedicated macOS acceptance proves the same clients use each machine's
   owning profile policy, restart after active edits, switch both directions,
   and preserve detach/uninstall boundaries. Record unavailable infrastructure
   as `[~]` with impact and proposed disposition.
+
+  Chunk 5 native acceptance already proves owning-profile machine projection,
+  restart freshness, bidirectional switching, isolation, exact detach, and
+  uninstall refusal. Chunk 6 automated coverage proves the Skopeo resolver and
+  mount contract, auth behavior, failure states, and unchanged client argv.
+  No physical digest endpoint was available, and the pre-provisioned Darwin
+  machines returned to stopped state after agent-scoped activation, so live
+  direct-Skopeo/`images verify` route and no-fallback evidence was not added.
+  The remaining risk is limited to native containers/image consumption of the
+  verified mount, not ownership, transaction, cache, or command composition.
+  Run the dedicated endpoint scenario on both profiles before release. This
+  item requires explicit deferral to accept finalization without that native
+  evidence.
 
 ### Human review gate
 
@@ -1255,6 +1285,9 @@ Reviewers must confirm the fail-closed client resolver, Skopeo-only initial
 scope, no logical-reference changes, auth/trust boundaries, terminology
 consistency, and disposition of every live acceptance item. Stop after this
 review; there is no later chunk.
+
+Implemented and automatically verified 2026-08-15. Final human review remains
+pending for the two explicitly surfaced native route items above.
 
 ## Risk register
 
@@ -1446,6 +1479,31 @@ review; there is no later chunk.
   record, and registry overrides in addition to the global connection. A
   connection match alone can otherwise run through a stale engine cache.
 
+### Chunk 6 implementation
+
+- Registry-client policy is safest as a shared state resolver with one narrow
+  consumer. Skopeo can mount an exact current policy while every other runtime
+  remains unchanged and source-checkout previews remain unbound.
+- A client mount must classify absence separately from invalid state. No
+  activation may omit policy, but sibling activation, malformed config,
+  unsafe paths, stale Darwin projection, and connection or registry overrides
+  must fail closed without exposing override values.
+- Darwin runtime affinity already performs the expensive VM link, rootless
+  fingerprint, and record validation. Retaining current-state evidence in the
+  same process lets the Skopeo resolver reuse that proof instead of repeating
+  remote inspection.
+- Policy, authentication, CA trust, and signature policy are independent
+  inputs. Mounting `registries.conf` must preserve Skopeo's explicit auth
+  secret and cannot imply that private trust material or signature rules were
+  installed.
+- `images verify` needed no mapper or command change: its existing
+  profile-local Skopeo runtime is the correct inheritance boundary. Unchanged
+  logical references keep digest identity and longest-prefix resolution in
+  containers/image.
+- Full automated composition and failure-state coverage cannot substitute for
+  a physical digest endpoint. Native direct-client and no-fallback routing
+  remain distinct release evidence on Linux and Darwin.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -1456,14 +1514,15 @@ For a fresh implementation session:
 2. Recheck the worktree and preserve the unrelated untracked
    `plans/registry-image-remap.md`. Treat the verified inventory as a baseline
    and add newly discovered dependencies without reopening recorded decisions.
-3. Resume Chunk 5 at its human review gate. Chunk 4 was accepted with explicit
-   deferral of native rootless Linux route evidence. Chunk 5 implementation,
-   automated verification, and native macOS ownership/restart/switch/detach
-   acceptance are complete; physical digest routing/no-fallback evidence and a
-   disposable live uninstall remain `[~]`. Do not begin Chunk 6 until the
-   reviewer explicitly accepts those deferrals or the scenarios pass.
-4. Continue only after each preceding review gate is explicitly accepted. The
-   remaining non-negotiable boundaries are:
+3. Resume Chunk 6 at its final human review gate. Chunks 1 through 5 are
+   accepted. Chunk 4 retains the explicit native rootless Linux route
+   deferral, and Chunk 5 retains the explicit physical digest routing/no-
+   fallback plus disposable live-uninstall deferrals. Chunk 6 implementation
+   and all 144 automated tests are complete; its native Linux and macOS
+   physical digest route/no-fallback items remain `[~]` and require explicit
+   deferral or new evidence before final acceptance.
+4. There is no later implementation chunk. The retained non-negotiable
+   boundaries are:
    - Chunk 2: exact profile-local agent approval, no machine provisioning, and
      no generated-adapter mutation.
    - Chunk 3: strict `prefix`/`location`, no mirrors or Shimmy mapper, atomic
@@ -1474,7 +1533,7 @@ For a fresh implementation session:
      cache restart, and detach before uninstall.
    - Chunk 6: Skopeo-only initial client mount, unchanged logical references,
      and no auth, CA, or signature-policy management.
-5. Implement and verify only the active chunk, update its checklist and Lessons
-   learned, and stop at its human review gate. Surface every `[~]` item with
-   completed evidence, remaining gap, impact, next action, and whether
-   acceptance requires explicit deferral.
+5. Do not reopen implementation unless review identifies a defect. Surface
+   every `[~]` item with completed evidence, remaining gap, impact, next action,
+   and whether acceptance requires explicit deferral. After explicit final
+   acceptance, mark Chunk 6 complete and record the acceptance datestamp.

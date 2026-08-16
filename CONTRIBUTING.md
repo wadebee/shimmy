@@ -169,6 +169,12 @@ Do not make remote registry checks part of the default offline suite. A
 scheduled verifier requires a separately reviewed runner and credential
 design.
 
+`shimmy images verify` uses the profile-local Skopeo runtime and therefore
+inherits a valid current invoking-profile registry redirect mount. Skopeo is
+the only initial tool-container opt-in. Keep logical image references
+unchanged, preserve explicit auth-secret handling, and do not infer that other
+tool containers receive registry policy.
+
 ## Naming Conventions
 
 Use these naming conventions for files, functions, and variables unless a stronger repo-specific rule already exists.

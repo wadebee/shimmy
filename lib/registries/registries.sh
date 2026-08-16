@@ -590,6 +590,104 @@ EOF
   printf '%s\n' "$candidate_entries"
 }
 
+shimmy_registries_client_mount_fail() {
+  client_mount_reason=$1
+  printf 'ERROR: registry client policy is unavailable for installed Shimmy profile %s: %s\n' \
+    "${SHIMMY_PROFILE_NAME:-unknown}" "$client_mount_reason" >&2
+  return 1
+}
+
+shimmy_registries_client_mount_resolve() {
+  [ -n "${SHIMMY_RUNTIME_DIR:-}" ] || return 0
+  client_profile_root=$(cd -- "$SHIMMY_RUNTIME_DIR/../.." 2>/dev/null && pwd -P) || return 0
+  client_profile_name=$(basename -- "$client_profile_root")
+  case "$client_profile_name" in default|upstream) ;; *) return 0 ;; esac
+
+  shimmy_profile_paths_resolve "$client_profile_name" || {
+    shimmy_registries_client_mount_fail 'profile paths are invalid'
+    return 1
+  }
+  [ "$client_profile_root" = "$SHIMMY_PROFILE_ROOT" ] || return 0
+  shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$client_profile_name" || {
+    shimmy_registries_client_mount_fail 'profile manifest is invalid'
+    return 1
+  }
+  shimmy_path_parent_chain_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" || {
+    shimmy_registries_client_mount_fail 'registry configuration path is unsafe'
+    return 1
+  }
+  case "$SHIMMY_PROFILE_REGISTRIES_PATH" in
+    *:*)
+      shimmy_registries_client_mount_fail 'registry configuration path cannot be represented as a Podman volume'
+      return 1
+      ;;
+  esac
+  shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$client_profile_name" || {
+    shimmy_registries_client_mount_fail 'registry configuration is invalid'
+    return 1
+  }
+  shimmy_registries_override_read
+  [ "$SHIMMY_REGISTRIES_OVERRIDE" = none ] || {
+    shimmy_registries_client_mount_fail "$SHIMMY_REGISTRIES_OVERRIDE masks registry client policy (value hidden)"
+    return 1
+  }
+  if [ -n "${CONTAINER_CONNECTION:-}" ]; then
+    shimmy_registries_client_mount_fail 'CONTAINER_CONNECTION masks the active profile engine (value hidden)'
+    return 1
+  fi
+  if [ -n "${CONTAINER_HOST:-}" ]; then
+    shimmy_registries_client_mount_fail 'CONTAINER_HOST masks the active profile engine (value hidden)'
+    return 1
+  fi
+
+  shimmy_registries_host_os_resolve
+  case "$SHIMMY_REGISTRIES_HOST_OS" in
+    linux)
+      shimmy_registries_active_link_state_read
+      case "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" in
+        absent) return 0 ;;
+        current) ;;
+        sibling)
+          shimmy_registries_client_mount_fail "active registry policy belongs to profile $SHIMMY_REGISTRIES_ACTIVE_PROFILE"
+          return 1
+          ;;
+        *)
+          shimmy_registries_client_mount_fail 'active registry policy path is invalid or unsafe'
+          return 1
+          ;;
+      esac
+      ;;
+    darwin)
+      shimmy_registries_machine_projection_record_read
+      case "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" in
+        absent) return 0 ;;
+        valid) ;;
+        *)
+          shimmy_registries_client_mount_fail 'machine projection record is invalid'
+          return 1
+          ;;
+      esac
+      if [ "${SHIMMY_PODMAN_PROFILE_REGISTRY_AFFINITY:-}" != "$client_profile_name:current" ]; then
+        command -v shimmy_podman_profile_affinity_require >/dev/null 2>&1 || {
+          shimmy_registries_client_mount_fail 'active machine projection cannot be verified'
+          return 1
+        }
+        shimmy_podman_profile_affinity_require || return 1
+      fi
+      [ "${SHIMMY_PODMAN_PROFILE_REGISTRY_AFFINITY:-}" = "$client_profile_name:current" ] || {
+        shimmy_registries_client_mount_fail 'machine projection is not current'
+        return 1
+      }
+      ;;
+    *)
+      shimmy_registries_client_mount_fail 'host operating system is unsupported'
+      return 1
+      ;;
+  esac
+
+  printf '%s:%s:ro\n' "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK"
+}
+
 shimmy_registries_config_entries_read() {
   config_file=$1
   profile_name=$2

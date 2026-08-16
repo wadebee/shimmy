@@ -214,6 +214,7 @@ shimmy_podman_profile_registry_affinity_require() {
     shimmy_podman_profile_affinity_fail "$affinity_profile" "$affinity_profile_root" "registry projection is $SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE"
     return 1
   }
+  SHIMMY_PODMAN_PROFILE_REGISTRY_AFFINITY=$affinity_profile:current
 }
 
 shimmy_podman_is_preview() {

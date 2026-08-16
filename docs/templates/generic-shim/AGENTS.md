@@ -18,3 +18,6 @@ This template describes one Shimmy tool directory.
 - Use the shared image and Podman helpers. Audit architecture-specific
   artifacts, run the explicit image verifier, and require native smokes on
   Linux `amd64` and Apple Silicon macOS `arm64`.
+- Do not assume arbitrary tool containers inherit profile registry redirects.
+  Skopeo is the initial explicit policy-mount consumer; adding another client
+  requires separate runtime, failure-state, trust-boundary, and route tests.

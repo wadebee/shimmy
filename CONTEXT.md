@@ -55,6 +55,9 @@ version assets. Canonical skills remain catalog-owned.
   `shimmy-upstream` rootless engines; activation is workload-guarded and
   commits the global default connection last. Stale policy requires explicit
   restart, and uninstall refuses a retained projection record until detach.
+- Skopeo alone mounts a valid current invoking-profile registry policy
+  read-only; no activation omits it, invalid state fails closed, and image
+  verification inherits the mount without rewriting logical references.
 
 ## Child contexts
 

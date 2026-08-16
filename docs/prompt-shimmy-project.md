@@ -40,6 +40,9 @@ change. Tool and management-plugin directories do not own context files.
   build inputs, and derive cache identity. Do not duplicate repository-owned
   defaults in runtime shell or Containerfiles.
 - Do not install or provision Podman from Shimmy.
+- Treat profile registry policy as an explicit client capability. Skopeo is
+  the initial read-only mount consumer and `images verify` inherits it; do not
+  add policy mounts to other tools without focused review and tests.
 
 ## Tool additions
 

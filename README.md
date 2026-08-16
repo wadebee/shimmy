@@ -123,8 +123,12 @@ as the rootless VM user, and records its fingerprint locally. Active edits do
 not restart the machine; they print the exact profile-local `profile activate
 --restart` command. `remove --all --detach` removes only the invoking profile's
 recognized Linux link or Darwin link/record. Uninstall refuses an attached
-Darwin record. Tool containers do not yet inherit an explicit policy mount.
-Redirects use replacement `location` with no configured mirror fallback. See
+Darwin record. Skopeo is the only initial tool-container opt-in: a current
+invoking profile mounts its authoritative file read-only, and `shimmy images
+verify` inherits that policy without changing logical references. Profiles
+with no activation omit the mount; mismatched, damaged, stale, unsafe, or
+connection/registry-overridden state fails closed. Redirects use replacement
+`location` with no configured mirror fallback. See
 [docs/registries.md](docs/registries.md) for the full ownership and lifecycle
 contract.
 

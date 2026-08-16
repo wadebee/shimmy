@@ -91,6 +91,12 @@ the user to run in a normal shell. If an older installed profile lacks `profile
 activate`, stop and guide the user to update or reinstall it; do not run direct
 Podman machine lifecycle commands as a fallback.
 
+Profile activation also selects strict registry redirects. Skopeo and
+`shimmy images verify` mount only a valid current invoking-profile policy;
+profiles with no activation omit it, while prepared, stale, mismatched, or
+damaged active state must be corrected through `shimmy profile` rather than
+bypassed.
+
 ## Shell initialization and startup
 
 Sourcing the repository bootstrap installs the profile and sources its

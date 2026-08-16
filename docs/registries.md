@@ -157,10 +157,39 @@ fingerprints, and evidence-based policy freshness:
 - `invalid` means local or remote owned state is malformed, foreign, masked,
   or inconsistent.
 
-## Current client boundary
+## Registry clients
 
 Linux activation applies the policy to fresh host-side Podman processes, and
-Darwin activation applies it to the selected machine's Podman engine. Tool
-containers, including Skopeo, do not yet receive an explicit policy mount;
-that integration remains separate. Preparing an unprojected profile does not
-contact Podman or a registry.
+Darwin activation applies it to the selected machine's Podman engine. Shimmy
+also mounts the current invoking profile's authoritative file read-only into
+the Skopeo container at:
+
+```text
+/etc/containers/registries.conf.d/shimmy-profile.conf
+```
+
+Skopeo is the only initial tool-container opt-in. `shimmy images verify`
+inherits the same policy because it already performs remote inspection through
+the profile-local Skopeo runtime. Logical image references remain unchanged;
+containers/image performs longest-prefix replacement inside the client.
+
+A valid profile with no Shimmy activation omits the mount, so redirects may be
+prepared without affecting client execution. A sibling active profile,
+damaged or unsafe owned path, invalid managed file, stale Darwin projection,
+or non-empty `CONTAINER_CONNECTION`, `CONTAINER_HOST`,
+`CONTAINERS_REGISTRIES_CONF`, or `CONTAINERS_REGISTRIES_CONF_OVERRIDE` fails
+Skopeo closed instead of silently running without the expected policy.
+Source-checkout previews are not bound to an installed profile and retain
+their unmounted behavior.
+
+Policy mounting does not install registry credentials, a corporate CA, or a
+signature policy. Private registry access still requires the explicit
+`SHIMMY_SKOPEO_AUTH_SECRET` auth-file secret. A TLS endpoint signed by a
+private CA must already be trusted by the selected Skopeo image; Shimmy does
+not mount host certificate directories or disable verification. Existing
+operator configuration in the image can still affect containers/image
+precedence, so verify the effective digest route after changing drop-ins.
+
+If the physical endpoint cannot serve a redirected digest, Skopeo and
+`images verify` fail; Shimmy never adds a public-upstream fallback. Preparing
+an unprojected profile does not contact Podman or a registry.
