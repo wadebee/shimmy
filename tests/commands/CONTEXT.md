@@ -62,9 +62,12 @@ is the behavior under test.
   it measures update behavior without repeating repository bootstraps.
 - `startup.sh` covers automatic zsh and Bash bootstrap integration,
   shell-initialization idempotence, and managed startup-block install and
-  repair behavior without a separate initialization command. Its
-  upstream-isolation case clones upstream while retaining the real default
-  startup installation.
+  repair behavior without a separate initialization command. One progressive
+  scenario starts from a pristine upstream profile, advances the default
+  profile through explicit, automatic, and installed-command startup repair,
+  then proves upstream startup requests leave both profiles and all default
+  startup files unchanged. External startup failure and retry retain a fresh
+  scenario.
 - `skills.sh` covers split catalog-owned canonical skill sources, checked-in
   adapter fingerprints, one-file repository/home and portable exports,
   profile-local activation/workload/provisioning guidance in refreshed exports,

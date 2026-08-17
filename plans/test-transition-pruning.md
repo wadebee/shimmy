@@ -1,6 +1,6 @@
 # Test transition pruning plan
 
-**Status:** Proposed — awaiting review; no implementation is authorized.
+**Status:** In progress — Chunk 1 is implemented and awaits human review.
 
 ## Objective
 
@@ -222,7 +222,8 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Freeze the current benchmark and consolidate startup.
+- [~] Chunk 1 — Automated implementation and verification are complete;
+      human review is pending.
 - [ ] Chunk 2 — Merge catalog publication and rollback state evolution.
 - [ ] Chunk 3 — Consolidate skills scenarios and transport verification.
 - [ ] Chunk 4 — Remove duplicate lifecycle materialization and cleanup worlds.
@@ -258,6 +259,81 @@ scenario while retaining the distinct external failure/retry scenario.
 `high` — the code change is localized, but the benchmark must be comparable
 and progressive shell/startup state must not make later assertions
 tautological.
+
+### Frozen before baseline
+
+The before measurements ran on 2026-08-17 from commit
+`f3a1376f8d2f37451f2da2eb257186a473088d67` on Darwin 25.5.0 arm64. The
+worktree was clean before these runs and no test file was edited until all 19
+required invocations passed. Each isolated sample used:
+
+```sh
+/usr/bin/time -p env SHIMMY_TEST_TIMING=1 \
+  ./tests/test.sh --serial --group <group>
+```
+
+Raw isolated before samples:
+
+| Group | Sample | Setup (s) | Group (s) | Total (s) | Real (s) | User (s) | Sys (s) | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `commands-onboarding` | 1 | 39 | 228 | 267 | 270.46 | 116.24 | 142.39 | 11 |
+| `commands-onboarding` | 2 | 38 | 228 | 266 | 269.75 | 116.54 | 141.25 | 11 |
+| `commands-onboarding` | 3 | 38 | 229 | 268 | 271.05 | 117.20 | 141.70 | 11 |
+| `commands-skills` | 1 | 39 | 195 | 234 | 237.44 | 79.72 | 138.34 | 10 |
+| `commands-skills` | 2 | 38 | 194 | 232 | 236.41 | 79.49 | 138.07 | 10 |
+| `commands-skills` | 3 | 39 | 195 | 234 | 238.11 | 80.04 | 138.88 | 10 |
+| `commands-catalog` | 1 | 38 | 204 | 243 | 248.18 | 82.95 | 145.28 | 6 |
+| `commands-catalog` | 2 | 39 | 204 | 243 | 247.82 | 82.82 | 145.30 | 6 |
+| `commands-catalog` | 3 | 38 | 204 | 243 | 247.33 | 82.73 | 145.10 | 6 |
+| `commands-startup` | 1 | 39 | 136 | 175 | 178.12 | 60.66 | 106.05 | 5 |
+| `commands-startup` | 2 | 39 | 138 | 177 | 180.65 | 61.53 | 107.60 | 5 |
+| `commands-startup` | 3 | 40 | 135 | 175 | 178.60 | 61.09 | 106.27 | 5 |
+| `commands-lifecycle` | 1 | 39 | 225 | 264 | 268.19 | 88.89 | 158.07 | 14 |
+| `commands-lifecycle` | 2 | 38 | 226 | 264 | 268.87 | 89.04 | 158.79 | 14 |
+| `commands-lifecycle` | 3 | 39 | 228 | 267 | 271.45 | 89.49 | 159.62 | 14 |
+
+| Group | Median setup (s) | Median group (s) | Median total (s) | Median real (s) | Median user (s) | Median sys (s) | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `commands-onboarding` | 38 | 228 | 267 | 270.46 | 116.54 | 141.70 | 11 |
+| `commands-skills` | 39 | 195 | 234 | 237.44 | 79.72 | 138.34 | 10 |
+| `commands-catalog` | 38 | 204 | 243 | 247.82 | 82.82 | 145.28 | 6 |
+| `commands-startup` | 39 | 136 | 175 | 178.60 | 61.09 | 106.27 | 5 |
+| `commands-lifecycle` | 39 | 226 | 264 | 268.87 | 89.04 | 158.79 | 14 |
+
+The complete serial baseline used `/usr/bin/time -p env
+SHIMMY_TEST_TIMING=1 ./tests/test.sh --serial`. It passed all 41 groups and 159
+tests with setup 39 seconds, suite total 1,385 seconds, real 1,393.48 seconds,
+user 491.82 seconds, and sys 786.74 seconds.
+
+The three default-worker baselines used `/usr/bin/time -p env
+SHIMMY_TEST_TIMING=1 ./tests/test.sh`. All three passed 41 groups and 159 tests:
+
+| Sample | Setup (s) | Total (s) | Real (s) | User (s) | Sys (s) | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 39 | 568 | 576.57 | 569.76 | 962.52 | 159 |
+| 2 | 41 | 571 | 579.10 | 571.21 | 966.34 | 159 |
+| 3 | 42 | 569 | 577.63 | 570.10 | 962.59 | 159 |
+| Median | 41 | 569 | 577.63 | 570.10 | 962.59 | 159 |
+
+The raw contention-affected target-group records inside those default runs
+were onboarding 271/272/267, skills 229/228/225, catalog 235/236/237,
+startup 158/162/158, and lifecycle 262/260/260 seconds. The isolated samples,
+not these parallel records, govern chunk savings.
+
+### Startup assertion and transition ledger
+
+| Before case | Before proof and transitions | Chunk 1 mapping |
+| --- | --- | --- |
+| Automatic default bootstrap | Fresh automatic bootstrap wrote owned markers and the profile shell-init path to zsh, Bash interactive, and Bash login files; the manifest owned each file and ignored unsupported `SHELL=/bin/sh`. One default transition. | Progressive phase 2 performs automatic repair after explicit zsh installation and repeats every file-content, manifest-ownership, and unsupported-shell assertion over the same files. |
+| Existing-profile automatic repair | Explicit zsh bootstrap left both Bash files absent; a second automatic bootstrap adopted zsh plus both Bash files. Two default transitions. | Progressive phases 1 and 2 preserve the exact absent-then-adopted state sequence. |
+| Default startup ownership | Explicit startup installation wrote the owned marker and shell-init path; installed `shimmy install` retained one marker and one manifest entry. Two default transitions. | Progressive phase 1 proves initial marker, shell-init, and manifest bytes. Phase 3 targets the existing `.zshrc` explicitly and proves exactly one marker and exactly one manifest entry. |
+| Upstream isolation | A pristine upstream clone plus a fresh default install preceded rejected upstream `install` and `update --repair-startup`; neither manifest nor the default startup file changed and no upstream startup file appeared. One default transition plus two rejected operations. | Progressive phase 4 retains both rejected operations after phases 1–3, compares both profile manifests, compares all three default startup files byte-for-byte, and proves the upstream target remains absent. |
+| External failure/retry | An invalid startup target committed a valid default profile while reporting external integration failure; an installed command then repaired a new file. Two committed/successful default transitions. | Retained unchanged in its own fresh scenario. |
+
+The baseline therefore used five runtime scenarios and eight committed or
+successful default install/repair transitions. Chunk 1 uses two scenarios and
+five transitions: explicit default bootstrap, automatic repair, installed
+default repair, failure-path profile commit, and retry.
 
 ### Files
 
@@ -298,20 +374,47 @@ tautological.
 
 ### Verification checklist
 
-- [ ] The plan contains raw and median before samples for all five target
+- [x] The plan contains raw and median before samples for all five target
       groups, a full serial baseline, and a three-run default baseline.
-- [ ] Every prior startup assertion is present or listed in an accepted
-      equivalent assertion mapping.
-- [ ] The startup group retains its baseline test count and passes three
+- [~] Every prior startup assertion is present in the ledger above. Human
+      acceptance of the automatic-first equivalent mapping remains pending.
+- [x] The startup group retains its baseline test count and passes three
       isolated timed serial runs.
-- [ ] Startup scenario creation drops from five runtime scenarios to two, and
+- [x] Startup scenario creation drops from five runtime scenarios to two, and
       committed/successful default install/repair transitions drop from eight
       to five.
-- [ ] The reviewer output calculates before/after group, setup, real, and CPU
+- [x] The reviewer output calculates before/after group, setup, real, and CPU
       medians; absolute and percentage savings; and cumulative projected full
       serial time.
-- [ ] `dash -n tests/commands/startup.sh` passes.
-- [ ] `./tests/context-tree.sh` passes.
+- [x] `dash -n tests/commands/startup.sh` passes.
+- [x] `./tests/context-tree.sh` passes.
+
+### Chunk 1 reviewer output
+
+Raw after samples used the identical isolated command recorded above:
+
+| Sample | Setup (s) | Group (s) | Total (s) | Real (s) | User (s) | Sys (s) | CPU user+sys (s) | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 39 | 78 | 117 | 120.74 | 40.90 | 71.86 | 112.76 | 5 |
+| 2 | 39 | 78 | 118 | 121.43 | 41.15 | 72.24 | 113.39 | 5 |
+| 3 | 39 | 78 | 117 | 120.89 | 41.08 | 71.92 | 113.00 | 5 |
+| Median | 39 | 78 | 117 | 120.89 | 41.08 | 71.92 | 113.00 | 5 |
+
+| Metric | Before median (s) | After median (s) | Savings (s) | Improvement | Before/after test count |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `commands-startup` group | 136 | 78 | 58 | 42.6% | 5 / 5 |
+| Isolated setup | 39 | 39 | 0 | 0.0% | 5 / 5 |
+| Isolated total | 175 | 117 | 58 | 33.1% | 5 / 5 |
+| `/usr/bin/time` real | 178.60 | 120.89 | 57.71 | 32.3% | 5 / 5 |
+| CPU (`user + sys`) | 167.36 | 113.00 | 54.36 | 32.5% | 5 / 5 |
+
+The five isolated target-group medians totalled 989 seconds before Chunk 1.
+Only startup changed, so the cumulative affected-set projection is 931
+seconds, a 58-second reduction. Applying the same isolated group delta to the
+1,385-second serial baseline projects 1,327 seconds after Chunk 1, a 4.2%
+suite reduction. The plan-wide 255-second acceptance threshold therefore has
+197 seconds remaining for Chunks 2–5. This is a projection; Chunk 6 owns the
+final complete serial and worker acceptance measurements.
 
 ### Human review gate
 
@@ -752,6 +855,23 @@ complete.
 - The current static runner assigns onboarding and catalog to `three-a`,
   lifecycle and startup to `three-b`, and skills to `three-c`; pruning those
   groups will change all three worker totals and requires final rebalancing.
+
+### Chunk 1
+
+- The same-host frozen baseline is stable: the five isolated group medians
+  total 989 seconds, the full serial suite passed 159 tests in 1,385 integer
+  seconds, and the three-worker real-time median is 577.63 seconds.
+- Startup's five logical test records do not require five disposable worlds.
+  The explicit zsh, automatic adoption, installed-command idempotence, and
+  upstream rejection contracts form one monotonic state sequence; external
+  failure/retry remains correctly isolated.
+- Comparing all three default startup files plus both profile manifests after
+  the rejected upstream operations strengthens the former single-file
+  non-mutation proof without adding a transition.
+- Consolidation reduced the startup group median from 136 to 78 seconds
+  (42.6%) while setup stayed at 39 seconds and the five-test count remained
+  unchanged. The projected full serial result is 1,327 seconds; final suite
+  and worker measurements remain deferred to Chunk 6.
 
 ## Session bootstrap
 

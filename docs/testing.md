@@ -51,6 +51,28 @@ Keep the three `real`, `user`, and `sys` records. Compare group timings and
 worker result data when wall time or aggregate CPU cost regresses; do not add a
 host-specific timeout to the suite.
 
+For transition-pruning work, freeze the before measurements prior to test
+edits. Run each affected group three times in isolation with the same command
+on the same host:
+
+```sh
+/usr/bin/time -p env SHIMMY_TEST_TIMING=1 \
+  ./tests/test.sh --serial --group commands-startup
+```
+
+Retain every raw setup, group, total, `real`, `user`, `sys`, and test-count
+value. Compare the medians of three identical before and after invocations:
+
+```text
+savings_seconds = before_median - after_median
+improvement_percent = 100 * savings_seconds / before_median
+```
+
+Also record one complete timed serial baseline before editing so projected
+suite savings can be distinguished from a measured full-suite result. A
+multi-group change must report the net affected group time; moving work to a
+different group or to session setup is not a performance improvement.
+
 To smoke an installed profile through its real wrappers, use:
 
 ```sh
