@@ -19,6 +19,19 @@ test_commands_skills_activation_guidance_assert() {
   assert_file_contains "$skills_root/shimmy-tool-jq/SKILL.md" 'agents never run direct Podman'
 }
 
+test_commands_skills_export_inventory() {
+  export_inventory_root=$1
+
+  (
+    cd "$export_inventory_root"
+    find . -type f -print | LC_ALL=C sort | while IFS= read -r export_inventory_path; do
+      export_inventory_checksum=$(cksum < "$export_inventory_path")
+      set -- $export_inventory_checksum
+      printf '%s|%s|%s\n' "${export_inventory_path#./}" "$1" "$2"
+    done
+  )
+}
+
 test_commands_skills_source_file_resolve() {
   skill_name=$1
 
@@ -159,6 +172,7 @@ shimmy-tool-local-build'
   assert_file_contains "$export_root/shimmy-tool-skopeo/SKILL.md" 'strict redirect policy read-only'
   assert_file_contains "$export_root/shimmy-tool-oc/SKILL.md" 'replacement location has no configured upstream fallback'
   assert_file_contains "$export_root/shimmy-tool-task/SKILL.md" 'never print its value'
+  directory_export_inventory=$(test_commands_skills_export_inventory "$export_root")
 
   export_archive=$SCENARIO_DIR/exported-skills.zip
   archive_extract_root=$SCENARIO_DIR/archive
@@ -171,20 +185,37 @@ shimmy-tool-local-build'
   else
     fail_test "portable archive test requires unzip or python3"
   fi
-  for skill_name in $all_skills; do
-    archived_skill_dir=$archive_extract_root/shimmy-skills/$skill_name
-    assert_file_exists "$archived_skill_dir/SKILL.md"
-    archived_file_count=$(find "$archived_skill_dir" -type f | wc -l | tr -d ' ')
-    assert_equals "$archived_file_count" 1
+  archive_top_level_count=0
+  for archive_top_level_path in \
+    "$archive_extract_root"/* \
+    "$archive_extract_root"/.[!.]* \
+    "$archive_extract_root"/..?*
+  do
+    [ -e "$archive_top_level_path" ] || [ -L "$archive_top_level_path" ] || continue
+    assert_equals "$(basename "$archive_top_level_path")" shimmy-skills
+    archive_top_level_count=$((archive_top_level_count + 1))
   done
+  assert_equals "$archive_top_level_count" 1
+  archive_skills_root=$archive_extract_root/shimmy-skills
+  assert_dir_exists "$archive_skills_root"
+  assert_file_exists "$archive_skills_root/.shimmy-skills-manifest.txt"
+  assert_file_exists "$archive_skills_root/shimmy-install/SKILL.md"
+  assert_file_exists "$archive_skills_root/shimmy-tool-jq/SKILL.md"
+  assert_file_exists "$archive_skills_root/shimmy-tool-rg/SKILL.md"
+  assert_file_exists "$archive_skills_root/shimmy-tool-task/SKILL.md"
   assert_path_not_exists "$archive_extract_root/shimmy-skills/shimmy-tool-task/guide.md"
-  test_commands_skills_activation_guidance_assert "$archive_extract_root/shimmy-skills"
-  pass "portable directory and archive exports contain one SKILL.md per selected skill"
+  assert_path_not_exists "$archive_extract_root/shimmy-skills/shimmy-tool-task/tool.conf"
+  assert_path_not_exists "$archive_extract_root/shimmy-skills/shimmy-tool-task/tests"
+  assert_path_not_exists "$archive_extract_root/shimmy-skills/shimmy-tool-task/versions"
+  archive_export_inventory=$(test_commands_skills_export_inventory "$archive_skills_root")
+  assert_equals "$archive_export_inventory" "$directory_export_inventory"
+  pass "portable directory and archive exports have identical complete inventories"
 }
 
 test_commands_skills_stale_manifest_filtering() {
-  setup_scenario_with_profiles default
-  repo_skills_root=$WORK_DIR/.agents/skills
+  stale_manifest_work_dir=$WORK_DIR/stale-manifest
+  repo_skills_root=$stale_manifest_work_dir/.agents/skills
+  mkdir -p "$stale_manifest_work_dir"
   mkdir -p "$repo_skills_root/shimmy-install" "$repo_skills_root/shimmy-tool-retired"
   cp "$ROOT_DIR/plugins/shimmy/skills/shimmy-install/SKILL.md" \
     "$repo_skills_root/shimmy-install/SKILL.md"
@@ -198,7 +229,7 @@ test_commands_skills_stale_manifest_filtering() {
     > "$repo_skills_root/.shimmy-skills-manifest.txt"
 
   (
-    cd "$WORK_DIR"
+    cd "$stale_manifest_work_dir"
     default_shimmy skills update --target repo >/dev/null
   )
 
@@ -209,9 +240,10 @@ test_commands_skills_stale_manifest_filtering() {
 }
 
 test_commands_skills_removed_plugin_target() {
-  setup_scenario_with_profiles default
+  removed_target_work_dir=$WORK_DIR/removed-target
   plugin_sentinel=$DEFAULT_PROFILE_ROOT/unmanaged-plugin-sentinel
   override_root=$SCENARIO_DIR/plugin-override
+  mkdir -p "$removed_target_work_dir"
   printf '%s\n' keep > "$plugin_sentinel"
   mkdir -p "$override_root"
   printf '%s\n' keep > "$override_root/sentinel"
@@ -229,29 +261,29 @@ test_commands_skills_removed_plugin_target() {
     assert_contains "$rejection_output" 'unsupported skills target: plugin'
     assert_equals "$(cksum < "$plugin_sentinel")" "$plugin_sentinel_checksum"
     assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$profile_manifest_checksum"
-    assert_path_not_exists "$WORK_DIR/.agents"
+    assert_path_not_exists "$removed_target_work_dir/.agents"
     assert_path_not_exists "$HOME_DIR/.agents"
   done
 
   set +e
   unknown_output=$(
-    cd "$WORK_DIR"
+    cd "$removed_target_work_dir"
     default_shimmy skills install shimmy-tool-unknown 2>&1
   )
   unknown_status=$?
   set -e
   [ "$unknown_status" -ne 0 ] || fail_test "unknown canonical skill unexpectedly accepted"
   assert_contains "$unknown_output" 'missing canonical source skill: shimmy-tool-unknown'
-  assert_path_not_exists "$WORK_DIR/.agents"
+  assert_path_not_exists "$removed_target_work_dir/.agents"
 
   (
-    cd "$WORK_DIR"
+    cd "$removed_target_work_dir"
     env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
       SHIMMY_SKILLS_PLUGIN_DIR="$override_root" \
       "$DEFAULT_PROFILE_ROOT/bin/shimmy" skills install --target repo >/dev/null
   )
   assert_file_contains "$override_root/sentinel" keep
-  assert_file_exists "$WORK_DIR/.agents/skills/shimmy-install/SKILL.md"
+  assert_file_exists "$removed_target_work_dir/.agents/skills/shimmy-install/SKILL.md"
   pass "removed plugin target rejects before mutation and its former environment override is inert"
 }
 
@@ -336,13 +368,13 @@ test_commands_skills_target_ownership() {
 }
 
 test_commands_skills_external_failure_retry() {
-  setup_scenario_with_profiles default
+  external_failure_work_dir=$WORK_DIR/external-failure
   manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
-  mkdir -p "$WORK_DIR/.agents"
-  printf '%s\n' collision > "$WORK_DIR/.agents/skills"
+  mkdir -p "$external_failure_work_dir/.agents"
+  printf '%s\n' collision > "$external_failure_work_dir/.agents/skills"
   set +e
   failure_output=$(
-    cd "$WORK_DIR"
+    cd "$external_failure_work_dir"
     default_shimmy skills install --target repo 2>&1
   )
   failure_status=$?
@@ -352,12 +384,12 @@ test_commands_skills_external_failure_retry() {
   assert_contains "$(default_shimmy status --format manifest)" 'shimmy_installed=yes'
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$manifest_checksum"
 
-  rm -f "$WORK_DIR/.agents/skills"
+  rm -f "$external_failure_work_dir/.agents/skills"
   (
-    cd "$WORK_DIR"
+    cd "$external_failure_work_dir"
     default_shimmy skills install --target repo >/dev/null
   )
-  assert_file_exists "$WORK_DIR/.agents/skills/.shimmy-skills-manifest.txt"
+  assert_file_exists "$external_failure_work_dir/.agents/skills/.shimmy-skills-manifest.txt"
   pass "standalone skills failure leaves the installed profile unchanged and can be retried directly"
 }
 
@@ -403,10 +435,11 @@ test_commands_skills_catalog_authority() {
 }
 
 test_commands_skills_catalog_failure_boundaries() {
-  setup_scenario_with_profiles default
-  repo_skills_root=$WORK_DIR/.agents/skills
+  catalog_failure_work_dir=$WORK_DIR/catalog-failure
+  repo_skills_root=$catalog_failure_work_dir/.agents/skills
+  mkdir -p "$catalog_failure_work_dir"
   (
-    cd "$WORK_DIR"
+    cd "$catalog_failure_work_dir"
     default_shimmy skills install --target repo >/dev/null
   )
   skills_manifest_checksum=$(cksum < "$repo_skills_root/.shimmy-skills-manifest.txt")
@@ -419,7 +452,7 @@ test_commands_skills_catalog_failure_boundaries() {
 
   set +e
   schema_output=$(
-    cd "$WORK_DIR"
+    cd "$catalog_failure_work_dir"
     default_shimmy skills update --target repo 2>&1
   )
   schema_status=$?
@@ -430,7 +463,7 @@ test_commands_skills_catalog_failure_boundaries() {
   assert_equals "$(cksum < "$repo_skills_root/shimmy-install/SKILL.md")" "$install_skill_checksum"
 
   (
-    cd "$WORK_DIR"
+    cd "$catalog_failure_work_dir"
     default_shimmy skills uninstall --target repo >/dev/null
   )
   assert_path_not_exists "$repo_skills_root/.shimmy-skills-manifest.txt"
@@ -450,15 +483,20 @@ test_commands_skills_catalog_failure_boundaries() {
   pass "catalog loss and schema mismatch fail before mutation while manifest-owned uninstall remains available"
 }
 
+test_commands_skills_default_profile_progression() {
+  setup_scenario_with_profiles default
+  test_commands_skills_stale_manifest_filtering
+  test_commands_skills_removed_plugin_target
+  test_commands_skills_external_failure_retry
+  test_commands_skills_catalog_failure_boundaries
+}
+
 test_commands_skills_run() {
   test_commands_skills_manifest_fingerprints
   test_commands_skills_plugin_and_tool_inventory
   test_commands_skills_profile_payload_absence
   test_commands_skills_portable_exports
-  test_commands_skills_stale_manifest_filtering
-  test_commands_skills_removed_plugin_target
+  test_commands_skills_default_profile_progression
   test_commands_skills_target_ownership
-  test_commands_skills_external_failure_retry
   test_commands_skills_catalog_authority
-  test_commands_skills_catalog_failure_boundaries
 }

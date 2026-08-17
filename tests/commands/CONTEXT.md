@@ -78,8 +78,11 @@ is the behavior under test.
   skill sources from profile payloads, live-upstream versus published-default
   visibility, coherent staged target replacement, catalog failure boundaries,
   lifecycle isolation, refresh, and manifest-tracked cleanup. Its
-  target-ownership lifecycle, catalog-authority cases, and retryable
-  external-target failure start from pristine profile clones.
+  directory export is the semantic authority for an exact relative-path,
+  checksum, and byte-count comparison with the extracted ZIP. Stale-manifest,
+  removed-target, retryable external-target, and catalog-failure cases share
+  one pristine default profile while retaining isolated repository work roots.
+  Target ownership and catalog authority remain independent profile worlds.
 - `dispatcher.sh` covers profile-bound installed dispatchers, ownership, and
   recursion protections using isolated pristine clones for destructive cases;
   repository previews use `commands/run-tool.sh`.

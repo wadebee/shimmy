@@ -1,7 +1,6 @@
 # Test transition pruning plan
 
-**Status:** In progress — Chunk 1 is accepted; Chunk 2 is implemented and
-awaits human review.
+**Status:** In progress — Chunks 1–3 are accepted; Chunk 4 has not started.
 
 ## Objective
 
@@ -224,11 +223,12 @@ None.
 ## Progress Checklist
 
 - [x] Chunk 1 — Progressive startup implementation and verification accepted.
-- [~] Chunk 2 — Implementation and automated verification are complete: all
-      six test records passed three timed runs, syntax and context validation
-      passed, and the catalog median fell from 204 to 179 seconds. Human review
-      remains; acceptance is required before Chunk 3 starts.
-- [ ] Chunk 3 — Consolidate skills scenarios and transport verification.
+- [x] Chunk 2 — Progressive catalog publication and rollback implementation,
+      assertion mapping, and measured 25-second median reduction accepted by
+      the user on 2026-08-17.
+- [x] Chunk 3 — Skills state and transport consolidation, assertion mapping,
+      preserved ten-test coverage, and measured 2-second median regression/noise
+      result accepted by the user on 2026-08-17.
 - [ ] Chunk 4 — Remove duplicate lifecycle materialization and cleanup worlds.
 - [ ] Chunk 5 — Consolidate the current onboarding bootstrap progression.
 - [ ] Chunk 6 — Rebalance workers and run final acceptance benchmarks.
@@ -591,24 +591,75 @@ transport-specific behavior.
 
 ### Verification checklist
 
-- [ ] Directory and extracted ZIP inventories match exactly and all prior ZIP
+- [x] Directory and extracted ZIP inventories match exactly and all prior ZIP
       semantic assertions are mapped through that equality or retained
       directly.
-- [ ] Default, installed, explicit-complete, directory, and ZIP export
+- [x] Default, installed, explicit-complete, directory, and ZIP export
       behaviors all execute.
-- [ ] Repo/home ownership, cross-profile update/uninstall, unknown sibling
+- [x] Repo/home ownership, cross-profile update/uninstall, unknown sibling
       preservation, stale manifest filtering, removed target rejection,
       failure retry, schema rejection, unavailable catalog rejection, and
       manifest-owned uninstall all remain covered.
-- [ ] Live upstream skill visibility and published default visibility still use
+- [x] Live upstream skill visibility and published default visibility still use
       a real catalog publication.
-- [ ] The group retains its baseline test count unless a reviewer accepts a
+- [x] The group retains its baseline test count unless a reviewer accepts a
       fully documented mapping.
-- [ ] Three isolated timed serial runs pass and reviewer output reports raw
+- [x] Three isolated timed serial runs pass and reviewer output reports raw
       values, medians, calculated savings/percentage, test counts, and
       cumulative projection.
-- [ ] `dash -n tests/commands/skills.sh` passes.
-- [ ] `./tests/context-tree.sh` passes.
+- [x] `dash -n tests/commands/skills.sh` passes.
+- [x] `./tests/context-tree.sh` passes.
+
+### Chunk 3 assertion mapping
+
+| Before proof | Chunk 3 proof |
+| --- | --- |
+| Default installed selection excludes uninstalled skills, then an additive task install changes the default selection. | Retained unchanged in the portable-export scenario, including the default jq/rg selection, local-build exclusion, task exclusion, additive task install, and subsequent task inclusion. |
+| Explicit directory export contains every requested management/tool skill, exactly one `SKILL.md` per skill, no tool assets, and the required activation, registry, OC redirect, and secret guidance. | Retained as the semantic authority. The new inventory records every relative regular-file path, POSIX checksum, and byte count in sorted order. |
+| ZIP export repeats each per-skill file-count and selected guidance assertion after extraction. | The extracted archive retains direct single-root/layout and representative manifest/skill checks plus explicit task asset absences. Exact equality with the complete verified directory inventory transfers every per-skill path, byte-count, checksum, and semantic-content proof without repeating selected content assertions. |
+| Stale-manifest filtering uses a pristine default profile and leaves the retired untracked sibling while removing it from the owned manifest. | The assertions and operation are unchanged; the case now uses the shared pristine default profile and an isolated `work/stale-manifest` repository target. |
+| Removed plugin target and unknown skill reject before mutation; the former override is inert and a normal repo install succeeds. | The assertions and operations are unchanged in isolated `work/removed-target`; profile-manifest and unmanaged-sentinel checks prevent shared-profile state from hiding mutation. |
+| External target collision leaves the installed profile unchanged and succeeds on direct retry. | The assertions and operations are unchanged in isolated `work/external-failure`, including manifest checksum and installed-status proofs. |
+| Schema-incompatible catalog rejects target update without mutation; manifest-owned uninstall still works; missing registry rejects export without creating output. | The assertions and operations are unchanged in isolated `work/catalog-failure`. Exact valid catalog bytes are restored before the registry-unavailable phase, and the registry is restored before the logical case passes. |
+| Repo/home ownership, cross-profile update/uninstall, unknown-sibling preservation, and default-profile lifecycle isolation. | Retained unchanged in its independent default/upstream scenario. |
+| Live upstream addition, unpublished default rejection, real commit/publication, published default visibility, and profile-manifest non-mutation. | Retained unchanged in its independent real catalog-authority scenario. |
+
+The consolidation removes three pristine default-profile fixture clones: the
+four failure-boundary cases now share one profile world instead of four. Each
+repository target remains isolated, and all ten logical pass records remain.
+
+### Chunk 3 reviewer output
+
+Raw after samples used the identical isolated command recorded in Chunk 1:
+
+| Sample | Setup (s) | Group (s) | Total (s) | Real (s) | User (s) | Sys (s) | CPU user+sys (s) | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 39 | 196 | 235 | 239.01 | 80.86 | 139.75 | 220.61 | 10 |
+| 2 | 39 | 199 | 239 | 242.32 | 81.38 | 141.39 | 222.77 | 10 |
+| 3 | 40 | 197 | 237 | 240.61 | 81.55 | 140.05 | 221.60 | 10 |
+| Median | 39 | 197 | 237 | 240.61 | 81.38 | 140.05 | 221.60 | 10 |
+
+| Metric | Before median (s) | After median (s) | Savings (s) | Improvement | Before/after test count |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `commands-skills` group | 195 | 197 | -2 | -1.0% | 10 / 10 |
+| Isolated setup | 39 | 39 | 0 | 0.0% | 10 / 10 |
+| Isolated total | 234 | 237 | -3 | -1.3% | 10 / 10 |
+| `/usr/bin/time` real | 237.44 | 240.61 | -3.17 | -1.3% | 10 / 10 |
+| CPU (`user + sys`) | 218.06 | 221.60 | -3.54 | -1.6% | 10 / 10 |
+
+The measured result is below noise and does not support the supplied
+60–100-second skills estimate. The removed fixture clones are copy-on-write
+copies; the retained additive install, ownership lifecycle, source refresh,
+and real catalog publication dominate this group. Per the chunk constraints,
+those unique transitions and all semantic assertions remain.
+
+The five isolated target-group medians now total 908 seconds after accepted
+Chunk 1, accepted Chunk 2, and implemented Chunk 3, an 81-second cumulative
+reduction from the 989-second baseline. Applying those isolated group deltas to
+the 1,385-second serial baseline projects 1,304 seconds, a 5.8% suite
+reduction. The plan-wide 255-second acceptance threshold therefore has 174
+seconds remaining for Chunks 4–5. This is a projection; Chunk 6 owns the final
+complete serial and worker acceptance measurements.
 
 ### Human review gate
 
@@ -933,6 +984,23 @@ complete.
   projected full serial result is 1,302 seconds; final suite and worker
   measurements remain deferred to Chunk 6.
 
+### Chunk 3
+
+- Sorted relative-path, POSIX checksum, and byte-count inventory equality makes
+  the fully asserted directory export authoritative for ZIP payload semantics
+  while preserving direct ZIP root/layout and no-extra-assets checks.
+- Four failure-boundary cases can share one pristine default profile safely
+  when every repository target has a distinct work root and the temporary
+  catalog and registry mutations are restored before progression.
+- Consolidation reduced seven profile worlds to four and preserved all ten
+  logical records, but the group median changed from 195 to 197 seconds. The
+  three removed copy-on-write fixture clones are not a material cost compared
+  with the unique install, ownership, update, uninstall, and publication
+  transitions retained by design.
+- Cumulative isolated savings remain 81 seconds and the projected full serial
+  result is 1,304 seconds. The 174-second remaining target must come from
+  Chunks 4–5 without weakening coverage.
+
 ## Session bootstrap
 
 Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, this plan,
@@ -947,8 +1015,5 @@ coverage, isolation, POSIX shell, and offline behavior. The non-negotiable
 rule is: do not replace unique real integration behavior or move cost into
 shared setup merely to improve a group number.
 
-The active chunk is Chunk 2 at its human review gate. Its implementation and
-automated verification are complete. Review the assertion ledger, exact
-generation restoration, source-loss rollback sequence, and measured result;
-do not modify implementation or start Chunk 3 until Chunk 2 is explicitly
-accepted.
+Chunks 1–3 are explicitly accepted. Chunk 4 has not started and must remain
+pending until the user gives a separate instruction to proceed.
