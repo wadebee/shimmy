@@ -120,6 +120,9 @@ test_commands_catalog_dirty_initial_publication_rejection() {
   assert_contains "$dirty_output" 'commit all index, worktree, and untracked changes first'
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default"
+  for catalog_stage in "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"/.default.stage.* "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default"/.publish-stage.*; do
+    [ ! -e "$catalog_stage" ] && [ ! -L "$catalog_stage" ] || fail_test "dirty initial publication left staging state: $catalog_stage"
+  done
   pass "dirty initial default publication rejects before profile, registry, staging, or generation mutation"
 }
 
@@ -273,7 +276,10 @@ test_commands_catalog_rebind_and_publish() {
   fi
   assert_contains "$SHIMMY_CATALOG_ERROR" 'HEAD changed during publication'
 
-  printf '%s\n' 'catalog_test_corruption=1' >> "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$published_previous/catalog.conf"
+  initial_catalog_conf=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$published_previous/catalog.conf
+  initial_catalog_conf_saved=$SCENARIO_DIR/initial-catalog.conf.saved
+  cp "$initial_catalog_conf" "$initial_catalog_conf_saved"
+  printf '%s\n' 'catalog_test_corruption=1' >> "$initial_catalog_conf"
   set +e
   corrupt_rollback_output=$(default_shimmy status --format manifest 2>&1)
   corrupt_rollback_status=$?
@@ -287,36 +293,24 @@ test_commands_catalog_rebind_and_publish() {
   [ "$corrupt_rollback_command_status" -ne 0 ] || fail_test 'catalog rollback unexpectedly accepted a corrupt retained generation'
   assert_contains "$corrupt_rollback_command_output" 'unknown key catalog_test_corruption'
   assert_equals "$(cksum < "$default_registry")" "$published_registry_checksum"
-  SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=
-  SHIMMY_IMAGES_USE_PROFILE_METADATA=0
-  test_lib_catalog_activate
-  pass "explicit rebind and clean publication preserve authority, provenance, ignored-content, profile, checkout-race, and rollback boundaries"
-}
 
-test_commands_catalog_rollback_recovery() {
-  setup_scenario_with_profiles default upstream
-  replacement_checkout=$SCENARIO_DIR/rollback-checkout
-  test_fixture_tree_copy "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$replacement_checkout"
-  upstream_shimmy catalog rebind --checkout "$replacement_checkout" >/dev/null
-  test_catalog_tool_create "$replacement_checkout" rollback-tool
-  git -C "$replacement_checkout" add tools/rollback-tool
-  git -C "$replacement_checkout" commit -qm 'add rollback catalog fixture'
+  cp "$initial_catalog_conf_saved" "$initial_catalog_conf"
+  cmp -s "$initial_catalog_conf_saved" "$initial_catalog_conf" || fail_test 'retained generation restoration changed catalog.conf bytes'
+  restored_status=$(default_shimmy status --format manifest)
+  assert_contains "$restored_status" 'shimmy_catalog_health=ok'
+  assert_equals "$(profile_manifest_value "$default_registry" catalog_generation_current)" "$published_generation"
+  assert_equals "$(profile_manifest_value "$default_registry" catalog_generation_previous)" "$initial_default_generation"
 
-  default_registry=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf
-  initial_generation=$(profile_manifest_value "$default_registry" catalog_generation_current)
-  upstream_shimmy catalog publish >/dev/null
-  published_generation=$(profile_manifest_value "$default_registry" catalog_generation_current)
-  assert_contains "$(default_shimmy catalog list --format manifest)" 'shimmy_catalog_tool=rollback-tool'
-
-  relocated_checkout=$SCENARIO_DIR/relocated-rollback-checkout
+  relocated_checkout=$SCENARIO_DIR/relocated-replacement-checkout
   mv "$replacement_checkout" "$relocated_checkout"
+  assert_path_not_exists "$replacement_checkout"
   rollback_output=$(upstream_shimmy catalog rollback)
-  assert_contains "$rollback_output" "Rolled back default catalog generation: $initial_generation"
-  assert_not_contains "$(default_shimmy catalog list --format manifest)" 'shimmy_catalog_tool=rollback-tool'
+  assert_contains "$rollback_output" "Rolled back default catalog generation: $initial_default_generation"
+  assert_not_contains "$(default_shimmy catalog list --format manifest)" 'shimmy_catalog_tool=instant'
   assert_contains "$(default_shimmy status --format manifest)" 'shimmy_catalog_health=ok'
   assert_equals "$(profile_manifest_value "$default_registry" catalog_generation_previous)" "$published_generation"
 
-  printf '%s\n' 'catalog_test_corruption=1' >> "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$initial_generation/catalog.conf"
+  printf '%s\n' 'catalog_test_corruption=1' >> "$initial_catalog_conf"
   set +e
   invalid_current_status=$(default_shimmy status --format manifest 2>&1)
   invalid_current_code=$?
@@ -326,10 +320,14 @@ test_commands_catalog_rollback_recovery() {
 
   recovery_output=$(upstream_shimmy catalog rollback)
   assert_contains "$recovery_output" "Rolled back default catalog generation: $published_generation"
-  assert_contains "$(default_shimmy catalog list --format manifest)" 'shimmy_catalog_tool=rollback-tool'
+  assert_contains "$(default_shimmy catalog list --format manifest)" 'shimmy_catalog_tool=instant'
   assert_equals "$(profile_manifest_value "$default_registry" catalog_generation_previous)" ''
   assert_dir_exists "$relocated_checkout"
   assert_contains "$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version)" 'ghcr.io/jqlang/jq@sha256:'
+  SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=
+  SHIMMY_IMAGES_USE_PROFILE_METADATA=0
+  test_lib_catalog_activate
+  pass "explicit rebind and clean publication preserve authority, provenance, ignored-content, profile, checkout-race, and rollback boundaries"
   pass "default catalog rollback survives upstream source loss and recovers from an invalid current generation"
 }
 
@@ -339,5 +337,4 @@ test_commands_catalog_run() {
   test_commands_catalog_registration_collision
   test_commands_catalog_registry_symlink_rejection
   test_commands_catalog_rebind_and_publish
-  test_commands_catalog_rollback_recovery
 }

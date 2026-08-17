@@ -1,6 +1,7 @@
 # Test transition pruning plan
 
-**Status:** In progress — Chunk 1 is implemented and awaits human review.
+**Status:** In progress — Chunk 1 is accepted; Chunk 2 is implemented and
+awaits human review.
 
 ## Objective
 
@@ -222,9 +223,11 @@ None.
 
 ## Progress Checklist
 
-- [~] Chunk 1 — Automated implementation and verification are complete;
-      human review is pending.
-- [ ] Chunk 2 — Merge catalog publication and rollback state evolution.
+- [x] Chunk 1 — Progressive startup implementation and verification accepted.
+- [~] Chunk 2 — Implementation and automated verification are complete: all
+      six test records passed three timed runs, syntax and context validation
+      passed, and the catalog median fell from 204 to 179 seconds. Human review
+      remains; acceptance is required before Chunk 3 starts.
 - [ ] Chunk 3 — Consolidate skills scenarios and transport verification.
 - [ ] Chunk 4 — Remove duplicate lifecycle materialization and cleanup worlds.
 - [ ] Chunk 5 — Consolidate the current onboarding bootstrap progression.
@@ -376,8 +379,8 @@ default repair, failure-path profile commit, and retry.
 
 - [x] The plan contains raw and median before samples for all five target
       groups, a full serial baseline, and a three-run default baseline.
-- [~] Every prior startup assertion is present in the ledger above. Human
-      acceptance of the automatic-first equivalent mapping remains pending.
+- [x] Every prior startup assertion is present in the ledger above, and the
+      reviewer accepted the automatic-first equivalent mapping.
 - [x] The startup group retains its baseline test count and passes three
       isolated timed serial runs.
 - [x] Startup scenario creation drops from five runtime scenarios to two, and
@@ -439,6 +442,19 @@ intentional corruption, restoration, source loss, rollback, and recovery. A
 sequencing error could preserve surface assertions while weakening the
 rollback invariant.
 
+### Catalog assertion and transition ledger
+
+| Before case | Before proof and transitions | Chunk 2 mapping |
+| --- | --- | --- |
+| Rebind and publish | One cloned profile world and replacement checkout prove invalid rebind rejection, explicit rebind, live-upstream visibility, dirty republish non-mutation, clean publication, immutable provenance, ignored-file exclusion, explicit profile update, HEAD-race rejection, and corrupt-retained rollback rejection. | Retained in the progressive scenario without weakening its assertions. The exact initial `catalog.conf` bytes are saved before corruption and restored before the rollback phases. |
+| Rollback recovery | A second cloned profile world and checkout repeat rebind, tool creation, commit, and publication before moving the checkout, rolling back to the initial generation, corrupting that current generation, and recovering forward to the published generation. | The first scenario's initial and published generations supply the same ordering. After exact retained-generation restoration and resolution, the bound checkout is moved, rollback proves source independence and absence of the published `instant` tool, current-generation corruption still fails resolution, and recovery returns to the published generation and final preview. |
+
+The baseline therefore used two profile worlds, two checkout clones, two
+rebinds, two Git commits, and two publications across these cases. Chunk 2
+retains both logical pass records in one profile world with one checkout clone,
+one rebind, one publication commit plus the required HEAD-race fixture commit,
+and one publication.
+
 ### Files
 
 - `tests/commands/catalog.sh`
@@ -471,21 +487,51 @@ rollback invariant.
 
 ### Verification checklist
 
-- [ ] `commands-catalog` retains its baseline test count or has an explicitly
+- [x] `commands-catalog` retains its baseline test count or has an explicitly
       accepted assertion/count mapping.
-- [ ] One scenario now proves publish, corrupt-retained rejection, source-loss
+- [x] One scenario now proves publish, corrupt-retained rejection, source-loss
       rollback, invalid-current recovery, and final tool preview.
-- [ ] The second profile clone, checkout clone, rebind, Git commit, and publish
-      sequence is absent.
-- [ ] Dirty initial publication still proves that no profile, registry,
+- [x] The standalone rollback setup and its second profile clone, checkout
+      clone, rebind, publication-fixture Git commit, and publish sequence are
+      absent; the required checkout-HEAD race fixture commit remains.
+- [x] Dirty initial publication still proves that no profile, registry,
       staging, or generation state is created.
-- [ ] Dirty republish still proves existing registry, profile, and staging
+- [x] Dirty republish still proves existing registry, profile, and staging
       state is unchanged.
-- [ ] Three isolated timed serial runs pass and reviewer output reports raw
+- [x] Three isolated timed serial runs pass and reviewer output reports raw
       values, medians, calculated savings/percentage, test counts, and
       cumulative projection.
-- [ ] `dash -n tests/commands/catalog.sh` passes.
-- [ ] `./tests/context-tree.sh` passes.
+- [x] `dash -n tests/commands/catalog.sh` passes.
+- [x] `./tests/context-tree.sh` passes.
+
+### Chunk 2 reviewer output
+
+Raw after samples used the identical isolated command recorded in Chunk 1:
+
+| Sample | Setup (s) | Group (s) | Total (s) | Real (s) | User (s) | Sys (s) | CPU user+sys (s) | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 40 | 179 | 219 | 223.66 | 74.84 | 131.14 | 205.98 | 6 |
+| 2 | 39 | 179 | 218 | 222.10 | 74.26 | 130.29 | 204.55 | 6 |
+| 3 | 39 | 179 | 218 | 222.12 | 74.24 | 130.39 | 204.63 | 6 |
+| Median | 39 | 179 | 218 | 222.12 | 74.26 | 130.39 | 204.63 | 6 |
+
+| Metric | Before median (s) | After median (s) | Savings (s) | Improvement | Before/after test count |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `commands-catalog` group | 204 | 179 | 25 | 12.3% | 6 / 6 |
+| Isolated setup | 38 | 39 | -1 | -2.6% | 6 / 6 |
+| Isolated total | 243 | 218 | 25 | 10.3% | 6 / 6 |
+| `/usr/bin/time` real | 247.82 | 222.12 | 25.70 | 10.4% | 6 / 6 |
+| CPU (`user + sys`) | 228.12 | 204.63 | 23.49 | 10.3% | 6 / 6 |
+
+The one-second setup-median increase does not explain away the group savings:
+the isolated total median still fell by 25 seconds, and the real-time median
+fell by 25.70 seconds. The five isolated target-group medians now total 906
+seconds after accepted Chunk 1 and implemented Chunk 2, an 83-second cumulative
+reduction from the 989-second baseline. Applying those isolated group deltas to
+the 1,385-second serial baseline projects 1,302 seconds, a 6.0% suite
+reduction. The plan-wide 255-second acceptance threshold therefore has 172
+seconds remaining for Chunks 3–5. This is a projection; Chunk 6 owns the final
+complete serial and worker acceptance measurements.
 
 ### Human review gate
 
@@ -873,6 +919,20 @@ complete.
   unchanged. The projected full serial result is 1,327 seconds; final suite
   and worker measurements remain deferred to Chunk 6.
 
+### Chunk 2
+
+- Publication and rollback recovery can share one monotonic generation history
+  without weakening transaction coverage when the retained initial generation
+  is restored byte-for-byte and resolved before source-loss rollback.
+- Keeping both logical pass records while deleting the standalone rollback
+  world preserved the six-test count and made the removed cost attributable to
+  one profile clone, checkout clone, rebind, publication commit, and publish
+  sequence rather than removed assertions.
+- The catalog group median fell from 204 to 179 seconds (12.3%). Together with
+  accepted Chunk 1, cumulative isolated savings are 83 seconds and the
+  projected full serial result is 1,302 seconds; final suite and worker
+  measurements remain deferred to Chunk 6.
+
 ## Session bootstrap
 
 Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, this plan,
@@ -887,8 +947,8 @@ coverage, isolation, POSIX shell, and offline behavior. The non-negotiable
 rule is: do not replace unique real integration behavior or move cost into
 shared setup merely to improve a group number.
 
-The active chunk is Chunk 1. Freeze and record the current baseline before any
-test edit, execute only the startup consolidation, update this plan's progress
-and lessons, produce the required calculated reviewer table, and stop at the
-Chunk 1 human review gate. Use at least the chunk's recorded suggested AI
-reasoning effort.
+The active chunk is Chunk 2 at its human review gate. Its implementation and
+automated verification are complete. Review the assertion ledger, exact
+generation restoration, source-loss rollback sequence, and measured result;
+do not modify implementation or start Chunk 3 until Chunk 2 is explicitly
+accepted.

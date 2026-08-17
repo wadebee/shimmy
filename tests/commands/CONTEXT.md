@@ -13,9 +13,11 @@ is the behavior under test.
   validation and non-mutation, exact schema rejection, live-checkout
   registration and explicit rebind, immediate dirty upstream visibility,
   clean committed publication, immutable provenance, ignored-content
-  exclusion, and retained rollback generation state, atomic rollback,
-  invalid-current recovery, integrity rejection, explicit catalog-default
-  profile update, and final checkout-HEAD rechecking.
+  exclusion, and retained rollback generation state. One progressive
+  rebind/publication scenario also covers atomic rollback after source loss,
+  byte-exact retained-generation restoration, invalid-current recovery,
+  integrity rejection, explicit catalog-default profile update, and final
+  checkout-HEAD rechecking.
 - `images.sh` covers source and installed selection, fixture-driven OCI/Docker
   parsing, request deduplication, authentication skips/failures, drift policy,
   stable output, and command availability without target-registry access.
