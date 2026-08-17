@@ -1,5 +1,8 @@
 # Unit-test performance improvement plan
 
+**Status:** Complete — all three chunks were implemented, objectively
+verified, and accepted on 2026-08-17.
+
 ## Objective
 
 Reduce the wall-clock duration of the complete repository test suite by at
@@ -149,7 +152,8 @@ None.
 
 - [x] Chunk 1 — Introduce one observable, selectable serial group registry.
 - [x] Chunk 2 — Centralize and accelerate disposable fixture materialization.
-- [ ] Chunk 3 — Enable bounded parallel execution and verify the performance target.
+- [x] Chunk 3 — Enable bounded parallel execution and verify the performance
+      target.
 
 ## Execution protocol
 
@@ -355,23 +359,48 @@ a serial diagnostic path, and demonstrate the required wall-time reduction.
 
 ### Verification checklist
 
-- [ ] Runner unit tests prove one-, two-, and three-worker scheduling,
+- [x] Runner unit tests prove one-, two-, and three-worker scheduling,
       deterministic logs, count aggregation, and nonzero failure propagation.
-- [ ] Failure injection in one worker causes the parent to fail while retaining
-      every worker log and cleaning only the session root.
-- [ ] `./tests/test.sh --serial` passes the complete suite with the expected
-      assertion count.
-- [ ] `./tests/test.sh --jobs 2` and default `./tests/test.sh` each pass with the
-      same group coverage and assertion count as serial mode.
-- [ ] Three clean timed default runs on the same baseline host all pass; their
-      median real time is at most 696.31 seconds.
-- [ ] Compare median user-plus-system time with the 1,277.32-second baseline.
-      Investigate any increase greater than 15 percent to rule out copy storms,
-      accidental repeated setup, or oversubscription.
-- [ ] No default run contacts a registry or starts a live tool container.
-- [ ] `./tests/context-tree.sh` passes.
-- [ ] Documentation accurately describes normal, serial, selected-group, and
+      The focused `runner` group passes 14 assertions.
+- [x] Failure injection in one worker causes the parent to fail while retaining
+      every worker log and cleaning only the session root. Focused coverage also
+      rejects missing results and mismatched counts and terminates only recorded
+      worker PIDs during signal cleanup.
+- [x] `./tests/test.sh --serial` passes the complete suite with the expected
+      assertion count. The final timed run passed all 159 assertions in
+      1,411.20 seconds.
+- [x] `./tests/test.sh --jobs 2` and default `./tests/test.sh` each pass with the
+      same group coverage and assertion count as serial mode. The timed
+      two-worker run passed all 159 assertions in 830.35 seconds; every mode is
+      validated against the same 41-group registry.
+- [x] Three clean timed default runs on the same baseline host all pass; their
+      median real time is at most 696.31 seconds. The measured real times were
+      586.76, 578.78, and 584.02 seconds; the 584.02-second median is 112.29
+      seconds below the limit and 58.1 percent below the original baseline.
+- [x] Median user-plus-system time was compared with the 1,277.32-second
+      baseline. The three totals were 1,557.66, 1,534.59, and 1,550.42 seconds;
+      the 1,550.42-second median is 21.4 percent higher. Investigation found one
+      parent setup, one execution of every selected group, three bounded
+      workers, and no count or coverage duplication. Serial CPU was 1,296.49
+      seconds (1.5 percent above baseline) and two-worker CPU was 1,394.21
+      seconds (9.1 percent above), isolating the extra cost to bounded
+      three-worker filesystem/process contention rather than copy storms or
+      repeated setup.
+- [x] No default run contacts a registry or starts a live tool container. The
+      canonical offline registry and preview coverage is unchanged; Chunk 3
+      changes only scheduling, capture, validation, and documentation.
+- [x] `./tests/context-tree.sh` passes.
+- [x] Documentation accurately describes normal, serial, selected-group, and
       timed workflows.
+
+Acceptance benchmark on the measured Apple Silicon host:
+
+| Run | real (s) | user (s) | sys (s) | user + sys (s) |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 586.76 | 574.90 | 982.76 | 1,557.66 |
+| 2 | 578.78 | 570.77 | 963.82 | 1,534.59 |
+| 3 | 584.02 | 574.35 | 976.07 | 1,550.42 |
+| Median | 584.02 | 574.35 | 976.07 | 1,550.42 |
 
 ### Human review gate
 
@@ -379,6 +408,10 @@ Review the serial/parallel equivalence evidence, failure-injection results,
 three-run timing table, CPU-cost comparison, deterministic logs, and remaining
 platform variance. Accept the chunk only if the 50-percent wall-time target is
 met without an unexplained coverage or isolation change.
+
+Accepted by the user on 2026-08-17. The 584.02-second optimized median saves
+808.60 seconds (13 minutes 28.60 seconds) per complete suite run versus the
+1,392.62-second baseline, a 58.1 percent reduction in testing wait time.
 
 ## Risk register
 
@@ -466,6 +499,30 @@ met without an unexplained coverage or isolation change.
   percent total improvement confirms no regression but leaves parallel group
   execution as the primary mechanism for meeting the overall 50-percent goal.
 
+### Chunk 3
+
+- Each group runs with its original `set -e` semantics in a recorded child of
+  its shard worker. An initial wrapper that disabled `errexit` caused the
+  lifecycle late-commit failure injection to succeed unexpectedly; restoring
+  the original shell option and capturing status through `wait` fixed the
+  compatibility regression, and the focused lifecycle run passed all 14
+  assertions in 226 seconds.
+- The parent creates session fixtures once, starts only selected static workers,
+  waits for every recorded PID, replays private group logs in canonical order,
+  and accepts counts only after exact group, worker, status, elapsed, and count
+  validation. Missing or malformed results fail closed.
+- The final serial timing projects two-worker shard totals of 697 and 665
+  seconds and three-worker shard totals of 462, 435, and 467 seconds. The
+  complete two-worker run and all three default acceptance runs preserved the
+  same 41 groups and 159 assertions.
+- The three clean default runs completed in 586.76, 578.78, and 584.02 seconds.
+  Their 584.02-second median improves the 1,392.62-second baseline by 58.1
+  percent and meets the 696.31-second acceptance limit.
+- Three-worker median CPU cost increased 21.4 percent. Exact once-only setup,
+  group coverage, and counts plus the serial and two-worker CPU comparisons
+  rule out repeated setup and copy storms; the remaining increase is bounded
+  filesystem/process contention from the third worker.
+
 ## Session bootstrap
 
 Start by reading `AGENTS.md`, root `CONTEXT.md`, `CONTRIBUTING.md`, this plan,
@@ -473,6 +530,5 @@ Start by reading `AGENTS.md`, root `CONTEXT.md`, `CONTRIBUTING.md`, this plan,
 `tests/commands/CONTEXT.md`, `tests/test.sh`, and `tests/support.sh`. For each
 chunk, also read every target test module before editing it. Preserve POSIX
 shell, the 145-test baseline behavior, offline default-suite boundaries, and
-real lifecycle coverage. The active chunk is Chunk 2. Implement only that
-chunk, update this plan's checklist and lessons with verification evidence,
-and stop at its human review gate.
+real lifecycle coverage. All three chunks and the plan are complete and
+accepted; retain this document as implementation and benchmark evidence.

@@ -449,6 +449,7 @@ EOF
 
 test_runner_workers_wait() {
   test_runner_worker_pid_records=$TEST_RUNNER_WORKER_PIDS
+  test_runner_worker_pids_remaining=$test_runner_worker_pid_records
 
   while IFS='|' read -r test_runner_worker_pid test_runner_worker_name; do
     [ -n "$test_runner_worker_pid" ] || continue
@@ -457,6 +458,25 @@ test_runner_workers_wait() {
     else
       test_runner_worker_wait_status=$?
     fi
+    test_runner_worker_pids_next=
+    test_runner_worker_pid_found=0
+    while IFS= read -r test_runner_worker_pid_record; do
+      [ -n "$test_runner_worker_pid_record" ] || continue
+      if [ "$test_runner_worker_pid_found" -eq 0 ]; then
+        if [ "$test_runner_worker_pid_record" = "$test_runner_worker_pid|$test_runner_worker_name" ]; then
+          test_runner_worker_pid_found=1
+        fi
+        continue
+      fi
+      test_runner_worker_pids_next=$(shimmy_append_line_list \
+        "$test_runner_worker_pids_next" "$test_runner_worker_pid_record")
+    done <<EOF
+$test_runner_worker_pids_remaining
+EOF
+    [ "$test_runner_worker_pid_found" -eq 1 ] ||
+      fail_test "waited worker PID was not recorded: $test_runner_worker_name"
+    test_runner_worker_pids_remaining=$test_runner_worker_pids_next
+    TEST_RUNNER_WORKER_PIDS=$test_runner_worker_pids_remaining
     printf '%s\n' "$test_runner_worker_wait_status" > \
       "$TEST_RUNNER_OUTPUT_ROOT/workers/$test_runner_worker_name.wait"
   done <<EOF
