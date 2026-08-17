@@ -129,9 +129,18 @@ executable bits on shell entrypoints.
 
 Disposable installation scenarios set absolute temporary `HOME` and
 `XDG_CONFIG_HOME` values. Do not introduce an installation-directory override.
+Before creating the initial clean source, the runner performs a disposable
+copy-on-write probe from the checkout into the session filesystem. One shared
+fixture-tree helper uses clone copies only after that probe succeeds and uses a
+portable recursive-copy fallback otherwise. It materializes the clean source,
+update source, catalog, profile, and other large disposable scenario trees.
+Targets must be nonexistent descendants of the physical session root; empty,
+root, repository, source-equal, source-descendant, escaped, and pre-existing
+targets fail before copying. Internal symlinks, executable modes, Git metadata,
+and copy independence are covered directly by runner tests.
+
 The runner creates pristine default and upstream profiles once per session.
-Scenarios that are testing installed-profile behavior rather than bootstrap
-behavior may clone those fixtures; APFS copy-on-write is used when available,
-with a portable recursive-copy fallback. Cloning relocates generated shell-init
-and default implementation paths to the scenario profile. Self-update tests
+Scenarios that test installed-profile behavior rather than bootstrap behavior
+copy those fixtures through the shared helper, then relocate generated
+shell-init and implementation paths to the scenario profile. Self-update tests
 also share one immutable committed source-repository fixture for the session.

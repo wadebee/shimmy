@@ -6,7 +6,7 @@ test_update_source_repository_create() {
   cp "$ROOT_DIR/install.sh" "$source_repo/install.sh"
   cp "$ROOT_DIR/catalog.conf" "$source_repo/catalog.conf"
   for asset_name in commands lib plugins tests tools; do
-    cp -R "$ROOT_DIR/$asset_name" "$source_repo/$asset_name"
+    test_fixture_tree_copy "$ROOT_DIR/$asset_name" "$source_repo/$asset_name"
   done
   git -C "$source_repo" init -q
   git -C "$source_repo" config user.email shimmy-tests@example.invalid

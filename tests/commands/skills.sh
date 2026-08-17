@@ -364,7 +364,7 @@ test_commands_skills_external_failure_retry() {
 test_commands_skills_catalog_authority() {
   setup_scenario_with_profiles default upstream
   live_checkout=$SCENARIO_DIR/live-checkout
-  cp -R "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$live_checkout"
+  test_fixture_tree_copy "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$live_checkout"
   upstream_shimmy catalog rebind --checkout "$live_checkout" >/dev/null
   default_manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")

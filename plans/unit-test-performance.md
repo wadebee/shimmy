@@ -148,7 +148,7 @@ None.
 ## Progress Checklist
 
 - [x] Chunk 1 — Introduce one observable, selectable serial group registry.
-- [ ] Chunk 2 — Centralize and accelerate disposable fixture materialization.
+- [x] Chunk 2 — Centralize and accelerate disposable fixture materialization.
 - [ ] Chunk 3 — Enable bounded parallel execution and verify the performance target.
 
 ## Execution protocol
@@ -283,17 +283,19 @@ trees.
 
 ### Verification checklist
 
-- [ ] Copy-helper tests pass on the native clone-capable path.
-- [ ] Forced portable fallback tests pass without invoking clone-only options.
-- [ ] Unsafe or pre-existing targets fail without source or target mutation.
-- [ ] Copied fixtures preserve executable modes, symlinks, Git operations, and
+- [x] Copy-helper tests pass on the native clone-capable path. The host probe
+      reported `clone_supported=1`, and the preservation test exercised the
+      detected strategy.
+- [x] Forced portable fallback tests pass without invoking clone-only options.
+- [x] Unsafe or pre-existing targets fail without source or target mutation.
+- [x] Copied fixtures preserve executable modes, symlinks, Git operations, and
       byte-sensitive profile assertions.
-- [ ] `SHIMMY_TEST_TIMING=1 ./tests/test.sh --serial` passes the complete suite
-      and records the same registered group set as Chunk 1.
-- [ ] Serial setup and total timings are compared with Chunk 1 and any
-      regression greater than 10 percent is explained and resolved before
-      review.
-- [ ] `./tests/context-tree.sh` passes.
+- [x] `SHIMMY_TEST_TIMING=1 ./tests/test.sh --serial` passes all 154 tests and
+      records the same 41 registered groups as Chunk 1.
+- [x] Serial setup and total timings were compared with Chunk 1. Setup improved
+      from 40 to 39 seconds and total duration improved from 1,385 to 1,366
+      seconds; neither compared aggregate regressed.
+- [x] `./tests/context-tree.sh` passes.
 
 ### Human review gate
 
@@ -441,6 +443,29 @@ met without an unexplained coverage or isolation change.
   group output when asserting the exact output body; otherwise correct timing
   records contaminate the fixture expectation.
 
+### Chunk 2
+
+- Copy-on-write capability must be established before the initial clean-source
+  snapshot and across the checkout-to-session filesystem boundary. A small
+  file probe is sufficient to select the directory-copy strategy without
+  creating mutable state in the checkout.
+- Resolving the target parent physically before checking the session-root
+  boundary prevents lexical `..` or symlink-parent escapes. Requiring the
+  target parent to exist also keeps nonexistent-target validation simple and
+  deterministic.
+- Large clean-source, catalog, profile, update-source, image-source, and
+  catalog-contract fixtures can share one copy helper. Small copies that
+  intentionally create duplicate or malformed objects remain clearer as local
+  `cp -R` operations.
+- The native clone path, a forced portable path, unsafe-target rejection,
+  executable modes, internal symlinks, Git metadata, and post-copy mutation
+  independence now have direct runner coverage. The assertion count increased
+  from 150 to 154 solely from these four focused tests.
+- The timed serial suite passed in 1,366 seconds with 39 seconds of setup,
+  compared with Chunk 1's 1,385-second total and 40-second setup. The 1.4
+  percent total improvement confirms no regression but leaves parallel group
+  execution as the primary mechanism for meeting the overall 50-percent goal.
+
 ## Session bootstrap
 
 Start by reading `AGENTS.md`, root `CONTEXT.md`, `CONTRIBUTING.md`, this plan,
@@ -448,6 +473,6 @@ Start by reading `AGENTS.md`, root `CONTEXT.md`, `CONTRIBUTING.md`, this plan,
 `tests/commands/CONTEXT.md`, `tests/test.sh`, and `tests/support.sh`. For each
 chunk, also read every target test module before editing it. Preserve POSIX
 shell, the 145-test baseline behavior, offline default-suite boundaries, and
-real lifecycle coverage. The active chunk is Chunk 1. Implement only that
+real lifecycle coverage. The active chunk is Chunk 2. Implement only that
 chunk, update this plan's checklist and lessons with verification evidence,
 and stop at its human review gate.

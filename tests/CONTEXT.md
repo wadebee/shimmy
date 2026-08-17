@@ -28,15 +28,24 @@ or masking state.
 
 Installation scenarios isolate state with absolute disposable `HOME` and
 `XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or
-installed profile-selection override. The runner first creates one disposable
-clean committed source checkout, then creates pristine shared catalogs plus
-default and upstream profiles once per session. Scenarios that do not need to
-exercise bootstrap or registration clone those catalog and profile fixtures
-using APFS copy-on-write when available and a recursive copy fallback
-elsewhere. Clones relocate the generated `shell-init.sh` path and every
-implementation runtime root before use. Dirty-publication and live-upstream
-tests use isolated Git checkout copies. The immutable committed source
-repository used by self-update scenarios is also created once per session.
+installed profile-selection override. Before the initial source snapshot, the
+runner probes copy-on-write support from the checkout into the session
+filesystem. One shared fixture-tree helper then materializes the clean source,
+update source, catalogs, profiles, and large scenario trees with clone copies
+when that probe succeeds and portable recursive copies otherwise. The helper
+accepts only real source directories and nonexistent targets beneath the
+physical session root; it rejects repository, source-equal, source-descendant,
+pre-existing, and escaped targets. Recursive copies preserve internal
+symlinks, modes, Git metadata, and independent mutation semantics.
+
+The runner creates one disposable clean committed source checkout, then
+creates pristine shared catalogs plus default and upstream profiles once per
+session. Scenarios that do not need to exercise bootstrap or registration copy
+those catalog and profile fixtures through the shared helper. Relocated
+profiles rewrite the generated `shell-init.sh` path and every implementation
+runtime root before use. Dirty-publication and live-upstream tests use isolated
+Git checkout copies. The immutable committed source repository used by
+self-update scenarios is also created once per session.
 Source-suite runner options are validated before these session fixtures or the
 session temporary root are created. Named groups execute serially in canonical
 registry order in this phase; lifecycle prepare and complete are one

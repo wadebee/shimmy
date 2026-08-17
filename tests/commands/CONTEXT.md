@@ -2,7 +2,10 @@
 
 These modules exercise the public command lifecycle using disposable install
 XDG configuration homes. They are sourced by `../test.sh` and must not modify
-a user's Shimmy installation or shell startup files.
+a user's Shimmy installation or shell startup files. Large checkout, catalog,
+profile, and source-tree fixtures use the boundary-checked copy helper from
+`../support.sh`; small direct copies remain local when duplication or mutation
+is the behavior under test.
 
 ## Files
 

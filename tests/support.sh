@@ -187,7 +187,7 @@ setup_scenario() {
 setup_scenario_with_profiles() {
   setup_scenario
   mkdir -p "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
-  cp -R "$SHIMMY_TEST_CATALOG_FIXTURES_ROOT" "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
+  test_fixture_tree_copy "$SHIMMY_TEST_CATALOG_FIXTURES_ROOT" "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
 
   for profile_name in "$@"; do
     case "$profile_name" in
@@ -203,11 +203,7 @@ setup_scenario_with_profiles() {
     esac
 
     profile_source=$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/$profile_name
-    if [ "$SHIMMY_TEST_COPY_ON_WRITE" -eq 1 ]; then
-      cp -cR "$profile_source" "$profile_target" || fail_test "unable to clone pristine $profile_name profile fixture"
-    else
-      cp -R "$profile_source" "$profile_target" || fail_test "unable to copy pristine $profile_name profile fixture"
-    fi
+    test_fixture_tree_copy "$profile_source" "$profile_target"
 
     shell_init_file=$profile_target/shell-init.sh
     shell_init_tmp=$profile_target/.shell-init.sh.fixture.tmp
@@ -238,11 +234,75 @@ setup_scenario_with_profiles() {
   done
 }
 
+test_fixture_copy_on_write_detect() {
+  test_fixture_copy_probe=$TMP_ROOT/.copy-on-write-probe
+  SHIMMY_TEST_COPY_ON_WRITE=0
+
+  [ ! -e "$test_fixture_copy_probe" ] && [ ! -L "$test_fixture_copy_probe" ] ||
+    fail_test "copy-on-write probe target already exists: $test_fixture_copy_probe"
+  if cp -c "$ROOT_DIR/catalog.conf" "$test_fixture_copy_probe" 2>/dev/null; then
+    SHIMMY_TEST_COPY_ON_WRITE=1
+  fi
+  rm -f "$test_fixture_copy_probe"
+}
+
+test_fixture_tree_copy() {
+  test_fixture_copy_source=${1:-}
+  test_fixture_copy_target=${2:-}
+
+  [ "$#" -eq 2 ] || fail_test "fixture tree copy requires source and target"
+  [ -n "$test_fixture_copy_source" ] || fail_test "fixture tree copy source is empty"
+  [ -n "$test_fixture_copy_target" ] || fail_test "fixture tree copy target is empty"
+  [ "$test_fixture_copy_source" != / ] || fail_test "fixture tree copy source cannot be root"
+  [ "$test_fixture_copy_target" != / ] || fail_test "fixture tree copy target cannot be root"
+  [ -d "$test_fixture_copy_source" ] && [ ! -L "$test_fixture_copy_source" ] ||
+    fail_test "fixture tree copy source is not a regular directory: $test_fixture_copy_source"
+  [ ! -e "$test_fixture_copy_target" ] && [ ! -L "$test_fixture_copy_target" ] ||
+    fail_test "fixture tree copy target already exists: $test_fixture_copy_target"
+
+  test_fixture_copy_source_real=$(cd -- "$test_fixture_copy_source" && pwd -P) ||
+    fail_test "unable to resolve fixture tree copy source: $test_fixture_copy_source"
+  test_fixture_copy_target_parent=${test_fixture_copy_target%/*}
+  test_fixture_copy_target_name=${test_fixture_copy_target##*/}
+  [ -n "$test_fixture_copy_target_parent" ] &&
+    [ "$test_fixture_copy_target_parent" != "$test_fixture_copy_target" ] &&
+    [ -n "$test_fixture_copy_target_name" ] &&
+    [ "$test_fixture_copy_target_name" != . ] &&
+    [ "$test_fixture_copy_target_name" != .. ] ||
+    fail_test "fixture tree copy target is not an absolute child path: $test_fixture_copy_target"
+  [ -d "$test_fixture_copy_target_parent" ] ||
+    fail_test "fixture tree copy target parent is missing: $test_fixture_copy_target_parent"
+  test_fixture_copy_target_parent_real=$(cd -- "$test_fixture_copy_target_parent" && pwd -P) ||
+    fail_test "unable to resolve fixture tree copy target parent: $test_fixture_copy_target_parent"
+  test_fixture_copy_target_real=$test_fixture_copy_target_parent_real/$test_fixture_copy_target_name
+
+  case "$test_fixture_copy_target_real" in
+    "$TMP_ROOT"/*)
+      ;;
+    *)
+      fail_test "fixture tree copy target is outside the session root: $test_fixture_copy_target"
+      ;;
+  esac
+  [ "$test_fixture_copy_target_real" != "$ROOT_DIR" ] ||
+    fail_test "fixture tree copy target cannot be the repository: $test_fixture_copy_target"
+  case "$test_fixture_copy_target_real" in
+    "$test_fixture_copy_source_real"|"$test_fixture_copy_source_real"/*)
+      fail_test "fixture tree copy target cannot equal or descend from its source: $test_fixture_copy_target"
+      ;;
+  esac
+
+  if [ "${SHIMMY_TEST_COPY_ON_WRITE:-0}" -eq 1 ]; then
+    cp -cR "$test_fixture_copy_source_real" "$test_fixture_copy_target_real" ||
+      fail_test "unable to clone fixture tree: $test_fixture_copy_source_real"
+  else
+    cp -R "$test_fixture_copy_source_real" "$test_fixture_copy_target_real" ||
+      fail_test "unable to copy fixture tree: $test_fixture_copy_source_real"
+  fi
+}
+
 setup_clean_source_fixture() {
   clean_source_target=$1
-  case "$clean_source_target" in "$TMP_ROOT"/*) ;; *) fail_test "unsafe clean source fixture target: $clean_source_target" ;; esac
-  [ ! -e "$clean_source_target" ] || fail_test "clean source fixture target already exists: $clean_source_target"
-  cp -R "$ROOT_DIR" "$clean_source_target"
+  test_fixture_tree_copy "$ROOT_DIR" "$clean_source_target"
   [ -d "$clean_source_target/.git" ] || fail_test "copied source fixture is missing Git metadata"
   rm -rf "$clean_source_target/.git"
   git -C "$clean_source_target" init -q
@@ -258,20 +318,14 @@ setup_session_profile_fixtures() {
   SHIMMY_TEST_CLEAN_SOURCE_ROOT=$TMP_ROOT/clean-source
   fixture_home=$TMP_ROOT/profile-fixture-home
   fixture_config=$TMP_ROOT/profile-fixture-config
-  copy_probe_source=$TMP_ROOT/copy-on-write-source
-  copy_probe_target=$TMP_ROOT/copy-on-write-target
   HOME_DIR=$fixture_home
   XDG_CONFIG_HOME_DIR=$fixture_config
   DEFAULT_PROFILE_ROOT=$fixture_config/shimmy/profiles/default
   UPSTREAM_PROFILE_ROOT=$fixture_config/shimmy/profiles/upstream
-  SHIMMY_TEST_COPY_ON_WRITE=0
 
   mkdir -p "$fixture_home" "$fixture_config" "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT"
+  test_fixture_copy_on_write_detect
   setup_clean_source_fixture "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
-  printf '%s\n' probe > "$copy_probe_source"
-  if cp -c "$copy_probe_source" "$copy_probe_target" 2>/dev/null; then
-    SHIMMY_TEST_COPY_ON_WRITE=1
-  fi
 
   (
     cd "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"

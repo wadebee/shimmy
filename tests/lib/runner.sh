@@ -82,10 +82,130 @@ complete'
   pass "runner lifecycle group keeps prepare and complete indivisible"
 }
 
+test_lib_runner_fixture_copy_clone_selection() {
+  setup_scenario
+  fixture_copy_source=$SCENARIO_DIR/clone-source
+  fixture_copy_target=$SCENARIO_DIR/clone-target
+  fixture_copy_marker=$SCENARIO_DIR/clone-option-used
+  mkdir "$fixture_copy_source"
+  printf '%s\n' clone > "$fixture_copy_source/payload"
+
+  (
+    cp() {
+      [ "${1:-}" = -cR ] || return 97
+      : > "$fixture_copy_marker"
+      shift
+      command cp -R "$@"
+    }
+    SHIMMY_TEST_COPY_ON_WRITE=1
+    test_fixture_tree_copy "$fixture_copy_source" "$fixture_copy_target"
+  )
+
+  assert_file_exists "$fixture_copy_marker"
+  assert_file_contains "$fixture_copy_target/payload" clone
+  pass "fixture tree copy selects clone mode only when enabled"
+}
+
+test_lib_runner_fixture_copy_portable_fallback() {
+  setup_scenario
+  fixture_copy_source=$SCENARIO_DIR/portable-source
+  fixture_copy_target=$SCENARIO_DIR/portable-target
+  fixture_copy_marker=$SCENARIO_DIR/portable-option-used
+  mkdir "$fixture_copy_source"
+  printf '%s\n' portable > "$fixture_copy_source/payload"
+
+  (
+    cp() {
+      case "${1:-}" in
+        *c*) return 97 ;;
+      esac
+      : > "$fixture_copy_marker"
+      command cp "$@"
+    }
+    SHIMMY_TEST_COPY_ON_WRITE=0
+    test_fixture_tree_copy "$fixture_copy_source" "$fixture_copy_target"
+  )
+
+  assert_file_exists "$fixture_copy_marker"
+  assert_file_contains "$fixture_copy_target/payload" portable
+  pass "fixture tree copy portable fallback omits clone-only options"
+}
+
+test_lib_runner_fixture_copy_rejections() {
+  setup_scenario
+  fixture_copy_source=$SCENARIO_DIR/rejection-source
+  fixture_copy_preexisting=$SCENARIO_DIR/preexisting-target
+  fixture_copy_outside=$TMP_ROOT-outside-copy-target
+  mkdir "$fixture_copy_source" "$fixture_copy_preexisting"
+  printf '%s\n' source-unchanged > "$fixture_copy_source/payload"
+  printf '%s\n' target-unchanged > "$fixture_copy_preexisting/payload"
+  fixture_copy_source_checksum=$(cksum < "$fixture_copy_source/payload")
+  fixture_copy_target_checksum=$(cksum < "$fixture_copy_preexisting/payload")
+
+  for fixture_copy_unsafe_target in \
+    '' \
+    / \
+    "$ROOT_DIR" \
+    "$fixture_copy_source" \
+    "$fixture_copy_source/descendant" \
+    "$fixture_copy_preexisting" \
+    "$fixture_copy_outside"
+  do
+    set +e
+    fixture_copy_rejection_output=$(test_fixture_tree_copy "$fixture_copy_source" "$fixture_copy_unsafe_target" 2>&1)
+    fixture_copy_rejection_status=$?
+    set -e
+    [ "$fixture_copy_rejection_status" -ne 0 ] ||
+      fail_test "fixture tree copy accepted unsafe target: $fixture_copy_unsafe_target"
+    assert_contains "$fixture_copy_rejection_output" 'FAIL:'
+  done
+
+  assert_equals "$(cksum < "$fixture_copy_source/payload")" "$fixture_copy_source_checksum"
+  assert_equals "$(cksum < "$fixture_copy_preexisting/payload")" "$fixture_copy_target_checksum"
+  assert_path_not_exists "$fixture_copy_source/descendant"
+  assert_path_not_exists "$fixture_copy_outside"
+  pass "fixture tree copy rejects unsafe and pre-existing targets without mutation"
+}
+
+test_lib_runner_fixture_copy_preservation() {
+  setup_scenario
+  fixture_copy_source=$SCENARIO_DIR/preservation-source
+  fixture_copy_target=$SCENARIO_DIR/preservation-target
+  mkdir -p "$fixture_copy_source/bin" "$fixture_copy_source/data"
+  printf '%s\n' '#!/bin/sh' 'exit 0' > "$fixture_copy_source/bin/example"
+  printf '%s\n' original > "$fixture_copy_source/data/value"
+  chmod 751 "$fixture_copy_source/bin/example"
+  ln -s ../data/value "$fixture_copy_source/bin/value-link"
+  ln -s data "$fixture_copy_source/data-link"
+  git -C "$fixture_copy_source" init -q
+  git -C "$fixture_copy_source" config user.email shimmy-tests@example.invalid
+  git -C "$fixture_copy_source" config user.name 'Shimmy Tests'
+  git -C "$fixture_copy_source" add -A
+  git -C "$fixture_copy_source" commit -qm fixture
+
+  test_fixture_tree_copy "$fixture_copy_source" "$fixture_copy_target"
+
+  assert_file_mode "$fixture_copy_target/bin/example" 751
+  assert_path_symlink "$fixture_copy_target/bin/value-link"
+  assert_equals "$(readlink "$fixture_copy_target/bin/value-link")" ../data/value
+  assert_path_symlink "$fixture_copy_target/data-link"
+  assert_equals "$(readlink "$fixture_copy_target/data-link")" data
+  git -C "$fixture_copy_target" rev-parse --verify HEAD >/dev/null
+  assert_equals "$(git -C "$fixture_copy_target" status --porcelain)" ''
+  printf '%s\n' changed > "$fixture_copy_target/data/value"
+  assert_file_contains "$fixture_copy_source/data/value" original
+  assert_file_contains "$fixture_copy_target/data/value" changed
+  pass "fixture tree copy preserves modes, symlinks, Git metadata, and mutation independence"
+}
+
 test_lib_runner_run() {
   test_lib_runner_registry_ordering
   test_lib_runner_group_selection
   test_lib_runner_option_validation
   test_lib_runner_timing_shape
   test_lib_runner_lifecycle_grouping
+  test_lib_runner_fixture_copy_clone_selection
+  test_lib_runner_fixture_copy_portable_fallback
+  test_lib_runner_fixture_copy_rejections
+  test_lib_runner_fixture_copy_preservation
 }

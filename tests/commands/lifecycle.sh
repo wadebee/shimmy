@@ -339,7 +339,7 @@ test_commands_lifecycle_linux_registry_activation_cleanup() {
 test_commands_lifecycle_global_uninstall() {
   setup_scenario_with_profiles default upstream
   replacement_checkout=$SCENARIO_DIR/global-uninstall-checkout
-  cp -R "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$replacement_checkout"
+  test_fixture_tree_copy "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$replacement_checkout"
   upstream_shimmy catalog rebind --checkout "$replacement_checkout" >/dev/null
   (
     cd "$WORK_DIR"

@@ -105,7 +105,7 @@ test_commands_catalog_list() {
 test_commands_catalog_dirty_initial_publication_rejection() {
   setup_scenario
   dirty_checkout=$SCENARIO_DIR/dirty-checkout
-  cp -R "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$dirty_checkout"
+  test_fixture_tree_copy "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$dirty_checkout"
   printf '%s\n' dirty > "$dirty_checkout/untracked-publication-sentinel"
 
   set +e
@@ -126,9 +126,9 @@ test_commands_catalog_dirty_initial_publication_rejection() {
 test_commands_catalog_registration_collision() {
   setup_scenario
   mkdir -p "$XDG_CONFIG_HOME_DIR/shimmy"
-  cp -R "$SHIMMY_TEST_CATALOG_FIXTURES_ROOT" "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
+  test_fixture_tree_copy "$SHIMMY_TEST_CATALOG_FIXTURES_ROOT" "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
   collision_checkout=$SCENARIO_DIR/collision-checkout
-  cp -R "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$collision_checkout"
+  test_fixture_tree_copy "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$collision_checkout"
   registry_file=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf
   registry_checksum=$(cksum < "$registry_file")
 
@@ -166,7 +166,7 @@ test_commands_catalog_registry_symlink_rejection() {
 test_commands_catalog_rebind_and_publish() {
   setup_scenario_with_profiles default upstream
   replacement_checkout=$SCENARIO_DIR/replacement-checkout
-  cp -R "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$replacement_checkout"
+  test_fixture_tree_copy "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$replacement_checkout"
   upstream_registry=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf
   default_registry=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf
   upstream_registry_checksum=$(cksum < "$upstream_registry")
@@ -296,7 +296,7 @@ test_commands_catalog_rebind_and_publish() {
 test_commands_catalog_rollback_recovery() {
   setup_scenario_with_profiles default upstream
   replacement_checkout=$SCENARIO_DIR/rollback-checkout
-  cp -R "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$replacement_checkout"
+  test_fixture_tree_copy "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$replacement_checkout"
   upstream_shimmy catalog rebind --checkout "$replacement_checkout" >/dev/null
   test_catalog_tool_create "$replacement_checkout" rollback-tool
   git -C "$replacement_checkout" add tools/rollback-tool

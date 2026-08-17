@@ -32,8 +32,8 @@ test_lib_catalog_contract_fixture_create() {
   catalog_fixture_root=$1
   mkdir -p "$catalog_fixture_root/tools"
   cp "$ROOT_DIR/catalog.conf" "$catalog_fixture_root/catalog.conf"
-  cp -R "$ROOT_DIR/plugins" "$catalog_fixture_root/plugins"
-  cp -R "$ROOT_DIR/tools/jq" "$catalog_fixture_root/tools/jq"
+  test_fixture_tree_copy "$ROOT_DIR/plugins" "$catalog_fixture_root/plugins"
+  test_fixture_tree_copy "$ROOT_DIR/tools/jq" "$catalog_fixture_root/tools/jq"
 }
 
 test_lib_catalog_contract_rejection() {
