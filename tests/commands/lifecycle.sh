@@ -5,6 +5,11 @@
 
 test_commands_lifecycle_prepare() {
   setup_scenario_with_profiles default upstream
+  lifecycle_upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
+  lifecycle_upstream_implementation_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")
+  lifecycle_upstream_launcher_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")
+  lifecycle_default_catalog_registry_checksum=$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf")
+  lifecycle_upstream_catalog_registry_checksum=$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf")
 
   for asset_name in shell-init.sh registries.conf install-manifest.txt bin/shimmy commands config implementations lib tests tools; do
     [ -e "$DEFAULT_PROFILE_ROOT/$asset_name" ] || fail_test "missing materialized profile asset: $asset_name"
@@ -278,28 +283,6 @@ test_commands_lifecycle_darwin_projection_uninstall_refusal() {
   pass 'profile and global uninstall refuse valid Darwin projection records before removing any profile state'
 }
 
-test_commands_lifecycle_empty_container_cleanup() {
-  setup_scenario_with_profiles default
-  default_registry_config=$DEFAULT_PROFILE_ROOT/registries.conf
-  default_shimmy uninstall >/dev/null
-  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
-  assert_path_not_exists "$default_registry_config"
-  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
-  assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf"
-
-  setup_scenario_with_profiles default upstream
-  upstream_registry_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/registries.conf")
-  default_shimmy uninstall >/dev/null
-  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
-  assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
-  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/registries.conf")" "$upstream_registry_checksum"
-  assert_dir_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
-  upstream_shimmy uninstall >/dev/null
-  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
-  assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf"
-  pass "profile removal preserves sibling profiles and independently owned shared catalogs"
-}
-
 test_commands_lifecycle_linux_registry_activation_cleanup() {
   setup_scenario_with_profiles default upstream
   FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
@@ -439,55 +422,56 @@ test_commands_lifecycle_control_plane_refresh() {
   pass "upstream control-plane edits remain inactive until explicit profile refresh"
 }
 
-test_commands_lifecycle_profile_materialization_isolation() {
-  setup_scenario_with_profiles default upstream
-  upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
-  upstream_implementation_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")
-  default_registry_checksum=$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf")
-  upstream_registry_checksum=$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf")
-
+test_commands_lifecycle_complete() {
+  printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
   default_shimmy install --shim task --no-startup >/dev/null
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
   assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/task/tool.conf"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/task/versions/3.45/run.sh"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/tools/task/SKILL.md"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/bin/task"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/tools/task"
-  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"
-  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")" "$upstream_implementation_checksum"
-  assert_equals "$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf")" "$default_registry_checksum"
-  assert_equals "$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf")" "$upstream_registry_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$lifecycle_upstream_manifest_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")" "$lifecycle_upstream_implementation_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")" "$lifecycle_upstream_launcher_checksum"
+  assert_equals "$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf")" "$lifecycle_default_catalog_registry_checksum"
+  assert_equals "$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf")" "$lifecycle_upstream_catalog_registry_checksum"
   pass "tool installation changes only the invoking profile materialization and manifest"
-}
 
-test_commands_lifecycle_complete() {
-  printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
-  printf '%s\n' sibling > "$UPSTREAM_PROFILE_ROOT/sibling-sentinel"
-  default_shimmy install --shim task --no-startup >/dev/null
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
-  assert_file_exists "$UPSTREAM_PROFILE_ROOT/sibling-sentinel"
-  assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
   mkdir -p "$DEFAULT_PROFILE_ROOT/agent"
   printf '%s\n' legacy > "$DEFAULT_PROFILE_ROOT/agent/sentinel"
 
   default_shimmy uninstall >/dev/null
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/shell-init.sh"
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/registries.conf"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/agent"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
-  assert_file_exists "$UPSTREAM_PROFILE_ROOT/sibling-sentinel"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$lifecycle_upstream_manifest_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")" "$lifecycle_upstream_implementation_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")" "$lifecycle_upstream_launcher_checksum"
+  assert_dir_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
   pass "additive install and profile uninstall preserve unmanaged and sibling state"
+
+  rm "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
+  rmdir "$DEFAULT_PROFILE_ROOT"
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+  upstream_shimmy uninstall >/dev/null
+  assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
+  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
+  assert_equals "$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf")" "$lifecycle_default_catalog_registry_checksum"
+  assert_equals "$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf")" "$lifecycle_upstream_catalog_registry_checksum"
+  pass "profile removal preserves sibling profiles and independently owned shared catalogs"
 
   test_commands_lifecycle_install_shapes
   test_commands_lifecycle_launcher_refresh
   test_commands_lifecycle_registry_upgrade_and_preservation
-  test_commands_lifecycle_profile_materialization_isolation
   test_commands_lifecycle_catalog_independent_execution
   test_commands_lifecycle_control_plane_refresh
   test_commands_lifecycle_legacy_agent_refresh
   test_commands_lifecycle_legacy_agent_rollback
-  test_commands_lifecycle_empty_container_cleanup
   test_commands_lifecycle_linux_registry_activation_cleanup
   test_commands_lifecycle_darwin_projection_uninstall_refusal
   test_commands_lifecycle_global_uninstall

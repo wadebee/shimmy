@@ -26,11 +26,12 @@ is the behavior under test.
 - `lifecycle.sh` covers install, selected-only materialization, catalog-loss
   execution, installed control-plane refresh boundaries, dispatch, status,
   update, rollback, profile-only uninstall, and explicit global uninstall. Its
-  layout, launcher-refresh, isolation, and profile-removal cases clone their
-  initial profiles while retaining real refresh, additive-install, and
-  uninstall operations. Registry lifecycle cases preserve valid Darwin
-  projection-record bytes across update and require detach before profile or
-  global uninstall.
+  indivisible prepare/complete world proves additive task materialization and
+  upstream/catalog isolation before progressing through default sibling
+  preservation and real last-profile cleanup. Layout and launcher-refresh
+  cases retain independent profile clones and real operations. Registry
+  lifecycle cases preserve valid Darwin projection-record bytes across update
+  and require detach before profile or global uninstall.
 - `onboarding.sh` covers sourced and executed repository onboarding, failure
   cleanup, the fixed jq/rg bootstrap baseline, explicit additive installed
   selection, direct shell initialization, PATH precedence, and profile-local

@@ -1,6 +1,6 @@
 # Test transition pruning plan
 
-**Status:** In progress — Chunks 1–3 are accepted; Chunk 4 has not started.
+**Status:** In progress — Chunks 1–4 are accepted; Chunk 5 has not started.
 
 ## Objective
 
@@ -229,7 +229,9 @@ None.
 - [x] Chunk 3 — Skills state and transport consolidation, assertion mapping,
       preserved ten-test coverage, and measured 2-second median regression/noise
       result accepted by the user on 2026-08-17.
-- [ ] Chunk 4 — Remove duplicate lifecycle materialization and cleanup worlds.
+- [x] Chunk 4 — Lifecycle materialization and cleanup worlds consolidated,
+      assertion mapping and 14-test coverage preserved, and measured
+      13-second median reduction accepted by the user on 2026-08-17.
 - [ ] Chunk 5 — Consolidate the current onboarding bootstrap progression.
 - [ ] Chunk 6 — Rebalance workers and run final acceptance benchmarks.
 
@@ -717,22 +719,65 @@ strictest reasoning about destructive boundaries and state ordering.
 
 ### Verification checklist
 
-- [ ] Task materialization and isolation are proven in the existing main
+- [x] Task materialization and isolation are proven in the existing main
       lifecycle world before default uninstall.
-- [ ] Default uninstall preserves its unmanaged sentinel and upstream sibling;
+- [x] Default uninstall preserves its unmanaged sentinel and upstream sibling;
       final upstream uninstall removes the empty profiles container and
       preserves both catalog registries.
-- [ ] Standalone materialization and empty-container scenarios and their
+- [x] Standalone materialization and empty-container scenarios and their
       duplicate task/install/uninstall transitions are absent.
-- [ ] All migration, rollback, registry, activation, projection, global, and
+- [x] All migration, rollback, registry, activation, projection, global, and
       source-loss cases remain separate and pass.
-- [ ] The lifecycle group retains its baseline test count unless a reviewer
+- [x] The lifecycle group retains its baseline test count unless a reviewer
       accepts a fully documented assertion/count mapping.
-- [ ] Three isolated timed serial runs pass and reviewer output reports raw
+- [x] Three isolated timed serial runs pass and reviewer output reports raw
       values, medians, calculated savings/percentage, test counts, and
       cumulative projection.
-- [ ] `dash -n tests/commands/lifecycle.sh` passes.
-- [ ] `./tests/context-tree.sh` passes.
+- [x] `dash -n tests/commands/lifecycle.sh` passes.
+- [x] `./tests/context-tree.sh` passes.
+
+### Chunk 4 assertion mapping
+
+| Before proof | Chunk 4 proof |
+| --- | --- |
+| The standalone materialization-isolation world captured the upstream manifest and jq implementation plus both catalog registries, installed task into default, and proved its dispatcher, metadata, runtime, skill exclusion, and upstream/catalog isolation. | Lifecycle prepare captures the upstream manifest, jq implementation, and launcher plus both catalog registries. Lifecycle complete performs the existing task install once and repeats every task, skill-exclusion, upstream-absence, and exact-checksum assertion before default uninstall. |
+| The main lifecycle world preserved an explicit unmanaged default sentinel and an upstream sibling sentinel through default uninstall. | The explicit unmanaged default sentinel remains through real default uninstall. Exact upstream manifest, jq implementation, and launcher checksums remain unchanged before and after that uninstall, mapping the former sibling-sentinel boundary to three substantive sibling assets. |
+| The standalone single-profile cleanup world proved an owned profile registry disappears, the last profile removes the profiles container, and the default catalog remains. | Default uninstall removes its owned registry while retaining only the explicit sentinel. After that sentinel and its verified-empty profile directory are removed by exact paths, the real upstream last-profile uninstall removes the profiles container; the default catalog registry remains byte-exact. |
+| The standalone sibling-profile cleanup world proved default uninstall preserves upstream profile state and the profiles container, then upstream uninstall removes the last profile while preserving the upstream catalog. | The progressive world proves the profiles container and byte-exact upstream manifest, implementation, and launcher remain after default uninstall. Real upstream uninstall then removes its profile and the container while both default and upstream catalog registries remain byte-exact. |
+| Launcher repair, control-plane refresh, mixed-layout rejection/recreation, late-commit rollback, registry upgrade/refusal, Linux activation cleanup, Darwin projection refusal, catalog-loss execution, and global uninstall used independent cases. | Every case remains independent and unchanged apart from call-order closure after the progressive lifecycle phases. |
+
+The consolidation removes three pristine profile-fixture worlds, one duplicate
+task install, and two duplicate default uninstall transitions. It retains the
+single real upstream last-profile uninstall in the progressive lifecycle and
+all 14 logical pass records.
+
+### Chunk 4 reviewer output
+
+Raw after samples used the identical isolated command recorded in Chunk 1:
+
+| Sample | Setup (s) | Group (s) | Total (s) | Real (s) | User (s) | Sys (s) | CPU user+sys (s) | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 40 | 212 | 252 | 256.74 | 85.00 | 151.42 | 236.42 | 14 |
+| 2 | 39 | 213 | 252 | 256.30 | 84.79 | 150.55 | 235.34 | 14 |
+| 3 | 39 | 213 | 252 | 255.85 | 85.28 | 150.52 | 235.80 | 14 |
+| Median | 39 | 213 | 252 | 256.30 | 85.00 | 150.55 | 235.80 | 14 |
+
+| Metric | Before median (s) | After median (s) | Savings (s) | Improvement | Before/after test count |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `commands-lifecycle` group | 226 | 213 | 13 | 5.8% | 14 / 14 |
+| Isolated setup | 39 | 39 | 0 | 0.0% | 14 / 14 |
+| Isolated total | 264 | 252 | 12 | 4.5% | 14 / 14 |
+| `/usr/bin/time` real | 268.87 | 256.30 | 12.57 | 4.7% | 14 / 14 |
+| CPU (`user + sys`) | 247.83 | 235.80 | 12.03 | 4.9% | 14 / 14 |
+
+The lifecycle group median fell by 13 seconds while setup stayed unchanged.
+The five isolated target-group medians now total 895 seconds after accepted
+Chunks 1–3 and implemented Chunk 4, a 94-second cumulative reduction from the
+989-second baseline. Applying those isolated group deltas to the 1,385-second
+serial baseline projects 1,291 seconds, a 6.8% suite reduction. The plan-wide
+255-second acceptance threshold therefore has 161 seconds remaining for Chunk
+5. This is a projection; Chunk 6 owns the final complete serial and worker
+acceptance measurements.
 
 ### Human review gate
 
@@ -740,6 +785,8 @@ Confirm the test deletes only its explicit sentinel after first proving
 unmanaged preservation, last-profile cleanup exercises the real uninstall
 path, all standalone assertions are mapped, and no migration or registry
 boundary was conflated for speed.
+
+Accepted by the user on 2026-08-17.
 
 ## Chunk 5 — Current onboarding progression
 
@@ -1001,6 +1048,22 @@ complete.
   result is 1,304 seconds. The 174-second remaining target must come from
   Chunks 4–5 without weakening coverage.
 
+### Chunk 4
+
+- Task materialization, canonical-skill exclusion, upstream isolation, and
+  both catalog-registry checks fit before default uninstall in the existing
+  indivisible lifecycle world without another task install.
+- Exact upstream manifest, implementation, and launcher checksums map the
+  former synthetic sibling sentinel to substantive sibling state, while the
+  explicit unmanaged default sentinel remains the only manually deleted test
+  asset before real last-profile cleanup.
+- Consolidation removed three profile-fixture worlds and two duplicate default
+  uninstalls while preserving all 14 logical records. The lifecycle median
+  fell from 226 to 213 seconds (5.8%) with unchanged setup.
+- Cumulative isolated savings are 94 seconds and the projected full serial
+  result is 1,291 seconds. Chunk 5 must supply the remaining 161 seconds to
+  reach the plan threshold without weakening coverage.
+
 ## Session bootstrap
 
 Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, this plan,
@@ -1015,5 +1078,5 @@ coverage, isolation, POSIX shell, and offline behavior. The non-negotiable
 rule is: do not replace unique real integration behavior or move cost into
 shared setup merely to improve a group number.
 
-Chunks 1–3 are explicitly accepted. Chunk 4 has not started and must remain
+Chunks 1–4 are explicitly accepted. Chunk 5 has not started and must remain
 pending until the user gives a separate instruction to proceed.
