@@ -7,10 +7,12 @@ without starting tool containers. They are sourced by `../test.sh` and use
 ## Files
 
 - `runner.sh` directly validates canonical registry ordering, group selection,
-  option rejection, timing record shape, indivisible lifecycle grouping, and
-  fixture-tree clone selection, portable fallback, target boundaries, metadata
-  preservation, and mutation independence without recursively invoking the
-  repository suite.
+  option rejection, timing record shape, indivisible lifecycle grouping,
+  bounded one-, two-, and three-worker scheduling, deterministic replay and
+  count aggregation, injected worker failures, missing and mismatched results,
+  recorded-PID signal cleanup, and fixture-tree clone selection, portable
+  fallback, target boundaries, metadata preservation, and mutation independence
+  without recursively invoking the repository suite.
 - `catalog.sh` validates exact catalog schema rejection, metadata discovery,
   all-version native-platform previews, image configuration failures, and
   local cache identity.

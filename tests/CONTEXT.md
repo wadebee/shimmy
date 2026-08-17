@@ -1,8 +1,10 @@
 # Tests
 
 `test.sh` is the canonical POSIX test runner, `runner.sh` owns the ordered
-source-suite group registry, serial selection, option validation, and opt-in
-timing, and `support.sh` provides shared assertions, scenarios, and cleanup.
+source-suite group registry, bounded one-to-three-worker orchestration,
+deterministic log replay, result validation, signal cleanup, option validation,
+and opt-in timing, and `support.sh` provides shared assertions, scenarios, and
+cleanup.
 `profile-smoke.sh` independently parses installed-profile test requests and
 runs the enclosing profile's non-mutating smoke commands.
 Smoke output capture preserves the wrapped command's exit status so engine or
@@ -47,10 +49,15 @@ runtime root before use. Dirty-publication and live-upstream tests use isolated
 Git checkout copies. The immutable committed source repository used by
 self-update scenarios is also created once per session.
 Source-suite runner options are validated before these session fixtures or the
-session temporary root are created. Named groups execute serially in canonical
-registry order in this phase; lifecycle prepare and complete are one
-indivisible group. Timing records for setup, each selected group, and the total
-run are emitted only when `SHIMMY_TEST_TIMING=1`.
+session temporary root are created. Parent-only fixture setup precedes static
+bounded workers; each worker reads shared session fixtures and creates mutable
+state only through unique scenario roots. Groups capture private logs and
+result files, and the parent waits for every worker, validates exact registry
+coverage and assertion counts, then replays output in canonical order.
+Lifecycle prepare and complete are one indivisible group. Recorded live worker
+PIDs are the only processes terminated during signal cleanup. Timing records
+for setup, each selected group, and the total run are emitted only when
+`SHIMMY_TEST_TIMING=1`.
 Onboarding coverage sources the root
 bootstrap to initialize PATH and executes it separately to verify automation
 semantics.

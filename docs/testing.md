@@ -6,34 +6,50 @@ Run the repository suite from the root:
 ./tests/test.sh
 ```
 
-The source suite uses one canonical named group registry. The current runner
-executes the registry serially; `--jobs` accepts the bounded interface that
-later parallel orchestration will use without changing serial execution yet.
-Use these commands to inspect or select coverage:
+The source suite uses one canonical named group registry. The runner uses
+three bounded workers by default after creating immutable session fixtures in
+the parent. Each group writes a private log and result; the parent waits for
+every started worker and replays logs in canonical registry order. Use these
+commands to inspect, select, or diagnose coverage:
 
 ```sh
 ./tests/test.sh --list-groups
 ./tests/test.sh --group lib-runtime
 ./tests/test.sh --group lib-runtime --group tools-rg
 ./tests/test.sh --serial
-./tests/test.sh --jobs 3
+./tests/test.sh --jobs 2
 ```
 
 Repeated groups, unknown groups, invalid or duplicate job counts, and
 conflicting `--serial`/`--jobs` or list/execution requests fail before session
 fixture creation. Selected groups always run in canonical registry order. The
 lifecycle prepare and complete sequence is exposed only as the single
-`commands-lifecycle` group.
+`commands-lifecycle` group. A selected run starts only workers that own at
+least one requested group. Use `--serial` for immediate single-worker failure
+diagnosis. Parallel failures can identify more than one failed worker because
+the parent always waits for every worker it started.
 
 Opt in to integer-second setup, per-group, and total timing records with:
 
 ```sh
 SHIMMY_TEST_TIMING=1 ./tests/test.sh --serial
+SHIMMY_TEST_TIMING=1 ./tests/test.sh
 ```
 
 Each record has the stable form
 `shimmy_test_timing=<setup|group|total>|<name>|<elapsed-seconds>`. Timing
 records are absent by default.
+
+For an acceptance benchmark on one host, run three clean default executions
+and compare their median with the retained baseline:
+
+```sh
+/usr/bin/time -p env SHIMMY_TEST_TIMING=1 ./tests/test.sh
+```
+
+Keep the three `real`, `user`, and `sys` records. Compare group timings and
+worker result data when wall time or aggregate CPU cost regresses; do not add a
+host-specific timeout to the suite.
 
 To smoke an installed profile through its real wrappers, use:
 
@@ -144,3 +160,10 @@ Scenarios that test installed-profile behavior rather than bootstrap behavior
 copy those fixtures through the shared helper, then relocate generated
 shell-init and implementation paths to the scenario profile. Self-update tests
 also share one immutable committed source-repository fixture for the session.
+
+After parent-only setup, selected groups run in one to three static workers
+against immutable session fixtures and unique scenario roots. Group logs are
+replayed in canonical order after all workers finish. Worker status, elapsed
+time, group coverage, and assertion counts must all be present and consistent
+before the parent accepts a run. Recorded live worker PIDs are the only
+processes terminated during signal cleanup.

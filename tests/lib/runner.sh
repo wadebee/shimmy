@@ -8,6 +8,63 @@ test_lib_runner_stub_second() {
   printf '%s\n' second
 }
 
+test_lib_runner_stub_third() {
+  printf '%s\n' third
+}
+
+test_lib_runner_stub_failure() {
+  printf '%s\n' second-failed
+  return 7
+}
+
+test_lib_runner_stub_pass_first() {
+  pass "synthetic first"
+}
+
+test_lib_runner_stub_pass_second() {
+  pass "synthetic second"
+}
+
+test_lib_runner_stub_pass_third() {
+  pass "synthetic third"
+}
+
+test_lib_runner_synthetic_registry_configure() {
+  TEST_RUNNER_GROUP_REGISTRY_OVERRIDE='first|test_lib_runner_stub_pass_first
+second|test_lib_runner_stub_pass_second
+third|test_lib_runner_stub_pass_third'
+  TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE='first|two-a|three-a
+second|two-b|three-b
+third|two-a|three-c'
+}
+
+test_lib_runner_synthetic_workers_run() {
+  test_runner_synthetic_output_root=$1
+  test_runner_synthetic_jobs=$2
+  test_lib_runner_synthetic_registry_configure
+  TEST_RUNNER_OUTPUT_ROOT=$test_runner_synthetic_output_root
+  TEST_COUNT=0
+  SHIMMY_TEST_TIMING=0
+  test_runner_options_parse --jobs "$test_runner_synthetic_jobs"
+  test_runner_groups_run
+}
+
+test_lib_runner_synthetic_workers_prepare() {
+  test_runner_synthetic_output_root=$1
+  test_runner_synthetic_jobs=$2
+  test_runner_synthetic_saved_count=$TEST_COUNT
+  test_lib_runner_synthetic_registry_configure
+  TEST_RUNNER_OUTPUT_ROOT=$test_runner_synthetic_output_root
+  TEST_COUNT=0
+  SHIMMY_TEST_TIMING=0
+  test_runner_options_parse --jobs "$test_runner_synthetic_jobs"
+  test_runner_worker_list_resolve
+  test_runner_output_prepare
+  test_runner_workers_start
+  test_runner_workers_wait
+  TEST_COUNT=$test_runner_synthetic_saved_count
+}
+
 test_lib_runner_registry_ordering() {
   test_runner_registry=$(test_runner_group_registry_read)
   test_runner_first_name=$(printf '%s\n' "$test_runner_registry" | sed -n '1s/|.*//p')
@@ -20,10 +77,14 @@ test_lib_runner_registry_ordering() {
 }
 
 test_lib_runner_group_selection() {
+  setup_scenario
   test_runner_selection_output=$(
     SHIMMY_TEST_TIMING=0
     TEST_RUNNER_GROUP_REGISTRY_OVERRIDE='first|test_lib_runner_stub_first
 second|test_lib_runner_stub_second'
+    TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE='first|two-a|three-a
+second|two-b|three-b'
+    TEST_RUNNER_OUTPUT_ROOT=$SCENARIO_DIR/selection-output
     test_runner_options_parse --group second --group first --jobs 3
     test_runner_groups_run
   )
@@ -50,6 +111,8 @@ test_lib_runner_option_validation() {
       exec 2>&1
       TEST_RUNNER_GROUP_REGISTRY_OVERRIDE='first|test_lib_runner_stub_first
 second|test_lib_runner_stub_second'
+      TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE='first|two-a|three-a
+second|two-b|three-b'
       # Intentional splitting exercises the command-line parser.
       # shellcheck disable=SC2086
       test_runner_options_parse $test_runner_invalid_options
@@ -80,6 +143,139 @@ test_lib_runner_lifecycle_grouping() {
   assert_equals "$test_runner_lifecycle_output" 'prepare
 complete'
   pass "runner lifecycle group keeps prepare and complete indivisible"
+}
+
+test_lib_runner_worker_scheduling() {
+  setup_scenario
+
+  for test_runner_synthetic_jobs in 1 2 3; do
+    test_runner_synthetic_output_root=$SCENARIO_DIR/jobs-$test_runner_synthetic_jobs
+    test_runner_synthetic_output=$(
+      test_lib_runner_synthetic_workers_run \
+        "$test_runner_synthetic_output_root" "$test_runner_synthetic_jobs"
+      test_runner_synthetic_worker_count=0
+      for test_runner_synthetic_status_file in "$test_runner_synthetic_output_root"/workers/*.status; do
+        [ -f "$test_runner_synthetic_status_file" ] || continue
+        test_runner_synthetic_worker_count=$((test_runner_synthetic_worker_count + 1))
+      done
+      printf 'count=%s workers=%s\n' "$TEST_COUNT" "$test_runner_synthetic_worker_count"
+    )
+    assert_equals "$test_runner_synthetic_output" "PASS: synthetic first
+PASS: synthetic second
+PASS: synthetic third
+count=3 workers=$test_runner_synthetic_jobs"
+  done
+
+  pass "runner schedules one, two, and three workers with deterministic logs and counts"
+}
+
+test_lib_runner_worker_failure_propagation() {
+  setup_scenario
+  test_runner_failure_output_root=$SCENARIO_DIR/failure-output
+
+  set +e
+  test_runner_failure_output=$(
+    TEST_RUNNER_GROUP_REGISTRY_OVERRIDE='first|test_lib_runner_stub_first
+second|test_lib_runner_stub_failure
+third|test_lib_runner_stub_third'
+    TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE='first|two-a|three-c
+second|two-b|three-a
+third|two-a|three-b'
+    TEST_RUNNER_OUTPUT_ROOT=$test_runner_failure_output_root
+    TEST_COUNT=0
+    SHIMMY_TEST_TIMING=0
+    test_runner_options_parse --jobs 3
+    test_runner_groups_run 2>&1
+  )
+  test_runner_failure_status=$?
+  set -e
+
+  [ "$test_runner_failure_status" -ne 0 ] || fail_test "runner ignored a failed worker"
+  assert_equals "$(printf '%s\n' "$test_runner_failure_output" | sed -n '1,3p')" 'first
+second-failed
+third'
+  assert_contains "$test_runner_failure_output" 'FAIL: test worker failed: three-a'
+  assert_file_contains "$test_runner_failure_output_root/groups/first.log" first
+  assert_file_contains "$test_runner_failure_output_root/groups/second.log" second-failed
+  assert_file_contains "$test_runner_failure_output_root/groups/third.log" third
+  pass "runner propagates worker failure after retaining and replaying every group log"
+}
+
+test_lib_runner_missing_result_rejection() {
+  setup_scenario
+  test_runner_missing_output_root=$SCENARIO_DIR/missing-output
+  test_lib_runner_synthetic_workers_prepare "$test_runner_missing_output_root" 2
+  rm -f "$test_runner_missing_output_root/workers/two-b.elapsed"
+
+  set +e
+  test_runner_missing_output=$(test_runner_results_collect 2>&1)
+  test_runner_missing_status=$?
+  set -e
+
+  [ "$test_runner_missing_status" -ne 0 ] || fail_test "runner accepted a missing worker result"
+  assert_contains "$test_runner_missing_output" 'FAIL: missing worker elapsed result:'
+  pass "runner fails closed when a worker result is missing"
+}
+
+test_lib_runner_count_mismatch_rejection() {
+  setup_scenario
+  test_runner_mismatch_output_root=$SCENARIO_DIR/mismatch-output
+  test_lib_runner_synthetic_workers_prepare "$test_runner_mismatch_output_root" 2
+  printf '%s\n' 99 > "$test_runner_mismatch_output_root/workers/two-a.count"
+
+  set +e
+  test_runner_mismatch_output=$(test_runner_results_collect 2>&1)
+  test_runner_mismatch_status=$?
+  set -e
+
+  [ "$test_runner_mismatch_status" -ne 0 ] || fail_test "runner accepted a mismatched worker count"
+  assert_contains "$test_runner_mismatch_output" 'FAIL: worker count mismatch: two-a'
+  pass "runner rejects worker counts that differ from group results"
+}
+
+test_lib_runner_signal_cleanup() {
+  setup_scenario
+  test_runner_signal_session=$SCENARIO_DIR/signal-session
+  test_runner_signal_retained=$SCENARIO_DIR/retained
+  test_runner_signal_pid_file=$SCENARIO_DIR/signal-worker.pid
+  test_runner_signal_output=$SCENARIO_DIR/signal-output
+  mkdir "$test_runner_signal_session" "$test_runner_signal_retained"
+
+  (
+    TMP_ROOT=$test_runner_signal_session
+    TEST_RUNNER_WORKER_PIDS=
+    trap 'test_runner_signal_handle TERM 143' TERM
+    (
+      while :; do
+        sleep 1
+      done
+    ) &
+    test_runner_signal_worker_pid=$!
+    TEST_RUNNER_WORKER_PIDS="$test_runner_signal_worker_pid|synthetic"
+    printf '%s\n' "$test_runner_signal_worker_pid" > "$test_runner_signal_pid_file"
+    while :; do
+      sleep 1
+    done
+  ) > "$test_runner_signal_output" 2>&1 &
+  test_runner_signal_controller_pid=$!
+  sleep 1
+  assert_file_exists "$test_runner_signal_pid_file"
+  test_runner_signal_worker_pid=$(cat "$test_runner_signal_pid_file")
+
+  kill -TERM "$test_runner_signal_controller_pid"
+  set +e
+  wait "$test_runner_signal_controller_pid"
+  test_runner_signal_status=$?
+  set -e
+
+  assert_equals "$test_runner_signal_status" 143
+  assert_path_not_exists "$test_runner_signal_session"
+  assert_dir_exists "$test_runner_signal_retained"
+  if kill -0 "$test_runner_signal_worker_pid" 2>/dev/null; then
+    fail_test "signal cleanup left its recorded worker running"
+  fi
+  assert_file_contains "$test_runner_signal_output" 'FAIL: test suite interrupted by TERM'
+  pass "runner signal cleanup terminates recorded workers and removes only its session root"
 }
 
 test_lib_runner_fixture_copy_clone_selection() {
@@ -204,6 +400,11 @@ test_lib_runner_run() {
   test_lib_runner_option_validation
   test_lib_runner_timing_shape
   test_lib_runner_lifecycle_grouping
+  test_lib_runner_worker_scheduling
+  test_lib_runner_worker_failure_propagation
+  test_lib_runner_missing_result_rejection
+  test_lib_runner_count_mismatch_rejection
+  test_lib_runner_signal_cleanup
   test_lib_runner_fixture_copy_clone_selection
   test_lib_runner_fixture_copy_portable_fallback
   test_lib_runner_fixture_copy_rejections

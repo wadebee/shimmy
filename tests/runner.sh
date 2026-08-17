@@ -1,5 +1,5 @@
 #!/bin/sh
-# Source-suite group registry, selection, and timing helpers.
+# Source-suite group registry, bounded worker orchestration, and timing helpers.
 
 test_runner_group_registry_read() {
   if [ -n "${TEST_RUNNER_GROUP_REGISTRY_OVERRIDE:-}" ]; then
@@ -52,6 +52,61 @@ commands-test|test_commands_test_run
 EOF
 }
 
+test_runner_group_assignment_read() {
+  if [ -n "${TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE:-}" ]; then
+    printf '%s\n' "$TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE"
+    return 0
+  fi
+
+  # Chunk 1's largest serial groups seeded this schedule. The complete Chunk 3
+  # serial verification timings project balanced group totals of 697s and
+  # 665s for two-a/two-b, and 462s, 435s, and 467s for
+  # three-a/three-b/three-c. Rebalance from clean full-suite measurements.
+  cat <<'EOF'
+runner|two-a|three-c
+lib-catalog|two-a|three-c
+lib-runtime|two-b|three-c
+lib-profile-activation|two-a|three-c
+lib-registries|two-b|three-c
+lib-update|two-a|three-c
+commands-agent-preflight|two-a|three-c
+commands-catalog|two-a|three-a
+commands-images|two-a|three-b
+commands-lifecycle|two-b|three-b
+commands-management|two-b|three-c
+commands-onboarding|two-b|three-a
+commands-profiles|two-a|three-c
+commands-profile|two-a|three-c
+commands-status|two-b|three-b
+commands-update|two-a|three-c
+commands-startup|two-b|three-b
+commands-skills|two-a|three-c
+commands-dispatcher|two-a|three-c
+commands-netinfo|two-a|three-c
+tools-aws|two-b|three-a
+tools-community-ansible-dev-tools|two-b|three-a
+tools-gcloud|two-b|three-a
+tools-gdrive|two-b|three-a
+tools-gh|two-b|three-a
+tools-go|two-b|three-a
+tools-jq|two-b|three-a
+tools-netcat|two-b|three-a
+tools-nmap|two-b|three-a
+tools-npx|two-b|three-a
+tools-oc|two-b|three-a
+tools-opnsense-mcp-read-only|two-b|three-a
+tools-opnsense-mcp-admin|two-b|three-a
+tools-rg|two-b|three-a
+tools-skopeo|two-b|three-a
+tools-task|two-b|three-a
+tools-terraform|two-b|three-a
+tools-tessl|two-b|three-a
+tools-textual|two-b|three-a
+commands-install|two-a|three-c
+commands-test|two-a|three-c
+EOF
+}
+
 test_runner_group_registry_validate() {
   test_runner_names_seen=
   test_runner_functions_seen=
@@ -79,6 +134,40 @@ $(test_runner_group_registry_read)
 EOF
 }
 
+test_runner_group_assignment_validate() {
+  test_runner_assignment_names_seen=
+
+  while IFS='|' read -r test_runner_assignment_name test_runner_assignment_two test_runner_assignment_three test_runner_assignment_extra; do
+    [ -n "$test_runner_assignment_name" ] || fail_test "empty test group name in assignment registry"
+    [ -z "$test_runner_assignment_extra" ] || fail_test "invalid test group assignment: $test_runner_assignment_name"
+    test_runner_group_exists "$test_runner_assignment_name" ||
+      fail_test "assignment references unknown test group: $test_runner_assignment_name"
+    case "$test_runner_assignment_two" in
+      two-a|two-b) ;;
+      *) fail_test "invalid two-worker assignment for test group: $test_runner_assignment_name" ;;
+    esac
+    case "$test_runner_assignment_three" in
+      three-a|three-b|three-c) ;;
+      *) fail_test "invalid three-worker assignment for test group: $test_runner_assignment_name" ;;
+    esac
+    if shimmy_contains_line_list "$test_runner_assignment_names_seen" "$test_runner_assignment_name"; then
+      fail_test "duplicate test group assignment: $test_runner_assignment_name"
+    fi
+    test_runner_assignment_names_seen=$(shimmy_append_line_list \
+      "$test_runner_assignment_names_seen" "$test_runner_assignment_name")
+  done <<EOF
+$(test_runner_group_assignment_read)
+EOF
+
+  while IFS='|' read -r test_runner_group_name test_runner_group_function; do
+    if ! shimmy_contains_line_list "$test_runner_assignment_names_seen" "$test_runner_group_name"; then
+      fail_test "missing assignment for test group: $test_runner_group_name"
+    fi
+  done <<EOF
+$(test_runner_group_registry_read)
+EOF
+}
+
 test_runner_group_exists() {
   test_runner_group_expected=$1
 
@@ -101,13 +190,14 @@ test_runner_group_selected() {
 
 test_runner_options_parse() {
   TEST_RUNNER_GROUPS_SELECTED=
-  TEST_RUNNER_JOBS=1
+  TEST_RUNNER_JOBS=3
   TEST_RUNNER_LIST_GROUPS=0
   test_runner_jobs_seen=0
   test_runner_serial_seen=0
   test_runner_list_seen=0
 
   test_runner_group_registry_validate
+  test_runner_group_assignment_validate
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -178,8 +268,8 @@ Usage:
 
 Options:
   --group <name>      Run one named group; repeat to select more groups.
-  --jobs <1-3>        Accept a bounded worker count; execution remains serial.
-  --serial            Run with one worker.
+  --jobs <1-3>        Run with at most this many workers (default: 3).
+  --serial            Run with one worker for immediate failure diagnosis.
   --list-groups       List groups in canonical execution order without setup.
   -h, --help          Show this help.
 EOF
@@ -204,15 +294,346 @@ test_runner_commands_lifecycle_run() {
   test_commands_lifecycle_complete
 }
 
-test_runner_groups_run() {
+test_runner_group_worker_resolve() {
+  test_runner_worker_group_expected=$1
+
+  if [ "$TEST_RUNNER_JOBS" -eq 1 ]; then
+    printf '%s\n' one-a
+    return 0
+  fi
+
+  while IFS='|' read -r test_runner_assignment_name test_runner_assignment_two test_runner_assignment_three; do
+    [ "$test_runner_assignment_name" = "$test_runner_worker_group_expected" ] || continue
+    if [ "$TEST_RUNNER_JOBS" -eq 2 ]; then
+      printf '%s\n' "$test_runner_assignment_two"
+    else
+      printf '%s\n' "$test_runner_assignment_three"
+    fi
+    return 0
+  done <<EOF
+$(test_runner_group_assignment_read)
+EOF
+
+  return 1
+}
+
+test_runner_worker_list_resolve() {
+  TEST_RUNNER_WORKERS_SELECTED=
+
   while IFS='|' read -r test_runner_group_name test_runner_group_function; do
     test_runner_group_selected "$test_runner_group_name" || continue
-    test_runner_group_started=$(test_runner_now)
-    "$test_runner_group_function"
-    test_runner_group_finished=$(test_runner_now)
-    test_runner_timing_record group "$test_runner_group_name" \
-      "$((test_runner_group_finished - test_runner_group_started))"
+    test_runner_worker_name=$(test_runner_group_worker_resolve "$test_runner_group_name") ||
+      fail_test "unable to resolve worker for test group: $test_runner_group_name"
+    if ! shimmy_contains_line_list "$TEST_RUNNER_WORKERS_SELECTED" "$test_runner_worker_name"; then
+      TEST_RUNNER_WORKERS_SELECTED=$(shimmy_append_line_list \
+        "$TEST_RUNNER_WORKERS_SELECTED" "$test_runner_worker_name")
+    fi
   done <<EOF
 $(test_runner_group_registry_read)
 EOF
+}
+
+test_runner_output_prepare() {
+  TEST_RUNNER_OUTPUT_ROOT=${TEST_RUNNER_OUTPUT_ROOT:-$TMP_ROOT/runner-output}
+  [ ! -e "$TEST_RUNNER_OUTPUT_ROOT" ] && [ ! -L "$TEST_RUNNER_OUTPUT_ROOT" ] ||
+    fail_test "test runner output path already exists: $TEST_RUNNER_OUTPUT_ROOT"
+  mkdir -p "$TEST_RUNNER_OUTPUT_ROOT/groups" "$TEST_RUNNER_OUTPUT_ROOT/workers"
+}
+
+test_runner_result_value_read() {
+  test_runner_result_file=$1
+  test_runner_result_label=$2
+
+  [ -f "$test_runner_result_file" ] && [ ! -L "$test_runner_result_file" ] || {
+    printf 'FAIL: missing %s result: %s\n' "$test_runner_result_label" "$test_runner_result_file" >&2
+    return 1
+  }
+  test_runner_result_value=$(cat "$test_runner_result_file")
+  case "$test_runner_result_value" in
+    ''|*[!0-9]*)
+      printf 'FAIL: malformed %s result: %s\n' "$test_runner_result_label" "$test_runner_result_file" >&2
+      return 1
+      ;;
+  esac
+  printf '%s\n' "$test_runner_result_value"
+}
+
+test_runner_worker_group_signal_handle() {
+  test_runner_worker_signal_status=$1
+  trap - HUP INT TERM
+  if [ -n "${test_runner_group_pid:-}" ] && kill -0 "$test_runner_group_pid" 2>/dev/null; then
+    kill -TERM "$test_runner_group_pid" 2>/dev/null || :
+    wait "$test_runner_group_pid" 2>/dev/null || :
+  fi
+  exit "$test_runner_worker_signal_status"
+}
+
+test_runner_worker_run() {
+  test_runner_worker_name=$1
+  test_runner_worker_started=$(test_runner_now)
+  test_runner_worker_status=0
+  test_runner_worker_count=0
+  test_runner_group_pid=
+  trap 'test_runner_worker_group_signal_handle 129' HUP
+  trap 'test_runner_worker_group_signal_handle 130' INT
+  trap 'test_runner_worker_group_signal_handle 143' TERM
+  test_runner_worker_groups=$TEST_RUNNER_OUTPUT_ROOT/workers/$test_runner_worker_name.groups
+  : > "$test_runner_worker_groups"
+
+  while IFS='|' read -r test_runner_group_name test_runner_group_function; do
+    test_runner_group_selected "$test_runner_group_name" || continue
+    test_runner_group_worker=$(test_runner_group_worker_resolve "$test_runner_group_name") || exit 1
+    [ "$test_runner_group_worker" = "$test_runner_worker_name" ] || continue
+
+    printf '%s\n' "$test_runner_group_name" >> "$test_runner_worker_groups"
+    test_runner_group_log=$TEST_RUNNER_OUTPUT_ROOT/groups/$test_runner_group_name.log
+    test_runner_group_count_file=$TEST_RUNNER_OUTPUT_ROOT/groups/$test_runner_group_name.count
+    test_runner_group_status_file=$TEST_RUNNER_OUTPUT_ROOT/groups/$test_runner_group_name.status
+    test_runner_group_worker_file=$TEST_RUNNER_OUTPUT_ROOT/groups/$test_runner_group_name.worker
+    test_runner_group_started=$(test_runner_now)
+
+    (
+      set -e
+      TEST_COUNT=0
+      "$test_runner_group_function"
+      printf '%s\n' "$TEST_COUNT" > "$test_runner_group_count_file"
+    ) > "$test_runner_group_log" 2>&1 &
+    test_runner_group_pid=$!
+    set +e
+    wait "$test_runner_group_pid"
+    test_runner_group_status=$?
+    set -e
+    test_runner_group_pid=
+
+    if [ "$test_runner_group_status" -eq 0 ]; then
+      test_runner_group_count=$(test_runner_result_value_read \
+        "$test_runner_group_count_file" "group count") || exit 1
+      test_runner_worker_count=$((test_runner_worker_count + test_runner_group_count))
+    else
+      test_runner_group_status=$?
+      test_runner_worker_status=1
+    fi
+
+    test_runner_group_finished=$(test_runner_now)
+    test_runner_timing_record group "$test_runner_group_name" \
+      "$((test_runner_group_finished - test_runner_group_started))" >> "$test_runner_group_log"
+    printf '%s\n' "$test_runner_group_status" > "$test_runner_group_status_file"
+    printf '%s\n' "$test_runner_worker_name" > "$test_runner_group_worker_file"
+    [ "$test_runner_group_status" -eq 0 ] || break
+  done <<EOF
+$(test_runner_group_registry_read)
+EOF
+
+  test_runner_worker_finished=$(test_runner_now)
+  printf '%s\n' "$test_runner_worker_count" > "$TEST_RUNNER_OUTPUT_ROOT/workers/$test_runner_worker_name.count"
+  printf '%s\n' "$((test_runner_worker_finished - test_runner_worker_started))" > \
+    "$TEST_RUNNER_OUTPUT_ROOT/workers/$test_runner_worker_name.elapsed"
+  printf '%s\n' "$test_runner_worker_status" > "$TEST_RUNNER_OUTPUT_ROOT/workers/$test_runner_worker_name.status"
+  trap - HUP INT TERM
+  exit "$test_runner_worker_status"
+}
+
+test_runner_workers_start() {
+  TEST_RUNNER_WORKER_PIDS=
+
+  while IFS= read -r test_runner_worker_name; do
+    [ -n "$test_runner_worker_name" ] || continue
+    (test_runner_worker_run "$test_runner_worker_name") &
+    test_runner_worker_pid=$!
+    TEST_RUNNER_WORKER_PIDS=$(shimmy_append_line_list "$TEST_RUNNER_WORKER_PIDS" \
+      "$test_runner_worker_pid|$test_runner_worker_name")
+  done <<EOF
+$TEST_RUNNER_WORKERS_SELECTED
+EOF
+}
+
+test_runner_workers_wait() {
+  test_runner_worker_pid_records=$TEST_RUNNER_WORKER_PIDS
+
+  while IFS='|' read -r test_runner_worker_pid test_runner_worker_name; do
+    [ -n "$test_runner_worker_pid" ] || continue
+    if wait "$test_runner_worker_pid"; then
+      test_runner_worker_wait_status=0
+    else
+      test_runner_worker_wait_status=$?
+    fi
+    printf '%s\n' "$test_runner_worker_wait_status" > \
+      "$TEST_RUNNER_OUTPUT_ROOT/workers/$test_runner_worker_name.wait"
+  done <<EOF
+$test_runner_worker_pid_records
+EOF
+
+  TEST_RUNNER_WORKER_PIDS=
+}
+
+test_runner_workers_terminate() {
+  test_runner_worker_pid_records=${TEST_RUNNER_WORKER_PIDS:-}
+
+  while IFS='|' read -r test_runner_worker_pid test_runner_worker_name; do
+    [ -n "$test_runner_worker_pid" ] || continue
+    if kill -0 "$test_runner_worker_pid" 2>/dev/null; then
+      kill -TERM "$test_runner_worker_pid" 2>/dev/null || :
+    fi
+  done <<EOF
+$test_runner_worker_pid_records
+EOF
+
+  while IFS='|' read -r test_runner_worker_pid test_runner_worker_name; do
+    [ -n "$test_runner_worker_pid" ] || continue
+    wait "$test_runner_worker_pid" 2>/dev/null || :
+  done <<EOF
+$test_runner_worker_pid_records
+EOF
+
+  TEST_RUNNER_WORKER_PIDS=
+}
+
+test_runner_signal_handle() {
+  test_runner_signal_name=$1
+  test_runner_signal_status=$2
+  trap - EXIT HUP INT TERM
+  test_runner_workers_terminate
+  shimmy_test_cleanup
+  printf 'FAIL: test suite interrupted by %s\n' "$test_runner_signal_name" >&2
+  exit "$test_runner_signal_status"
+}
+
+test_runner_logs_replay() {
+  test_runner_replay_status=0
+
+  while IFS='|' read -r test_runner_group_name test_runner_group_function; do
+    test_runner_group_selected "$test_runner_group_name" || continue
+    test_runner_group_log=$TEST_RUNNER_OUTPUT_ROOT/groups/$test_runner_group_name.log
+    if [ -f "$test_runner_group_log" ] && [ ! -L "$test_runner_group_log" ]; then
+      cat "$test_runner_group_log"
+    fi
+  done <<EOF
+$(test_runner_group_registry_read)
+EOF
+
+  return "$test_runner_replay_status"
+}
+
+test_runner_results_collect() {
+  test_runner_results_status=0
+  test_runner_total_count=0
+
+  while IFS= read -r test_runner_worker_name; do
+    [ -n "$test_runner_worker_name" ] || continue
+    test_runner_worker_expected_groups=
+    test_runner_worker_expected_count=0
+    test_runner_worker_failed=0
+
+    while IFS='|' read -r test_runner_group_name test_runner_group_function; do
+      test_runner_group_selected "$test_runner_group_name" || continue
+      test_runner_group_worker=$(test_runner_group_worker_resolve "$test_runner_group_name") || {
+        printf 'FAIL: unable to resolve worker for test group: %s\n' "$test_runner_group_name" >&2
+        test_runner_results_status=1
+        continue
+      }
+      [ "$test_runner_group_worker" = "$test_runner_worker_name" ] || continue
+      test_runner_worker_expected_groups=$(shimmy_append_line_list \
+        "$test_runner_worker_expected_groups" "$test_runner_group_name")
+
+      [ "$test_runner_worker_failed" -eq 0 ] || continue
+
+      test_runner_group_log=$TEST_RUNNER_OUTPUT_ROOT/groups/$test_runner_group_name.log
+      if [ ! -f "$test_runner_group_log" ] || [ -L "$test_runner_group_log" ]; then
+        printf 'FAIL: missing test group log: %s\n' "$test_runner_group_name" >&2
+        test_runner_results_status=1
+      fi
+
+      test_runner_group_worker_file=$TEST_RUNNER_OUTPUT_ROOT/groups/$test_runner_group_name.worker
+      if [ ! -f "$test_runner_group_worker_file" ] || [ -L "$test_runner_group_worker_file" ] ||
+        [ "$(cat "$test_runner_group_worker_file" 2>/dev/null)" != "$test_runner_worker_name" ]; then
+        printf 'FAIL: missing or invalid worker ownership for test group: %s\n' "$test_runner_group_name" >&2
+        test_runner_results_status=1
+      fi
+
+      if test_runner_group_status=$(test_runner_result_value_read \
+        "$TEST_RUNNER_OUTPUT_ROOT/groups/$test_runner_group_name.status" "group status"); then
+        if [ "$test_runner_group_status" -eq 0 ]; then
+          if test_runner_group_count=$(test_runner_result_value_read \
+            "$TEST_RUNNER_OUTPUT_ROOT/groups/$test_runner_group_name.count" "group count"); then
+            test_runner_worker_expected_count=$((test_runner_worker_expected_count + test_runner_group_count))
+          else
+            test_runner_results_status=1
+          fi
+        else
+          test_runner_worker_failed=1
+        fi
+      else
+        test_runner_results_status=1
+      fi
+    done <<EOF
+$(test_runner_group_registry_read)
+EOF
+
+    test_runner_worker_groups_file=$TEST_RUNNER_OUTPUT_ROOT/workers/$test_runner_worker_name.groups
+    if [ ! -f "$test_runner_worker_groups_file" ] || [ -L "$test_runner_worker_groups_file" ] ||
+      [ "$(cat "$test_runner_worker_groups_file" 2>/dev/null)" != "$test_runner_worker_expected_groups" ]; then
+      printf 'FAIL: worker group coverage mismatch: %s\n' "$test_runner_worker_name" >&2
+      test_runner_results_status=1
+    fi
+
+    if test_runner_worker_count=$(test_runner_result_value_read \
+      "$TEST_RUNNER_OUTPUT_ROOT/workers/$test_runner_worker_name.count" "worker count"); then
+      if [ "$test_runner_worker_count" -ne "$test_runner_worker_expected_count" ]; then
+        printf 'FAIL: worker count mismatch: %s\n' "$test_runner_worker_name" >&2
+        test_runner_results_status=1
+      fi
+    else
+      test_runner_results_status=1
+      test_runner_worker_count=0
+    fi
+    test_runner_result_value_read \
+      "$TEST_RUNNER_OUTPUT_ROOT/workers/$test_runner_worker_name.elapsed" "worker elapsed" >/dev/null ||
+      test_runner_results_status=1
+
+    if test_runner_worker_status=$(test_runner_result_value_read \
+      "$TEST_RUNNER_OUTPUT_ROOT/workers/$test_runner_worker_name.status" "worker status") &&
+      test_runner_worker_wait_status=$(test_runner_result_value_read \
+        "$TEST_RUNNER_OUTPUT_ROOT/workers/$test_runner_worker_name.wait" "worker wait status"); then
+      if [ "$test_runner_worker_status" -ne "$test_runner_worker_wait_status" ]; then
+        printf 'FAIL: worker status mismatch: %s\n' "$test_runner_worker_name" >&2
+        test_runner_results_status=1
+      fi
+      if [ "$test_runner_worker_failed" -eq 0 ] && [ "$test_runner_worker_status" -ne 0 ]; then
+        printf 'FAIL: worker failed without a failed group: %s\n' "$test_runner_worker_name" >&2
+        test_runner_results_status=1
+      fi
+      if [ "$test_runner_worker_failed" -eq 1 ] && [ "$test_runner_worker_status" -eq 0 ]; then
+        printf 'FAIL: worker passed with a failed group: %s\n' "$test_runner_worker_name" >&2
+        test_runner_results_status=1
+      fi
+      if [ "$test_runner_worker_status" -ne 0 ]; then
+        printf 'FAIL: test worker failed: %s\n' "$test_runner_worker_name" >&2
+        test_runner_results_status=1
+      fi
+    else
+      test_runner_results_status=1
+    fi
+
+    test_runner_total_count=$((test_runner_total_count + test_runner_worker_count))
+  done <<EOF
+$TEST_RUNNER_WORKERS_SELECTED
+EOF
+
+  if [ "$test_runner_results_status" -eq 0 ]; then
+    TEST_COUNT=$test_runner_total_count
+  fi
+  return "$test_runner_results_status"
+}
+
+test_runner_groups_run() {
+  test_runner_group_assignment_validate
+  test_runner_worker_list_resolve
+  test_runner_output_prepare
+  test_runner_workers_start
+  test_runner_workers_wait
+
+  test_runner_run_status=0
+  test_runner_logs_replay || test_runner_run_status=1
+  test_runner_results_collect || test_runner_run_status=1
+  return "$test_runner_run_status"
 }

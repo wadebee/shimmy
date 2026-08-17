@@ -131,7 +131,11 @@ main() {
   shimmy_catalog_checkout_resolve "$ROOT_DIR" upstream || fail_test "$SHIMMY_CATALOG_ERROR"
   test_runner_total_started=$(test_runner_now)
   TMP_ROOT=$(mktemp -d "$TMP_PARENT/shimmy-test.XXXXXX")
-  trap shimmy_test_cleanup EXIT HUP INT TERM
+  TEST_RUNNER_WORKER_PIDS=
+  trap shimmy_test_cleanup EXIT
+  trap 'test_runner_signal_handle HUP 129' HUP
+  trap 'test_runner_signal_handle INT 130' INT
+  trap 'test_runner_signal_handle TERM 143' TERM
   TMP_ROOT=$(cd -- "$TMP_ROOT" && pwd -P)
 
   test_runner_setup_started=$(test_runner_now)
