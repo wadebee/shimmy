@@ -6,6 +6,35 @@ Run the repository suite from the root:
 ./tests/test.sh
 ```
 
+The source suite uses one canonical named group registry. The current runner
+executes the registry serially; `--jobs` accepts the bounded interface that
+later parallel orchestration will use without changing serial execution yet.
+Use these commands to inspect or select coverage:
+
+```sh
+./tests/test.sh --list-groups
+./tests/test.sh --group lib-runtime
+./tests/test.sh --group lib-runtime --group tools-rg
+./tests/test.sh --serial
+./tests/test.sh --jobs 3
+```
+
+Repeated groups, unknown groups, invalid or duplicate job counts, and
+conflicting `--serial`/`--jobs` or list/execution requests fail before session
+fixture creation. Selected groups always run in canonical registry order. The
+lifecycle prepare and complete sequence is exposed only as the single
+`commands-lifecycle` group.
+
+Opt in to integer-second setup, per-group, and total timing records with:
+
+```sh
+SHIMMY_TEST_TIMING=1 ./tests/test.sh --serial
+```
+
+Each record has the stable form
+`shimmy_test_timing=<setup|group|total>|<name>|<elapsed-seconds>`. Timing
+records are absent by default.
+
 To smoke an installed profile through its real wrappers, use:
 
 ```sh
@@ -91,11 +120,12 @@ and any approved deferral without recording credentials. The deterministic
 preview suite covers both supported host-OS branches, but emulation and preview
 results do not replace the two native container-architecture runs.
 
-The runner in `tests/test.sh` sources shared assertions from
-`tests/support.sh`, shared-library coverage from `tests/lib/`, and
-management-command coverage from `tests/commands/`. Tool-specific coverage
-belongs beside the tool in `tools/<tool>/`. Keep one assertion-focused scenario
-per behavior and preserve executable bits on shell entrypoints.
+The runner in `tests/test.sh` sources its registry and orchestration helpers
+from `tests/runner.sh`, shared assertions from `tests/support.sh`,
+shared-library coverage from `tests/lib/`, and management-command coverage from
+`tests/commands/`. Tool-specific coverage belongs beside the tool in
+`tools/<tool>/`. Keep one assertion-focused scenario per behavior and preserve
+executable bits on shell entrypoints.
 
 Disposable installation scenarios set absolute temporary `HOME` and
 `XDG_CONFIG_HOME` values. Do not introduce an installation-directory override.

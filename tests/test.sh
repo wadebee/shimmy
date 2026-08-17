@@ -11,8 +11,6 @@ case "$TMP_PARENT" in
   */) TMP_PARENT=${TMP_PARENT%/} ;;
 esac
 
-TMP_ROOT=$(mktemp -d "$TMP_PARENT/shimmy-test.XXXXXX")
-TMP_ROOT=$(cd -- "$TMP_ROOT" && pwd -P)
 TEST_COUNT=0
 
 # shellcheck source=tests/support.sh
@@ -30,6 +28,10 @@ TEST_COUNT=0
 # shellcheck source=tests/profile-smoke.sh
 . "$SCRIPT_DIR/profile-smoke.sh"
 if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
+# shellcheck source=tests/runner.sh
+. "$SCRIPT_DIR/runner.sh"
+# shellcheck source=tests/lib/runner.sh
+. "$SCRIPT_DIR/lib/runner.sh"
 # shellcheck source=tests/lib/catalog.sh
 . "$SCRIPT_DIR/lib/catalog.sh"
 # shellcheck source=tests/lib/runtime.sh
@@ -112,60 +114,37 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$SCRIPT_DIR/commands/test.sh"
 fi
 
-trap shimmy_test_cleanup EXIT HUP INT TERM
-
 main() {
-  test_profile_mode_parse "$@"
-  if [ "$TEST_PROFILE_RUN" -eq 1 ]; then
+  if [ -f "$ROOT_DIR/install-manifest.txt" ]; then
+    test_profile_mode_parse "$@"
     test_profile_smoke_run
     printf 'All %s Shimmy tests passed.\n' "$TEST_COUNT"
     return 0
   fi
 
+  test_runner_options_parse "$@"
+  if [ "$TEST_RUNNER_LIST_GROUPS" -eq 1 ]; then
+    test_runner_group_list
+    return 0
+  fi
+
   shimmy_catalog_checkout_resolve "$ROOT_DIR" upstream || fail_test "$SHIMMY_CATALOG_ERROR"
+  test_runner_total_started=$(test_runner_now)
+  TMP_ROOT=$(mktemp -d "$TMP_PARENT/shimmy-test.XXXXXX")
+  trap shimmy_test_cleanup EXIT HUP INT TERM
+  TMP_ROOT=$(cd -- "$TMP_ROOT" && pwd -P)
+
+  test_runner_setup_started=$(test_runner_now)
   setup_session_profile_fixtures
   setup_session_update_source_fixture
-  test_lib_catalog_run
-  test_lib_runtime_run
-  test_lib_profile_activation_run
-  test_lib_registries_run
-  test_lib_update_run
-  test_commands_agent_preflight_run
-  test_commands_catalog_run
-  test_commands_images_run
-  test_commands_lifecycle_prepare
-  test_commands_management_run
-  test_commands_onboarding_run
-  test_commands_lifecycle_complete
-  test_commands_profiles_run
-  test_commands_profile_run
-  test_commands_status_run
-  test_commands_update_run
-  test_commands_startup_run
-  test_commands_skills_run
-  test_commands_dispatcher_run
-  test_commands_netinfo_run
-  test_tools_aws_run
-  test_tools_community_ansible_dev_tools_run
-  test_tools_gcloud_run
-  test_tools_gdrive_run
-  test_tools_gh_run
-  test_tools_go_run
-  test_tools_jq_run
-  test_tools_netcat_run
-  test_tools_nmap_run
-  test_tools_npx_run
-  test_tools_oc_run
-  test_tools_opnsense_mcp_read_only_run
-  test_tools_opnsense_mcp_admin_run
-  test_tools_rg_run
-  test_tools_skopeo_run
-  test_tools_task_run
-  test_tools_terraform_run
-  test_tools_tessl_run
-  test_tools_textual_run
-  test_commands_install_run
-  test_commands_test_run
+  test_runner_setup_finished=$(test_runner_now)
+  test_runner_timing_record setup session-fixtures \
+    "$((test_runner_setup_finished - test_runner_setup_started))"
+
+  test_runner_groups_run
+  test_runner_total_finished=$(test_runner_now)
+  test_runner_timing_record total suite \
+    "$((test_runner_total_finished - test_runner_total_started))"
   printf 'All %s Shimmy tests passed.\n' "$TEST_COUNT"
 }
 

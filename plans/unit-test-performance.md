@@ -147,7 +147,7 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Introduce one observable, selectable serial group registry.
+- [x] Chunk 1 — Introduce one observable, selectable serial group registry.
 - [ ] Chunk 2 — Centralize and accelerate disposable fixture materialization.
 - [ ] Chunk 3 — Enable bounded parallel execution and verify the performance target.
 
@@ -211,19 +211,20 @@ the default concurrency yet.
 
 ### Verification checklist
 
-- [ ] `dash -n` passes for every changed or added shell file.
-- [ ] `./tests/test.sh --list-groups` completes before fixture creation and
+- [x] `dash -n` passes for every changed or added shell file.
+- [x] `./tests/test.sh --list-groups` completes before fixture creation and
       lists every registered group once in canonical order.
-- [ ] Invalid `--group`, `--jobs`, duplicate, missing-value, and conflicting
+- [x] Invalid `--group`, `--jobs`, duplicate, missing-value, and conflicting
       requests fail before fixture creation and leave no test temporary root.
-- [ ] A representative `--group` run executes only that group and reports its
-      exact test count.
-- [ ] `SHIMMY_TEST_TIMING=1 ./tests/test.sh --serial` passes all tests and emits
+- [x] A representative `--group` run executes only that group and reports its
+      exact test count. `--group runner` reported 5 tests.
+- [x] `SHIMMY_TEST_TIMING=1 ./tests/test.sh --serial` passes all tests and emits
       one timing record per group plus setup and total records.
-- [ ] `./tests/test.sh --serial` passes every prior assertion plus the new
-      runner assertions; any count increase is explained in the review.
-- [ ] Default output contains no timing records when timing is disabled.
-- [ ] `./tests/context-tree.sh` passes.
+- [x] `./tests/test.sh --serial` passes every prior assertion plus the new
+      runner assertions; the timing-enabled serial verification reported 150
+      total, comprising the prior 145 and 5 focused runner assertions.
+- [x] Default output contains no timing records when timing is disabled.
+- [x] `./tests/context-tree.sh` passes.
 
 ### Human review gate
 
@@ -419,6 +420,26 @@ met without an unexplained coverage or isolation change.
 - Parallelism is viable only at explicit group boundaries with immutable
   session fixtures; arbitrary scenario-level backgrounding would obscure
   shared shell state and failure reporting.
+
+### Chunk 1
+
+- The canonical registry contains 41 named groups. Listing and invalid option
+  requests complete before the session temporary root and fixtures are
+  created; selected groups still pay the shared setup cost by design.
+- The lifecycle prepare/complete wrapper passes when the two calls are made
+  adjacent and indivisible. Management and onboarding retain their own group
+  boundaries and every former main-sequence entrypoint remains registered
+  exactly once.
+- The timed serial suite passed all 150 tests in 1,385 integer seconds,
+  including 40 seconds of session setup. The five-test increase is entirely
+  the focused runner coverage for ordering, selection, validation, timing, and
+  lifecycle grouping.
+- The largest measured groups were onboarding (232 seconds), lifecycle (227),
+  catalog (206), skills (197), and startup (135). These measurements provide
+  the initial shard-balancing evidence for Chunk 3.
+- Timing-enabled helper tests must explicitly disable timing around synthetic
+  group output when asserting the exact output body; otherwise correct timing
+  records contaminate the fixture expectation.
 
 ## Session bootstrap
 
