@@ -174,7 +174,10 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Add, document, and verify the npx tool.
+- [~] Chunk 1 — Add, document, and verify the npx tool. Implementation and
+      available native macOS acceptance checks passed on 2026-08-16. Native
+      Linux `amd64` and a live installed-profile smoke remain deferred as
+      detailed below; human review remains pending.
 
 ## Execution protocol
 
@@ -257,36 +260,62 @@ review instead of expanding this chunk silently.
 
 ### Verification checklist
 
-- [ ] Confirm the worktree baseline and preserve unrelated user changes.
-- [ ] Confirm all new runnable shell files pass POSIX syntax checks and retain
+- [x] Confirm the worktree baseline and preserve unrelated user changes. The
+      worktree was clean before implementation.
+- [x] Confirm all new runnable shell files pass POSIX syntax checks and retain
       executable mode.
-- [ ] Run `./commands/run-tool.sh npx --preview-shim --version` and verify the
+- [x] Run `./commands/run-tool.sh npx --preview-shim --version` and verify the
       pinned image, native platform, `/work` mount, working directory,
       `--entrypoint npx`, and stdin/TTY contract.
-- [ ] Run the focused `tools/npx/tests/npx.sh` coverage through the repository
+- [x] Run the focused `tools/npx/tests/npx.sh` coverage through the repository
       test runner and confirm override/pull/isolation assertions pass.
-- [ ] Run `./tests/test.sh` and confirm catalog discovery, metadata/image
+- [x] Run `./tests/test.sh` and confirm catalog discovery, metadata/image
       validation, all platform previews, installation, lifecycle, and existing
-      regressions pass.
-- [ ] Run `git diff --check` and inspect the complete diff, including mode bits
+      regressions pass. All 145 tests passed after updating the discovered
+      canonical tool-skill count from 19 to 20.
+- [x] Run `git diff --check` and inspect the complete diff, including mode bits
       and the absence of unintended shared-code or generated-adapter changes.
-- [ ] Run `./commands/images.sh verify --shim npx --public-only` and confirm the
+- [x] Run `./commands/images.sh verify --shim npx --public-only` and confirm the
       pinned reference is a reachable OCI index or Docker manifest list with
-      `linux/amd64` and `linux/arm64`. Record upstream drift without adopting it.
-- [ ] On native Linux `amd64`, run the version-owned `npx --version` smoke and
+      `linux/amd64` and `linux/arm64`. The verifier reported the pinned digest,
+      OCI index media type, verified platforms, public access, and
+      `upstream=current`.
+- [~] On native Linux `amd64`, run the version-owned `npx --version` smoke and
       record host platform, concrete version, command, exit status, and output.
-- [ ] On native Apple Silicon macOS `arm64`, run the same version-owned smoke
+      No native Linux `amd64` host was available in this session. Preview and
+      index verification passed, but neither substitutes for the required
+      native smoke. Run `./commands/run-tool.sh npx --version` on native Linux
+      `amd64` before feature acceptance; explicit deferral is requested.
+- [~] On native Apple Silicon macOS `arm64`, run the same version-owned smoke
       through the correctly activated existing Shimmy profile and record the
-      same evidence. Do not provision or replace a Podman machine.
-- [ ] On at least one accepted native host, run
+      same evidence. Do not provision or replace a Podman machine. Source
+      runtime command `./commands/run-tool.sh npx --version` exited 0 on native
+      Darwin `arm64` and printed `11.16.0`; it ran Node 24.18.0 for
+      `linux/arm64` through the existing reachable engine without machine or
+      activation changes. The native runtime is accepted, but the
+      installed-profile portion remains deferred because the selected default
+      profile does not own the currently active upstream connection. Run the
+      same smoke after normal profile activation; explicit deferral is
+      requested.
+- [x] On at least one accepted native host, run
       `npx --yes node-llama-cpp@3.19.1 inspect gpu`; confirm package fetch and
       CLI execution complete, record the reported compute backend, and treat
       lack of GPU detection as an expected observational result rather than an
-      npx failure.
-- [ ] From a disposable install root/profile, install `npx`, inspect
+      npx failure. `./commands/run-tool.sh npx --yes node-llama-cpp@3.19.1
+      inspect gpu` exited 0 on Darwin `arm64`; it reported Debian 12 `arm64`,
+      Node 24.18.0, node-llama-cpp 3.19.1, CPU information, and no GPU backend.
+- [~] From a disposable install root/profile, install `npx`, inspect
       `shimmy status --format manifest`, run the installed `npx --version`
       smoke, and verify uninstall removes only the profile-owned npx assets.
-- [ ] Reconcile every checklist item in this plan. Any unavailable second-host
+      A disposable upstream profile installed npx, its manifest recorded
+      `npx|24.18|npx_24_18`, its installed wrapper rendered the expected native
+      preview, and profile uninstall removed the disposable profile. A live
+      installed-wrapper smoke was deferred because the disposable profile was
+      not the active Darwin registry projection and changing activation is an
+      explicit plan exclusion. The same concrete source runtime passed the
+      native smoke; run the installed smoke in a normally activated accepted
+      profile before final acceptance. Explicit deferral is requested.
+- [x] Reconcile every checklist item in this plan. Any unavailable second-host
       native run must be marked `[~]` with what passed, what remains, impact,
       proposed next action, and whether explicit deferral is requested.
 
@@ -337,6 +366,20 @@ host cache or credential state is owned by this tool.
   latter mentions tool-local `CONTEXT.md` or `agent/SKILL.md`: this repository
   prohibits tool `CONTEXT.md` files and stores canonical guidance directly at
   `tools/<tool>/SKILL.md`.
+
+### Implementation 2026-08-16
+
+- `tests/test.sh` currently registers each tool-local test explicitly, despite
+  the planning inventory expecting discovery. Adding a tool therefore also
+  requires the minimal source-and-run registration and an increment to the
+  canonical tool-skill inventory assertion.
+- Keeping stdin open with a separate conditional `-t` produces a previewable
+  contract: non-terminal execution always renders `-i` and never `-t`, while
+  interactive execution can add `-t` without conflating the two behaviors.
+- The official Node image executed the pinned public package on native
+  `linux/arm64` but reported no GPU backend, confirming that package execution
+  is functional and GPU availability remains outside this generic wrapper's
+  acceptance boundary.
 
 ## Session bootstrap
 

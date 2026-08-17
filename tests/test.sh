@@ -86,6 +86,8 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$ROOT_DIR/tools/netcat/tests/netcat.sh"
 # shellcheck source=tools/nmap/tests/nmap.sh
 . "$ROOT_DIR/tools/nmap/tests/nmap.sh"
+# shellcheck source=tools/npx/tests/npx.sh
+. "$ROOT_DIR/tools/npx/tests/npx.sh"
 # shellcheck source=tools/oc/tests/oc.sh
 . "$ROOT_DIR/tools/oc/tests/oc.sh"
 # shellcheck source=tools/opnsense-mcp-admin/tests/opnsense-mcp-admin.sh
@@ -152,6 +154,7 @@ main() {
   test_tools_jq_run
   test_tools_netcat_run
   test_tools_nmap_run
+  test_tools_npx_run
   test_tools_oc_run
   test_tools_opnsense_mcp_read_only_run
   test_tools_opnsense_mcp_admin_run

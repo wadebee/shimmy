@@ -257,6 +257,7 @@ unsupported or unreadable host values fail before Podman is invoked.
 | jq | [tools/jq/guide.md](tools/jq/guide.md) |
 | netcat | [tools/netcat/guide.md](tools/netcat/guide.md) |
 | nmap | [tools/nmap/guide.md](tools/nmap/guide.md) |
+| npx | [tools/npx/guide.md](tools/npx/guide.md) |
 | oc | [tools/oc/guide.md](tools/oc/guide.md) |
 | opnsense-mcp-admin | [tools/opnsense-mcp-admin/guide.md](tools/opnsense-mcp-admin/guide.md) |
 | opnsense-mcp-read-only | [tools/opnsense-mcp-read-only/guide.md](tools/opnsense-mcp-read-only/guide.md) |

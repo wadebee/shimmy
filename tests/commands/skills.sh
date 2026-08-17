@@ -102,7 +102,7 @@ shimmy-tool-local-build'
     assert_path_not_exists "$ROOT_DIR/tools/$tool_name/agent"
     tool_skill_count=$((tool_skill_count + 1))
   done
-  assert_equals "$tool_skill_count" 19
+  assert_equals "$tool_skill_count" 20
   assert_file_contains "$ROOT_DIR/.agents/plugins/marketplace.json" '"path": "./plugins/shimmy"'
   pass "management plugin and co-located tool skills have the final split ownership"
 }
