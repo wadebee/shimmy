@@ -26,19 +26,6 @@ test_commands_onboarding_shell_init_path_assert() {
   assert_equals "$path_after" "$path_expected"
 }
 
-test_commands_onboarding_absolute_execution() {
-  setup_scenario
-  absolute_output=$(
-    cd "$WORK_DIR"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-      "$ROOT_DIR/install.sh" --profile upstream --no-startup 2>&1
-  )
-  assert_contains "$absolute_output" "Installed Shimmy upstream profile at $UPSTREAM_PROFILE_ROOT"
-  assert_file_exists "$UPSTREAM_PROFILE_ROOT/install-manifest.txt"
-  assert_file_contains "$UPSTREAM_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_name=upstream'
-  pass "repository installer executes by absolute path outside the checkout"
-}
-
 test_commands_onboarding_failure_cleanup() {
   setup_scenario
   failure_output=$(
@@ -127,8 +114,9 @@ test_commands_onboarding_bootstrap_documentation() {
   pass "bootstrap discovery documents the supported public chain and adapter workflow"
 }
 
-test_commands_onboarding_selection_policy() {
+test_commands_onboarding_progression() {
   setup_scenario
+
   set +e
   bootstrap_selection_output=$(bootstrap_default --shim task 2>&1)
   bootstrap_selection_status=$?
@@ -138,39 +126,127 @@ test_commands_onboarding_selection_policy() {
   assert_contains "$bootstrap_selection_output" 'shimmy install --shim <tool>'
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
 
-  setup_scenario_with_profiles default
-  default_baseline_selection=$(sed -n '/^tool=/p; /^tool_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
-  assert_equals "$default_baseline_selection" 'tool=jq
-tool=rg
-tool_version=jq|default|jq_1_8
-tool_version=jq|1.8|jq_1_8
-tool_version=rg|default|rg_15_1
-tool_version=rg|15.1|rg_15_1'
+  absolute_output=$(
+    cd "$WORK_DIR"
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+      "$ROOT_DIR/install.sh" --profile upstream --no-startup 2>&1
+  )
+  assert_contains "$absolute_output" "Installed Shimmy upstream profile at $UPSTREAM_PROFILE_ROOT"
+  assert_file_exists "$UPSTREAM_PROFILE_ROOT/install-manifest.txt"
+  assert_file_contains "$UPSTREAM_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_name=upstream'
+  absolute_upstream_selection=$(sed -n '/^tool=/p; /^tool_version=/p' \
+    "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
+  pass "repository installer executes by absolute path outside the checkout"
 
-  manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
-  set +e
-  empty_install_output=$(default_shimmy install --no-startup 2>&1)
-  empty_install_status=$?
-  set -e
-  [ "$empty_install_status" -ne 0 ] || fail_test "installed install unexpectedly accepted an empty shim selection"
-  assert_contains "$empty_install_output" 'install requires at least one --shim <tool>'
-  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$manifest_checksum"
+  progression_output=$(
+    env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" TEST_REPO_ROOT="$ROOT_DIR" \
+      TEST_DEFAULT_PROFILE_ROOT="$DEFAULT_PROFILE_ROOT" \
+      TEST_UPSTREAM_PROFILE_ROOT="$UPSTREAM_PROFILE_ROOT" TEST_WORK_DIR="$WORK_DIR" \
+      XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+      PATH=/usr/bin:/bin /bin/sh -c '
+        cd "$TEST_ROOT_DIR"
+        set -- first "second value"
+        cwd_before=$(pwd -P)
+        flags_before=$-
+        unrelated_value=preserved
+        caller_function() { printf preserved; }
+        trap "trap_preserved=yes" USR1
+        . ./install.sh --no-startup >/dev/null || exit 91
+        install_status=$?
+        kill -USR1 $$
+        printf "status=%s\n" "$install_status"
+        printf "shimmy=%s\n" "$(command -v shimmy)"
+        printf "jq=%s\n" "$(command -v jq)"
+        printf "rg=%s\n" "$(command -v rg)"
+        printf "profile=%s\n" "$(shimmy status --format manifest | sed -n "s/^shimmy_profile_name=//p")"
+        printf "cwd_unchanged=%s\n" "$([ "$(pwd -P)" = "$cwd_before" ] && printf yes || printf no)"
+        printf "flags_unchanged=%s\n" "$([ "$-" = "$flags_before" ] && printf yes || printf no)"
+        printf "parameters_unchanged=%s\n" "$([ "$#" -eq 2 ] && [ "$1" = first ] && [ "$2" = "second value" ] && printf yes || printf no)"
+        printf "function_unchanged=%s\n" "$(caller_function)"
+        printf "unrelated=%s\n" "$unrelated_value"
+        printf "trap=%s\n" "${trap_preserved:-no}"
+        command -v shimmy__bootstrap_run >/dev/null 2>&1 && printf "function=leaked\n"
+        [ "${shimmy__bootstrap_source_root+x}" = x ] && printf "variable=leaked\n"
+        [ "${shimmy__bootstrap_tool_baseline+x}" = x ] && printf "variable=leaked\n"
+        [ "${SHIMMY_BOOTSTRAP_PROFILE+x}" = x ] && printf "profile_selector=leaked\n"
 
-  default_shimmy install --shim task --shim oc@4.18 --no-startup >/dev/null
-  additive_selection=$(sed -n '/^tool=/p; /^tool_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
+        sed -n "/^tool=/p; /^tool_version=/p" \
+          "$TEST_DEFAULT_PROFILE_ROOT/install-manifest.txt" \
+          > "$TEST_WORK_DIR/default-baseline-selection"
+
+        manifest_checksum=$(cksum < "$TEST_DEFAULT_PROFILE_ROOT/install-manifest.txt")
+        if "$TEST_DEFAULT_PROFILE_ROOT/bin/shimmy" install --no-startup \
+          > "$TEST_WORK_DIR/empty-install-output" 2>&1; then
+          exit 92
+        fi
+        printf "empty_manifest_unchanged=%s\n" \
+          "$([ "$(cksum < "$TEST_DEFAULT_PROFILE_ROOT/install-manifest.txt")" = "$manifest_checksum" ] && printf yes || printf no)"
+
+        "$TEST_DEFAULT_PROFILE_ROOT/bin/shimmy" install \
+          --shim task --shim oc@4.18 --no-startup >/dev/null || exit 93
+        additive_selection=$(sed -n "/^tool=/p; /^tool_version=/p" \
+          "$TEST_DEFAULT_PROFILE_ROOT/install-manifest.txt")
+        printf "%s\n" "$additive_selection" > "$TEST_WORK_DIR/additive-selection"
+
+        . ./install.sh --profile default --no-startup >/dev/null || exit 94
+        refreshed_selection=$(sed -n "/^tool=/p; /^tool_version=/p" \
+          "$TEST_DEFAULT_PROFILE_ROOT/install-manifest.txt")
+        printf "%s\n" "$refreshed_selection" > "$TEST_WORK_DIR/refreshed-selection"
+        printf "refresh_selection_unchanged=%s\n" \
+          "$([ "$refreshed_selection" = "$additive_selection" ] && printf yes || printf no)"
+        printf "default_first=%s\n" "$(command -v shimmy)"
+
+        cd "$TEST_REPO_ROOT"
+        . ./install.sh --profile upstream --no-startup >/dev/null || exit 95
+        printf "upstream=%s\n" "$(command -v shimmy)"
+        cd "$TEST_ROOT_DIR"
+        . ./install.sh --profile default --no-startup >/dev/null || exit 96
+        printf "default_again=%s\n" "$(command -v shimmy)"
+      '
+  )
+
+  assert_contains "$progression_output" 'status=0'
+  assert_contains "$progression_output" "shimmy=$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_contains "$progression_output" "jq=$DEFAULT_PROFILE_ROOT/bin/jq"
+  assert_contains "$progression_output" "rg=$DEFAULT_PROFILE_ROOT/bin/rg"
+  assert_contains "$progression_output" 'profile=default'
+  assert_contains "$progression_output" 'cwd_unchanged=yes'
+  assert_contains "$progression_output" 'flags_unchanged=yes'
+  assert_contains "$progression_output" 'parameters_unchanged=yes'
+  assert_contains "$progression_output" 'function_unchanged=preserved'
+  assert_contains "$progression_output" 'unrelated=preserved'
+  assert_contains "$progression_output" 'trap=yes'
+  assert_not_contains "$progression_output" 'function=leaked'
+  assert_not_contains "$progression_output" 'variable=leaked'
+  assert_not_contains "$progression_output" 'profile_selector=leaked'
+  assert_path_not_exists "$HOME_DIR/.profile"
+  pass "sourced onboarding initializes the current shell without changing caller state"
+
+  default_fixture_selection=$(sed -n '/^tool=/p; /^tool_version=/p' \
+    "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/default/install-manifest.txt")
+  upstream_fixture_selection=$(sed -n '/^tool=/p; /^tool_version=/p' \
+    "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/upstream/install-manifest.txt")
+  default_baseline_selection=$(cat "$WORK_DIR/default-baseline-selection")
+  assert_equals "$default_baseline_selection" "$default_fixture_selection"
+  assert_equals "$absolute_upstream_selection" "$upstream_fixture_selection"
+  assert_equals "$upstream_fixture_selection" "$default_fixture_selection"
+  assert_file_contains "$WORK_DIR/empty-install-output" 'install requires at least one --shim <tool>'
+  assert_contains "$progression_output" 'empty_manifest_unchanged=yes'
+  additive_selection=$(cat "$WORK_DIR/additive-selection")
+  refreshed_selection=$(cat "$WORK_DIR/refreshed-selection")
   assert_contains "$additive_selection" 'tool=jq'
   assert_contains "$additive_selection" 'tool=rg'
   assert_contains "$additive_selection" 'tool=task'
   assert_contains "$additive_selection" 'tool=oc'
   assert_contains "$additive_selection" 'tool_version=oc|4.18|oc_4_18'
-  bootstrap_default >/dev/null
-  refreshed_selection=$(sed -n '/^tool=/p; /^tool_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   assert_equals "$refreshed_selection" "$additive_selection"
-
-  upstream_fixture_manifest=$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/upstream/install-manifest.txt
-  upstream_baseline_selection=$(sed -n '/^tool=/p; /^tool_version=/p' "$upstream_fixture_manifest")
-  assert_equals "$upstream_baseline_selection" "$default_baseline_selection"
+  assert_contains "$progression_output" 'refresh_selection_unchanged=yes'
   pass "bootstrap owns the fixed jq/rg baseline while installed additions stay explicit and additive"
+
+  assert_contains "$progression_output" "default_first=$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_contains "$progression_output" "upstream=$UPSTREAM_PROFILE_ROOT/bin/shimmy"
+  assert_contains "$progression_output" "default_again=$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  pass "repeated sourced installs switch profile PATH precedence deterministically"
 }
 
 test_commands_onboarding_shell_sources() {
@@ -237,57 +313,6 @@ test_commands_onboarding_shell_init_rejection() {
   pass "missing, symlinked, non-file, and unreadable shell init assets are not sourced"
 }
 
-test_commands_onboarding_sourced_state() {
-  setup_scenario
-  sourced_output=$(
-    env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" TEST_DEFAULT_PROFILE_ROOT="$DEFAULT_PROFILE_ROOT" \
-      XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
-        cd "$TEST_ROOT_DIR"
-        set -- first "second value"
-        cwd_before=$(pwd -P)
-        flags_before=$-
-        unrelated_value=preserved
-        caller_function() { printf preserved; }
-        trap "trap_preserved=yes" USR1
-        . ./install.sh --no-startup >/dev/null
-        install_status=$?
-        kill -USR1 $$
-        printf "status=%s\n" "$install_status"
-        printf "shimmy=%s\n" "$(command -v shimmy)"
-        printf "jq=%s\n" "$(command -v jq)"
-        printf "rg=%s\n" "$(command -v rg)"
-        printf "profile=%s\n" "$(shimmy status --format manifest | sed -n "s/^shimmy_profile_name=//p")"
-        printf "cwd_unchanged=%s\n" "$([ "$(pwd -P)" = "$cwd_before" ] && printf yes || printf no)"
-        printf "flags_unchanged=%s\n" "$([ "$-" = "$flags_before" ] && printf yes || printf no)"
-        printf "parameters_unchanged=%s\n" "$([ "$#" -eq 2 ] && [ "$1" = first ] && [ "$2" = "second value" ] && printf yes || printf no)"
-        printf "function_unchanged=%s\n" "$(caller_function)"
-        printf "unrelated=%s\n" "$unrelated_value"
-        printf "trap=%s\n" "${trap_preserved:-no}"
-        command -v shimmy__bootstrap_run >/dev/null 2>&1 && printf "function=leaked\n"
-        [ "${shimmy__bootstrap_source_root+x}" = x ] && printf "variable=leaked\n"
-        [ "${shimmy__bootstrap_tool_baseline+x}" = x ] && printf "variable=leaked\n"
-        [ "${SHIMMY_BOOTSTRAP_PROFILE+x}" = x ] && printf "profile_selector=leaked\n"
-        true
-      '
-  )
-  assert_contains "$sourced_output" 'status=0'
-  assert_contains "$sourced_output" "shimmy=$DEFAULT_PROFILE_ROOT/bin/shimmy"
-  assert_contains "$sourced_output" "jq=$DEFAULT_PROFILE_ROOT/bin/jq"
-  assert_contains "$sourced_output" "rg=$DEFAULT_PROFILE_ROOT/bin/rg"
-  assert_contains "$sourced_output" 'profile=default'
-  assert_contains "$sourced_output" 'cwd_unchanged=yes'
-  assert_contains "$sourced_output" 'flags_unchanged=yes'
-  assert_contains "$sourced_output" 'parameters_unchanged=yes'
-  assert_contains "$sourced_output" 'function_unchanged=preserved'
-  assert_contains "$sourced_output" 'unrelated=preserved'
-  assert_contains "$sourced_output" 'trap=yes'
-  assert_not_contains "$sourced_output" 'function=leaked'
-  assert_not_contains "$sourced_output" 'variable=leaked'
-  assert_not_contains "$sourced_output" 'profile_selector=leaked'
-  assert_path_not_exists "$HOME_DIR/.profile"
-  pass "sourced onboarding initializes the current shell without changing caller state"
-}
-
 test_commands_onboarding_startup_failure() {
   setup_scenario
   invalid_startup_file=$SCENARIO_DIR/startup-directory
@@ -310,27 +335,6 @@ test_commands_onboarding_startup_failure() {
   assert_not_contains "$failure_output" 'shimmy=selected'
   assert_file_exists "$DEFAULT_PROFILE_ROOT/install-manifest.txt"
   pass "startup integration failure commits the profile but does not initialize PATH"
-}
-
-test_commands_onboarding_switch_profiles() {
-  setup_scenario
-  switch_output=$(
-    env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" TEST_DEFAULT_PROFILE_ROOT="$DEFAULT_PROFILE_ROOT" \
-      TEST_UPSTREAM_PROFILE_ROOT="$UPSTREAM_PROFILE_ROOT" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" \
-      HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
-        cd "$TEST_ROOT_DIR"
-        . ./install.sh --profile default --no-startup >/dev/null
-        printf "default_first=%s\n" "$(command -v shimmy)"
-        . ./install.sh --profile upstream --no-startup >/dev/null
-        printf "upstream=%s\n" "$(command -v shimmy)"
-        . ./install.sh --profile default --no-startup >/dev/null
-        printf "default_again=%s\n" "$(command -v shimmy)"
-      '
-  )
-  assert_contains "$switch_output" "default_first=$DEFAULT_PROFILE_ROOT/bin/shimmy"
-  assert_contains "$switch_output" "upstream=$UPSTREAM_PROFILE_ROOT/bin/shimmy"
-  assert_contains "$switch_output" "default_again=$DEFAULT_PROFILE_ROOT/bin/shimmy"
-  pass "repeated sourced installs switch profile PATH precedence deterministically"
 }
 
 test_commands_onboarding_shell_init_path_behavior() {
@@ -395,14 +399,11 @@ test_commands_onboarding_shell_init_path_behavior() {
 }
 
 test_commands_onboarding_run() {
-  test_commands_onboarding_sourced_state
+  test_commands_onboarding_progression
   test_commands_onboarding_bootstrap_documentation
   test_commands_onboarding_help
-  test_commands_onboarding_selection_policy
   test_commands_onboarding_failure_cleanup
   test_commands_onboarding_startup_failure
-  test_commands_onboarding_absolute_execution
-  test_commands_onboarding_switch_profiles
   test_commands_onboarding_shell_sources
   test_commands_onboarding_shell_init_rejection
   test_commands_onboarding_shell_init_path_behavior

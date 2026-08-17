@@ -1,6 +1,7 @@
 # Test transition pruning plan
 
-**Status:** In progress — Chunks 1–4 are accepted; Chunk 5 has not started.
+**Status:** In progress — Chunks 1–5 are accepted. Chunk 5's measured savings
+leave the plan-wide 255-second target unmet; work is paused before Chunk 6.
 
 ## Objective
 
@@ -232,7 +233,9 @@ None.
 - [x] Chunk 4 — Lifecycle materialization and cleanup worlds consolidated,
       assertion mapping and 14-test coverage preserved, and measured
       13-second median reduction accepted by the user on 2026-08-17.
-- [ ] Chunk 5 — Consolidate the current onboarding bootstrap progression.
+- [x] Chunk 5 — Current onboarding progression, assertion mapping, preserved
+      11-test coverage, and measured 15-second median reduction accepted by
+      the user on 2026-08-17.
 - [ ] Chunk 6 — Rebalance workers and run final acceptance benchmarks.
 
 ## Execution protocol
@@ -838,30 +841,86 @@ through multiple profiles and shell implementations.
 
 ### Verification checklist
 
-- [ ] Absolute execution, sourced caller-state preservation, fixed baseline,
+- [x] Absolute execution, sourced caller-state preservation, fixed baseline,
       empty selection rejection, additive installed selection, refresh
       preservation, and default/upstream/default PATH selection all pass in one
       progressive world.
-- [ ] Failure, help, documentation, startup failure, Bash/Zsh, malformed
+- [x] Failure, help, documentation, startup failure, Bash/Zsh, malformed
       shell-init, and PATH-only cases remain separately isolated.
-- [ ] Every prior onboarding assertion and logical pass is retained or mapped.
-- [ ] The consolidated path uses one scenario instead of the former five
+- [x] Every prior onboarding assertion and logical pass is retained or mapped.
+- [x] The consolidated path uses one scenario instead of the former five
       scenario initializations across absolute execution, sourced state,
       selection policy, and switching, and removes at least one real profile
       materialization/refresh.
-- [ ] Three isolated timed serial runs pass and reviewer output reports raw
+- [x] Three isolated timed serial runs pass and reviewer output reports raw
       values, medians, calculated savings/percentage, test counts, and
       cumulative projection.
-- [ ] `dash -n tests/commands/onboarding.sh` passes under `/bin/sh`; available
+- [x] `dash -n tests/commands/onboarding.sh` passes under `/bin/sh`; available
       Bash and Zsh source-form cases pass.
-- [ ] `./tests/context-tree.sh` passes.
+- [x] `./tests/context-tree.sh` passes.
+
+### Chunk 5 assertion and transition mapping
+
+| Before proof | Chunk 5 proof |
+| --- | --- |
+| Absolute execution used a fresh scenario to execute the repository installer by absolute path from outside the checkout and materialize upstream. | The progressive world retains the same absolute repository installer invocation from its disposable work directory, validates the upstream profile identity, and captures its baseline selection before later phases. |
+| Sourced state used a second fresh scenario to source default under `/bin/sh` and prove status, PATH, cwd, flags, positional parameters, function, trap, unrelated variable, bootstrap cleanup, baseline commands, profile identity, and `--no-startup` behavior. | The next progressive phase sources default under `/bin/sh` and repeats every assertion unchanged before advancing profile state. |
+| Selection policy used one rejected fresh bootstrap plus a cloned default fixture for baseline comparison, empty installed-selection rejection/non-mutation, additive task and `oc@4.18` install, and real default refresh preservation. | The progressive world starts with the same rejected request before any default profile exists. Its newly bootstrapped default and absolute upstream selections are compared with both immutable session manifests. The empty request retains the exact manifest-checksum proof; task/OC installation and the real default bootstrap refresh retain the additive and byte-derived selection equality checks. |
+| Profile switching used a fifth fresh scenario and sourced default, upstream, then default, materializing both profiles independently of the absolute-execution case. | The already-selected progressive default supplies the first PATH proof. The test sources the repository bootstrap for the existing absolute-execution upstream profile, then sources the existing default bootstrap again and proves all three launcher paths. No second upstream world is created. |
+| Documentation, help/non-mutation, ordinary and `set -e` failure cleanup, startup failure, Bash/Zsh source compatibility, malformed shell-init rejection, and shell-init PATH behavior were independent cases. | Every case remains independently initialized and unchanged. All 11 logical pass records remain. |
+
+The consolidation reduces five scenario initializations to one across the four
+progressive logical cases. It removes the switching case's redundant fresh
+default materialization while retaining the absolute upstream bootstrap, the
+first sourced default bootstrap, additive installed-tool transition, real
+default refresh, and sourced upstream/default refreshes required by the
+behavioral contract.
+
+### Chunk 5 reviewer output
+
+Raw after samples used the identical isolated command recorded in Chunk 1:
+
+| Sample | Setup (s) | Group (s) | Total (s) | Real (s) | User (s) | Sys (s) | CPU user+sys (s) | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 39 | 211 | 250 | 254.22 | 111.09 | 131.88 | 242.97 | 11 |
+| 2 | 39 | 213 | 252 | 256.44 | 112.22 | 132.62 | 244.84 | 11 |
+| 3 | 39 | 213 | 252 | 255.99 | 112.47 | 132.23 | 244.70 | 11 |
+| Median | 39 | 213 | 252 | 255.99 | 112.22 | 132.23 | 244.70 | 11 |
+
+| Metric | Before median (s) | After median (s) | Savings (s) | Improvement | Before/after test count |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `commands-onboarding` group | 228 | 213 | 15 | 6.6% | 11 / 11 |
+| Isolated setup | 38 | 39 | -1 | -2.6% | 11 / 11 |
+| Isolated total | 267 | 252 | 15 | 5.6% | 11 / 11 |
+| `/usr/bin/time` real | 270.46 | 255.99 | 14.47 | 5.4% | 11 / 11 |
+| CPU (`user + sys`) | 258.63 | 244.70 | 13.93 | 5.4% | 11 / 11 |
+
+The one-second setup-median increase does not explain away the group savings:
+the isolated total fell by 15 seconds, real time fell by 14.47 seconds, and
+CPU time fell by 13.93 seconds. The actual 15-second onboarding reduction is
+40 seconds below the supplied estimate's 55-second lower bound and 75 seconds
+below its 90-second upper bound.
+
+The five isolated target-group medians now total 880 seconds after implemented
+Chunks 1–5, a 109-second cumulative reduction from the 989-second baseline.
+Applying those isolated group deltas to the 1,385-second serial baseline
+projects 1,276 seconds, a 7.9% suite reduction. The plan-wide 255-second
+acceptance threshold remains short by 146 seconds. The objective therefore
+cannot be reached by the approved Chunks 1–5 without removing retained unique
+integration behavior or expanding scope. Per the plan stop condition, work
+stops at this review gate; Chunk 6 has not started.
 
 ### Human review gate
 
 Confirm invocation-mode coverage remains real, progressive state does not make
 selection or switching assertions tautological, stale scenario assumptions
 were not introduced, and the reviewer output clearly distinguishes measured
-savings from the original estimate.
+savings from the original estimate. Also decide whether to accept the safe
+consolidation with the 146-second plan-wide shortfall, revise the objective or
+scope, or request rollback; do not begin Chunk 6 without explicit direction.
+
+Accepted by the user on 2026-08-17 with the documented 146-second plan-wide
+shortfall. Chunk 6 remains pending separate explicit direction.
 
 ## Chunk 6 — Rebalance and acceptance benchmark
 
@@ -1064,6 +1123,27 @@ complete.
   result is 1,291 seconds. Chunk 5 must supply the remaining 161 seconds to
   reach the plan threshold without weakening coverage.
 
+### Chunk 5
+
+- Absolute execution, sourced caller-state preservation, selection policy, and
+  profile switching form one monotonic world without conflating invocation
+  modes: execution creates upstream, `/bin/sh` sourcing creates default, and
+  later sourced refreshes operate on those exact profiles.
+- Immutable session manifests are useful selection authorities even when the
+  progressive profiles themselves must be created by real bootstraps. This
+  preserves exact baseline proof without another cloned profile scenario.
+- Consolidation removed four scenario initializations and one redundant fresh
+  default materialization while preserving all 11 pass records. The onboarding
+  median fell from 228 to 213 seconds (6.6%) with a one-second setup increase
+  and 14.47-second real-time reduction.
+- The original 55–90-second onboarding estimate overstated the removable work:
+  the retained absolute/sourced invocation boundaries, additive install, real
+  refresh, profile switching, and Bash/Zsh matrix dominate the group.
+- Cumulative isolated savings are 109 seconds and the projected full serial
+  result is 1,276 seconds. The 146-second acceptance shortfall triggers the
+  plan's stop condition; further pruning would require revised scope or removal
+  of behavior that this plan explicitly protects.
+
 ## Session bootstrap
 
 Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, this plan,
@@ -1078,5 +1158,6 @@ coverage, isolation, POSIX shell, and offline behavior. The non-negotiable
 rule is: do not replace unique real integration behavior or move cost into
 shared setup merely to improve a group number.
 
-Chunks 1–4 are explicitly accepted. Chunk 5 has not started and must remain
-pending until the user gives a separate instruction to proceed.
+Chunks 1–5 are explicitly accepted. Chunk 5's timing shortfall remains
+documented, and Chunk 6 must remain pending until the user gives separate
+explicit direction.

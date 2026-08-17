@@ -35,10 +35,13 @@ is the behavior under test.
 - `onboarding.sh` covers sourced and executed repository onboarding, failure
   cleanup, the fixed jq/rg bootstrap baseline, explicit additive installed
   selection, direct shell initialization, PATH precedence, and profile-local
-  launcher binding. Its selection-policy case uses the session's real
-  bootstrap fixtures for initial default/upstream baselines while retaining an
-  isolated rejected request and a real default refresh after additive install;
-  shell-initialization PATH behavior also runs against relocated clones.
+  launcher binding. One progressive scenario rejects repository tool
+  selection, executes the upstream bootstrap outside the checkout, sources
+  default while preserving caller state, installs task plus OC, refreshes
+  default, and sources upstream then default to prove deterministic PATH
+  switching. It compares initial selections with immutable session fixtures;
+  failure and shell-compatibility boundaries remain isolated, and shell-init
+  PATH behavior runs against relocated clones.
 - `status.sh` covers profile-local installed status output from validated
   version-owned image configuration. It starts from pristine profile clones
   and retains a real additive install for local-build status coverage.
