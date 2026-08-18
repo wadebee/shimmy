@@ -76,3 +76,9 @@ shimmy_install_request_parse() {
         shift
         ;;
       --refresh-shims)
+
+Modify install.sh so if it sees a condition like this -->
+configured=/bin/zsh running=/bin/bash
+it forces a user prompt to proceed and guidance for how to call install to align running with configured
+
+How complicated of a code refactoring would it be to add install support for multiple shells simultaneously? 
