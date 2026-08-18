@@ -32,6 +32,7 @@ Make ordinary and global uninstall complete their own registry-projection prereq
 - On Linux, retain exact-link cleanup and foreign-state refusal; no machine operations occur.
 - Global uninstall acquires the activation lock first, then profile registry locks in deterministic `default`, `upstream` order. It revalidates all state under lock and detaches every projection before deleting any profile.
 - Keep each valid config and projection record until external cleanup and engine restoration succeed. If pre-commit cleanup fails, reapply already-detached exact links, restore the initial machine/default state, retain all profiles/catalogs, and report incomplete rollback explicitly if necessary.
+- Commit the Darwin projection transaction after every real projection record has been removed while every rollback backup still exists. Delete those backups only as post-commit cleanup so finalize failures and signal cleanup cannot invoke rollback with partially destroyed recovery material.
 - The standalone `profile redirect remove --all --detach` behavior remains available and unchanged.
 - No manifest or projection-record schema change is required.
 
@@ -39,6 +40,7 @@ Make ordinary and global uninstall complete their own registry-projection prereq
 
 - `lib/install/uninstall.sh` now coordinates activation and registry locks, preflight, Darwin projection cleanup, engine restoration, local commit, and rollback for profile and global scope.
 - Reusable prepare, detach, and rollback primitives in `lib/registries/registries.sh` preserve standalone redirect-removal behavior while allowing uninstall to retain its transaction locks.
+- Projection cleanup now clears its transaction-active flag after all local records are removed and before deleting any rollback backup; post-commit finalization failures report the committed state without entering rollback.
 - Cleanup-specific engine validation, switching, restart, and restoration support in `lib/profile/activation.sh` handles running and stopped deterministic machines without creating, adopting, renaming, or deleting them.
 - Lifecycle, parser, help, registry, and activation tests cover single-command cleanup, workload acknowledgment, failure injection, rollback, and preserved Linux/ownership behavior.
 - Root and child contexts, README/command documentation, Podman/registry/testing documentation, and the canonical `shimmy-install` skill describe manual detach as recovery/debugging rather than an uninstall prerequisite.
@@ -107,9 +109,10 @@ Make projection teardown, live-cache clearing, machine-state restoration, and lo
 - [x] Injected start, stop, detach, restart, restoration, and default-connection failures exercise complete and incomplete rollback reporting while retaining recoverable profile state.
 - [x] Global uninstall detaches both profiles before deleting either, restores initial machine/default state, and removes catalogs only after profile cleanup succeeds.
 - [x] A later global detach failure reprojects earlier detached profiles and leaves both profiles and catalogs intact.
+- [x] A second-profile backup-finalize failure and INT/TERM cleanup after the first backup is deleted do not invoke rollback, retain the committed record removals, and permit a clean retry.
 - [x] Linux exact-link cleanup, sibling isolation, operator policy preservation, startup cleanup, source-checkout preservation, and external-skill preservation remain covered.
 - [x] Help and parser tests cover `--stop-running`, duplicates, invalid combinations, and the absence of manual prerequisite guidance.
-- [x] Run targeted groups (40 tests passed):
+- [x] Run targeted groups (the post-fix `commands-lifecycle` rerun passed all 19 tests; the complete post-fix suite below covered the remaining targeted groups):
 
   ```sh
   ./tests/test.sh --serial \
@@ -121,7 +124,7 @@ Make projection teardown, live-cache clearing, machine-state restoration, and lo
     --group commands-profile
   ```
 
-- [x] Run the complete default suite with `./tests/test.sh` (exit status 0).
+- [x] Run the complete default suite with `./tests/test.sh` (164 tests passed after the projection-finalization commit-boundary fix; exit status 0).
 - [~] Perform native macOS acceptance only against explicitly prepared disposable profiles and pre-existing deterministic machines; record before/after machine, connection, workload, VM-link, record, profile, and catalog state.
   - Passed: the stateful fake-Podman acceptance seam covers running, stopped, alternate, missing, workload, rollback, and global ordering cases in the automated suite.
   - Remaining: exercise the same matrix against native Podman machines and capture before/after state.
@@ -152,6 +155,7 @@ Confirm single-command profile/global cleanup, workload acknowledgment, live-cac
 ### Chunk 1
 
 - A valid projection record must remain the recovery anchor until remote detach and machine/default restoration have both succeeded; deleting it earlier makes exact rollback unverifiable.
+- Recovery backups must remain complete until every local projection record has been removed and the transaction is atomically marked committed; destroying backups while rollback remains armed creates an unrecoverable signal/failure window.
 - Stopped-machine cleanup is safe only when temporary engine transitions and registry mutation remain within the same activation-plus-profile-lock transaction.
 - Global cleanup must hold the shared catalog lock across profile commit and catalog removal so another lifecycle operation cannot observe a partially committed ownership state.
 - Stateful failure tests must model whether a projection was actually changed; otherwise rollback assertions can pass while exercising an impossible external state.

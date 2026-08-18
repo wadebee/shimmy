@@ -33,7 +33,9 @@ is the behavior under test.
   lifecycle cases preserve valid Darwin projection-record bytes across update;
   uninstall cases cover running/stopped/missing machines, workload guards,
   refusal and rollback injection, global detach-before-delete ordering, and
-  reprojection after a later profile failure.
+  reprojection after a later profile failure. Finalization coverage injects a
+  backup-cleanup failure plus INT and TERM cleanup after the commit boundary
+  and proves that none can invoke rollback with destroyed recovery material.
 - `onboarding.sh` covers sourced and executed repository onboarding, failure
   cleanup, the fixed jq/rg bootstrap baseline, explicit additive installed
   selection, direct shell initialization, PATH precedence, and profile-local

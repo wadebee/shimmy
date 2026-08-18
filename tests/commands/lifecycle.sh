@@ -272,6 +272,7 @@ lifecycle_darwin_fake_prepare() {
   FAKE_FAIL_ONCE_FILE=
   FAKE_MACHINE_LIST=
   FAKE_WORKLOADS=
+  SHIMMY_TEST_UNINSTALL_FINALIZE_ACTION=
 }
 
 lifecycle_darwin_uninstall() {
@@ -285,7 +286,28 @@ lifecycle_darwin_uninstall() {
     FAKE_DARWIN_APPLY_RESULT="$FAKE_DARWIN_APPLY_RESULT" \
     FAKE_FAIL_ACTION="$FAKE_FAIL_ACTION" FAKE_FAIL_MACHINE="$FAKE_FAIL_MACHINE" \
     FAKE_FAIL_ONCE_FILE="$FAKE_FAIL_ONCE_FILE" \
+    SHIMMY_TEST_UNINSTALL_FINALIZE_ACTION="$SHIMMY_TEST_UNINSTALL_FINALIZE_ACTION" \
     "$lifecycle_uninstall_launcher" uninstall "$@"
+}
+
+lifecycle_darwin_uninstall_finalize_injection_install() {
+  {
+    printf '\n'
+    printf '%s\n' 'shimmy_registries_machine_projection_detach_finalize() {'
+    printf '%s\n' '  detach_backup_path=$1'
+    printf '%s\n' '  case "$detach_backup_path" in'
+    printf '%s\n' '    "$SHIMMY_PROFILE_ROOT"/.machine-projection.detach.*) ;;'
+    printf '%s\n' '    *) return 1 ;;'
+    printf '%s\n' '  esac'
+    printf '%s\n' '  rm -f "$detach_backup_path"'
+    printf '%s\n' '  [ "$SHIMMY_PROFILE_NAME" = upstream ] || return 0'
+    printf '%s\n' '  case "${SHIMMY_TEST_UNINSTALL_FINALIZE_ACTION:-}" in'
+    printf '%s\n' '    fail) return 1 ;;'
+    printf '%s\n' '    INT) shimmy_install_signal_cleanup 130 ;;'
+    printf '%s\n' '    TERM) shimmy_install_signal_cleanup 143 ;;'
+    printf '%s\n' '  esac'
+    printf '%s\n' '}'
+  } >> "$DEFAULT_PROFILE_ROOT/lib/registries/registries.sh"
 }
 
 test_commands_lifecycle_darwin_projection_uninstall() {
@@ -505,6 +527,52 @@ shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/machine-projection.txt"
   pass 'Darwin uninstall failure injection retains profiles and reports complete or incomplete rollback across detach, start, restart, and default restoration'
+}
+
+test_commands_lifecycle_darwin_uninstall_finalize_commit_boundary() {
+  for finalize_action in fail INT TERM; do
+    setup_scenario_with_profiles default upstream
+    lifecycle_darwin_fake_prepare
+    lifecycle_darwin_uninstall_finalize_injection_install
+    profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+    profile_projection_record_write "$UPSTREAM_PROFILE_ROOT" upstream
+    FAKE_MACHINE_LIST='shimmy-default|true
+shimmy-upstream|false'
+    FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true
+shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
+    SHIMMY_TEST_UNINSTALL_FINALIZE_ACTION=$finalize_action
+
+    set +e
+    finalize_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" --global 2>&1)
+    finalize_status=$?
+    set -e
+    case "$finalize_action" in
+      fail)
+        [ "$finalize_status" -ne 0 ] || fail_test 'injected projection-backup finalize failure unexpectedly succeeded'
+        assert_contains "$finalize_output" 'projection cleanup committed, but unable to finalize rollback backup for profile upstream'
+        ;;
+      INT) assert_equals "$finalize_status" 130 ;;
+      TERM) assert_equals "$finalize_status" 143 ;;
+    esac
+    assert_not_contains "$finalize_output" 'Rollback:'
+    assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh --username root shimmy-default /bin/sh -s -- apply'
+    assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh --username root shimmy-upstream /bin/sh -s -- apply'
+    assert_path_not_exists "$DEFAULT_PROFILE_ROOT/machine-projection.txt"
+    assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/machine-projection.txt"
+    for projection_profile_root in "$DEFAULT_PROFILE_ROOT" "$UPSTREAM_PROFILE_ROOT"; do
+      for projection_backup in "$projection_profile_root"/.machine-projection.detach.*; do
+        [ ! -e "$projection_backup" ] && [ ! -L "$projection_backup" ] ||
+          fail_test "projection rollback backup remained after $finalize_action finalization interruption: $projection_backup"
+      done
+    done
+
+    SHIMMY_TEST_UNINSTALL_FINALIZE_ACTION=
+    lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" --global >/dev/null
+    assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+    assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
+    assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
+  done
+  pass 'projection-backup finalize failure and INT/TERM after commit never invoke rollback and remain retryable'
 }
 
 test_commands_lifecycle_linux_registry_activation_cleanup() {
@@ -751,6 +819,7 @@ test_commands_lifecycle_complete() {
   test_commands_lifecycle_darwin_stopped_guard_and_missing
   test_commands_lifecycle_darwin_uninstall_refusals
   test_commands_lifecycle_darwin_uninstall_rollback
+  test_commands_lifecycle_darwin_uninstall_finalize_commit_boundary
   test_commands_lifecycle_global_uninstall
   test_commands_lifecycle_global_uninstall_darwin_transaction
 }

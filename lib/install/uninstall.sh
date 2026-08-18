@@ -409,12 +409,20 @@ shimmy_uninstall_projection_cleanup() {
     SHIMMY_UNINSTALL_RECORD_REMOVED_PROFILES=$(shimmy_append_line_list \
       "$SHIMMY_UNINSTALL_RECORD_REMOVED_PROFILES" "$uninstall_projection_profile")
   done
-  for uninstall_projection_profile in $SHIMMY_UNINSTALL_PREPARED_PROFILES; do
-    shimmy_uninstall_profile_context_resolve "$uninstall_projection_profile" || return 1
-    shimmy_registries_machine_projection_detach_finalize \
-      "$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$" || return 1
-  done
   SHIMMY_UNINSTALL_TRANSACTION_ACTIVE=0
+  for uninstall_projection_profile in $SHIMMY_UNINSTALL_PREPARED_PROFILES; do
+    shimmy_uninstall_profile_context_resolve "$uninstall_projection_profile" || {
+      printf 'ERROR: uninstall projection cleanup committed, but unable to resolve profile %s during backup finalization\n' \
+        "$uninstall_projection_profile" >&2
+      return 1
+    }
+    if ! shimmy_registries_machine_projection_detach_finalize \
+      "$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$"; then
+      printf 'ERROR: uninstall projection cleanup committed, but unable to finalize rollback backup for profile %s\n' \
+        "$uninstall_projection_profile" >&2
+      return 1
+    fi
+  done
   if [ "$STOP_RUNNING" -eq 1 ] &&
     [ "$SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINER_COUNT" -gt 0 ]; then
     printf '%s\n' 'WARNING: acknowledged workloads were interrupted; verify that they resumed as intended.' >&2

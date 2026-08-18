@@ -42,7 +42,10 @@ set connection variables.
 - `uninstall.sh` ordinarily removes only validated assets owned by the
   enclosing profile. It acquires the activation lock before deterministic
   profile locks, tears down exact registry projections, restores Darwin engine
-  state, and commits local deletion only after external cleanup succeeds.
+  state, and commits local deletion only after external cleanup succeeds. The
+  Darwin transaction commits after every projection record is removed while
+  every rollback backup still exists; backup deletion is post-commit cleanup
+  and cannot re-enter projection rollback.
   Explicit global uninstall also holds the catalog lock, detaches every
   profile before deleting any, and preserves bound source checkouts and
   external skill exports.
