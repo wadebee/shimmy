@@ -1,6 +1,6 @@
 # Make startup policy profile-owned
 
-**Status:** Chunk 1 review
+**Status:** Chunk 2 review
 
 ## Objective
 
@@ -240,11 +240,11 @@ None.
 
 ## Progress Checklist
 
-- [~] Chunk 1 — Immutable profile startup policy, reduced public surfaces,
-  version-3 schema, tests, docs, and canonical guidance are implemented and
-  verified; human acceptance is pending.
-- [ ] Chunk 2 — Refresh generated guidance through its lifecycle and complete
-  repo-wide and full-suite verification.
+- [x] Chunk 1 — Immutable profile startup policy, reduced public surfaces,
+  version-3 schema, tests, docs, and canonical guidance are implemented,
+  verified, and accepted.
+- [~] Chunk 2 — Generated guidance is refreshed through its lifecycle and
+  repo-wide and full-suite verification pass; human acceptance is pending.
 
 The two-chunk boundary is deliberate. Chunk 1 is large, but schema identity,
 startup ownership, public parsing, exact repair/uninstall behavior, fixtures,
@@ -381,10 +381,8 @@ state through every install, refresh, repair, and uninstall path.
   equality, so a separate comparison must prove that `shimmy-install` is the
   only stale adapter.
 - [x] Core request/forwarding code is a net simplification.
-- [~] Canonical guidance is updated and the generated adapter delta is recorded
-  as the sole `[~]` item intentionally pending Chunk 2, including what differs,
-  why lifecycle refresh is deferred, and why that partial does not affect
-  runtime behavior.
+- [x] Canonical guidance is updated and the generated adapter was refreshed
+  through its lifecycle in Chunk 2 after Chunk 1 acceptance.
 
 ### Chunk 1 evidence
 
@@ -411,21 +409,17 @@ state through every install, refresh, repair, and uninstall path.
   smaller (83 additions, 106 deletions), including deletion of the automatic
   multi-shell resolver and startup argument reconstruction.
 - Semantic comparison of every checked-in Shimmy adapter with its canonical
-  source reports only `shimmy-install` drift. The canonical skill contains the
-  new immutable-policy guidance; `.agents/skills/shimmy-install/SKILL.md` and
-  its manifest fingerprint remain unchanged because their lifecycle refresh is
-  Chunk 2 work after human acceptance. This partial affects generated guidance
-  only and does not affect runtime behavior or the passing behavioral suite.
+  source reported only `shimmy-install` drift at the Chunk 1 gate. The canonical
+  skill contained the new immutable-policy guidance while the generated adapter
+  and fingerprint remained unchanged pending acceptance. Chunk 2 has now
+  resolved that generated-guidance partial through the lifecycle.
 
-### Human review gate
+### Chunk 1 human review gate (accepted)
 
-Confirm the profile-owned policy semantics, schema transition, reduced public
-surfaces, exact repair/uninstall ownership, test evidence, and production-code
-simplification. The review must surface the exact generated-adapter partial
-state: `commands-skills` itself must pass, while the generated adapter remains
-the sole `[~]` item and the separate semantic comparison must show only expected
-`shimmy-install` drift. Acceptance of that explicit partial authorizes only
-Chunk 2's generated refresh and final verification.
+The accepted review confirmed the profile-owned policy semantics, schema
+transition, reduced public surfaces, exact repair/uninstall ownership, test
+evidence, production-code simplification, and the one deferred generated
+adapter refresh that Chunk 2 has now completed.
 
 ## Chunk 2 — Refresh generated guidance and close integration
 
@@ -475,20 +469,42 @@ startup policy is coherent across the full repository.
 
 ### Verification checklist
 
-- [ ] Preflight proves only the expected adapter differs before refresh.
-- [ ] Disposable bootstrap produces a valid version-3 upstream profile bound to
+- [x] Preflight proves only the expected adapter differs before refresh.
+- [x] Disposable bootstrap produces a valid version-3 upstream profile bound to
   the accepted checkout without touching any installed user profile.
-- [ ] Lifecycle refresh succeeds through that disposable profile's absolute
+- [x] Lifecycle refresh succeeds through that disposable profile's absolute
   launcher and only its validated temporary state is cleaned up.
-- [ ] Generated adapter is semantically identical to canonical source and its
+- [x] Generated adapter is semantically identical to canonical source and its
   manifest fingerprint validates.
-- [ ] `git diff --check` and POSIX syntax checks pass.
-- [ ] Repo-wide inventory finds no active custom-path input, installed/update
+- [x] `git diff --check` and POSIX syntax checks pass.
+- [x] Repo-wide inventory finds no active custom-path input, installed/update
   shell selector, later startup suppression selector, or policy-changing path.
-- [ ] `./tests/test.sh --serial --group commands-skills` passes.
-- [ ] The complete default suite passes with `./tests/test.sh`.
-- [ ] Final diff contains no compatibility alias, migration, special legacy
+- [x] `./tests/test.sh --serial --group commands-skills` passes.
+- [x] The complete default suite passes with `./tests/test.sh`.
+- [x] Final diff contains no compatibility alias, migration, special legacy
   error, removed-option test, or unrelated generated change.
+
+### Chunk 2 evidence
+
+- Preflight byte comparison of all 20 tracked adapters found only the expected
+  `shimmy-install` drift. A fresh disposable upstream profile recorded both
+  manifest identities as version 3 and resolved its healthy checkout catalog
+  to accepted commit `3abc57678b1ee8341df25c5793ffd22e078b5c2f`.
+- The disposable profile's absolute launcher ran `shimmy skills update
+  --target repo` from the repository root. The resulting diff is limited to
+  `.agents/skills/shimmy-install/SKILL.md` and its one fingerprint entry in
+  `.agents/skills/.shimmy-skills-manifest.txt`; all tracked adapters then
+  matched their canonical sources. The validated disposable root and only its
+  profile-local symlinks were removed afterward.
+- Installed install and update help expose only the intended public surfaces.
+  Active-source inventory found bootstrap-only `--shell`/`--no-startup`
+  selectors and internal exact-ledger state, with no custom startup-path input,
+  later policy selector, request replay state, compatibility alias, migration,
+  or option-specific removed-surface test.
+- `git diff --check` passed, and `/bin/sh -n` passed for every shell file in the
+  accepted Chunk 1 commit. The serial `commands-skills` run passed all 10 tests,
+  including checked-in fingerprint validation. The complete default suite
+  passed all 163 tests.
 
 ### Human review gate
 
@@ -565,18 +581,21 @@ closes this refactor only.
   generic value assertions; the affected-group run found one latter-form
   version-2 expectation after the initial inventory search.
 
+### Chunk 2
+
+- A generated-skills fingerprint check proves adapter/manifest consistency but
+  must be paired with canonical-source comparison; byte comparison before and
+  after refresh constrained the lifecycle mutation to the accepted drift.
+- A disposable version-3 upstream profile can refresh repository adapters
+  without profile activation or access to installed user profiles. Validating
+  its manifest identity and checkout binding before mutation makes the refresh
+  authority explicit.
+
 ## Session bootstrap
 
-This plan is at final review. A fresh implementation session must
-read `AGENTS.md`, `CONTRIBUTING.md`, root and relevant child `CONTEXT.md` files,
-this entire plan, and Chunk 1 target files. The non-negotiable target is a
-fresh-bootstrap-only default-profile startup policy: one normalized recorded
-shell, managed exact paths or manual zero paths, no later selectors, no
-installed profile selector, and exact ledger-based repair/uninstall. No
-compatibility layer or removed-option test is allowed.
-
-Chunk 1 begins only after explicit user approval. Stop at its human review
-gate and do not refresh `.agents/skills/` until the canonical change is
-accepted. Use XHigh reasoning for Chunk 1. After acceptance, Chunk 2 uses
-Medium reasoning unless unexpected drift requires High reasoning and another
-review stop.
+Implementation and verification of both chunks are complete. The plan is at
+the final human review gate. A fresh review session must read `AGENTS.md`, this
+plan, and the three-file Chunk 2 diff, then confirm the recorded lifecycle
+refresh, semantic inventory, and test evidence. Do not repeat the generated
+refresh or full suite solely to reproduce already recorded evidence unless the
+diff changes. Human acceptance closes the refactor.

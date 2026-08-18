@@ -53,7 +53,8 @@ shimmy install --shim task
 ```
 
 For disposable validation, set an absolute temporary `XDG_CONFIG_HOME` and use
-`--no-startup`. Do not add an installation-directory override.
+fresh-default-bootstrap `--no-startup`. Do not add an installation-directory
+override.
 
 Every repository bootstrap includes jq and rg. Add any other tool afterward
 through the installed `shimmy install --shim <tool>` command; it installs the
@@ -109,10 +110,21 @@ for automation, but initialization ends with that process.
 
 After successful activation, users can switch their current shell by sourcing
 the desired profile's absolute `shell-init.sh`.
-Only `default` may manage persistent startup blocks. An unqualified checkout
-bootstrap manages `.zshrc`, `.bashrc`, and the active Bash login file. Use
-explicit `--shell` and `--startup-file` only when the user authorizes narrower
-default-profile startup changes; `upstream` never changes shell startup files.
+Only `default` may manage persistent startup blocks. Fresh bootstrap records
+one normalized shell from `--shell <name>` or `$SHELL`. Managed policy resolves
+that shell's conventional paths once; fresh-bootstrap `--no-startup` records
+manual policy with no owned files. Later bootstraps and installed lifecycle
+operations inherit the manifest state. `shimmy update --repair-startup` repairs
+only the exact recorded paths and is a no-op for manual policy. Changing policy
+requires uninstalling and recreating the default profile; `upstream` never
+changes shell startup files. Installed `shimmy install` accepts only repeatable
+`--shim` selection, and installed launchers derive profile identity from their
+enclosing root rather than a `--profile` option.
+
+For a manual policy with a nonstandard startup chain, add the generated
+`shell-init.sh` source block to the chosen interactive or login startup file.
+Require non-empty `XDG_CONFIG_HOME` to be absolute. The block selects PATH only;
+Bash users must not apply it globally through `BASH_ENV`.
 
 AI Agent tool calls do not retain a sourcing operation performed in an earlier
 tool call. For a later management or tool command, use the absolute target
@@ -138,8 +150,14 @@ shimmy skills uninstall --target <repo|profile>
 ```
 
 Ordinary `shimmy uninstall` removes only the invoking profile and preserves
-sibling profiles and shared catalogs. Explicit `shimmy uninstall --global`
-removes all valid manifest-owned profiles and registry-owned catalogs while
+sibling profiles and shared catalogs. It cleans an exact Linux activation or
+Darwin projection itself; manual `profile redirect remove --all --detach` is
+recovery/debugging functionality, not a prerequisite. Darwin cleanup restores
+the initial machine/default state and may need to stop a running machine. Run
+uninstall without `--stop-running` first; if it lists workloads and refuses,
+obtain explicit confirmation before retrying with that acknowledgement.
+Explicit `shimmy uninstall --global` detaches every owned profile before
+removing all valid manifest-owned profiles and registry-owned catalogs while
 preserving bound checkouts and these external exports; it refuses unrecognized
 shared state.
 
