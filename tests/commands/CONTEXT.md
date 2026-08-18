@@ -70,14 +70,11 @@ is the behavior under test.
   non-baseline tools and concrete versions, and update request validation. Its
   self-update scenario starts from session-scoped pristine profile clones so
   it measures update behavior without repeating repository bootstraps.
-- `startup.sh` covers automatic zsh and Bash bootstrap integration,
-  shell-initialization idempotence, and managed startup-block install and
-  repair behavior without a separate initialization command. One progressive
-  scenario starts from a pristine upstream profile, advances the default
-  profile through explicit, automatic, and installed-command startup repair,
-  then proves upstream startup requests leave both profiles and all default
-  startup files unchanged. External startup failure and retry retain a fresh
-  scenario.
+- `startup.sh` covers inferred Bash targets, explicit zsh selection, dash
+  normalization, manual policy, immutable repeat bootstrap, and preservation
+  across additive install and ordinary update. It proves exact-ledger repair
+  under a changed home, upstream isolation, exact uninstall cleanup, and
+  post-commit startup failure/retry against conventional targets.
 - `skills.sh` covers split catalog-owned canonical skill sources, checked-in
   adapter fingerprints, one-file repository/home and portable exports,
   profile-local activation/workload/provisioning guidance in refreshed exports,
@@ -97,8 +94,8 @@ is the behavior under test.
 - `netinfo.sh` covers deterministic CIDR rendering, explicit host-LAN
   precedence, help output, and request validation.
 - `install.sh` covers additive installed-tool requests, uninstall workload
-  acknowledgement validation, rejection of install-only startup selectors,
-  invalid combinations, and macOS Podman guidance.
+  acknowledgement validation, generic request rejection, invalid
+  combinations, and macOS Podman guidance.
 - `test.sh` covers installed-profile test request, metadata validation,
   profile binding, public dispatch, and concrete-version orchestration. Its
   installed profile-binding scenario starts from a pristine clone; runtime

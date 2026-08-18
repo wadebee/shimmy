@@ -46,14 +46,19 @@ shimmy__bootstrap_run() {
 Bootstrap a canonical Shimmy profile and initialize PATH.
 
 Usage:
-  source ./install.sh [--profile default|upstream] [install options]
-  ./install.sh [--profile default|upstream] [install options]
+  source ./install.sh [--profile default] [--shell <name>] [--no-startup]
+  source ./install.sh --profile upstream
+  ./install.sh [--profile default] [--shell <name>] [--no-startup]
+  ./install.sh --profile upstream
 
 Sourcing installs the selected profile and initializes it in the current shell.
 Executing performs the same install for automation; shell initialization ends
 with that process. Every bootstrap includes jq and rg. Profile selection is
 bootstrap-only; install additional tools afterward with the installed command:
   shimmy install --shim <tool>
+
+The default profile records one startup shell and managed or manual startup
+policy when first created. Later bootstraps inherit that immutable policy.
 
 Shell initialization selects PATH only. On macOS, first create the deterministic
 machine in a normal user shell (`podman machine init shimmy-default` or

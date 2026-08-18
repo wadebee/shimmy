@@ -81,9 +81,12 @@ before `--stop-running`. Missing deterministic macOS machines are provisioned
 only by the user from Shimmy's exact normal-shell guidance; agents never
 provision, delete, rename, or adopt machines. AI Agent calls do not retain
 earlier sourcing, so later calls use an absolute profile dispatcher or
-same-command sourcing. Only `default`
-owns persistent startup blocks for zsh and Bash by default; explicit startup
-options may narrow the targets, and `upstream` never changes startup files.
+same-command sourcing. Only `default` owns persistent startup blocks. A fresh
+bootstrap records one normalized shell and either its conventional exact paths
+or manual policy selected by `--no-startup`; later lifecycle operations inherit
+that immutable state, and repair consumes only the recorded ledger. Changing
+policy requires uninstalling and recreating the profile. `upstream` never
+changes startup files.
 The five canonical management skills and co-located tool skills remain in the
 selected named catalog and are not profile payload. Repository and home agent
 skill adapters are independently manifest-owned external state, staged from a

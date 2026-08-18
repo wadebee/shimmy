@@ -16,7 +16,7 @@ test_tools_skopeo_preview_contract() {
 
 test_tools_skopeo_registry_client_mount() {
   setup_scenario_with_profiles default upstream
-  default_shimmy install --shim skopeo --no-startup >/dev/null
+  default_shimmy install --shim skopeo >/dev/null
   skopeo_run=$DEFAULT_PROFILE_ROOT/tools/skopeo/versions/1.22/run.sh
   active_link=$XDG_CONFIG_HOME_DIR/containers/registries.conf.d/shimmy-active-profile.conf
   expected_mount=$DEFAULT_PROFILE_ROOT/registries.conf:/etc/containers/registries.conf.d/shimmy-profile.conf:ro

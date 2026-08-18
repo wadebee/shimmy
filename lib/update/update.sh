@@ -15,7 +15,8 @@ for helper_file in \
   "$ROOT_DIR/lib/common/common.sh" \
   "$ROOT_DIR/lib/catalog/catalog.sh" \
   "$ROOT_DIR/lib/profile/profile.sh" \
-  "$ROOT_DIR/lib/registries/registries.sh"
+  "$ROOT_DIR/lib/registries/registries.sh" \
+  "$ROOT_DIR/lib/startup/startup.sh"
 do
   [ -f "$helper_file" ] || fail "missing update helper: $helper_file"
 done
@@ -28,6 +29,8 @@ done
 . "$ROOT_DIR/lib/profile/profile.sh"
 # shellcheck source=lib/registries/registries.sh
 . "$ROOT_DIR/lib/registries/registries.sh"
+# shellcheck source=lib/startup/startup.sh
+. "$ROOT_DIR/lib/startup/startup.sh"
 # shellcheck source=lib/update/request.sh
 . "$ROOT_DIR/lib/update/request.sh"
 # shellcheck source=lib/update/selection.sh
@@ -43,13 +46,14 @@ shimmy_update_run() {
   shimmy_update_request_reset
   shimmy_update_request_parse "$@"
   shimmy_update_profile_validate
-  if [ "$SHIMMY_PROFILE_NAME" = upstream ] && { [ "$REPAIR_STARTUP" -eq 1 ] || [ -n "$REQUESTED_SHELL" ] || [ -n "$REQUESTED_STARTUP_FILES" ]; }; then
+  if [ "$SHIMMY_PROFILE_NAME" = upstream ] && [ "$REPAIR_STARTUP" -eq 1 ]; then
     fail "upstream has no persistent startup integration; source $SHIMMY_PROFILE_ROOT/shell-init.sh after installation"
   fi
 
   selected_tools=$(shimmy_update_selected_tools_resolve "$SHIMMY_PROFILE_MANIFEST_PATH")
   shimmy_update_management_run "$SHIMMY_PROFILE_MANIFEST_PATH"
   shimmy_update_profile_materialization_run "$selected_tools"
+  shimmy_update_startup_repair_run
   selected_versions=$(shimmy_update_selected_versions_resolve "$SHIMMY_PROFILE_MANIFEST_PATH" "$selected_tools")
 
   [ "$PULL_IMAGES" -eq 0 ] || shimmy_update_refresh_hooks_run pull "$selected_versions"

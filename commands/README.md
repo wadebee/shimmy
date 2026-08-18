@@ -171,29 +171,25 @@ different available version as well.
 
 ```text
 shimmy install --shim <tool[@version]> [--shim <tool[@version]> ...]
-               [--shell <name>] [--startup-file <path> ...] [--no-startup]
 ```
 
 Options:
 
 - `--shim <tool[@version]>` selects a tool to install and is required. Repeat
   it to install multiple tools.
-- `--shell <name>` overrides shell detection when updating startup files.
-- `--startup-file <path>` selects a startup file to update. Repeat it to
-  select multiple files.
-- `--no-startup` skips persistent startup-file updates.
 - `-h`, `--help` shows command help.
 
-The `upstream` profile never modifies persistent startup files. Activate its
-engine through its absolute profile-local launcher, then source its generated
-`shell-init.sh` to select it in the current shell.
+Additive installation preserves the invoking profile's recorded startup policy
+and never modifies startup files. The installed launcher selects its enclosing
+profile; it accepts no profile selector. The `upstream` profile never owns
+persistent startup integration.
 
 Examples:
 
 ```sh
 shimmy install --shim task
 shimmy install --shim aws --shim terraform
-shimmy install --shim oc@4.20 --no-startup
+shimmy install --shim oc@4.20
 ```
 
 ## `uninstall`
@@ -370,8 +366,7 @@ local images.
 
 ```text
 shimmy update [--shim <name> ... | --all] [--pull] [--build]
-              [--repair-startup] [--shell <name>]
-              [--startup-file <path> ...]
+              [--repair-startup]
 ```
 
 Options:
@@ -382,17 +377,15 @@ Options:
   enumerate sibling profiles and cannot be combined with `--shim`.
 - `--pull` pulls images for selected external-image versions.
 - `--build` builds images for selected local-build versions.
-- `--repair-startup` repairs the current profile's managed startup integration.
-- `--shell <name>` overrides shell detection during startup repair.
-- `--startup-file <path>` selects a startup file to repair. Repeat it to select
-  multiple files.
+- `--repair-startup` repairs only the exact startup files recorded as owned by
+  the current default profile. It is an informational no-op for manual policy.
 - `-h`, `--help` shows command help.
 
 With neither `--all` nor `--shim`, the command updates all tools already
 installed in the current profile. A selected tool adopts the current catalog
 default while retaining any other explicitly installed concrete versions.
-Catalog publication alone never changes the profile. Startup repair options
-are unavailable for the `upstream` profile.
+Catalog publication alone never changes the profile. Startup repair is
+unavailable for the `upstream` profile.
 
 Examples:
 
@@ -400,5 +393,5 @@ Examples:
 shimmy update
 shimmy update --shim terraform --pull
 shimmy update --all --pull --build
-shimmy update --repair-startup --shell zsh
+shimmy update --repair-startup
 ```

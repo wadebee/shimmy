@@ -89,9 +89,13 @@ retained-generation rollback, explicit checkout rebind, profile uninstall, and
 global owned-state uninstall as separate validated transactions.
 
 Only `default` may create, repair, or remove Shimmy's persistent shell-startup
-blocks. An unqualified checkout bootstrap manages zsh plus Bash login and
-non-login interactive startup files; explicit startup options remain
-authoritative. `upstream` never changes shell startup files. Canonical
+blocks. A fresh checkout bootstrap records one normalized shell from
+`--shell` or `$SHELL`; managed policy records that shell's conventional exact
+paths, while `--no-startup` records manual policy with no owned paths. Later
+bootstraps inherit that immutable state, additive install never changes startup
+files, and `shimmy update --repair-startup` consumes only the recorded ledger.
+Changing policy requires uninstalling and recreating the profile. `upstream`
+never changes shell startup files. Canonical
 management and tool skills remain in the selected named catalog and are not
 copied into profiles. Shared repository and home agent skill adapters live
 outside profile roots and are owned by their target's

@@ -25,21 +25,6 @@ shimmy_update_management_run() {
   fi
 
   set -- "$source_dir/install.sh" --profile "$SHIMMY_PROFILE_NAME"
-  if [ "$REPAIR_STARTUP" -eq 0 ]; then
-    set -- "$@" --no-startup
-  else
-    startup_shell=$REQUESTED_SHELL
-    startup_files=$REQUESTED_STARTUP_FILES
-    [ -n "$startup_shell" ] || startup_shell=$(shimmy_read_manifest_value "$manifest_file" startup_shell || true)
-    [ -n "$startup_files" ] || startup_files=$(shimmy_read_manifest_values "$manifest_file" startup_file || true)
-    [ -z "$startup_shell" ] || set -- "$@" --shell "$startup_shell"
-    while IFS= read -r startup_file; do
-      [ -n "$startup_file" ] || continue
-      set -- "$@" --startup-file "$startup_file"
-    done <<EOF
-$startup_files
-EOF
-  fi
 
   previous_source_ref=$(shimmy_read_manifest_value "$manifest_file" shimmy_source_ref || true)
   set +e

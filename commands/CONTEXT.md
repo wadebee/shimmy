@@ -40,7 +40,10 @@ reusable behavior belongs in `../lib/`.
 Installed commands derive profile identity from their profile root, resolve
 its fixed named catalog through shared XDG registry state on every
 catalog-aware invocation, and reject profile and installation-location
-selectors. Missing or invalid catalog state fails before command mutation.
+selectors. Installed install accepts only repeatable tool selection; update's
+startup repair consumes the enclosing default profile's exact manifest ledger
+and accepts no shell or path selector. Missing or invalid catalog state fails
+before command mutation.
 Every second-level command provides authoritative usage, options, and examples
 through `--help`. The `catalog`, `images`, `profile`, and `skills` command groups also
 provide action discovery without an action and action-specific third-level

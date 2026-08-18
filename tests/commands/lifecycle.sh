@@ -18,9 +18,9 @@ test_commands_lifecycle_prepare() {
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/agent"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/agent"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/.agents"
-  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_manifest_version=2'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_manifest_version=3'
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_layout=profile-materialized-root'
-  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_manifest_version=2'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_manifest_version=3'
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_name=default'
   assert_equals "$(readlink "$DEFAULT_PROFILE_ROOT/bin/jq")" '../commands/dispatch-tool.sh'
   assert_regular_file_not_symlink "$DEFAULT_PROFILE_ROOT/bin/shimmy"
@@ -186,7 +186,7 @@ test_commands_lifecycle_launcher_refresh() {
   upstream_dispatcher_target=$(readlink "$UPSTREAM_PROFILE_ROOT/bin/rg")
 
   bootstrap_default >/dev/null
-  default_shimmy install --shim task --no-startup >/dev/null
+  default_shimmy install --shim task >/dev/null
   assert_file_not_contains "$DEFAULT_PROFILE_ROOT/bin/shimmy" '# stale launcher marker'
   assert_file_not_contains "$DEFAULT_PROFILE_ROOT/shell-init.sh" '# stale shell init marker'
   assert_file_mode "$DEFAULT_PROFILE_ROOT/shell-init.sh" 644
@@ -210,7 +210,7 @@ test_commands_lifecycle_registry_upgrade_and_preservation() {
   cp "$DEFAULT_PROFILE_ROOT/machine-projection.txt" "$configured_projection"
   upstream_checksum=$(cksum < "$upstream_config")
 
-  default_shimmy install --shim task --no-startup >/dev/null
+  default_shimmy install --shim task >/dev/null
   cmp -s "$configured_bytes" "$default_config" || fail_test "additive install changed valid registry bytes"
   cmp -s "$configured_projection" "$DEFAULT_PROFILE_ROOT/machine-projection.txt" || fail_test "additive install changed valid machine projection record bytes"
   bootstrap_default >/dev/null
@@ -746,7 +746,7 @@ test_commands_lifecycle_control_plane_refresh() {
   setup_clean_source_fixture "$control_checkout"
   (
     cd "$control_checkout"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream --no-startup
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream
   ) >/dev/null
 
   printf '%s\n' '# chunk-2 command marker' >> "$control_checkout/commands/status.sh"
@@ -757,7 +757,7 @@ test_commands_lifecycle_control_plane_refresh() {
 
   (
     cd "$control_checkout"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream --no-startup
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream
   ) >/dev/null
   assert_file_contains "$UPSTREAM_PROFILE_ROOT/commands/status.sh" 'chunk-2 command marker'
   assert_file_contains "$UPSTREAM_PROFILE_ROOT/lib/common/common.sh" 'chunk-2 library marker'
@@ -766,7 +766,7 @@ test_commands_lifecycle_control_plane_refresh() {
 
 test_commands_lifecycle_complete() {
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
-  default_shimmy install --shim task --no-startup >/dev/null
+  default_shimmy install --shim task >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
   assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/task/tool.conf"

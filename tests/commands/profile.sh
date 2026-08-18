@@ -66,7 +66,7 @@ shimmy-upstream|false' FAKE_CONNECTION_LIST="$fake_connections" \
   assert_contains "$status_output" 'registry_policy=restart-required'
   assert_file_executable "$DEFAULT_PROFILE_ROOT/commands/profile.sh"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/lib/profile/activation.sh"
-  assert_equals "$(profile_manifest_value "$DEFAULT_PROFILE_ROOT/install-manifest.txt" shimmy_install_manifest_version)" 2
+  assert_equals "$(profile_manifest_value "$DEFAULT_PROFILE_ROOT/install-manifest.txt" shimmy_install_manifest_version)" 3
 
   secret_uri='ssh://secret@example.invalid/run/user/1/podman/podman.sock'
   overridden_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \

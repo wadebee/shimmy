@@ -171,7 +171,7 @@ shimmy-tool-local-build'
   assert_file_exists "$default_export_root/shimmy-tool-rg/SKILL.md"
   assert_path_not_exists "$default_export_root/shimmy-tool-local-build"
   assert_path_not_exists "$default_export_root/shimmy-tool-task"
-  default_shimmy install --shim task --no-startup >/dev/null
+  default_shimmy install --shim task >/dev/null
   installed_export_root=$SCENARIO_DIR/installed-skills
   default_shimmy skills install --export "$installed_export_root" >/dev/null
   assert_file_exists "$installed_export_root/shimmy-tool-task/SKILL.md"
@@ -346,7 +346,7 @@ test_commands_skills_target_ownership() {
 
   (
     cd "$WORK_DIR"
-    default_shimmy install --shim jq --no-startup >/dev/null
+    default_shimmy install --shim jq >/dev/null
   )
   assert_equals "$(cksum < "$repo_skills_manifest")" "$repo_skills_manifest_checksum"
   assert_equals "$(cksum < "$profile_skills_manifest")" "$profile_skills_manifest_checksum"

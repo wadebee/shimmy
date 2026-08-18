@@ -226,7 +226,7 @@ test_commands_images_fixture_parsing() {
 
 test_commands_images_installed_selection() {
   setup_scenario_with_profiles default
-  default_shimmy install --shim skopeo --no-startup >/dev/null
+  default_shimmy install --shim skopeo >/dev/null
   images_fixture_fake_runtimes_write "$DEFAULT_PROFILE_ROOT"
   IMAGES_FIXTURE_CALL_LOG=$SCENARIO_DIR/image-calls
   IMAGES_FIXTURE_RESPONSES=$SCENARIO_DIR/image-responses

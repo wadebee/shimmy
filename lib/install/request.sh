@@ -42,19 +42,15 @@ Add one or more tools to the invoking Shimmy profile.
 
 Usage:
   shimmy install --shim <tool[@version]> [--shim <tool[@version]> ...]
-                 [--shell <name>] [--startup-file <path> ...] [--no-startup]
 
 Options:
   --shim <tool[@version]>  Select a tool or concrete version. Required; repeatable.
-  --shell <name>           Override shell detection for startup-file updates.
-  --startup-file <path>    Select a startup file to update. Repeatable.
-  --no-startup             Skip persistent startup-file updates.
   -h, --help               Show this help.
 
 Examples:
   shimmy install --shim task
   shimmy install --shim aws --shim terraform
-  shimmy install --shim oc@4.20 --no-startup
+  shimmy install --shim oc@4.20
 
 Additive installs and profile refreshes preserve a valid profile-specific
 registries.conf byte-for-byte.
@@ -210,17 +206,11 @@ shimmy_install_request_parse() {
         shift 2
         ;;
       --shell)
-        [ "$UNINSTALL" -eq 0 ] || fail "unknown argument: --shell"
+        [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ -x "$ROOT_DIR/install.sh" ] &&
+          [ "$SHIMMY_BOOTSTRAP_PROFILE" = default ] || fail "unknown argument: --shell"
         [ "$#" -ge 2 ] || fail "missing value for --shell"
-        REQUESTED_SHELL=$2
-        STARTUP_OPTION_REQUESTED=1
-        shift 2
-        ;;
-      --startup-file)
-        [ "$UNINSTALL" -eq 0 ] || fail "unknown argument: --startup-file"
-        [ "$#" -ge 2 ] || fail "missing value for --startup-file"
-        REQUESTED_STARTUP_FILES=$(shimmy_append_line_list "$REQUESTED_STARTUP_FILES" "$2")
-        STARTUP_OPTION_REQUESTED=1
+        BOOTSTRAP_STARTUP_SHELL=$2
+        BOOTSTRAP_STARTUP_POLICY_REQUESTED=1
         shift 2
         ;;
       --stop-running)
@@ -230,8 +220,10 @@ shimmy_install_request_parse() {
         shift
         ;;
       --no-startup)
-        SKIP_STARTUP=1
-        NO_STARTUP_OPTION_REQUESTED=1
+        [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ -x "$ROOT_DIR/install.sh" ] &&
+          [ "$SHIMMY_BOOTSTRAP_PROFILE" = default ] || fail "unknown argument: --no-startup"
+        BOOTSTRAP_NO_STARTUP=1
+        BOOTSTRAP_STARTUP_POLICY_REQUESTED=1
         shift
         ;;
       --uninstall)
@@ -253,10 +245,4 @@ shimmy_install_request_parse() {
   done
 
   resolve_install_paths
-
-  if [ "$SHIMMY_PROFILE_RESOLVED" = upstream ]; then
-    [ -z "$REQUESTED_SHELL" ] || fail "upstream has no persistent startup integration; source $SHIMMY_SHELL_INIT_FILE after installation"
-    [ -z "$REQUESTED_STARTUP_FILES" ] || fail "upstream has no persistent startup integration; source $SHIMMY_SHELL_INIT_FILE after installation"
-    SKIP_STARTUP=1
-  fi
 }

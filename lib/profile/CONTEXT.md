@@ -1,7 +1,7 @@
 # Profiles
 
 `profile.sh` resolves `default` and `upstream` profiles, their installation
-paths, version-2 manifests, materialized installation structure, and upstream
+paths, version-3 manifests, materialized installation structure, and upstream
 source validity. The canonical roots are
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`; a non-empty
 relative `XDG_CONFIG_HOME` is invalid. Installed launchers and dispatchers
@@ -10,6 +10,9 @@ sibling profile. Each manifest must bind `default` to the shared `default`
 catalog or `upstream` to the shared `upstream` catalog; missing, mismatched,
 duplicate, or unsafe bindings reject the profile before mutation. Shell
 selection is performed by sourcing that profile's generated `shell-init.sh`.
+A default manifest requires one normalized startup shell and permits unique
+absolute `startup_file` ownership entries; zero entries is manual policy.
+Upstream manifests forbid both startup fields.
 A valid current profile has no `plugins/` or retired `agent/` directory. Its
 `tools/`, `implementations/`, and shim configuration contain exactly the tools
 and concrete versions recorded by the manifest; canonical skills and

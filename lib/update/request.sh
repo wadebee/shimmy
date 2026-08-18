@@ -14,9 +14,7 @@ shimmy_update_request_reset() {
   BUILD_IMAGES=0
   PULL_IMAGES=0
   REPAIR_STARTUP=0
-  REQUESTED_SHELL=
   REQUESTED_SHIMS=
-  REQUESTED_STARTUP_FILES=
   UPDATE_ALL=0
 }
 
@@ -26,17 +24,14 @@ Refresh the invoking installed Shimmy profile.
 
 Usage:
   shimmy update [--shim <name> ... | --all] [--pull] [--build]
-                [--repair-startup] [--shell <name>]
-                [--startup-file <path> ...]
+                [--repair-startup]
 
 Options:
   --shim <name>          Select an installed tool. Repeatable.
   --all                  Select all installed tools; incompatible with --shim.
   --pull                 Pull selected external images.
   --build                Build selected local images.
-  --repair-startup       Repair managed startup integration.
-  --shell <name>         Override shell detection during startup repair.
-  --startup-file <path>  Select a startup file to repair. Repeatable.
+  --repair-startup       Repair the exact startup files owned by the profile.
   -h, --help             Show this help.
 
 The launcher manages only its enclosing profile. --all selects all installed
@@ -47,7 +42,7 @@ Examples:
   shimmy update
   shimmy update --shim terraform --pull
   shimmy update --all --pull --build
-  shimmy update --repair-startup --shell zsh
+  shimmy update --repair-startup
 EOF
 }
 
@@ -59,8 +54,6 @@ shimmy_update_request_parse() {
       --pull) PULL_IMAGES=1; shift ;;
       --build) BUILD_IMAGES=1; shift ;;
       --repair-startup) REPAIR_STARTUP=1; shift ;;
-      --shell) [ "$#" -ge 2 ] || fail "missing value for --shell"; REQUESTED_SHELL=$2; shift 2 ;;
-      --startup-file) [ "$#" -ge 2 ] || fail "missing value for --startup-file"; REQUESTED_STARTUP_FILES=$(shimmy_append_line_list "$REQUESTED_STARTUP_FILES" "$2"); shift 2 ;;
       -h|--help) shimmy_update_usage_print; exit 0 ;;
       *) fail "unknown argument: $1" ;;
     esac

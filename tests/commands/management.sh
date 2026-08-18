@@ -86,8 +86,12 @@ test_commands_management_guidance() {
   assert_contains "$uninstall_help" 'Startup cleanup is limited to entries owned by the profile'
   assert_not_contains "$uninstall_help" 'detach it first'
   assert_not_contains "$uninstall_help" '--shim <tool'
-  assert_not_contains "$uninstall_help" '--shell'
-  assert_not_contains "$uninstall_help" '--startup-file'
+  install_help=$(default_shimmy install --help)
+  assert_contains "$install_help" 'shimmy install --shim <tool[@version]> [--shim <tool[@version]> ...]'
+  assert_contains "$install_help" '--shim <tool[@version]>  Select a tool or concrete version. Required; repeatable.'
+  update_help=$(default_shimmy update --help)
+  assert_contains "$update_help" '[--repair-startup]'
+  assert_contains "$update_help" '--repair-startup       Repair the exact startup files owned by the profile.'
 
   set +e
   catalog_profile_error=$(default_shimmy catalog publish 2>&1)

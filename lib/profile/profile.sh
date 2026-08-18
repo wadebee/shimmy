@@ -1,5 +1,5 @@
 #!/bin/sh
-# Canonical profile paths and version-1 manifest validation.
+# Canonical profile paths and version-3 manifest validation.
 
 shimmy_config_home_resolve() {
   if [ -n "${XDG_CONFIG_HOME:-}" ]; then
@@ -88,7 +88,7 @@ shimmy_profile_manifest_error() {
   manifest_file=$1
   profile_name=$2
 
-  printf 'invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=2, shimmy_install_layout=profile-materialized-root, shimmy_profile_manifest_version=2, shimmy_profile_name=%s, and one explicit catalog binding); uninstall it with the Shimmy version that created it, then recreate that profile\n' "$manifest_file" "$profile_name" >&2
+  printf 'invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=3, shimmy_install_layout=profile-materialized-root, shimmy_profile_manifest_version=3, shimmy_profile_name=%s, and one explicit catalog binding); uninstall it with the Shimmy version that created it, then recreate that profile\n' "$manifest_file" "$profile_name" >&2
 }
 
 shimmy_manifest_key_count() {
@@ -181,7 +181,7 @@ shimmy_manifest_ownership_validate() {
       startup_shell)
         [ "$profile_name" = default ] || return 1
         [ "$(shimmy_manifest_key_count "$manifest_file" startup_shell)" -eq 1 ] || return 1
-        [ -n "$manifest_value" ] || return 1
+        case "$manifest_value" in bash|zsh|sh|ksh|mksh) ;; *) return 1 ;; esac
         ;;
       startup_file)
         [ "$profile_name" = default ] || return 1
@@ -212,8 +212,11 @@ EOF
 
   if [ "$profile_name" = upstream ]; then
     [ "$(shimmy_manifest_key_count "$manifest_file" source_checkout)" -eq 1 ] || return 1
+    [ "$(shimmy_manifest_key_count "$manifest_file" startup_shell)" -eq 0 ] || return 1
+    [ "$(shimmy_manifest_key_count "$manifest_file" startup_file)" -eq 0 ] || return 1
   else
     [ "$(shimmy_manifest_key_count "$manifest_file" source_checkout)" -eq 0 ] || return 1
+    [ "$(shimmy_manifest_key_count "$manifest_file" startup_shell)" -eq 1 ] || return 1
   fi
   [ "$catalog_count" -eq 1 ]
 }
@@ -226,9 +229,9 @@ shimmy_profile_manifest_validate() {
     shimmy_profile_manifest_error "$manifest_file" "$profile_name"
     return 1
   }
-    shimmy_manifest_identity_value_validate "$manifest_file" shimmy_install_manifest_version 2 &&
+    shimmy_manifest_identity_value_validate "$manifest_file" shimmy_install_manifest_version 3 &&
     shimmy_manifest_identity_value_validate "$manifest_file" shimmy_install_layout profile-materialized-root &&
-    shimmy_manifest_identity_value_validate "$manifest_file" shimmy_profile_manifest_version 2 &&
+    shimmy_manifest_identity_value_validate "$manifest_file" shimmy_profile_manifest_version 3 &&
     shimmy_manifest_identity_value_validate "$manifest_file" shimmy_profile_name "$profile_name" &&
     shimmy_manifest_ownership_validate "$manifest_file" "$profile_name" || {
       shimmy_profile_manifest_error "$manifest_file" "$profile_name"

@@ -34,25 +34,46 @@ and initialize it in the current shell:
 
 The initial default bootstrap requires a clean committed Git checkout. It
 creates an immutable `default` catalog generation through the same staged
-schema validation used by later publication, records `catalog=default`, and
-does not create or change an upstream profile.
+schema validation used by later publication and records `catalog=default`.
 
-An unqualified default bootstrap installs a managed startup block in `.zshrc`,
-`.bashrc`, and the active Bash login file (`.bash_profile`, `.bash_login`, or
-`.profile`; `.bash_profile` is created when none exists). This covers zsh plus
-login and non-login interactive Bash sessions. Use `--shell`, repeatable
-`--startup-file`, or `--no-startup` to request narrower behavior.
+A fresh default bootstrap normalizes `$SHELL` to one of `bash`, `zsh`, `sh`,
+`ksh`, or `mksh` (`dash` becomes `sh`) and records that shell as immutable
+profile policy. Use `--shell <name>` to override detection during creation.
+Managed policy resolves and records the conventional targets once: `.zshrc`
+for zsh, `.profile` for POSIX-like shells, or `.bashrc` plus the active Bash
+login file (`.bash_profile`, `.bash_login`, or `.profile`; `.bash_profile` is
+created when none exists).
 
-Execute the same file when automation needs the installation but does not
-need its parent shell initialized:
+Use `--no-startup` only while creating a fresh default profile to select manual
+policy. The normalized shell is still recorded, but no startup files are owned
+or changed. Later unqualified checkout bootstraps inherit the recorded policy
+and repair only its exact managed paths. A later `--shell` or `--no-startup`
+request is rejected, even if it matches the recorded value. To choose a
+different policy, uninstall and recreate the default profile.
+
+For a fresh manual-policy profile, execute the same file when automation needs
+the installation but does not need its parent shell initialized:
 
 ```sh
 ./install.sh --no-startup
 ```
 
-Only the checkout bootstrap selects a profile. Maintainers can bootstrap the
-`upstream` profile, which records `catalog=upstream` and binds that catalog to
-the live source checkout without creating or changing `default`:
+Advanced users with a nonstandard startup chain can use manual policy and add
+this block to their chosen startup file themselves:
+
+```sh
+shimmy_shell_init_file=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/shell-init.sh
+if [ -r "$shimmy_shell_init_file" ]; then
+  . "$shimmy_shell_init_file"
+fi
+unset shimmy_shell_init_file
+```
+
+A non-empty `XDG_CONFIG_HOME` must be absolute. This block initializes PATH
+only. Bash users should place it in their own interactive or login source chain
+instead of setting `BASH_ENV` globally.
+
+Shimmy Maintainers/Repo Developers can bootstrap the `upstream` profile, which records `catalog=upstream` and binds the catalog and control plane to a live repo source checkout without changing the `default` profile:
 
 ```sh
 SHIMMY_UPSTREAM_CHECKOUT_DIR=/absolute/path/to/shimmy
@@ -73,6 +94,11 @@ the installed profile-local launcher:
 ```sh
 shimmy install --shim <tool>
 ```
+
+Installed `shimmy install` accepts only repeatable `--shim` selections and
+preserves the profile's startup policy without changing startup files. Use
+`shimmy update --repair-startup` to restore only the exact managed paths
+recorded by the default profile.
 
 For an existing profile, activate its engine explicitly, then select its PATH:
 

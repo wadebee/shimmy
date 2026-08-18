@@ -34,24 +34,6 @@ shimmy_shell_name_normalize() {
   esac
 }
 
-shimmy_startup_file_path_list_default_resolve() {
-  home_dir=${1:-$HOME}
-  startup_file_paths=
-
-  for shell_name in zsh bash; do
-    shell_startup_file_paths=$(shimmy_startup_file_path_list_resolve "$shell_name" "$home_dir") || return 1
-    while IFS= read -r startup_file_path; do
-      [ -n "$startup_file_path" ] || continue
-      shimmy_contains_line_list "$startup_file_paths" "$startup_file_path" ||
-        startup_file_paths=$(shimmy_append_line_list "$startup_file_paths" "$startup_file_path")
-    done <<EOF
-$shell_startup_file_paths
-EOF
-  done
-
-  printf '%s\n' "$startup_file_paths"
-}
-
 shimmy_startup_file_path_list_resolve() {
   shell_name=${1:?shell name is required}
   home_dir=${2:-$HOME}

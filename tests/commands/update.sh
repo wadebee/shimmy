@@ -35,7 +35,7 @@ setup_session_update_source_fixture() {
 
 test_commands_update_run() {
   setup_scenario_with_profiles default upstream
-  default_shimmy install --shim task --shim oc@4.18 --no-startup >/dev/null
+  default_shimmy install --shim task --shim oc@4.18 >/dev/null
   selection_before=$(sed -n '/^tool=/p; /^tool_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   update_source=$SHIMMY_TEST_UPDATE_SOURCE_REPOSITORY
   test_manifest_source_url_replace "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "$update_source"

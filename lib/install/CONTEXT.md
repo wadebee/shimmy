@@ -24,7 +24,7 @@ set connection variables.
   retains the prior valid generation. Explicit rollback validates the retained
   generation and atomically swaps registry authority, including recovery from
   an invalid current generation.
-- `manifest.sh` preserves and renders the profile-local version-2 manifest,
+- `manifest.sh` preserves and renders the profile-local version-3 manifest,
   including its fixed `catalog=default` or `catalog=upstream` binding.
 - `profile-assets.sh` stages the profile-local control plane, launcher,
   implementations, dispatchers, and only manifest-selected tool metadata and
@@ -36,9 +36,10 @@ set connection variables.
 - `launcher-template.sh` becomes the installed profile's self-contained
   `bin/shimmy`, including dispatch for the profile engine control plane.
 - `startup.sh` renders the profile's `shell-init.sh` asset and applies
-  persistent startup integration only for `default`. Unqualified checkout
-  bootstraps manage zsh and both Bash startup modes; explicit startup options
-  remain authoritative.
+  persistent startup integration only for `default`. Fresh bootstrap records
+  one normalized shell and either its conventional exact paths or manual
+  policy. Existing-profile operations inherit that state; only unqualified
+  checkout repair writes its recorded managed paths.
 - `uninstall.sh` ordinarily removes only validated assets owned by the
   enclosing profile. It acquires the activation lock before deterministic
   profile locks, tears down exact registry projections, restores Darwin engine
@@ -51,7 +52,7 @@ set connection variables.
   external skill exports.
 
 Profiles contain no canonical management plugin or tool skill sources; those
-remain in the named catalog. Manifest version 2 and the
+remain in the named catalog. Manifest version 3 and the
 `profile-materialized-root` identity reject legacy, mixed, and damaged layouts
 before install or refresh mutation. Profile install and uninstall do not write
 or remove repository or home shared-skill targets; those targets are managed

@@ -140,7 +140,7 @@ The suite is POSIX shell and validates:
   authentication policy, drift handling, and stable output without contacting
   target registries;
 - shared fail-closed Podman OS/architecture and preview helpers plus POSIX syntax;
-- disposable version-2 materialized default and upstream profile installs,
+- disposable version-3 materialized default and upstream profile installs,
   named-catalog bootstrap isolation, installed command dispatch, status,
   catalog-default update, rollback, legacy-layout rejection, profile-isolated
   uninstall, exact Linux link cleanup, transactional Darwin running/stopped/
@@ -153,8 +153,9 @@ The suite is POSIX shell and validates:
 - selected-shim profile-local default adoption and image refreshes, manifest
   lifecycle-field preservation, request validation, failed-update safety, and
   installed-management source refresh;
-- idempotent shell initialization, default-only managed startup-block install
-  and repair, and direct upstream shell initialization.
+- idempotent shell initialization, normalized managed/manual default startup
+  policy, immutable repeat bootstrap, exact-ledger repair and uninstall, and
+  direct upstream shell initialization.
 - canonical skill-source export, target-owned portable manifests,
   installed-tool selection, refresh, and explicit manifest-tracked cleanup.
 - source and installed dispatcher validation, including selector, canonical

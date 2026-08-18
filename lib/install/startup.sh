@@ -4,28 +4,28 @@
 resolve_startup_settings() {
   STARTUP_SHELL=
   STARTUP_FILE_PATHS=
+  STARTUP_FILES_UPDATE=0
 
-  if [ -f "$INSTALL_MANIFEST_FILE" ] && [ "$SHIMMY_PROFILE_RESOLVED" = default ]; then
+  [ "$SHIMMY_PROFILE_RESOLVED" = default ] || return 0
+
+  if [ "$PROFILE_EXISTS" -eq 1 ]; then
     STARTUP_SHELL=$(shimmy_read_manifest_value "$INSTALL_MANIFEST_FILE" startup_shell || true)
     STARTUP_FILE_PATHS=$(shimmy_read_manifest_values "$INSTALL_MANIFEST_FILE" startup_file || true)
+    if [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ "${SHIMMY_UPDATE_MANAGEMENT_REFRESH:-0}" -ne 1 ]; then
+      STARTUP_FILES_UPDATE=1
+    fi
+    return 0
   fi
-  [ "$SKIP_STARTUP" -eq 0 ] || return 0
 
-  if [ -n "$REQUESTED_STARTUP_FILES" ]; then
-    STARTUP_SHELL=$(shimmy_shell_name_normalize "$REQUESTED_SHELL") || fail "unable to resolve startup shell"
-    STARTUP_FILE_PATHS=$REQUESTED_STARTUP_FILES
-  elif [ -n "$REQUESTED_SHELL" ]; then
-    STARTUP_SHELL=$(shimmy_shell_name_normalize "$REQUESTED_SHELL") || fail "unable to resolve startup shell"
-    STARTUP_FILE_PATHS=$(shimmy_startup_file_path_list_resolve "$STARTUP_SHELL" "$HOME") || fail "unable to resolve startup file path"
-  else
-    STARTUP_SHELL=
-    STARTUP_FILE_PATHS=$(shimmy_startup_file_path_list_default_resolve "$HOME") || fail "unable to resolve default startup file paths"
-  fi
+  STARTUP_SHELL=$(shimmy_shell_name_normalize "$BOOTSTRAP_STARTUP_SHELL") || fail "unable to resolve startup shell"
+  [ "$BOOTSTRAP_NO_STARTUP" -eq 0 ] || return 0
+  STARTUP_FILE_PATHS=$(shimmy_startup_file_path_list_resolve "$STARTUP_SHELL" "$HOME") || fail "unable to resolve startup file path"
+  STARTUP_FILES_UPDATE=1
 }
 
 shimmy_install_startup_update() {
   [ "$SHIMMY_PROFILE_RESOLVED" = default ] || return 0
-  [ "$SKIP_STARTUP" -eq 0 ] || return 0
+  [ "$STARTUP_FILES_UPDATE" -eq 1 ] || return 0
   [ -n "$STARTUP_FILE_PATHS" ] || return 0
 
   shell_init_block=$(shimmy_shell_init_source_block_render "$SHIMMY_SHELL_INIT_FILE") || fail "unable to render shell init block for startup file"

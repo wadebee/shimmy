@@ -1,6 +1,6 @@
 # Make startup policy profile-owned
 
-**Status:** Final review
+**Status:** Chunk 1 review
 
 ## Objective
 
@@ -240,9 +240,9 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 (active after approval) — Implement immutable profile startup
-  policy, remove later selectors, update schema/tests/docs, and revise
-  canonical guidance.
+- [~] Chunk 1 — Immutable profile startup policy, reduced public surfaces,
+  version-3 schema, tests, docs, and canonical guidance are implemented and
+  verified; human acceptance is pending.
 - [ ] Chunk 2 — Refresh generated guidance through its lifecycle and complete
   repo-wide and full-suite verification.
 
@@ -353,38 +353,69 @@ state through every install, refresh, repair, and uninstall path.
 
 ### Verification checklist
 
-- [ ] `git diff --check` and POSIX syntax checks pass for every changed shell
+- [x] `git diff --check` and POSIX syntax checks pass for every changed shell
   file.
-- [ ] Manifest identity tests prove one normalized default-profile shell,
+- [x] Manifest identity tests prove one normalized default-profile shell,
   managed/manual representation, exact unique paths, and no upstream startup
   fields without redundant removed-layout coverage.
-- [ ] Positive behavior proves fresh inferred and explicit selection, exact
+- [x] Positive behavior proves fresh inferred and explicit selection, exact
   Bash/zsh conventional targets, manual policy, immutable repeat bootstrap,
   and preservation by additive install and ordinary update.
-- [ ] `shimmy update --repair-startup` repairs only the manifest ledger and is
+- [x] `shimmy update --repair-startup` repairs only the manifest ledger and is
   a policy-preserving no-op for a manual profile.
-- [ ] Failure/retry and uninstall tests prove the same exact ownership ledger
+- [x] Failure/retry and uninstall tests prove the same exact ownership ledger
   remains authoritative.
-- [ ] Installed install help contains only repeatable `--shim`; update help
+- [x] Installed install help contains only repeatable `--shim`; update help
   retains selector-free `--repair-startup`; no obsolete option-specific test or
   fixture was added.
-- [ ] A focused source inventory shows no requested custom-path state, later
+- [x] A focused source inventory shows no requested custom-path state, later
   shell selector, startup suppression forwarding, or replacement abstraction.
-- [ ] The final Chunk 1 tree passes the directly affected non-generated groups
+- [x] The final Chunk 1 tree passes the directly affected non-generated groups
   serially: `commands-catalog`, `commands-dispatcher`, `commands-images`,
   `commands-install`, `commands-lifecycle`, `commands-management`,
   `commands-onboarding`, `commands-profile`, `commands-profiles`,
   `commands-startup`, `commands-status`, `commands-test`, and
   `commands-update`.
-- [ ] `commands-skills` passes after its behavioral invocations are updated.
+- [x] `commands-skills` passes after its behavioral invocations are updated.
   Its fingerprint check is not evidence of canonical/generated semantic
   equality, so a separate comparison must prove that `shimmy-install` is the
   only stale adapter.
-- [ ] Core request/forwarding code is a net simplification.
-- [ ] Canonical guidance is updated and the generated adapter delta is recorded
+- [x] Core request/forwarding code is a net simplification.
+- [~] Canonical guidance is updated and the generated adapter delta is recorded
   as the sole `[~]` item intentionally pending Chunk 2, including what differs,
   why lifecycle refresh is deferred, and why that partial does not affect
   runtime behavior.
+
+### Chunk 1 evidence
+
+- Production now resolves one normalized shell only for fresh default-profile
+  creation, records manual policy as zero `startup_file=` entries, and derives
+  every later operation from version-3 manifest state. Installed install and
+  update request parsing no longer expose path, shell, or suppression selectors;
+  management and tool refresh no longer replay startup arguments.
+- Exact-ledger repair runs after management/tool refresh and never re-resolves
+  from the current `HOME` or `SHELL`. A managed startup write failure leaves the
+  committed version-3 profile retryable with `shimmy update --repair-startup`.
+- A focused serial run of `commands-startup`, `commands-install`, and
+  `commands-profiles` passed all 12 tests. The complete affected-group serial
+  run exposed one stale `commands-profile` expectation of manifest version 2;
+  after correcting it, the interrupted tail rerun passed all 29 tests. Across
+  those ordered runs, every directly affected group listed above passed,
+  including `commands-skills`.
+- `/bin/sh -n` passed for every changed shell file and `git diff --check`
+  passed. `./tests/context-tree.sh` also passed. Focused inventory found no `REQUESTED_STARTUP_FILES`,
+  `STARTUP_OPTION_REQUESTED`, `REQUESTED_SHELL`, `SKIP_STARTUP`, custom-path
+  option, or startup-suppression forwarding outside retained plan/generated
+  evidence.
+- The production shell files in the implementation inventory are net 23 lines
+  smaller (83 additions, 106 deletions), including deletion of the automatic
+  multi-shell resolver and startup argument reconstruction.
+- Semantic comparison of every checked-in Shimmy adapter with its canonical
+  source reports only `shimmy-install` drift. The canonical skill contains the
+  new immutable-policy guidance; `.agents/skills/shimmy-install/SKILL.md` and
+  its manifest fingerprint remain unchanged because their lifecycle refresh is
+  Chunk 2 work after human acceptance. This partial affects generated guidance
+  only and does not affect runtime behavior or the passing behavioral suite.
 
 ### Human review gate
 
@@ -518,6 +549,21 @@ closes this refactor only.
 - The schema advance also invalidates the earlier assumption that Chunk 2 can
   reuse a pre-existing upstream profile; generated refresh needs disposable
   version-3 profile state.
+
+### Chunk 1
+
+- The shared install parser can retain checkout-only creation inputs without
+  preserving an installed mutation surface by accepting them only under the
+  validated root-bootstrap context and rejecting them after profile discovery.
+- Performing repair after management and tool materialization removes the
+  private startup-path replay interface while keeping the committed manifest
+  ledger authoritative for both recovery and uninstall.
+- Creation-only test helpers must distinguish fresh and existing profiles;
+  automatically forwarding `--no-startup` from a fixture helper would itself
+  violate the immutable-policy boundary on repeat bootstrap.
+- Schema transitions require checking both explicit identity strings and
+  generic value assertions; the affected-group run found one latter-form
+  version-2 expectation after the initial inventory search.
 
 ## Session bootstrap
 

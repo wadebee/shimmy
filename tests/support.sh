@@ -152,12 +152,16 @@ run_in_clean_source() {
 bootstrap_default() {
   (
     cd "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --no-startup "$@"
+    if [ -f "$DEFAULT_PROFILE_ROOT/install-manifest.txt" ] || [ -L "$DEFAULT_PROFILE_ROOT/install-manifest.txt" ]; then
+      env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default "$@"
+    else
+      env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --no-startup "$@"
+    fi
   )
 }
 
 bootstrap_upstream() {
-  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream --no-startup "$@"
+  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream "$@"
 }
 
 default_shimmy() {

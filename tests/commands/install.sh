@@ -75,14 +75,13 @@ test_commands_install_run() {
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_file_contains "$XDG_CONFIG_HOME_DIR/shimmy/unmanaged-sibling" keep
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
-  default_shimmy install --shim task --no-startup >/dev/null
+  default_shimmy install --shim task >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
   assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
 
   for invalid_request in \
     'install --shim task --stop-running' \
-    'uninstall --stop-running --stop-running' \
-    'uninstall --no-startup'; do
+    'uninstall --stop-running --stop-running'; do
     set -- $invalid_request
     set +e
     invalid_output=$(default_shimmy "$@" 2>&1)
@@ -91,24 +90,6 @@ test_commands_install_run() {
     [ "$invalid_status" -ne 0 ] || fail_test "invalid lifecycle request unexpectedly succeeded: $invalid_request"
     assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   done
-  assert_contains "$invalid_output" '--no-startup cannot be combined with --uninstall'
-  set +e
-  unsupported_output=$(default_shimmy uninstall --shell zsh 2>&1)
-  unsupported_status=$?
-  set -e
-  [ "$unsupported_status" -ne 0 ] || fail_test 'uninstall unexpectedly accepted --shell'
-  assert_contains "$unsupported_output" 'unknown argument: --shell'
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
-  unowned_startup_file=$SCENARIO_DIR/unowned-startup
-  printf '%s\n' keep > "$unowned_startup_file"
-  set +e
-  unsupported_output=$(default_shimmy uninstall --startup-file "$unowned_startup_file" 2>&1)
-  unsupported_status=$?
-  set -e
-  [ "$unsupported_status" -ne 0 ] || fail_test 'uninstall unexpectedly accepted an unowned startup file'
-  assert_contains "$unsupported_output" 'unknown argument: --startup-file'
-  assert_file_contains "$unowned_startup_file" keep
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   set +e
   unnecessary_output=$(default_shimmy uninstall --stop-running 2>&1)
   unnecessary_status=$?

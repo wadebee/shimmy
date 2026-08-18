@@ -16,7 +16,9 @@ without lifecycle skills options or reconstructed tool-selection arguments;
 that control refresh preserves the existing selection. A separate atomic
 profile materialization step then replaces only selected tool/version labels
 with their current catalog mappings while retaining explicitly selected
-concrete versions.
+concrete versions. Ordinary updates preserve startup state without external
+startup writes; `--repair-startup` updates only the default manifest's exact
+owned paths and is a successful informational no-op for manual policy.
 
 ## Files
 
@@ -24,7 +26,8 @@ concrete versions.
 - `selection.sh` validates installed tools and concrete version selections for
   the enclosing profile.
 - `management.sh` refreshes management assets from an installed source URL.
-- `profile.sh` validates and refreshes the enclosing profile's assets.
+- `profile.sh` validates and refreshes the enclosing profile's assets and
+  performs exact-ledger startup repair.
 - `refresh.sh` locates and invokes an installed concrete version's executable
   refresh hook. Hooks accept `pull` or `build`; they own image override
   handling, their safe runtime invocation where applicable, and local-image

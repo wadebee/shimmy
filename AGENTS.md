@@ -86,6 +86,19 @@ The authoritative Shimmy control-plane skills are under
   and wrapper approval does not authorize profile activation.
 - Canonical skill changes never authorize edits to generated `.agents/skills/` adapters. Refresh accepted repository or home adapters only with the explicit profile-local `shimmy skills update --target repo|profile` lifecycle.
 
+## Test concurrency
+
+- Prefer the test runner’s default bounded parallel execution when two or more
+  independent groups are selected.
+- Use `--jobs 3` when stating concurrency explicitly.
+- Use `--serial` only to diagnose a failure, verify known order-sensitive
+  behavior, run a single group where concurrency has no benefit, or satisfy an
+  explicit user requirement.
+- Treat retained-plan test commands as acceptance outcomes unless the user
+  explicitly requires the exact invocation. If a plan requests a broad serial
+  run without explaining why, challenge or replace it with parallel execution
+  and rerun only failures serially.
+  
 ## Negative Test Discipline
 
 - Do not add rejection, absence, non-existence, or non-emission tests by default. The fact that an implementation rejects something, no longer supports something, or currently omits something does not by itself make that behavior a testable system invariant.

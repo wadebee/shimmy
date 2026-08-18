@@ -46,7 +46,7 @@ fi
 
 manifest_file=$profile_root/install-manifest.txt
 manifest_fail() {
-  printf 'ERROR: invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=2, shimmy_install_layout=profile-materialized-root, shimmy_profile_manifest_version=2, shimmy_profile_name=%s, and one explicit catalog binding); uninstall it with the Shimmy version that created it, then recreate that profile\n' "$manifest_file" "$profile_name" >&2
+  printf 'ERROR: invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=3, shimmy_install_layout=profile-materialized-root, shimmy_profile_manifest_version=3, shimmy_profile_name=%s, and one explicit catalog binding); uninstall it with the Shimmy version that created it, then recreate that profile\n' "$manifest_file" "$profile_name" >&2
   exit 1
 }
 manifest_value_count() {
@@ -60,9 +60,9 @@ manifest_value_read() {
 for identity_key in shimmy_install_manifest_version shimmy_install_layout shimmy_profile_manifest_version shimmy_profile_name catalog; do
   [ "$(manifest_value_count "$identity_key")" -eq 1 ] || manifest_fail
 done
-[ "$(manifest_value_read shimmy_install_manifest_version)" = 2 ] || manifest_fail
+[ "$(manifest_value_read shimmy_install_manifest_version)" = 3 ] || manifest_fail
 [ "$(manifest_value_read shimmy_install_layout)" = profile-materialized-root ] || manifest_fail
-[ "$(manifest_value_read shimmy_profile_manifest_version)" = 2 ] || manifest_fail
+[ "$(manifest_value_read shimmy_profile_manifest_version)" = 3 ] || manifest_fail
 [ "$(manifest_value_read shimmy_profile_name)" = "$profile_name" ] || manifest_fail
 catalog_name=$(manifest_value_read catalog)
 case "$catalog_name" in ''|-*|*--*|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) manifest_fail ;; esac

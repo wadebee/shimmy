@@ -36,7 +36,7 @@ test_commands_dispatcher_run() {
 
   setup_scenario_with_profiles default
   set +e
-  unknown_output=$(default_shimmy install --shim oc@9.99 --no-startup 2>&1)
+  unknown_output=$(default_shimmy install --shim oc@9.99 2>&1)
   unknown_status=$?
   set -e
   [ "$unknown_status" -ne 0 ] || fail_test "unknown version unexpectedly installed"

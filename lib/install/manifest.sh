@@ -1,5 +1,5 @@
 #!/bin/sh
-# Version-2 profile materialization manifest rendering.
+# Version-3 profile materialization manifest rendering.
 
 source_ref_resolve() {
   command -v git >/dev/null 2>&1 || return 0
@@ -19,9 +19,9 @@ profile_manifest_render() {
     [ -n "$shimmy_source_url" ] || shimmy_source_url=$(shimmy_read_manifest_value "$INSTALL_MANIFEST_FILE" shimmy_source_url || true)
   fi
 
-  printf 'shimmy_install_manifest_version=2\n'
+  printf 'shimmy_install_manifest_version=3\n'
   printf 'shimmy_install_layout=profile-materialized-root\n'
-  printf 'shimmy_profile_manifest_version=2\n'
+  printf 'shimmy_profile_manifest_version=3\n'
   printf 'shimmy_profile_name=%s\n' "$SHIMMY_PROFILE_RESOLVED"
   printf 'catalog=%s\n' "$SHIMMY_PROFILE_CATALOG_NAME"
   if [ "$SHIMMY_PROFILE_RESOLVED" = upstream ]; then
@@ -47,7 +47,7 @@ EOF
   fi
   [ -z "$shimmy_previous_source_ref" ] || printf 'shimmy_previous_source_ref=%s\n' "$shimmy_previous_source_ref"
   if [ "$SHIMMY_PROFILE_RESOLVED" = default ]; then
-    [ -z "$STARTUP_SHELL" ] || printf 'startup_shell=%s\n' "$STARTUP_SHELL"
+    printf 'startup_shell=%s\n' "$STARTUP_SHELL"
     while IFS= read -r startup_file_path; do
       [ -n "$startup_file_path" ] || continue
       printf 'startup_file=%s\n' "$startup_file_path"

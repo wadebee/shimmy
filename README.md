@@ -62,10 +62,13 @@ contain a runnable `shimmy` launcher. Source `. ./install.sh` to bootstrap
 `default` and initialize the current shell, or source `. ./install.sh --profile
 upstream` for the maintainer profile. Every bootstrap installs jq and rg.
 Install any other tool afterward with `shimmy install --shim <tool>`.
-An unqualified default bootstrap also installs its managed startup block for
-zsh and for login and non-login interactive Bash sessions. Explicit `--shell`,
-repeatable `--startup-file`, and `--no-startup` options narrow or disable those
-updates.
+A fresh default bootstrap records one normalized startup shell from `$SHELL`;
+`--shell <name>` overrides detection and `--no-startup` records manual policy
+with no owned startup files. Managed policy resolves the conventional files
+for that shell once. Later bootstraps inherit the immutable policy, installed
+tool additions do not touch startup files, and `shimmy update
+--repair-startup` repairs only the exact recorded paths. Changing policy
+requires uninstalling and recreating the default profile.
 
 Executing `./install.sh` performs the same bootstrap for automation, but its
 shell initialization ends with that process. To initialize another shell
@@ -139,10 +142,12 @@ contract.
 Profiles are independent materialized installations below an absolute
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>` root. A relative,
 non-empty `XDG_CONFIG_HOME` is rejected. The `default` profile alone may own a
-persistent startup block; `upstream` never changes shell startup files. Source
-the desired profile's `shell-init.sh` to select PATH only; it never starts or
-stops Podman or sets connection variables. Installed commands accept no profile
-or machine selector.
+persistent startup block; `upstream` never changes shell startup files. The
+default manifest records one normalized shell and either an exact startup-file
+ownership ledger or manual policy with no files. Source the desired profile's
+`shell-init.sh` to select PATH only; it never starts or stops Podman or sets
+connection variables. Installed commands accept no profile, machine, shell,
+startup-path, or startup-suppression selector.
 
 Shared named catalogs live beside profiles under the same `shimmy/` config
 root. `upstream` is a validated live binding to one Git checkout, so a complete

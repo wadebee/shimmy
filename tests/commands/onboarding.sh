@@ -83,7 +83,7 @@ test_commands_onboarding_help() {
       PATH=/usr/bin:/bin /bin/sh -c '
         cd "$TEST_ROOT_DIR"
         path_before=$PATH
-        . ./install.sh --profile upstream --no-startup --help
+        . ./install.sh --profile upstream --help
         printf "path_unchanged=%s\n" "$([ "$PATH" = "$path_before" ] && printf yes || printf no)"
         command -v shimmy__bootstrap_run >/dev/null 2>&1 && printf "function=leaked\n"
         true
@@ -129,7 +129,7 @@ test_commands_onboarding_progression() {
   absolute_output=$(
     cd "$WORK_DIR"
     env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-      "$ROOT_DIR/install.sh" --profile upstream --no-startup 2>&1
+      "$ROOT_DIR/install.sh" --profile upstream 2>&1
   )
   assert_contains "$absolute_output" "Installed Shimmy upstream profile at $UPSTREAM_PROFILE_ROOT"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/install-manifest.txt"
@@ -175,7 +175,7 @@ test_commands_onboarding_progression() {
           > "$TEST_WORK_DIR/default-baseline-selection"
 
         manifest_checksum=$(cksum < "$TEST_DEFAULT_PROFILE_ROOT/install-manifest.txt")
-        if "$TEST_DEFAULT_PROFILE_ROOT/bin/shimmy" install --no-startup \
+        if "$TEST_DEFAULT_PROFILE_ROOT/bin/shimmy" install \
           > "$TEST_WORK_DIR/empty-install-output" 2>&1; then
           exit 92
         fi
@@ -183,12 +183,12 @@ test_commands_onboarding_progression() {
           "$([ "$(cksum < "$TEST_DEFAULT_PROFILE_ROOT/install-manifest.txt")" = "$manifest_checksum" ] && printf yes || printf no)"
 
         "$TEST_DEFAULT_PROFILE_ROOT/bin/shimmy" install \
-          --shim task --shim oc@4.18 --no-startup >/dev/null || exit 93
+          --shim task --shim oc@4.18 >/dev/null || exit 93
         additive_selection=$(sed -n "/^tool=/p; /^tool_version=/p" \
           "$TEST_DEFAULT_PROFILE_ROOT/install-manifest.txt")
         printf "%s\n" "$additive_selection" > "$TEST_WORK_DIR/additive-selection"
 
-        . ./install.sh --profile default --no-startup >/dev/null || exit 94
+        . ./install.sh --profile default >/dev/null || exit 94
         refreshed_selection=$(sed -n "/^tool=/p; /^tool_version=/p" \
           "$TEST_DEFAULT_PROFILE_ROOT/install-manifest.txt")
         printf "%s\n" "$refreshed_selection" > "$TEST_WORK_DIR/refreshed-selection"
@@ -197,10 +197,10 @@ test_commands_onboarding_progression() {
         printf "default_first=%s\n" "$(command -v shimmy)"
 
         cd "$TEST_REPO_ROOT"
-        . ./install.sh --profile upstream --no-startup >/dev/null || exit 95
+        . ./install.sh --profile upstream >/dev/null || exit 95
         printf "upstream=%s\n" "$(command -v shimmy)"
         cd "$TEST_ROOT_DIR"
-        . ./install.sh --profile default --no-startup >/dev/null || exit 96
+        . ./install.sh --profile default >/dev/null || exit 96
         printf "default_again=%s\n" "$(command -v shimmy)"
       '
   )
@@ -315,14 +315,13 @@ test_commands_onboarding_shell_init_rejection() {
 
 test_commands_onboarding_startup_failure() {
   setup_scenario
-  invalid_startup_file=$SCENARIO_DIR/startup-directory
-  mkdir "$invalid_startup_file"
+  mkdir "$HOME_DIR/.zshrc"
   failure_output=$(
-    env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" TEST_INVALID_STARTUP_FILE="$invalid_startup_file" \
+    env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" \
       XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
         cd "$TEST_ROOT_DIR"
         path_before=$PATH
-        . ./install.sh --shell zsh --startup-file "$TEST_INVALID_STARTUP_FILE" >/dev/null 2>&1
+        . ./install.sh --shell zsh >/dev/null 2>&1
         printf "status=%s\n" "$?"
         printf "path_unchanged=%s\n" "$([ "$PATH" = "$path_before" ] && printf yes || printf no)"
         command -v shimmy >/dev/null 2>&1 && printf "shimmy=selected\n"

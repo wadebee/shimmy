@@ -8,12 +8,11 @@ SHIMMY_CONTROL_ROOT=$ROOT_DIR
 INSTALL_MODULE_DIR=$ROOT_DIR/lib/install
 
 REQUESTED_SHIMS=
-REQUESTED_SHELL=
-REQUESTED_STARTUP_FILES=
-SKIP_STARTUP=0
-NO_STARTUP_OPTION_REQUESTED=0
-STARTUP_OPTION_REQUESTED=0
+BOOTSTRAP_NO_STARTUP=0
+BOOTSTRAP_STARTUP_POLICY_REQUESTED=0
+BOOTSTRAP_STARTUP_SHELL=
 STARTUP_FILE_PATHS=
+STARTUP_FILES_UPDATE=0
 STARTUP_SHELL=
 STOP_RUNNING=0
 STOP_RUNNING_OPTION_REQUESTED=0
@@ -311,15 +310,15 @@ profile_stage_cleanup() {
 
 perform_install() {
   profile_existing_state_read
+  if [ "$PROFILE_EXISTS" -eq 1 ] && [ "$BOOTSTRAP_STARTUP_POLICY_REQUESTED" -eq 1 ]; then
+    fail "startup policy is fixed when the default profile is created; uninstall and recreate the profile to choose a different policy"
+  fi
   profile_catalog_prepare
   validate_requested_shims
   profile_catalog_register
   shimmy_catalog_registry_resolve "$SHIMMY_CONFIG_ROOT" "$SHIMMY_PROFILE_CATALOG_NAME" || fail "$SHIMMY_CATALOG_ERROR"
   validate_requested_shims
   profile_materialization_catalog_snapshot_record
-  if [ "$PROFILE_EXISTS" -eq 1 ] && [ "$STARTUP_OPTION_REQUESTED" -eq 0 ] && [ -z "${SHIMMY_BOOTSTRAP_PROFILE:-}" ]; then
-    SKIP_STARTUP=1
-  fi
   profile_source_checkout_resolve
   resolve_startup_settings
   if [ "${SHIMMY_UPDATE_MANAGEMENT_REFRESH:-0}" -ne 1 ]; then
@@ -331,7 +330,7 @@ perform_install() {
   profile_assets_commit
   profile_stage_cleanup
   if ! shimmy_install_startup_update; then
-    fail "profile installed, but startup integration failed; retry with the checkout bootstrap or an installed shim install using explicit startup options"
+    fail "profile installed, but startup integration failed; retry with 'shimmy update --repair-startup'"
   fi
 
   log_info "Installed Shimmy $SHIMMY_PROFILE_RESOLVED profile at $SHIMMY_PROFILE_ROOT"
@@ -348,7 +347,6 @@ shimmy_install_run() {
 
   if [ "$UNINSTALL" -eq 1 ]; then
     [ -z "$REQUESTED_SHIMS" ] || fail "--shim cannot be combined with --uninstall"
-    [ "$NO_STARTUP_OPTION_REQUESTED" -eq 0 ] || fail "--no-startup cannot be combined with --uninstall"
     if [ "$GLOBAL_UNINSTALL" -eq 1 ]; then
       perform_uninstall_global
     else
