@@ -11,9 +11,12 @@ REQUESTED_SHIMS=
 REQUESTED_SHELL=
 REQUESTED_STARTUP_FILES=
 SKIP_STARTUP=0
+NO_STARTUP_OPTION_REQUESTED=0
 STARTUP_OPTION_REQUESTED=0
 STARTUP_FILE_PATHS=
 STARTUP_SHELL=
+STOP_RUNNING=0
+STOP_RUNNING_OPTION_REQUESTED=0
 PROFILE_MANIFEST_TOOL_VERSIONS=
 PROFILE_MANIFEST_TOOLS=
 EXISTING_PROFILE_TOOLS=
@@ -28,6 +31,7 @@ SHIMMY_MANIFEST_COMMIT_TMP=
 SHIMMY_MACHINE_PROJECTION_COMMIT_TMP=
 SHIMMY_REGISTRIES_COMMIT_TMP=
 SHIMMY_REGISTRIES_LOCK_HELD=0
+SHIMMY_PROFILE_ACTIVATION_LOCK_HELD=0
 SHIMMY_SHELL_INIT_COMMIT_TMP=
 SHIMMY_PROFILE_REGISTRIES_EXISTED=0
 SHIMMY_PROFILE_MACHINE_PROJECTION_EXISTED=0
@@ -38,6 +42,13 @@ SHIMMY_MATERIALIZATION_CATALOG_SOURCE_PATH=
 SHIMMY_MATERIALIZATION_CATALOG_GENERATION=
 SHIMMY_MATERIALIZATION_CATALOG_SCHEMA=
 SHIMMY_MATERIALIZATION_CATALOG_FINGERPRINT=
+SHIMMY_UNINSTALL_DETACHED_PROFILES=
+SHIMMY_UNINSTALL_MACHINE_OPERATIONS=0
+SHIMMY_UNINSTALL_PREPARED_PROFILES=
+SHIMMY_UNINSTALL_PROJECTED_PROFILES=
+SHIMMY_UNINSTALL_RECORD_REMOVED_PROFILES=
+SHIMMY_UNINSTALL_REGISTRY_LOCK_PROFILES=
+SHIMMY_UNINSTALL_TRANSACTION_ACTIVE=0
 LOG_LEVEL=${LOG_LEVEL:-info}
 
 log_level_value() {
@@ -68,6 +79,7 @@ for helper_file in \
   "$ROOT_DIR/lib/common/common.sh" \
   "$ROOT_DIR/lib/catalog/catalog.sh" \
   "$ROOT_DIR/lib/profile/profile.sh" \
+  "$ROOT_DIR/lib/profile/activation.sh" \
   "$ROOT_DIR/lib/registries/registries.sh" \
   "$ROOT_DIR/lib/startup/startup.sh"
 do
@@ -82,6 +94,8 @@ done
 . "$ROOT_DIR/lib/profile/profile.sh"
 # shellcheck source=lib/registries/registries.sh
 . "$ROOT_DIR/lib/registries/registries.sh"
+# shellcheck source=lib/profile/activation.sh
+. "$ROOT_DIR/lib/profile/activation.sh"
 # shellcheck source=lib/startup/startup.sh
 . "$ROOT_DIR/lib/startup/startup.sh"
 # shellcheck source=lib/install/catalog-lifecycle.sh
@@ -278,6 +292,8 @@ EOF
 }
 
 profile_stage_cleanup() {
+  shimmy_uninstall_transaction_abort || true
+  shimmy_uninstall_registry_locks_release
   shimmy_catalog_lifecycle_cleanup
   shimmy_catalog_lock_release
   profile_commit_temporary_files_cleanup
@@ -290,6 +306,7 @@ profile_stage_cleanup() {
     esac
   fi
   shimmy_registries_lock_release
+  shimmy_profile_activation_lock_release
 }
 
 perform_install() {
@@ -323,11 +340,15 @@ perform_install() {
 }
 
 shimmy_install_run() {
-  trap profile_stage_cleanup EXIT HUP INT TERM
+  trap profile_stage_cleanup EXIT
+  trap 'shimmy_install_signal_cleanup 129' HUP
+  trap 'shimmy_install_signal_cleanup 130' INT
+  trap 'shimmy_install_signal_cleanup 143' TERM
   shimmy_install_request_parse "$@"
 
   if [ "$UNINSTALL" -eq 1 ]; then
     [ -z "$REQUESTED_SHIMS" ] || fail "--shim cannot be combined with --uninstall"
+    [ "$NO_STARTUP_OPTION_REQUESTED" -eq 0 ] || fail "--no-startup cannot be combined with --uninstall"
     if [ "$GLOBAL_UNINSTALL" -eq 1 ]; then
       perform_uninstall_global
     else
@@ -336,6 +357,14 @@ shimmy_install_run() {
     return 0
   fi
   [ "$GLOBAL_UNINSTALL" -eq 0 ] || fail "--global requires --uninstall"
+  [ "$STOP_RUNNING" -eq 0 ] || fail "--stop-running requires --uninstall"
   [ -n "$REQUESTED_SHIMS" ] || fail "install requires at least one --shim <tool>"
   perform_install
+}
+
+shimmy_install_signal_cleanup() {
+  signal_status=$1
+  trap - EXIT HUP INT TERM
+  profile_stage_cleanup
+  exit "$signal_status"
 }

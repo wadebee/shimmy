@@ -219,6 +219,78 @@ shimmy_registries_machine_projection_commit() {
   SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_CHANGED=0
 }
 
+shimmy_registries_machine_projection_detach_finalize() {
+  detach_backup_path=$1
+  case "$detach_backup_path" in
+    "$SHIMMY_PROFILE_ROOT"/.machine-projection.detach.*) rm -f "$detach_backup_path" ;;
+    *) return 1 ;;
+  esac
+}
+
+shimmy_registries_machine_projection_detach_prepare() {
+  detach_record_path=$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH
+  detach_backup_path=$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$
+  shimmy_registries_machine_projection_record_validate "$detach_record_path" "$SHIMMY_PROFILE_NAME" || return 1
+  [ ! -e "$detach_backup_path" ] && [ ! -L "$detach_backup_path" ] || {
+    printf 'ERROR: Darwin projection detach backup collision: %s\n' "$detach_backup_path" >&2
+    return 1
+  }
+  cp "$detach_record_path" "$detach_backup_path" || return 1
+  chmod 0644 "$detach_backup_path" || {
+    rm -f "$detach_backup_path"
+    return 1
+  }
+  shimmy_registries_machine_projection_record_validate "$detach_backup_path" "$SHIMMY_PROFILE_NAME" || {
+    rm -f "$detach_backup_path"
+    return 1
+  }
+  SHIMMY_REGISTRIES_MACHINE_PROJECTION_DETACH_BACKUP_PATH=$detach_backup_path
+}
+
+shimmy_registries_machine_projection_detach_record_remove() {
+  detach_backup_path=$1
+  case "$detach_backup_path" in "$SHIMMY_PROFILE_ROOT"/.machine-projection.detach.*) ;; *) return 1 ;; esac
+  shimmy_registries_machine_projection_record_validate "$detach_backup_path" "$SHIMMY_PROFILE_NAME" || return 1
+  shimmy_registries_machine_projection_record_validate \
+    "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" "$SHIMMY_PROFILE_NAME" || return 1
+  cmp -s "$detach_backup_path" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" || return 1
+  rm -f "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
+}
+
+shimmy_registries_machine_projection_detach_record_rollback() {
+  detach_backup_path=$1
+  case "$detach_backup_path" in "$SHIMMY_PROFILE_ROOT"/.machine-projection.detach.*) ;; *) return 1 ;; esac
+  shimmy_registries_machine_projection_record_validate "$detach_backup_path" "$SHIMMY_PROFILE_NAME" || return 1
+  if [ -f "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] &&
+    [ ! -L "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] &&
+    cmp -s "$detach_backup_path" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"; then
+    return 0
+  fi
+  [ ! -e "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] &&
+    [ ! -L "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] || return 1
+  cp "$detach_backup_path" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" &&
+    chmod 0644 "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
+}
+
+shimmy_registries_machine_projection_detach_remote() {
+  shimmy_registries_machine_projection_link_state_read
+  [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE" = current ] || {
+    printf 'ERROR: refusing Darwin detach with foreign, absent, or invalid machine projection: %s\n' \
+      "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK" >&2
+    return 1
+  }
+  detach_output=$(shimmy_registries_machine_projection_root_run detach) || detach_output=
+  [ "$detach_output" = detached ] || {
+    printf 'ERROR: unable to detach Darwin registry projection from %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
+    return 1
+  }
+}
+
+shimmy_registries_machine_projection_detach_remote_rollback() {
+  rollback_output=$(shimmy_registries_machine_projection_root_run apply 2>/dev/null) || rollback_output=
+  [ "$rollback_output" = changed ]
+}
+
 shimmy_registries_machine_projection_link_apply() {
   projection_output=$(shimmy_registries_machine_projection_root_run apply) || {
     printf 'ERROR: unable to install Darwin registry projection in %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
@@ -1146,60 +1218,42 @@ shimmy_registries_mutate_remove_all_detach_darwin() {
       ;;
   esac
 
-  record_backup=$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$
-  [ ! -e "$record_backup" ] && [ ! -L "$record_backup" ] || {
-    shimmy_registries_lock_release
-    printf 'ERROR: Darwin projection detach backup collision: %s\n' "$record_backup" >&2
-    return 1
-  }
-  cp "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" "$record_backup" || {
+  shimmy_registries_machine_projection_detach_prepare || {
     shimmy_registries_lock_release
     return 1
   }
-  chmod 0644 "$record_backup" || { rm -f "$record_backup"; shimmy_registries_lock_release; return 1; }
+  record_backup=$SHIMMY_REGISTRIES_MACHINE_PROJECTION_DETACH_BACKUP_PATH
   remote_detached=0
   if [ "$detach_mode" = running_machine ]; then
-    detach_output=$(shimmy_registries_machine_projection_root_run detach) || detach_output=
-    if [ "$detach_output" != detached ]; then
-      rm -f "$record_backup"
+    if ! shimmy_registries_machine_projection_detach_remote; then
+      shimmy_registries_machine_projection_detach_finalize "$record_backup"
       shimmy_registries_lock_release
-      printf 'ERROR: unable to detach Darwin registry projection from %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
       return 1
     fi
     remote_detached=1
   fi
   mutation_status=0
-  if ! cmp -s "$record_backup" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ||
-    ! rm -f "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"; then
+  if ! shimmy_registries_machine_projection_detach_record_remove "$record_backup"; then
     mutation_status=1
   elif [ -n "$existing_entries" ] && ! shimmy_registries_file_replace ''; then
     mutation_status=1
   fi
   if [ "$mutation_status" -ne 0 ]; then
     rollback_complete=1
-    if [ -f "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] && [ ! -L "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] &&
-      cmp -s "$record_backup" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"; then
-      :
-    elif [ ! -e "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] && [ ! -L "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ]; then
-      cp "$record_backup" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" &&
-        chmod 0644 "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" || rollback_complete=0
-    else
-      rollback_complete=0
-    fi
+    shimmy_registries_machine_projection_detach_record_rollback "$record_backup" || rollback_complete=0
     if [ "$remote_detached" -eq 1 ]; then
-      rollback_output=$(shimmy_registries_machine_projection_root_run apply 2>/dev/null) || rollback_output=
-      [ "$rollback_output" = changed ] || rollback_complete=0
+      shimmy_registries_machine_projection_detach_remote_rollback || rollback_complete=0
     fi
     if [ "$rollback_complete" -eq 1 ]; then
       printf '%s\n' 'ERROR: Darwin projection detach failed; prior projection and record restored' >&2
     else
       printf '%s\n' 'ERROR: Darwin projection detach failed and rollback was incomplete' >&2
     fi
-    rm -f "$record_backup"
+    shimmy_registries_machine_projection_detach_finalize "$record_backup" || true
     shimmy_registries_lock_release
     return 1
   fi
-  rm -f "$record_backup"
+  shimmy_registries_machine_projection_detach_finalize "$record_backup"
   shimmy_registries_lock_release
 }
 

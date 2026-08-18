@@ -26,10 +26,12 @@ root SSH script accepts only validated action/path arguments, while a separate
 rootless SSH process validates same-path source visibility, exact link target,
 readability, and fingerprint. Projection precedes engine validation; record
 creation and global default selection follow it. Rollback covers link and
-record state. Stale running policy requires explicit restart. Detach accepts
-only exact owned state or a valid record with a machine proven absent; stopped,
-unreachable, foreign, and damaged state fails without mutation. Uninstall
-refuses any retained valid record.
+record state. Stale running policy requires explicit restart. Standalone
+detach accepts only exact owned state or a valid record with a machine proven
+absent; stopped, unreachable, foreign, and damaged state fails without
+mutation. Internal prepare/remove/rollback/finalize primitives let uninstall
+retain records through external cleanup, handle stopped machines through the
+activation transaction, and reproject exact links after a later failure.
 
 The registry-client resolver recognizes only canonical materialized profiles.
 It omits a mount when no Shimmy activation exists, returns the invoking

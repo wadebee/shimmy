@@ -30,8 +30,10 @@ is the behavior under test.
   upstream/catalog isolation before progressing through default sibling
   preservation and real last-profile cleanup. Layout and launcher-refresh
   cases retain independent profile clones and real operations. Registry
-  lifecycle cases preserve valid Darwin projection-record bytes across update
-  and require detach before profile or global uninstall.
+  lifecycle cases preserve valid Darwin projection-record bytes across update;
+  uninstall cases cover running/stopped/missing machines, workload guards,
+  refusal and rollback injection, global detach-before-delete ordering, and
+  reprojection after a later profile failure.
 - `onboarding.sh` covers sourced and executed repository onboarding, failure
   cleanup, the fixed jq/rg bootstrap baseline, explicit additive installed
   selection, direct shell initialization, PATH precedence, and profile-local
@@ -92,8 +94,8 @@ is the behavior under test.
   repository previews use `commands/run-tool.sh`.
 - `netinfo.sh` covers deterministic CIDR rendering, explicit host-LAN
   precedence, help output, and request validation.
-- `install.sh` covers additive installed-tool requests, uninstall request
-  validation, and macOS Podman guidance.
+- `install.sh` covers additive installed-tool requests, uninstall workload
+  acknowledgement validation, invalid combinations, and macOS Podman guidance.
 - `test.sh` covers installed-profile test request, metadata validation,
   profile binding, public dispatch, and concrete-version orchestration. Its
   installed profile-binding scenario starts from a pristine clone; runtime

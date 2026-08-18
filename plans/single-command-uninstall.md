@@ -1,6 +1,6 @@
 # Single-command clean Shimmy uninstall
 
-**Status:** Review
+**Status:** Chunk 1 human review
 
 ## Objective
 
@@ -37,11 +37,11 @@ Make ordinary and global uninstall complete their own registry-projection prereq
 
 ## Verified implementation inventory
 
-- `lib/install/uninstall.sh` currently rejects any valid Darwin projection record; global uninstall has the same refusal.
-- Darwin detach and rollback are implemented in `lib/registries/registries.sh`, but stopped machines are rejected and the helper releases its registry lock before uninstall could reacquire it.
-- Machine discovery, workload guarding, transitions, and restoration are owned by `lib/profile/activation.sh`, which the uninstall control path does not currently load.
-- Current lifecycle tests explicitly require profile/global uninstall refusal and must be replaced with single-command cleanup coverage.
-- Normative refusal/manual-detach guidance exists in root and child contexts, README/command documentation, Podman/registry documentation, and the canonical `shimmy-install` skill.
+- `lib/install/uninstall.sh` now coordinates activation and registry locks, preflight, Darwin projection cleanup, engine restoration, local commit, and rollback for profile and global scope.
+- Reusable prepare, detach, and rollback primitives in `lib/registries/registries.sh` preserve standalone redirect-removal behavior while allowing uninstall to retain its transaction locks.
+- Cleanup-specific engine validation, switching, restart, and restoration support in `lib/profile/activation.sh` handles running and stopped deterministic machines without creating, adopting, renaming, or deleting them.
+- Lifecycle, parser, help, registry, and activation tests cover single-command cleanup, workload acknowledgment, failure injection, rollback, and preserved Linux/ownership behavior.
+- Root and child contexts, README/command documentation, Podman/registry/testing documentation, and the canonical `shimmy-install` skill describe manual detach as recovery/debugging rather than an uninstall prerequisite.
 
 ## Unresolved
 
@@ -49,7 +49,7 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Implement, verify, and document transactional single-command uninstall cleanup.
+- [~] Chunk 1 — Implementation, documentation, and automated verification are complete; native macOS acceptance is deferred for explicit preparation at the human review gate.
 
 ## Execution protocol
 
@@ -99,17 +99,17 @@ Make projection teardown, live-cache clearing, machine-state restoration, and lo
 
 ### Verification checklist
 
-- [ ] Ordinary Darwin uninstall succeeds from an exact running projection, logs detach plus restart, removes the profile, and leaves no VM link or local record.
-- [ ] Stopped-profile cleanup performs start → verify → detach → stop and restores the original default connection.
-- [ ] An idle alternate machine is stopped and restored; containers block this without `--stop-running`, while acknowledged execution succeeds with a warning.
-- [ ] Proven-missing machines use record-only cleanup without provisioning.
-- [ ] Invalid records/configuration, foreign or absent links, overrides, unavailable workload inspection, unreachable engines, and held locks fail before profile deletion.
-- [ ] Injected start, stop, detach, restart, restoration, and default-connection failures exercise complete and incomplete rollback reporting while retaining recoverable profile state.
-- [ ] Global uninstall detaches both profiles before deleting either, restores initial machine/default state, and removes catalogs only after profile cleanup succeeds.
-- [ ] A later global detach failure reprojects earlier detached profiles and leaves both profiles and catalogs intact.
-- [ ] Linux exact-link cleanup, sibling isolation, operator policy preservation, startup cleanup, source-checkout preservation, and external-skill preservation remain covered.
-- [ ] Help and parser tests cover `--stop-running`, duplicates, invalid combinations, and the absence of manual prerequisite guidance.
-- [ ] Run targeted groups:
+- [x] Ordinary Darwin uninstall succeeds from an exact running projection, logs detach plus restart, removes the profile, and leaves no VM link or local record.
+- [x] Stopped-profile cleanup performs start → verify → detach → stop and restores the original default connection.
+- [x] An idle alternate machine is stopped and restored; containers block this without `--stop-running`, while acknowledged execution succeeds with a warning.
+- [x] Proven-missing machines use record-only cleanup without provisioning.
+- [x] Invalid records/configuration, foreign or absent links, overrides, unavailable workload inspection, unreachable engines, and held locks fail before profile deletion.
+- [x] Injected start, stop, detach, restart, restoration, and default-connection failures exercise complete and incomplete rollback reporting while retaining recoverable profile state.
+- [x] Global uninstall detaches both profiles before deleting either, restores initial machine/default state, and removes catalogs only after profile cleanup succeeds.
+- [x] A later global detach failure reprojects earlier detached profiles and leaves both profiles and catalogs intact.
+- [x] Linux exact-link cleanup, sibling isolation, operator policy preservation, startup cleanup, source-checkout preservation, and external-skill preservation remain covered.
+- [x] Help and parser tests cover `--stop-running`, duplicates, invalid combinations, and the absence of manual prerequisite guidance.
+- [x] Run targeted groups (40 tests passed):
 
   ```sh
   ./tests/test.sh --serial \
@@ -121,8 +121,13 @@ Make projection teardown, live-cache clearing, machine-state restoration, and lo
     --group commands-profile
   ```
 
-- [ ] Run the complete default suite with `./tests/test.sh`.
-- [ ] Perform native macOS acceptance only against explicitly prepared disposable profiles and pre-existing deterministic machines; record before/after machine, connection, workload, VM-link, record, profile, and catalog state.
+- [x] Run the complete default suite with `./tests/test.sh` (exit status 0).
+- [~] Perform native macOS acceptance only against explicitly prepared disposable profiles and pre-existing deterministic machines; record before/after machine, connection, workload, VM-link, record, profile, and catalog state.
+  - Passed: the stateful fake-Podman acceptance seam covers running, stopped, alternate, missing, workload, rollback, and global ordering cases in the automated suite.
+  - Remaining: exercise the same matrix against native Podman machines and capture before/after state.
+  - Reason: no disposable profiles or pre-existing deterministic machines were explicitly prepared for this implementation session; using developer state would violate the acceptance constraint.
+  - Impact: this does not block source review or automated acceptance, but native macOS/Podman behavior remains unconfirmed and must not be claimed as accepted.
+  - Next action: the reviewer either prepares the disposable profiles/machines for native acceptance or explicitly accepts deferral before closing Chunk 1.
 
 ### Human review gate
 
@@ -144,6 +149,13 @@ Confirm single-command profile/global cleanup, workload acknowledgment, live-cac
 - Existing detach, registry, activation, and uninstall operations use different lock boundaries. Reusing the public detach command directly would create a race and cannot handle stopped machines.
 - Clearing persistent projection state and clearing a running service's cached policy are separate operations; the selected behavior requires guarded restart and restoration.
 
+### Chunk 1
+
+- A valid projection record must remain the recovery anchor until remote detach and machine/default restoration have both succeeded; deleting it earlier makes exact rollback unverifiable.
+- Stopped-machine cleanup is safe only when temporary engine transitions and registry mutation remain within the same activation-plus-profile-lock transaction.
+- Global cleanup must hold the shared catalog lock across profile commit and catalog removal so another lifecycle operation cannot observe a partially committed ownership state.
+- Stateful failure tests must model whether a projection was actually changed; otherwise rollback assertions can pass while exercising an impossible external state.
+
 ## Session bootstrap
 
-Read `AGENTS.md`, root `CONTEXT.md`, this plan, the install/profile/registry/test child contexts, and the core lifecycle files listed above. Confirm the worktree remains free of unrelated overlapping changes. Implement only Chunk 1, preserve POSIX shell architecture and generated-adapter boundaries, update the checklist and lessons with evidence, and stop at the human review gate.
+Chunk 1 is at its human review gate. Review the implementation and automated evidence above, then either prepare disposable native macOS profiles/machines for the remaining acceptance item or explicitly accept its deferral. Do not begin another implementation unit without explicit acceptance.

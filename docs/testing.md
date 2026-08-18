@@ -143,7 +143,9 @@ The suite is POSIX shell and validates:
 - disposable version-2 materialized default and upstream profile installs,
   named-catalog bootstrap isolation, installed command dispatch, status,
   catalog-default update, rollback, legacy-layout rejection, profile-isolated
-  uninstall, and explicit global uninstall;
+  uninstall, exact Linux link cleanup, transactional Darwin running/stopped/
+  missing cleanup, failure-injected reprojection rollback, and explicit global
+  detach-before-delete uninstall;
 - shell initialization, canonical skill export/removal, netinfo input
   rendering, and management-command argument validation;
 - bootstrap-only profile selection, profile-isolated uninstalls, status
@@ -163,8 +165,8 @@ The suite is POSIX shell and validates:
   privilege controls.
 - tool-owned OPNsense MCP preview coverage for URL normalization, read-only and
   admin secret separation, no-write defaults, and change-window guidance.
-- additive install behavior, enclosing-profile uninstall requests, and macOS
-  Podman dependency guidance.
+- additive install behavior, enclosing-profile uninstall requests including
+  workload acknowledgement validation, and macOS Podman dependency guidance.
 
 Use live Podman only for non-mutating commands such as `--version`, `version`,
 or `--help`. Prefer `--preview-shim` whenever it proves the intended runtime

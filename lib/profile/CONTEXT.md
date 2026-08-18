@@ -21,8 +21,9 @@ reporting, Linux active-link plus fresh local-rootless validation, and Darwin
 same-path registry projection before target engine validation. Darwin
 activation records projected config freshness only after rootless remote
 validation; stale running state requires explicit workload-guarded restart.
-Only `shimmy profile activate` uses machine start/stop operations; it never
-provisions or removes a VM.
+Uninstall reuses bounded start, stop, restart, validation, and restoration
+primitives while holding the activation lock. Neither lifecycle provisions or
+removes a VM.
 
 Path resolution also records the authoritative profile-specific
 `registries.conf`, adjacent transaction lock, exact Linux user drop-in, exact

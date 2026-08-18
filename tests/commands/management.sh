@@ -81,6 +81,8 @@ test_commands_management_guidance() {
   assert_contains "$(default_shimmy skills update --help)" 'prefers skills already tracked'
   assert_contains "$(default_shimmy skills uninstall --help)" '.shimmy-skills-manifest.txt'
   assert_contains "$(default_shimmy uninstall --help)" 'shimmy uninstall [--global]'
+  assert_contains "$(default_shimmy uninstall --help)" '--stop-running'
+  assert_not_contains "$(default_shimmy uninstall --help)" 'detach it first'
   assert_not_contains "$(default_shimmy uninstall --help)" '--shim <tool'
 
   set +e

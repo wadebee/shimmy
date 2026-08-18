@@ -138,13 +138,22 @@ Darwin detach uses the same public command as Linux:
 shimmy profile redirect remove --all --detach
 ```
 
-For a running, reachable expected machine, detach removes only the exact VM
-link and matching record, then empties the managed file as one rollback-aware
-transaction. A stopped existing machine must first be activated. If machine
-metadata proves the expected machine is absent, Shimmy may remove the valid
-record locally without SSH. Foreign or damaged state is never replaced.
-Profile and global uninstall refuse an attached record and print exact detach
-guidance.
+For a running, reachable expected machine, standalone detach removes only the
+exact VM link and matching record, then empties the managed file as one
+rollback-aware transaction. A stopped existing machine must first be activated
+for this standalone operation. If machine metadata proves the expected machine
+is absent, Shimmy may remove the valid record locally without SSH. Foreign or
+damaged state is never replaced.
+
+Profile and global uninstall perform their own transactionally guarded cleanup.
+They retain every record and config until all exact links are detached and the
+initial machine/default-connection state is restored. Running projected
+machines restart after detach to clear cached policy; stopped projected
+machines are temporarily started and restored to stopped. Global cleanup
+detaches both profiles before deleting either and reprojects earlier profiles
+if a later detach fails. `--stop-running` is required only when listed existing
+workloads would be interrupted. Manual detach remains recovery/debugging
+functionality, not an uninstall prerequisite.
 
 Darwin status reports link state, record path, current and recorded
 fingerprints, and evidence-based policy freshness:

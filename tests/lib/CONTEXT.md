@@ -22,11 +22,11 @@ without starting tool containers. They are sourced by `../test.sh` and use
 - `profile-activation.sh` validates deterministic engine state, workload-aware
   Darwin switching and registry projection, Linux registry-link transitions,
   dry runs, fixed root/rootless ordering, fingerprint freshness, explicit
-  restart, commit-last selection, and failure-injected rollback reporting
-  through a fake Podman command seam.
+  restart, cleanup start/stop/restoration primitives, commit-last selection,
+  and failure-injected rollback reporting through a fake Podman command seam.
 - `registries.sh` validates strict endpoint grammar, exact managed-file
   parsing/rendering, deterministic mutation, side-effect-free dry runs,
-  adjacent locking, strict Darwin projection records, atomic replacement, and
-  exact rollback after injected post-commit failure.
+  adjacent locking, strict Darwin projection records and detach primitives,
+  atomic replacement, and exact rollback after injected post-commit failure.
 - `update.sh` validates generic dispatch to version-local refresh hooks and the
   shared `pull`/`build` contract.

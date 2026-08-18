@@ -138,8 +138,14 @@ shimmy skills uninstall --target <repo|profile>
 ```
 
 Ordinary `shimmy uninstall` removes only the invoking profile and preserves
-sibling profiles and shared catalogs. Explicit `shimmy uninstall --global`
-removes all valid manifest-owned profiles and registry-owned catalogs while
+sibling profiles and shared catalogs. It cleans an exact Linux activation or
+Darwin projection itself; manual `profile redirect remove --all --detach` is
+recovery/debugging functionality, not a prerequisite. Darwin cleanup restores
+the initial machine/default state and may need to stop a running machine. Run
+uninstall without `--stop-running` first; if it lists workloads and refuses,
+obtain explicit confirmation before retrying with that acknowledgement.
+Explicit `shimmy uninstall --global` detaches every owned profile before
+removing all valid manifest-owned profiles and registry-owned catalogs while
 preserving bound checkouts and these external exports; it refuses unrecognized
 shared state.
 

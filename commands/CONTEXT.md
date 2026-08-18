@@ -8,7 +8,8 @@ reusable behavior belongs in `../lib/`.
 
 ## Key files
 
-- `install.sh` installs or removes the enclosing canonical profile.
+- `install.sh` installs or removes the enclosing canonical profile; uninstall
+  loads guarded profile-activation support for projection and engine cleanup.
 - `catalog.sh` lists complete validated membership from the invoking profile's
   recorded catalog or an explicitly named registry. Its mutation actions
   publish clean committed `upstream` content to an immutable `default`

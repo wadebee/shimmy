@@ -106,6 +106,80 @@ EOF
   [ "$connection_matches" -eq 1 ] && [ "$connection_rootless" -eq 1 ]
 }
 
+shimmy_profile_cleanup_engine_validate() {
+  cleanup_connection=$1
+  cleanup_info=$(shimmy_profile_podman_run --connection "$cleanup_connection" info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}' 2>/dev/null) || {
+    printf 'ERROR: unable to validate rootless Podman machine connection %s during uninstall\n' "$cleanup_connection" >&2
+    return 1
+  }
+  [ "$cleanup_info" = 'true|true' ] || {
+    printf 'ERROR: connection %s is not a rootless Podman machine engine\n' "$cleanup_connection" >&2
+    return 1
+  }
+}
+
+shimmy_profile_cleanup_machine_restart() {
+  cleanup_machine=$1
+  [ "${SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE:-none}" = "$cleanup_machine" ] || return 1
+  printf 'Restarting Podman machine to clear detached registry policy: %s\n' "$cleanup_machine"
+  shimmy_profile_podman_run machine stop "$cleanup_machine" </dev/null || return 1
+  SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=none
+  shimmy_profile_podman_run machine start "$cleanup_machine" </dev/null || return 1
+  SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=$cleanup_machine
+}
+
+shimmy_profile_cleanup_machine_switch() {
+  cleanup_machine=$1
+  [ "${SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE:-none}" != "$cleanup_machine" ] || return 0
+  if [ "${SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE:-none}" != none ]; then
+    printf 'Stopping Podman machine for registry cleanup: %s\n' "$SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE"
+    shimmy_profile_podman_run machine stop "$SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE" </dev/null || return 1
+    SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=none
+  fi
+  printf 'Starting Podman machine for registry cleanup: %s\n' "$cleanup_machine"
+  shimmy_profile_podman_run machine start "$cleanup_machine" </dev/null || return 1
+  SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=$cleanup_machine
+}
+
+shimmy_profile_cleanup_restore() {
+  cleanup_restore_complete=1
+  if [ "${SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE:-none}" != "${SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE:-none}" ]; then
+    if [ "${SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE:-none}" != none ]; then
+      printf 'Restoring initial machine state by stopping: %s\n' "$SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE"
+      if shimmy_profile_podman_run machine stop "$SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE" </dev/null; then
+        SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=none
+      else
+        printf 'ERROR: unable to stop cleanup machine %s while restoring initial state\n' "$SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE" >&2
+        cleanup_restore_complete=0
+      fi
+    fi
+    if [ "${SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE:-none}" != none ] &&
+      [ "${SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE:-none}" = none ]; then
+      printf 'Restoring initially running Podman machine: %s\n' "$SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE"
+      if shimmy_profile_podman_run machine start "$SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE" </dev/null; then
+        SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=$SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE
+      else
+        printf 'ERROR: unable to restore initially running machine %s\n' "$SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE" >&2
+        cleanup_restore_complete=0
+      fi
+    fi
+  fi
+  if [ "${SHIMMY_PROFILE_CLEANUP_INITIAL_DEFAULT_CONNECTION:-unknown}" != unknown ]; then
+    printf 'Restoring initial Podman default connection: %s\n' "$SHIMMY_PROFILE_CLEANUP_INITIAL_DEFAULT_CONNECTION"
+    if ! shimmy_profile_podman_run system connection default "$SHIMMY_PROFILE_CLEANUP_INITIAL_DEFAULT_CONNECTION"; then
+      printf 'ERROR: unable to restore initial Podman default connection %s\n' "$SHIMMY_PROFILE_CLEANUP_INITIAL_DEFAULT_CONNECTION" >&2
+      cleanup_restore_complete=0
+    fi
+  fi
+  [ "$cleanup_restore_complete" -eq 1 ]
+}
+
+shimmy_profile_cleanup_transaction_begin() {
+  SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE=$1
+  SHIMMY_PROFILE_CLEANUP_INITIAL_DEFAULT_CONNECTION=$2
+  SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=$SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE
+}
+
 shimmy_profile_podman_bin_require() {
   if [ -n "${SHIMMY_TEST_PROFILE_PODMAN_BIN:-}" ]; then
     SHIMMY_PROFILE_PODMAN_BIN=$SHIMMY_TEST_PROFILE_PODMAN_BIN

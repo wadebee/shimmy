@@ -78,5 +78,26 @@ test_commands_install_run() {
   default_shimmy install --shim task --no-startup >/dev/null
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
   assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
+
+  for invalid_request in \
+    'install --shim task --stop-running' \
+    'uninstall --stop-running --stop-running' \
+    'uninstall --no-startup'; do
+    set -- $invalid_request
+    set +e
+    invalid_output=$(default_shimmy "$@" 2>&1)
+    invalid_status=$?
+    set -e
+    [ "$invalid_status" -ne 0 ] || fail_test "invalid lifecycle request unexpectedly succeeded: $invalid_request"
+    assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  done
+  assert_contains "$invalid_output" '--no-startup cannot be combined with --uninstall'
+  set +e
+  unnecessary_output=$(default_shimmy uninstall --stop-running 2>&1)
+  unnecessary_status=$?
+  set -e
+  [ "$unnecessary_status" -ne 0 ] || fail_test 'unnecessary uninstall workload acknowledgement unexpectedly succeeded'
+  assert_contains "$unnecessary_output" 'valid only when uninstall cleanup will stop an already running machine'
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   pass "installer enforces XDG resolution, rejects unknown options before mutation, and preserves unmanaged siblings"
 }

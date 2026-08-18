@@ -377,14 +377,24 @@ Successful activation stores a strict local projection record and config
 fingerprint. If a running machine's projection is absent or stale, use the
 exact absolute `profile activate --restart` command printed by Shimmy. The
 normal workload guard still applies. Active redirect edits never restart a VM.
-Before uninstall, detach the exact VM link and record with:
+Ordinary and global uninstall detach an exact recorded VM link themselves,
+restart an initially running projected machine to clear cached policy, and
+restore the initial running machine and default connection before local
+deletion. A stopped projected machine is temporarily started, verified,
+detached, and returned to stopped state; a proven-missing machine permits
+record-only cleanup. If a planned stop has running containers, uninstall lists
+them and requires an explicit retry with `--stop-running`. Acknowledged
+workloads may not resume automatically.
+
+Manual detach remains available for recovery and debugging:
 
 ```sh
 "$profile_root/bin/shimmy" profile redirect remove --all --detach
 ```
 
-A stopped existing machine must be activated before detach. A machine proven
-absent permits record-only cleanup. Shimmy never removes the machine itself.
+The standalone detach command still requires a stopped existing machine to be
+activated first; uninstall handles that transition internally. Neither command
+removes a machine.
 
 `shimmy test` uses live Podman execution for supported tools. It is a stronger
 check than `podman info` because it verifies that Shimmy's wrappers can actually

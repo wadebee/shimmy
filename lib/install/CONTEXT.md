@@ -40,9 +40,12 @@ set connection variables.
   bootstraps manage zsh and both Bash startup modes; explicit startup options
   remain authoritative.
 - `uninstall.sh` ordinarily removes only validated assets owned by the
-  enclosing profile. Explicit global uninstall prevalidates all profile and
-  catalog ownership, removes every owned profile and shared registry, and
-  preserves bound source checkouts and external skill exports.
+  enclosing profile. It acquires the activation lock before deterministic
+  profile locks, tears down exact registry projections, restores Darwin engine
+  state, and commits local deletion only after external cleanup succeeds.
+  Explicit global uninstall also holds the catalog lock, detaches every
+  profile before deleting any, and preserves bound source checkouts and
+  external skill exports.
 
 Profiles contain no canonical management plugin or tool skill sources; those
 remain in the named catalog. Manifest version 2 and the
@@ -57,8 +60,10 @@ default bootstrap publishes from a clean committed checkout through the same
 generation transaction used later; initial upstream bootstrap registers its
 live checkout without replacing an existing different binding.
 Profile and global uninstall remove only validated profile-owned registry
-files and, on Linux, the exact active Shimmy link when it targets the profile
-being removed. A retained Darwin projection record blocks both profile and
-global uninstall with exact detach guidance; detach owns removal of the exact
-VM link and record. Foreign links, operator containers configuration, and
-sibling profile files remain outside that ownership boundary.
+files and, on Linux, the exact active Shimmy link when it targets a removed
+profile. On Darwin they use a valid record to remove only the exact VM link,
+restart a running projected machine to clear cached policy, temporarily start
+a stopped projected machine, permit record-only cleanup for a proven-missing
+machine, and restore the initial machine/default state. Foreign links,
+operator containers configuration, sibling profile files, and external skill
+exports remain outside that ownership boundary.

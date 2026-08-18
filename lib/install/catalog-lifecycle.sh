@@ -376,26 +376,31 @@ shimmy_catalog_lock_release() {
 
 shimmy_catalog_owned_state_remove() {
   catalog_config_root=$1
+  catalog_lock_already_held=${2:-0}
   catalog_catalogs_root=$catalog_config_root/catalogs
 
   [ -e "$catalog_catalogs_root" ] || [ -L "$catalog_catalogs_root" ] || return 0
-  shimmy_catalog_owned_state_validate "$catalog_config_root" 0 || return 1
-  shimmy_catalog_lock_acquire "$catalog_config_root" || return 1
+  shimmy_catalog_owned_state_validate "$catalog_config_root" "$catalog_lock_already_held" || return 1
+  if [ "$catalog_lock_already_held" -eq 0 ]; then
+    shimmy_catalog_lock_acquire "$catalog_config_root" || return 1
+  fi
   shimmy_catalog_owned_state_validate "$catalog_config_root" 1 || {
-    shimmy_catalog_lock_release
+    [ "$catalog_lock_already_held" -eq 1 ] || shimmy_catalog_lock_release
     return 1
   }
   for catalog_name in default upstream; do
     catalog_owned_dir=$catalog_catalogs_root/$catalog_name
     [ -e "$catalog_owned_dir" ] || [ -L "$catalog_owned_dir" ] || continue
     rm -rf "$catalog_owned_dir" || {
-      shimmy_catalog_lock_release
+      [ "$catalog_lock_already_held" -eq 1 ] || shimmy_catalog_lock_release
       shimmy_catalog_error_set "unable to remove owned catalog state: $catalog_owned_dir"
       return 1
     }
   done
-  shimmy_catalog_lock_release
-  rmdir "$catalog_catalogs_root" 2>/dev/null || true
+  if [ "$catalog_lock_already_held" -eq 0 ]; then
+    shimmy_catalog_lock_release
+    rmdir "$catalog_catalogs_root" 2>/dev/null || true
+  fi
 }
 
 shimmy_catalog_owned_state_validate() {

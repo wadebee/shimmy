@@ -17,17 +17,21 @@ usage() {
 Remove the invoking Shimmy profile or all Shimmy-owned state.
 
 Usage:
-  shimmy uninstall [--global] [--shell <name>] [--startup-file <path> ...]
+  shimmy uninstall [--global] [--stop-running]
+                    [--shell <name>] [--startup-file <path> ...]
 
 Options:
   --global               Remove all owned profiles and shared catalogs.
+  --stop-running         Acknowledge interruption of listed running containers.
   --shell <name>         Override shell detection for startup cleanup.
   --startup-file <path>  Select a startup file to clean. Repeatable.
   -h, --help             Show this help.
 
 Without --global, uninstall removes only the profile containing the invoked
-launcher, including its valid prepared registry redirect file. Source
-checkouts, operator registry policy, and external skill exports are preserved.
+launcher. Attached registry policy is cleaned transactionally; running
+containers block a required machine stop unless --stop-running acknowledges
+their interruption. Source checkouts, operator registry policy, and external
+skill exports are preserved.
 
 Examples:
   shimmy uninstall
@@ -220,8 +224,15 @@ shimmy_install_request_parse() {
         STARTUP_OPTION_REQUESTED=1
         shift 2
         ;;
+      --stop-running)
+        [ "$STOP_RUNNING_OPTION_REQUESTED" -eq 0 ] || fail "duplicate option: --stop-running"
+        STOP_RUNNING=1
+        STOP_RUNNING_OPTION_REQUESTED=1
+        shift
+        ;;
       --no-startup)
         SKIP_STARTUP=1
+        NO_STARTUP_OPTION_REQUESTED=1
         shift
         ;;
       --uninstall)

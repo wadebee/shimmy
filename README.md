@@ -122,8 +122,12 @@ profile machine as a same-path symlink to the host profile config, validates it
 as the rootless VM user, and records its fingerprint locally. Active edits do
 not restart the machine; they print the exact profile-local `profile activate
 --restart` command. `remove --all --detach` removes only the invoking profile's
-recognized Linux link or Darwin link/record. Uninstall refuses an attached
-Darwin record. Skopeo is the only initial tool-container opt-in: a current
+recognized Linux link or Darwin link/record and remains available for recovery
+or debugging. Ordinary and global uninstall clean exact attached state
+themselves, restart a running projected machine to clear cached policy, and
+restore the initial machine/default state before local deletion. Running
+containers block a required stop unless `--stop-running` acknowledges their
+interruption. Skopeo is the only initial tool-container opt-in: a current
 invoking profile mounts its authoritative file read-only, and `shimmy images
 verify` inherits that policy without changing logical references. Profiles
 with no activation omit the mount; mismatched, damaged, stale, unsafe, or
@@ -168,10 +172,11 @@ shimmy catalog rebind --checkout /absolute/path/to/shimmy
 Catalog-dependent operations fail before mutation when a registry, checkout,
 generation, or schema is unavailable or invalid. Existing materialized tool
 commands continue to run. Ordinary `shimmy uninstall` removes only the
-invoking profile and leaves shared catalogs and sibling profiles intact;
+invoking profile, including its exact registry activation, and leaves shared
+catalogs and sibling profiles intact;
 `shimmy uninstall --global` explicitly removes every valid owned profile and
-shared catalog, without deleting a bound source checkout or external skill
-export.
+shared catalog after detaching every owned projection, without deleting a
+bound source checkout or external skill export.
 
 Agent skills exported to a repository or home agent profile are external,
 target-manifest-owned state. Canonical management and tool skills remain in

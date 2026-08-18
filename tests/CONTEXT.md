@@ -22,8 +22,8 @@ machine.
 Registry redirect tests use disposable profile and containers configuration
 roots. They validate strict parsing, deterministic rendering, locking, Linux
 link ownership, Darwin same-path projection/link/record seams, fingerprint
-freshness, restart requirements, transaction rollback, detach, and
-install/uninstall preservation without contacting a registry or host engine.
+freshness, restart requirements, transaction rollback, standalone detach, and
+single-command uninstall cleanup without contacting a registry or host engine.
 Skopeo previews additionally prove exact read-only client mounting for the
 active invoking profile, omission with no activation, and fail-closed sibling
 or masking state.
@@ -84,7 +84,9 @@ Lifecycle coverage includes isolated default/upstream bootstrap, clean
 publication, retained-generation rollback (including invalid-current
 recovery), catalog-default adoption only on explicit update, source-loss
 execution independence, profile-only uninstall, and explicit global removal
-that preserves bound checkouts and external skill exports.
+that preserves bound checkouts and external skill exports. Darwin lifecycle
+coverage uses a purpose-built Podman seam for running, stopped, missing,
+workload-guarded, rollback, and two-profile transaction states.
 
 ## Child contexts
 

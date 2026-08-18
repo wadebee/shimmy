@@ -14,8 +14,8 @@ management-plugin directories deliberately have no context-file hierarchy.
   profile-local transactions, the exact Linux active-profile drop-in, and the
   exact Darwin VM projection plus local fingerprint record lifecycle.
 - `commands/profile.sh` and `lib/profile/activation.sh` own explicit
-  profile-bound Podman engine status and activation. Shell initialization owns
-  PATH selection only.
+  profile-bound Podman engine status and activation plus uninstall's guarded
+  Darwin cleanup transitions. Shell initialization owns PATH selection only.
 - `install.sh` bootstraps one canonical profile with the fixed jq/rg baseline
   and sources its generated `shell-init.sh`; the repository has no runnable
   `shimmy` launcher and does not accept tool selection. Sourcing the installer
@@ -54,7 +54,8 @@ version assets. Canonical skills remain catalog-owned.
 - Darwin profiles map deterministically to pre-existing `shimmy-default` and
   `shimmy-upstream` rootless engines; activation is workload-guarded and
   commits the global default connection last. Stale policy requires explicit
-  restart, and uninstall refuses a retained projection record until detach.
+  restart; uninstall transactionally detaches retained projections, clears
+  live cache, and restores the initial engine/default state before deletion.
 - Skopeo alone mounts a valid current invoking-profile registry policy
   read-only; no activation omits it, invalid state fails closed, and image
   verification inherits the mount without rewriting logical references.

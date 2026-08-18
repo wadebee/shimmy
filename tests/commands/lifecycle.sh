@@ -259,28 +259,252 @@ test_commands_lifecycle_registry_upgrade_and_preservation() {
   pass "pre-feature upgrade creates an empty config, valid installs preserve exact bytes, and invalid registry assets fail before profile mutation"
 }
 
-test_commands_lifecycle_darwin_projection_uninstall_refusal() {
+lifecycle_darwin_fake_prepare() {
+  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
+  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$FAKE_PODMAN_BIN"
+  : > "$FAKE_PODMAN_LOG"
+  FAKE_CONNECTION_LIST=
+  FAKE_DARWIN_APPLY_RESULT=
+  FAKE_DARWIN_PROJECTION_STATE=current
+  FAKE_FAIL_ACTION=
+  FAKE_FAIL_MACHINE=
+  FAKE_FAIL_ONCE_FILE=
+  FAKE_MACHINE_LIST=
+  FAKE_WORKLOADS=
+}
+
+lifecycle_darwin_uninstall() {
+  lifecycle_uninstall_launcher=$1
+  shift
+  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST="$FAKE_MACHINE_LIST" \
+    FAKE_CONNECTION_LIST="$FAKE_CONNECTION_LIST" FAKE_WORKLOADS="$FAKE_WORKLOADS" \
+    FAKE_DARWIN_PROJECTION_STATE="$FAKE_DARWIN_PROJECTION_STATE" \
+    FAKE_DARWIN_APPLY_RESULT="$FAKE_DARWIN_APPLY_RESULT" \
+    FAKE_FAIL_ACTION="$FAKE_FAIL_ACTION" FAKE_FAIL_MACHINE="$FAKE_FAIL_MACHINE" \
+    FAKE_FAIL_ONCE_FILE="$FAKE_FAIL_ONCE_FILE" \
+    "$lifecycle_uninstall_launcher" uninstall "$@"
+}
+
+test_commands_lifecycle_darwin_projection_uninstall() {
   setup_scenario_with_profiles default upstream
+  lifecycle_darwin_fake_prepare
   profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  FAKE_MACHINE_LIST='shimmy-default|true
+shimmy-upstream|false'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true
+shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
+
+  profile_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy")
+  assert_contains "$profile_output" 'Detached Darwin registry projection for profile default'
+  assert_contains "$profile_output" 'Restarting Podman machine to clear detached registry policy: shimmy-default'
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+  assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
+  detach_line=$(sed -n '/^machine ssh --username root shimmy-default \/bin\/sh -s -- detach /=' "$FAKE_PODMAN_LOG")
+  restart_stop_line=$(sed -n '/^machine stop shimmy-default$/=' "$FAKE_PODMAN_LOG")
+  restart_start_line=$(sed -n '/^machine start shimmy-default$/=' "$FAKE_PODMAN_LOG")
+  default_line=$(sed -n '/^system connection default shimmy-default$/=' "$FAKE_PODMAN_LOG")
+  [ "$detach_line" -lt "$restart_stop_line" ] && [ "$restart_stop_line" -lt "$restart_start_line" ] &&
+    [ "$restart_start_line" -lt "$default_line" ] ||
+    fail_test 'running-profile uninstall did not detach, restart, and restore the default connection in order'
+  pass 'ordinary Darwin uninstall detaches exact running policy, clears live cache, and preserves the sibling profile'
+}
+
+test_commands_lifecycle_darwin_stopped_guard_and_missing() {
+  setup_scenario_with_profiles default upstream
+  lifecycle_darwin_fake_prepare
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  FAKE_MACHINE_LIST='shimmy-default|false
+shimmy-upstream|false'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
+shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  stopped_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy")
+  assert_contains "$stopped_output" 'Starting Podman machine for registry cleanup: shimmy-default'
+  assert_contains "$stopped_output" 'Restoring initial machine state by stopping: shimmy-default'
+  assert_contains "$stopped_output" 'Restoring initial Podman default connection: shimmy-upstream'
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+
+  setup_scenario_with_profiles default upstream
+  lifecycle_darwin_fake_prepare
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  FAKE_MACHINE_LIST='shimmy-default|false
+shimmy-upstream|true'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
+shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_WORKLOADS='abc123|important'
   set +e
-  profile_output=$(default_shimmy uninstall 2>&1)
-  profile_status=$?
+  guard_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" 2>&1)
+  guard_status=$?
   set -e
-  [ "$profile_status" -ne 0 ] || fail_test 'profile uninstall unexpectedly removed an attached Darwin projection record'
-  assert_contains "$profile_output" "'$DEFAULT_PROFILE_ROOT/bin/shimmy' profile redirect remove --all --detach"
+  [ "$guard_status" -ne 0 ] || fail_test 'running alternate workloads unexpectedly allowed uninstall without acknowledgement'
+  assert_contains "$guard_output" 'abc123|important'
+  assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop shimmy-upstream'
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/machine-projection.txt"
+  : > "$FAKE_PODMAN_LOG"
+  acknowledged_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" --stop-running 2>&1)
+  assert_contains "$acknowledged_output" 'acknowledged workloads were interrupted'
+  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop shimmy-upstream'
+  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine start shimmy-upstream'
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+
+  setup_scenario_with_profiles default upstream
+  lifecycle_darwin_fake_prepare
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  FAKE_MACHINE_LIST='shimmy-upstream|false'
+  FAKE_CONNECTION_LIST='shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  missing_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy")
+  assert_contains "$missing_output" 'Removing projection record for proven-missing machine: shimmy-default'
+  assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh'
+  assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine start'
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+  pass 'stopped cleanup restores state, alternate workloads require acknowledgement, and proven-missing machines use record-only cleanup'
+}
+
+test_commands_lifecycle_darwin_uninstall_refusals() {
+  setup_scenario_with_profiles default
+  lifecycle_darwin_fake_prepare
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  FAKE_MACHINE_LIST='shimmy-default|true'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  for projection_state in foreign absent; do
+    FAKE_DARWIN_PROJECTION_STATE=$projection_state
+    set +e
+    projection_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" 2>&1)
+    projection_status=$?
+    set -e
+    [ "$projection_status" -ne 0 ] || fail_test "$projection_state Darwin projection unexpectedly allowed uninstall"
+    assert_contains "$projection_output" 'foreign, absent, or invalid Darwin machine projection'
+    assert_file_exists "$DEFAULT_PROFILE_ROOT/machine-projection.txt"
+  done
+
+  FAKE_DARWIN_PROJECTION_STATE=current
+  export CONTAINER_HOST='ssh://secret.invalid/run/user/1/podman/podman.sock'
+  set +e
+  override_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" 2>&1)
+  override_status=$?
+  set -e
+  unset CONTAINER_HOST
+  [ "$override_status" -ne 0 ] || fail_test 'connection override unexpectedly allowed uninstall'
+  assert_contains "$override_output" 'CONTAINER_HOST overrides Podman profile activation'
+  assert_not_contains "$override_output" 'secret.invalid'
+
+  FAKE_FAIL_ACTION=workload
+  set +e
+  workload_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" 2>&1)
+  workload_status=$?
+  set -e
+  [ "$workload_status" -ne 0 ] || fail_test 'unavailable workload inspection unexpectedly allowed uninstall'
+  assert_contains "$workload_output" 'unable to inspect running workloads'
+  FAKE_FAIL_ACTION=
+
+  FAKE_FAIL_ACTION=target_validation
+  set +e
+  unreachable_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" 2>&1)
+  unreachable_status=$?
+  set -e
+  [ "$unreachable_status" -ne 0 ] || fail_test 'unreachable projected engine unexpectedly allowed uninstall'
+  assert_contains "$unreachable_output" 'expected machine shimmy-default is unreachable'
+  FAKE_FAIL_ACTION=
+
+  mkdir "$XDG_CONFIG_HOME_DIR/shimmy/.profile-activation.lock"
+  set +e
+  lock_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" 2>&1)
+  lock_status=$?
+  set -e
+  [ "$lock_status" -ne 0 ] || fail_test 'held activation lock unexpectedly allowed uninstall'
+  assert_contains "$lock_output" 'another Shimmy profile activation holds'
+  rmdir "$XDG_CONFIG_HOME_DIR/shimmy/.profile-activation.lock"
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  pass 'Darwin uninstall refuses foreign projections, overrides, unavailable workload inspection, and held activation locks before deletion'
+}
+
+test_commands_lifecycle_darwin_uninstall_rollback() {
+  for failure_action in projection_detach machine_stop; do
+    setup_scenario_with_profiles default
+    lifecycle_darwin_fake_prepare
+    profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+    FAKE_MACHINE_LIST='shimmy-default|true'
+    FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+    FAKE_DARWIN_APPLY_RESULT=changed
+    FAKE_FAIL_ACTION=$failure_action
+    set +e
+    failure_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" 2>&1)
+    failure_status=$?
+    set -e
+    [ "$failure_status" -ne 0 ] || fail_test "injected Darwin uninstall failure unexpectedly succeeded: $failure_action"
+    assert_contains "$failure_output" 'Rollback result:'
+    assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+    assert_file_exists "$DEFAULT_PROFILE_ROOT/machine-projection.txt"
+  done
+
+  setup_scenario_with_profiles default
+  lifecycle_darwin_fake_prepare
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  FAKE_MACHINE_LIST='shimmy-default|false'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_DARWIN_APPLY_RESULT=changed
+  FAKE_FAIL_ACTION=machine_start
+  set +e
+  start_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" 2>&1)
+  start_status=$?
+  set -e
+  [ "$start_status" -ne 0 ] || fail_test 'injected cleanup start failure unexpectedly succeeded'
+  assert_contains "$start_output" 'Rollback result: prior projections and engine selection restored'
   assert_file_exists "$DEFAULT_PROFILE_ROOT/machine-projection.txt"
 
-  profile_projection_record_write "$UPSTREAM_PROFILE_ROOT" upstream
+  setup_scenario_with_profiles default upstream
+  lifecycle_darwin_fake_prepare
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  FAKE_MACHINE_LIST='shimmy-default|false
+shimmy-upstream|true'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
+shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_DARWIN_APPLY_RESULT=changed
+  FAKE_FAIL_ACTION=machine_start
+  FAKE_FAIL_MACHINE=shimmy-upstream
   set +e
-  global_output=$(default_shimmy uninstall --global 2>&1)
-  global_status=$?
+  machine_restore_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" 2>&1)
+  machine_restore_status=$?
   set -e
-  [ "$global_status" -ne 0 ] || fail_test 'global uninstall unexpectedly crossed an attached Darwin projection record'
-  assert_contains "$global_output" 'profile default remains projected'
+  [ "$machine_restore_status" -ne 0 ] || fail_test 'injected initial-machine restoration failure unexpectedly succeeded'
+  assert_contains "$machine_restore_output" 'Rollback result: incomplete'
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/machine-projection.txt"
+
+  setup_scenario_with_profiles default
+  lifecycle_darwin_fake_prepare
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  FAKE_MACHINE_LIST='shimmy-default|true'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_DARWIN_APPLY_RESULT=changed
+  FAKE_FAIL_ACTION=default_restore
+  FAKE_FAIL_ONCE_FILE=$SCENARIO_DIR/default-failed-once
+  set +e
+  restore_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" 2>&1)
+  restore_status=$?
+  set -e
+  [ "$restore_status" -ne 0 ] || fail_test 'injected default restoration failure unexpectedly succeeded'
+  assert_contains "$restore_output" 'Rollback result: prior projections and engine selection restored'
+  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh --username root shimmy-default /bin/sh -s -- apply'
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/machine-projection.txt"
+
+  setup_scenario_with_profiles default
+  lifecycle_darwin_fake_prepare
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  FAKE_MACHINE_LIST='shimmy-default|true'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_DARWIN_APPLY_RESULT=changed
+  FAKE_FAIL_ACTION=default_restore
+  set +e
+  incomplete_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" 2>&1)
+  incomplete_status=$?
+  set -e
+  [ "$incomplete_status" -ne 0 ] || fail_test 'persistent default restoration failure unexpectedly succeeded'
+  assert_contains "$incomplete_output" 'Rollback result: incomplete'
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
-  assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
-  pass 'profile and global uninstall refuse valid Darwin projection records before removing any profile state'
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/machine-projection.txt"
+  pass 'Darwin uninstall failure injection retains profiles and reports complete or incomplete rollback across detach, start, restart, and default restoration'
 }
 
 test_commands_lifecycle_linux_registry_activation_cleanup() {
@@ -363,11 +587,61 @@ test_commands_lifecycle_global_uninstall() {
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
+  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy"
   assert_dir_exists "$relocated_checkout"
   assert_file_exists "$exported_skill_file"
   assert_file_exists "$exported_manifest"
   assert_file_contains "$XDG_CONFIG_HOME_DIR/containers/registries.conf" operator-policy
   pass "explicit global uninstall removes only owned profiles and catalogs while preserving checkouts and external skill exports"
+}
+
+test_commands_lifecycle_global_uninstall_darwin_transaction() {
+  setup_scenario_with_profiles default upstream
+  lifecycle_darwin_fake_prepare
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  profile_projection_record_write "$UPSTREAM_PROFILE_ROOT" upstream
+  FAKE_MACHINE_LIST='shimmy-default|true
+shimmy-upstream|false'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true
+shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
+  global_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" --global)
+  assert_contains "$global_output" 'Detached Darwin registry projection for profile default'
+  assert_contains "$global_output" 'Detached Darwin registry projection for profile upstream'
+  default_detach_line=$(sed -n '/^machine ssh --username root shimmy-default \/bin\/sh -s -- detach /=' "$FAKE_PODMAN_LOG")
+  upstream_detach_line=$(sed -n '/^machine ssh --username root shimmy-upstream \/bin\/sh -s -- detach /=' "$FAKE_PODMAN_LOG")
+  [ "$default_detach_line" -lt "$upstream_detach_line" ] ||
+    fail_test 'global uninstall did not detach profiles in deterministic order'
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+  assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
+  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
+
+  setup_scenario_with_profiles default upstream
+  lifecycle_darwin_fake_prepare
+  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
+  profile_projection_record_write "$UPSTREAM_PROFILE_ROOT" upstream
+  default_record_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/machine-projection.txt")
+  upstream_record_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/machine-projection.txt")
+  FAKE_MACHINE_LIST='shimmy-default|true
+shimmy-upstream|false'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true
+shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
+  FAKE_FAIL_ACTION=projection_detach
+  FAKE_FAIL_MACHINE=shimmy-upstream
+  FAKE_DARWIN_APPLY_RESULT=changed
+  set +e
+  rollback_output=$(lifecycle_darwin_uninstall "$DEFAULT_PROFILE_ROOT/bin/shimmy" --global 2>&1)
+  rollback_status=$?
+  set -e
+  [ "$rollback_status" -ne 0 ] || fail_test 'later global projection detach failure unexpectedly removed owned state'
+  assert_contains "$rollback_output" 'Rollback: registry projection restored for default'
+  assert_contains "$rollback_output" 'Rollback result: prior projections and engine selection restored'
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/machine-projection.txt")" "$default_record_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/machine-projection.txt")" "$upstream_record_checksum"
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
+  assert_dir_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default"
+  assert_dir_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream"
+  pass 'global Darwin uninstall detaches every profile before deletion and reprojects earlier profiles after a later failure'
 }
 
 test_commands_lifecycle_catalog_independent_execution() {
@@ -473,6 +747,10 @@ test_commands_lifecycle_complete() {
   test_commands_lifecycle_legacy_agent_refresh
   test_commands_lifecycle_legacy_agent_rollback
   test_commands_lifecycle_linux_registry_activation_cleanup
-  test_commands_lifecycle_darwin_projection_uninstall_refusal
+  test_commands_lifecycle_darwin_projection_uninstall
+  test_commands_lifecycle_darwin_stopped_guard_and_missing
+  test_commands_lifecycle_darwin_uninstall_refusals
+  test_commands_lifecycle_darwin_uninstall_rollback
   test_commands_lifecycle_global_uninstall
+  test_commands_lifecycle_global_uninstall_darwin_transaction
 }

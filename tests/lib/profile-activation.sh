@@ -6,6 +6,18 @@ profile_activation_fake_create() {
   {
     printf '%s\n' '#!/bin/sh' 'set -eu'
     printf '%s\n' 'printf "%s\n" "$*" >> "$FAKE_PODMAN_LOG"'
+    printf '%s\n' \
+      'fake_fail_requested() {' \
+      '  requested_action=$1' \
+      '  requested_machine=${2:-}' \
+      '  [ "${FAKE_FAIL_ACTION:-}" = "$requested_action" ] || return 1' \
+      '  [ -z "${FAKE_FAIL_MACHINE:-}" ] || [ "$FAKE_FAIL_MACHINE" = "$requested_machine" ] || return 1' \
+      '  if [ -n "${FAKE_FAIL_ONCE_FILE:-}" ]; then' \
+      '    [ ! -e "$FAKE_FAIL_ONCE_FILE" ] || return 1' \
+      '    : > "$FAKE_FAIL_ONCE_FILE"' \
+      '  fi' \
+      '  return 0' \
+      '}'
     printf '%s\n' 'case "$*" in'
     printf '%s\n' \
       "  \"machine list --format {{.Name}}|{{.Running}}\") printf '%s\\n' \"\${FAKE_MACHINE_LIST:-}\" ;;" \
@@ -25,6 +37,7 @@ profile_activation_fake_create() {
       '    ;;' \
       '  "machine ssh "*)' \
       '    if [ "${3:-}" = --username ]; then' \
+      '      machine_name=${5:-}' \
       '      action=${9:-}' \
       '      case "$action" in' \
       '        inspect)' \
@@ -32,11 +45,12 @@ profile_activation_fake_create() {
       "          printf '%s\\n' \"\${FAKE_DARWIN_PROJECTION_STATE:-current}\"" \
       '          ;;' \
       '        apply)' \
+      '          fake_fail_requested projection_rollback "$machine_name" && exit 58' \
       '          [ "${FAKE_FAIL_ACTION:-}" != projection_apply ] || exit 53' \
       '          if [ -n "${FAKE_DARWIN_APPLY_RESULT:-}" ]; then printf "%s\n" "$FAKE_DARWIN_APPLY_RESULT"; else case "${FAKE_DARWIN_PROJECTION_STATE:-current}" in absent) printf "%s\n" changed ;; current) printf "%s\n" unchanged ;; *) exit 54 ;; esac; fi' \
       '          ;;' \
       '        detach|rollback)' \
-      '          [ "${FAKE_FAIL_ACTION:-}" != projection_detach ] || exit 55' \
+      '          fake_fail_requested projection_detach "$machine_name" && exit 59' \
       '          printf "%s\n" detached' \
       '          ;;' \
       '        *) exit 91 ;;' \
@@ -59,16 +73,19 @@ profile_activation_fake_create() {
       '    ;;' \
       '  "machine stop "*)' \
       '    machine_name=${3:-}' \
+      '    fake_fail_requested machine_stop "$machine_name" && exit 60' \
       '    if [ "${FAKE_FAIL_ACTION:-}" = stop ] && [ "$machine_name" = "${FAKE_PRIOR_MACHINE:-}" ]; then exit 44; fi' \
       '    if [ "${FAKE_ROLLBACK_FAIL:-}" = target_cleanup ] && [ "$machine_name" = "${FAKE_TARGET_MACHINE:-}" ]; then exit 45; fi' \
       '    ;;' \
       '  "machine start "*)' \
       '    machine_name=${3:-${2:-}}' \
+      '    fake_fail_requested machine_start "$machine_name" && exit 61' \
       '    if [ "${FAKE_FAIL_ACTION:-}" = target_start ] && [ "$machine_name" = "${FAKE_TARGET_MACHINE:-}" ]; then exit 46; fi' \
       '    if [ "${FAKE_ROLLBACK_FAIL:-}" = prior_restart ] && [ "$machine_name" = "${FAKE_PRIOR_MACHINE:-}" ]; then exit 47; fi' \
       '    ;;' \
       '  "system connection default "*)' \
       '    connection_name=${4:-${3:-}}' \
+      '    fake_fail_requested default_restore "$connection_name" && exit 62' \
       '    if [ "${FAKE_FAIL_ACTION:-}" = default_commit ] && [ "$connection_name" = "${FAKE_TARGET_MACHINE:-}" ]; then exit 48; fi' \
       '    if [ "${FAKE_ROLLBACK_FAIL:-}" = default_restore ] && [ "$connection_name" = "${FAKE_PRIOR_DEFAULT:-}" ]; then exit 49; fi' \
       '    ;;' \
@@ -95,6 +112,7 @@ profile_activation_library_run() {
     FAKE_ACTIVE_LINK="${FAKE_ACTIVE_LINK:-}" FAKE_ACTIVE_CONFIG="${FAKE_ACTIVE_CONFIG:-}" \
     FAKE_FAIL_LINUX_TARGET="${FAKE_FAIL_LINUX_TARGET:-}" FAKE_FAIL_LINUX_CONFIG_PATTERN="${FAKE_FAIL_LINUX_CONFIG_PATTERN:-}" \
     FAKE_FAIL_ACTION="${FAKE_FAIL_ACTION:-}" FAKE_ROLLBACK_FAIL="${FAKE_ROLLBACK_FAIL:-}" FAKE_PRIOR_MACHINE="${FAKE_PRIOR_MACHINE:-}" \
+    FAKE_FAIL_MACHINE="${FAKE_FAIL_MACHINE:-}" FAKE_FAIL_ONCE_FILE="${FAKE_FAIL_ONCE_FILE:-}" \
     FAKE_TARGET_MACHINE="${FAKE_TARGET_MACHINE:-}" FAKE_PRIOR_DEFAULT="${FAKE_PRIOR_DEFAULT:-}" \
     /bin/sh -c '
       set -eu
