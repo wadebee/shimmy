@@ -4,6 +4,17 @@
 shimmy__bootstrap_run() {
   shimmy__bootstrap_tool_baseline='jq rg'
   shimmy__bootstrap_profile_name=default
+  shimmy__bootstrap_running_shell=
+
+  if [ -n "${BASH_VERSION:-}" ] && [ "${BASH_SOURCE:-$0}" != "$0" ]; then
+    shimmy__bootstrap_running_shell=${BASH:-bash}
+  elif [ -n "${ZSH_VERSION:-}" ]; then
+    case ${ZSH_EVAL_CONTEXT:-} in
+      *:file*)
+        shimmy__bootstrap_running_shell=$(command -v zsh 2>/dev/null || printf '%s\n' zsh)
+        ;;
+    esac
+  fi
 
   case "${1:-}" in
     --profile)
@@ -113,7 +124,8 @@ EOF
       exit 1
     }
     SHIMMY_BOOTSTRAP_PROFILE=$shimmy__bootstrap_profile_name
-    export SHIMMY_BOOTSTRAP_PROFILE
+    SHIMMY_BOOTSTRAP_RUNNING_SHELL=$shimmy__bootstrap_running_shell
+    export SHIMMY_BOOTSTRAP_PROFILE SHIMMY_BOOTSTRAP_RUNNING_SHELL
     for shimmy__bootstrap_tool in $shimmy__bootstrap_tool_baseline; do
       set -- "$@" --shim "$shimmy__bootstrap_tool"
     done
@@ -153,6 +165,7 @@ unset shimmy__bootstrap_argument shimmy__bootstrap_candidate
 unset shimmy__bootstrap_help_requested
 unset shimmy__bootstrap_tool shimmy__bootstrap_tool_baseline
 unset shimmy__bootstrap_profile_name shimmy__bootstrap_profile_root
+unset shimmy__bootstrap_running_shell
 unset shimmy__bootstrap_pwd_candidate shimmy__bootstrap_script_candidate
 unset shimmy__bootstrap_script_parent shimmy__bootstrap_shell_init_file
 unset shimmy__bootstrap_source_root

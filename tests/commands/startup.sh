@@ -118,8 +118,47 @@ test_commands_startup_managed_policy_lifecycle() {
   pass "managed policy is inherited exactly by install, update, repair, repeat bootstrap, upstream work, and uninstall"
 }
 
+test_commands_startup_shell_mismatch_confirmation() {
+  [ -x /bin/bash ] || {
+    pass "startup shell mismatch confirmation requires Bash when available"
+    return 0
+  }
+  setup_scenario
+
+  set +e
+  mismatch_denied_output=$(
+    printf '\n' | env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" \
+      XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHELL=/bin/zsh \
+      PATH=/usr/bin:/bin /bin/bash -c '
+        cd "$TEST_ROOT_DIR"
+        source ./install.sh
+      ' 2>&1
+  )
+  mismatch_denied_status=$?
+  set -e
+  [ "$mismatch_denied_status" -ne 0 ] || fail_test "shell mismatch unexpectedly proceeded without permission"
+  assert_contains "$mismatch_denied_output" 'startup shell discrepancy: configured=/bin/zsh running=/bin/bash'
+  assert_contains "$mismatch_denied_output" 'source ./install.sh --shell bash'
+  assert_contains "$mismatch_denied_output" 'Proceed with zsh startup integration? [y/N]'
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
+
+  mismatch_allowed_output=$(
+    printf 'yes\n' | env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" \
+      XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHELL=/bin/zsh \
+      PATH=/usr/bin:/bin /bin/bash -c '
+        cd "$TEST_ROOT_DIR"
+        source ./install.sh
+      ' 2>&1
+  )
+  assert_contains "$mismatch_allowed_output" 'startup shell discrepancy: configured=/bin/zsh running=/bin/bash'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'startup_shell=zsh'
+  assert_file_contains "$HOME_DIR/.zshrc" '# >>> shimmy default profile >>>'
+  pass "startup shell discrepancy requires consent before managed installation"
+}
+
 test_commands_startup_run() {
   test_commands_startup_inferred_and_manual_policy
   test_commands_startup_managed_policy_lifecycle
+  test_commands_startup_shell_mismatch_confirmation
   test_commands_startup_failure_retry
 }

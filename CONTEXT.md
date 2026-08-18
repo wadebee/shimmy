@@ -22,7 +22,9 @@ management-plugin directories deliberately have no context-file hierarchy.
   retains shell initialization, while execution remains suitable for
   automation and absolute-path self-update. Fresh default bootstrap records
   one immutable normalized startup shell and a managed exact-path or manual
-  policy; later lifecycle operations inherit that manifest-owned state.
+  policy; an identifiable running-shell discrepancy requires consent before
+  managed startup mutation, and later lifecycle operations inherit that
+  manifest-owned state.
 - `tools/` owns each tool's metadata, versions, container context, guide, and
   canonical skill.
 - `plugins/shimmy/skills/` owns the five canonical control-plane skills.

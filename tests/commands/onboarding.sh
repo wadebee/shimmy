@@ -317,16 +317,16 @@ test_commands_onboarding_startup_failure() {
   setup_scenario
   mkdir "$HOME_DIR/.zshrc"
   failure_output=$(
-    env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" \
+    printf 'yes\n' | env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" \
       XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
-        cd "$TEST_ROOT_DIR"
-        path_before=$PATH
-        . ./install.sh --shell zsh >/dev/null 2>&1
-        printf "status=%s\n" "$?"
-        printf "path_unchanged=%s\n" "$([ "$PATH" = "$path_before" ] && printf yes || printf no)"
-        command -v shimmy >/dev/null 2>&1 && printf "shimmy=selected\n"
-        printf "after=startup-failure\n"
-      '
+          cd "$TEST_ROOT_DIR"
+          path_before=$PATH
+          . ./install.sh --shell zsh >/dev/null 2>&1
+          printf "status=%s\n" "$?"
+          printf "path_unchanged=%s\n" "$([ "$PATH" = "$path_before" ] && printf yes || printf no)"
+          command -v shimmy >/dev/null 2>&1 && printf "shimmy=selected\n"
+          printf "after=startup-failure\n"
+        '
   )
   assert_contains "$failure_output" 'status=1'
   assert_contains "$failure_output" 'path_unchanged=yes'

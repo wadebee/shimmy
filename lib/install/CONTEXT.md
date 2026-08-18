@@ -38,8 +38,9 @@ set connection variables.
 - `startup.sh` renders the profile's `shell-init.sh` asset and applies
   persistent startup integration only for `default`. Fresh bootstrap records
   one normalized shell and either its conventional exact paths or manual
-  policy. Existing-profile operations inherit that state; only unqualified
-  checkout repair writes its recorded managed paths.
+  policy. An identifiable running-shell discrepancy requires confirmation
+  before catalog or profile mutation. Existing-profile operations inherit that
+  state; only unqualified checkout repair writes its recorded managed paths.
 - `uninstall.sh` ordinarily removes only validated assets owned by the
   enclosing profile. It acquires the activation lock before deterministic
   profile locks, tears down exact registry projections, restores Darwin engine

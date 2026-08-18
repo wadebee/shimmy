@@ -71,10 +71,11 @@ is the behavior under test.
   self-update scenario starts from session-scoped pristine profile clones so
   it measures update behavior without repeating repository bootstraps.
 - `startup.sh` covers inferred Bash targets, explicit zsh selection, dash
-  normalization, manual policy, immutable repeat bootstrap, and preservation
-  across additive install and ordinary update. It proves exact-ledger repair
-  under a changed home, upstream isolation, exact uninstall cleanup, and
-  post-commit startup failure/retry against conventional targets.
+  normalization, manual policy, required consent for an identifiable running
+  shell discrepancy, immutable repeat bootstrap, and preservation across
+  additive install and ordinary update. It proves exact-ledger repair under a
+  changed home, upstream isolation, exact uninstall cleanup, and post-commit
+  startup failure/retry against conventional targets.
 - `skills.sh` covers split catalog-owned canonical skill sources, checked-in
   adapter fingerprints, one-file repository/home and portable exports,
   profile-local activation/workload/provisioning guidance in refreshed exports,

@@ -9,6 +9,7 @@ INSTALL_MODULE_DIR=$ROOT_DIR/lib/install
 
 REQUESTED_SHIMS=
 BOOTSTRAP_NO_STARTUP=0
+BOOTSTRAP_RUNNING_SHELL=${SHIMMY_BOOTSTRAP_RUNNING_SHELL:-}
 BOOTSTRAP_STARTUP_POLICY_REQUESTED=0
 BOOTSTRAP_STARTUP_SHELL=
 STARTUP_FILE_PATHS=
@@ -313,6 +314,8 @@ perform_install() {
   if [ "$PROFILE_EXISTS" -eq 1 ] && [ "$BOOTSTRAP_STARTUP_POLICY_REQUESTED" -eq 1 ]; then
     fail "startup policy is fixed when the default profile is created; uninstall and recreate the profile to choose a different policy"
   fi
+  resolve_startup_settings
+  shimmy_install_startup_shell_alignment_confirm
   profile_catalog_prepare
   validate_requested_shims
   profile_catalog_register
@@ -320,7 +323,6 @@ perform_install() {
   validate_requested_shims
   profile_materialization_catalog_snapshot_record
   profile_source_checkout_resolve
-  resolve_startup_settings
   if [ "${SHIMMY_UPDATE_MANAGEMENT_REFRESH:-0}" -ne 1 ]; then
     profile_selection_merge
   fi

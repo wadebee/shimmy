@@ -23,6 +23,36 @@ resolve_startup_settings() {
   STARTUP_FILES_UPDATE=1
 }
 
+shimmy_install_startup_shell_alignment_confirm() {
+  [ "$SHIMMY_PROFILE_RESOLVED" = default ] || return 0
+  [ -n "$STARTUP_FILE_PATHS" ] || return 0
+  [ -n "$BOOTSTRAP_RUNNING_SHELL" ] || return 0
+
+  running_shell_basename=$(basename -- "$BOOTSTRAP_RUNNING_SHELL")
+  running_shell_name=$(shimmy_shell_name_normalize "$running_shell_basename") || return 0
+  [ "$running_shell_name" != "$STARTUP_SHELL" ] || return 0
+
+  configured_shell_path=$(command -v "$STARTUP_SHELL" 2>/dev/null || printf '%s\n' "$STARTUP_SHELL")
+  running_shell_path=$BOOTSTRAP_RUNNING_SHELL
+
+  log_warn "startup shell discrepancy: configured=$configured_shell_path running=$running_shell_path"
+  log_warn "Shimmy will update $STARTUP_SHELL startup files but initialize PATH in the running $running_shell_name shell."
+  log_warn "To align them, cancel and run this bootstrap from $STARTUP_SHELL, or recreate a fresh default profile from $running_shell_name with: source ./install.sh --shell $running_shell_name"
+  if [ "$PROFILE_EXISTS" -eq 1 ]; then
+    log_warn "The existing default profile must be uninstalled before its recorded startup shell can change."
+  fi
+  printf 'Proceed with %s startup integration? [y/N] ' "$STARTUP_SHELL" >&2
+  if IFS= read -r startup_shell_confirmation; then
+    :
+  else
+    startup_shell_confirmation=
+  fi
+  case "$startup_shell_confirmation" in
+    y|Y|yes|YES|Yes) return 0 ;;
+    *) fail "installation cancelled because configured and running shells differ" ;;
+  esac
+}
+
 shimmy_install_startup_update() {
   [ "$SHIMMY_PROFILE_RESOLVED" = default ] || return 0
   [ "$STARTUP_FILES_UPDATE" -eq 1 ] || return 0

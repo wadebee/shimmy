@@ -44,6 +44,16 @@ for zsh, `.profile` for POSIX-like shells, or `.bashrc` plus the active Bash
 login file (`.bash_profile`, `.bash_login`, or `.profile`; `.bash_profile` is
 created when none exists).
 
+When a sourced bootstrap identifies a running Bash or Zsh that differs from the
+managed startup shell, installation pauses before mutation and requires
+confirmation. The warning reports both shells and explains how to align them:
+run the bootstrap from the configured shell, or use `--shell` while creating a
+fresh default profile to select the running shell. An existing profile must be
+uninstalled and recreated to change its recorded startup shell. Executed
+automation cannot initialize its parent shell and remains non-interactive.
+Manual `--no-startup` and `upstream` bootstraps do not manage startup files and
+therefore do not require this confirmation.
+
 Use `--no-startup` only while creating a fresh default profile to select manual
 policy. The normalized shell is still recorded, but no startup files are owned
 or changed. Later unqualified checkout bootstraps inherit the recorded policy

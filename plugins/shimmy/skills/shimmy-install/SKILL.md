@@ -112,14 +112,19 @@ After successful activation, users can switch their current shell by sourcing
 the desired profile's absolute `shell-init.sh`.
 Only `default` may manage persistent startup blocks. Fresh bootstrap records
 one normalized shell from `--shell <name>` or `$SHELL`. Managed policy resolves
-that shell's conventional paths once; fresh-bootstrap `--no-startup` records
-manual policy with no owned files. Later bootstraps and installed lifecycle
-operations inherit the manifest state. `shimmy update --repair-startup` repairs
-only the exact recorded paths and is a no-op for manual policy. Changing policy
-requires uninstalling and recreating the default profile; `upstream` never
-changes shell startup files. Installed `shimmy install` accepts only repeatable
-`--shim` selection, and installed launchers derive profile identity from their
-enclosing root rather than a `--profile` option.
+that shell's conventional paths once. When a sourced bootstrap identifies a
+running Bash or Zsh that differs from the managed startup shell, bootstrap warns
+with both values and requires confirmation before mutation. Align them by
+running bootstrap from the configured shell or selecting the running shell with
+`--shell` during fresh creation. Executed automation remains non-interactive.
+Fresh-bootstrap `--no-startup` records manual policy with no owned files. Later
+bootstraps and installed lifecycle operations inherit the manifest state.
+`shimmy update --repair-startup` repairs only the exact recorded paths and is a
+no-op for manual policy. Changing policy requires uninstalling and recreating
+the default profile; `upstream` never changes shell startup files. Installed
+`shimmy install` accepts only repeatable `--shim` selection, and installed
+launchers derive profile identity from their enclosing root rather than a
+`--profile` option.
 
 For a manual policy with a nonstandard startup chain, add the generated
 `shell-init.sh` source block to the chosen interactive or login startup file.
