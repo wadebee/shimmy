@@ -1,4 +1,5 @@
 # Profile Podman Activation and Registry Redirect Plan
+**Status:** in-progress
 
 ## Objective
 

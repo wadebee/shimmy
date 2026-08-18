@@ -7,6 +7,22 @@ description: Guidance for using, changing, testing, and troubleshooting the jq s
 
 Use this skill when working with the jq tool, its tests, its docs, or jq usage through Shimmy.
 
+## AI Agent Evidence Order
+
+1. If the installed wrapper's safe outer-command prefix is already approved,
+   run the actual requested operation with escalation on the first attempt. Do
+   not first run a sandboxed Podman call or a version smoke.
+2. Treat a sandbox-only unreachable, unknown, socket-denied, or
+   `operation not permitted` result as `unverified from the sandbox`, not as an
+   inactive profile. Retry the same wrapper operation through
+   `shimmy-escalation` before profile inspection or fallback.
+3. Use `shimmy-init` only if the escalated wrapper still proves a
+   profile-affinity, engine, connection, or registry-projection failure. Never
+   activate a profile automatically from sandbox-only evidence.
+4. Approval scope: `["jq"]` is an acceptable bounded persistent prefix for
+   local JSON filtering. Shell redirection or any surrounding mutating command
+   remains outside that approval and requires its own authorization.
+
 ## Files
 
 - Tool metadata: `tools/jq/tool.conf`

@@ -1,7 +1,8 @@
 # Unit-test performance improvement plan
+**Status:** complete
 
-**Status:** Complete — all three chunks were implemented, objectively
-verified, and accepted on 2026-08-17.
+All three chunks were implemented, objectively verified, and accepted on
+2026-08-17.
 
 **Benchmark policy note:** This completed plan retains its three-sample tables
 as historical evidence. Its repeated-run and median instructions are

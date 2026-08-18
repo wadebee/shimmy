@@ -5,6 +5,22 @@ description: Use and maintain the OpenShift CLI Shimmy tool.
 
 # OpenShift CLI Shim
 
+## AI Agent Evidence Order
+
+1. If the installed wrapper's safe outer-command prefix is already approved,
+   run the actual requested operation with escalation on the first attempt. Do
+   not first run a sandboxed Podman call or a version smoke.
+2. Treat a sandbox-only unreachable, unknown, socket-denied, or
+   `operation not permitted` result as `unverified from the sandbox`, not as an
+   inactive profile. Retry the same wrapper operation through
+   `shimmy-escalation` before profile inspection or fallback.
+3. Use `shimmy-init` only if the escalated wrapper still proves a
+   profile-affinity, engine, connection, or registry-projection failure. Never
+   activate a profile automatically from sandbox-only evidence.
+4. Approval scope: require the exact informational or explicitly authorized
+   OpenShift command, context, and resource arguments. Do not persist a broad
+   `oc` prefix because authenticated commands can mutate cluster resources.
+
 Read `CONTEXT.md`, `CONTRIBUTING.md`, and
 `tools/oc/guide.md`.
 `SHIMMY_OC_VERSION` selects a supported local-build version; metadata defaults

@@ -62,10 +62,28 @@ The authoritative Shimmy control-plane skills are under
 - When testing containers, use live Podman and non-mutating cli calls (eg: version or --help) to validate execution  
 - Ensure runnable shell files keep executable bits.
 - It is important that you use Shimmy tools when available. This requires Podman to be running.
-- If a Shimmy-backed tool exists for a task and the wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, do not silently fall back to host tools for the same capability. Use the `shimmy-escalation` workflow and request approval for the exact outer wrapper command prefix. For search or listing work, if `rg` is available as a Shimmy shim and fails, request approval for the needed `rg` wrapper prefix before using alternatives such as `find`, `grep`, or host-installed search tools. Use a non-shim fallback only after the user explicitly approves it, preferably with the phrase `fallback approved`.
+- If a selected command is a Shimmy wrapper and its safe outer-wrapper prefix
+  is already approved, run the actual task operation with escalation on the
+  first attempt; do not first make a sandboxed Podman call or a preliminary
+  version smoke. For repeated read-only repository searches, `["rg"]` is an
+  acceptable bounded persistent prefix. Do not announce or invoke the
+  `shimmy-escalation` workflow merely because an existing approval is being
+  used. If approval is absent or denied, use that workflow for the actual
+  wrapper operation before considering a host-tool fallback. Use a non-shim
+  fallback only after the user explicitly approves it, preferably with the
+  phrase `fallback approved`.
 - For installed shims already selected on `PATH`, invoke the normal tool name such as `rg` or `jq`; do not call the resolved installed shim path. Before selecting another profile, use its absolute launcher for `profile status`, `profile activate --dry-run`, and the exact approved `profile activate` command. Require separate confirmation before adding `--stop-running`; never provision, delete, rename, or adopt a machine. Source the profile's `shell-init.sh` only after activation when PATH initialization is needed. Agent tool calls do not retain earlier sourcing, so use an absolute dispatcher or same-command sourcing when the target is not already on `PATH`. For source previews, use `./commands/run-tool.sh <tool> --preview-shim ...` or the concrete version runtime selected by that tool's `tool.conf`.
 - When running repo commands, invoke them directly with `exec_command` `login=false` unless profile or startup-file behavior is explicitly under test. Do not use `bash -lc` or login shells for Shimmy commands unless needed.
-- In AI Agent environments, approvals are evaluated on the outer command. If `podman info` succeeds but a Shimmy-backed tool still reports Podman-unreachable or sandbox-permission symptoms, use the `shimmy-escalation` workflow before asking the user for a Podman remediation plan. For availability smoke checks, request approval for the exact dry-run command prefix such as `["rg","--version"]`, `["jq","--version"]`, or `["./commands/run-tool.sh","rg","--version"]`; approval for `["podman", "info"]` alone does not approve nested Podman access through a wrapper.
+- In AI Agent environments, approvals are evaluated on the outer command. A
+  sandbox-only `unreachable`, `unknown`, socket-denied, or
+  `operation not permitted` result means the selected profile is `unverified
+  from the sandbox`; it does not prove the profile is inactive. Retry the same
+  wrapper operation with outer-command escalation. Only if that escalated call
+  still reports a profile-affinity, engine, connection, or registry-projection
+  failure should `shimmy-init` inspect or activate the profile. Never activate
+  a profile automatically from sandbox-only evidence. Approval for
+  `["podman","info"]` does not approve Podman access nested through a wrapper,
+  and wrapper approval does not authorize profile activation.
 - Canonical skill changes never authorize edits to generated `.agents/skills/` adapters. Refresh accepted repository or home adapters only with the explicit profile-local `shimmy skills update --target repo|profile` lifecycle.
 
 ## Refactoring Lessons Learned

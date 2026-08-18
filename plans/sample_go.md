@@ -1,4 +1,5 @@
 Updated Command Behavior
+**Status:** not started
 
 host config init should be hierarchical and ergonomic.
 

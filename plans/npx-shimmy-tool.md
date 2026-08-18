@@ -1,4 +1,5 @@
 # General-purpose npx Shimmy tool
+**Status:** in-progress
 
 ## Objective
 

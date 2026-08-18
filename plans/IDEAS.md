@@ -1,4 +1,6 @@
 # Strategies to Beat the 2-VM Limit on Apple Silicon:
+**Status:** not started
+
 Remote Connections (True Concurrency): If you need truly concurrent environments, you must run the additional Podman instances on external Linux servers (or a Linux VM managed outside of podman machine, e.g., via UTM or Multipass) and add them as remote connections:
 ## Add an external server as a connection
 podman system connection add external-vm ssh://user@192.168.1.50/run/podman/podman.sock

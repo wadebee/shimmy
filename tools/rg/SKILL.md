@@ -7,6 +7,22 @@ description: Guidance for using, changing, testing, and troubleshooting the ripg
 
 Use this skill when working with the ripgrep tool, its tests, its docs, or ripgrep usage through Shimmy.
 
+## AI Agent Evidence Order
+
+1. If the installed wrapper's safe outer-command prefix is already approved,
+   run the actual requested operation with escalation on the first attempt. Do
+   not first run a sandboxed Podman call or a version smoke.
+2. Treat a sandbox-only unreachable, unknown, socket-denied, or
+   `operation not permitted` result as `unverified from the sandbox`, not as an
+   inactive profile. Retry the same wrapper operation through
+   `shimmy-escalation` before profile inspection or fallback.
+3. Use `shimmy-init` only if the escalated wrapper still proves a
+   profile-affinity, engine, connection, or registry-projection failure. Never
+   activate a profile automatically from sandbox-only evidence.
+4. Approval scope: `["rg"]` is an acceptable bounded persistent prefix for
+   read-only repository search and listing. Shell redirection or any
+   surrounding mutating command requires its own authorization.
+
 ## Files
 
 - Tool metadata: `tools/rg/tool.conf`
@@ -59,14 +75,20 @@ removed repository `shims/` paths.
 2. Do not add mounts or env forwarding without a clear ripgrep requirement.
 3. Reconcile runtime, docs, README, and tests deliberately if changing the image or tag strategy.
 4. Use non-mutating smoke checks such as `rg --version` or `rg --files`.
-5. If the `rg` Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using `find`, `grep`, or host-installed search tools.
+5. If the `rg` Shimmy wrapper is sandbox-blocked, retry the same search through
+   the `shimmy-escalation` workflow before inspecting profile activation or
+   using `find`, `grep`, or host-installed search tools. Use `shimmy-init` only
+   if the escalated wrapper call still proves a profile or engine failure.
 6. Update the runtime shim, docs, tests, installer behavior, and README together when behavior changes.
 
 ## Validation
 
 - Direct smoke: `./commands/run-tool.sh rg --version`
 - Search/list smoke: `./commands/run-tool.sh rg --files`
-- Keep AI Agent approvals scoped to the exact dry-run wrapper prefix such as `["rg","--version"]` or `["./commands/run-tool.sh rg","--version"]`.
+- For repeated read-only installed searches, `["rg"]` is a bounded persistent
+  approval prefix. Keep smoke-only and repo-local approvals scoped to their
+  exact commands, such as `["rg","--version"]` or
+  `["./commands/run-tool.sh","rg","--version"]`.
 
 ## Learning Guidance
 

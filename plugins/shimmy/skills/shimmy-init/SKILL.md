@@ -1,12 +1,13 @@
 ---
 name: shimmy-init
-description: Initialize and verify Podman readiness for Shimmy-backed tools. Use whenever a Shimmy wrapper reports an inactive profile, engine mismatch, Podman access failure, connection refusal, operation-not-permitted error, stale socket, or unreachable service.
+description: Initialize and verify Podman readiness after an escalated Shimmy wrapper call proves a profile or engine problem. Do not use for sandbox-only reachability failures.
 ---
 
 # Shimmy Init
 
-Use this skill whenever a Shimmy tool fails because its profile-bound Podman
-engine may not be active or reachable.
+Use this skill when a Shimmy tool still fails outside the sandbox because its
+profile-bound Podman engine is demonstrably inactive, mismatched, stopped,
+missing, stale, masked, or unreachable.
 
 ## Goal
 
@@ -22,26 +23,34 @@ scripting-language approval.
 
 ## Workflow
 
-1. Resolve the selected installed profile:
+1. Confirm the entry evidence:
+   - Require a failed wrapper invocation that already used the AI Agent's
+     outer-command approval mechanism, or an explicit user request to inspect
+     or activate a profile.
+   - A sandbox-only `unreachable`, `unknown`, socket-denied, or
+     `operation not permitted` result means `unverified from the sandbox`, not
+     `inactive`. Return that case to `shimmy-escalation` for the same wrapper
+     operation to be retried with escalation.
+2. Resolve the selected installed profile:
    - Prefer the profile containing the resolved `shimmy` or tool command.
    - Require the canonical absolute root
      `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<default|upstream>`.
    - Set `profile_root` to that validated absolute path and use
      `"$profile_root/bin/shimmy"` for every management check. Do not activate a
      sibling profile through the currently selected launcher.
-2. Check control-plane support:
+3. Check control-plane support:
    - Run `"$profile_root/bin/shimmy" profile --help`.
    - If the installed profile lacks `profile activate`, stop and give
      user-shell guidance to update or reinstall that profile. Do not replace
      the missing control plane with direct `podman machine` lifecycle commands.
-3. Inspect without mutation:
+4. Inspect without mutation:
    - Run `"$profile_root/bin/shimmy" profile status`.
    - Run `"$profile_root/bin/shimmy" profile activate --dry-run`.
    - Use narrow escalation for these exact absolute commands if the AI Agent
      sandbox blocks inspection.
    - Never print values of `CONTAINER_CONNECTION` or `CONTAINER_HOST`; identify
      only the masking variable name and ask the user to unset it.
-4. Handle a missing deterministic machine:
+5. Handle a missing deterministic machine:
    - Stop without attempting activation.
    - Repeat the command emitted by Shimmy for the user to run in a normal
      shell: `podman machine init shimmy-<profile>`.
@@ -50,7 +59,7 @@ scripting-language approval.
      `podman machine init --volume <absolute-config-home>:<absolute-config-home> shimmy-<profile>`.
    - State that Shimmy never adopts, renames, migrates, or removes
      `podman-machine-default`.
-5. Activate only after status and dry-run succeed:
+6. Activate only after status and dry-run succeed:
    - Request approval for the exact absolute command
      `"$profile_root/bin/shimmy" profile activate`.
    - Use the exact prefix equivalent
@@ -59,7 +68,7 @@ scripting-language approval.
    - Explain any machine that the dry run will stop and start. On macOS only
      one Podman-managed VM can run, so switching profiles can interrupt
      workloads hosted by another VM.
-6. If activation reports running containers:
+7. If activation reports running containers:
    - Stop and report the displayed workload names or IDs.
    - Obtain separate explicit user confirmation to interrupt those workloads.
    - Only after that confirmation, request and run the exact absolute command
@@ -67,7 +76,7 @@ scripting-language approval.
      prefix equivalent including `--stop-running`.
    - Treat `--stop-running` as acknowledgement, not a promise that interrupted
      containers will resume during rollback.
-7. Verify the result:
+8. Verify the result:
    - Run `"$profile_root/bin/shimmy" profile status` and `podman info`.
    - If registry redirects are configured, require status to report current
      policy. Use the exact printed `profile activate --restart` command for a

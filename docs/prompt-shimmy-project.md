@@ -93,6 +93,17 @@ lifecycle operations do not remove those exports.
 After accepting canonical skill changes, refresh an existing target only with
 explicit `shimmy skills update --target repo|profile`; do not edit generated
 adapters directly.
+In AI Agent environments, recognize installed Shimmy wrappers before their
+first task invocation. If a safe outer-wrapper prefix is already approved, run
+the actual task operation with escalation immediately instead of first making
+a sandboxed Podman call or version smoke. For repeated read-only repository
+searches, `["rg"]` is an acceptable bounded persistent prefix. Treat a
+sandbox-only unreachable or unknown result as `unverified from the sandbox`,
+not as an inactive profile, and retry the same wrapper operation through the
+approval boundary. Inspect or activate a profile only if the escalated wrapper
+still provides evidence of a real profile-affinity, engine, connection, or
+registry-projection failure. Never activate from sandbox-only evidence;
+wrapper approval and profile-activation approval are separate authorities.
 Catalog-aware operations resolve and validate the profile's named catalog on
 every invocation. Valid upstream edits are immediately visible; default sees
 them only after clean committed publication. Publication does not change

@@ -5,6 +5,22 @@ description: Use and maintain the OpenShift CLI Shimmy tool.
 
 # OpenShift CLI Shim
 
+## AI Agent Evidence Order
+
+1. If the installed wrapper's safe outer-command prefix is already approved,
+   run the actual requested operation with escalation on the first attempt. Do
+   not first run a sandboxed Podman call or a version smoke.
+2. Treat a sandbox-only unreachable, unknown, socket-denied, or
+   `operation not permitted` result as `unverified from the sandbox`, not as an
+   inactive profile. Retry the same wrapper operation through
+   `shimmy-escalation` before profile inspection or fallback.
+3. Use `shimmy-init` only if the escalated wrapper still proves a
+   profile-affinity, engine, connection, or registry-projection failure. Never
+   activate a profile automatically from sandbox-only evidence.
+4. Approval scope: require the exact informational or explicitly authorized
+   OpenShift command, context, and resource arguments. Do not persist a broad
+   `oc` prefix because authenticated commands can mutate cluster resources.
+
 Read `CONTEXT.md`, `CONTRIBUTING.md`, and
 `tools/oc/guide.md`.
 `SHIMMY_OC_VERSION` selects a supported local-build version; metadata defaults
@@ -16,13 +32,13 @@ Use `oc --help` for non-network smoke checks across supported versions.
 
 ## Corporate / proxy / airgapped environments
 
-- **Use a working `registries.conf` mirror for `registry.redhat.io`.** Corporate
-  registry mirrors must be configured in `/etc/containers/registries.conf` so
-  Podman pulls the oc image from the proxy registry instead of the upstream
-  Red Hat registry.
-- **Mirror images and signatures together where possible.** If the mirror does
+- **Use a strict Shimmy redirect for `registry.redhat.io`.** Configure the
+  invoking profile with `shimmy profile redirect --prefix registry.redhat.io
+  --location <physical-registry/path>`, then activate or restart that profile.
+  The replacement location has no configured upstream fallback.
+- **Copy images and signatures together where possible.** If the physical registry does
   not contain Red Hat signatures, a permissive `policy.json` entry is required
-  for the mirror host. A minimal example:
+  for that host. A minimal example:
 
   ```json
   {
@@ -35,12 +51,12 @@ Use `oc --help` for non-network smoke checks across supported versions.
   }
   ```
 
-- **Be aware of Podman mirror fallback.** If the mirror is misconfigured or
-  missing blobs, Podman may fall back to the upstream registry, which can be
-  blocked by strict signature policy.
-- **Manually validate mirror pulls before relying on the shim.** Use explicit
+- **Expect strict failure, not fallback.** If the physical endpoint is
+  unavailable or missing the digest, the pull fails rather than contacting
+  `registry.redhat.io`.
+- **Manually validate redirected pulls before relying on the shim.** Use explicit
   pulls such as `podman --log-level=debug pull mirror-host/path/to/image@sha256:…`
-  to confirm that the mirror is used and that blobs and signatures are present.
+  to confirm that the physical endpoint is used and that blobs and signatures are present.
 - **If oc image pulls fail from an Agent, inspect registry and policy errors.**
   Check Podman logs for signature or policy failures and verify that the
   corporate mirror contains the required image digests and signatures.
@@ -48,7 +64,7 @@ Use `oc --help` for non-network smoke checks across supported versions.
   and signatures are mirrored for long-term secure use in proxy or airgapped
   environments.
 
-The oc skill should surface mirror and signature-policy issues when image pulls
-fail and offer actionable diagnostics (for example: suggest checking
-`registries.conf`, testing a direct mirror pull with debug logging, and
-reviewing `policy.json` for the mirror host).
+The oc skill should surface redirect and signature-policy issues when image
+pulls fail and offer actionable diagnostics (for example: suggest checking the
+active profile redirect, testing a direct physical-endpoint pull with debug
+logging, and reviewing `policy.json` for that host).

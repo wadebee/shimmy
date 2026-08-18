@@ -1,7 +1,8 @@
 # Test transition pruning plan
+**Status:** complete
 
-**Status:** Complete — accepted by the user on 2026-08-17 with the documented
-109-second target-group savings and 146-second plan-wide threshold shortfall.
+Accepted by the user on 2026-08-17 with the documented 109-second target-group
+savings and 146-second plan-wide threshold shortfall.
 
 **Benchmark policy note:** This completed plan retains its three-sample tables
 as historical evidence. Its repeated-run and median instructions are

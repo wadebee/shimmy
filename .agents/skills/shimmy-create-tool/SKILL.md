@@ -1,6 +1,6 @@
 ---
 name: shimmy-create-tool
-description: Create or extend a Shimmy tool kind and its concrete CLI versions. Use when adding a wrapped CLI, selecting its image strategy, adding a version track, or wiring tool-local metadata, runtime, tests, guide, and agent guidance.
+description: Create or extend a Shimmy tool and its concrete CLI versions. Use when adding a wrapped CLI, selecting its image strategy, adding a version track, or wiring tool-local metadata, runtime, tests, guide, and agent guidance.
 ---
 
 # Shimmy Tool Creation
@@ -19,23 +19,23 @@ description: Create or extend a Shimmy tool kind and its concrete CLI versions. 
 
 ## Model
 
-- A kind is the stable user command, such as `jq` or `oc`.
-- `tools/<kind>/tool.conf` declares the default concrete version and optional
+- A tool is the stable user command, such as `jq` or `oc`.
+- `tools/<tool>/tool.conf` declares the default concrete version and optional
   selector environment variable.
-- `tools/<kind>/versions/<major.minor>/run.sh` owns all Podman, image, mount,
+- `tools/<tool>/versions/<major.minor>/run.sh` owns all Podman, image, mount,
   credential, and local-build behavior.
-- `commands/run-tool.sh <kind> ...` performs generic source dispatch. Do not
+- `commands/run-tool.sh <tool> ...` performs generic source dispatch. Do not
   put tool-specific runtime behavior in a dispatcher or shared `lib/` module.
 
 ## Required tool surface
 
 Create or update the following as applicable:
 
-- `tools/<kind>/tool.conf`, `guide.md`, and `SKILL.md`;
-- `tools/<kind>/versions/<major.minor>/run.sh`, `smoke.conf`, `image.conf`,
+- `tools/<tool>/tool.conf`, `guide.md`, and `SKILL.md`;
+- `tools/<tool>/versions/<major.minor>/run.sh`, `smoke.conf`, `image.conf`,
   and `refresh.sh`;
 - `container/Containerfile` and its context only for local-build versions;
-- `tools/<kind>/tests/` for behavior not covered by generic catalog tests.
+- `tools/<tool>/tests/` for behavior not covered by generic catalog tests.
 
 Keep the runtime a small POSIX shell wrapper with `#!/bin/sh` and `set -eu`.
 Mount `$PWD` at `/work` unless the tool's guide or canonical skill documents an
@@ -66,13 +66,21 @@ in the guide and the tool skill.
 
 ## Metadata and lifecycle
 
-`tool.conf` is the source of truth for kind defaults and selectors. `smoke.conf`
+`tool.conf` is the source of truth for tool defaults and selectors. `smoke.conf`
 is the source of truth for the concrete version's non-mutating smoke command.
 `image.conf` is the source of truth for image strategy, immutable defaults,
 registry access, local context/build arguments, and required platforms.
 Do not add central tool-name, status-image, or refresh case lists. Follow the
 existing catalog and lifecycle contracts until version-local refresh hooks
 replace the remaining update logic.
+
+A complete schema-valid tool added to the bound live upstream checkout is
+available to upstream catalog operations on the next command, including while
+the checkout is dirty. It reaches immutable default only through `shimmy
+catalog publish` from a clean commit. Publication changes availability but does
+not change installed profile versions; use an explicit profile install or
+update to adopt a new catalog default. Schema-invalid partial entries fail the
+whole catalog before mutation.
 
 For local builds, audit packages, install scripts, compiled dependencies, and
 release archive URLs for both target architectures. A compatible base index is
@@ -83,8 +91,8 @@ necessary but not sufficient.
 Run, as applicable:
 
 ```sh
-./commands/run-tool.sh <kind> --preview-shim --help
-./commands/images.sh verify --shim <kind>@<version>
+./commands/run-tool.sh <tool> --preview-shim --help
+./commands/images.sh verify --shim <tool>@<version>
 ./tests/test.sh
 git diff --check
 ```

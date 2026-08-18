@@ -1,100 +1,118 @@
 ---
 name: shimmy-init
-description: Initialize and verify Podman readiness for Shimmy-backed tools. Use whenever a Shimmy wrapper fails and the errors mention Podman engine access, podman machine start, podman info, connection refused, operation not permitted, stale sockets, or unreachable Podman services.
+description: Initialize and verify Podman readiness after an escalated Shimmy wrapper call proves a profile or engine problem. Do not use for sandbox-only reachability failures.
 ---
 
 # Shimmy Init
 
-Use this skill whenever a Shimmy tool fails because Podman may not be ready.
+Use this skill when a Shimmy tool still fails outside the sandbox because its
+profile-bound Podman engine is demonstrably inactive, mismatched, stopped,
+missing, stale, masked, or unreachable.
 
 ## Goal
 
-Make Shimmy wrappers usable from AI Agent shells by confirming the local Podman engine is reachable. On macOS, the required remediation is often a user-shell step:
+Make Shimmy wrappers usable from an AI Agent shell through the installed
+profile's activation control plane. On macOS, `default` requires the
+pre-existing `shimmy-default` machine and `upstream` requires the pre-existing
+`shimmy-upstream` machine. Only the exact absolute profile-local launcher may
+activate that deterministic engine.
 
-```sh
-podman machine start
-podman info
-```
-
-Do not install Podman, initialize a new Podman machine, or run `podman machine start` from an AI Agent shell. If the machine is stopped or unreachable on macOS, instruct the user to run `podman machine start` in a normal shell, then retry verification from the AI Agent.
-
-## When To Use
-
-Use this skill when:
-
-- The agent uses a Shimmy-backed tool such as `rg`, `jq`, `aws`, `terraform`, `go`, `task`, `netcat`, `textual`, or another wrapper installed by Shimmy.
-- A Shimmy wrapper exits with an error saying Podman cannot talk to the engine.
-- A command fails with Podman socket, lockfile, connection refused, operation not permitted, stale connection, or unreachable service errors.
-- Output suggests `podman machine start`, `podman info`, or `podman system connection list`.
+Do not install Podman or directly provision, start, stop, restart, delete,
+rename, or adopt a Podman machine. Do not request a broad Podman, shell, or
+scripting-language approval.
 
 ## Workflow
 
-1. Confirm the command is likely Shimmy-backed:
-   - Prefer `command -v <tool>`.
-   - Treat paths below a canonical profile selected on `PATH`, at
-     `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>/bin`, as
-     Shimmy wrappers.
-   - `command -v <tool>` resolves that profile's dispatcher path. Use `shimmy
-     status --format manifest` when you need its implementation metadata.
-2. Locate Podman:
-   - Run `command -v podman`.
-   - On macOS, remember the official pkg installer may place it at `/opt/podman/bin/podman`.
-3. Verify Podman engine access:
-   - Run `podman info`.
-   - If it succeeds, retry the original Shimmy command when appropriate.
-4. If `podman info` fails on macOS:
-   - Run `podman machine list` with escalation if the sandbox blocks socket or machine access.
-   - If the user reports that `podman machine start` returned `already
-     running`, treat that as confirmation that stopped-machine state is not the
-     blocker, then verify `podman info`.
-   - If an existing machine is stopped or Podman reports a refused/stale socket, stop and tell the user to run `podman machine start` in a normal shell outside the AI Agent.
-   - After the user reports that startup succeeded, run `podman info` again with escalation if needed.
-5. If no Podman machine exists:
-   - Stop and ask the user before `podman machine init`.
-   - Do not provision Podman implicitly.
-6. If `podman info` succeeds but the Shimmy wrapper still fails:
-   - Use the tool-specific Shimmy skill when available.
-   - Check `command -v <tool>`; if it resolves below the `bin/` directory of a
-     canonical profile selected on `PATH`, the AI Agent may need approval for
-     the outer
-     wrapper command even though direct `podman info` works.
-   - Keep the desired profile's `bin/` first on `PATH` for wrapper retries.
-   - Use `shimmy-escalation` to request approval for the exact dry-run smoke command prefix before asking the user for broader Podman remediation.
-   - Run a harmless wrapper smoke check with exact-command escalation, such as `rg --version` with prefix rule `["rg","--version"]`.
-   - Remember that AI Agent permissions are evaluated on the outer command (`rg`, `jq`, `terraform`, etc.), not only on the nested `podman` process that the wrapper starts.
-   - If later non-escalated wrapper calls still fail in the same session, keep using exact wrapper escalation or ask the user to persist the exact prefix approval.
-   - Report whether the failure is from image pull/network, credentials, wrapper behavior, or the underlying tool.
+1. Confirm the entry evidence:
+   - Require a failed wrapper invocation that already used the AI Agent's
+     outer-command approval mechanism, or an explicit user request to inspect
+     or activate a profile.
+   - A sandbox-only `unreachable`, `unknown`, socket-denied, or
+     `operation not permitted` result means `unverified from the sandbox`, not
+     `inactive`. Return that case to `shimmy-escalation` for the same wrapper
+     operation to be retried with escalation.
+2. Resolve the selected installed profile:
+   - Prefer the profile containing the resolved `shimmy` or tool command.
+   - Require the canonical absolute root
+     `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<default|upstream>`.
+   - Set `profile_root` to that validated absolute path and use
+     `"$profile_root/bin/shimmy"` for every management check. Do not activate a
+     sibling profile through the currently selected launcher.
+3. Check control-plane support:
+   - Run `"$profile_root/bin/shimmy" profile --help`.
+   - If the installed profile lacks `profile activate`, stop and give
+     user-shell guidance to update or reinstall that profile. Do not replace
+     the missing control plane with direct `podman machine` lifecycle commands.
+4. Inspect without mutation:
+   - Run `"$profile_root/bin/shimmy" profile status`.
+   - Run `"$profile_root/bin/shimmy" profile activate --dry-run`.
+   - Use narrow escalation for these exact absolute commands if the AI Agent
+     sandbox blocks inspection.
+   - Never print values of `CONTAINER_CONNECTION` or `CONTAINER_HOST`; identify
+     only the masking variable name and ask the user to unset it.
+5. Handle a missing deterministic machine:
+   - Stop without attempting activation.
+   - Repeat the command emitted by Shimmy for the user to run in a normal
+     shell: `podman machine init shimmy-<profile>`.
+   - If Shimmy reports that the configuration home is outside `HOME`, also
+     repeat its exact same-path volume form:
+     `podman machine init --volume <absolute-config-home>:<absolute-config-home> shimmy-<profile>`.
+   - State that Shimmy never adopts, renames, migrates, or removes
+     `podman-machine-default`.
+6. Activate only after status and dry-run succeed:
+   - Request approval for the exact absolute command
+     `"$profile_root/bin/shimmy" profile activate`.
+   - Use the exact prefix equivalent
+     `["<profile-root>/bin/shimmy","profile","activate"]`; never request
+     `["shimmy"]`, `["podman"]`, a shell prefix, or a wildcard path.
+   - Explain any machine that the dry run will stop and start. On macOS only
+     one Podman-managed VM can run, so switching profiles can interrupt
+     workloads hosted by another VM.
+7. If activation reports running containers:
+   - Stop and report the displayed workload names or IDs.
+   - Obtain separate explicit user confirmation to interrupt those workloads.
+   - Only after that confirmation, request and run the exact absolute command
+     `"$profile_root/bin/shimmy" profile activate --stop-running` with the exact
+     prefix equivalent including `--stop-running`.
+   - Treat `--stop-running` as acknowledgement, not a promise that interrupted
+     containers will resume during rollback.
+8. Verify the result:
+   - Run `"$profile_root/bin/shimmy" profile status` and `podman info`.
+   - If registry redirects are configured, require status to report current
+     policy. Use the exact printed `profile activate --restart` command for a
+     stale Darwin projection; do not let Skopeo silently omit a prepared or
+     stale policy.
+   - If direct Podman access succeeds but a wrapper remains sandbox-blocked,
+     delegate its exact non-mutating smoke approval to `shimmy-escalation`.
+   - For a tool call in a separate AI Agent command, invoke the absolute
+     profile dispatcher or source `"$profile_root/shell-init.sh"` in that same
+     command. A sourcing operation in one agent tool call does not change PATH
+     in later calls.
 
-## Escalation Commands
+## Narrow approvals
 
-Use narrow escalation requests. Good prefix rules:
+Acceptable approval prefixes are limited to:
 
-- `["podman", "info"]`
-- `["podman", "machine", "list"]`
-- The exact Shimmy smoke command prefix, such as `["rg","--version"]`, `["jq","--version"]`, `["terraform","version"]`, or `["aws","--version"]`
+- `["<profile-root>/bin/shimmy","profile","status"]`
+- `["<profile-root>/bin/shimmy","profile","activate","--dry-run"]`
+- `["<profile-root>/bin/shimmy","profile","activate"]`
+- `["<profile-root>/bin/shimmy","profile","activate","--stop-running"]` only
+  after separate workload-interruption confirmation
+- `["podman","info"]` for final read-only verification
 
-Avoid broad approvals such as `["podman"]`, shell prefixes, or scripting language prefixes.
-
-Use these justifications:
-
-- `podman info`: `Do you want to verify Podman engine access outside the sandbox for Shimmy wrappers?`
-- `podman machine list`: `Do you want to inspect local Podman machines outside the sandbox so Shimmy wrappers can be initialized?`
-- Shimmy tool retry: `Do you want to allow the <tool> Shimmy wrapper to run Podman outside the sandbox?`
+Use a justification that names the target profile and exact effect. Keep
+wrapper smoke approvals in `shimmy-escalation`.
 
 ## Reporting
 
-Summarize:
-
-- Whether the requested tool resolved to a Shimmy wrapper.
-- Podman path and whether `podman info` succeeded.
-- Podman machine state when inspected.
-- Any escalation prefix rules requested.
-- Whether direct Podman access succeeded but the outer wrapper still needed its own exact-command approval.
-- Whether the original Shimmy command succeeded after initialization.
+Summarize the selected profile root, status and dry-run results, exact approval
+prefixes requested, any displayed workloads and acknowledgement, final engine
+state, and whether the original wrapper succeeded.
 
 ## Safety
 
-- Do not modify repository files, shell profiles, manifests, or installed shims as part of initialization.
-- Do not install Podman, start Podman Desktop, start a Podman machine, or initialize a new machine.
-- Podman machine startup on macOS should be a user-guidance step because AI Agent shells may not reliably own the user session state needed by Podman socket forwarding.
-- Prefer non-mutating smoke checks such as `--version`, `version`, `--help`, or `podman info`.
+- Do not modify repository files, startup files, manifests, or installed shims
+  as part of initialization.
+- Do not install Podman or run direct Podman machine lifecycle commands.
+- Do not provision, delete, rename, or adopt a machine.
+- Prefer status, dry-run, `podman info`, and non-mutating tool smokes.

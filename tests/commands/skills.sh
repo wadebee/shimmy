@@ -12,11 +12,23 @@ test_commands_skills_activation_guidance_assert() {
   assert_file_contains "$skills_root/shimmy-install/SKILL.md" 'separate explicit confirmation'
   assert_file_contains "$skills_root/shimmy-install/SKILL.md" 'podman machine init'
   assert_file_contains "$skills_root/shimmy-install/SKILL.md" '`shimmy images verify` mount only a valid current'
-  assert_file_contains "$skills_root/shimmy-escalation/SKILL.md" 'delegate remediation to'
-  assert_file_contains "$skills_root/shimmy-escalation/SKILL.md" 'exact outer-wrapper'
+  assert_file_contains "$skills_root/shimmy-escalation/SKILL.md" 'unverified from the sandbox'
+  assert_file_contains "$skills_root/shimmy-escalation/SKILL.md" 'Retry the same wrapper operation'
+  assert_file_contains "$skills_root/shimmy-escalation/SKILL.md" '["rg"]'
+  assert_file_contains "$skills_root/shimmy-init/SKILL.md" 'Require a failed wrapper invocation'
   assert_file_contains "$skills_root/shimmy-tool-jq/SKILL.md" '"$profile_root/bin/shimmy" profile activate --dry-run'
   assert_file_contains "$skills_root/shimmy-tool-jq/SKILL.md" 'Running containers'
   assert_file_contains "$skills_root/shimmy-tool-jq/SKILL.md" 'agents never run direct Podman'
+  for tool_skill_file in "$skills_root"/shimmy-tool-*/SKILL.md; do
+    case "$tool_skill_file" in
+      */shimmy-tool-local-build/SKILL.md) continue ;;
+    esac
+    assert_file_contains "$tool_skill_file" '## AI Agent Evidence Order'
+    assert_file_contains "$tool_skill_file" 'unverified from the sandbox'
+    assert_file_contains "$tool_skill_file" 'Retry the same wrapper operation'
+    assert_file_contains "$tool_skill_file" 'Use `shimmy-init` only if the escalated wrapper still proves'
+    assert_file_contains "$tool_skill_file" 'Approval scope:'
+  done
 }
 
 test_commands_skills_export_inventory() {
@@ -112,11 +124,19 @@ shimmy-tool-local-build'
   for tool_name in $(shimmy_tool_list); do
     assert_file_exists "$ROOT_DIR/tools/$tool_name/SKILL.md"
     assert_file_contains "$ROOT_DIR/tools/$tool_name/SKILL.md" "name: shimmy-tool-$tool_name"
+    assert_file_contains "$ROOT_DIR/tools/$tool_name/SKILL.md" '## AI Agent Evidence Order'
+    assert_file_contains "$ROOT_DIR/tools/$tool_name/SKILL.md" 'unverified from the sandbox'
+    assert_file_contains "$ROOT_DIR/tools/$tool_name/SKILL.md" 'Retry the same wrapper operation'
+    assert_file_contains "$ROOT_DIR/tools/$tool_name/SKILL.md" 'Use `shimmy-init` only if the escalated wrapper still proves'
+    assert_file_contains "$ROOT_DIR/tools/$tool_name/SKILL.md" 'Approval scope:'
     assert_path_not_exists "$ROOT_DIR/tools/$tool_name/agent"
     tool_skill_count=$((tool_skill_count + 1))
   done
   assert_equals "$tool_skill_count" 20
   assert_file_contains "$ROOT_DIR/.agents/plugins/marketplace.json" '"path": "./plugins/shimmy"'
+  assert_file_contains "$ROOT_DIR/docs/templates/generic-shim/SKILL.md" 'tool-specific approval rule'
+  assert_file_contains "$ROOT_DIR/docs/templates/generic-shim/SKILL.md" 'unverified from the sandbox'
+  assert_file_contains "$ROOT_DIR/docs/templates/generic-shim/SKILL.md" 'Add an `Approval scope:` rule specific to the tool.'
   pass "management plugin and co-located tool skills have the final split ownership"
 }
 

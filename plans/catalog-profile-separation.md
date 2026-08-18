@@ -1,4 +1,5 @@
 # Catalog and Profile Separation — Chosen Architecture
+**Status:** complete
 
 ## Objective
 

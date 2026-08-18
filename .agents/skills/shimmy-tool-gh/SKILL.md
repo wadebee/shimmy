@@ -7,9 +7,25 @@ description: Guidance for using, changing, testing, and troubleshooting the GitH
 
 Use this skill when working with the GitHub CLI tool, its tests, its docs, or GitHub CLI usage through Shimmy.
 
+## AI Agent Evidence Order
+
+1. If the installed wrapper's safe outer-command prefix is already approved,
+   run the actual requested operation with escalation on the first attempt. Do
+   not first run a sandboxed Podman call or a version smoke.
+2. Treat a sandbox-only unreachable, unknown, socket-denied, or
+   `operation not permitted` result as `unverified from the sandbox`, not as an
+   inactive profile. Retry the same wrapper operation through
+   `shimmy-escalation` before profile inspection or fallback.
+3. Use `shimmy-init` only if the escalated wrapper still proves a
+   profile-affinity, engine, connection, or registry-projection failure. Never
+   activate a profile automatically from sandbox-only evidence.
+4. Approval scope: require the exact read-only or explicitly authorized GitHub
+   operation. Do not persist a broad `gh` prefix because the wrapper forwards
+   authentication and supports repository, issue, pull-request, and release writes.
+
 ## Files
 
-- Kind metadata: `tools/gh/tool.conf`
+- Tool metadata: `tools/gh/tool.conf`
 - Concrete runtime: `tools/gh/versions/2.94/run.sh`
 - User guide: `tools/gh/guide.md`
 - Tests: `tools/gh/tests/gh.sh`
@@ -22,10 +38,23 @@ Use this skill when working with the GitHub CLI tool, its tests, its docs, or Gi
 ## Installed Workflow
 
 When the installed profile is selected on `PATH`, invoke `gh` normally
-and inspect the invoking profile with `shimmy status --format manifest`. Select an
-existing profile by sourcing its generated `shell-init.sh`; installed commands do
-not accept a profile selector. To test `upstream`, source
-`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh`.
+and inspect the invoking profile with `shimmy status --format manifest`.
+
+Before using another existing profile, resolve its absolute `profile_root` and
+run `"$profile_root/bin/shimmy" profile status`, then
+`"$profile_root/bin/shimmy" profile activate --dry-run`, then request approval
+for the exact absolute
+`"$profile_root/bin/shimmy" profile activate` command. Running containers
+require separate explicit confirmation before adding `--stop-running`. A missing
+machine must be provisioned by the user in a normal shell with the exact
+`podman machine init shimmy-<profile>` guidance; agents never run direct Podman
+machine lifecycle commands.
+
+After activation, source `"$profile_root/shell-init.sh"` to select PATH.
+Installed commands do not accept a profile selector. AI Agent calls do not
+retain earlier sourcing, so invoke the absolute profile dispatcher or source
+`shell-init.sh` in the same command as the tool. To test `upstream`, use the
+absolute root `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream`.
 
 For source validation, use `./commands/run-tool.sh gh --preview-shim --version`
 or the concrete `tools/gh/versions/2.94/run.sh` runtime. Do not use
@@ -50,7 +79,7 @@ removed repository `shims/` paths.
 1. Keep the configuration mount writable so `gh auth login` persists authentication between container runs.
 2. Do not create credentials or tokens automatically. Authentication is initiated explicitly by `gh auth login` or supplied through GitHub CLI's standard environment variables.
 3. Keep archive installation inside `tools/gh/versions/2.94/container/Containerfile`; the version shim should only coordinate local image selection and runtime behavior.
-4. Keep the local image tied to an official GitHub CLI release archive. Update the kind/version name, catalog, status, update behavior, docs, and tests together when changing versions.
+4. Keep the local image tied to an official GitHub CLI release archive. Update the tool/version name, catalog, status, update behavior, docs, and tests together when changing versions.
 5. Treat `GH_TOKEN` and other credentials as secrets; do not add them to logs, fixtures, or documentation examples.
 6. Use non-mutating validation commands such as `gh --version`, `gh auth status`, `gh pr list`, and `gh repo view` unless the user explicitly requests a write.
 

@@ -7,6 +7,22 @@ description: Guidance for using, changing, testing, and troubleshooting the Text
 
 Use this skill when working with the Textual tool, its local image, its tests, its docs, or Textual CLI usage through Shimmy.
 
+## AI Agent Evidence Order
+
+1. If the installed wrapper's safe outer-command prefix is already approved,
+   run the actual requested operation with escalation on the first attempt. Do
+   not first run a sandboxed Podman call or a version smoke.
+2. Treat a sandbox-only unreachable, unknown, socket-denied, or
+   `operation not permitted` result as `unverified from the sandbox`, not as an
+   inactive profile. Retry the same wrapper operation through
+   `shimmy-escalation` before profile inspection or fallback.
+3. Use `shimmy-init` only if the escalated wrapper still proves a
+   profile-affinity, engine, connection, or registry-projection failure. Never
+   activate a profile automatically from sandbox-only evidence.
+4. Approval scope: require the exact Textual command and application target.
+   Do not persist a broad prefix because `run` and `serve` execute project code
+   and may start long-running or network-accessible services.
+
 ## Files
 
 - Tool metadata: `tools/textual/tool.conf`

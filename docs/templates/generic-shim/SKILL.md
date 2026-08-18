@@ -11,6 +11,25 @@ directory.
 
 ## Installed profile workflow
 
+Every generated tool skill must include this evidence order, followed by a
+tool-specific approval rule:
+
+1. If the installed wrapper's safe outer-command prefix is already approved,
+   run the actual requested operation with escalation on the first attempt. Do
+   not first run a sandboxed Podman call or a version smoke.
+2. Treat a sandbox-only unreachable, unknown, socket-denied, or
+   `operation not permitted` result as `unverified from the sandbox`, not as an
+   inactive profile. Retry the same wrapper operation through
+   `shimmy-escalation` before profile inspection or fallback.
+3. Use `shimmy-init` only if the escalated wrapper still proves a
+   profile-affinity, engine, connection, or registry-projection failure. Never
+   activate a profile automatically from sandbox-only evidence.
+4. Add an `Approval scope:` rule specific to the tool. Permit a reusable
+   wrapper prefix only for a demonstrably local, read-only command. Require an
+   exact operation-specific prefix for credentialed, networked, potentially
+   mutating, privileged, or arbitrary-code execution. Keep wrapper approval
+   separate from authorization for external writes or other side effects.
+
 When a generated tool skill describes installed use, require the target
 profile's absolute launcher to run `profile status`, `profile activate
 --dry-run`, and then the exact approved `profile activate` command. Running
