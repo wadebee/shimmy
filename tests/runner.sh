@@ -58,52 +58,51 @@ test_runner_group_assignment_read() {
     return 0
   fi
 
-  # Chunk 1's largest serial groups seeded this schedule. The complete Chunk 3
-  # serial verification timings project balanced group totals of 697s and
-  # 665s for two-a/two-b, and 462s, 435s, and 467s for
-  # three-a/three-b/three-c. Rebalance from clean full-suite measurements.
+  # Chunk 6's clean full serial measurement projects exact balanced group
+  # totals of 624s/624s for two-a/two-b and 416s/416s/416s for
+  # three-a/three-b/three-c. Zero-second groups balance worker group counts.
   cat <<'EOF'
-runner|two-a|three-c
-lib-catalog|two-a|three-c
-lib-runtime|two-b|three-c
-lib-profile-activation|two-a|three-c
+runner|two-b|three-a
+lib-catalog|two-b|three-a
+lib-runtime|two-b|three-a
+lib-profile-activation|two-a|three-b
 lib-registries|two-b|three-c
-lib-update|two-a|three-c
-commands-agent-preflight|two-a|three-c
-commands-catalog|two-a|three-a
-commands-images|two-a|three-b
-commands-lifecycle|two-b|three-b
-commands-management|two-b|three-c
-commands-onboarding|two-b|three-a
-commands-profiles|two-a|three-c
-commands-profile|two-a|three-c
-commands-status|two-b|three-b
-commands-update|two-a|three-c
-commands-startup|two-b|three-b
-commands-skills|two-a|three-c
-commands-dispatcher|two-a|three-c
-commands-netinfo|two-a|three-c
-tools-aws|two-b|three-a
-tools-community-ansible-dev-tools|two-b|three-a
-tools-gcloud|two-b|three-a
-tools-gdrive|two-b|three-a
-tools-gh|two-b|three-a
-tools-go|two-b|three-a
-tools-jq|two-b|three-a
-tools-netcat|two-b|three-a
-tools-nmap|two-b|three-a
-tools-npx|two-b|three-a
-tools-oc|two-b|three-a
-tools-opnsense-mcp-read-only|two-b|three-a
-tools-opnsense-mcp-admin|two-b|three-a
-tools-rg|two-b|three-a
-tools-skopeo|two-b|three-a
-tools-task|two-b|three-a
-tools-terraform|two-b|three-a
-tools-tessl|two-b|three-a
-tools-textual|two-b|three-a
-commands-install|two-a|three-c
-commands-test|two-a|three-c
+lib-update|two-a|three-b
+commands-agent-preflight|two-a|three-a
+commands-catalog|two-a|three-b
+commands-images|two-b|three-a
+commands-lifecycle|two-a|three-b
+commands-management|two-b|three-b
+commands-onboarding|two-a|three-a
+commands-profiles|two-b|three-a
+commands-profile|two-b|three-a
+commands-status|two-b|three-c
+commands-update|two-b|three-a
+commands-startup|two-b|three-c
+commands-skills|two-b|three-c
+commands-dispatcher|two-b|three-c
+commands-netinfo|two-a|three-b
+tools-aws|two-a|three-b
+tools-community-ansible-dev-tools|two-b|three-c
+tools-gcloud|two-a|three-b
+tools-gdrive|two-b|three-c
+tools-gh|two-a|three-b
+tools-go|two-a|three-b
+tools-jq|two-a|three-b
+tools-netcat|two-a|three-b
+tools-nmap|two-b|three-c
+tools-npx|two-a|three-b
+tools-oc|two-a|three-b
+tools-opnsense-mcp-read-only|two-a|three-a
+tools-opnsense-mcp-admin|two-a|three-a
+tools-rg|two-a|three-a
+tools-skopeo|two-b|three-c
+tools-task|two-a|three-a
+tools-terraform|two-a|three-a
+tools-tessl|two-b|three-c
+tools-textual|two-b|three-c
+commands-install|two-b|three-c
+commands-test|two-b|three-c
 EOF
 }
 

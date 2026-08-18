@@ -40,38 +40,70 @@ Each record has the stable form
 `shimmy_test_timing=<setup|group|total>|<name>|<elapsed-seconds>`. Timing
 records are absent by default.
 
-For an acceptance benchmark on one host, run three clean default executions
-and compare their median with the retained baseline:
+When timing is relevant to acceptance, run one clean default execution on the
+same host and compare it with the retained baseline:
 
 ```sh
 /usr/bin/time -p env SHIMMY_TEST_TIMING=1 ./tests/test.sh
 ```
 
-Keep the three `real`, `user`, and `sys` records. Compare group timings and
-worker result data when wall time or aggregate CPU cost regresses; do not add a
-host-specific timeout to the suite.
+Keep its `real`, `user`, and `sys` records. Treat the result as a coarse
+directional measurement, not a precision benchmark. Compare group timings and
+worker result data when wall time or aggregate CPU cost regresses; do not repeat
+the suite solely to calculate a median, and do not add a host-specific timeout.
 
-For transition-pruning work, freeze the before measurements prior to test
-edits. Run each affected group three times in isolation with the same command
-on the same host:
+For transition-pruning work, freeze one before measurement prior to test edits.
+Run each affected group once in isolation with the same command on the same
+host:
 
 ```sh
 /usr/bin/time -p env SHIMMY_TEST_TIMING=1 \
   ./tests/test.sh --serial --group commands-startup
 ```
 
-Retain every raw setup, group, total, `real`, `user`, `sys`, and test-count
-value. Compare the medians of three identical before and after invocations:
+Retain the setup, group, total, `real`, `user`, `sys`, and test-count values.
+Compare one identical before and after invocation:
 
 ```text
-savings_seconds = before_median - after_median
-improvement_percent = 100 * savings_seconds / before_median
+savings_seconds = before_seconds - after_seconds
+improvement_percent = 100 * savings_seconds / before_seconds
 ```
 
 Also record one complete timed serial baseline before editing so projected
 suite savings can be distinguished from a measured full-suite result. A
 multi-group change must report the net affected group time; moving work to a
 different group or to session setup is not a performance improvement.
+
+The retained transition-pruning benchmark from 2026-08-17 keeps scenario
+ownership inside each command group: onboarding owns one progressive
+absolute/sourced/selection/switching world, startup owns one progressive
+default/upstream repair world plus isolated failure/retry, catalog owns one
+progressive publication/rollback world, skills owns transport, failure,
+ownership, and catalog-authority worlds, and lifecycle owns its indivisible
+prepare/complete world plus distinct migration and registry boundaries. No
+mutable scenario crosses a registered group or worker.
+
+Those retained measurements are historical evidence from the former
+three-sample policy; do not repeat the runs to reproduce a median. The
+benchmark's final complete serial group values sum to 1,248 seconds. The
+checked-in static schedule partitions them at the exact lower bounds of
+624/624 seconds for two workers and 416/416/416 seconds for three; zero-second
+groups are distributed to keep worker group counts balanced. The final serial
+run passed 41 groups and 159 tests in 1,293.88 seconds real, while three clean
+default runs produced a 532.16-second median. The five optimized groups saved
+109 seconds in aggregate, so the retained plan records the 146-second
+shortfall against its 255-second acceptance threshold rather than weakening
+unique integration coverage.
+
+During implementation, run only the named groups that exercise the changed
+behavior, plus syntax, context-tree, or other focused checks required by the
+files changed. Use `--list-groups` to discover the canonical names and repeat
+`--group` to select the affected set. Run the complete default suite once at a
+final integration gate, or earlier when a chunk changes the runner, shared
+fixtures, shared libraries with broad consumers, group registration or
+assignment, installation lifecycle, or another boundary that cannot be
+covered confidently by selected groups. A plan chunk should state its affected
+groups explicitly instead of inheriting a complete-suite run by default.
 
 To smoke an installed profile through its real wrappers, use:
 

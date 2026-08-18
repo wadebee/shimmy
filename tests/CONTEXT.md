@@ -58,6 +58,18 @@ Lifecycle prepare and complete are one indivisible group. Recorded live worker
 PIDs are the only processes terminated during signal cleanup. Timing records
 for setup, each selected group, and the total run are emitted only when
 `SHIMMY_TEST_TIMING=1`.
+The retained 2026-08-17 measurements are historical evidence from the former
+three-sample policy; current timing guidance uses one coarse measurement and
+does not repeat runs solely to calculate a median. The full serial measurement
+sums to 1,248 group seconds;
+the static schedule partitions it at 624/624 seconds for two workers and
+416/416/416 seconds for three, with balanced group counts. Acceptance passed
+all 41 groups and 159 tests in serial, two-worker, and three clean default
+runs; the default real-time median is 532.16 seconds. Transition-pruned
+onboarding, startup, catalog, skills, and lifecycle scenarios remain owned by
+their registered groups, and their documented 109-second aggregate savings do
+not meet the retained plan's 255-second threshold.
+
 Onboarding coverage sources the root
 bootstrap to initialize PATH and executes it separately to verify automation
 semantics.

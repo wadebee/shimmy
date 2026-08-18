@@ -3,6 +3,11 @@
 **Status:** Complete — all three chunks were implemented, objectively
 verified, and accepted on 2026-08-17.
 
+**Benchmark policy note:** This completed plan retains its three-sample tables
+as historical evidence. Its repeated-run and median instructions are
+superseded by `docs/testing.md` and must not be reused for current work; one
+coarse same-host measurement is sufficient when timing is relevant.
+
 ## Objective
 
 Reduce the wall-clock duration of the complete repository test suite by at
@@ -433,8 +438,9 @@ Accepted by the user on 2026-08-17. The 584.02-second optimized median saves
   failures difficult to read. Mitigation: per-worker logs replayed in stable
   order and fail-closed result files.
 - **Benchmark noise:** VM, filesystem cache, and host load affect wall time.
-  Mitigation: three clean post-change runs on the same host, median acceptance,
-  per-group timing records, and no hard cross-host CI timeout.
+  Current mitigation: one coarse same-host measurement, per-group timing
+  records when relevant, and no hard cross-host CI timeout. The three samples
+  below remain historical evidence only.
 - **Coverage erosion through fixture substitution:** Replacing real lifecycle
   actions with fixture copies could make tests faster but less meaningful.
   Mitigation: explicitly preserve real operations when they are the behavior

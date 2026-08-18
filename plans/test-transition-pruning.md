@@ -1,7 +1,12 @@
 # Test transition pruning plan
 
-**Status:** In progress — Chunks 1–5 are accepted. Chunk 5's measured savings
-leave the plan-wide 255-second target unmet; work is paused before Chunk 6.
+**Status:** Complete — accepted by the user on 2026-08-17 with the documented
+109-second target-group savings and 146-second plan-wide threshold shortfall.
+
+**Benchmark policy note:** This completed plan retains its three-sample tables
+as historical evidence. Its repeated-run and median instructions are
+superseded by `docs/testing.md` and must not be reused for current work; one
+coarse same-host measurement is sufficient when timing is relevant.
 
 ## Objective
 
@@ -236,7 +241,9 @@ None.
 - [x] Chunk 5 — Current onboarding progression, assertion mapping, preserved
       11-test coverage, and measured 15-second median reduction accepted by
       the user on 2026-08-17.
-- [ ] Chunk 6 — Rebalance workers and run final acceptance benchmarks.
+- [x] Chunk 6 — Workers rebalanced, final benchmarks passed, and the plan was
+      accepted by the user on 2026-08-17 with the documented 146-second
+      plan-wide threshold shortfall.
 
 ## Execution protocol
 
@@ -974,28 +981,138 @@ coverage, and separation of serial savings from parallel critical-path effects.
 
 ### Verification checklist
 
-- [ ] `dash -n` passes for every changed shell file.
-- [ ] Each target group passes three isolated serial samples with expected
+- [x] `dash -n` passes for every changed shell file.
+- [x] Each target group passes three isolated serial samples with expected
       counts and complete timing records.
-- [ ] The complete serial suite passes all 41 groups and baseline-mapped tests;
+- [~] The complete serial suite passes all 41 groups and baseline-mapped tests;
       aggregate target-group savings are at least 255 seconds and full serial
       real time is lower than before.
-- [ ] `./tests/test.sh --jobs 2` passes with exact group/count coverage.
-- [ ] Three clean default runs pass; their median does not regress and actual
+
+      Both complete serial runs passed all 41 groups and 159 tests, and the
+      final real time is 99.60 seconds lower than baseline. Aggregate
+      target-group savings are 109 seconds, 146 seconds short of the required
+      255.
+
+- [x] `./tests/test.sh --jobs 2` passes with exact group/count coverage.
+- [x] Three clean default runs pass; their median does not regress and actual
       worker totals are reasonably consistent with the recorded projections.
-- [ ] Final reviewer output includes raw samples plus calculated before/after
+- [x] Final reviewer output includes raw samples plus calculated before/after
       seconds, percentages, CPU changes, setup changes, counts, estimate error,
       and cumulative results.
-- [ ] `./tests/context-tree.sh` passes.
-- [ ] `git diff --check` passes and only approved test, context, documentation,
+- [x] `./tests/context-tree.sh` passes.
+- [x] `git diff --check` passes and only approved test, context, documentation,
       and plan files changed.
+
+### Chunk 6 reviewer output
+
+All Chunk 6 measurements ran on the same Darwin 25.5.0 arm64 host on
+2026-08-17. The authoritative pre-assignment serial run used the same command
+as the frozen baseline:
+
+```sh
+/usr/bin/time -p env SHIMMY_TEST_TIMING=1 ./tests/test.sh --serial
+```
+
+It passed all 41 groups and 159 tests with setup 42 seconds, total 1,290
+seconds, real 1,297.84 seconds, user 461.15 seconds, and sys 729.96 seconds.
+Its complete final group record was:
+
+| Group | Seconds | Group | Seconds |
+| --- | ---: | --- | ---: |
+| `runner` | 3 | `lib-catalog` | 29 |
+| `lib-runtime` | 1 | `lib-profile-activation` | 6 |
+| `lib-registries` | 1 | `lib-update` | 0 |
+| `commands-agent-preflight` | 10 | `commands-catalog` | 180 |
+| `commands-images` | 39 | `commands-lifecycle` | 214 |
+| `commands-management` | 16 | `commands-onboarding` | 214 |
+| `commands-profiles` | 25 | `commands-profile` | 12 |
+| `commands-status` | 34 | `commands-update` | 83 |
+| `commands-startup` | 80 | `commands-skills` | 199 |
+| `commands-dispatcher` | 5 | `commands-netinfo` | 0 |
+| `tools-aws` | 0 | `tools-community-ansible-dev-tools` | 1 |
+| `tools-gcloud` | 0 | `tools-gdrive` | 1 |
+| `tools-gh` | 0 | `tools-go` | 0 |
+| `tools-jq` | 0 | `tools-netcat` | 0 |
+| `tools-nmap` | 1 | `tools-npx` | 0 |
+| `tools-oc` | 0 | `tools-opnsense-mcp-read-only` | 0 |
+| `tools-opnsense-mcp-admin` | 0 | `tools-rg` | 0 |
+| `tools-skopeo` | 16 | `tools-task` | 0 |
+| `tools-terraform` | 0 | `tools-tessl` | 1 |
+| `tools-textual` | 0 | `commands-install` | 76 |
+| `commands-test` | 1 | **Group sum** | **1,248** |
+
+Exact partitioning of those values reaches the mathematical lower bound for
+both supported parallel schedules: 624/624 seconds for two workers and
+416/416/416 seconds for three. Zero-second groups are distributed so the
+worker group counts are 20/21 and 14/14/13 rather than accumulating on one
+worker. Group registry order, lifecycle indivisibility, option behavior, and
+canonical replay are unchanged.
+
+The required post-assignment serial run passed all 41 groups and 159 tests:
+
+| Serial result | Setup (s) | Total (s) | Real (s) | User (s) | Sys (s) | CPU user+sys (s) | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Frozen baseline | 39 | 1,385 | 1,393.48 | 491.82 | 786.74 | 1,278.56 | 159 |
+| Final | 38 | 1,286 | 1,293.88 | 458.51 | 724.67 | 1,183.18 | 159 |
+| Savings | 1 | 99 | 99.60 | 33.31 | 62.07 | 95.38 | 0 |
+| Improvement | 2.6% | 7.1% | 7.1% | 6.8% | 7.9% | 7.5% | 0.0% |
+
+The assignment-only edit therefore did not affect serial behavior, and setup
+did not absorb the measured improvement.
+
+Final isolated target-group medians are the three-sample results recorded by
+Chunks 1–5:
+
+| Group or affected set | Before median (s) | After median (s) | Savings (s) | Improvement | Before/after test count |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `commands-onboarding` | 228 | 213 | 15 | 6.6% | 11 / 11 |
+| `commands-skills` | 195 | 197 | -2 | -1.0% | 10 / 10 |
+| `commands-catalog` | 204 | 179 | 25 | 12.3% | 6 / 6 |
+| `commands-startup` | 136 | 78 | 58 | 42.6% | 5 / 5 |
+| `commands-lifecycle` | 226 | 213 | 13 | 5.8% | 14 / 14 |
+| **Five-group aggregate** | **989** | **880** | **109** | **11.0%** | **46 / 46** |
+
+The actual 109-second aggregate is 146 seconds below the supplied 255-second
+lower bound and 306 seconds below its 415-second upper bound. It delivers
+42.7% of the minimum estimate. This is the known acceptance failure; the safe
+consolidation remains in place because Chunks 1–5 were explicitly accepted
+with this shortfall and Chunk 6 does not expand pruning scope.
+
+The two-worker acceptance command passed all 41 groups and 159 tests with
+setup 39 seconds, total 723 seconds, real 730.67 seconds, user 500.29 seconds,
+sys 799.02 seconds, and CPU 1,299.31 seconds. Against the projected 624/624
+serial sums, contention-affected group sums were 682/671 seconds, an 11-second
+spread.
+
+Three clean default runs produced:
+
+| Sample | Setup (s) | Total (s) | Real (s) | User (s) | Sys (s) | CPU user+sys (s) | Actual worker group sums (s) | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |
+| 1 | 40 | 522 | 530.69 | 521.60 | 880.74 | 1,402.34 | 475 / 481 / 478 | 159 |
+| 2 | 41 | 530 | 538.39 | 524.46 | 890.73 | 1,415.19 | 480 / 487 / 480 | 159 |
+| 3 | 40 | 524 | 532.16 | 522.08 | 879.74 | 1,401.82 | 475 / 482 / 475 | 159 |
+| Median | 40 | 524 | 532.16 | 522.08 | 880.74 | 1,402.34 | 475 / 482 / 478 | 159 |
+
+The frozen default median was setup 41 seconds, total 569 seconds, real
+577.63 seconds, user 570.10 seconds, sys 962.59 seconds, and CPU 1,532.69
+seconds. The final median improves total and real by 45 seconds and 45.47
+seconds (both 7.9%), user by 48.02 seconds (8.4%), sys by 81.85 seconds (8.5%),
+CPU by 130.35 seconds (8.5%), and setup by one second (2.4%). The three-worker
+actual medians remain within 66 seconds of their equal 416-second projections
+and within seven seconds of each other, so contention changed absolute group
+cost without recreating the old critical-path imbalance.
 
 ### Human review gate
 
 Confirm the final calculated timings use comparable samples, all assertion
-mappings and test counts are acceptable, worker rebalancing reflects the new
-critical path, and every success condition is met before accepting the plan as
-complete.
+mappings and test counts are acceptable, and worker rebalancing reflects the
+new critical path. Because the 255-second condition remains unmet, completion
+requires explicit acceptance of the documented shortfall rather than an
+unqualified success claim.
+
+Implemented and automatically verified on 2026-08-17. Accepted by the user as
+complete on 2026-08-17 with the aggregate target-group threshold retained as
+`[~]` and its 146-second shortfall explicitly documented.
 
 ## Risk register
 
@@ -1030,11 +1147,11 @@ complete.
   empty directory before testing the sibling's real final uninstall.
 - **Static worker imbalance after serial pruning:** The fastest serial result
   may worsen default wall time. Mitigation: defer assignment updates until all
-  group changes are final and benchmark three default runs.
+  group changes are final and run one default measurement.
 - **Benchmark noise:** Filesystem cache, Podman VM load, and host activity can
-  distort integer group timings. Mitigation: identical isolated commands,
-  three samples and medians, raw-value disclosure, setup/CPU reporting, and no
-  cross-host absolute timeout.
+  distort integer group timings. Current mitigation: one coarse same-host
+  measurement, raw-value disclosure, setup/CPU reporting, and no cross-host
+  absolute timeout. The retained multi-sample data is historical only.
 
 ## Lessons learned
 
@@ -1144,6 +1261,26 @@ complete.
   plan's stop condition; further pruning would require revised scope or removal
   of behavior that this plan explicitly protects.
 
+### Chunk 6
+
+- One clean complete serial timing set is sufficient to solve both bounded
+  schedules exactly: the final 1,248-second group sum partitions to 624/624
+  and 416/416/416. Distributing zero-second groups separately preserves those
+  optimal sums while balancing group counts at 20/21 and 14/14/13.
+- Parallel contention increased the three-worker group sums from the projected
+  416 seconds to medians of 475/482/478, but the seven-second spread confirms
+  that the new schedule remains balanced. The 532.16-second real-time median
+  improves the frozen default median by 45.47 seconds (7.9%).
+- The final serial result is 99.60 seconds (7.1%) faster in real time and
+  95.38 seconds (7.5%) lower in CPU time with setup one second lower. Static
+  assignment changes therefore preserve serial behavior and do not hide cost
+  in parent setup.
+- All baseline-mapped assertions and 159 pass records remain across all 41
+  groups. The only failed success condition is the predeclared 255-second
+  target-group threshold: actual savings are 109 seconds, so final acceptance
+  must retain the documented 146-second shortfall rather than declare the
+  objective met.
+
 ## Session bootstrap
 
 Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, this plan,
@@ -1158,6 +1295,9 @@ coverage, isolation, POSIX shell, and offline behavior. The non-negotiable
 rule is: do not replace unique real integration behavior or move cost into
 shared setup merely to improve a group number.
 
-Chunks 1–5 are explicitly accepted. Chunk 5's timing shortfall remains
-documented, and Chunk 6 must remain pending until the user gives separate
-explicit direction.
+All six chunks and the plan are complete and were accepted by the user on
+2026-08-17. Serial, two-worker, and three default runs pass all 41 groups and
+159 tests, and the static schedule is rebalanced. The accepted result retains
+the 109-second aggregate target-group measurement, the 146-second shortfall
+against the required threshold, and the corresponding `[~]` verification item;
+there is no later chunk.
