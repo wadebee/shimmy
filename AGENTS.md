@@ -86,14 +86,23 @@ The authoritative Shimmy control-plane skills are under
   and wrapper approval does not authorize profile activation.
 - Canonical skill changes never authorize edits to generated `.agents/skills/` adapters. Refresh accepted repository or home adapters only with the explicit profile-local `shimmy skills update --target repo|profile` lifecycle.
 
+## Negative Test Discipline
+
+- Do not add rejection, absence, non-existence, or non-emission tests by default. The fact that an implementation rejects something, no longer supports something, or currently omits something does not by itself make that behavior a testable system invariant.
+- Prefer tests that positively prove the required observable behavior. Do not add coverage whose only purpose is to prove that an alternative behavior, old feature, field, file, option, output string, or implementation artifact does not exist.
+- Negative tests are appropriate when they protect a durable system invariant such as a security or privilege boundary, destructive-action safeguard, ownership or isolation rule, secret-redaction requirement, schema or data-integrity constraint, transactional rollback guarantee, or explicitly supported public compatibility contract.
+- Do not infer a permanent invariant from the current implementation, from a removed feature, or from the existence of a rejection branch.
+- Before adding a negative test, search existing coverage for an equivalent proof. Keep one authoritative proof of an invariant; do not repeat generic rejection coverage in command-specific tests when a shared test already establishes the same contract.
+- If it is plausible that the proposed rejection or absence behavior should be a durable invariant but that status is not already explicit, **stop before adding the test and ask the user**: `Should <specific behavior> be treated as a permanent Shimmy invariant and protected by a negative test?` Do not assume the answer is yes.
+- If the user does not designate the behavior as an invariant, omit the negative test.
+- When a negative test is approved, use the lowest-cost proof available. Prefer adding an assertion to an existing scenario over creating another fixture, bootstrap, profile transition, subprocess, or container execution solely to prove rejection or absence.
+- When removing a compatibility surface, remove obsolete forwarding paths, aliases, fixtures, and tests together. Do not automatically add coverage proving that the obsolete interface remains rejected. Apply the invariant decision rule above if permanent rejection might itself be part of the intended contract.
+
 ## Refactoring Lessons Learned
 
 - Coordinate directory renames across source comments, context links, test
   discovery, and historical plans so stale references do not recreate the old
   layout in later work.
-- When removing a compatibility surface, remove every forwarding path,
-  equivalent environment or argument alias, fixture, and test together; verify
-  obsolete inputs fail before mutation.
 - During staged filesystem replacement, preserve the last valid marker or
   manifest until the new state is committed atomically, so failures leave the
   previous state intact and invalid partial state is rejected.
@@ -103,4 +112,6 @@ The authoritative Shimmy control-plane skills are under
 - Classify broad terminology-search matches by behavior before editing them. Do not mechanically replace terms that remain accurate in a different subsystem.
 - Keep resources with different ownership and lifecycle boundaries behind separate commands and tests, even when one workflow initially creates both.
 - Before removing a compatibility surface, map its tests to the invariants they protect. Remove obsolete inputs and fixtures while retaining coverage for malformed state, unsafe paths, collisions, isolation, ownership, and unknown options.
+- When removing a compatibility surface, remove every forwarding path,
+  equivalent environment or argument alias, fixture, and test together.
 - Compare generated guidance with its canonical source semantically before regeneration. Byte-for-byte reproducibility demonstrates determinism only after the canonical source contains all guidance worth preserving.

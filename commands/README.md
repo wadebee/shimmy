@@ -204,7 +204,6 @@ launcher and preserves sibling profiles and shared catalogs.
 
 ```text
 shimmy uninstall [--global] [--stop-running]
-                  [--shell <name>] [--startup-file <path> ...]
 ```
 
 Options:
@@ -215,27 +214,27 @@ Options:
 - `--stop-running` acknowledges interruption of listed running containers when
   registry cleanup must stop a running macOS machine. It is rejected when no
   already-running machine needs to stop.
-- `--shell <name>` overrides shell detection for startup cleanup.
-- `--startup-file <path>` selects a startup file from which managed integration
-  is removed. Repeat it to select multiple files.
 - `-h`, `--help` shows lifecycle command help.
 
-Uninstall validates ownership and locks before mutation. On Linux it removes
-only an exact selected-profile link. On macOS it detaches an exact recorded VM
-link, restarts an initially running projected machine to clear cached policy,
-temporarily starts and returns a stopped projected machine to stopped state,
-or removes only the record when the deterministic machine is proven missing.
-It restores the initial running machine and default connection before deleting
-profile state. Global uninstall detaches every profile before deleting any;
-failed pre-commit cleanup reprojects already-detached profiles and retains
-profiles and catalogs. The standalone `profile redirect remove --all --detach`
-command remains available for recovery and debugging.
+Startup cleanup removes managed integration only from the `startup_file`
+entries owned by each profile manifest; uninstall does not accept arbitrary
+shell or startup-file targets. Uninstall validates ownership and locks before
+mutation. On Linux it removes only an exact selected-profile link. On macOS it
+detaches an exact recorded VM link, restarts an initially running projected
+machine to clear cached policy, temporarily starts and returns a stopped
+projected machine to stopped state, or removes only the record when the
+deterministic machine is proven missing. It restores the initial running
+machine and default connection before deleting profile state. Global uninstall
+detaches every profile before deleting any; failed pre-commit cleanup
+reprojects already-detached profiles and retains profiles and catalogs. The
+standalone `profile redirect remove --all --detach` command remains available
+for recovery and debugging.
 
 Examples:
 
 ```sh
 shimmy uninstall
-shimmy uninstall --startup-file "$HOME/.zshrc"
+shimmy uninstall --global
 ```
 
 ## `netinfo`

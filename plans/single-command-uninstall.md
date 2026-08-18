@@ -17,9 +17,12 @@ Make ordinary and global uninstall complete their own registry-projection prereq
 - Extend the public interface to:
 
   ```text
-  shimmy uninstall [--global] [--stop-running] [--shell <name>] [--startup-file <path> ...]
+  shimmy uninstall [--global] [--stop-running]
   ```
 
+- Startup cleanup is limited to the `startup_file` entries owned by each
+  profile manifest. Uninstall rejects the install-only `--shell` and
+  `--startup-file` selectors rather than accepting arbitrary cleanup targets.
 - `--stop-running` uses the existing activation semantics: display affected containers and require explicit acknowledgment before any planned machine stop. Reject duplicate, install-time, or unnecessary use.
 - Do not add `--dry-run`.
 - Never create, adopt, rename, or delete Podman machines or connections.
@@ -42,7 +45,7 @@ Make ordinary and global uninstall complete their own registry-projection prereq
 - Reusable prepare, detach, and rollback primitives in `lib/registries/registries.sh` preserve standalone redirect-removal behavior while allowing uninstall to retain its transaction locks.
 - Projection cleanup now clears its transaction-active flag after all local records are removed and before deleting any rollback backup; post-commit finalization failures report the committed state without entering rollback.
 - Cleanup-specific engine validation, switching, restart, and restoration support in `lib/profile/activation.sh` handles running and stopped deterministic machines without creating, adopting, renaming, or deleting them.
-- Lifecycle, parser, help, registry, and activation tests cover single-command cleanup, workload acknowledgment, failure injection, rollback, and preserved Linux/ownership behavior.
+- Lifecycle, parser, help, registry, and activation tests cover single-command cleanup, rejection of install-only startup selectors, workload acknowledgment, failure injection, rollback, and preserved Linux/ownership behavior.
 - Root and child contexts, README/command documentation, Podman/registry/testing documentation, and the canonical `shimmy-install` skill describe manual detach as recovery/debugging rather than an uninstall prerequisite.
 
 ## Unresolved
@@ -111,8 +114,12 @@ Make projection teardown, live-cache clearing, machine-state restoration, and lo
 - [x] A later global detach failure reprojects earlier detached profiles and leaves both profiles and catalogs intact.
 - [x] A second-profile backup-finalize failure and INT/TERM cleanup after the first backup is deleted do not invoke rollback, retain the committed record removals, and permit a clean retry.
 - [x] Linux exact-link cleanup, sibling isolation, operator policy preservation, startup cleanup, source-checkout preservation, and external-skill preservation remain covered.
-- [x] Help and parser tests cover `--stop-running`, duplicates, invalid combinations, and the absence of manual prerequisite guidance.
-- [x] Run targeted groups (the post-fix `commands-lifecycle` rerun passed all 19 tests; the complete post-fix suite below covered the remaining targeted groups):
+- [x] Help and parser tests cover `--stop-running`, duplicates, rejection of
+  `--shell` and `--startup-file`, invalid combinations, and the absence of
+  manual prerequisite guidance.
+- [x] Run targeted groups (after removing the uninstall startup selectors,
+  `commands-lifecycle`, `commands-management`, and `commands-install` passed
+  all 24 tests):
 
   ```sh
   ./tests/test.sh --serial \
@@ -124,7 +131,8 @@ Make projection teardown, live-cache clearing, machine-state restoration, and lo
     --group commands-profile
   ```
 
-- [x] Run the complete default suite with `./tests/test.sh` (164 tests passed after the projection-finalization commit-boundary fix; exit status 0).
+- [x] Run the complete default suite with `./tests/test.sh` (164 tests passed
+  after the uninstall startup-selector removal; exit status 0).
 - [~] Perform native macOS acceptance only against explicitly prepared disposable profiles and pre-existing deterministic machines; record before/after machine, connection, workload, VM-link, record, profile, and catalog state.
   - Passed: the stateful fake-Podman acceptance seam covers running, stopped, alternate, missing, workload, rollback, and global ordering cases in the automated suite.
   - Remaining: exercise the same matrix against native Podman machines and capture before/after state.
@@ -159,6 +167,9 @@ Confirm single-command profile/global cleanup, workload acknowledgment, live-cac
 - Stopped-machine cleanup is safe only when temporary engine transitions and registry mutation remain within the same activation-plus-profile-lock transaction.
 - Global cleanup must hold the shared catalog lock across profile commit and catalog removal so another lifecycle operation cannot observe a partially committed ownership state.
 - Stateful failure tests must model whether a projection was actually changed; otherwise rollback assertions can pass while exercising an impossible external state.
+- Uninstall startup cleanup must derive exclusively from manifest ownership;
+  exposing install-time startup selectors on uninstall creates a misleading and
+  unnecessarily broad deletion surface.
 
 ## Session bootstrap
 

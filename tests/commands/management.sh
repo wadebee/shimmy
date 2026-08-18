@@ -80,10 +80,14 @@ test_commands_management_guidance() {
   assert_contains "$(default_shimmy skills install --help)" '--export <path>'
   assert_contains "$(default_shimmy skills update --help)" 'prefers skills already tracked'
   assert_contains "$(default_shimmy skills uninstall --help)" '.shimmy-skills-manifest.txt'
-  assert_contains "$(default_shimmy uninstall --help)" 'shimmy uninstall [--global]'
-  assert_contains "$(default_shimmy uninstall --help)" '--stop-running'
-  assert_not_contains "$(default_shimmy uninstall --help)" 'detach it first'
-  assert_not_contains "$(default_shimmy uninstall --help)" '--shim <tool'
+  uninstall_help=$(default_shimmy uninstall --help)
+  assert_contains "$uninstall_help" 'shimmy uninstall [--global]'
+  assert_contains "$uninstall_help" '--stop-running'
+  assert_contains "$uninstall_help" 'Startup cleanup is limited to entries owned by the profile'
+  assert_not_contains "$uninstall_help" 'detach it first'
+  assert_not_contains "$uninstall_help" '--shim <tool'
+  assert_not_contains "$uninstall_help" '--shell'
+  assert_not_contains "$uninstall_help" '--startup-file'
 
   set +e
   catalog_profile_error=$(default_shimmy catalog publish 2>&1)

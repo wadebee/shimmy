@@ -62,11 +62,13 @@ Profile uninstall never removes shared catalog registry state. Initial
 default bootstrap publishes from a clean committed checkout through the same
 generation transaction used later; initial upstream bootstrap registers its
 live checkout without replacing an existing different binding.
-Profile and global uninstall remove only validated profile-owned registry
-files and, on Linux, the exact active Shimmy link when it targets a removed
-profile. On Darwin they use a valid record to remove only the exact VM link,
-restart a running projected machine to clear cached policy, temporarily start
-a stopped projected machine, permit record-only cleanup for a proven-missing
-machine, and restore the initial machine/default state. Foreign links,
-operator containers configuration, sibling profile files, and external skill
-exports remain outside that ownership boundary.
+Profile and global uninstall remove startup integration only from manifest-owned
+`startup_file` entries, validated profile-owned registry files, and, on Linux,
+the exact active Shimmy link when it targets a removed profile. They do not
+accept shell or startup-file selectors. On Darwin they use a valid record to
+remove only the exact VM link, restart a running projected machine to clear
+cached policy, temporarily start a stopped projected machine, permit
+record-only cleanup for a proven-missing machine, and restore the initial
+machine/default state. Foreign links, operator containers configuration,
+sibling profile files, and external skill exports remain outside that ownership
+boundary.

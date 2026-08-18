@@ -93,6 +93,23 @@ test_commands_install_run() {
   done
   assert_contains "$invalid_output" '--no-startup cannot be combined with --uninstall'
   set +e
+  unsupported_output=$(default_shimmy uninstall --shell zsh 2>&1)
+  unsupported_status=$?
+  set -e
+  [ "$unsupported_status" -ne 0 ] || fail_test 'uninstall unexpectedly accepted --shell'
+  assert_contains "$unsupported_output" 'unknown argument: --shell'
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  unowned_startup_file=$SCENARIO_DIR/unowned-startup
+  printf '%s\n' keep > "$unowned_startup_file"
+  set +e
+  unsupported_output=$(default_shimmy uninstall --startup-file "$unowned_startup_file" 2>&1)
+  unsupported_status=$?
+  set -e
+  [ "$unsupported_status" -ne 0 ] || fail_test 'uninstall unexpectedly accepted an unowned startup file'
+  assert_contains "$unsupported_output" 'unknown argument: --startup-file'
+  assert_file_contains "$unowned_startup_file" keep
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  set +e
   unnecessary_output=$(default_shimmy uninstall --stop-running 2>&1)
   unnecessary_status=$?
   set -e

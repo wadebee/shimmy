@@ -18,24 +18,21 @@ Remove the invoking Shimmy profile or all Shimmy-owned state.
 
 Usage:
   shimmy uninstall [--global] [--stop-running]
-                    [--shell <name>] [--startup-file <path> ...]
 
 Options:
   --global               Remove all owned profiles and shared catalogs.
   --stop-running         Acknowledge interruption of listed running containers.
-  --shell <name>         Override shell detection for startup cleanup.
-  --startup-file <path>  Select a startup file to clean. Repeatable.
   -h, --help             Show this help.
 
 Without --global, uninstall removes only the profile containing the invoked
 launcher. Attached registry policy is cleaned transactionally; running
 containers block a required machine stop unless --stop-running acknowledges
-their interruption. Source checkouts, operator registry policy, and external
-skill exports are preserved.
+their interruption. Startup cleanup is limited to entries owned by the profile
+manifest. Source checkouts, operator registry policy, and external skill
+exports are preserved.
 
 Examples:
   shimmy uninstall
-  shimmy uninstall --startup-file "$HOME/.zshrc"
 EOF
     return 0
   fi
@@ -213,12 +210,14 @@ shimmy_install_request_parse() {
         shift 2
         ;;
       --shell)
+        [ "$UNINSTALL" -eq 0 ] || fail "unknown argument: --shell"
         [ "$#" -ge 2 ] || fail "missing value for --shell"
         REQUESTED_SHELL=$2
         STARTUP_OPTION_REQUESTED=1
         shift 2
         ;;
       --startup-file)
+        [ "$UNINSTALL" -eq 0 ] || fail "unknown argument: --startup-file"
         [ "$#" -ge 2 ] || fail "missing value for --startup-file"
         REQUESTED_STARTUP_FILES=$(shimmy_append_line_list "$REQUESTED_STARTUP_FILES" "$2")
         STARTUP_OPTION_REQUESTED=1

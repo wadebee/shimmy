@@ -97,7 +97,8 @@ is the behavior under test.
 - `netinfo.sh` covers deterministic CIDR rendering, explicit host-LAN
   precedence, help output, and request validation.
 - `install.sh` covers additive installed-tool requests, uninstall workload
-  acknowledgement validation, invalid combinations, and macOS Podman guidance.
+  acknowledgement validation, rejection of install-only startup selectors,
+  invalid combinations, and macOS Podman guidance.
 - `test.sh` covers installed-profile test request, metadata validation,
   profile binding, public dispatch, and concrete-version orchestration. Its
   installed profile-binding scenario starts from a pristine clone; runtime
