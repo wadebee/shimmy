@@ -19,10 +19,12 @@ without starting tool containers. They are sourced by `../test.sh` and use
   local cache identity.
 - `runtime.sh` validates the shared Podman OS/architecture resolver, required
   platforms, fail-closed behavior, preview helpers, and installed Darwin
-  profile-affinity plus current registry-projection enforcement.
+  profile-affinity plus current registry-projection enforcement and exact
+  shared activation or restart recovery guidance.
 - `profile-activation.sh` validates deterministic engine state, workload-aware
   Darwin switching and registry projection, Linux registry-link transitions,
-  dry runs, fixed root/rootless ordering, fingerprint freshness, explicit
+  side-effect-free conservative recommendations, dry runs, fixed root/rootless
+  ordering, fingerprint freshness, explicit
   restart, cleanup start/stop/restoration primitives, commit-last selection,
   and failure-injected rollback reporting through a fake Podman command seam.
 - `registries.sh` validates strict endpoint grammar, exact managed-file

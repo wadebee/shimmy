@@ -19,6 +19,7 @@ recorded by the manifest; canonical skills and unselected catalog entries are
 invalid mixed-layout payload.
 
 `activation.sh` owns deterministic engine discovery, read-only status,
+side-effect-free activation-state labels and conservative recommended actions,
 workload-guarded Darwin transitions, commit-last default selection, rollback
 reporting, Linux active-link plus fresh local-rootless validation, and Darwin
 same-path registry projection before target engine validation. Darwin

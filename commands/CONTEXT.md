@@ -24,7 +24,9 @@ reusable behavior belongs in `../lib/`.
   adds preview-only smoke arguments for local builds.
 - `profile.sh` reports or explicitly activates the invoking profile's
   deterministic Podman engine, and manages strict profile-owned registry
-  redirects without selecting an arbitrary profile or machine. Linux
+  redirects without selecting an arbitrary profile or machine. Its detailed
+  status fields remain the compatibility surface while shared profile helpers
+  own side-effect-free activation labels and recommended recovery actions. Linux
   activation owns one exact user drop-in; Darwin activation projects one exact
   VM link, reports record/fingerprint freshness, requires explicit restart for
   stale running policy, and detaches only recognized invoking-profile state.

@@ -143,6 +143,13 @@ profile_activation_library_run() {
         shimmy_registries_machine_projection_record_apply() { return 1; }
       fi
       case "$SHIMMY_TEST_PROFILE_ACTION" in
+        recommendation)
+          shimmy_profile_state_read
+          shimmy_profile_activation_recommendation_resolve
+          printf "activation_label=%s\naction=%s\naction_label=%s\naction_command=%s\n" \
+            "$SHIMMY_PROFILE_ACTIVATION_LABEL" "$SHIMMY_PROFILE_RECOMMENDED_ACTION" \
+            "$SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL" "$SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND"
+          ;;
         status) shimmy_profile_status_print manifest ;;
         activate) shimmy_profile_activate "$2" "$3" "$4" ;;
       esac
@@ -426,6 +433,71 @@ other|true'
   pass "profile state maps only canonical profiles and classifies Darwin missing/stopped plus Linux readiness"
 }
 
+test_lib_profile_activation_recommendations() {
+  setup_scenario
+  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
+  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$FAKE_PODMAN_BIN"
+  : > "$FAKE_PODMAN_LOG"
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_DARWIN_PROJECTION_STATE=current
+  FAKE_DARWIN_PROJECTION_FINGERPRINT=
+  FAKE_DARWIN_RECORD_STATE=valid
+  FAKE_FAIL_ACTION=
+
+  FAKE_MACHINE_LIST='shimmy-default|true'
+  recommendation_output=$(profile_activation_library_run default Darwin recommendation)
+  assert_contains "$recommendation_output" 'activation_label=active'
+  assert_contains "$recommendation_output" 'action=none'
+
+  FAKE_MACHINE_LIST='shimmy-default|false'
+  recommendation_output=$(profile_activation_library_run default Darwin recommendation)
+  assert_contains "$recommendation_output" 'action=profile_activate'
+  assert_contains "$recommendation_output" "action_command='$XDG_CONFIG_HOME_DIR/shimmy/profiles/default/bin/shimmy' profile activate"
+
+  FAKE_MACHINE_LIST='shimmy-default|true'
+  FAKE_DARWIN_PROJECTION_FINGERPRINT=0-0
+  recommendation_output=$(profile_activation_library_run default Darwin recommendation)
+  assert_contains "$recommendation_output" 'activation_label=registry restart required'
+  assert_contains "$recommendation_output" 'action=profile_activate_restart'
+  assert_contains "$recommendation_output" "action_command='$XDG_CONFIG_HOME_DIR/shimmy/profiles/default/bin/shimmy' profile activate --restart"
+  FAKE_DARWIN_PROJECTION_FINGERPRINT=
+
+  FAKE_MACHINE_LIST='podman-machine-default|true'
+  FAKE_CONNECTION_LIST='podman-machine-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  recommendation_output=$(profile_activation_library_run default Darwin recommendation)
+  assert_contains "$recommendation_output" 'action=podman_machine_init'
+  assert_contains "$recommendation_output" 'action_command=podman machine init shimmy-default'
+
+  export CONTAINER_HOST='ssh://secret@example.invalid/run/user/1/podman/podman.sock'
+  recommendation_output=$(profile_activation_library_run default Darwin recommendation)
+  unset CONTAINER_HOST
+  assert_contains "$recommendation_output" 'action=unset_override'
+  assert_contains "$recommendation_output" 'action_command=unset CONTAINER_HOST'
+  assert_not_contains "$recommendation_output" 'secret@example.invalid'
+
+  export CONTAINERS_REGISTRIES_CONF="$SCENARIO_DIR/secret-registries.conf"
+  recommendation_output=$(profile_activation_library_run default Darwin recommendation)
+  unset CONTAINERS_REGISTRIES_CONF
+  assert_contains "$recommendation_output" 'action=unset_override'
+  assert_contains "$recommendation_output" 'action_command=unset CONTAINERS_REGISTRIES_CONF'
+  assert_not_contains "$recommendation_output" "$SCENARIO_DIR/secret-registries.conf"
+
+  FAKE_MACHINE_LIST='shimmy-default|true'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_FAIL_ACTION=target_validation
+  recommendation_output=$(profile_activation_library_run default Darwin recommendation)
+  assert_contains "$recommendation_output" 'action=investigate'
+  assert_contains "$recommendation_output" 'action_command='
+
+  recommendation_log=$(cat "$FAKE_PODMAN_LOG")
+  assert_not_contains "$recommendation_log" 'machine stop '
+  assert_not_contains "$recommendation_log" 'machine start '
+  assert_not_contains "$recommendation_log" 'system connection default '
+  assert_not_contains "$recommendation_log" ' /bin/sh -s -- apply '
+  pass 'profile activation recommendations map resolved states conservatively without Podman mutation'
+}
+
 test_lib_profile_activation_idempotence_and_rejections() {
   setup_scenario
   FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
@@ -620,6 +692,7 @@ shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
 
 test_lib_profile_activation_run() {
   test_lib_profile_activation_mapping_and_status
+  test_lib_profile_activation_recommendations
   test_lib_profile_activation_linux_registry_projection
   test_lib_profile_activation_darwin_registry_projection
   test_lib_profile_activation_idempotence_and_rejections

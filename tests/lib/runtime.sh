@@ -76,6 +76,7 @@ test_lib_runtime_profile_affinity() {
   mkdir -p "$affinity_runtime_dir" "$affinity_profile_root/lib/common" "$affinity_profile_root/lib/profile" "$affinity_profile_root/lib/registries"
   cp "$ROOT_DIR/lib/common/common.sh" "$affinity_profile_root/lib/common/common.sh"
   cp "$ROOT_DIR/lib/profile/profile.sh" "$affinity_profile_root/lib/profile/profile.sh"
+  cp "$ROOT_DIR/lib/profile/activation.sh" "$affinity_profile_root/lib/profile/activation.sh"
   cp "$ROOT_DIR/lib/registries/registries.sh" "$affinity_profile_root/lib/registries/registries.sh"
   printf '%s\n' 'shimmy_profile_name=default' 'shimmy_install_layout=profile-materialized-root' > "$affinity_profile_root/install-manifest.txt"
   shimmy_registries_config_render default '' > "$affinity_profile_root/registries.conf"
@@ -90,11 +91,13 @@ test_lib_runtime_profile_affinity() {
   : > "$fake_log"
   affinity_connections='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
 podman-machine-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  affinity_machines='shimmy-default|true'
 
   set +e
   affinity_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
     SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" FAKE_PODMAN_LOG="$fake_log" \
-    FAKE_CONNECTION_LIST="$affinity_connections" /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require' sh "$ROOT_DIR/lib/runtime/podman.sh" 2>&1)
+    FAKE_MACHINE_LIST="$affinity_machines" FAKE_CONNECTION_LIST="$affinity_connections" \
+    /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require' sh "$ROOT_DIR/lib/runtime/podman.sh" 2>&1)
   affinity_status=$?
   set -e
   [ "$affinity_status" -ne 0 ] || fail_test "inactive installed profile unexpectedly passed Darwin affinity"
@@ -104,7 +107,7 @@ podman-machine-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|tru
   set +e
   override_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
     CONTAINER_HOST="$secret_uri" SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" \
-    FAKE_PODMAN_LOG="$fake_log" FAKE_CONNECTION_LIST="$affinity_connections" \
+    FAKE_PODMAN_LOG="$fake_log" FAKE_MACHINE_LIST="$affinity_machines" FAKE_CONNECTION_LIST="$affinity_connections" \
     /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require' sh "$ROOT_DIR/lib/runtime/podman.sh" 2>&1)
   override_status=$?
   set -e
@@ -112,10 +115,23 @@ podman-machine-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|tru
   assert_contains "$override_output" 'CONTAINER_HOST masks the global default'
   assert_not_contains "$override_output" "$secret_uri"
 
+  secret_registry_path=$SCENARIO_DIR/secret-registries.conf
+  set +e
+  registry_override_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
+    CONTAINERS_REGISTRIES_CONF="$secret_registry_path" SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" \
+    FAKE_PODMAN_LOG="$fake_log" FAKE_MACHINE_LIST="$affinity_machines" FAKE_CONNECTION_LIST="$affinity_connections" \
+    /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require' sh "$ROOT_DIR/lib/runtime/podman.sh" 2>&1)
+  registry_override_status=$?
+  set -e
+  [ "$registry_override_status" -ne 0 ] || fail_test 'registry override unexpectedly passed Darwin affinity'
+  assert_contains "$registry_override_output" 'CONTAINERS_REGISTRIES_CONF masks the active registry projection'
+  assert_contains "$registry_override_output" 'unset CONTAINERS_REGISTRIES_CONF'
+  assert_not_contains "$registry_override_output" "$secret_registry_path"
+
   active_connections='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   active_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
     SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" FAKE_PODMAN_LOG="$fake_log" \
-    FAKE_CONNECTION_LIST="$active_connections" FAKE_DARWIN_PROJECTION_STATE=current \
+    FAKE_MACHINE_LIST="$affinity_machines" FAKE_CONNECTION_LIST="$active_connections" FAKE_DARWIN_PROJECTION_STATE=current \
     /bin/sh -c 'set -e; . "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require; printf active-ok' sh "$ROOT_DIR/lib/runtime/podman.sh")
   assert_equals "$active_output" active-ok
 
@@ -125,16 +141,19 @@ podman-machine-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|tru
   set +e
   stale_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
     SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" FAKE_PODMAN_LOG="$fake_log" \
-    FAKE_CONNECTION_LIST="$active_connections" FAKE_DARWIN_PROJECTION_STATE=current \
+    FAKE_MACHINE_LIST="$affinity_machines" FAKE_CONNECTION_LIST="$active_connections" FAKE_DARWIN_PROJECTION_STATE=current \
     /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require' sh "$ROOT_DIR/lib/runtime/podman.sh" 2>&1)
   stale_status=$?
   set -e
   [ "$stale_status" -ne 0 ] || fail_test 'stale Darwin registry projection unexpectedly passed runtime affinity'
   assert_contains "$stale_output" 'registry projection is restart-required'
+  assert_contains "$stale_output" "'$affinity_profile_root/bin/shimmy' profile activate --restart"
+  assert_contains "$stale_output" ". '$affinity_profile_root/shell-init.sh'"
 
   source_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
     SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$ROOT_DIR/lib/runtime" FAKE_PODMAN_LOG="$fake_log" \
-    FAKE_CONNECTION_LIST="$affinity_connections" /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require; printf source-ok' sh "$ROOT_DIR/lib/runtime/podman.sh")
+    FAKE_MACHINE_LIST="$affinity_machines" FAKE_CONNECTION_LIST="$affinity_connections" \
+    /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require; printf source-ok' sh "$ROOT_DIR/lib/runtime/podman.sh")
   assert_equals "$source_output" source-ok
   pass "Darwin installed runtimes enforce exact profile connection and current registry projection affinity without affecting source execution or exposing overrides"
 }

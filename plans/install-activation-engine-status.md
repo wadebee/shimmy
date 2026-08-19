@@ -1,6 +1,6 @@
 # Bootstrap Rename, Activation, and Engine Status Plan
 
-**Status:** awaiting review
+**Status:** Chunk 1 accepted; Chunk 2 awaiting authorization
 
 ## Objective
 
@@ -370,7 +370,7 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Centralize activation recommendations and correct exact runtime
+- [x] Chunk 1 — Centralize activation recommendations and correct exact runtime
   recovery guidance.
 - [ ] Chunk 2 — Add the read-only Podman Engine section and additive manifest
   fields to top-level status.
@@ -379,7 +379,8 @@ None.
 - [ ] Chunk 4 — Add safe bootstrap `--activate`, align guidance, and run
   integrated acceptance.
 
-Active chunk after approval: Chunk 1.
+Chunk 1 was accepted by the user on 2026-08-19. Chunk 2 has not started and
+requires a separate implementation request.
 
 ## Reasoning-level calculation
 
@@ -467,17 +468,17 @@ Primary change surface:
 
 ### Verification checklist
 
-- [ ] Profile activation library tests positively prove action mapping for
+- [x] Profile activation library tests positively prove action mapping for
   active, ordinary activation, restart-required, missing-machine, override,
   and investigate-only states without Podman mutation.
-- [ ] Runtime tests prove a stale Darwin registry projection names the exact
+- [x] Runtime tests prove a stale Darwin registry projection names the exact
   absolute `profile activate --restart` command and retains PATH guidance.
-- [ ] Existing runtime redaction and affinity validation coverage passes.
-- [ ] Existing detailed profile status tests pass without renamed or removed
+- [x] Existing runtime redaction and affinity validation coverage passes.
+- [x] Existing detailed profile status tests pass without renamed or removed
   fields if that command consumes the shared resolver.
-- [ ] Run focused groups concurrently:
+- [x] Run focused groups concurrently:
   `./tests/test.sh --jobs 3 --group lib-profile-activation --group lib-runtime --group commands-profile`.
-- [ ] Review `git diff --check`, executable modes, full
+- [x] Review `git diff --check`, executable modes, full
   `git diff`, and `git status --short` for accidental mutation-path,
   generated-adapter, or unrelated changes.
 
@@ -487,6 +488,8 @@ Reviewers confirm the state-to-action mapping is complete and conservative,
 restart-required guidance is exact, profile status remains compatible, and no
 new engine discovery or mutation path was added. Stop before Chunk 2 pending
 explicit acceptance.
+
+Accepted by the user on 2026-08-19.
 
 ## Chunk 2 — Top-level engine status
 
@@ -898,6 +901,23 @@ has an explicit accepted disposition.
   not an explicit bootstrap option. This plan is compatible as long as it does
   not broaden profile identity or custom-profile scope.
 
+### Chunk 1
+
+- The installed runtime can consume `shimmy_profile_state_read` directly from
+  its materialized profile helpers, eliminating its duplicate connection,
+  reachability, and registry-projection queries while retaining the existing
+  runtime-affinity boundary.
+- Recommendation precedence is conservative and side-effect free: masking
+  overrides, a missing deterministic machine, ordinary activation states,
+  restart-required projection, and active state resolve before all unsafe or
+  unknown states fall back to `investigate`.
+- Connection and registry overrides must be classified before Podman discovery
+  so their variable names can be reported without querying an engine or
+  exposing their values.
+- The detailed `shimmy profile status` field set and formatting did not need to
+  change for the shared resolver; focused command-profile coverage confirms
+  compatibility.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -916,8 +936,8 @@ For a fresh implementation session:
    interrupted without separate `--stop-running`; no Podman machine is
    provisioned or removed; agent approval gates remain separate; generated
    `.agents/skills/` adapters are untouched.
-5. Begin only the currently approved chunk. The initial active chunk is Chunk
-   1, but planning review alone does not authorize it.
+5. Chunk 1 is accepted. Chunk 2 has not started; begin it only after a separate
+   explicit implementation request from the user.
 6. Use fake Podman seams and disposable roots for tests. Follow the default
    bounded parallel runner guidance and use serial reruns only to diagnose a
    failure.

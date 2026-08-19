@@ -7,7 +7,10 @@
   the invoking profile's rootless connection to be the reachable global
   default and require a valid, current Darwin registry projection whose VM
   link, rootless-visible fingerprint, and local record match the authoritative
-  profile config. Registry and connection overrides fail closed. Source
+  profile config. Registry and connection overrides fail closed. Installed
+  affinity consumes the shared profile state reader and recommendation resolver
+  so recovery guidance uses the exact safe activation or restart command
+  without duplicating engine discovery. Source
   previews retain their behavior. Successful Darwin registry affinity leaves
   current-state evidence for the shared registry-client mount resolver so a
   Skopeo run does not repeat remote projection inspection.

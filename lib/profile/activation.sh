@@ -82,6 +82,64 @@ shimmy_profile_activation_override_reject() {
   return 1
 }
 
+shimmy_profile_activation_recommendation_resolve() {
+  connection_override=${SHIMMY_PROFILE_CONNECTION_OVERRIDE:-none}
+  registry_override=${SHIMMY_REGISTRIES_OVERRIDE:-none}
+  activation_state=${SHIMMY_PROFILE_ACTIVATION_STATE:-unknown}
+  expected_machine_state=${SHIMMY_PROFILE_EXPECTED_MACHINE_STATE:-unknown}
+
+  SHIMMY_PROFILE_ACTIVATION_LABEL=$(printf '%s' "$activation_state" | tr '_' ' ')
+  SHIMMY_PROFILE_RECOMMENDED_ACTION=investigate
+  SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL=investigate
+  SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND=
+
+  if [ "$connection_override" != none ] || [ "$registry_override" != none ]; then
+    masking_overrides=
+    if [ "$connection_override" != none ]; then
+      masking_overrides=$connection_override
+    fi
+    if [ "$registry_override" != none ]; then
+      if [ -n "$masking_overrides" ]; then
+        masking_overrides=$masking_overrides,$registry_override
+      else
+        masking_overrides=$registry_override
+      fi
+    fi
+    SHIMMY_PROFILE_RECOMMENDED_ACTION=unset_override
+    SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL='unset override'
+    SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="unset $(printf '%s' "$masking_overrides" | tr ',' ' ')"
+    return 0
+  fi
+
+  if [ "$expected_machine_state" = missing ]; then
+    SHIMMY_PROFILE_RECOMMENDED_ACTION=podman_machine_init
+    SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL='initialize Podman machine'
+    SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="podman machine init ${SHIMMY_PROFILE_EXPECTED_MACHINE:-unknown}"
+    return 0
+  fi
+
+  case "$activation_state" in
+    active)
+      SHIMMY_PROFILE_RECOMMENDED_ACTION=none
+      SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL=none
+      ;;
+    alternate_running|mismatched_default|ready|stopped)
+      SHIMMY_PROFILE_RECOMMENDED_ACTION=profile_activate
+      SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL='activate profile'
+      SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate"
+      ;;
+    registry_restart_required)
+      SHIMMY_PROFILE_RECOMMENDED_ACTION=profile_activate_restart
+      SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL='restart profile engine'
+      SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate --restart"
+      ;;
+    overridden)
+      SHIMMY_PROFILE_RECOMMENDED_ACTION=unset_override
+      SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL='unset override'
+      ;;
+  esac
+}
+
 shimmy_profile_connection_is_rootless() {
   connection_target=$1
   connection_lines=$2
@@ -256,6 +314,18 @@ shimmy_profile_state_darwin_read() {
   SHIMMY_PROFILE_RUNNING_CONTAINERS=
   SHIMMY_PROFILE_ENGINE_REACHABLE=unknown
   shimmy_profile_activation_override_read
+  if command -v shimmy_registries_override_read >/dev/null 2>&1; then
+    shimmy_registries_override_read
+  else
+    SHIMMY_REGISTRIES_OVERRIDE=none
+  fi
+  if [ "$SHIMMY_PROFILE_CONNECTION_OVERRIDE" != none ] || [ "$SHIMMY_REGISTRIES_OVERRIDE" != none ]; then
+    SHIMMY_PROFILE_CONNECTION_METADATA=unknown
+    SHIMMY_PROFILE_DEFAULT_CONNECTION=unknown
+    SHIMMY_PROFILE_EXPECTED_CONNECTION_STATE=unknown
+    SHIMMY_PROFILE_ACTIVATION_STATE=overridden
+    return 0
+  fi
 
   if ! shimmy_profile_podman_bin_require; then
     SHIMMY_PROFILE_ACTIVATION_STATE=unavailable
@@ -346,8 +416,6 @@ EOF
     SHIMMY_PROFILE_ACTIVATION_STATE=unreachable
   elif [ "$SHIMMY_PROFILE_EXPECTED_CONNECTION_STATE" = missing ]; then
     SHIMMY_PROFILE_ACTIVATION_STATE=invalid_metadata
-  elif [ "$SHIMMY_PROFILE_CONNECTION_OVERRIDE" != none ]; then
-    SHIMMY_PROFILE_ACTIVATION_STATE=overridden
   elif [ "$SHIMMY_PROFILE_ALTERNATE_RUNNING_MACHINE" != none ]; then
     SHIMMY_PROFILE_ACTIVATION_STATE=alternate_running
   elif [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" = stopped ]; then
@@ -455,7 +523,12 @@ shimmy_profile_state_read() {
       SHIMMY_PROFILE_ALTERNATE_RUNNING_MACHINE=none
       SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT=unknown
       SHIMMY_PROFILE_DEFAULT_CONNECTION=unknown
-      SHIMMY_PROFILE_CONNECTION_OVERRIDE=none
+      shimmy_profile_activation_override_read
+      if command -v shimmy_registries_override_read >/dev/null 2>&1; then
+        shimmy_registries_override_read
+      else
+        SHIMMY_REGISTRIES_OVERRIDE=none
+      fi
       SHIMMY_PROFILE_CONNECTION_METADATA=unknown
       SHIMMY_PROFILE_MACHINE_METADATA=unknown
       SHIMMY_PROFILE_EXPECTED_CONNECTION_STATE=unknown
