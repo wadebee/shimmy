@@ -131,8 +131,9 @@ Make projection teardown, live-cache clearing, machine-state restoration, and lo
     --group commands-profile
   ```
 
-- [x] Run the complete default suite with `./tests/test.sh` (164 tests passed
-  after the uninstall startup-selector removal; exit status 0).
+- [x] Run the complete default suite with `./tests/test.sh` (165 tests passed
+  after the uninstall startup-selector removal and background-group SIGINT
+  guard; exit status 0).
 - [~] Perform native macOS acceptance only against explicitly prepared disposable profiles and pre-existing deterministic machines; record before/after machine, connection, workload, VM-link, record, profile, and catalog state.
   - Passed: the stateful fake-Podman acceptance seam covers running, stopped, alternate, missing, workload, rollback, and global ordering cases in the automated suite.
   - Remaining: exercise the same matrix against native Podman machines and capture before/after state.
@@ -164,6 +165,7 @@ Confirm single-command profile/global cleanup, workload acknowledgment, live-cac
 
 - A valid projection record must remain the recovery anchor until remote detach and machine/default restoration have both succeeded; deleting it earlier makes exact rollback unverifiable.
 - Recovery backups must remain complete until every local projection record has been removed and the transaction is atomically marked committed; destroying backups while rollback remains armed creates an unrecoverable signal/failure window.
+- Test groups run as background processes even with `--serial`; POSIX child shells can inherit SIGINT as ignored, so signal-boundary group tests must invoke the installed cleanup handler directly. The runner now rejects kernel-level SIGINT delivery inside groups before it can hang or falsely pass.
 - Stopped-machine cleanup is safe only when temporary engine transitions and registry mutation remain within the same activation-plus-profile-lock transaction.
 - Global cleanup must hold the shared catalog lock across profile commit and catalog removal so another lifecycle operation cannot observe a partially committed ownership state.
 - Stateful failure tests must model whether a projection was actually changed; otherwise rollback assertions can pass while exercising an impossible external state.

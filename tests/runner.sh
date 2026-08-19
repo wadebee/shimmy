@@ -257,6 +257,22 @@ $(test_runner_group_registry_read)
 EOF
 }
 
+test_runner_group_kill() {
+  case "${1:-}" in
+    -2|-INT|-int|-SIGINT|-sigint)
+      fail_test 'kernel-level SIGINT delivery is unsupported inside background test groups; invoke the signal cleanup handler directly and assert status 130'
+      ;;
+    -n|-s|--signal)
+      case "${2:-}" in
+        2|INT|int|SIGINT|sigint)
+          fail_test 'kernel-level SIGINT delivery is unsupported inside background test groups; invoke the signal cleanup handler directly and assert status 130'
+          ;;
+      esac
+      ;;
+  esac
+  command kill "$@"
+}
+
 test_runner_usage() {
   cat <<'EOF'
 Run the Shimmy source test suite.
@@ -394,6 +410,7 @@ test_runner_worker_run() {
     (
       set -e
       TEST_COUNT=0
+      kill() { test_runner_group_kill "$@"; }
       "$test_runner_group_function"
       printf '%s\n' "$TEST_COUNT" > "$test_runner_group_count_file"
     ) > "$test_runner_group_log" 2>&1 &

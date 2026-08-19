@@ -29,6 +29,21 @@ least one requested group. Use `--serial` for immediate single-worker failure
 diagnosis. Parallel failures can identify more than one failed worker because
 the parent always waits for every worker it started.
 
+### Signal tests inside groups
+
+Every selected group runs in a background process, including a one-worker
+`--serial` run. POSIX shells may inherit SIGINT as ignored when started in that
+position, and a non-interactive child shell cannot reliably make an inherited
+ignored SIGINT trappable. Do not use kernel-level `kill -INT`, `kill -2`, or
+`kill -s INT` delivery inside a test group. The group harness rejects those
+forms immediately instead of allowing a false pass or hang.
+
+To test an INT boundary in a command or sourced lifecycle, inject the boundary
+and invoke its installed INT cleanup handler directly, then assert status 130
+and the required state. Use the same handler-level pattern for TERM when both
+paths share cleanup behavior. Actual process-level signal delivery belongs in
+parent-runner coverage where the target did not inherit SIGINT as ignored.
+
 Opt in to integer-second setup, per-group, and total timing records with:
 
 ```sh

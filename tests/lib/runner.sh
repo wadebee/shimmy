@@ -17,6 +17,10 @@ test_lib_runner_stub_failure() {
   return 7
 }
 
+test_lib_runner_stub_int_delivery() {
+  kill -INT "$$"
+}
+
 test_lib_runner_stub_pass_first() {
   pass "synthetic first"
 }
@@ -91,6 +95,28 @@ second|two-b|three-b'
   assert_equals "$test_runner_selection_output" 'first
 second'
   pass "runner selection executes requested groups in registry order"
+}
+
+test_lib_runner_group_sigint_guard() {
+  setup_scenario
+  test_runner_sigint_output_root=$SCENARIO_DIR/sigint-output
+
+  set +e
+  test_runner_sigint_output=$(
+    TEST_RUNNER_GROUP_REGISTRY_OVERRIDE='int-delivery|test_lib_runner_stub_int_delivery'
+    TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE='int-delivery|two-a|three-a'
+    TEST_RUNNER_OUTPUT_ROOT=$test_runner_sigint_output_root
+    TEST_COUNT=0
+    SHIMMY_TEST_TIMING=0
+    test_runner_options_parse --serial
+    test_runner_groups_run 2>&1
+  )
+  test_runner_sigint_status=$?
+  set -e
+
+  [ "$test_runner_sigint_status" -ne 0 ] || fail_test 'runner allowed kernel-level SIGINT delivery inside a background test group'
+  assert_contains "$test_runner_sigint_output" 'kernel-level SIGINT delivery is unsupported inside background test groups'
+  pass 'runner fails fast when a background test group attempts kernel-level SIGINT delivery'
 }
 
 test_lib_runner_option_validation() {
@@ -397,6 +423,7 @@ test_lib_runner_fixture_copy_preservation() {
 test_lib_runner_run() {
   test_lib_runner_registry_ordering
   test_lib_runner_group_selection
+  test_lib_runner_group_sigint_guard
   test_lib_runner_option_validation
   test_lib_runner_timing_shape
   test_lib_runner_lifecycle_grouping

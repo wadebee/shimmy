@@ -57,7 +57,10 @@ coverage and assertion counts, then replays output in canonical order.
 Lifecycle prepare and complete are one indivisible group. Recorded live worker
 PIDs are the only processes terminated during signal cleanup. Timing records
 for setup, each selected group, and the total run are emitted only when
-`SHIMMY_TEST_TIMING=1`.
+`SHIMMY_TEST_TIMING=1`. Every group runs as a background process, including a
+one-worker `--serial` run, so the group shell rejects kernel-level SIGINT
+delivery and directs signal-boundary tests to invoke the installed cleanup
+handler and assert status 130.
 The retained 2026-08-17 measurements are historical evidence from the former
 three-sample policy; current timing guidance uses one coarse measurement and
 does not repeat runs solely to calculate a median. The full serial measurement
