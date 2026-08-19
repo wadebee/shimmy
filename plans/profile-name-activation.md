@@ -17,7 +17,7 @@ profile.
 Custom profiles must be creatable through the existing checkout bootstrap:
 
 ```sh
-. ./install.sh --profile <profile-name>
+. ./bootstrap.sh --profile <profile-name>
 ```
 
 They must receive the fixed jq/rg baseline, bind to the published `default`
@@ -121,8 +121,8 @@ external constraint rather than claiming VM state is per shell:
 
 ```text
 # Creation from a source checkout; custom profiles use catalog=default.
-source ./install.sh --profile work [install options]
-./install.sh --profile work [install options]
+source ./bootstrap.sh --profile work [install options]
+./bootstrap.sh --profile work [install options]
 
 # Backward-compatible invocation-profile activation.
 shimmy profile activate [--restart] [--stop-running] [--dry-run]
@@ -162,7 +162,7 @@ or profile state changes.
 
    Existing valid built-in manifests remain valid. No arbitrary manifest
    catalog binding, in-place profile rename, or legacy layout is accepted.
-3. Extend root `install.sh --profile` to accept the canonical grammar. A fresh
+3. Extend root `bootstrap.sh --profile` to accept the canonical grammar. A fresh
    custom bootstrap initializes or resolves the published `default` catalog
    through the same clean committed source transaction used for the built-in
    default profile, installs jq/rg, materializes a canonical custom tree, and
@@ -273,7 +273,7 @@ The following is the verified baseline. Implementation must still classify and
 update newly discovered dependencies rather than treating this inventory as a
 closed allowlist.
 
-- Public parsing and dispatch: `install.sh`, `commands/profile.sh`,
+- Public parsing and dispatch: `bootstrap.sh`, `commands/profile.sh`,
   `commands/agent-preflight.sh`, and `lib/install/launcher-template.sh`.
 - Canonical identity and activation: `lib/profile/profile.sh`,
   `lib/profile/activation.sh`, and their contexts.
@@ -357,7 +357,7 @@ to Chunk 2 and must be documented as pending until that chunk is accepted.
 
 Primary surfaces:
 
-- `install.sh`, `commands/agent-preflight.sh`, and installed launcher rendering;
+- `bootstrap.sh`, `commands/agent-preflight.sh`, and installed launcher rendering;
 - `lib/profile/`, `lib/install/`, `lib/update/`, `lib/registries/`, and
   `lib/runtime/podman.sh`;
 - the applicable `CONTEXT.md` files;
@@ -404,7 +404,7 @@ Primary surfaces:
   tests cover empty, leading/trailing/repeated hyphens as applicable, dots,
   underscores, uppercase, whitespace, separators, traversal, metacharacters,
   and control/newline input without filesystem or Podman mutation.
-- [ ] Sourced and executed `./install.sh --profile work` create an independent
+- [ ] Sourced and executed `./bootstrap.sh --profile work` create an independent
   canonical profile with jq/rg, `shimmy_profile_name=work`, `catalog=default`,
   no `source_checkout`, no persistent startup block, and a valid generated
   registry file. Existing default/upstream bootstrap tests remain unchanged in

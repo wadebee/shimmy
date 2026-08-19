@@ -37,7 +37,7 @@ shimmy_install_startup_shell_alignment_confirm() {
 
   log_warn "startup shell discrepancy: configured=$configured_shell_path running=$running_shell_path"
   log_warn "Shimmy will update $STARTUP_SHELL startup files but initialize PATH in the running $running_shell_name shell."
-  log_warn "To align them, cancel and run this bootstrap from $STARTUP_SHELL, or recreate a fresh default profile from $running_shell_name with: source ./install.sh --shell $running_shell_name"
+  log_warn "To align them, cancel and run this bootstrap from $STARTUP_SHELL, or recreate a fresh default profile from $running_shell_name with: source ./bootstrap.sh --shell $running_shell_name"
   if [ "$PROFILE_EXISTS" -eq 1 ]; then
     log_warn "The existing default profile must be uninstalled before its recorded startup shell can change."
   fi

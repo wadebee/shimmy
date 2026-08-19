@@ -16,9 +16,9 @@ management-plugin directories deliberately have no context-file hierarchy.
 - `commands/profile.sh` and `lib/profile/activation.sh` own explicit
   profile-bound Podman engine status and activation plus uninstall's guarded
   Darwin cleanup transitions. Shell initialization owns PATH selection only.
-- `install.sh` bootstraps one canonical profile with the fixed jq/rg baseline
+- `bootstrap.sh` bootstraps one canonical profile with the fixed jq/rg baseline
   and sources its generated `shell-init.sh`; the repository has no runnable
-  `shimmy` launcher and does not accept tool selection. Sourcing the installer
+  `shimmy` launcher and does not accept tool selection. Sourcing the bootstrap
   retains shell initialization, while execution remains suitable for
   automation and absolute-path self-update. Fresh default bootstrap records
   one immutable normalized startup shell and a managed exact-path or manual

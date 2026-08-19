@@ -1,12 +1,12 @@
 # Bootstrap Shimmy from a Checkout
 
-Use the existing source checkout and the root `install.sh` checkout bootstrap
+Use the existing source checkout and the root `bootstrap.sh` checkout bootstrap
 for first-time installation. Shimmy does not provide a downloader or a
 repository-local `shimmy` launcher.
 
 ## Prerequisites
 
-- A complete Shimmy source checkout with `install.sh`, `commands/`, `lib/`, and
+- A complete Shimmy source checkout with `bootstrap.sh`, `commands/`, `lib/`, and
   `tools/`.
 - A POSIX-compatible `/bin/sh`.
 - The Podman CLI and a local rootless Podman engine. Shimmy treats Podman as an
@@ -29,7 +29,7 @@ From the checkout root, source the bootstrap to install the default profile
 and initialize it in the current shell:
 
 ```sh
-. ./install.sh
+. ./bootstrap.sh
 ```
 
 The initial default bootstrap requires a clean committed Git checkout. It
@@ -65,7 +65,7 @@ For a fresh manual-policy profile, execute the same file when automation needs
 the installation but does not need its parent shell initialized:
 
 ```sh
-./install.sh --no-startup
+./bootstrap.sh --no-startup
 ```
 
 Advanced users with a nonstandard startup chain can use manual policy and add
@@ -88,7 +88,7 @@ Shimmy Maintainers/Repo Developers can bootstrap the `upstream` profile, which r
 ```sh
 SHIMMY_UPSTREAM_CHECKOUT_DIR=/absolute/path/to/shimmy
 export SHIMMY_UPSTREAM_CHECKOUT_DIR
-. ./install.sh --profile upstream
+. ./bootstrap.sh --profile upstream
 ```
 
 A different checkout cannot silently replace an existing upstream binding.
@@ -142,7 +142,7 @@ unsafe, or registry-overridden installed state fails closed.
 The supported installation chain is:
 
 ```text
-install.sh                       public checkout bootstrap
+bootstrap.sh                     public checkout bootstrap
   -> commands/install.sh         public management entrypoint
      -> lib/install/install.sh   sourceable orchestration implementation
         -> sibling lib/install modules

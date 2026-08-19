@@ -10,7 +10,7 @@ change. Tool and management-plugin directories do not own context files.
 - `commands/` contains the executable management surface.
 - `lib/` contains reusable POSIX modules, including canonical XDG profile-path
   resolution.
-- Root `install.sh` bootstraps one profile; the repository contains no runnable
+- Root `bootstrap.sh` bootstraps one profile; the repository contains no runnable
   `shimmy` launcher. Sourcing it initializes the caller; execution is for
   automation. Every bootstrap includes jq and rg, and each installed
   materialized profile owns its own `bin/shimmy`.

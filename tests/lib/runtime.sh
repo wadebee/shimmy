@@ -171,7 +171,7 @@ test_lib_runtime_posix_syntax() {
 }
 
 test_lib_runtime_executable_contract() {
-  assert_file_executable "$ROOT_DIR/install.sh"
+  assert_file_executable "$ROOT_DIR/bootstrap.sh"
   assert_file_executable "$ROOT_DIR/tests/test.sh"
   assert_file_executable "$ROOT_DIR/tests/context-tree.sh"
   [ ! -x "$ROOT_DIR/lib/install/launcher-template.sh" ] || fail_test "launcher template must not be executable"
@@ -187,12 +187,12 @@ test_lib_runtime_source_checkout_contract() {
   setup_scenario
   valid_checkout=$SCENARIO_DIR/valid-checkout
   mkdir -p "$valid_checkout/commands" "$valid_checkout/lib/install" "$valid_checkout/tools"
-  cp "$ROOT_DIR/install.sh" "$valid_checkout/install.sh"
-  chmod 755 "$valid_checkout/install.sh"
+  cp "$ROOT_DIR/bootstrap.sh" "$valid_checkout/bootstrap.sh"
+  chmod 755 "$valid_checkout/bootstrap.sh"
   cp "$ROOT_DIR/lib/install/launcher-template.sh" "$valid_checkout/lib/install/launcher-template.sh"
   shimmy_upstream_checkout_validate "$valid_checkout" || fail_test "minimal current source checkout was rejected"
 
-  for missing_path in install.sh commands lib tools lib/install/launcher-template.sh; do
+  for missing_path in bootstrap.sh commands lib tools lib/install/launcher-template.sh; do
     broken_checkout=$SCENARIO_DIR/broken-$(printf '%s' "$missing_path" | tr / -)
     cp -R "$valid_checkout" "$broken_checkout"
     if [ -d "$broken_checkout/$missing_path" ]; then
@@ -202,12 +202,15 @@ test_lib_runtime_source_checkout_contract() {
     fi
     invalid_reason=$(shimmy_upstream_checkout_invalid_reason "$broken_checkout" || true)
     assert_contains "$invalid_reason" invalid_source_checkout
+    if [ "$missing_path" = bootstrap.sh ]; then
+      assert_equals "$invalid_reason" invalid_source_checkout_missing_bootstrap_sh
+    fi
   done
 
   stale_checkout=$SCENARIO_DIR/stale-core-checkout
   mkdir -p "$stale_checkout/commands" "$stale_checkout/core/install" "$stale_checkout/tools"
-  cp "$ROOT_DIR/install.sh" "$stale_checkout/install.sh"
-  chmod 755 "$stale_checkout/install.sh"
+  cp "$ROOT_DIR/bootstrap.sh" "$stale_checkout/bootstrap.sh"
+  chmod 755 "$stale_checkout/bootstrap.sh"
   cp "$ROOT_DIR/lib/install/launcher-template.sh" "$stale_checkout/core/install/launcher-template.sh"
   assert_equals "$(shimmy_upstream_checkout_invalid_reason "$stale_checkout" || true)" invalid_source_checkout_missing_lib
   assert_path_not_exists "$valid_checkout/shimmy"

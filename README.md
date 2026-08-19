@@ -29,7 +29,7 @@ For first-time checkout prerequisites, entrypoint roles, profile selection,
 and verification, see [BOOTSTRAP.md](BOOTSTRAP.md).
 
 ```sh
-. ./install.sh
+. ./bootstrap.sh
 jq --version
 rg --version
 
@@ -57,10 +57,11 @@ options, and examples. Command groups also summarize their third-level actions
 when invoked without one; use `shimmy <group> <action> --help` for action
 requirements and examples.
 
-The repository contains only the minimal `install.sh` bootstrap; it does not
-contain a runnable `shimmy` launcher. Source `. ./install.sh` to bootstrap
-`default` and initialize the current shell, or source `. ./install.sh --profile
-upstream` for the maintainer profile. Every bootstrap installs jq and rg.
+The repository contains only the minimal `bootstrap.sh` entrypoint; it does not
+contain a runnable `shimmy` launcher. Source `. ./bootstrap.sh` to bootstrap
+`default` and initialize the current shell, or source `. ./bootstrap.sh
+--profile upstream` for the maintainer profile. Every bootstrap installs jq
+and rg.
 Install any other tool afterward with `shimmy install --shim <tool>`.
 A fresh default bootstrap records one normalized startup shell from `$SHELL`;
 `--shell <name>` overrides detection and `--no-startup` records manual policy
@@ -70,7 +71,7 @@ tool additions do not touch startup files, and `shimmy update
 --repair-startup` repairs only the exact recorded paths. Changing policy
 requires uninstalling and recreating the default profile.
 
-Executing `./install.sh` performs the same bootstrap for automation, but its
+Executing `./bootstrap.sh` performs the same bootstrap for automation, but its
 shell initialization ends with that process. To initialize another shell
 directly from an existing profile, source its generated asset:
 

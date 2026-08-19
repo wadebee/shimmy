@@ -42,7 +42,7 @@ Official Podman installation guide: <https://podman.io/docs/installation>
 5. Source the Shimmy bootstrap and explicitly activate its engine:
 
    ```sh
-   . ./install.sh
+   . ./bootstrap.sh
    shimmy profile activate
    ```
 
@@ -327,7 +327,7 @@ For maintainer testing through the upstream profile, source its bootstrap
 first:
 
 ```sh
-. ./install.sh --profile upstream
+. ./bootstrap.sh --profile upstream
 shimmy status
 shimmy test
 rg --version

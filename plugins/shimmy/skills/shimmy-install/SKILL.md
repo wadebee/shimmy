@@ -8,7 +8,7 @@ description: Install, update, validate, initialize shells for, or remove Shimmy 
 ## Source of truth
 
 - For first-time checkout installation, read `BOOTSTRAP.md`, use the public
-  `./install.sh` checkout bootstrap, and use `./tests/test.sh` for repository
+  `./bootstrap.sh` checkout bootstrap, and use `./tests/test.sh` for repository
   validation. There is no repository `shimmy` launcher.
 - In an installed environment, use the desired profile's absolute
   `bin/shimmy` launcher or its `shimmy` command after sourcing `shell-init.sh`.
@@ -27,7 +27,7 @@ Shimmy provides independent `default` and `upstream` profiles below
 - `upstream` is intended for maintainers; its catalog resolves the recorded
   source checkout, while installed tools execute from profile-local
   materialized assets.
-- Only `./install.sh` accepts `--profile default|upstream`. An installed
+- Only `./bootstrap.sh` accepts `--profile default|upstream`. An installed
   launcher manages only its enclosing profile and rejects profile selection.
 - Use `SHIMMY_UPSTREAM_CHECKOUT_DIR` only to select the absolute checkout
   recorded while bootstrapping `upstream`; it never relocates installed state.
@@ -41,10 +41,10 @@ and existing profile materializations remain unchanged until explicit update.
 ## Lifecycle commands
 
 ```sh
-. ./install.sh
+. ./bootstrap.sh
 SHIMMY_UPSTREAM_CHECKOUT_DIR=/absolute/checkout
 export SHIMMY_UPSTREAM_CHECKOUT_DIR
-. ./install.sh --profile upstream
+. ./bootstrap.sh --profile upstream
 shimmy install --shim task
 "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" status --format manifest
 "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" update --shim jq
@@ -67,6 +67,11 @@ the registry and exact schema before mutation. Already-materialized tools do
 not require the catalog to run. Recover a moved upstream checkout with explicit
 `shimmy catalog rebind --checkout <absolute-path>` and recover default with
 `shimmy catalog rollback` when a retained valid generation exists.
+
+The root rename from `install.sh` to `bootstrap.sh` is a hard compatibility
+break. Before adopting the renamed checkout, use the old installed control
+plane to run `shimmy uninstall --global`, then reinstall with `. ./bootstrap.sh`.
+Do not attempt an in-place self-update or add a forwarding entrypoint.
 
 ## Profile activation
 

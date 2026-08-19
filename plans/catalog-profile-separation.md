@@ -390,7 +390,7 @@ boundaries is:
 - canonical skill producers under `plugins/shimmy/skills/` and
   `tools/<tool>/SKILL.md`, plus skill target ownership in `commands/skills.sh`;
 - update, rollback, bootstrap, and uninstall transactions under `lib/update/`,
-  `lib/install/`, and `install.sh`;
+  `lib/install/`, and `bootstrap.sh`;
 - catalog, lifecycle, bootstrap, status, skills, image, dispatcher, update,
   rollback, and isolation tests under `tests/`; and
 - architecture and workflow guidance in `CONTEXT.md`, `CONTRIBUTING.md`,
@@ -689,7 +689,7 @@ behavior; align all guidance; and verify the full architecture.
 
 ### Files
 
-Primary surfaces: `install.sh`, `lib/update/`, uninstall and status behavior,
+Primary surfaces: `bootstrap.sh`, `lib/update/`, uninstall and status behavior,
 the complete affected test matrix, `README.md`, `BOOTSTRAP.md`,
 `CONTRIBUTING.md`, contexts, command documentation, and canonical skills.
 

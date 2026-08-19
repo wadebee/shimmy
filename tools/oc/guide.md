@@ -128,7 +128,7 @@ The versioned configs use a single-token smoke command:
 Examples:
 
 ```sh
-. ./install.sh
+. ./bootstrap.sh
 shimmy install --shim oc
 "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" install --shim oc@4.18
 ./tests/test.sh --shim oc
@@ -151,7 +151,7 @@ Examples:
 
 ```sh
 # Bootstrap upstream with jq/rg, then add the default oc 4.20
-. ./install.sh --profile upstream
+. ./bootstrap.sh --profile upstream
 shimmy install --shim oc
 
 # Install the 4.18 selector as an additional concrete version

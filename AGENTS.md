@@ -35,7 +35,7 @@ Question requests that materially differ from your training of best practices by
 If Shimmy is not installed on this system:
 
 1. Read `BOOTSTRAP.md`.
-2. Use the existing source checkout and invoke the root `install.sh` checkout
+2. Use the existing source checkout and invoke the root `bootstrap.sh` checkout
    bootstrap as documented there.
 
 The authoritative Shimmy control-plane skills are under
@@ -56,7 +56,7 @@ The authoritative Shimmy control-plane skills are under
   the only initial tool-container consumer; `shimmy images verify` inherits it
   through Skopeo, while other runtimes remain unchanged.
 - Any Shimmy-defined user-facing environment variable must use the `SHIMMY_` prefix, including image overrides, pull or build flags, opt-in behavior switches, and secret-name selectors.
-- Update shim helper code, install script, tests, and README together when behavior changes.
+- Update bootstrap and install code, tests, and README together when behavior changes.
 - Treat Podman as an explicit dependency. Do not add Shimmy-side installation or provisioning steps for it.
 - On macOS, remember the official Podman pkg installer may place the binary at `/opt/podman/bin/podman`. If automation cannot find `podman`, check that `/opt/podman/bin` is on `PATH`.
 - When testing containers, use live Podman and non-mutating cli calls (eg: version or --help) to validate execution  

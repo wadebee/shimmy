@@ -2,7 +2,9 @@
 
 `profile.sh` resolves `default` and `upstream` profiles, their installation
 paths, version-1 manifests, materialized installation structure, and upstream
-source validity. The canonical roots are
+source validity. A valid source checkout requires executable root
+`bootstrap.sh`, the control, library, and tool trees, and the launcher
+template. The canonical profile roots are
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`; a non-empty
 relative `XDG_CONFIG_HOME` is invalid. Installed launchers and dispatchers
 derive identity from their enclosing canonical profile and never select a

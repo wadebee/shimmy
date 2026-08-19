@@ -17,7 +17,8 @@ without starting tool containers. They are sourced by `../test.sh` and use
 - `catalog.sh` validates exact catalog schema rejection, metadata discovery,
   all-version native-platform previews, image configuration failures, and
   local cache identity.
-- `runtime.sh` validates the shared Podman OS/architecture resolver, required
+- `runtime.sh` validates the executable root `bootstrap.sh` and minimal source
+  checkout contract, shared Podman OS/architecture resolver, required
   platforms, fail-closed behavior, preview helpers, and installed Darwin
   profile-affinity plus current registry-projection enforcement and exact
   shared activation or restart recovery guidance.

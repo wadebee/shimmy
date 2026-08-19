@@ -120,7 +120,7 @@ Summarize:
 - Smoke checks that failed, including whether failure came from approval denial, missing Podman, image pull/network, credentials, or the tool itself.
 
 If no installed shims are found on `PATH`, report the profile root checked and
-suggest sourcing its absolute `shell-init.sh` or sourcing `./install.sh` from a
+suggest sourcing its absolute `shell-init.sh` or sourcing `./bootstrap.sh` from a
 Shimmy source checkout.
 
 ## Safety

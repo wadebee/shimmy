@@ -153,15 +153,15 @@ bootstrap_default() {
   (
     cd "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
     if [ -f "$DEFAULT_PROFILE_ROOT/install-manifest.txt" ] || [ -L "$DEFAULT_PROFILE_ROOT/install-manifest.txt" ]; then
-      env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default "$@"
+      env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile default "$@"
     else
-      env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --no-startup "$@"
+      env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile default --no-startup "$@"
     fi
   )
 }
 
 bootstrap_upstream() {
-  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream "$@"
+  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile upstream "$@"
 }
 
 default_shimmy() {
@@ -332,7 +332,7 @@ setup_session_profile_fixtures() {
 
   (
     cd "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --no-startup
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile default --no-startup
   ) >/dev/null 2>&1
   bootstrap_upstream >/dev/null 2>&1
   mv "$DEFAULT_PROFILE_ROOT" "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/default"
@@ -346,7 +346,7 @@ shimmy_test_cleanup() {
 
 tracked_shell_file_list() {
   for shell_file in \
-    "$ROOT_DIR/install.sh" \
+    "$ROOT_DIR/bootstrap.sh" \
     "$ROOT_DIR"/commands/*.sh \
     "$ROOT_DIR"/lib/*/*.sh \
     "$ROOT_DIR"/tests/*.sh \

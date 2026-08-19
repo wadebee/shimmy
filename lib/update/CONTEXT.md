@@ -11,8 +11,9 @@ the profile-owned materialization root.
 An update preserves the profile's canonical root and, for `upstream`, its
 recorded source checkout. It never selects or mutates a sibling profile,
 updates persistent upstream startup integration, or writes an external skills
-target. Management self-update executes the fetched repository bootstrap
-without lifecycle skills options or reconstructed tool-selection arguments;
+target. Management self-update validates and executes fetched repository
+`bootstrap.sh` without lifecycle skills options or reconstructed
+tool-selection arguments;
 that control refresh preserves the existing selection. A separate atomic
 profile materialization step then replaces only selected tool/version labels
 with their current catalog mappings while retaining explicitly selected

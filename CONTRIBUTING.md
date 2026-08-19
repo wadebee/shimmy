@@ -36,9 +36,10 @@ tree below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`:
   source checkout while installed tools execute from the profile
   materialization.
 
-The root `install.sh` is a minimal bootstrap and the repository has no runnable
-`shimmy` launcher. `./install.sh` selects `default`; only the bootstrap accepts
-`--profile upstream`. Each installed profile has a self-contained
+The root `bootstrap.sh` is the minimal checkout bootstrap and the repository
+has no runnable `shimmy` launcher. `./bootstrap.sh` selects `default`; only
+the bootstrap accepts `--profile upstream`. Each installed profile has a
+self-contained
 `bin/shimmy` launcher bound to its enclosing profile. Installed management and
 tool commands have no profile-selection option or environment selector.
 
@@ -47,7 +48,7 @@ bootstrap the upstream profile, activate its deterministic engine through the
 absolute launcher, then select its PATH:
 
 ```sh
-. ./install.sh --profile upstream
+. ./bootstrap.sh --profile upstream
 profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream
 "$profile_root/bin/shimmy" profile status
 "$profile_root/bin/shimmy" profile activate --dry-run
@@ -66,7 +67,7 @@ created by the user in a normal shell from the exact diagnostic guidance.
 
 Every bootstrap installs jq and rg. Add other tools afterward through the
 installed command, for example `shimmy install --shim task`. Executing
-`./install.sh --profile upstream` is appropriate for automation but cannot
+`./bootstrap.sh --profile upstream` is appropriate for automation but cannot
 initialize its parent shell. Switch an existing shell by sourcing the desired
 profile's absolute `shell-init.sh`; it prepends that profile's `bin/` directory
 to `PATH`.
@@ -78,7 +79,7 @@ installed-state inspection, prefer `shimmy status --format manifest` over
 entrypoint, while status shows that profile's manifest-derived metadata.
 
 `SHIMMY_UPSTREAM_CHECKOUT_DIR` is the only upstream-specific path input. It
-selects the absolute source checkout recorded when `./install.sh --profile
+selects the absolute source checkout recorded when `./bootstrap.sh --profile
 upstream` runs; it never relocates installed profile state.
 
 The shared `upstream` catalog is a live binding to that validated checkout.

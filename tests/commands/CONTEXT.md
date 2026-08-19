@@ -36,7 +36,8 @@ is the behavior under test.
   reprojection after a later profile failure. Finalization coverage injects a
   backup-cleanup failure plus INT and TERM cleanup after the commit boundary
   and proves that none can invoke rollback with destroyed recovery material.
-- `onboarding.sh` covers sourced and executed repository onboarding, failure
+- `onboarding.sh` covers sourced and executed root `bootstrap.sh` onboarding,
+  failure
   cleanup, the fixed jq/rg bootstrap baseline, explicit additive installed
   selection, direct shell initialization, PATH precedence, and profile-local
   launcher binding. One progressive scenario rejects repository tool
@@ -69,7 +70,8 @@ is the behavior under test.
   inactive edits, detach, Darwin active-edit restart guidance, projection
   freshness status, exact/stopped/missing/foreign detach behavior, rejected
   aliases/options, and profile isolation.
-- `update.sh` covers selected-shim and all-profile refresh behavior, version-
+- `update.sh` covers fetched `bootstrap.sh` self-update for both profiles,
+  selected-shim and all-profile refresh behavior, version-
   local irrelevant image-refresh actions, manifest-preserving self-update for
   non-baseline tools and concrete versions, and update request validation. Its
   self-update scenario starts from session-scoped pristine profile clones so

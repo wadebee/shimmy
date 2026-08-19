@@ -347,7 +347,7 @@ shimmy_upstream_checkout_invalid_reason() {
     *) printf '%s\n' relative_source_checkout; return 0 ;;
   esac
   [ -d "$checkout_dir" ] || { printf '%s\n' stale_source_checkout; return 0; }
-  [ -x "$checkout_dir/install.sh" ] || { printf '%s\n' invalid_source_checkout_missing_install_sh; return 0; }
+  [ -x "$checkout_dir/bootstrap.sh" ] || { printf '%s\n' invalid_source_checkout_missing_bootstrap_sh; return 0; }
   for required_dir in commands lib tools; do
     [ -d "$checkout_dir/$required_dir" ] || {
       printf 'invalid_source_checkout_missing_%s\n' "$required_dir"

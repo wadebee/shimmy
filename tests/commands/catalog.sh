@@ -110,7 +110,7 @@ test_commands_catalog_dirty_initial_publication_rejection() {
   set +e
   dirty_output=$(
     cd "$dirty_checkout"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile default --no-startup 2>&1
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile default --no-startup 2>&1
   )
   dirty_status=$?
   set -e
@@ -137,7 +137,7 @@ test_commands_catalog_registration_collision() {
   set +e
   collision_output=$(
     cd "$collision_checkout"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream 2>&1
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile upstream 2>&1
   )
   collision_status=$?
   set -e

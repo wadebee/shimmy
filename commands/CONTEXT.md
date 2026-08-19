@@ -1,8 +1,8 @@
 # Management commands
 
 These executable entrypoints implement the installed `bin/shimmy` management
-surface. The sourceable or executable repository `install.sh` bootstrap
-invokes `install.sh` directly with its fixed jq/rg baseline; there is no
+surface. The sourceable or executable repository `bootstrap.sh` entrypoint
+invokes `commands/install.sh` with its fixed jq/rg baseline; there is no
 repository launcher. Commands parse arguments and orchestrate shared modules;
 reusable behavior belongs in `../lib/`.
 

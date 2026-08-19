@@ -184,7 +184,7 @@ validate_requested_shims() {
 }
 
 resolve_install_paths() {
-  if [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ -x "$ROOT_DIR/install.sh" ]; then
+  if [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ -x "$ROOT_DIR/bootstrap.sh" ]; then
     shimmy_profile_paths_resolve "$SHIMMY_BOOTSTRAP_PROFILE" || fail "unable to resolve canonical Shimmy profile; XDG_CONFIG_HOME and HOME must be absolute"
   else
     shimmy_profile_context_resolve "$ROOT_DIR" || fail "installed Shimmy commands must run from a canonical profile root"
@@ -206,7 +206,7 @@ shimmy_install_request_parse() {
         shift 2
         ;;
       --shell)
-        [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ -x "$ROOT_DIR/install.sh" ] &&
+        [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ -x "$ROOT_DIR/bootstrap.sh" ] &&
           [ "$SHIMMY_BOOTSTRAP_PROFILE" = default ] || fail "unknown argument: --shell"
         [ "$#" -ge 2 ] || fail "missing value for --shell"
         BOOTSTRAP_STARTUP_SHELL=$2
@@ -220,7 +220,7 @@ shimmy_install_request_parse() {
         shift
         ;;
       --no-startup)
-        [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ -x "$ROOT_DIR/install.sh" ] &&
+        [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ -x "$ROOT_DIR/bootstrap.sh" ] &&
           [ "$SHIMMY_BOOTSTRAP_PROFILE" = default ] || fail "unknown argument: --no-startup"
         BOOTSTRAP_NO_STARTUP=1
         BOOTSTRAP_STARTUP_POLICY_REQUESTED=1

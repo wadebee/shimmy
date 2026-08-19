@@ -46,7 +46,7 @@ shimmy__bootstrap_run() {
         return 1
         ;;
       --shim)
-        printf '%s\n' "ERROR: repository installation includes jq and rg; finish onboarding, then run 'shimmy install --shim <tool>'" >&2
+        printf '%s\n' "ERROR: repository bootstrap includes jq and rg; finish onboarding, then run 'shimmy install --shim <tool>'" >&2
         return 1
         ;;
     esac
@@ -57,10 +57,10 @@ shimmy__bootstrap_run() {
 Bootstrap a canonical Shimmy profile and initialize PATH.
 
 Usage:
-  source ./install.sh [--profile default] [--shell <name>] [--no-startup]
-  source ./install.sh --profile upstream
-  ./install.sh [--profile default] [--shell <name>] [--no-startup]
-  ./install.sh --profile upstream
+  source ./bootstrap.sh [--profile default] [--shell <name>] [--no-startup]
+  source ./bootstrap.sh --profile upstream
+  ./bootstrap.sh [--profile default] [--shell <name>] [--no-startup]
+  ./bootstrap.sh --profile upstream
 
 Sourcing installs the selected profile and initializes it in the current shell.
 Executing performs the same install for automation; shell initialization ends
@@ -88,7 +88,7 @@ EOF
 
   for shimmy__bootstrap_candidate in "$shimmy__bootstrap_script_candidate" "$shimmy__bootstrap_pwd_candidate"; do
     [ -n "$shimmy__bootstrap_candidate" ] || continue
-    [ -x "$shimmy__bootstrap_candidate/install.sh" ] || continue
+    [ -x "$shimmy__bootstrap_candidate/bootstrap.sh" ] || continue
     [ -d "$shimmy__bootstrap_candidate/commands" ] || continue
     [ -d "$shimmy__bootstrap_candidate/lib" ] || continue
     [ -d "$shimmy__bootstrap_candidate/tools" ] || continue
@@ -99,7 +99,7 @@ EOF
   done
 
   if [ -z "$shimmy__bootstrap_source_root" ]; then
-    printf '%s\n' 'ERROR: unable to resolve a valid Shimmy source checkout; change to the checkout root and source ./install.sh' >&2
+    printf '%s\n' 'ERROR: unable to resolve a valid Shimmy source checkout; change to the checkout root and source ./bootstrap.sh' >&2
     return 1
   fi
 
@@ -115,8 +115,8 @@ EOF
       printf '%s\n' 'ERROR: invalid Shimmy source checkout: missing lib/install/launcher-template.sh' >&2
       exit 1
     }
-    [ -x "$shimmy__bootstrap_source_root/install.sh" ] || {
-      printf '%s\n' 'ERROR: invalid Shimmy source checkout: install.sh is not executable' >&2
+    [ -x "$shimmy__bootstrap_source_root/bootstrap.sh" ] || {
+      printf '%s\n' 'ERROR: invalid Shimmy source checkout: bootstrap.sh is not executable' >&2
       exit 1
     }
     [ -x "$shimmy__bootstrap_source_root/commands/install.sh" ] || {

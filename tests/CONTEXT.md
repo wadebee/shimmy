@@ -76,9 +76,8 @@ onboarding, startup, catalog, skills, and lifecycle scenarios remain owned by
 their registered groups, and their documented 109-second aggregate savings do
 not meet the retained plan's 255-second threshold.
 
-Onboarding coverage sources the root
-bootstrap to initialize PATH and executes it separately to verify automation
-semantics.
+Onboarding coverage sources root `bootstrap.sh` to initialize PATH and
+executes it separately to verify automation semantics.
 
 `context-tree.sh` validates the retained hierarchical context links below
 `commands/`, `lib/`, and `tests/`. It rejects any

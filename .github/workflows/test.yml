@@ -3,7 +3,7 @@ name: Shim Tests
 on:
   pull_request:
     paths:
-      - "install.sh"
+      - "bootstrap.sh"
       - "commands/**"
       - "lib/**"
       - "tests/**"
@@ -19,7 +19,7 @@ on:
       - "plugins/shimmy/**"
   push:
     paths:
-      - "install.sh"
+      - "bootstrap.sh"
       - "commands/**"
       - "lib/**"
       - "tests/**"

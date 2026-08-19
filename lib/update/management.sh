@@ -24,7 +24,7 @@ shimmy_update_management_run() {
     fail "fetched source does not satisfy the Shimmy bootstrap contract ($upstream_invalid_reason)"
   fi
 
-  set -- "$source_dir/install.sh" --profile "$SHIMMY_PROFILE_NAME"
+  set -- "$source_dir/bootstrap.sh" --profile "$SHIMMY_PROFILE_NAME"
 
   previous_source_ref=$(shimmy_read_manifest_value "$manifest_file" shimmy_source_ref || true)
   set +e

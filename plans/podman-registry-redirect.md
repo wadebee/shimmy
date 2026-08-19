@@ -458,7 +458,7 @@ during implementation.
 - `lib/install/startup.sh` renders `shell-init.sh` as PATH-only initialization.
   That non-mutating boundary should be preserved; activation is new installed
   control-plane behavior, not generated startup behavior.
-- Root `install.sh` sources the generated shell init after bootstrap. It must
+- Root `bootstrap.sh` sources the generated shell init after bootstrap. It must
   not activate a VM implicitly, but its help and success guidance must point to
   the explicit activation step.
 - `lib/profile/profile.sh` resolves canonical profile paths, validates manifest
@@ -588,7 +588,7 @@ Primary control plane and contexts:
 - `lib/install/startup.sh`
 - `lib/install/install.sh`
 - `lib/install/CONTEXT.md`
-- `install.sh`
+- `bootstrap.sh`
 - `CONTEXT.md`
 
 Tests and test contexts:

@@ -5,7 +5,7 @@ does not accept a profile or machine selector. Engine activation and PATH
 selection are separate; sourcing `shell-init.sh` changes PATH only.
 
 Repository entrypoints in this directory implement the installed management
-commands and orchestrate shared behavior from `../lib/`. The root `install.sh`
+commands and orchestrate shared behavior from `../lib/`. The root `bootstrap.sh`
 is the bootstrap entrypoint for creating a profile.
 
 ## Table of contents

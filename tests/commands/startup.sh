@@ -6,7 +6,7 @@ test_commands_startup_failure_retry() {
 
   set +e
   failure_output=$(run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    ./install.sh --profile default --shell zsh 2>&1)
+    ./bootstrap.sh --profile default --shell zsh 2>&1)
   failure_status=$?
   set -e
   [ "$failure_status" -ne 0 ] || fail_test "invalid conventional startup target unexpectedly succeeded"
@@ -29,7 +29,7 @@ test_commands_startup_inferred_and_manual_policy() {
   setup_scenario
   printf '%s\n' '# existing login file' > "$HOME_DIR/.bash_login"
   run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHELL=/bin/bash ./install.sh --profile default >/dev/null
+    SHELL=/bin/bash ./bootstrap.sh --profile default >/dev/null
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'startup_shell=bash'
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "startup_file=$HOME_DIR/.bashrc"
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "startup_file=$HOME_DIR/.bash_login"
@@ -41,7 +41,7 @@ test_commands_startup_inferred_and_manual_policy() {
 
   setup_scenario
   run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHELL=/bin/dash ./install.sh --profile default --no-startup >/dev/null
+    SHELL=/bin/dash ./bootstrap.sh --profile default --no-startup >/dev/null
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'startup_shell=sh'
   assert_no_line_with_prefix "$(cat "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" 'startup_file='
   assert_path_not_exists "$HOME_DIR/.profile"
@@ -62,7 +62,7 @@ test_commands_startup_inferred_and_manual_policy() {
 test_commands_startup_managed_policy_lifecycle() {
   setup_scenario_with_profiles upstream
   run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHELL=/bin/bash ./install.sh --profile default --shell zsh >/dev/null
+    SHELL=/bin/bash ./bootstrap.sh --profile default --shell zsh >/dev/null
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'startup_shell=zsh'
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "startup_file=$HOME_DIR/.zshrc"
   assert_file_contains "$HOME_DIR/.zshrc" '# >>> shimmy default profile >>>'
@@ -90,7 +90,7 @@ test_commands_startup_managed_policy_lifecycle() {
 
   printf '%s\n' '# user zsh configuration' > "$HOME_DIR/.zshrc"
   run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHELL=/bin/bash ./install.sh --profile default >/dev/null
+    SHELL=/bin/bash ./bootstrap.sh --profile default >/dev/null
   assert_file_contains "$HOME_DIR/.zshrc" '# >>> shimmy default profile >>>'
   assert_path_not_exists "$HOME_DIR/.bashrc"
   assert_equals "$(sed -n '/^startup_/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$policy_before"
@@ -99,7 +99,7 @@ test_commands_startup_managed_policy_lifecycle() {
   startup_checksum=$(cksum < "$HOME_DIR/.zshrc")
   set +e
   immutable_output=$(run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    ./install.sh --profile default --shell bash 2>&1)
+    ./bootstrap.sh --profile default --shell bash 2>&1)
   immutable_status=$?
   set -e
   [ "$immutable_status" -ne 0 ] || fail_test "existing default profile unexpectedly accepted a startup policy selector"
@@ -131,14 +131,14 @@ test_commands_startup_shell_mismatch_confirmation() {
       XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHELL=/bin/zsh \
       PATH=/usr/bin:/bin /bin/bash -c '
         cd "$TEST_ROOT_DIR"
-        source ./install.sh
+        source ./bootstrap.sh
       ' 2>&1
   )
   mismatch_denied_status=$?
   set -e
   [ "$mismatch_denied_status" -ne 0 ] || fail_test "shell mismatch unexpectedly proceeded without permission"
   assert_contains "$mismatch_denied_output" 'startup shell discrepancy: configured=/bin/zsh running=/bin/bash'
-  assert_contains "$mismatch_denied_output" 'source ./install.sh --shell bash'
+  assert_contains "$mismatch_denied_output" 'source ./bootstrap.sh --shell bash'
   assert_contains "$mismatch_denied_output" 'Proceed with zsh startup integration? [y/N]'
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
 
@@ -147,7 +147,7 @@ test_commands_startup_shell_mismatch_confirmation() {
       XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHELL=/bin/zsh \
       PATH=/usr/bin:/bin /bin/bash -c '
         cd "$TEST_ROOT_DIR"
-        source ./install.sh
+        source ./bootstrap.sh
       ' 2>&1
   )
   assert_contains "$mismatch_allowed_output" 'startup shell discrepancy: configured=/bin/zsh running=/bin/bash'

@@ -825,7 +825,7 @@ through multiple profiles and shell implementations.
    ordinary and `set -e` callers, startup failure, Bash/Zsh documented source
    compatibility, malformed shell-init rejection, and shell-init PATH behavior
    as separate cases.
-2. In one new progressive scenario, execute the installer by absolute path
+2. In one new progressive scenario, execute the bootstrap by absolute path
    outside the checkout for upstream, then source the default bootstrap under
    `/bin/sh` while retaining the existing caller status, PATH, cwd, flags,
    positional parameters, function, trap, leak, baseline tool, and no-startup
@@ -842,7 +842,7 @@ through multiple profiles and shell implementations.
 6. Retain distinct logical pass records for absolute execution, sourced state,
    selection policy, and profile switching. Do not rewrite the Bash/Zsh source
    matrix into shell-init-only tests because it intentionally validates
-   `source ./install.sh`.
+   `source ./bootstrap.sh`.
 7. Report the actual savings. The supplied 55–90-second estimate is not an
    acceptance fact because its named onboarding scenarios are absent from the
    current tree.
@@ -871,7 +871,7 @@ through multiple profiles and shell implementations.
 
 | Before proof | Chunk 5 proof |
 | --- | --- |
-| Absolute execution used a fresh scenario to execute the repository installer by absolute path from outside the checkout and materialize upstream. | The progressive world retains the same absolute repository installer invocation from its disposable work directory, validates the upstream profile identity, and captures its baseline selection before later phases. |
+| Absolute execution used a fresh scenario to execute the repository bootstrap by absolute path from outside the checkout and materialize upstream. | The progressive world retains the same absolute repository bootstrap invocation from its disposable work directory, validates the upstream profile identity, and captures its baseline selection before later phases. |
 | Sourced state used a second fresh scenario to source default under `/bin/sh` and prove status, PATH, cwd, flags, positional parameters, function, trap, unrelated variable, bootstrap cleanup, baseline commands, profile identity, and `--no-startup` behavior. | The next progressive phase sources default under `/bin/sh` and repeats every assertion unchanged before advancing profile state. |
 | Selection policy used one rejected fresh bootstrap plus a cloned default fixture for baseline comparison, empty installed-selection rejection/non-mutation, additive task and `oc@4.18` install, and real default refresh preservation. | The progressive world starts with the same rejected request before any default profile exists. Its newly bootstrapped default and absolute upstream selections are compared with both immutable session manifests. The empty request retains the exact manifest-checksum proof; task/OC installation and the real default bootstrap refresh retain the additive and byte-derived selection equality checks. |
 | Profile switching used a fifth fresh scenario and sourced default, upstream, then default, materializing both profiles independently of the absolute-execution case. | The already-selected progressive default supplies the first PATH proof. The test sources the repository bootstrap for the existing absolute-execution upstream profile, then sources the existing default bootstrap again and proves all three launcher paths. No second upstream world is created. |

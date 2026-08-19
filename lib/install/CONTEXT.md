@@ -1,7 +1,7 @@
 # Installation lifecycle
 
 `install.sh` is the sourceable orchestration implementation for the public
-`commands/install.sh` entrypoint. The root `install.sh` invokes it only to
+`commands/install.sh` entrypoint. The root `bootstrap.sh` invokes it only to
 bootstrap one canonical profile with internally supplied jq/rg requests; an
 installed profile-local launcher invokes it only for its enclosing profile and
 requires one or more explicit `--shim` requests. It selects fresh, additive,

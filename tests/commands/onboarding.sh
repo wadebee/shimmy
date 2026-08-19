@@ -32,9 +32,9 @@ test_commands_onboarding_failure_cleanup() {
     env TEST_ROOT_DIR="$ROOT_DIR" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
       PATH=/usr/bin:/bin /bin/sh -c '
         cd "$TEST_ROOT_DIR"
-        . ./install.sh --unknown-option >/dev/null 2>&1
-        install_status=$?
-        printf "status=%s\n" "$install_status"
+        . ./bootstrap.sh --unknown-option >/dev/null 2>&1
+        bootstrap_status=$?
+        printf "status=%s\n" "$bootstrap_status"
         printf "after=failure\n"
         command -v shimmy__bootstrap_run >/dev/null 2>&1 && printf "function=leaked\n"
         [ "${shimmy__bootstrap_profile_name+x}" = x ] && printf "variable=leaked\n"
@@ -53,7 +53,7 @@ test_commands_onboarding_failure_cleanup() {
       PATH=/usr/bin:/bin /bin/sh -c '
         set -e
         cd "$TEST_ROOT_DIR"
-        if . ./install.sh --unknown-option >/dev/null 2>&1; then
+        if . ./bootstrap.sh --unknown-option >/dev/null 2>&1; then
           exit 90
         fi
         printf "after=conditional-failure\n"
@@ -62,10 +62,10 @@ test_commands_onboarding_failure_cleanup() {
   assert_contains "$conditional_output" 'after=conditional-failure'
 
   invalid_checkout_output=$(
-    env TEST_INSTALL_FILE="$ROOT_DIR/install.sh" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    env TEST_BOOTSTRAP_FILE="$ROOT_DIR/bootstrap.sh" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
       PATH=/usr/bin:/bin /bin/sh -c '
         cd "$HOME"
-        . "$TEST_INSTALL_FILE" --no-startup >/dev/null 2>&1
+        . "$TEST_BOOTSTRAP_FILE" --no-startup >/dev/null 2>&1
         printf "status=%s\n" "$?"
         printf "after=checkout-failure\n"
       '
@@ -83,13 +83,13 @@ test_commands_onboarding_help() {
       PATH=/usr/bin:/bin /bin/sh -c '
         cd "$TEST_ROOT_DIR"
         path_before=$PATH
-        . ./install.sh --profile upstream --help
+        . ./bootstrap.sh --profile upstream --help
         printf "path_unchanged=%s\n" "$([ "$PATH" = "$path_before" ] && printf yes || printf no)"
         command -v shimmy__bootstrap_run >/dev/null 2>&1 && printf "function=leaked\n"
         true
       '
   )
-  assert_contains "$help_output" 'source ./install.sh'
+  assert_contains "$help_output" 'source ./bootstrap.sh'
   assert_contains "$help_output" 'Every bootstrap includes jq and rg.'
   assert_contains "$help_output" 'shimmy install --shim <tool>'
   assert_contains "$help_output" 'path_unchanged=yes'
@@ -102,15 +102,14 @@ test_commands_onboarding_bootstrap_documentation() {
   assert_file_exists "$ROOT_DIR/BOOTSTRAP.md"
   assert_file_contains "$ROOT_DIR/AGENTS.md" 'BOOTSTRAP.md'
   assert_file_contains "$ROOT_DIR/README.md" '[BOOTSTRAP.md](BOOTSTRAP.md)'
-  assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'root `install.sh` checkout bootstrap'
+  assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'root `bootstrap.sh` checkout bootstrap'
   assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'commands/install.sh'
   assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'lib/install/install.sh'
   assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'Do not execute or source'
   assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'Every bootstrap installs jq and rg.'
   assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'shimmy skills install --target repo'
   assert_file_contains "$ROOT_DIR/BOOTSTRAP.md" 'shimmy skills install --target profile'
-  assert_path_not_exists "$ROOT_DIR/bootstrap.sh"
-  assert_path_not_exists "$ROOT_DIR/bootstrap"
+  assert_file_executable "$ROOT_DIR/bootstrap.sh"
   pass "bootstrap discovery documents the supported public chain and adapter workflow"
 }
 
@@ -121,22 +120,22 @@ test_commands_onboarding_progression() {
   bootstrap_selection_output=$(bootstrap_default --shim task 2>&1)
   bootstrap_selection_status=$?
   set -e
-  [ "$bootstrap_selection_status" -ne 0 ] || fail_test "repository installer unexpectedly accepted --shim"
-  assert_contains "$bootstrap_selection_output" 'repository installation includes jq and rg'
+  [ "$bootstrap_selection_status" -ne 0 ] || fail_test "repository bootstrap unexpectedly accepted --shim"
+  assert_contains "$bootstrap_selection_output" 'repository bootstrap includes jq and rg'
   assert_contains "$bootstrap_selection_output" 'shimmy install --shim <tool>'
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
 
   absolute_output=$(
     cd "$WORK_DIR"
     env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-      "$ROOT_DIR/install.sh" --profile upstream 2>&1
+      "$ROOT_DIR/bootstrap.sh" --profile upstream 2>&1
   )
   assert_contains "$absolute_output" "Installed Shimmy upstream profile at $UPSTREAM_PROFILE_ROOT"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/install-manifest.txt"
   assert_file_contains "$UPSTREAM_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_name=upstream'
   absolute_upstream_selection=$(sed -n '/^tool=/p; /^tool_version=/p' \
     "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
-  pass "repository installer executes by absolute path outside the checkout"
+  pass "repository bootstrap executes by absolute path outside the checkout"
 
   progression_output=$(
     env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" TEST_REPO_ROOT="$ROOT_DIR" \
@@ -151,10 +150,10 @@ test_commands_onboarding_progression() {
         unrelated_value=preserved
         caller_function() { printf preserved; }
         trap "trap_preserved=yes" USR1
-        . ./install.sh --no-startup >/dev/null || exit 91
-        install_status=$?
+        . ./bootstrap.sh --no-startup >/dev/null || exit 91
+        bootstrap_status=$?
         kill -USR1 $$
-        printf "status=%s\n" "$install_status"
+        printf "status=%s\n" "$bootstrap_status"
         printf "shimmy=%s\n" "$(command -v shimmy)"
         printf "jq=%s\n" "$(command -v jq)"
         printf "rg=%s\n" "$(command -v rg)"
@@ -188,7 +187,7 @@ test_commands_onboarding_progression() {
           "$TEST_DEFAULT_PROFILE_ROOT/install-manifest.txt")
         printf "%s\n" "$additive_selection" > "$TEST_WORK_DIR/additive-selection"
 
-        . ./install.sh --profile default >/dev/null || exit 94
+        . ./bootstrap.sh --profile default >/dev/null || exit 94
         refreshed_selection=$(sed -n "/^tool=/p; /^tool_version=/p" \
           "$TEST_DEFAULT_PROFILE_ROOT/install-manifest.txt")
         printf "%s\n" "$refreshed_selection" > "$TEST_WORK_DIR/refreshed-selection"
@@ -197,10 +196,10 @@ test_commands_onboarding_progression() {
         printf "default_first=%s\n" "$(command -v shimmy)"
 
         cd "$TEST_REPO_ROOT"
-        . ./install.sh --profile upstream >/dev/null || exit 95
+        . ./bootstrap.sh --profile upstream >/dev/null || exit 95
         printf "upstream=%s\n" "$(command -v shimmy)"
         cd "$TEST_ROOT_DIR"
-        . ./install.sh --profile default >/dev/null || exit 96
+        . ./bootstrap.sh --profile default >/dev/null || exit 96
         printf "default_again=%s\n" "$(command -v shimmy)"
       '
   )
@@ -257,7 +256,7 @@ test_commands_onboarding_shell_sources() {
       env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
         PATH=/usr/bin:/bin "$source_shell" -c '
           cd "$TEST_ROOT_DIR"
-          source ./install.sh --profile default --no-startup >/dev/null
+          source ./bootstrap.sh --profile default --no-startup >/dev/null
           command -v shimmy
         '
     )
@@ -272,7 +271,7 @@ test_commands_onboarding_shell_init_rejection() {
     fixture_root=$SCENARIO_DIR/source
     mkdir -p "$fixture_root/commands" "$fixture_root/lib/common" \
       "$fixture_root/lib/install" "$fixture_root/lib/profile" "$fixture_root/tools"
-    cp "$ROOT_DIR/install.sh" "$fixture_root/install.sh"
+    cp "$ROOT_DIR/bootstrap.sh" "$fixture_root/bootstrap.sh"
     cp "$ROOT_DIR/lib/common/common.sh" "$fixture_root/lib/common/common.sh"
     cp "$ROOT_DIR/lib/install/launcher-template.sh" "$fixture_root/lib/install/launcher-template.sh"
     cp "$ROOT_DIR/lib/profile/profile.sh" "$fixture_root/lib/profile/profile.sh"
@@ -288,7 +287,7 @@ test_commands_onboarding_shell_init_rejection() {
       '  unreadable) printf "%s\\n" true > "$profile_root/shell-init.sh"; chmod 000 "$profile_root/shell-init.sh" ;;' \
       'esac' \
       > "$fixture_root/commands/install.sh"
-    chmod 755 "$fixture_root/install.sh" "$fixture_root/commands/install.sh"
+    chmod 755 "$fixture_root/bootstrap.sh" "$fixture_root/commands/install.sh"
     printf '%s\n' true > "$SCENARIO_DIR/shell-init-target"
 
     rejection_output=$(
@@ -297,7 +296,7 @@ test_commands_onboarding_shell_init_rejection() {
         XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
           cd "$TEST_FIXTURE_ROOT"
           path_before=$PATH
-          . ./install.sh --no-startup >/dev/null 2>&1
+          . ./bootstrap.sh --no-startup >/dev/null 2>&1
           printf "status=%s\n" "$?"
           printf "path_unchanged=%s\n" "$([ "$PATH" = "$path_before" ] && printf yes || printf no)"
           printf "after=shell-init-rejection\n"
@@ -321,7 +320,7 @@ test_commands_onboarding_startup_failure() {
       XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH=/usr/bin:/bin /bin/sh -c '
           cd "$TEST_ROOT_DIR"
           path_before=$PATH
-          . ./install.sh --shell zsh >/dev/null 2>&1
+          . ./bootstrap.sh --shell zsh >/dev/null 2>&1
           printf "status=%s\n" "$?"
           printf "path_unchanged=%s\n" "$([ "$PATH" = "$path_before" ] && printf yes || printf no)"
           command -v shimmy >/dev/null 2>&1 && printf "shimmy=selected\n"

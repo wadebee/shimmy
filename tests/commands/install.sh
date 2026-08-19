@@ -61,11 +61,11 @@ test_commands_install_run() {
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
 
   setup_scenario
-  run_in_clean_source env -u XDG_CONFIG_HOME HOME="$HOME_DIR" ./install.sh --no-startup >/dev/null
+  run_in_clean_source env -u XDG_CONFIG_HOME HOME="$HOME_DIR" ./bootstrap.sh --no-startup >/dev/null
   assert_file_exists "$HOME_DIR/.config/shimmy/profiles/default/bin/shimmy"
 
   setup_scenario
-  run_in_clean_source env XDG_CONFIG_HOME= HOME="$HOME_DIR" ./install.sh --no-startup >/dev/null
+  run_in_clean_source env XDG_CONFIG_HOME= HOME="$HOME_DIR" ./bootstrap.sh --no-startup >/dev/null
   assert_file_exists "$HOME_DIR/.config/shimmy/profiles/default/bin/shimmy"
 
   setup_scenario

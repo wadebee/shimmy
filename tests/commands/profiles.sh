@@ -254,7 +254,7 @@ test_commands_profiles_identity() {
 
   setup_scenario
   set +e
-  relative_output=$(run_in_repo env XDG_CONFIG_HOME=relative HOME="$HOME_DIR" ./install.sh --no-startup 2>&1)
+  relative_output=$(run_in_repo env XDG_CONFIG_HOME=relative HOME="$HOME_DIR" ./bootstrap.sh --no-startup 2>&1)
   relative_status=$?
   set -e
   [ "$relative_status" -ne 0 ] || fail_test "relative XDG_CONFIG_HOME unexpectedly succeeded"

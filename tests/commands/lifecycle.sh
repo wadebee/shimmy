@@ -162,6 +162,9 @@ test_commands_lifecycle_install_shapes() {
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream"
   default_generation=$(profile_manifest_value "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf" catalog_generation_current)
   assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$default_generation/generation.conf"
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_manifest_version=1'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_layout=profile-materialized-root'
+  assert_file_contains "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$default_generation/catalog.conf" 'catalog_schema=1'
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'catalog=default'
 
   setup_scenario
@@ -171,6 +174,9 @@ test_commands_lifecycle_install_shapes() {
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_file_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default"
+  assert_file_contains "$UPSTREAM_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_manifest_version=1'
+  assert_file_contains "$UPSTREAM_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_layout=profile-materialized-root'
+  assert_file_contains "$ROOT_DIR/catalog.conf" 'catalog_schema=1'
   assert_file_contains "$UPSTREAM_PROFILE_ROOT/install-manifest.txt" 'catalog=upstream'
 
   bootstrap_default >/dev/null
@@ -747,7 +753,7 @@ test_commands_lifecycle_control_plane_refresh() {
   setup_clean_source_fixture "$control_checkout"
   (
     cd "$control_checkout"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile upstream
   ) >/dev/null
 
   printf '%s\n' '# chunk-2 command marker' >> "$control_checkout/commands/status.sh"
@@ -758,7 +764,7 @@ test_commands_lifecycle_control_plane_refresh() {
 
   (
     cd "$control_checkout"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./install.sh --profile upstream
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile upstream
   ) >/dev/null
   assert_file_contains "$UPSTREAM_PROFILE_ROOT/commands/status.sh" 'chunk-2 command marker'
   assert_file_contains "$UPSTREAM_PROFILE_ROOT/lib/common/common.sh" 'chunk-2 library marker'
@@ -798,6 +804,7 @@ test_commands_lifecycle_complete() {
   assert_dir_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
   pass "additive install and profile uninstall preserve unmanaged and sibling state"
 
+  rm "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
   rmdir "$DEFAULT_PROFILE_ROOT"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   upstream_shimmy uninstall >/dev/null

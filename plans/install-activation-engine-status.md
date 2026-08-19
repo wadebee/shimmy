@@ -374,14 +374,14 @@ None.
   recovery guidance.
 - [x] Chunk 2 — Add the read-only Podman Engine section and additive manifest
   fields to top-level status.
-- [ ] Chunk 3 — Rename the root bootstrap contract atomically to `bootstrap.sh`
+- [x] Chunk 3 — Rename the root bootstrap contract atomically to `bootstrap.sh`
   and remove the ambiguous root `install.sh` surface.
 - [ ] Chunk 4 — Add safe bootstrap `--activate`, align guidance, and run
   integrated acceptance.
 
 Chunk 1 was accepted by the user on 2026-08-19. Chunk 2 was implemented,
-verified, and accepted by the user at 2026-08-19 12:40:41 EDT. Chunk 3 has not
-started and requires separate explicit authorization.
+verified, and accepted by the user at 2026-08-19 12:40:41 EDT. Chunk 3 was
+implemented, verified, and accepted by the user at 2026-08-19 13:23:40 EDT.
 
 ## Reasoning-level calculation
 
@@ -679,32 +679,41 @@ Primary change surface:
 
 ### Verification checklist
 
-- [ ] Root `bootstrap.sh` is executable and positively exercises sourced and
+- [x] Root `bootstrap.sh` is executable and positively exercises sourced and
   executed onboarding behavior, including caller cwd, positional parameters,
   flags, functions, traps, cleanup, fixed jq/rg baseline, and PATH selection.
-- [ ] Source-checkout validation accepts the new minimal contract, rejects a
+- [x] Source-checkout validation accepts the new minimal contract, rejects a
   checkout missing `bootstrap.sh` with the renamed reason, and retains all
   other directory/template validation.
-- [ ] New self-update fixtures and both default/upstream self-update flows invoke
+- [x] New self-update fixtures and both default/upstream self-update flows invoke
   `bootstrap.sh`, preserve profile isolation and source bindings, and clean
   temporary clones.
-- [ ] Fresh default and upstream bootstraps retain manifest version 1, catalog
+- [x] Fresh default and upstream bootstraps retain manifest version 1, catalog
   schema 1, and `profile-materialized-root` layout identity.
-- [ ] Documentation and canonical skills state the required hard-cut global
+- [x] Documentation and canonical skills state the required hard-cut global
   uninstall/reinstall transition and contain no current command recommending
   root `install.sh`.
-- [ ] A classified full-tree search confirms remaining `install.sh` matches
+- [x] A classified full-tree search confirms remaining `install.sh` matches
   refer only to subordinate install code, test module names, deliberately
   historical text with a supersession note, or generated adapters awaiting
   their explicit lifecycle refresh.
-- [ ] Diff and status review confirm the Git-preserving rename and that no
+- [x] Diff and status review confirm the Git-preserving rename and that no
   temporary root bridge, alias, symlink, forwarding path, or compatibility
   fallback remains; no automated root-absence assertion is required.
-- [ ] Run affected groups with default bounded concurrency:
+- [x] Run affected groups with default bounded concurrency:
   `./tests/test.sh --jobs 3 --group lib-runtime --group commands-onboarding --group commands-startup --group commands-catalog --group commands-lifecycle --group commands-profiles --group commands-install --group commands-update --group commands-skills`.
-- [ ] Review `git diff --check`, executable modes, full `git diff`, and
+- [x] Review `git diff --check`, executable modes, full `git diff`, and
   `git status --short` for accidental subordinate-install renames,
   generated-adapter edits, or unrelated changes.
+
+Verification note: the bounded nine-group run passed every selected group
+except `commands-lifecycle`, where a retained test positively proved an
+unmanaged sentinel survived uninstall and then attempted to `rmdir` its
+nonempty disposable profile root. The baseline contained the same impossible
+cleanup. Removing that proved-preserved fixture before `rmdir` fixed the test;
+the required serial diagnostic rerun then passed all 19 lifecycle tests. A
+final focused onboarding rerun passed all 11 tests after the diagnostic wording
+was aligned to `bootstrap`.
 
 ### Human review gate
 
@@ -713,6 +722,8 @@ break and uninstall/reinstall procedure are explicit, subordinate installed
 install surfaces retain their names, no migration/version change or bridge
 remains, source checkout and self-update use the new contract, and focused
 verification passes. Stop before Chunk 4 pending explicit acceptance.
+
+Accepted by the user on 2026-08-19 at 13:23:40 EDT.
 
 ## Chunk 4 — Explicit safe bootstrap activation
 
@@ -946,6 +957,29 @@ has an explicit accepted disposition.
   names, masking variable names, and bounded state values reach either output
   format; fake and secret URI values are covered by redaction assertions.
 
+### Chunk 3
+
+- The hard rename remained source-safe because the root bootstrap's neutral
+  `shimmy__bootstrap_*` implementation did not need structural changes; only
+  its public name, checkout marker, diagnostics, and consumers changed.
+- A minimal checkout fixture containing executable `bootstrap.sh` and no
+  compatibility entrypoint proves the new validator contract, while the
+  default/upstream fetched-update successes prove new self-update code has no
+  fallback to the removed name.
+- Remaining `install.sh` matches classify into subordinate installed install
+  code and test-module names, explicit hard-cut history, the authoritative
+  transition plan, or generated adapters awaiting an explicit later skills
+  lifecycle refresh. Current commands and resumable retained-plan inventories
+  use `bootstrap.sh`.
+- Fresh default and upstream lifecycle scenarios can positively retain manifest
+  version 1, catalog schema 1, and `profile-materialized-root` without adding a
+  migration or old-entrypoint rejection test.
+- The broad acceptance run exposed a retained lifecycle fixture cleanup defect:
+  after proving an unmanaged sentinel survived uninstall, the test attempted to
+  remove its still-nonempty disposable root. Deleting the sentinel only after
+  that proof restored the intended scenario progression without changing the
+  production ownership contract.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -964,8 +998,8 @@ For a fresh implementation session:
    interrupted without separate `--stop-running`; no Podman machine is
    provisioned or removed; agent approval gates remain separate; generated
    `.agents/skills/` adapters are untouched.
-5. Chunks 1 and 2 are accepted. Do not begin Chunk 3 without separate explicit
-   authorization from the user.
+5. Chunks 1, 2, and 3 are accepted. Do not begin Chunk 4 until the user
+   separately authorizes Chunk 4.
 6. Use fake Podman seams and disposable roots for tests. Follow the default
    bounded parallel runner guidance and use serial reruns only to diagnose a
    failure.

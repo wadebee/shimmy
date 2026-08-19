@@ -10,7 +10,7 @@ broaden, or disable that policy.
 
 Success means:
 
-- a fresh `./install.sh` default-profile bootstrap records exactly one
+- a fresh `./bootstrap.sh` default-profile bootstrap records exactly one
   normalized startup shell, selected from `--shell <name>` or inferred from
   `$SHELL` when the option is omitted;
 - fresh-bootstrap `--no-startup` records the selected shell but deliberately
@@ -76,8 +76,8 @@ Explicit exclusions:
 The target public surface is:
 
 ```text
-./install.sh [--profile default] [--shell <name>] [--no-startup]
-./install.sh --profile upstream
+./bootstrap.sh [--profile default] [--shell <name>] [--no-startup]
+./bootstrap.sh --profile upstream
 
 shimmy install --shim <tool[@version]> [--shim <tool[@version]> ...]
 
@@ -97,7 +97,7 @@ Advanced users with a nonstandard startup chain choose manual policy during
 fresh bootstrap and own the source block:
 
 ```sh
-. ./install.sh --no-startup
+. ./bootstrap.sh --no-startup
 
 shimmy_shell_init_file=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/shell-init.sh
 if [ -r "$shimmy_shell_init_file" ]; then
@@ -181,7 +181,7 @@ This is a verified baseline, not permission to ignore newly discovered
 dependencies.
 
 - Root bootstrap:
-  - `install.sh` establishes `SHIMMY_BOOTSTRAP_PROFILE`, appends the fixed jq/rg
+  - `bootstrap.sh` establishes `SHIMMY_BOOTSTRAP_PROFILE`, appends the fixed jq/rg
     baseline, and delegates startup options to `commands/install.sh`.
   - The same entrypoint is used for fresh bootstrap, repeat bootstrap, and
     fetched management refresh, so lifecycle state must distinguish them.
@@ -217,7 +217,7 @@ dependencies.
     can reselect startup paths; both expectations must be reversed.
   - `tests/commands/catalog.sh`, `dispatcher.sh`, `images.sh`, `lifecycle.sh`,
     `onboarding.sh`, `profiles.sh`, `skills.sh`, `startup.sh`, `update.sh`,
-    `install.sh`, `management.sh`, and shared fixture helpers directly depend
+    `bootstrap.sh`, `management.sh`, and shared fixture helpers directly depend
     on the changed options or manifest identity. `tests/commands/profile.sh`
     also asserts the manifest version; status and installed-test groups consume
     the shared profile fixtures and launcher validation.
@@ -292,7 +292,7 @@ state through every install, refresh, repair, and uninstall path.
 
 ### Files
 
-- Bootstrap and install lifecycle: `install.sh`,
+- Bootstrap and install lifecycle: `bootstrap.sh`,
   `lib/install/{install,request,startup,manifest,launcher-template}.sh`, plus
   any directly affected transaction or profile-asset modules.
 - Update lifecycle: `lib/update/{request,management,profile,update}.sh`.
