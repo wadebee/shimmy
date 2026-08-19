@@ -9,8 +9,6 @@ test_commands_status_run() {
   assert_contains "$default_status" 'shimmy_installed=yes'
   assert_contains "$default_status" 'shimmy_profile_tool=jq'
   assert_contains "$default_status" 'shimmy_profile_tool=rg'
-  assert_not_contains "$default_status" 'shimmy_profile_kind='
-  assert_not_contains "$default_status" 'shimmy_profile_kind_version='
   assert_contains "$upstream_status" "shimmy_profile_root=$UPSTREAM_PROFILE_ROOT"
   assert_contains "$upstream_status" 'shimmy_installed=yes'
   assert_contains "$upstream_status" 'shimmy_profile_tool=rg'

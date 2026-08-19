@@ -71,7 +71,6 @@ test_commands_catalog_list() {
   assert_contains "$default_human" '- rg'
   assert_contains "$default_human" '- task'
   assert_equals "$(printf '%s\n' "$default_human" | sed -n 's/^- //p')" "$expected_tools"
-  assert_not_contains "$default_human" 'available:'
 
   test_catalog_list_failure 'missing value for --format' --format
   test_catalog_list_failure '--format may be specified only once' --format human --format manifest

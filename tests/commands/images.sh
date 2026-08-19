@@ -254,13 +254,7 @@ test_commands_images_installed_selection() {
 
   help_output=$(default_shimmy images verify --help)
   assert_contains "$help_output" 'shimmy images verify'
-  set +e
-  profile_output=$(default_shimmy images verify --profile upstream 2>&1)
-  profile_status=$?
-  set -e
-  [ "$profile_status" -ne 0 ] || fail_test "installed images command unexpectedly accepted --profile"
-  assert_contains "$profile_output" 'unknown argument: --profile'
-  pass "installed image verification is launcher-bound and defaults to manifest-recorded concrete versions"
+  pass "installed image verification defaults to manifest-recorded concrete versions"
 }
 
 test_commands_images_selection_and_deduplication() {

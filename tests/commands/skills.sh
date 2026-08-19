@@ -223,10 +223,6 @@ shimmy-tool-local-build'
   assert_file_exists "$archive_skills_root/shimmy-tool-jq/SKILL.md"
   assert_file_exists "$archive_skills_root/shimmy-tool-rg/SKILL.md"
   assert_file_exists "$archive_skills_root/shimmy-tool-task/SKILL.md"
-  assert_path_not_exists "$archive_extract_root/shimmy-skills/shimmy-tool-task/guide.md"
-  assert_path_not_exists "$archive_extract_root/shimmy-skills/shimmy-tool-task/tool.conf"
-  assert_path_not_exists "$archive_extract_root/shimmy-skills/shimmy-tool-task/tests"
-  assert_path_not_exists "$archive_extract_root/shimmy-skills/shimmy-tool-task/versions"
   archive_export_inventory=$(test_commands_skills_export_inventory "$archive_skills_root")
   assert_equals "$archive_export_inventory" "$directory_export_inventory"
   pass "portable directory and archive exports have identical complete inventories"

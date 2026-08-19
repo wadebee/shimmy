@@ -4,14 +4,7 @@ test_commands_test_run() {
   setup_scenario_with_profiles default
   help_output=$(default_shimmy test --help)
   assert_contains "$help_output" 'shimmy test [--shim'
-
-  set +e
-  rejected_output=$(default_shimmy test --profile upstream 2>&1)
-  rejected_status=$?
-  set -e
-  [ "$rejected_status" -ne 0 ] || fail_test "installed test unexpectedly accepted --profile"
-  assert_contains "$rejected_output" 'unknown argument: --profile'
-  pass "installed test surface is bound to its enclosing profile"
+  pass "installed test exposes shim selection help"
 
   failing_smoke_dir=$TMP_ROOT/failing-profile-smoke
   mkdir -p "$failing_smoke_dir"

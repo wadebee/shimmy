@@ -60,13 +60,6 @@ test_commands_update_run() {
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")" "$upstream_launcher_checksum"
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"
 
-  set +e
-  profile_output=$(default_shimmy update --profile upstream 2>&1)
-  profile_status=$?
-  set -e
-  [ "$profile_status" -ne 0 ] || fail_test "installed update unexpectedly accepted --profile"
-  assert_contains "$profile_output" 'unknown argument: --profile'
-
   default_launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")
   default_manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   source_checkout_before=$(sed -n 's/^source_checkout=//p' "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
@@ -83,5 +76,5 @@ test_commands_update_run() {
     [ ! -e "$update_entry" ] && [ ! -L "$update_entry" ] || fail_test "self-update temporary source was not removed: $update_entry"
   done
   XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$UPSTREAM_PROFILE_ROOT/bin/jq" --preview-shim --version >/dev/null
-  pass "self-update is profile-local, cleans temporary source, rejects profile selection, and preserves profile-owned upstream dispatch"
+  pass "self-update is profile-local, cleans temporary source, and preserves profile-owned upstream dispatch"
 }

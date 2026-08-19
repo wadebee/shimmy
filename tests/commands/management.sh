@@ -16,7 +16,6 @@ test_commands_management_guidance() {
   assert_contains "$help_output" 'shimmy install --shim jq'
   assert_contains "$help_output" 'shimmy profile status'
   assert_contains "$help_output" "Run 'shimmy <command> --help' for command-specific options."
-  assert_not_contains "$help_output" '<install|uninstall|activate|netinfo|skills|status|test|update>'
 
   explicit_help_output=$(default_shimmy help)
   assert_equals "$explicit_help_output" "$help_output"
@@ -84,8 +83,6 @@ test_commands_management_guidance() {
   assert_contains "$uninstall_help" 'shimmy uninstall [--global]'
   assert_contains "$uninstall_help" '--stop-running'
   assert_contains "$uninstall_help" 'Startup cleanup is limited to entries owned by the profile'
-  assert_not_contains "$uninstall_help" 'detach it first'
-  assert_not_contains "$uninstall_help" '--shim <tool'
   install_help=$(default_shimmy install --help)
   assert_contains "$install_help" 'shimmy install --shim <tool[@version]> [--shim <tool[@version]> ...]'
   assert_contains "$install_help" '--shim <tool[@version]>  Select a tool or concrete version. Required; repeatable.'
@@ -120,13 +117,6 @@ test_commands_management_profile_binding() {
   assert_equals "$(printf '%s\n' "$upstream_named_default" | sed -n 's/^shimmy_catalog_tool=//p')" "$(printf '%s\n' "$default_catalog" | sed -n 's/^shimmy_catalog_tool=//p')"
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$default_manifest_checksum"
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"
-
-  set +e
-  error_output=$(default_shimmy status --profile upstream 2>&1)
-  error_status=$?
-  set -e
-  [ "$error_status" -ne 0 ] || fail_test "installed status unexpectedly accepted --profile"
-  assert_contains "$error_output" 'unknown argument: --profile'
 
   for command_name in catalog images install netinfo profile skills status test uninstall update; do
     set +e

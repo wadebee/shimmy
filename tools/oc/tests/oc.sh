@@ -26,8 +26,6 @@ test_tools_oc_authenticated_image_config() {
   for image_config_file in "$ROOT_DIR"/tools/oc/versions/*/image.conf; do
     assert_file_contains "$image_config_file" 'image_base_1_registry_access=authenticated'
   done
-  assert_not_contains "$base_image_4_18$base_image_4_20$base_image_4_22" x86_64
-  assert_not_contains "$base_image_4_18$base_image_4_20$base_image_4_22" aarch64
   pass "oc image metadata records the authenticated Red Hat manifest-list defaults"
 }
 

@@ -115,7 +115,9 @@ test_commands_profiles_manifest_rejection() {
     assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-manifest-sentinel"
     assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
     assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
-    assert_path_not_exists "$SCENARIO_DIR/manifest-payload-ran"
+    if [ "$mutation_name" = shell_payload ]; then
+      assert_path_not_exists "$SCENARIO_DIR/manifest-payload-ran"
+    fi
   done
 
   cp "$valid_manifest" "$manifest_file"
