@@ -9,8 +9,11 @@ refresh, or uninstall lifecycle flows while resolving availability from the
 profile's shared named catalog.
 The root entrypoint sources the installed `shell-init.sh` into its caller when
 it is sourced; execution retains initialization only inside the bootstrap
-process. The generated asset changes PATH only and does not activate Podman or
-set connection variables.
+process. Explicit bootstrap `--activate` runs only after profile and startup
+commit, delegates ordinary or stale-restart activation to the profile state
+machine, and leaves a recoverable installation on failure. It never implies
+`--stop-running`. The generated asset changes PATH only and does not activate
+Podman or set connection variables.
 
 ## Files
 

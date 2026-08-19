@@ -73,6 +73,10 @@ The authoritative Shimmy control-plane skills are under
   fallback only after the user explicitly approves it, preferably with the
   phrase `fallback approved`.
 - For installed shims already selected on `PATH`, invoke the normal tool name such as `rg` or `jq`; do not call the resolved installed shim path. Before selecting another profile, use its absolute launcher for `profile status`, `profile activate --dry-run`, and the exact approved `profile activate` command. Require separate confirmation before adding `--stop-running`; never provision, delete, rename, or adopt a machine. Source the profile's `shell-init.sh` only after activation when PATH initialization is needed. Agent tool calls do not retain earlier sourcing, so use an absolute dispatcher or same-command sourcing when the target is not already on `PATH`. For source previews, use `./commands/run-tool.sh <tool> --preview-shim ...` or the concrete version runtime selected by that tool's `tool.conf`.
+- The combined `bootstrap.sh --activate` form is a human convenience and does
+  not authorize AI agents to combine installation with engine mutation. Agents
+  retain the absolute-launcher status, dry-run, exact activation approval, and
+  separate `--stop-running` confirmation sequence.
 - When running repo commands, invoke them directly with `exec_command` `login=false` unless profile or startup-file behavior is explicitly under test. Do not use `bash -lc` or login shells for Shimmy commands unless needed.
 - In AI Agent environments, approvals are evaluated on the outer command. A
   sandbox-only `unreachable`, `unknown`, socket-denied, or

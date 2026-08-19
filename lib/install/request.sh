@@ -213,6 +213,13 @@ shimmy_install_request_parse() {
         BOOTSTRAP_STARTUP_POLICY_REQUESTED=1
         shift 2
         ;;
+      --activate)
+        [ -n "${SHIMMY_BOOTSTRAP_PROFILE:-}" ] && [ -x "$ROOT_DIR/bootstrap.sh" ] ||
+          fail "unknown argument: --activate"
+        [ "$BOOTSTRAP_ACTIVATE" -eq 0 ] || fail "duplicate option: --activate"
+        BOOTSTRAP_ACTIVATE=1
+        shift
+        ;;
       --stop-running)
         [ "$STOP_RUNNING_OPTION_REQUESTED" -eq 0 ] || fail "duplicate option: --stop-running"
         STOP_RUNNING=1

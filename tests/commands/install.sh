@@ -79,6 +79,28 @@ test_commands_install_run() {
   assert_file_exists "$DEFAULT_PROFILE_ROOT/bin/unmanaged"
   assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
 
+  setup_scenario_with_profiles default
+  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
+  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$FAKE_PODMAN_BIN"
+  : > "$FAKE_PODMAN_LOG"
+  SHIMMY_CONFIG_ROOT=$XDG_CONFIG_HOME_DIR/shimmy
+  projection_fingerprint=$(shimmy_registries_config_fingerprint_render "$DEFAULT_PROFILE_ROOT/registries.conf")
+  shimmy_registries_machine_projection_record_render default "$projection_fingerprint" \
+    > "$DEFAULT_PROFILE_ROOT/machine-projection.txt"
+  chmod 0644 "$DEFAULT_PROFILE_ROOT/machine-projection.txt"
+  registries_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/registries.conf")
+  projection_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/machine-projection.txt")
+  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" \
+    "$DEFAULT_PROFILE_ROOT/bin/shimmy" install --shim task >/dev/null
+  assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/registries.conf")" "$registries_checksum"
+  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/machine-projection.txt")" "$projection_checksum"
+  assert_equals "$(cat "$FAKE_PODMAN_LOG")" ''
+  pass "installed additive install preserves engine projection state without invoking Podman"
+
   for invalid_request in \
     'install --shim task --stop-running' \
     'uninstall --stop-running --stop-running'; do

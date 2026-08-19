@@ -54,6 +54,22 @@ Official Podman installation guide: <https://podman.io/docs/installation>
    rg --version
    ```
 
+For a human checkout workflow, bootstrap activation can perform installation
+and the same profile-bound activation in one explicit request. On macOS it may
+stop an idle alternate VM or restart the idle selected VM for stale registry
+policy; displayed running containers block the transition because bootstrap
+never supplies `--stop-running`:
+
+```sh
+. ./bootstrap.sh --activate
+```
+
+An activation failure returns nonzero after retaining the installed profile
+and startup integration, with exact status and recovery commands. An
+unqualified bootstrap remains non-activating. Sourcing selects PATH after
+success, while executing `./bootstrap.sh --activate` cannot change its parent
+shell.
+
 ## What Podman Does For Shimmy
 
 Shimmy exposes command-line tools as if they were installed locally, but the
@@ -273,6 +289,11 @@ podman info
 
 Activation uses the invoking profile's deterministic machine, not an arbitrary
 default machine.
+
+Human checkout users who have already reviewed the VM switching and workload
+boundary above may instead request `. ./bootstrap.sh --activate`. It selects a
+required stale-policy restart automatically but still refuses any
+unacknowledged workload interruption.
 
 ## Verification Checks
 

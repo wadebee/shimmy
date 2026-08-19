@@ -13,7 +13,9 @@ change. Tool and management-plugin directories do not own context files.
 - Root `bootstrap.sh` bootstraps one profile; the repository contains no runnable
   `shimmy` launcher. Sourcing it initializes the caller; execution is for
   automation. Every bootstrap includes jq and rg, and each installed
-  materialized profile owns its own `bin/shimmy`.
+  materialized profile owns its own `bin/shimmy`. Human users may explicitly
+  add `--activate` for a post-commit activation that automatically selects a
+  stale Darwin restart but never acknowledges running workloads.
 - Shared named catalogs live outside profiles: `upstream` is a live validated
   checkout binding and `default` is a published immutable generation.
 - `tools/<tool>/tool.conf` defines a tool's default version and selector.
@@ -87,6 +89,11 @@ or manual policy selected by `--no-startup`; later lifecycle operations inherit
 that immutable state, and repair consumes only the recorded ledger. Changing
 policy requires uninstalling and recreating the profile. `upstream` never
 changes startup files.
+
+The combined `bootstrap.sh --activate` human workflow does not authorize an AI
+Agent to collapse status, dry-run, activation approval, or workload
+acknowledgement into one operation.
+
 The five canonical management skills and co-located tool skills remain in the
 selected named catalog and are not profile payload. Repository and home agent
 skill adapters are independently manifest-owned external state, staged from a

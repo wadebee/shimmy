@@ -62,6 +62,14 @@ through the installed `shimmy install --shim <tool>` command; it installs the
 tool dispatcher and its default concrete version. Use `--shim
 <tool>@<major.minor>` for a non-default version.
 
+`--activate` is a human checkout-bootstrap convenience for an explicit
+post-commit engine transition. It may switch or restart an idle Darwin VM,
+never supplies `--stop-running`, and retains the installed profile if
+activation fails. Do not use `. ./bootstrap.sh --activate` as an AI Agent
+shortcut: it does not authorize an AI Agent to combine installation, status,
+dry-run, activation approval, or workload acknowledgement. Follow the separate
+absolute-launcher workflow below.
+
 Catalog-dependent install, update, status, image, and skill operations validate
 the registry and exact schema before mutation. Already-materialized tools do
 not require the catalog to run. Recover a moved upstream checkout with explicit

@@ -17,7 +17,9 @@ Linux/Darwin and amd64/arm64 host matrix.
 Profile activation tests use a purpose-built Podman command seam and disposable
 configuration roots. They verify discovery, workload guards, transition and
 rollback ordering, and installed-runtime affinity without changing a developer
-machine. Shared installed-command helpers force unrelated top-level status
+machine. Bootstrap activation coverage reuses that seam to verify post-commit
+ordinary/restart selection, workload refusal, recovery, and PATH selection.
+Shared installed-command helpers force unrelated top-level status
 calls through an explicit unsupported-host test state; dedicated status tests
 use the fake Podman seam for deterministic engine details.
 

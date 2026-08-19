@@ -57,10 +57,10 @@ shimmy__bootstrap_run() {
 Bootstrap a canonical Shimmy profile and initialize PATH.
 
 Usage:
-  source ./bootstrap.sh [--profile default] [--shell <name>] [--no-startup]
-  source ./bootstrap.sh --profile upstream
-  ./bootstrap.sh [--profile default] [--shell <name>] [--no-startup]
-  ./bootstrap.sh --profile upstream
+  source ./bootstrap.sh [--profile default] [--shell <name>] [--no-startup] [--activate]
+  source ./bootstrap.sh --profile upstream [--activate]
+  ./bootstrap.sh [--profile default] [--shell <name>] [--no-startup] [--activate]
+  ./bootstrap.sh --profile upstream [--activate]
 
 Sourcing installs the selected profile and initializes it in the current shell.
 Executing performs the same install for automation; shell initialization ends
@@ -71,9 +71,16 @@ bootstrap-only; install additional tools afterward with the installed command:
 The default profile records one startup shell and managed or manual startup
 policy when first created. Later bootstraps inherit that immutable policy.
 
-Shell initialization selects PATH only. On macOS, first create the deterministic
-machine in a normal user shell (`podman machine init shimmy-default` or
-`podman machine init shimmy-upstream`), then run `shimmy profile activate`.
+Shell initialization selects PATH only. Use --activate to request a post-install
+engine activation in the same bootstrap. On macOS this may switch an idle
+alternate VM or restart the idle selected VM when registry policy is stale.
+Running containers are listed and block that stop; bootstrap never implies
+--stop-running. Activation failure leaves the installed profile recoverable and
+returns nonzero. Sourcing selects PATH after successful activation; execution
+cannot change its parent shell.
+
+On macOS, first create the deterministic machine in a normal user shell
+(`podman machine init shimmy-default` or `podman machine init shimmy-upstream`).
 Shimmy does not migrate or remove data in podman-machine-default.
 EOF
     return 0

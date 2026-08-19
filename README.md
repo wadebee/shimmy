@@ -87,10 +87,10 @@ the recorded materialized version directly.
 On macOS, engine activation and shell selection are separate. The launcher
 fixes the engine name (`default -> shimmy-default`, `upstream ->
 shimmy-upstream`). Podman permits only one managed VM to run at a time, so
-activation may stop one idle alternate machine and can interrupt workloads
-hosted there. Running
-containers are displayed and block a stop unless interruption is explicitly
-acknowledged with `--stop-running`:
+activation may stop one idle alternate machine or restart the idle selected
+machine when its registry projection is stale. Either transition can interrupt
+workloads hosted there. Running containers are displayed and block a stop
+unless interruption is explicitly acknowledged with `--stop-running`:
 
 ```sh
 profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
@@ -99,6 +99,22 @@ profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
 "$profile_root/bin/shimmy" profile activate
 . "$profile_root/shell-init.sh"
 ```
+
+After reviewing that boundary, a human can request installation and safe
+activation in one explicit checkout workflow:
+
+```sh
+. ./bootstrap.sh --activate
+```
+
+The bootstrap automatically selects ordinary activation or the required stale
+projection restart, but never supplies `--stop-running`. If activation fails,
+the installed profile and startup integration remain valid, the bootstrap
+returns nonzero, and its exact status and retry commands can be used for
+recovery. Sourcing selects PATH only after success; executing the same command
+cannot change its parent shell. The option is bootstrap-only: ordinary
+`. ./bootstrap.sh`, installed `shimmy install`, and `shell-init.sh` remain
+engine-neutral.
 
 On Linux, activation atomically selects the invoking profile's registry policy
 through the exact user drop-in

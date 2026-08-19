@@ -37,16 +37,16 @@ is the behavior under test.
   backup-cleanup failure plus INT and TERM cleanup after the commit boundary
   and proves that none can invoke rollback with destroyed recovery material.
 - `onboarding.sh` covers sourced and executed root `bootstrap.sh` onboarding,
-  failure
-  cleanup, the fixed jq/rg bootstrap baseline, explicit additive installed
-  selection, direct shell initialization, PATH precedence, and profile-local
-  launcher binding. One progressive scenario rejects repository tool
-  selection, executes the upstream bootstrap outside the checkout, sources
-  default while preserving caller state, installs task plus OC, refreshes
-  default, and sources upstream then default to prove deterministic PATH
-  switching. It compares initial selections with immutable session fixtures;
-  failure and shell-compatibility boundaries remain isolated, and shell-init
-  PATH behavior runs against relocated clones.
+  failure cleanup, optional post-commit engine activation, automatic stale
+  restart, workload refusal and retry recovery, the fixed jq/rg bootstrap
+  baseline, explicit additive installed selection, direct shell initialization,
+  PATH precedence, and profile-local launcher binding. One progressive scenario
+  rejects repository tool selection, executes the upstream bootstrap outside
+  the checkout, sources default while preserving caller state, installs task
+  plus OC, refreshes default, and sources upstream then default to prove
+  deterministic PATH switching. It compares initial selections with immutable
+  session fixtures; failure and shell-compatibility boundaries remain isolated,
+  and shell-init PATH behavior runs against relocated clones.
 - `status.sh` covers the sectioned profile, read-only Podman engine, catalog,
   and installed-tool output through deterministic fake and unsupported engine
   states. It proves the additive `shimmy_engine_*` manifest schema,
@@ -101,8 +101,8 @@ is the behavior under test.
 - `netinfo.sh` covers deterministic CIDR rendering, explicit host-LAN
   precedence, help output, and request validation.
 - `install.sh` covers additive installed-tool requests, uninstall workload
-  acknowledgement validation, generic request rejection, invalid
-  combinations, and macOS Podman guidance.
+  acknowledgement validation, positive engine-state preservation, generic
+  request rejection, invalid combinations, and macOS Podman guidance.
 - `test.sh` covers installed-profile test request, metadata validation,
   profile binding, public dispatch, and manifest-tuple concrete-version
   orchestration. Its installed profile-binding scenario starts from a pristine

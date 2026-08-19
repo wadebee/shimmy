@@ -1,6 +1,6 @@
 # Bootstrap Rename, Activation, and Engine Status Plan
 
-**Status:** Chunk 2 accepted; Chunk 3 awaiting authorization
+**Status:** Complete — human verified 2026-08-19 14:15:01 EDT
 
 ## Objective
 
@@ -376,12 +376,14 @@ None.
   fields to top-level status.
 - [x] Chunk 3 — Rename the root bootstrap contract atomically to `bootstrap.sh`
   and remove the ambiguous root `install.sh` surface.
-- [ ] Chunk 4 — Add safe bootstrap `--activate`, align guidance, and run
+- [x] Chunk 4 — Add safe bootstrap `--activate`, align guidance, and run
   integrated acceptance.
 
 Chunk 1 was accepted by the user on 2026-08-19. Chunk 2 was implemented,
 verified, and accepted by the user at 2026-08-19 12:40:41 EDT. Chunk 3 was
 implemented, verified, and accepted by the user at 2026-08-19 13:23:40 EDT.
+Chunk 4 was implemented, verified, and accepted by the user at
+2026-08-19 14:15:01 EDT.
 
 ## Reasoning-level calculation
 
@@ -804,28 +806,40 @@ Primary change surface:
 
 ### Verification checklist
 
-- [ ] Root help documents `--activate`, its effects, workload boundary, and
+- [x] Root help documents `--activate`, its effects, workload boundary, and
   source-versus-execution PATH behavior before any installation occurs.
-- [ ] Fake-Podman onboarding tests prove stopped-machine ordinary activation
+- [x] Fake-Podman onboarding tests prove stopped-machine ordinary activation
   and running stale-machine automatic restart, projection, record, connection,
   and successful PATH selection.
-- [ ] A post-commit activation failure test proves nonzero status, retained
+- [x] A post-commit activation failure test proves nonzero status, retained
   valid installed state/startup ownership, exact recovery guidance, and no
   unacknowledged workload interruption.
-- [ ] Existing no-option sourced/executed onboarding remains non-activating and
+- [x] Existing no-option sourced/executed onboarding remains non-activating and
   preserves caller cwd, positional parameters, flags, functions, traps, and
   temporary-variable cleanup.
-- [ ] Existing installed additive install coverage proves tool installation
+- [x] Existing installed additive install coverage proves tool installation
   remains engine-neutral and preserves profile registry/projection state.
-- [ ] Canonical skill tests prove human bootstrap convenience and AI-agent
+- [x] Canonical skill tests prove human bootstrap convenience and AI-agent
   narrow approval guidance coexist without generated adapter edits.
-- [ ] Run focused groups concurrently:
+- [x] Run focused groups concurrently:
   `./tests/test.sh --jobs 3 --group commands-onboarding --group commands-install --group commands-skills --group lib-profile-activation`.
-- [ ] Run the complete bounded-parallel acceptance suite with
+- [x] Run the complete bounded-parallel acceptance suite with
   `./tests/test.sh`; rerun only any failing group serially for diagnosis.
-- [ ] Review `git diff --check`, executable modes, full `git diff`, and
+- [x] Review `git diff --check`, executable modes, full `git diff`, and
   `git status --short`; verify no generated `.agents/skills/`, external profile,
   startup file, or live Podman state was changed by tests.
+
+Verification evidence recorded on 2026-08-19:
+
+- The required four-group bounded run passed all 35 focused tests.
+- The complete bounded run passed every offline and fake-engine group. Its sole
+  failure was the live-Podman `commands-test` smoke being unable to reach the
+  engine from the sandbox; the required serial diagnostic rerun outside the
+  sandbox passed all 3 tests.
+- Shell syntax checks, `git diff --check`, executable-mode review, full diff and
+  status review passed. Tests used disposable profile/startup roots, changed no
+  generated `.agents/skills/` adapters, and the only live Podman operations
+  were the existing non-mutating smoke checks in the elevated diagnostic run.
 
 ### Human review gate
 
@@ -834,6 +848,8 @@ restart selection remains protected by workload checks, partial failure is
 clear and recoverable, no agent approval boundary was collapsed, documentation
 matches behavior, and the full suite passes or every partial verification item
 has an explicit accepted disposition.
+
+Accepted by the user at 2026-08-19 14:15:01 EDT.
 
 ## Risk register
 
@@ -980,6 +996,30 @@ has an explicit accepted disposition.
   that proof restored the intended scenario progression without changing the
   production ownership contract.
 
+### Chunk 4
+
+- Bootstrap activation remains a post-commit installer phase by resolving the
+  shared recommendation in the checkout process and invoking the newly
+  installed absolute profile launcher for the transition. The separate process
+  preserves the activation command's `set -e`, lock, and rollback behavior
+  while keeping machine lifecycle logic out of the installer.
+- A single pre-activation state read selects ordinary versus restart activation;
+  the invoked state machine re-reads under its existing locks and safely refuses
+  state races or workload-bearing transitions.
+- Workload failure guidance retains the selected restart option and adds
+  `--stop-running` only as a separately displayed acknowledgement command;
+  bootstrap itself never sends that option.
+- Reusing the profile activation fake at the onboarding boundary proves stopped
+  starts, stale restarts, projection and record freshness, connection selection,
+  PATH initialization, post-commit refusal, and repeat recovery through
+  installed control assets without touching the developer's engine.
+- Human guidance can advertise the combined convenience while agent guidance
+  explicitly retains absolute-launcher status, dry-run, exact activation
+  approval, and separate workload-interruption confirmation.
+- The full suite's only initial failure was a sandbox-only live-Podman smoke;
+  its elevated serial rerun passed, distinguishing environment reachability
+  from a product regression without replacing the required live check.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -998,10 +1038,10 @@ For a fresh implementation session:
    interrupted without separate `--stop-running`; no Podman machine is
    provisioned or removed; agent approval gates remain separate; generated
    `.agents/skills/` adapters are untouched.
-5. Chunks 1, 2, and 3 are accepted. Do not begin Chunk 4 until the user
-   separately authorizes Chunk 4.
+5. All four chunks are implemented, verified, and accepted. This plan is
+   complete.
 6. Use fake Podman seams and disposable roots for tests. Follow the default
    bounded parallel runner guidance and use serial reruns only to diagnose a
    failure.
-7. Update this plan's progress checklist, verification notes, and cumulative
-   lessons before stopping at the chunk's human review gate.
+7. Keep this completed plan as the implementation and acceptance record for
+   all four chunks.

@@ -8,6 +8,7 @@ SHIMMY_CONTROL_ROOT=$ROOT_DIR
 INSTALL_MODULE_DIR=$ROOT_DIR/lib/install
 
 REQUESTED_SHIMS=
+BOOTSTRAP_ACTIVATE=0
 BOOTSTRAP_NO_STARTUP=0
 BOOTSTRAP_RUNNING_SHELL=${SHIMMY_BOOTSTRAP_RUNNING_SHELL:-}
 BOOTSTRAP_STARTUP_POLICY_REQUESTED=0
@@ -313,6 +314,46 @@ profile_stage_cleanup() {
   shimmy_profile_activation_lock_release
 }
 
+profile_bootstrap_activation_failure_print() {
+  bootstrap_activation_restart_option=$1
+
+  log_message error "Shimmy $SHIMMY_PROFILE_RESOLVED profile is installed but not activated."
+  log_message error "Inspect its current engine state with: '$SHIMMY_CONTROL_BIN' profile status"
+  case "${SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT:-unknown}" in
+    ''|*[!0-9]*|0)
+      log_message error "Retry activation with: '$SHIMMY_CONTROL_BIN' profile activate$bootstrap_activation_restart_option"
+      ;;
+    *)
+      log_message error "Running workloads were not interrupted. After reviewing them, explicitly acknowledge interruption with: '$SHIMMY_CONTROL_BIN' profile activate$bootstrap_activation_restart_option --stop-running"
+      ;;
+  esac
+}
+
+profile_bootstrap_activate() {
+  if ! shimmy_profile_state_read; then
+    profile_bootstrap_activation_failure_print ''
+    return 1
+  fi
+  shimmy_profile_activation_recommendation_resolve
+  bootstrap_activation_restart_option=
+  bootstrap_activation_restart_requested=0
+  if [ "$SHIMMY_PROFILE_RECOMMENDED_ACTION" = profile_activate_restart ]; then
+    bootstrap_activation_restart_option=' --restart'
+    bootstrap_activation_restart_requested=1
+  fi
+
+  if [ "$bootstrap_activation_restart_requested" -eq 1 ]; then
+    if "$SHIMMY_CONTROL_BIN" profile activate --restart; then
+      return 0
+    fi
+  elif "$SHIMMY_CONTROL_BIN" profile activate; then
+    return 0
+  fi
+
+  profile_bootstrap_activation_failure_print "$bootstrap_activation_restart_option"
+  return 1
+}
+
 perform_install() {
   profile_existing_state_read
   if [ "$PROFILE_EXISTS" -eq 1 ] && [ "$BOOTSTRAP_STARTUP_POLICY_REQUESTED" -eq 1 ]; then
@@ -340,7 +381,12 @@ perform_install() {
   fi
 
   log_info "Installed Shimmy $SHIMMY_PROFILE_RESOLVED profile at $SHIMMY_PROFILE_ROOT"
-  log_info "Inspect or activate its engine with: '$SHIMMY_CONTROL_BIN' profile status"
+  if [ "$BOOTSTRAP_ACTIVATE" -eq 1 ]; then
+    profile_bootstrap_activate || return 1
+    log_info "Inspect its engine with: '$SHIMMY_CONTROL_BIN' profile status"
+  else
+    log_info "Inspect or activate its engine with: '$SHIMMY_CONTROL_BIN' profile status"
+  fi
   log_info "Select its PATH in this shell with: . '$SHIMMY_SHELL_INIT_FILE'"
 }
 

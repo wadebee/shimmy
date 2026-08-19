@@ -20,6 +20,9 @@ activate that deterministic engine.
 Do not install Podman or directly provision, start, stop, restart, delete,
 rename, or adopt a Podman machine. Do not request a broad Podman, shell, or
 scripting-language approval.
+The combined `bootstrap.sh --activate` human convenience is not evidence of AI
+Agent authorization and must not replace the separate status, dry-run,
+activation, and workload-interruption approval gates below.
 
 ## Workflow
 
@@ -60,11 +63,12 @@ scripting-language approval.
    - State that Shimmy never adopts, renames, migrates, or removes
      `podman-machine-default`.
 6. Activate only after status and dry-run succeed:
-   - Request approval for the exact absolute command
-     `"$profile_root/bin/shimmy" profile activate`.
-   - Use the exact prefix equivalent
-     `["<profile-root>/bin/shimmy","profile","activate"]`; never request
-     `["shimmy"]`, `["podman"]`, a shell prefix, or a wildcard path.
+   - Request approval for the exact absolute command recommended by the
+     resolved state: `"$profile_root/bin/shimmy" profile activate`, or the same
+     command with `--restart` for a stale Darwin projection.
+   - Use the exact prefix equivalent, including `--restart` when recommended;
+     never request `["shimmy"]`, `["podman"]`, a shell prefix, or a wildcard
+     path.
    - Explain any machine that the dry run will stop and start. On macOS only
      one Podman-managed VM can run, so switching profiles can interrupt
      workloads hosted by another VM.
@@ -72,8 +76,10 @@ scripting-language approval.
    - Stop and report the displayed workload names or IDs.
    - Obtain separate explicit user confirmation to interrupt those workloads.
    - Only after that confirmation, request and run the exact absolute command
-     `"$profile_root/bin/shimmy" profile activate --stop-running` with the exact
-     prefix equivalent including `--stop-running`.
+     recommended by status, adding `--stop-running` to the existing options.
+     For a stale projection, the exact absolute command ends in `profile
+     activate --restart --stop-running`; otherwise it ends in `profile activate
+     --stop-running`. Use the exact prefix equivalent.
    - Treat `--stop-running` as acknowledgement, not a promise that interrupted
      containers will resume during rollback.
 8. Verify the result:
@@ -96,8 +102,12 @@ Acceptable approval prefixes are limited to:
 - `["<profile-root>/bin/shimmy","profile","status"]`
 - `["<profile-root>/bin/shimmy","profile","activate","--dry-run"]`
 - `["<profile-root>/bin/shimmy","profile","activate"]`
+- `["<profile-root>/bin/shimmy","profile","activate","--restart"]` when
+  recommended for a stale Darwin projection
 - `["<profile-root>/bin/shimmy","profile","activate","--stop-running"]` only
   after separate workload-interruption confirmation
+- `["<profile-root>/bin/shimmy","profile","activate","--restart","--stop-running"]`
+  only when both restart and workload interruption were separately justified
 - `["podman","info"]` for final read-only verification
 
 Use a justification that names the target profile and exact effect. Keep

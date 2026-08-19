@@ -59,6 +59,13 @@ profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream
 rg --version
 ```
 
+Human checkout users may explicitly request the combined
+`. ./bootstrap.sh --activate` workflow after reviewing its idle VM
+switch/restart and workload-refusal behavior. Contributors acting as AI agents
+must retain the absolute-launcher status, dry-run, and separately approved
+activation sequence above; the combined bootstrap option does not authorize or
+collapse those approval gates.
+
 On macOS, activation may stop the one alternate Podman-managed VM. Running
 containers block that stop unless interruption is separately acknowledged with
 `--stop-running`. Contributors and agents must never provision, delete, rename,

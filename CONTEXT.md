@@ -20,10 +20,13 @@ management-plugin directories deliberately have no context-file hierarchy.
   and sources its generated `shell-init.sh`; the repository has no runnable
   `shimmy` launcher and does not accept tool selection. Sourcing the bootstrap
   retains shell initialization, while execution remains suitable for
-  automation and absolute-path self-update. Fresh default bootstrap records
-  one immutable normalized startup shell and a managed exact-path or manual
-  policy; an identifiable running-shell discrepancy requires consent before
-  managed startup mutation, and later lifecycle operations inherit that
+  automation and absolute-path self-update. Explicit `--activate` performs a
+  post-commit profile activation through the shared state machine, selects a
+  required stale Darwin restart, and never acknowledges running workloads;
+  activation failure retains the installed profile. Fresh default bootstrap
+  records one immutable normalized startup shell and a managed exact-path or
+  manual policy; an identifiable running-shell discrepancy requires consent
+  before managed startup mutation, and later lifecycle operations inherit that
   manifest-owned state.
 - `tools/` owns each tool's metadata, versions, container context, guide, and
   canonical skill.

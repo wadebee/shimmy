@@ -122,8 +122,9 @@ profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
 
 On macOS, activation uses only `shimmy-default` or `shimmy-upstream` and
 Podman permits only one managed VM to run at a time. Activation may therefore
-stop another VM and interrupt its workloads; it refuses to interrupt displayed
-running containers without `--stop-running`. Activation also projects the
+stop another idle VM or restart the idle selected VM when its registry
+projection is stale. It refuses to interrupt displayed running containers
+without `--stop-running`. Activation also projects the
 profile's registry policy through the fixed VM-side
 `/etc/containers/registries.conf.d/shimmy-profile.conf` symlink and records its
 fingerprint. The profile root must be visible at the same absolute path inside
@@ -136,6 +137,24 @@ When Skopeo is installed, it mounts only the valid current invoking profile's
 registry policy read-only; `shimmy images verify` inherits that policy.
 Profiles with no activation omit the mount, while mismatched, damaged, stale,
 unsafe, or registry-overridden installed state fails closed.
+
+After reviewing those effects, a human can explicitly combine checkout
+installation and safe activation:
+
+```sh
+. ./bootstrap.sh --activate
+```
+
+This bootstrap-only option reads the installed profile state and selects
+ordinary activation or `--restart` for a stale running Darwin projection. It
+never supplies `--stop-running`; listed workloads cause a nonzero refusal with
+the exact separate acknowledgement command. Any activation failure occurs
+after profile and startup commit, so the installed profile remains valid and
+the error prints exact status and retry guidance. Repeating the same command is
+a supported recovery path. Sourcing selects PATH after successful activation;
+executing `./bootstrap.sh --activate` performs the same engine workflow but
+cannot change its parent shell. An unqualified bootstrap and installed
+`shimmy install --shim ...` remain non-activating.
 
 ## Implementation routing
 

@@ -1,5 +1,128 @@
 #!/bin/sh
 
+test_commands_onboarding_bootstrap_with_fake_engine() {
+  (
+    cd "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+      SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+      FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST="${FAKE_MACHINE_LIST:-}" \
+      FAKE_CONNECTION_LIST="${FAKE_CONNECTION_LIST:-}" FAKE_WORKLOADS="${FAKE_WORKLOADS:-}" \
+      FAKE_DARWIN_INFO="${FAKE_DARWIN_INFO:-true|true}" \
+      FAKE_DARWIN_PROJECTION_STATE="${FAKE_DARWIN_PROJECTION_STATE:-current}" \
+      FAKE_TARGET_MACHINE="${FAKE_TARGET_MACHINE:-shimmy-default}" \
+      FAKE_PRIOR_DEFAULT="${FAKE_PRIOR_DEFAULT:-shimmy-default}" \
+      FAKE_FAIL_ACTION="${FAKE_FAIL_ACTION:-}" \
+      ./bootstrap.sh --profile default "$@"
+  )
+}
+
+test_commands_onboarding_explicit_activation() {
+  setup_scenario
+  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
+  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$FAKE_PODMAN_BIN"
+  : > "$FAKE_PODMAN_LOG"
+  FAKE_MACHINE_LIST='shimmy-default|false'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
+other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_WORKLOADS=
+  FAKE_DARWIN_PROJECTION_STATE=absent
+  FAKE_TARGET_MACHINE=shimmy-default
+  FAKE_PRIOR_DEFAULT=other
+  FAKE_FAIL_ACTION=
+
+  activation_output=$(
+    env TEST_ROOT_DIR="$SHIMMY_TEST_CLEAN_SOURCE_ROOT" \
+      TEST_DEFAULT_PROFILE_ROOT="$DEFAULT_PROFILE_ROOT" \
+      XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH=/usr/bin:/bin \
+      SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
+      FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST="$FAKE_MACHINE_LIST" \
+      FAKE_CONNECTION_LIST="$FAKE_CONNECTION_LIST" FAKE_WORKLOADS="$FAKE_WORKLOADS" \
+      FAKE_DARWIN_PROJECTION_STATE="$FAKE_DARWIN_PROJECTION_STATE" \
+      FAKE_TARGET_MACHINE="$FAKE_TARGET_MACHINE" FAKE_PRIOR_DEFAULT="$FAKE_PRIOR_DEFAULT" \
+      /bin/sh -c '
+        cd "$TEST_ROOT_DIR"
+        . ./bootstrap.sh --profile default --no-startup --activate
+        bootstrap_status=$?
+        printf "status=%s\n" "$bootstrap_status"
+        printf "shimmy=%s\n" "$(command -v shimmy)"
+      ' 2>&1
+  )
+  assert_contains "$activation_output" 'status=0'
+  assert_contains "$activation_output" "shimmy=$DEFAULT_PROFILE_ROOT/bin/shimmy"
+  assert_contains "$activation_output" 'Starting Podman machine: shimmy-default'
+  assert_contains "$activation_output" 'Activated Shimmy profile default with Podman machine shimmy-default.'
+  activation_log=$(cat "$FAKE_PODMAN_LOG")
+  assert_contains "$activation_log" 'machine start shimmy-default'
+  assert_contains "$activation_log" 'machine ssh --username root shimmy-default /bin/sh -s -- apply'
+  assert_contains "$activation_log" 'system connection default shimmy-default'
+  record_path=$DEFAULT_PROFILE_ROOT/machine-projection.txt
+  shimmy_registries_machine_projection_record_validate "$record_path" default ||
+    fail_test 'bootstrap activation did not create a valid Darwin projection record'
+  expected_fingerprint=$(shimmy_registries_config_fingerprint_render "$DEFAULT_PROFILE_ROOT/registries.conf")
+  assert_file_contains "$record_path" "config_fingerprint=$expected_fingerprint"
+  pass "fresh sourced bootstrap activates a stopped engine and then selects PATH"
+
+  setup_scenario
+  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
+  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$FAKE_PODMAN_BIN"
+  : > "$FAKE_PODMAN_LOG"
+  test_commands_onboarding_bootstrap_with_fake_engine --no-startup >/dev/null
+  assert_equals "$(cat "$FAKE_PODMAN_LOG")" ''
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/install-manifest.txt"
+  pass "bootstrap without --activate remains engine-neutral"
+
+  setup_scenario
+  run_in_clean_source env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+    ./bootstrap.sh --profile default --shell zsh >/dev/null
+  record_path=$DEFAULT_PROFILE_ROOT/machine-projection.txt
+  SHIMMY_CONFIG_ROOT=$XDG_CONFIG_HOME_DIR/shimmy
+  shimmy_registries_machine_projection_record_render default 0-0 > "$record_path"
+  chmod 0644 "$record_path"
+  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
+  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$FAKE_PODMAN_BIN"
+  : > "$FAKE_PODMAN_LOG"
+  FAKE_MACHINE_LIST='shimmy-default|true'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_WORKLOADS='abc123|important'
+  FAKE_DARWIN_PROJECTION_STATE=current
+  FAKE_TARGET_MACHINE=shimmy-default
+  FAKE_PRIOR_DEFAULT=shimmy-default
+  FAKE_FAIL_ACTION=
+
+  set +e
+  blocked_output=$(test_commands_onboarding_bootstrap_with_fake_engine --activate 2>&1)
+  blocked_status=$?
+  set -e
+  [ "$blocked_status" -ne 0 ] || fail_test 'bootstrap activation unexpectedly interrupted an unacknowledged workload'
+  assert_contains "$blocked_output" 'abc123|important'
+  assert_contains "$blocked_output" 'profile is installed but not activated'
+  assert_contains "$blocked_output" "'$DEFAULT_PROFILE_ROOT/bin/shimmy' profile status"
+  assert_contains "$blocked_output" "'$DEFAULT_PROFILE_ROOT/bin/shimmy' profile activate --restart --stop-running"
+  assert_contains "$blocked_output" 'explicitly acknowledge interruption'
+  assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop'
+  shimmy_profile_structure_validate "$DEFAULT_PROFILE_ROOT" default ||
+    fail_test 'workload-blocked bootstrap did not retain a valid installed profile'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "startup_file=$HOME_DIR/.zshrc"
+  assert_file_contains "$HOME_DIR/.zshrc" '# >>> shimmy default profile >>>'
+
+  : > "$FAKE_PODMAN_LOG"
+  FAKE_WORKLOADS=
+  recovery_output=$(test_commands_onboarding_bootstrap_with_fake_engine --activate 2>&1)
+  assert_contains "$recovery_output" 'Stopping Podman machine: shimmy-default'
+  assert_contains "$recovery_output" 'Activated Shimmy profile default with Podman machine shimmy-default.'
+  recovery_log=$(cat "$FAKE_PODMAN_LOG")
+  assert_contains "$recovery_log" 'machine stop shimmy-default'
+  assert_contains "$recovery_log" 'machine start shimmy-default'
+  shimmy_registries_machine_projection_record_validate "$record_path" default ||
+    fail_test 'repeated bootstrap activation did not recover the projection record'
+  expected_fingerprint=$(shimmy_registries_config_fingerprint_render "$DEFAULT_PROFILE_ROOT/registries.conf")
+  assert_file_contains "$record_path" "config_fingerprint=$expected_fingerprint"
+  pass "post-commit workload refusal retains installation and repeated activation recovers it"
+}
+
 test_commands_onboarding_shell_init_path_assert() {
   shell_init_file=$1
   path_before=$2
@@ -92,6 +215,9 @@ test_commands_onboarding_help() {
   assert_contains "$help_output" 'source ./bootstrap.sh'
   assert_contains "$help_output" 'Every bootstrap includes jq and rg.'
   assert_contains "$help_output" 'shimmy install --shim <tool>'
+  assert_contains "$help_output" 'Use --activate to request a post-install'
+  assert_contains "$help_output" 'bootstrap never implies'
+  assert_contains "$help_output" 'Sourcing selects PATH after successful activation'
   assert_contains "$help_output" 'path_unchanged=yes'
   assert_not_contains "$help_output" 'function=leaked'
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
@@ -397,6 +523,7 @@ test_commands_onboarding_shell_init_path_behavior() {
 }
 
 test_commands_onboarding_run() {
+  test_commands_onboarding_explicit_activation
   test_commands_onboarding_progression
   test_commands_onboarding_bootstrap_documentation
   test_commands_onboarding_help
