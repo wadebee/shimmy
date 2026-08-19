@@ -24,13 +24,14 @@ set connection variables.
   retains the prior valid generation. Explicit rollback validates the retained
   generation and atomically swaps registry authority, including recovery from
   an invalid current generation.
-- `manifest.sh` preserves and renders the profile-local version-3 manifest,
+- `manifest.sh` preserves and renders the profile-local version-1 manifest,
   including its fixed `catalog=default` or `catalog=upstream` binding.
 - `profile-assets.sh` stages the profile-local control plane, launcher,
-  implementations, dispatchers, and only manifest-selected tool metadata and
-  concrete version assets plus the authoritative registry file and optional
-  Darwin projection record. It re-resolves and compares the catalog before
-  commit so a live catalog change cannot produce a mixed materialization.
+  dispatchers, explicit manifest-tuple smoke metadata, and only
+  manifest-selected tool metadata and concrete version assets plus the
+  authoritative registry file and optional Darwin projection record. It
+  re-resolves and compares the catalog before commit so a live catalog change
+  cannot produce a mixed materialization.
   Fresh and valid pre-feature profiles receive an empty managed file; later
   transactions lock and preserve validated config and record bytes.
 - `launcher-template.sh` becomes the installed profile's self-contained
@@ -53,7 +54,7 @@ set connection variables.
   external skill exports.
 
 Profiles contain no canonical management plugin or tool skill sources; those
-remain in the named catalog. Manifest version 3 and the
+remain in the named catalog. Manifest version 1 and the
 `profile-materialized-root` identity reject legacy, mixed, and damaged layouts
 before install or refresh mutation. Profile install and uninstall do not write
 or remove repository or home shared-skill targets; those targets are managed

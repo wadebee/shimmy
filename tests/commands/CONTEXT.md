@@ -90,17 +90,18 @@ is the behavior under test.
   one pristine default profile while retaining isolated repository work roots.
   Target ownership and catalog authority remain independent profile worlds.
 - `dispatcher.sh` covers profile-bound installed dispatchers, ownership, and
-  recursion protections using isolated pristine clones for destructive cases;
-  repository previews use `commands/run-tool.sh`.
+  fixed-target symlink and executable protections using isolated pristine
+  clones for destructive cases; repository previews use `commands/run-tool.sh`.
 - `netinfo.sh` covers deterministic CIDR rendering, explicit host-LAN
   precedence, help output, and request validation.
 - `install.sh` covers additive installed-tool requests, uninstall workload
   acknowledgement validation, generic request rejection, invalid
   combinations, and macOS Podman guidance.
 - `test.sh` covers installed-profile test request, metadata validation,
-  profile binding, public dispatch, and concrete-version orchestration. Its
-  installed profile-binding scenario starts from a pristine clone; runtime
-  orchestration uses disposable wrapper fixtures rather than live containers,
-  including a failing smoke that must propagate its nonzero status.
+  profile binding, public dispatch, and manifest-tuple concrete-version
+  orchestration. Its installed profile-binding scenario starts from a pristine
+  clone, exercises public, exact-version, and all-version smokes with live
+  Podman, and retains a focused failing-smoke fixture that must propagate its
+  nonzero status.
 - `agent-preflight.sh` covers image-metadata-driven approval smoke commands and
   local-build preview selection without requiring a live Podman engine.

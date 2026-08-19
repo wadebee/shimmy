@@ -266,15 +266,19 @@ profile_stage_prepare() {
   while IFS= read -r tool_name; do
     [ -n "$tool_name" ] || continue
     profile_dispatcher_collision_validate "$tool_name"
-    profile_shim_assets_stage "$tool_name"
+    profile_tool_config_stage "$tool_name"
     profile_dispatcher_stage "$tool_name"
   done <<EOF
 $PROFILE_MANIFEST_TOOLS
 EOF
   while IFS= read -r tool_version_entry; do
     [ -n "$tool_version_entry" ] || continue
-    version_name=${tool_version_entry##*|}
-    profile_shim_assets_stage "$version_name"
+    tool_name=${tool_version_entry%%|*}
+    version_remainder=${tool_version_entry#*|}
+    version_label=${version_remainder%%|*}
+    version_name=${version_remainder#*|}
+    [ "$version_label" != default ] || continue
+    profile_tool_version_config_stage "$tool_name" "$version_label" "$version_name"
   done <<EOF
 $PROFILE_MANIFEST_TOOL_VERSIONS
 EOF

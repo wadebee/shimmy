@@ -79,7 +79,9 @@ directly from an existing profile, source its generated asset:
 ```
 
 Each profile has its own self-contained `bin/shimmy`, and installed launchers
-manage only their enclosing profile.
+manage only their enclosing profile. Public `bin/<tool>` links dispatch through
+the profile-local `commands/run-tool.sh`, while exact-version smoke tests run
+the recorded materialized version directly.
 
 On macOS, engine activation and shell selection are separate. The launcher
 fixes the engine name (`default -> shimmy-default`, `upstream ->
@@ -156,7 +158,8 @@ the next command. `default` is an immutable generation published only from a
 clean committed upstream checkout. Publication changes catalog availability;
 installed profile versions remain materialized and unchanged until an explicit
 `shimmy update` or `shimmy install --shim` operation selects the newer catalog
-default.
+default. Installed execution remains profile-local if the recorded upstream
+checkout becomes unavailable; catalog-aware operations continue to require it.
 
 List the complete tool membership of the invoking profile's recorded catalog,
 or select either named catalog without changing the active profile:

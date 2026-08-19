@@ -44,10 +44,11 @@ The runner creates one disposable clean committed source checkout, then
 creates pristine shared catalogs plus default and upstream profiles once per
 session. Scenarios that do not need to exercise bootstrap or registration copy
 those catalog and profile fixtures through the shared helper. Relocated
-profiles rewrite the generated `shell-init.sh` path and every implementation
-runtime root before use. Dirty-publication and live-upstream tests use isolated
-Git checkout copies. The immutable committed source repository used by
-self-update scenarios is also created once per session.
+profiles rewrite only the generated `shell-init.sh` path; runtime dispatch is
+already relative to each materialized profile root. Dirty-publication and
+live-upstream tests use isolated Git checkout copies. The immutable committed
+source repository used by self-update scenarios is also created once per
+session.
 Source-suite runner options are validated before these session fixtures or the
 session temporary root are created. Parent-only fixture setup precedes static
 bounded workers; each worker reads shared session fixtures and creates mutable
@@ -83,11 +84,12 @@ semantics.
 every concrete tool version's executable runtime and refresh hook plus its
 smoke and image metadata.
 
-Lifecycle coverage includes isolated default/upstream bootstrap, clean
+Lifecycle coverage includes isolated version-1 default/upstream bootstrap, clean
 publication, retained-generation rollback (including invalid-current
 recovery), catalog-default adoption only on explicit update, source-loss
 execution independence, profile-only uninstall, and explicit global removal
-that preserves bound checkouts and external skill exports. Darwin lifecycle
+that preserves bound checkouts, external skill exports, and unowned profile
+paths. Darwin lifecycle
 coverage uses a purpose-built Podman seam for running, stopped, missing,
 workload-guarded, rollback, and two-profile transaction states.
 

@@ -32,8 +32,9 @@ Shimmy has two built-in profiles, each installed as a complete independent
 tree below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`:
 
 - `default` is the external-user profile and the default for top-level commands.
-- `upstream` is the maintainer profile whose generated tool implementations
-  dispatch to the recorded source checkout.
+- `upstream` is the maintainer profile whose catalog binds to the recorded
+  source checkout while installed tools execute from the profile
+  materialization.
 
 The root `install.sh` is a minimal bootstrap and the repository has no runnable
 `shimmy` launcher. `./install.sh` selects `default`; only the bootstrap accepts

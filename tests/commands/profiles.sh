@@ -13,19 +13,6 @@ test_manifest_mutate() {
       cp "$manifest_file" "$mutation_tmp"
       printf '%s\n' 'shimmy_install_layout=profile-materialized-root' >> "$mutation_tmp"
       ;;
-    legacy_version_one)
-      sed \
-        -e 's/^shimmy_install_manifest_version=.*/shimmy_install_manifest_version=1/' \
-        -e 's/^shimmy_install_layout=.*/shimmy_install_layout=profile-flat-root/' \
-        -e 's/^shimmy_profile_manifest_version=.*/shimmy_profile_manifest_version=1/' \
-        "$manifest_file" > "$mutation_tmp"
-      ;;
-    version_four)
-      sed \
-        -e 's/^shimmy_install_manifest_version=.*/shimmy_install_manifest_version=4/' \
-        -e 's/^shimmy_profile_manifest_version=.*/shimmy_profile_manifest_version=4/' \
-        "$manifest_file" > "$mutation_tmp"
-      ;;
     unknown_version)
       sed 's/^shimmy_profile_manifest_version=.*/shimmy_profile_manifest_version=99/' "$manifest_file" > "$mutation_tmp"
       ;;
@@ -97,9 +84,9 @@ test_commands_profiles_manifest_rejection() {
   cp "$manifest_file" "$valid_manifest"
   printf '%s\n' keep > "$DEFAULT_PROFILE_ROOT/unmanaged-manifest-sentinel"
   launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")
-  implementation_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")
+  runtime_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/tools/jq/versions/1.8/run.sh")
 
-  for mutation_name in missing_identity duplicate_identity legacy_version_one version_four unknown_version wrong_label wrong_profile wrong_catalog unsafe_tool duplicate_ownership duplicate_tool_version contradictory_tool_version legacy_tool_key legacy_tool_version_key malformed_line missing_startup_shell unsupported_startup_shell relative_startup_file duplicate_startup_file shell_payload; do
+  for mutation_name in missing_identity duplicate_identity unknown_version wrong_label wrong_profile wrong_catalog unsafe_tool duplicate_ownership duplicate_tool_version contradictory_tool_version legacy_tool_key legacy_tool_version_key malformed_line missing_startup_shell unsupported_startup_shell relative_startup_file duplicate_startup_file shell_payload; do
     cp "$valid_manifest" "$manifest_file"
     test_manifest_mutate "$mutation_name" "$manifest_file"
     set +e
@@ -108,30 +95,15 @@ test_commands_profiles_manifest_rejection() {
     set -e
     [ "$rejection_status" -ne 0 ] || fail_test "invalid manifest unexpectedly accepted: $mutation_name"
     assert_contains "$rejection_output" 'invalid or unsupported Shimmy profile manifest'
-    if [ "$mutation_name" = version_four ]; then
-      assert_contains "$rejection_output" 'expected shimmy_install_manifest_version=3'
-      assert_contains "$rejection_output" 'shimmy_profile_manifest_version=3'
-    fi
+
     assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-manifest-sentinel"
     assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
-    assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
+    assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/tools/jq/versions/1.8/run.sh")" "$runtime_checksum"
     if [ "$mutation_name" = shell_payload ]; then
       assert_path_not_exists "$SCENARIO_DIR/manifest-payload-ran"
     fi
   done
 
-  cp "$valid_manifest" "$manifest_file"
-  test_manifest_mutate version_four "$manifest_file"
-  set +e
-  v4_refresh_output=$(bootstrap_default 2>&1)
-  v4_refresh_status=$?
-  set -e
-  [ "$v4_refresh_status" -ne 0 ] || fail_test "manifest-v4 profile unexpectedly refreshed in place"
-  assert_contains "$v4_refresh_output" 'expected shimmy_install_manifest_version=3'
-  assert_file_contains "$manifest_file" 'shimmy_install_manifest_version=4'
-  assert_file_contains "$manifest_file" 'shimmy_profile_manifest_version=4'
-  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
-  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
 
   cp "$valid_manifest" "$manifest_file"
   rm -f "$manifest_file"
@@ -159,7 +131,7 @@ test_commands_profiles_upstream_materialization_independence() {
   manifest_file=$UPSTREAM_PROFILE_ROOT/install-manifest.txt
   valid_manifest=$SCENARIO_DIR/upstream-manifest.txt
   cp "$manifest_file" "$valid_manifest"
-  implementation_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")
+  runtime_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/tools/jq/versions/1.8/run.sh")
 
   invalid_checkout=relative/source
   awk -v checkout="$invalid_checkout" '
@@ -172,7 +144,7 @@ test_commands_profiles_upstream_materialization_independence() {
   set -e
   [ "$relative_status" -ne 0 ] || fail_test "relative upstream checkout unexpectedly accepted"
   assert_contains "$relative_output" 'invalid or unsupported Shimmy profile manifest'
-  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/tools/jq/versions/1.8/run.sh")" "$runtime_checksum"
 
   missing_checkout=$SCENARIO_DIR/missing-checkout
   awk -v checkout="$missing_checkout" '
@@ -181,7 +153,7 @@ test_commands_profiles_upstream_materialization_independence() {
   ' "$valid_manifest" > "$manifest_file"
   checkout_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$UPSTREAM_PROFILE_ROOT/bin/jq" --preview-shim --version)
   assert_contains "$checkout_output" 'ghcr.io/jqlang/jq@sha256:'
-  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/tools/jq/versions/1.8/run.sh")" "$runtime_checksum"
   pass "upstream dispatch rejects malformed bindings but remains independent of a stale checkout"
 }
 
@@ -213,7 +185,7 @@ test_commands_profiles_shell_init_shape() {
     shell_init_file=$DEFAULT_PROFILE_ROOT/shell-init.sh
     manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
     launcher_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")
-    implementation_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")
+    runtime_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/tools/jq/versions/1.8/run.sh")
 
     case "$shell_init_mutation" in
       missing)
@@ -242,7 +214,7 @@ test_commands_profiles_shell_init_shape() {
     assert_contains "$dispatch_output" 'incomplete or damaged Shimmy profile'
     assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$manifest_checksum"
     assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$launcher_checksum"
-    assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/implementations/jq")" "$implementation_checksum"
+    assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/tools/jq/versions/1.8/run.sh")" "$runtime_checksum"
 
     if [ "$shell_init_mutation" != missing ]; then
       set +e

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Canonical profile paths and version-3 manifest validation.
+# Canonical profile paths and version-1 manifest validation.
 
 shimmy_config_home_resolve() {
   if [ -n "${XDG_CONFIG_HOME:-}" ]; then
@@ -69,7 +69,6 @@ shimmy_profile_paths_resolve() {
   SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK=/etc/containers/registries.conf.d/shimmy-profile.conf
   SHIMMY_PROFILE_BIN_DIR=$SHIMMY_PROFILE_ROOT/bin
   SHIMMY_PROFILE_CONFIG_DIR=$SHIMMY_PROFILE_ROOT/config
-  SHIMMY_PROFILE_IMPLEMENTATION_DIR=$SHIMMY_PROFILE_ROOT/implementations
   SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=$SHIMMY_PROFILE_ROOT/tools
   shimmy_path_parent_chain_validate "$SHIMMY_PROFILE_ROOT"
 }
@@ -88,7 +87,7 @@ shimmy_profile_manifest_error() {
   manifest_file=$1
   profile_name=$2
 
-  printf 'invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=3, shimmy_install_layout=profile-materialized-root, shimmy_profile_manifest_version=3, shimmy_profile_name=%s, and one explicit catalog binding); uninstall it with the Shimmy version that created it, then recreate that profile\n' "$manifest_file" "$profile_name" >&2
+  printf 'invalid or unsupported Shimmy profile manifest at %s (expected shimmy_install_manifest_version=1, shimmy_install_layout=profile-materialized-root, shimmy_profile_manifest_version=1, shimmy_profile_name=%s, and one explicit catalog binding); uninstall it with the Shimmy version that created it, then recreate that profile\n' "$manifest_file" "$profile_name" >&2
 }
 
 shimmy_manifest_key_count() {
@@ -193,7 +192,7 @@ shimmy_manifest_ownership_validate() {
         [ -n "$manifest_value" ] || return 1
         [ "$(shimmy_manifest_key_count "$manifest_file" "$manifest_key")" -eq 1 ] || return 1
         ;;
-      shimmy_layout|control_bin|install_dir|bin_dir|config_dir|profile_implementation_dir|activate_file|profile|default_tool|shim_source)
+      shimmy_layout|control_bin|install_dir|bin_dir|config_dir|activate_file|profile|default_tool|shim_source)
         return 1
         ;;
       shimmy_install_*|shimmy_profile_*|*)
@@ -229,9 +228,9 @@ shimmy_profile_manifest_validate() {
     shimmy_profile_manifest_error "$manifest_file" "$profile_name"
     return 1
   }
-    shimmy_manifest_identity_value_validate "$manifest_file" shimmy_install_manifest_version 3 &&
+    shimmy_manifest_identity_value_validate "$manifest_file" shimmy_install_manifest_version 1 &&
     shimmy_manifest_identity_value_validate "$manifest_file" shimmy_install_layout profile-materialized-root &&
-    shimmy_manifest_identity_value_validate "$manifest_file" shimmy_profile_manifest_version 3 &&
+    shimmy_manifest_identity_value_validate "$manifest_file" shimmy_profile_manifest_version 1 &&
     shimmy_manifest_identity_value_validate "$manifest_file" shimmy_profile_name "$profile_name" &&
     shimmy_manifest_ownership_validate "$manifest_file" "$profile_name" || {
       shimmy_profile_manifest_error "$manifest_file" "$profile_name"
@@ -258,7 +257,7 @@ shimmy_profile_structure_validate() {
     shimmy_registries_machine_projection_record_validate \
       "$profile_root/machine-projection.txt" "$profile_name" "$machine_projection_target" || return 1
   fi
-  for required_dir in commands config implementations lib tests tools; do
+  for required_dir in commands config lib tests tools; do
     [ -d "$profile_root/$required_dir" ] && [ ! -L "$profile_root/$required_dir" ] || return 1
   done
   [ ! -e "$profile_root/agent" ] && [ ! -L "$profile_root/agent" ] || return 1
@@ -271,7 +270,6 @@ shimmy_profile_materialization_validate() {
   manifest_file=$2
   profile_tools=$(shimmy_manifest_tool_list_read "$manifest_file" || true)
   profile_versions=$(shimmy_manifest_tool_version_list_read "$manifest_file" || true)
-  expected_implementation_names=$profile_tools
   expected_config_names=
   expected_materialized_versions=
 
@@ -297,9 +295,8 @@ EOF
     version_remainder=${tool_version_entry#*|}
     version_label=${version_remainder%%|*}
     version_name=${version_remainder#*|}
-    expected_implementation_names=$(shimmy_append_line_list "$expected_implementation_names" "$version_name")
-    expected_config_names=$(shimmy_append_line_list "$expected_config_names" "$version_name.conf")
     [ "$version_label" != default ] || continue
+    expected_config_names=$(shimmy_append_line_list "$expected_config_names" "$version_name.conf")
     materialized_version=$tool_name\|$version_label
     shimmy_contains_line_list "$expected_materialized_versions" "$materialized_version" ||
       expected_materialized_versions=$(shimmy_append_line_list "$expected_materialized_versions" "$materialized_version")
@@ -328,15 +325,6 @@ EOF
   if find "$profile_root/tools" -type l -o ! -type d ! -type f | grep . >/dev/null 2>&1; then
     return 1
   fi
-
-  for implementation_name in $expected_implementation_names; do
-    [ -x "$profile_root/implementations/$implementation_name" ] && [ ! -L "$profile_root/implementations/$implementation_name" ] || return 1
-  done
-  for implementation_entry in "$profile_root/implementations"/*; do
-    [ -e "$implementation_entry" ] || [ -L "$implementation_entry" ] || continue
-    [ -f "$implementation_entry" ] && [ ! -L "$implementation_entry" ] || return 1
-    shimmy_contains_line_list "$expected_implementation_names" "$(basename -- "$implementation_entry")" || return 1
-  done
 
   [ -d "$profile_root/config/shims" ] && [ ! -L "$profile_root/config/shims" ] || return 1
   for config_name in $expected_config_names; do

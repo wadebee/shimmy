@@ -102,7 +102,6 @@ ${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/
       bin/                     # profile-local shimmy and selected dispatchers
       commands/ lib/           # profile-local management control plane
       install-manifest.txt     # catalog=default plus selected versions
-      implementations/         # selected tool implementations
       tools/                   # selected version-owned runtime/assets only
     upstream/
       ...                      # catalog=upstream; otherwise independently owned
@@ -842,10 +841,9 @@ message.
   not by itself prove a copy made during transient live edits is coherent.
   Comparing every staged selected metadata file and version directory against
   the re-resolved authority closes that gap before commit.
-- Installed upstream execution independence requires both halves of the
-  boundary: generated implementations must point at the profile root, and
-  dispatch/smoke paths must not require the recorded checkout to remain
-  available.
+- Installed upstream execution independence requires profile-root-relative
+  logical dispatch and explicit materialized-version smoke routing; neither
+  path may require the recorded checkout to remain available.
 - Installed test mode must select its profile-smoke surface before sourcing
   repository-only tool suites; selected-only profile payloads intentionally do
   not carry every catalog tool's contributor tests.

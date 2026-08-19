@@ -44,11 +44,8 @@ shimmy_profile_context_resolve "$profile_root" || fail "dispatcher is outside a 
 shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" || fail "incomplete or damaged Shimmy profile at $SHIMMY_PROFILE_ROOT"
 shimmy_manifest_tool_contains "$SHIMMY_PROFILE_MANIFEST_PATH" "$shim_name" || fail "$shim_name is not owned by profile $SHIMMY_PROFILE_NAME"
 
-target_path=$SHIMMY_PROFILE_IMPLEMENTATION_DIR/$shim_name
-[ -f "$target_path" ] && [ ! -L "$target_path" ] || fail "invalid Shimmy implementation for $shim_name: $target_path"
-[ -x "$target_path" ] || fail "Shimmy implementation is not executable: $target_path"
+target_path=$profile_root/commands/run-tool.sh
+[ -f "$target_path" ] && [ ! -L "$target_path" ] || fail "invalid Shimmy tool dispatcher target: $target_path"
+[ -x "$target_path" ] || fail "Shimmy tool dispatcher target is not executable: $target_path"
 
-target_absolute=$(shimmy_resolve_path_absolute "$target_path")
-dispatcher_absolute=$(shimmy_resolve_path_absolute "$profile_root/commands/dispatch-tool.sh")
-[ "$target_absolute" != "$dispatcher_absolute" ] || fail "refusing recursive Shimmy dispatch for $shim_name"
-exec "$target_path" "$@"
+exec "$target_path" "$shim_name" "$@"

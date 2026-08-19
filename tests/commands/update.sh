@@ -56,7 +56,7 @@ test_commands_update_run() {
   selection_after=$(sed -n '/^tool=/p; /^tool_version=/p' "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
   assert_equals "$selection_after" "$selection_before"
   assert_path_symlink "$DEFAULT_PROFILE_ROOT/bin/task"
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/implementations/oc_4_18"
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/oc/versions/4.18/run.sh"
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")" "$upstream_launcher_checksum"
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"
 
@@ -68,8 +68,9 @@ test_commands_update_run() {
   env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" TMPDIR="$update_tmp" "$UPSTREAM_PROFILE_ROOT/bin/shimmy" update --shim jq >/dev/null
   source_checkout_after=$(sed -n 's/^source_checkout=//p' "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
   assert_equals "$source_checkout_after" "$source_checkout_before"
-  assert_file_contains "$UPSTREAM_PROFILE_ROOT/implementations/jq" "$UPSTREAM_PROFILE_ROOT"
-  assert_file_not_contains "$UPSTREAM_PROFILE_ROOT/implementations/jq" "$source_checkout_before"
+  assert_file_exists "$UPSTREAM_PROFILE_ROOT/tools/jq/versions/1.8/run.sh"
+  assert_file_exists "$UPSTREAM_PROFILE_ROOT/commands/run-tool.sh"
+  assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/implementations"
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/bin/shimmy")" "$default_launcher_checksum"
   assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$default_manifest_checksum"
   for update_entry in "$update_tmp"/shimmy-self-update.*; do

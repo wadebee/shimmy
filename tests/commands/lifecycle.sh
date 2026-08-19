@@ -6,21 +6,21 @@
 test_commands_lifecycle_prepare() {
   setup_scenario_with_profiles default upstream
   lifecycle_upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
-  lifecycle_upstream_implementation_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")
+  lifecycle_upstream_runtime_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/tools/jq/versions/1.8/run.sh")
   lifecycle_upstream_launcher_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")
   lifecycle_default_catalog_registry_checksum=$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf")
   lifecycle_upstream_catalog_registry_checksum=$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf")
 
-  for asset_name in shell-init.sh registries.conf install-manifest.txt bin/shimmy commands config implementations lib tests tools; do
+  for asset_name in shell-init.sh registries.conf install-manifest.txt bin/shimmy commands config lib tests tools; do
     [ -e "$DEFAULT_PROFILE_ROOT/$asset_name" ] || fail_test "missing materialized profile asset: $asset_name"
   done
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/core"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/agent"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/agent"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/.agents"
-  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_manifest_version=3'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_manifest_version=1'
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_install_layout=profile-materialized-root'
-  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_manifest_version=3'
+  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_manifest_version=1'
   assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'shimmy_profile_name=default'
   assert_equals "$(readlink "$DEFAULT_PROFILE_ROOT/bin/jq")" '../commands/dispatch-tool.sh'
   assert_regular_file_not_symlink "$DEFAULT_PROFILE_ROOT/bin/shimmy"
@@ -40,6 +40,8 @@ test_commands_lifecycle_prepare() {
     assert_path_not_exists "$DEFAULT_PROFILE_ROOT/tools/$tool_name/SKILL.md"
     assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/tools/$tool_name/SKILL.md"
   done
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/config/shims/jq.conf"
+  assert_file_exists "$DEFAULT_PROFILE_ROOT/config/shims/jq_1_8.conf"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT/tools/task"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/tools/task"
 
@@ -74,7 +76,7 @@ test_commands_lifecycle_legacy_agent_rollback() {
   transaction_profiles_root=$SCENARIO_DIR/profiles
   mkdir -p "$transaction_profile_root/bin" "$transaction_stage_root/bin" "$transaction_profiles_root"
 
-  for asset_name in agent commands config implementations lib tools tests; do
+  for asset_name in agent commands config lib tools tests; do
     mkdir -p "$transaction_profile_root/$asset_name"
     printf '%s\n' "old-$asset_name" > "$transaction_profile_root/$asset_name/sentinel"
     if [ "$asset_name" != agent ]; then
@@ -137,7 +139,7 @@ test_commands_lifecycle_legacy_agent_rollback() {
     fail_test "induced late profile commit failure unexpectedly succeeded"
   fi
 
-  for asset_name in agent commands config implementations lib tools tests; do
+  for asset_name in agent commands config lib tools tests; do
     assert_file_contains "$transaction_profile_root/$asset_name/sentinel" "old-$asset_name"
   done
   assert_file_contains "$transaction_profile_root/shell-init.sh" old-shell-init
@@ -147,7 +149,7 @@ test_commands_lifecycle_legacy_agent_rollback() {
   assert_file_contains "$transaction_profile_root/bin/shimmy" old-launcher
   assert_equals "$(readlink "$transaction_profile_root/bin/jq")" old-dispatcher
   assert_path_not_exists "$transaction_profiles_root/.default.backup.$$"
-  pass "late profile commit failure restores legacy agent and every backed-up owned asset"
+  pass "late profile commit failure restores the retired agent directory and every current backed-up owned asset"
 }
 
 test_commands_lifecycle_install_shapes() {
@@ -652,15 +654,14 @@ test_commands_lifecycle_global_uninstall() {
   relocated_checkout=$SCENARIO_DIR/relocated-global-uninstall-checkout
   mv "$replacement_checkout" "$relocated_checkout"
   default_shimmy uninstall --global >/dev/null
-  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
   assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
-  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy"
+  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/bin/shimmy"
   assert_dir_exists "$relocated_checkout"
   assert_file_exists "$exported_skill_file"
   assert_file_exists "$exported_manifest"
   assert_file_contains "$XDG_CONFIG_HOME_DIR/containers/registries.conf" operator-policy
-  pass "explicit global uninstall removes only owned profiles and catalogs while preserving checkouts and external skill exports"
+  pass "explicit global uninstall removes only owned state while preserving checkouts, and external skills directory"
 }
 
 test_commands_lifecycle_global_uninstall_darwin_transaction() {
@@ -775,7 +776,7 @@ test_commands_lifecycle_complete() {
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/bin/task"
   assert_path_not_exists "$UPSTREAM_PROFILE_ROOT/tools/task"
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$lifecycle_upstream_manifest_checksum"
-  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")" "$lifecycle_upstream_implementation_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/tools/jq/versions/1.8/run.sh")" "$lifecycle_upstream_runtime_checksum"
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")" "$lifecycle_upstream_launcher_checksum"
   assert_equals "$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf")" "$lifecycle_default_catalog_registry_checksum"
   assert_equals "$(cksum < "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf")" "$lifecycle_upstream_catalog_registry_checksum"
@@ -792,12 +793,11 @@ test_commands_lifecycle_complete() {
   assert_file_exists "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
   assert_file_exists "$UPSTREAM_PROFILE_ROOT/bin/shimmy"
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$lifecycle_upstream_manifest_checksum"
-  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/implementations/jq")" "$lifecycle_upstream_implementation_checksum"
+  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/tools/jq/versions/1.8/run.sh")" "$lifecycle_upstream_runtime_checksum"
   assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/bin/shimmy")" "$lifecycle_upstream_launcher_checksum"
   assert_dir_exists "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
   pass "additive install and profile uninstall preserve unmanaged and sibling state"
 
-  rm "$DEFAULT_PROFILE_ROOT/unmanaged-sentinel"
   rmdir "$DEFAULT_PROFILE_ROOT"
   assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
   upstream_shimmy uninstall >/dev/null

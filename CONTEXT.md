@@ -34,7 +34,9 @@ Installed profiles are independent materialized control/runtime trees under
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`. Each owns its
 own `bin/shimmy`; no installed control payload is shared between profiles.
 Each `tools/` tree contains only manifest-selected tool metadata and concrete
-version assets. Canonical skills remain catalog-owned.
+version assets. Public `bin/<tool>` links dispatch through the profile-local
+`commands/run-tool.sh`; exact-version smokes execute the selected materialized
+runtime directly. Canonical skills remain catalog-owned.
 
 ## Invariants
 
@@ -63,7 +65,7 @@ version assets. Canonical skills remain catalog-owned.
 - Skopeo alone mounts a valid current invoking-profile registry policy
   read-only; no activation omits it, invalid state fails closed, and image
   verification inherits the mount without rewriting logical references.
-- Version-3 default manifests own exactly one normalized startup shell and zero
+- Version-1 default manifests own exactly one normalized startup shell and zero
   or more exact absolute startup paths; upstream manifests own neither field.
 
 ## Child contexts

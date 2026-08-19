@@ -12,7 +12,7 @@ test_commands_install_run() {
   assert_contains "$unmanaged_output" 'non-empty unmanaged profile root'
   assert_file_exists "$DEFAULT_PROFILE_ROOT/sentinel"
 
-  for claimed_path in shell-init.sh registries.conf machine-projection.txt install-manifest.txt bin bin/shimmy bin/jq commands config implementations lib plugins tests tools; do
+  for claimed_path in shell-init.sh registries.conf machine-projection.txt install-manifest.txt bin bin/shimmy bin/jq commands config lib plugins tests tools; do
     for collision_type in file directory symlink; do
       setup_scenario
       collision_path=$DEFAULT_PROFILE_ROOT/$claimed_path

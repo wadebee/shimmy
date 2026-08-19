@@ -24,8 +24,9 @@ Shimmy provides independent `default` and `upstream` profiles below
 `XDG_CONFIG_HOME` to be absolute when it is non-empty.
 
 - `default` is the normal external-user profile.
-- `upstream` is intended for maintainers; only its generated tool
-  implementations execute the recorded source checkout.
+- `upstream` is intended for maintainers; its catalog resolves the recorded
+  source checkout, while installed tools execute from profile-local
+  materialized assets.
 - Only `./install.sh` accepts `--profile default|upstream`. An installed
   launcher manages only its enclosing profile and rejects profile selection.
 - Use `SHIMMY_UPSTREAM_CHECKOUT_DIR` only to select the absolute checkout

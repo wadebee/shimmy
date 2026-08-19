@@ -90,6 +90,7 @@ test_profile_request_resolve() {
   test_profile_requested_shim=$TEST_PROFILE_SHIM_REQUESTED
 
   TEST_PROFILE_REQUEST_TOOL=
+  TEST_PROFILE_REQUEST_VERSION_LABEL=
   TEST_PROFILE_REQUEST_VERSION=
 
   [ -n "$test_profile_requested_shim" ] || return 0
@@ -105,6 +106,7 @@ test_profile_request_resolve() {
       esac
       TEST_PROFILE_REQUEST_VERSION=$(test_profile_tool_version_find "$test_profile_manifest_file" "$TEST_PROFILE_REQUEST_TOOL" "$test_profile_requested_label" || true)
       [ -n "$TEST_PROFILE_REQUEST_VERSION" ] || fail_test "version $test_profile_requested_shim is not recorded in the selected Shimmy profile"
+      TEST_PROFILE_REQUEST_VERSION_LABEL=$test_profile_requested_label
       ;;
     *)
       TEST_PROFILE_REQUEST_TOOL=$test_profile_requested_shim
@@ -196,13 +198,15 @@ test_profile_smoke_tool_run() {
 }
 
 test_profile_smoke_version_run() {
-  version_name=$1
-  profile_implementation_dir=$2
-  config_dir=$3
-  profile_name=$4
+  tool_name=$1
+  version_label=$2
+  version_name=$3
+  profile_tools_dir=$4
+  config_dir=$5
+  profile_name=$6
 
   test_profile_smoke_command_run \
-    "$profile_implementation_dir/$version_name" \
+    "$profile_tools_dir/$tool_name/versions/$version_label/run.sh" \
     "$profile_name" \
     "$config_dir/shims/$version_name.conf" \
     "$config_dir/shims/$version_name.conf" \
@@ -212,20 +216,18 @@ test_profile_smoke_version_run() {
 
 test_profile_smoke_versions_run() {
   manifest_file=$1
-  profile_implementation_dir=$2
+  profile_tools_dir=$2
   config_dir=$3
   profile_name=$4
-  version_names_seen=
 
   while IFS= read -r tool_version_entry; do
     [ -n "$tool_version_entry" ] || continue
-    version_name=${tool_version_entry##*|}
-    [ -n "$version_name" ] || fail_test "invalid tool_version entry in $manifest_file: $tool_version_entry"
-    if shimmy_contains_line_list "$version_names_seen" "$version_name"; then
-      continue
-    fi
-    version_names_seen=$(shimmy_append_line_list "$version_names_seen" "$version_name")
-    test_profile_smoke_version_run "$version_name" "$profile_implementation_dir" "$config_dir" "$profile_name"
+    tool_name=${tool_version_entry%%|*}
+    version_remainder=${tool_version_entry#*|}
+    version_label=${version_remainder%%|*}
+    version_name=${version_remainder#*|}
+    [ "$version_label" != default ] || continue
+    test_profile_smoke_version_run "$tool_name" "$version_label" "$version_name" "$profile_tools_dir" "$config_dir" "$profile_name"
   done <<EOF
 $(shimmy_manifest_tool_version_list_read "$manifest_file" || true)
 EOF
@@ -234,11 +236,11 @@ EOF
 test_profile_smoke_run() {
   shimmy_profile_context_resolve "$ROOT_DIR" || fail_test "installed tests must run from a canonical profile root"
   profile_manifest_file=$SHIMMY_PROFILE_MANIFEST_PATH
-  profile_implementation_dir=$SHIMMY_PROFILE_IMPLEMENTATION_DIR
   shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" || fail_test "incomplete or damaged Shimmy profile"
 
   public_bin_dir=$SHIMMY_PROFILE_BIN_DIR
   config_dir=$SHIMMY_PROFILE_CONFIG_DIR
+  profile_tools_dir=$SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR
   test_profile_request_resolve "$profile_manifest_file"
 
   printf 'Shimmy Test\n'
@@ -247,7 +249,9 @@ test_profile_smoke_run() {
   printf 'profile_manifest_path=%s\n' "$profile_manifest_file"
 
   if [ -n "$TEST_PROFILE_REQUEST_VERSION" ]; then
-    test_profile_smoke_version_run "$TEST_PROFILE_REQUEST_VERSION" "$profile_implementation_dir" "$config_dir" "$SHIMMY_PROFILE_NAME"
+    test_profile_smoke_version_run \
+      "$TEST_PROFILE_REQUEST_TOOL" "$TEST_PROFILE_REQUEST_VERSION_LABEL" "$TEST_PROFILE_REQUEST_VERSION" \
+      "$profile_tools_dir" "$config_dir" "$SHIMMY_PROFILE_NAME"
     return 0
   fi
 
@@ -267,6 +271,6 @@ EOF
   [ "$installed_tool_count" -gt 0 ] || fail_test "no installed tools recorded in $profile_manifest_file"
 
   if [ "$TEST_PROFILE_TEST_ALL" -eq 1 ]; then
-    test_profile_smoke_versions_run "$profile_manifest_file" "$profile_implementation_dir" "$config_dir" "$SHIMMY_PROFILE_NAME"
+    test_profile_smoke_versions_run "$profile_manifest_file" "$profile_tools_dir" "$config_dir" "$SHIMMY_PROFILE_NAME"
   fi
 }

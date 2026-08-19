@@ -1,5 +1,9 @@
 # Remove Profile Implementations
 
+Status: **Verified complete**
+
+Verified at: **2026-08-19T08:08:08-04:00** (`America/New_York`)
+
 ## Objective
 
 Remove Shimmy-generated `profiles/<profile>/implementations/` executable
@@ -142,8 +146,10 @@ Terms:
 11. Implement the format, ownership, dispatch, test, and documentation changes
     as one atomic chunk. Do not leave a retained state in which a new manifest
     describes an old layout or old code is expected to consume a new layout.
-12. Preserve the user's existing unrelated worktree changes, especially the
-    overlapping edits in `docs/testing.md` and `tests/CONTEXT.md`.
+12. Preserve every unrelated worktree change present when implementation
+    begins. Reinventory the worktree at session start instead of relying on a
+    retained list of paths, because the current review-time worktree is clean
+    and later sessions may begin from different user-owned state.
 
 ## Verified implementation inventory
 
@@ -195,11 +201,14 @@ The full-catalog projection uses one final wrapper per 20 logical tools plus 22
 globally unique concrete versions. Container images dominate storage and
 startup cost, so no material wall-clock or disk-capacity claim should be made.
 
-The active implementation/test/documentation surface contains 39 exact
-`implementations` or `SHIMMY_PROFILE_IMPLEMENTATION_DIR` references across 15
-files. The pre-change manifest identity has 15 exact references across 9 files.
-Two architectural references in `plans/catalog-profile-separation.md` would
-otherwise recreate the retired layout in later work.
+The active implementation/test/documentation surface contains 41 exact
+`implementations` or `SHIMMY_PROFILE_IMPLEMENTATION_DIR` references across 16
+files. The pre-change version-3 manifest identity has 20 code, test, context,
+and guidance references across 10 files. Two architectural references in
+`plans/catalog-profile-separation.md` would otherwise recreate the retired
+layout in later work. These are review-time counts from 2026-08-18 and must be
+recomputed before implementation rather than treated as permanent acceptance
+constants.
 
 ### Primary producers, consumers, and lifecycle boundaries
 
@@ -213,8 +222,9 @@ otherwise recreate the retired layout in later work.
 - Installed smoke consumer: `tests/profile-smoke.sh`.
 - Fixture and behavioral coverage: `tests/support.sh`,
   `tests/commands/dispatcher.sh`, `tests/commands/install.sh`,
-  `tests/commands/lifecycle.sh`, `tests/commands/profiles.sh`,
-  `tests/commands/test.sh`, and `tests/commands/update.sh`.
+  `tests/commands/lifecycle.sh`, `tests/commands/profile.sh`,
+  `tests/commands/profiles.sh`, `tests/commands/test.sh`, and
+  `tests/commands/update.sh`.
 - Current guidance and retained architecture: `CONTEXT.md`,
   `commands/CONTEXT.md`, `lib/profile/CONTEXT.md`,
   `lib/install/CONTEXT.md`, `tests/CONTEXT.md`,
@@ -231,8 +241,33 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Atomically introduce fresh version-1 direct dispatch and remove the
+- [x] Chunk 1 — Atomically introduce fresh version-1 direct dispatch and remove the
   implementation-adapter asset class.
+
+Implementation evidence recorded 2026-08-19:
+
+- The only pre-existing worktree change was this plan's reviewed clarification
+  diff; it remains present, and implementation edits were added without
+  modifying generated `.agents/skills/` adapters.
+- The current catalog contains 20 logical tools and 22 concrete versions, for
+  42 manifest-addressable execution routes. The redesigned producer creates
+  zero adapter files for every selection size.
+- The dated default baseline changed from 4 adapter files and 1,421 logical
+  bytes to 0 files and 0 bytes. The dated full-catalog projection changed from
+  42 files and 15,226 rendered bytes to 0 files and 0 bytes. Each installed
+  invocation removes one wrapper shell/`exec` transition, changing that count
+  from 1 to 0. No wall-clock improvement was measured or claimed.
+- The seven targeted groups passed all 39 tests with bounded parallelism. The
+  complete default suite passed all 166 tests with bounded parallelism.
+- Live Podman smokes passed for public `jq`, exact `jq@1.8`, and `--all`. On
+  Darwin, the disposable profile test uses the already-selected default
+  rootless connection through its URI and identity while forcing the Linux
+  runtime test seam; it does not activate, stop, or reconfigure a machine.
+- Initial sandboxed live-smoke attempts correctly failed at engine access, and
+  an initial escalated attempt still lacked connection metadata because the
+  disposable `HOME` and `XDG_CONFIG_HOME` intentionally isolate state. The
+  final test explicitly carries the existing connection metadata into that
+  disposable environment and passes without changing external state.
 
 ## Execution protocol
 
@@ -259,6 +294,30 @@ dispatch directly through `run-tool.sh`, concrete installed smokes resolve from
 manifest tuples, and no lifecycle component creates, validates, rewrites,
 backs up, restores, or removes implementation adapters.
 
+### Recommended thinking level
+
+Use `xhigh`. This chunk coordinates a profile-format identity reset, fixed
+runtime dispatch, transaction ownership and rollback, installed smoke routing,
+fixture behavior, and retained guidance. The design is decision-complete, so a
+higher level is not a substitute for executing the verification checklist.
+
+### Internal execution phases
+
+Keep one human-reviewed implementation chunk so no accepted repository state
+mixes old ownership with the new manifest identity. Use these resumable phases
+inside the chunk, updating the progress notes after each phase without treating
+an internal phase as authorization to stop short of the chunk's review gate:
+
+1. Reinventory the worktree, adapter references, version-3 identity references,
+   and execution-time catalog counts; record any newly discovered dependency.
+2. Refactor explicit manifest-tuple metadata staging, materialization comparison,
+   and installed exact-version and `--all` smoke routing.
+3. Atomically cut over manifest identity, public dispatch, profile validation,
+   lifecycle ownership, rollback, uninstall, and fixture relocation while
+   removing the implementation-adapter asset class.
+4. Reconcile behavioral tests, contexts, contributor guidance, canonical skill
+   guidance, retained architecture, measurements, and complete verification.
+
 ### Files
 
 Primary code:
@@ -278,6 +337,7 @@ Primary tests:
 - `tests/commands/dispatcher.sh`
 - `tests/commands/install.sh`
 - `tests/commands/lifecycle.sh`
+- `tests/commands/profile.sh`
 - `tests/commands/profiles.sh`
 - `tests/commands/test.sh`
 - `tests/commands/update.sh`
@@ -357,17 +417,22 @@ Do not modify generated `.agents/skills/` adapters.
     - retain unowned dispatch, unknown-version install, catalog-loss execution,
       selected-only materialization, update isolation, rollback, and uninstall
       assertions;
+    - add the lowest-cost assertion to an existing uninstall scenario proving
+      that a user-created post-install `implementations/` directory remains
+      unmanaged and survives profile and global uninstall;
     - positively exercise `shimmy test --shim jq@1.8` and `shimmy test --all`
       against live Podman using non-mutating version smokes; and
     - prove fresh default and upstream version-1 profiles dispatch logical tools
       without wrapper generation.
 11. Remove obsolete collision fixtures and assertions for a Shimmy-owned
     `implementations` path. Do not add tests whose only purpose is to prove that
-    manual invocation of the obsolete path fails.
+    manual invocation of the obsolete path fails. Retain only the focused
+    unmanaged-path preservation assertion required by the durable uninstall
+    ownership boundary.
 12. Update all closest contexts and current guidance. Correct the stale claim
     that upstream generated implementations execute a source checkout; current
-    and target runtimes execute independently from the profile materialization,
-    while the checkout remains catalog authority.
+    and target runtimes execute from the profile materialization independently
+    of the recorded checkout, while the checkout remains catalog authority.
 13. Update the retained catalog/profile separation plan's target tree and
     lesson so later work preserves profile-root execution independence without
     recreating executable adapters.
@@ -376,37 +441,43 @@ Do not modify generated `.agents/skills/` adapters.
 
 ### Verification checklist
 
-- [ ] Re-read `git status --short` and the pre-existing diff before edits;
-  confirm only intended lines in dirty files changed.
-- [ ] Static search shows no active code, test, context, contributor, canonical
-  skill, or retained-target reference that still creates or requires
-  `implementations/`, `SHIMMY_PROFILE_IMPLEMENTATION_DIR`, or
-  `render_shim_exec_wrapper`.
-- [ ] Manifest renderer, launcher, shared validator, contexts, and tests agree
+- [x] Re-read `git status --short` and the pre-existing diff before edits;
+  after edits, confirm that any pre-existing changes remain intact and that
+  only intended lines were added to overlapping files.
+- [x] Static search shows no active code, context, contributor guidance,
+  canonical skill, retained target, or test that treats `implementations/` as
+  Shimmy-owned, and no reference to `SHIMMY_PROFILE_IMPLEMENTATION_DIR` or
+  `render_shim_exec_wrapper`. References remain only where needed to describe
+  the retired surface, its accepted compatibility loss, or the focused
+  unmanaged-path preservation assertion.
+- [x] Manifest renderer, launcher, shared validator, contexts, and tests agree
   on version 1 plus the `profile-materialized-root` layout; authoritative schema
   coverage rejects a mismatched layout and an arbitrary unsupported version
   without mutating profile assets.
-- [ ] A fresh disposable default profile has logical `bin/jq` and `bin/rg`
+- [x] A fresh disposable default profile has logical `bin/jq` and `bin/rg`
   dispatcher links, no Shimmy-generated implementation adapters, and valid
   copied logical/concrete smoke metadata.
-- [ ] A fresh disposable upstream profile has the same profile-local routing
+- [x] A user-created post-install `implementations/` directory with a sentinel
+  survives both profile-only and global uninstall because the redesigned
+  profile does not own that path.
+- [x] A fresh disposable upstream profile has the same profile-local routing
   shape and continues to execute installed tools after its recorded checkout is
   unavailable, while catalog-aware operations still fail as designed.
-- [ ] `bin/jq --preview-shim --version` resolves through
+- [x] `bin/jq --preview-shim --version` resolves through
   `dispatch-tool.sh -> run-tool.sh jq -> jq/versions/1.8/run.sh` and preserves
   argument forwarding and environment-selector behavior.
-- [ ] Symlinked or non-executable `commands/run-tool.sh` fails closed without
+- [x] Symlinked or non-executable `commands/run-tool.sh` fails closed without
   recursion; an explicit request for an unowned logical tool remains rejected.
-- [ ] `shimmy test --shim jq`, `shimmy test --shim jq@1.8`, and `shimmy test
+- [x] `shimmy test --shim jq`, `shimmy test --shim jq@1.8`, and `shimmy test
   --all` pass through their intended public/exact paths with live Podman and
   non-mutating smoke arguments.
-- [ ] Additive install, targeted update, self-update, catalog rollback,
+- [x] Additive install, targeted update, self-update, catalog rollback,
   catalog-loss execution, profile-only uninstall, global uninstall, and sibling
   profile isolation retain their positive observable behavior under the new
   version-1 format.
-- [ ] Failure-injected profile replacement restores all remaining owned
+- [x] Failure-injected profile replacement restores all remaining owned
   directories/files and never leaves a mixed old/new profile.
-- [ ] Targeted groups pass with the runner's bounded parallel default:
+- [x] Targeted groups pass with the runner's bounded parallel default:
 
   ```sh
   ./tests/test.sh \
@@ -414,11 +485,12 @@ Do not modify generated `.agents/skills/` adapters.
     --group commands-test \
     --group commands-install \
     --group commands-lifecycle \
+    --group commands-profile \
     --group commands-profiles \
     --group commands-update
   ```
 
-- [ ] The complete default suite passes with its bounded parallel execution:
+- [x] The complete default suite passes with its bounded parallel execution:
 
   ```sh
   ./tests/test.sh
@@ -426,12 +498,13 @@ Do not modify generated `.agents/skills/` adapters.
 
   Diagnose only any failing group serially; do not replace acceptance with a
   broad serial run.
-- [ ] Runnable shell files retain executable modes and the final diff contains
+- [x] Runnable shell files retain executable modes and the final diff contains
   no generated `.agents/skills/` changes.
-- [ ] Record final file-count, logical-byte, and process-transition deltas in
-  this plan. The required asset-count outcome is 4 to 0 for the baseline
-  default profile and 42 to 0 for a fully selected current catalog; do not claim
-  unmeasured wall-clock improvement.
+- [x] Record final file-count, logical-byte, and process-transition deltas in
+  this plan. Preserve the dated 4-to-0 default and 42-to-0 full-catalog figures
+  as planning baselines, recompute the execution-time source count from the
+  selected manifest/catalog, and require every resulting adapter count to be
+  zero. Do not claim unmeasured wall-clock improvement.
 
 ### Human review gate
 
@@ -463,7 +536,7 @@ to mutate the live installation.
 | Exact-version smoke could accidentally follow a default alias twice | Duplicate container runs or wrong route | Carry the manifest tuple explicitly and skip `label=default` |
 | Same manifest tuple interpreted differently by installer, validator, and smoke code | Mixed or unrunnable profile | Update all producers/consumers in one fresh version-1 chunk and run failure-injected lifecycle coverage |
 | Old and redesigned code cannot safely share installed state | Downgrade or rollback across the redesign requires another global teardown and reinstall; catalog rollback does not roll back profile schema | Document the clean-install boundary explicitly; do not imply catalog rollback is a control-plane rollback |
-| Concurrent edits overlap dirty test documentation | User work could be overwritten | Inspect the existing diff before editing, patch narrowly, and review the final combined diff |
+| Implementation begins with unrelated worktree changes | User work could be overwritten | Inventory the then-current status and diff before editing, patch narrowly, and review the final combined diff; do not rely on the clean review-time worktree remaining clean |
 | Claimed performance benefit is overstated | Misleading rationale | Report only exact asset and process-transition counts; treat runtime savings as negligible beside Podman startup |
 
 ## Lessons learned
@@ -492,15 +565,33 @@ to mutate the live installation.
   selection. The stronger rationale is eliminating duplicated executable
   ownership and fixture/lifecycle branches.
 
+### Implementation
+
+- Explicit manifest tuple labels are sufficient for metadata staging,
+  materialization comparison, and exact-version smoke routing. Removing the
+  reverse lookup avoids both filename interpretation and a catalog-wide scan.
+- The fixed `commands/run-tool.sh` target preserves the prior recursion and
+  damage boundary with fewer moving parts: a regular executable non-symlink
+  check is sufficient because the target is not metadata-derived.
+- An unowned post-install directory can survive both profile and global
+  uninstall only if every replacement, rollback, validation, and cleanup path
+  drops ownership together. Removing only renderer output would not preserve
+  that boundary.
+- Live installed-profile smokes with disposable Shimmy configuration require
+  an explicit connection bridge on Darwin because isolating `HOME` and
+  `XDG_CONFIG_HOME` also isolates Podman connection metadata. Reusing the
+  already-selected rootless URI and identity under the Linux runtime test seam
+  validates real container execution without mutating machine selection.
+
 ## Session bootstrap
 
 Start from the repository root. Read `AGENTS.md`, root `CONTEXT.md`,
 `CONTRIBUTING.md`, this plan, and the child contexts for `commands/`,
-`lib/profile/`, `lib/install/`, `tests/`, and `tests/commands/`. Reinspect
-`git status --short` and the full pre-existing diff because
-`docs/testing.md`, `plans/single-command-uninstall.md`, `tests/CONTEXT.md`,
-`tests/lib/CONTEXT.md`, `tests/lib/runner.sh`, and `tests/runner.sh` already
-contain user changes.
+`lib/profile/`, `lib/install/`, `tests/`, and `tests/commands/`. Run
+`git status --short` and inspect the full pre-existing diff before editing.
+The worktree was clean during the 2026-08-18 plan review, but that observation
+does not authorize assuming a later implementation session is clean. Record and
+preserve every then-current unrelated change.
 
 The active and only implementation unit is **Chunk 1 — Fresh Version-1 Direct
 Dispatch**. The non-negotiable boundaries are: POSIX shell remains the
@@ -510,4 +601,5 @@ dispatcher; no filename parsing for tool/version mapping; no routing fields in
 shim config; no generated skill-adapter edits; preserve fixed-target
 fail-closed validation, exact-version/`--all` smoke behavior, transaction
 rollback, catalog-loss execution, and sibling isolation. Execute only Chunk 1,
-update this plan with evidence and lessons, and stop at its human review gate.
+follow its four internal execution phases at `xhigh` thinking, update this plan
+with evidence and lessons, and stop at its human review gate.

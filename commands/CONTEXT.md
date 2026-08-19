@@ -15,8 +15,9 @@ reusable behavior belongs in `../lib/`.
   publish clean committed `upstream` content to an immutable `default`
   generation, atomically restore its retained prior generation, or explicitly
   rebind the live upstream registry.
-- `dispatch-tool.sh` dispatches a profile-local installed tool command without
-  resolving or validating the catalog checkout.
+- `dispatch-tool.sh` validates exact manifest ownership and a fixed regular,
+  executable, non-symlink `commands/run-tool.sh` target, then dispatches the
+  profile-local logical tool without resolving the catalog checkout.
 - `run-tool.sh` dispatches materialized tool runtime assets; it does not act as
   catalog availability authority.
 - `agent-preflight.sh` validates concrete-version `image.conf` metadata and

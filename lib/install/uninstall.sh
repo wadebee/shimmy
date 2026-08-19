@@ -304,7 +304,7 @@ shimmy_uninstall_profile_assets_remove() {
     startup_files=$(shimmy_read_manifest_values "$SHIMMY_PROFILE_MANIFEST_PATH" startup_file || true)
   fi
 
-  for asset_name in agent commands config implementations lib plugins tests tools; do
+  for asset_name in agent commands config lib plugins tests tools; do
     profile_owned_path_remove "$SHIMMY_PROFILE_ROOT/$asset_name"
   done
   while IFS= read -r tool_name; do
