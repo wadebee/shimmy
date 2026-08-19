@@ -8,6 +8,7 @@ SHIMMY_CONTROL_ROOT=$ROOT_DIR
 COMMON_HELPER_FILE=$ROOT_DIR/lib/common/common.sh
 CATALOG_HELPER_FILE=$ROOT_DIR/lib/catalog/catalog.sh
 PROFILE_HELPER_FILE=$ROOT_DIR/lib/profile/profile.sh
+PROFILE_ACTIVATION_HELPER_FILE=$ROOT_DIR/lib/profile/activation.sh
 REGISTRIES_HELPER_FILE=$ROOT_DIR/lib/registries/registries.sh
 SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 IMAGE_HELPER_FILE=$SHIMMY_RUNTIME_DIR/image.sh
@@ -23,10 +24,11 @@ fail() {
 . "$IMAGE_HELPER_FILE"
 . "$PROFILE_HELPER_FILE"
 . "$REGISTRIES_HELPER_FILE"
+. "$PROFILE_ACTIVATION_HELPER_FILE"
 
 usage() {
   cat <<'EOF'
-Show installed tools, versions, catalog provenance, and profile details.
+Show profile, Podman engine, catalog provenance, and installed tool details.
 
 Usage:
   shimmy status [--format human|manifest]
@@ -102,13 +104,79 @@ $(shimmy_manifest_tool_version_list_read "$manifest_file")
 EOF
 }
 
-print_status() {
+status_value_human_render() {
+  printf '%s\n' "$1" | tr '_' ' ' | tr '-' ' '
+}
+
+status_engine_read() {
+  shimmy_profile_state_read
+  shimmy_profile_activation_recommendation_resolve
+  shimmy_registries_active_link_state_read
+  shimmy_registries_override_read
+  SHIMMY_ENGINE_REGISTRY_POLICY=$(shimmy_registries_policy_state_read)
+}
+
+status_profile_print() {
   manifest_file=$1
 
   if [ "$OUTPUT_FORMAT" = manifest ]; then
     printf 'shimmy_profile_root=%s\n' "$SHIMMY_PROFILE_ROOT"
     printf 'shimmy_manifest_path=%s\n' "$manifest_file"
     printf 'shimmy_profile_name=%s\n' "$SHIMMY_PROFILE_NAME"
+  else
+    printf 'Shimmy Status\n\n'
+    printf 'Profile\n'
+    printf '  name: %s\n' "$SHIMMY_PROFILE_NAME"
+    printf '  root: %s\n' "$SHIMMY_PROFILE_ROOT"
+  fi
+}
+
+status_engine_print() {
+  if [ "$OUTPUT_FORMAT" = manifest ]; then
+    printf 'shimmy_engine_type=%s\n' "$SHIMMY_PROFILE_ENGINE_TYPE"
+    printf 'shimmy_engine_name=%s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE"
+    printf 'shimmy_engine_connection=%s\n' "$SHIMMY_PROFILE_EXPECTED_CONNECTION"
+    printf 'shimmy_engine_default_connection=%s\n' "$SHIMMY_PROFILE_DEFAULT_CONNECTION"
+    printf 'shimmy_engine_machine_state=%s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE"
+    printf 'shimmy_engine_reachable=%s\n' "$SHIMMY_PROFILE_ENGINE_REACHABLE"
+    printf 'shimmy_engine_activation=%s\n' "$SHIMMY_PROFILE_ACTIVATION_STATE"
+    printf 'shimmy_engine_registry_policy=%s\n' "$SHIMMY_ENGINE_REGISTRY_POLICY"
+    printf 'shimmy_engine_running_container_count=%s\n' "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT"
+    printf 'shimmy_engine_recommended_action=%s\n' "$SHIMMY_PROFILE_RECOMMENDED_ACTION"
+    return 0
+  fi
+
+  engine_type=$(status_value_human_render "$SHIMMY_PROFILE_ENGINE_TYPE")
+  machine_state=$(status_value_human_render "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE")
+  engine_reachable=$(status_value_human_render "$SHIMMY_PROFILE_ENGINE_REACHABLE")
+  registry_policy=$(status_value_human_render "$SHIMMY_ENGINE_REGISTRY_POLICY")
+  case "$SHIMMY_PROFILE_ENGINE_REACHABLE" in
+    true) engine_reachable=yes ;;
+    false) engine_reachable=no ;;
+  esac
+  engine_connection=$SHIMMY_PROFILE_EXPECTED_CONNECTION
+  if [ "$engine_connection" = "$SHIMMY_PROFILE_DEFAULT_CONNECTION" ]; then
+    engine_connection="$engine_connection (default)"
+  fi
+
+  printf '\nPodman Engine\n'
+  printf '  type: %s\n' "$engine_type"
+  printf '  name: %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE"
+  printf '  machine state: %s\n' "$machine_state"
+  printf '  connection: %s\n' "$engine_connection"
+  printf '  reachable: %s\n' "$engine_reachable"
+  printf '  running containers: %s\n' "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT"
+  printf '  activation: %s\n' "$SHIMMY_PROFILE_ACTIVATION_LABEL"
+  printf '  registry policy: %s\n' "$registry_policy"
+  case "$SHIMMY_PROFILE_RECOMMENDED_ACTION" in
+    none|investigate) ;;
+    *) [ -z "$SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND" ] ||
+      printf '  action: %s\n' "$SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND" ;;
+  esac
+}
+
+status_catalog_print() {
+  if [ "$OUTPUT_FORMAT" = manifest ]; then
     printf 'shimmy_catalog_name=%s\n' "$SHIMMY_CATALOG_NAME"
     printf 'shimmy_catalog_source_type=%s\n' "$SHIMMY_CATALOG_SOURCE_TYPE"
     printf 'shimmy_catalog_source=%s\n' "$SHIMMY_CATALOG_SOURCE_PATH"
@@ -122,19 +190,24 @@ print_status() {
     else
       printf 'shimmy_installed=no\n'
     fi
-  else
-    printf 'Shimmy Status\n'
-    printf 'profile: %s\n' "$SHIMMY_PROFILE_NAME"
-    printf 'profile_root: %s\n' "$SHIMMY_PROFILE_ROOT"
-    printf 'catalog: %s\n' "$SHIMMY_CATALOG_NAME"
-    printf 'catalog_source_type: %s\n' "$SHIMMY_CATALOG_SOURCE_TYPE"
-    printf 'catalog_source: %s\n' "$SHIMMY_CATALOG_SOURCE_PATH"
-    [ -z "$SHIMMY_CATALOG_GENERATION" ] || printf 'catalog_generation: %s\n' "$SHIMMY_CATALOG_GENERATION"
-    printf 'catalog_source_commit: %s\n' "$SHIMMY_CATALOG_SOURCE_COMMIT"
-    printf 'catalog_content_fingerprint: %s\n' "$SHIMMY_CATALOG_CONTENT_FINGERPRINT"
-    printf 'catalog_schema: %s\n' "$SHIMMY_CATALOG_SCHEMA"
-    printf 'catalog_health: %s\n' "$SHIMMY_CATALOG_HEALTH"
+    return 0
   fi
+
+  printf '\nCatalog\n'
+  printf '  name: %s\n' "$SHIMMY_CATALOG_NAME"
+  printf '  source type: %s\n' "$(status_value_human_render "$SHIMMY_CATALOG_SOURCE_TYPE")"
+  printf '  source: %s\n' "$SHIMMY_CATALOG_SOURCE_PATH"
+  [ -z "$SHIMMY_CATALOG_GENERATION" ] || printf '  generation: %s\n' "$SHIMMY_CATALOG_GENERATION"
+  printf '  source commit: %s\n' "$SHIMMY_CATALOG_SOURCE_COMMIT"
+  printf '  content fingerprint: %s\n' "$SHIMMY_CATALOG_CONTENT_FINGERPRINT"
+  printf '  schema: %s\n' "$SHIMMY_CATALOG_SCHEMA"
+  printf '  health: %s\n' "$SHIMMY_CATALOG_HEALTH"
+}
+
+status_tools_print() {
+  manifest_file=$1
+
+  [ "$OUTPUT_FORMAT" = manifest ] || printf '\nTools\n'
 
   for tool_name in $(shimmy_manifest_tool_list_read "$manifest_file"); do
     if [ "$OUTPUT_FORMAT" = manifest ]; then
@@ -172,6 +245,9 @@ main() {
   case "$OUTPUT_FORMAT" in human|manifest) ;; *) fail "unsupported status format: $OUTPUT_FORMAT" ;; esac
   shimmy_profile_context_resolve "$ROOT_DIR" || fail "installed launcher is outside a canonical profile root"
   shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_PROFILE_NAME" || exit 1
+  status_engine_read
+  status_profile_print "$SHIMMY_PROFILE_MANIFEST_PATH"
+  status_engine_print
   if ! shimmy_catalog_profile_resolve "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_CONFIG_ROOT"; then
     SHIMMY_CATALOG_NAME=$(shimmy_read_manifest_value "$SHIMMY_PROFILE_MANIFEST_PATH" catalog || true)
     if [ "$OUTPUT_FORMAT" = manifest ]; then
@@ -179,13 +255,15 @@ main() {
       printf 'shimmy_catalog_health=invalid\n'
       printf 'shimmy_catalog_error=%s\n' "$SHIMMY_CATALOG_ERROR"
     else
-      printf 'catalog: %s\n' "$SHIMMY_CATALOG_NAME"
-      printf 'catalog_health: invalid\n'
-      printf 'catalog_error: %s\n' "$SHIMMY_CATALOG_ERROR"
+      printf '\nCatalog\n'
+      printf '  name: %s\n' "$SHIMMY_CATALOG_NAME"
+      printf '  health: invalid\n'
+      printf '  error: %s\n' "$SHIMMY_CATALOG_ERROR"
     fi
     exit 1
   fi
-  print_status "$SHIMMY_PROFILE_MANIFEST_PATH"
+  status_catalog_print
+  status_tools_print "$SHIMMY_PROFILE_MANIFEST_PATH"
 }
 
 main "$@"

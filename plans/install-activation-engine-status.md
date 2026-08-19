@@ -1,6 +1,6 @@
 # Bootstrap Rename, Activation, and Engine Status Plan
 
-**Status:** Chunk 1 accepted; Chunk 2 awaiting authorization
+**Status:** Chunk 2 accepted; Chunk 3 awaiting authorization
 
 ## Objective
 
@@ -372,15 +372,16 @@ None.
 
 - [x] Chunk 1 — Centralize activation recommendations and correct exact runtime
   recovery guidance.
-- [ ] Chunk 2 — Add the read-only Podman Engine section and additive manifest
+- [x] Chunk 2 — Add the read-only Podman Engine section and additive manifest
   fields to top-level status.
 - [ ] Chunk 3 — Rename the root bootstrap contract atomically to `bootstrap.sh`
   and remove the ambiguous root `install.sh` surface.
 - [ ] Chunk 4 — Add safe bootstrap `--activate`, align guidance, and run
   integrated acceptance.
 
-Chunk 1 was accepted by the user on 2026-08-19. Chunk 2 has not started and
-requires a separate implementation request.
+Chunk 1 was accepted by the user on 2026-08-19. Chunk 2 was implemented,
+verified, and accepted by the user at 2026-08-19 12:40:41 EDT. Chunk 3 has not
+started and requires separate explicit authorization.
 
 ## Reasoning-level calculation
 
@@ -543,19 +544,29 @@ Primary change surface:
 
 ### Verification checklist
 
-- [ ] Command-status tests prove the human section labels and exact
+- [x] Command-status tests prove the human section labels and exact
   restart-required action using deterministic fake engine state.
-- [ ] Command-status tests prove all exact additive `shimmy_engine_*` manifest
+- [x] Command-status tests prove all exact additive `shimmy_engine_*` manifest
   fields while retaining representative existing profile, catalog, tool,
   version, and image fields.
-- [ ] Status under unavailable/unsupported fake engine state still reports
+- [x] Status under unavailable/unsupported fake engine state still reports
   catalog and installed tools without mutation or live Podman access.
-- [ ] Existing detailed profile status tests pass without renamed or removed
+- [x] Existing detailed profile status tests pass without renamed or removed
   fields.
-- [ ] Run focused groups concurrently:
+- [x] Run focused groups concurrently:
   `./tests/test.sh --jobs 3 --group commands-status --group commands-profile`.
-- [ ] Review `git diff --check`, executable modes, and `git diff` for accidental
+- [x] Review `git diff --check`, executable modes, and `git diff` for accidental
   generated-adapter or unrelated changes.
+
+Verification evidence recorded on 2026-08-19:
+
+- The required concurrent command-status/profile run passed all 8 tests.
+- The additional onboarding regression run passed all 11 tests after its
+  top-level status calls were routed through the explicit unsupported-host test
+  seam.
+- Shell syntax checks, `git diff --check`, executable-mode review, full diff
+  review, and status review passed without live Podman mutation or generated
+  adapter changes.
 
 ### Human review gate
 
@@ -563,6 +574,8 @@ Reviewers confirm the human layout is concise, the manifest names/action enum
 are acceptable as a stable automation surface, stale runtime guidance is exact,
 and status remains read-only. Stop after recording verification and lessons;
 Chunk 3 requires separate explicit acceptance.
+
+Accepted by the user at 2026-08-19 12:40:41 EDT.
 
 ## Chunk 3 — Atomic root bootstrap rename
 
@@ -918,6 +931,21 @@ has an explicit accepted disposition.
   change for the shared resolver; focused command-profile coverage confirms
   compatibility.
 
+### Chunk 2
+
+- Top-level status can inspect engine state before catalog resolution without
+  changing catalog-health failure semantics; this also lets invalid catalog
+  output retain useful Profile and Podman Engine context.
+- The existing recommendation resolver supplies both the bounded manifest enum
+  and exact human recovery command, so status needs no second action table.
+- Unrelated status assertions must explicitly select a test host state now that
+  top-level status performs real read-only discovery. Shared installed-command
+  helpers use an unsupported-host seam, while dedicated status coverage uses
+  the fake Podman seam for deterministic Darwin state.
+- Connection metadata is retained internally for validation but only connection
+  names, masking variable names, and bounded state values reach either output
+  format; fake and secret URI values are covered by redaction assertions.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -936,8 +964,8 @@ For a fresh implementation session:
    interrupted without separate `--stop-running`; no Podman machine is
    provisioned or removed; agent approval gates remain separate; generated
    `.agents/skills/` adapters are untouched.
-5. Chunk 1 is accepted. Chunk 2 has not started; begin it only after a separate
-   explicit implementation request from the user.
+5. Chunks 1 and 2 are accepted. Do not begin Chunk 3 without separate explicit
+   authorization from the user.
 6. Use fake Podman seams and disposable roots for tests. Follow the default
    bounded parallel runner guidance and use serial reruns only to diagnose a
    failure.

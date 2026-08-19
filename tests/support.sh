@@ -165,10 +165,22 @@ bootstrap_upstream() {
 }
 
 default_shimmy() {
+  if [ "${1:-}" = status ]; then
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+      SHIMMY_TEST_PROFILE_OS="${SHIMMY_TEST_PROFILE_OS:-Unsupported}" \
+      "$DEFAULT_PROFILE_ROOT/bin/shimmy" "$@"
+    return
+  fi
   env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/shimmy" "$@"
 }
 
 upstream_shimmy() {
+  if [ "${1:-}" = status ]; then
+    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
+      SHIMMY_TEST_PROFILE_OS="${SHIMMY_TEST_PROFILE_OS:-Unsupported}" \
+      "$UPSTREAM_PROFILE_ROOT/bin/shimmy" "$@"
+    return
+  fi
   env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$UPSTREAM_PROFILE_ROOT/bin/shimmy" "$@"
 }
 

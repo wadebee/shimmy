@@ -46,9 +46,13 @@ is the behavior under test.
   switching. It compares initial selections with immutable session fixtures;
   failure and shell-compatibility boundaries remain isolated, and shell-init
   PATH behavior runs against relocated clones.
-- `status.sh` covers profile-local installed status output from validated
-  version-owned image configuration. It starts from pristine profile clones
-  and retains a real additive install for local-build status coverage.
+- `status.sh` covers the sectioned profile, read-only Podman engine, catalog,
+  and installed-tool output through deterministic fake and unsupported engine
+  states. It proves the additive `shimmy_engine_*` manifest schema,
+  restart-required action, override-value redaction, engine-unavailable catalog
+  continuity, and version-owned image descriptions. It starts from pristine
+  profile clones and retains a real additive install for local-build status
+  coverage.
 - `management.sh` covers the installed command surface, complete second- and
   third-level help discovery, action guidance before validation, profile
   binding, skills, and netinfo behavior.

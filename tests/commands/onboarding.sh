@@ -158,7 +158,7 @@ test_commands_onboarding_progression() {
         printf "shimmy=%s\n" "$(command -v shimmy)"
         printf "jq=%s\n" "$(command -v jq)"
         printf "rg=%s\n" "$(command -v rg)"
-        printf "profile=%s\n" "$(shimmy status --format manifest | sed -n "s/^shimmy_profile_name=//p")"
+        printf "profile=%s\n" "$(SHIMMY_TEST_PROFILE_OS=Unsupported shimmy status --format manifest | sed -n "s/^shimmy_profile_name=//p")"
         printf "cwd_unchanged=%s\n" "$([ "$(pwd -P)" = "$cwd_before" ] && printf yes || printf no)"
         printf "flags_unchanged=%s\n" "$([ "$-" = "$flags_before" ] && printf yes || printf no)"
         printf "parameters_unchanged=%s\n" "$([ "$#" -eq 2 ] && [ "$1" = first ] && [ "$2" = "second value" ] && printf yes || printf no)"
@@ -391,7 +391,7 @@ test_commands_onboarding_shell_init_path_behavior() {
     XDG_CONFIG_HOME=$XDG_CONFIG_HOME_DIR
     HOME=$HOME_DIR
     export PATH XDG_CONFIG_HOME HOME
-    shimmy status --format manifest
+    SHIMMY_TEST_PROFILE_OS=Unsupported shimmy status --format manifest
   )
   assert_contains "$path_selected_status" 'shimmy_profile_name=upstream'
   pass "shell initialization changes PATH only and PATH precedence selects the active profile"

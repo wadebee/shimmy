@@ -309,11 +309,19 @@ shimmy skills install --export ./shimmy-skills.zip
 
 ## `status`
 
-Show the current profile's identity and root, its installed tools, and the
-catalog source type/path, generation provenance, schema, content fingerprint,
-health, and configured image references. Invalid or unavailable catalog state
-is reported and returns failure without changing the profile. Use `shimmy
-catalog list` for complete catalog membership.
+Show the current Profile, Podman Engine, Catalog, and Tools in distinct human
+sections. The engine summary is read-only and reports the deterministic engine
+and connection names, machine and reachability state, running-container count,
+registry-policy state, activation state, and a safe recommended action when one
+is available. It never prints connection URIs or environment override values.
+
+Catalog output retains its source type/path, generation provenance, schema,
+content fingerprint, health, and configured image references. Invalid or
+unavailable catalog state is reported and returns failure without changing the
+profile. Engine unavailability remains a status value and does not prevent
+catalog or installed-tool reporting. Use `shimmy catalog list` for complete
+catalog membership and `shimmy profile status` for detailed engine and registry
+state.
 
 ```text
 shimmy status [--format human|manifest]
@@ -324,6 +332,15 @@ Options:
 - `--format human|manifest` selects human-readable or machine-readable output.
   The default is `human`.
 - `-h`, `--help` shows command help.
+
+Manifest output preserves the existing `shimmy_*` records and adds
+`shimmy_engine_type`, `shimmy_engine_name`, `shimmy_engine_connection`,
+`shimmy_engine_default_connection`, `shimmy_engine_machine_state`,
+`shimmy_engine_reachable`, `shimmy_engine_activation`,
+`shimmy_engine_registry_policy`, `shimmy_engine_running_container_count`, and
+`shimmy_engine_recommended_action`. The recommended action is one of `none`,
+`profile_activate`, `profile_activate_restart`, `podman_machine_init`,
+`unset_override`, or `investigate`.
 
 Examples:
 

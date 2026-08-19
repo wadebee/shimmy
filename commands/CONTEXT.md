@@ -30,9 +30,13 @@ reusable behavior belongs in `../lib/`.
   activation owns one exact user drop-in; Darwin activation projects one exact
   VM link, reports record/fingerprint freshness, requires explicit restart for
   stale running policy, and detaches only recognized invoking-profile state.
-- `status.sh` resolves the enclosing profile's named catalog and reports
-  installed profile state and validated tool metadata together with catalog
-  source, generation provenance, schema, fingerprint, and health;
+- `status.sh` uses the shared profile state reader and recommendation resolver
+  to report a read-only Podman engine summary before the enclosing profile's
+  named catalog and installed tool metadata. Human output has Profile, Podman
+  Engine, Catalog, and Tools sections; manifest output preserves existing
+  records and adds stable `shimmy_engine_*` fields without exposing connection
+  URIs or override values. Engine failures remain status values while catalog
+  validation retains its existing exit behavior;
 - `images.sh` provides explicit, non-mutating remote index and upstream-drift
   verification through catalog-default profile-local Skopeo and jq runtimes;
   the Skopeo runtime inherits a valid current invoking-profile redirect mount
