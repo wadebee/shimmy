@@ -248,20 +248,26 @@ options, or catalog-qualified shim selectors.
    shimmy_source_tracking_ref=refs/heads/main
    shimmy_source_ref=<materialized-commit>
    catalog=default|<generation>|<source-commit>|<content-fingerprint>
-   shim=<tool>|<launcher-default-version>|<tracking|pinned>
+   shim=<tool>|<tracking|pinned>
    shim_version=<tool>|<version>|<default|exact>
    startup_shell=<shell>                # zero or one
    startup_file=<absolute-path>         # repeatable
    ```
 
    Repeated records are lexical and duplicate-free. Exactly one catalog pin
-   exists. Every version belongs to one shim, launcher defaults are installed,
-   at most one tracking slot exists, and catalog provenance matches a retained
-   generation. Record components reject `|`, CR, LF, and NUL; scalar URL/path
-   values reject CR, LF, and NUL. No target version-1 reader exists.
-4. `tracking` follows the one `shim_version=...|default` slot during sync.
-   `pinned` names an installed exact launcher default. A shim has at most one
-   tracking slot and any number of exact slots.
+   exists. Every version belongs to one shim, and every shim owns exactly one
+   installed `shim_version=...|default` slot plus zero or more
+   `shim_version=...|exact` slots. One version cannot occupy both roles. The
+   default slot alone is authoritative for the bare launcher target; every
+   installed version, including the default, remains explicitly addressable.
+   Catalog provenance matches a retained generation. Record components reject
+   `|`, CR, LF, and NUL; scalar URL/path values reject CR, LF, and NUL. No
+   target version-1 reader exists.
+4. The `shim` record owns only the default-slot update policy. `tracking`
+   advances the one default slot to the resolved catalog default during sync;
+   `pinned` preserves the version occupying that slot. An `exact` version is an
+   additional non-default pinned slot. It does not mean that only exact slots
+   are explicitly addressable.
 5. Catalog registry schema 1 is exact and target-only:
 
    ```text
@@ -375,15 +381,24 @@ options, or catalog-qualified shim selectors.
    installed-state check.
 8. Shim reads/mutations use the invoking profile; mutation requires it active.
    `shim add tool` interactively selects a version with catalog default as the
-   prompt default; explicit `tool@version` is noninteractive exact.
-9. The first version becomes launcher default. Later additions do not change it.
-   Tracking follows its slot; set-version pins an already installed exact
-   version.
+   prompt default; explicit `tool@version` is noninteractive exact-version
+   selection. Selector exactness does not determine record role: the first
+   installed version becomes default, while a later one becomes exact.
+9. The first installed version occupies the default slot. Unqualified add uses
+   `tracking`; an explicit first `tool@version` add uses `pinned`. Later
+   additions become exact slots and do not change the default. `set-version`
+   atomically changes the selected exact slot to default, changes the prior
+   default to exact, and sets the shim policy to `pinned`.
 10. Remove tool deletes all versions/config/launcher/skill. Remove
     `tool@version` deletes one version and rejects the launcher default.
-11. Shim sync uses only the profile pin. Tracking may advance within that pin;
-    exact slots stay pinned. Add/sync prepare images and validate regenerated
-    wrappers/config/manifest/skill before commit.
+11. Shim sync uses only the profile pin. Tracking may advance the default slot
+    within that pin; exact slots stay pinned. Advancing tracking replaces the
+    prior tracked default rather than automatically retaining it as exact. If
+    the resolved tracking default already exists as an exact slot, sync removes
+    that exact role, makes the version default, and removes the prior tracked
+    default without creating a duplicate version record. Add/sync prepare
+    images and validate regenerated wrappers/config/manifest/skill before
+    commit.
 12. Shim test keeps non-mutating smoke semantics; no selectors means all. Remote
     image verification belongs only to catalog verify.
 
@@ -441,7 +456,9 @@ options, or catalog-qualified shim selectors.
 1. Profile status is local. Human sections are `PROFILE`, `ENGINE`, `CATALOG`,
    `SHIMS`, `AI SKILLS`, `STARTUP`. Catalog columns are `CATALOG PINNED CURRENT
    DRIFT HEALTH`; shim columns are `SHIM DEFAULT MODE VERSIONS`. Link counts are
-   `not-applicable` for inactive profiles.
+   `not-applicable` for inactive profiles. `DEFAULT` is read from the sole
+   default version slot, and `MODE` is read independently from the shim policy
+   record; status does not reconstruct either value from the other.
 2. Manifest profile records include identity/root/source URL/tracking ref/commit,
    one catalog record, shim/version records, bundle records, link counts,
    startup ledger, then preserved `shimmy_engine_*` records. Arbitrary values use
@@ -512,7 +529,12 @@ None.
 
 ## Progress Checklist
 
-- [x] Chunk 1 — Add target formats, codecs, and pure validators.
+- [~] Chunk 1 — Add target formats, codecs, and pure validators. The original
+  three-field shim record implementation and its tests passed, but review found
+  that it duplicated the launcher default already owned by the default version
+  slot. The revised plan uses `shim=<tool>|<tracking|pinned>` and requires one
+  authoritative default version slot. Chunk 1 implementation, fixtures, and
+  focused verification must be revised before acceptance; this blocks Chunk 2.
 - [ ] Chunk 2 — Add shared lock, transaction, and ownership primitives.
 - [ ] Chunk 3 — Implement the private target default-catalog core.
 - [ ] Chunk 4 — Move image verification behind private catalog verify.
@@ -569,7 +591,8 @@ state.
 ### Implementation requirements
 
 - Implement profile manifest version 2, active schema 1, catalog registry schema
-  1, shim records, and both bundle schema readers/renderers exactly.
+  1, normalized two-field shim policy records, one authoritative default
+  version slot per shim, and both bundle schema readers/renderers exactly.
 - Keep target and current readers separate. Target validators never dispatch to
   old version-1 manifest or unversioned registry parsing.
 - Implement fixed main-ref validation, SHA-256/name algorithms, public manifest
@@ -581,22 +604,28 @@ state.
 
 ### Verification checklist
 
-- [x] All target state fixtures round-trip byte-deterministically. Active,
-  registry, profile-manifest, and bundle renderings compare byte-for-byte.
+- [~] All target state fixtures round-trip byte-deterministically. Active,
+  registry, and bundle fixtures passed; profile-manifest fixtures passed the
+  superseded three-field shim schema and must be rewritten for two-field policy
+  records before rerunning byte comparisons.
 - [x] Fixed vectors prove generation, content, and bundle SHA-256 identities.
   Coverage includes the path-sorted catalog manifest algorithm and exact
   `SKILL.md` bytes.
 - [x] Fixed vectors prove percent/pipe/CR/LF/path/warning/nested-value encoding
   without secret leakage. Literal redaction precedes output and handles encoded
   reserved bytes.
-- [x] Positive fixtures prove arbitrary safe profile names, one default pin,
+- [~] Positive fixtures prove arbitrary safe profile names, one default pin,
   tracking/exact coexistence, launcher membership, and bundle consistency.
-- [x] Durable integrity coverage proves unsafe paths, duplicates, invalid
+  Existing proofs passed, but launcher membership must be re-proven from the
+  sole default version slot for both tracking and pinned policies.
+- [~] Durable integrity coverage proves unsafe paths, duplicates, invalid
   commit/pin relationships, bundle drift, and cross-bundle collisions fail.
-  Text-state readers also reject NUL data and missing final line termination.
-- [x] Focused target state groups pass with `--jobs 3` (9 tests across
-  `lib-target-codec`, `lib-target-profile-state`, and
-  `lib-target-ai-skill-state`).
+  Existing proofs passed, including NUL and final-line rejection; remaining
+  coverage must reject zero/multiple default slots, one version in both roles,
+  and policy records containing a redundant version field.
+- [~] Focused target state groups pass with `--jobs 3`. Nine tests passed under
+  the superseded shim schema; the same groups must pass after fixture and
+  validator revision.
 - [x] Current launcher/manifest tests remain green; no public target route
   exists. Runner, catalog/context, current dispatcher, and current install
   groups pass (30 tests), and target symbols have no command/bootstrap/launcher
@@ -605,8 +634,9 @@ state.
 ### Human review gate
 
 Confirm every target format, version boundary, hash/encoding algorithm, and
-cross-record invariant. Acceptance authorizes transaction primitives, not target
-mutation or routing.
+cross-record invariant, including the two-field shim policy record, sole
+default-slot authority, exact-slot meaning, and duplicate-free role changes.
+Acceptance authorizes transaction primitives, not target mutation or routing.
 
 ## Chunk 2 — Shared locks, transactions, and ownership primitives
 
@@ -774,8 +804,10 @@ Chunk 6.
 
 - Implement unqualified add/remove/set-version/sync/list/test grammar and exact
   interactive versus automation behavior.
-- Implement first-default stability, tracking/pinned state, exact retention,
-  selected-default removal guard, and pinned-generation sync.
+- Implement first-default stability, two-field tracking/pinned policy state,
+  exactly one authoritative default version slot, exact retention,
+  selected-default removal guard, role-swapping set-version, collision-free
+  tracking advancement, and pinned-generation sync.
 - Stage regenerated wrappers/config/runtime, manifest version 2, and mandatory
   image preparation before commit.
 - Produce a typed shim-bundle input for Chunk 6. Do not stub profile activation
@@ -784,8 +816,10 @@ Chunk 6.
 ### Verification checklist
 
 - [ ] Fixtures prove interactive tracking, noninteractive exact selection,
-  first-default stability, explicit pinning, version/all removal, and pinned
-  generation sync.
+  first-default stability, explicit-first pinned default, later exact
+  additions, set-version role swapping, tracking collisions with an existing
+  exact slot, non-retention of replaced tracked defaults, version/all removal,
+  and pinned generation sync.
 - [ ] Image/candidate failure leaves wrappers, versions, config, and manifest at
   prior valid state.
 - [ ] Rendered dispatchers/config pass syntax and installed-copy execution.
@@ -1112,6 +1146,11 @@ completes this redesign, not external catalogs or release channels.
   regressions, mandatory cutover removal.
 - **Manifest incompatibility:** target is incompatible with version 1.
   Mitigation: version 2, no migration/old reader, exact removal guidance.
+- **Default-policy split brain:** storing a launcher version in both the shim
+  policy and version records can permit disagreement. Mitigation: the two-field
+  shim record stores policy only, exactly one version record stores the default
+  role, and validators reject zero/multiple defaults or duplicate version
+  roles.
 - **Catalog schema ambiguity:** registry schema 1 and payload schema 1 differ.
   Mitigation: exact keys, file-specific validators, selective old-code removal.
 - **Concurrency/deadlock:** catalog, activation, profiles, redirects, startup,
@@ -1198,15 +1237,24 @@ completes this redesign, not external catalogs or release channels.
 - The current version-1 lifecycle can coexist safely only when every target
   function is explicitly prefixed, target modules are sourced by tests alone,
   and no public dispatcher references them.
+- Review found that the original three-field shim record repeated the launcher
+  version already represented by the default version slot. Chunk 1 is partial
+  until the policy-only shim record and sole-default invariants replace that
+  implementation and its fixtures.
 
 ## Session bootstrap
 
-Chunk 1 is implemented and awaits its human review gate. Do not start Chunk 2
-without explicit acceptance. Target profile manifest is version 2; add no
-migration or target version-1 reader. Target catalog is only immutable
-`default`; add no external catalog commands, memberships, or qualified
-selectors. Control sync resolves exactly `refs/heads/main`; add no release
-selection. Bootstrap/create install jq, rg, and Skopeo.
+Chunk 1 is partially implemented after schema review and must be revised before
+its human review gate. Do not start Chunk 2. Replace the superseded
+`shim=<tool>|<launcher-version>|<tracking|pinned>` implementation with
+`shim=<tool>|<tracking|pinned>`; require exactly one authoritative
+`shim_version=<tool>|<version>|default` record and zero or more non-default
+pinned `exact` records per shim. Update fixtures and rerun every partial Chunk 1
+check. Target profile manifest remains version 2; add no migration, version 3,
+or target version-1 reader. Target catalog is only immutable `default`; add no
+external catalog commands, memberships, or qualified selectors. Control sync
+resolves exactly `refs/heads/main`; add no release selection. Bootstrap/create
+install jq, rg, and Skopeo.
 
 Keep public entrypoints/state unchanged through Chunk 9 and use private target
 routing/disposable roots. Home AI reconciliation may unconditionally overwrite
