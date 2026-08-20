@@ -11,7 +11,9 @@ fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 for shimmy_target_helper in \
   lib/common/common.sh lib/common/lock.sh lib/catalog/catalog.sh \
   lib/catalog/state.sh lib/catalog/target.sh lib/shim/state.sh \
-  lib/profile/state.sh lib/install/manifest.sh lib/shim/target.sh
+  lib/ai-skill/bundle.sh lib/profile/state.sh lib/install/manifest.sh \
+  lib/profile/transaction.sh lib/ai-skill/link.sh lib/shim/target.sh \
+  lib/ai-skill/target.sh
 do
   . "$ROOT_DIR/$shimmy_target_helper"
 done
@@ -117,6 +119,9 @@ EOF
 }
 
 cleanup() {
+  if [ "${SHIMMY_TARGET_EXTERNAL_TRANSACTION_ACTIVE:-0}" -eq 1 ]; then
+    shimmy_target_external_transaction_rollback 'target shim command interruption' 2>/dev/null || true
+  fi
   shimmy_target_shim_commit_restore 2>/dev/null || true
   shimmy_target_shim_stage_cleanup 2>/dev/null || true
   shimmy_target_locks_release_all 2>/dev/null || true
@@ -131,6 +136,9 @@ shimmy_target_config_root=${SHIMMY_TARGET_CONFIG_ROOT:-}
 [ -n "$shimmy_target_config_root" ] || fail 'SHIMMY_TARGET_CONFIG_ROOT is required for private target shim routing'
 shimmy_target_shim_context_resolve "$shimmy_target_config_root" || fail "$SHIMMY_TARGET_SHIM_ERROR"
 shimmy_target_shim_materialization_validate "$SHIMMY_TARGET_SHIM_PROFILE_ROOT" "$SHIMMY_TARGET_SHIM_CATALOG_ROOT" || fail 'invalid target shim materialization'
+shimmy_target_ai_skill_context_resolve "$shimmy_target_config_root" || fail "$SHIMMY_TARGET_AI_SKILL_ERROR"
+shimmy_target_ai_skill_reconcile_preflight "$SHIMMY_TARGET_AI_SKILL_PROFILE_ROOT" \
+  "$SHIMMY_TARGET_CATALOG_REGISTRY_PATH" "$SHIMMY_TARGET_AI_SKILL_GENERATION_ROOT" || fail "$SHIMMY_TARGET_AI_SKILL_ERROR"
 
 case "$shimmy_target_action" in
   list)

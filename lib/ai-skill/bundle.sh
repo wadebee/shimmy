@@ -1,6 +1,19 @@
 #!/bin/sh
 # Private target AI-skill bundle schema and content validation.
 
+SHIMMY_TARGET_AI_SKILL_MANAGED_HEADER='> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.'
+
+shimmy_target_ai_skill_control_names_render() {
+  cat <<'EOF'
+shimmy-catalog
+shimmy-create-tool
+shimmy-escalation
+shimmy-init
+shimmy-install
+shimmy-tool-local-build
+EOF
+}
+
 shimmy_target_ai_skill_source_ref_validate() {
   shimmy_target_ai_skill_source_kind=$1
   shimmy_target_ai_skill_source_ref=$2
@@ -67,6 +80,11 @@ shimmy_target_ai_skill_frontmatter_validate() {
   ' "$shimmy_target_ai_skill_file"
 }
 
+shimmy_target_ai_skill_managed_header_validate() {
+  shimmy_target_ai_skill_managed_file=$1
+  [ "$(sed -n '6p' "$shimmy_target_ai_skill_managed_file")" = "$SHIMMY_TARGET_AI_SKILL_MANAGED_HEADER" ]
+}
+
 shimmy_target_ai_skill_bundle_render() {
   shimmy_target_ai_skill_bundle_kind=$1
   shimmy_target_ai_skill_bundle_profile=$2
@@ -123,6 +141,7 @@ shimmy_target_ai_skill_bundle_read() {
     [ -d "$shimmy_target_ai_skill_dir" ] && [ ! -L "$shimmy_target_ai_skill_dir" ] || return 1
     shimmy_text_file_validate "$shimmy_target_ai_skill_file" || return 1
     shimmy_target_ai_skill_frontmatter_validate "$shimmy_target_ai_skill_file" "$shimmy_target_ai_skill_name" || return 1
+    shimmy_target_ai_skill_managed_header_validate "$shimmy_target_ai_skill_file" || return 1
     [ "$(shimmy_sha256_fingerprint_file_render "$shimmy_target_ai_skill_file")" = "$shimmy_target_ai_skill_fingerprint" ] || return 1
     shimmy_target_ai_skill_expected_names=$(shimmy_append_line_list "$shimmy_target_ai_skill_expected_names" "$shimmy_target_ai_skill_name")
     shimmy_target_ai_skill_entry_count=0

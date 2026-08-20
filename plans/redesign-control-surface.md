@@ -546,9 +546,10 @@ None.
   2026-08-20 16:50:26 EDT.
 - [x] Chunk 4 — Private catalog image verification and the jq/rg/Skopeo
   baseline candidate were accepted by the user on 2026-08-20.
-- [~] Chunk 5 — Private profile-local shim lifecycle is implemented and
-  verified; human acceptance is pending.
-- [ ] Chunk 6 — Implement AI bundles and narrowly destructive links.
+- [x] Chunk 5 — Private profile-local shim lifecycle was human verified and
+  accepted by the user's 2026-08-20 request to implement Chunk 6.
+- [~] Chunk 6 — AI bundles and narrowly destructive links are implemented and
+  automatically verified; human acceptance is pending.
 - [ ] Chunk 7 — Generalize profile identity, activation, and shell selection.
 - [ ] Chunk 8 — Integrate profile, bootstrap, and admin candidate lifecycles.
 - [ ] Chunk 9 — Complete private target commands and end-to-end tests.
@@ -994,17 +995,53 @@ user-link reconciliation with accepted unconditional overwrite.
 
 ### Verification checklist
 
-- [ ] Bundle fingerprints, frontmatter rewrites, identities, and content mapping
+- [x] Bundle fingerprints, frontmatter rewrites, identities, and content mapping
   are deterministic.
-- [ ] Shim add/remove inputs produce exactly `shimmy-tool-<tool>` lifecycle.
-- [ ] Cross-bundle/source/pin mismatch blocks supported reconciliation.
-- [ ] List/repair cover valid, empty, invalid, unsupported, broken,
+- [x] Shim add/remove inputs produce exactly `shimmy-tool-<tool>` lifecycle.
+- [x] Cross-bundle/source/pin mismatch blocks supported reconciliation.
+- [x] List/repair cover valid, empty, invalid, unsupported, broken,
   wrong-profile, and encoded-path cases.
-- [ ] File, nonempty directory, foreign link, and broken-link collisions are
+- [x] File, nonempty directory, foreign link, and broken-link collisions are
   overwritten; unrelated siblings/root survive byte-for-byte.
-- [ ] Failure injection restores prior Shimmy links when possible and reports
+- [x] Failure injection restores prior Shimmy links when possible and reports
   overwritten foreign content as unrecoverable.
-- [ ] Focused AI groups pass; current public suite remains green.
+- [x] Focused AI groups pass; current public suite remains green.
+
+### Chunk 6 evidence
+
+- `lib/ai-skill/target.sh` materializes the six canonical control skills from
+  exact Git object bytes at the profile's recorded control commit and one
+  `shimmy-tool-<tool>` skill per typed shim input from the profile's retained
+  immutable catalog generation. Frontmatter, the managed-copy warning,
+  fingerprints, source identities, lexical records, and complete bundle trees
+  are validated after rendering.
+- Profile-wide validation binds supported control and shim bundles to the
+  manifest's control commit, catalog generation/fingerprint, installed shims,
+  and duplicate-free union. Malformed supported bundles block before mutation.
+  Unsupported schemas are classified per kind, emit no list rows, warn and skip
+  target projection, remove only recognized stale Shimmy links, and make repair
+  return nonzero after completing supported reconciliation.
+- The uninstalled `commands/ai-skill-target.sh` route lists
+  `valid|empty|invalid` bundle state plus exact link classifications and encoded
+  manifest paths. Repair preflights and revalidates under activation then
+  profile locks, renders exact collision warnings, and reconciles only validated
+  direct children of the immutable active-record user root.
+- `lib/ai-skill/link.sh` recognizes only canonical
+  `profiles/<profile>/ai-skills/<control|shims>/skills/<name>` direct targets.
+  Stale cleanup removes exact recognized links only. Exact declared files,
+  nonempty directories, foreign links, and broken links are overwritten without
+  backup; no root-wide deletion API or test helper was added.
+- Private shim mutations now regenerate and validate the shims bundle with the
+  staged manifest/materialization, commit under activation/profile locks, then
+  reconcile links through the external compensation journal. A link failure
+  restores profile assets and prior recognized links where possible; overwritten
+  foreign content remains absent and is explicitly reported unrecoverable.
+- The focused state/link/shim/AI run passes all 13 selected tests. The
+  consolidated AI command group passes all 4 tests using one immutable catalog
+  fixture, and the complete default three-worker suite passes all 205 tests with
+  approved non-mutating Podman access. Context-tree coverage, POSIX shell syntax,
+  executable modes, private-route searches, and `git diff --check` pass.
+  ShellCheck remains unavailable on this host.
 
 ### Human review gate
 
@@ -1441,13 +1478,36 @@ completes this redesign, not external catalogs or release channels.
   balancing should reuse a session catalog fixture or recalibrate the group
   assignment without weakening generation-boundary coverage.
 
+### Chunk 6
+
+- Materializing control skills directly from Git object bytes proves the
+  recorded commit boundary without trusting a dirty worktree or introducing a
+  copied canonical source inside profiles.
+- Supported-bundle validity and unsupported-schema policy are separate states.
+  Repair can safely reconcile one supported kind and remove recognized links
+  from an unsupported kind only after core manifest/catalog authority is valid;
+  malformed schema-1 content remains a hard preflight failure.
+- Link integration is an external compensation transaction layered after an
+  internally reversible profile commit. Holding activation then profile locks
+  across both boundaries prevents bundle/link drift while preserving honest
+  incomplete rollback when accepted foreign data has already been destroyed.
+- Stale discovery may enumerate direct children for classification, but mutation
+  accepts one validated exact name at a time. Keeping broad user-root deletion
+  absent from production and test helpers makes the destructive boundary
+  auditable.
+- Reusing one immutable catalog/profile fixture for AI list/repair transitions
+  retains real generation and fingerprint coverage without multiplying the
+  multi-minute setup cost. Fresh disposable user roots isolate each transition.
+
 ## Session bootstrap
 
 Chunk 1 was accepted by the user's 2026-08-20 request to implement Chunk 2.
 Chunks 2 and 3 were explicitly human verified by the user's 2026-08-20 request
 at 16:50:26 EDT. Chunk 4 was accepted by the user's 2026-08-20 request to
-implement Chunk 5. Chunk 5 is implemented and verified, and awaits its human
-review gate. Do not start Chunk 6 without explicit acceptance. The implemented
+implement Chunk 5. Chunk 5 was accepted by the user's 2026-08-20 request to
+implement Chunk 6. Chunk 6 is implemented and automatically verified, and
+awaits its human review gate. Do not start Chunk 7 without explicit acceptance.
+The implemented
 version-2 manifest uses `shim=<tool>|<tracking|pinned>`, exactly one authoritative
 `shim_version=<tool>|<version>|default` record, and zero or more non-default
 pinned `exact` records per shim. Resolve concrete runtimes directly from the

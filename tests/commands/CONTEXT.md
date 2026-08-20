@@ -28,7 +28,16 @@ is the behavior under test.
   exact automation, first-default stability, pinned-generation sync,
   collision-free tracking advancement, role-swapping set-version, guarded and
   whole-shim removal, image-before-commit rollback, generated launcher/config
-  execution, typed bundle input, and all/tool/version smoke status propagation.
+  execution, typed bundle input, deterministic shim-skill lifecycle, exact-link
+  reconciliation, cross-resource rollback, and all/tool/version smoke status
+  propagation.
+- `target-ai-skill.sh` exercises the uninstalled active-profile AI-skill route.
+  It covers exact-commit control materialization, empty/valid/invalid/unsupported
+  list states, encoded paths, wrong-profile and broken links, unconditional
+  exact collision overwrite, recognized stale cleanup, rollback honesty, and
+  byte-preservation of unrelated user skills and root markers. Its cases reuse
+  one immutable catalog/profile fixture while selecting a fresh disposable user
+  root and restoring only bundle manifests between transitions.
 - `images.sh` covers source and installed selection, fixture-driven OCI/Docker
   parsing, request deduplication, authentication skips/failures, drift policy,
   stable output, and command availability without target-registry access.

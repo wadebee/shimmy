@@ -121,6 +121,57 @@ shimmy_target_ai_skill_link_plan() {
     "$SHIMMY_TARGET_AI_SKILL_LINK_SOURCE"
 }
 
+shimmy_target_ai_skill_link_recognized_read() {
+  shimmy_target_ai_skill_link_recognized_destination=$1
+  shimmy_target_ai_skill_link_recognized_user_root=$2
+  shimmy_target_ai_skill_link_recognized_profiles_root=$3
+  shimmy_path_absolute_normalized_validate "$shimmy_target_ai_skill_link_recognized_destination" || return 1
+  shimmy_path_absolute_normalized_validate "$shimmy_target_ai_skill_link_recognized_user_root" || return 1
+  shimmy_path_absolute_normalized_validate "$shimmy_target_ai_skill_link_recognized_profiles_root" || return 1
+  shimmy_target_ai_skill_link_recognized_name=$(basename -- "$shimmy_target_ai_skill_link_recognized_destination")
+  shimmy_name_component_validate "$shimmy_target_ai_skill_link_recognized_name" || return 1
+  [ "$shimmy_target_ai_skill_link_recognized_destination" = "$shimmy_target_ai_skill_link_recognized_user_root/$shimmy_target_ai_skill_link_recognized_name" ] || return 1
+  [ -L "$shimmy_target_ai_skill_link_recognized_destination" ] || return 1
+  shimmy_target_ai_skill_link_recognized_target=$(readlink "$shimmy_target_ai_skill_link_recognized_destination") || return 1
+  shimmy_path_absolute_normalized_validate "$shimmy_target_ai_skill_link_recognized_target" || return 1
+  case "$shimmy_target_ai_skill_link_recognized_target" in
+    "$shimmy_target_ai_skill_link_recognized_profiles_root"/*) ;;
+    *) return 1 ;;
+  esac
+  shimmy_target_ai_skill_link_recognized_remainder=${shimmy_target_ai_skill_link_recognized_target#"$shimmy_target_ai_skill_link_recognized_profiles_root"/}
+  SHIMMY_TARGET_AI_SKILL_LINK_RECOGNIZED_PROFILE=${shimmy_target_ai_skill_link_recognized_remainder%%/*}
+  shimmy_target_ai_skill_link_recognized_remainder=${shimmy_target_ai_skill_link_recognized_remainder#*/}
+  case "$shimmy_target_ai_skill_link_recognized_remainder" in ai-skills/*) ;; *) return 1 ;; esac
+  shimmy_target_ai_skill_link_recognized_remainder=${shimmy_target_ai_skill_link_recognized_remainder#ai-skills/}
+  SHIMMY_TARGET_AI_SKILL_LINK_RECOGNIZED_KIND=${shimmy_target_ai_skill_link_recognized_remainder%%/*}
+  shimmy_target_ai_skill_link_recognized_remainder=${shimmy_target_ai_skill_link_recognized_remainder#*/}
+  case "$shimmy_target_ai_skill_link_recognized_remainder" in skills/*) ;; *) return 1 ;; esac
+  SHIMMY_TARGET_AI_SKILL_LINK_RECOGNIZED_NAME=${shimmy_target_ai_skill_link_recognized_remainder#skills/}
+  case "$SHIMMY_TARGET_AI_SKILL_LINK_RECOGNIZED_NAME" in */*) return 1 ;; esac
+  shimmy_name_component_validate "$SHIMMY_TARGET_AI_SKILL_LINK_RECOGNIZED_PROFILE" || return 1
+  case "$SHIMMY_TARGET_AI_SKILL_LINK_RECOGNIZED_KIND" in control|shims) ;; *) return 1 ;; esac
+  [ "$SHIMMY_TARGET_AI_SKILL_LINK_RECOGNIZED_NAME" = "$shimmy_target_ai_skill_link_recognized_name" ] || return 1
+  [ "$shimmy_target_ai_skill_link_recognized_target" = "$shimmy_target_ai_skill_link_recognized_profiles_root/$SHIMMY_TARGET_AI_SKILL_LINK_RECOGNIZED_PROFILE/ai-skills/$SHIMMY_TARGET_AI_SKILL_LINK_RECOGNIZED_KIND/skills/$SHIMMY_TARGET_AI_SKILL_LINK_RECOGNIZED_NAME" ] || return 1
+  SHIMMY_TARGET_AI_SKILL_LINK_RECOGNIZED_TARGET=$shimmy_target_ai_skill_link_recognized_target
+}
+
+shimmy_target_ai_skill_link_remove_recognized() {
+  shimmy_target_ai_skill_link_remove_user_root=$1
+  shimmy_target_ai_skill_link_remove_profiles_root=$2
+  shimmy_target_ai_skill_link_remove_name=$3
+  [ "$SHIMMY_TARGET_EXTERNAL_TRANSACTION_ACTIVE" -eq 1 ] || return 1
+  shimmy_name_component_validate "$shimmy_target_ai_skill_link_remove_name" || return 1
+  shimmy_target_ai_skill_link_remove_destination=$shimmy_target_ai_skill_link_remove_user_root/$shimmy_target_ai_skill_link_remove_name
+  shimmy_target_ai_skill_link_recognized_read "$shimmy_target_ai_skill_link_remove_destination" \
+    "$shimmy_target_ai_skill_link_remove_user_root" "$shimmy_target_ai_skill_link_remove_profiles_root" || return 1
+  shimmy_target_ai_skill_link_remove_prior=$SHIMMY_TARGET_AI_SKILL_LINK_RECOGNIZED_TARGET
+  shimmy_target_external_rollback_register \
+    "$shimmy_target_ai_skill_link_remove_destination" \
+    shimmy_target_ai_skill_link_rollback "$shimmy_target_ai_skill_link_remove_prior" \
+    "$shimmy_target_ai_skill_link_remove_prior" 'restore removed recognized Shimmy link' || return 1
+  rm -f "$shimmy_target_ai_skill_link_remove_destination"
+}
+
 shimmy_target_ai_skill_link_rollback() {
   shimmy_target_ai_skill_link_rollback_destination=$1
   shimmy_target_ai_skill_link_rollback_prior=$2

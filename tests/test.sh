@@ -37,6 +37,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/profile/transaction.sh"
 # shellcheck source=lib/ai-skill/link.sh
 . "$ROOT_DIR/lib/ai-skill/link.sh"
+# shellcheck source=lib/ai-skill/target.sh
+. "$ROOT_DIR/lib/ai-skill/target.sh"
 # shellcheck source=lib/profile/state.sh
 . "$ROOT_DIR/lib/profile/state.sh"
 # shellcheck source=lib/install/manifest.sh
@@ -92,6 +94,8 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$SCRIPT_DIR/commands/target-catalog.sh"
 # shellcheck source=tests/commands/target-shim.sh
 . "$SCRIPT_DIR/commands/target-shim.sh"
+# shellcheck source=tests/commands/target-ai-skill.sh
+. "$SCRIPT_DIR/commands/target-ai-skill.sh"
 # shellcheck source=tests/commands/images.sh
 . "$SCRIPT_DIR/commands/images.sh"
 # shellcheck source=tests/commands/lifecycle.sh

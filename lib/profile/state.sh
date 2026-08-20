@@ -147,6 +147,9 @@ shimmy_target_profile_state_validate() {
   shimmy_target_state_control_source_ref=$SHIMMY_TARGET_AI_SKILL_SOURCE_REF
   shimmy_target_state_control_skills=$SHIMMY_TARGET_AI_SKILL_RECORDS
   [ "$shimmy_target_state_control_source_ref" = "$shimmy_target_state_source_ref" ] || return 1
+  shimmy_target_state_expected_control_skills=$(shimmy_target_ai_skill_control_names_render) || return 1
+  shimmy_target_state_actual_control_skills=$(printf '%s\n' "$shimmy_target_state_control_skills" | sed -n 's/|.*//p')
+  [ "$shimmy_target_state_actual_control_skills" = "$shimmy_target_state_expected_control_skills" ] || return 1
   shimmy_target_ai_skill_bundle_read "$shimmy_target_state_shims_bundle" shims "$shimmy_target_state_profile_name" || return 1
   shimmy_target_state_shim_source_ref=$SHIMMY_TARGET_AI_SKILL_SOURCE_REF
   shimmy_target_state_shim_skills=$SHIMMY_TARGET_AI_SKILL_RECORDS

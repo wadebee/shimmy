@@ -5,7 +5,8 @@ test_lib_target_ai_skill_file_write() {
   target_skill_name=$2
   target_skill_description=$3
   mkdir -p "$(dirname -- "$target_skill_file")"
-  printf '%s\n' '---' "name: $target_skill_name" "description: $target_skill_description" '---' '' "# $target_skill_name" > "$target_skill_file"
+  printf '%s\n' '---' "name: $target_skill_name" "description: $target_skill_description" '---' '' \
+    "$SHIMMY_TARGET_AI_SKILL_MANAGED_HEADER" '' "# $target_skill_name" > "$target_skill_file"
 }
 
 test_lib_target_ai_skill_bundle_fixture_create() {
@@ -15,13 +16,21 @@ test_lib_target_ai_skill_bundle_fixture_create() {
   target_bundle_fingerprint=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   target_bundle_generation=sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   mkdir -p "$target_bundle_root/control/skills" "$target_bundle_root/shims/skills"
-  test_lib_target_ai_skill_file_write "$target_bundle_root/control/skills/shimmy-install/SKILL.md" shimmy-install 'Install fixture.'
+  target_control_records=
+  while IFS= read -r target_control_name; do
+    [ -n "$target_control_name" ] || continue
+    test_lib_target_ai_skill_file_write "$target_bundle_root/control/skills/$target_control_name/SKILL.md" \
+      "$target_control_name" "$target_control_name fixture."
+    target_control_hash=$(shimmy_sha256_fingerprint_file_render "$target_bundle_root/control/skills/$target_control_name/SKILL.md")
+    target_control_records=$(shimmy_append_line_list "$target_control_records" \
+      "$target_control_name|$target_control_hash|control|$target_control_name|$target_bundle_commit")
+  done <<EOF
+$(shimmy_target_ai_skill_control_names_render)
+EOF
   test_lib_target_ai_skill_file_write "$target_bundle_root/shims/skills/shimmy-tool-alpha/SKILL.md" shimmy-tool-alpha 'Alpha fixture.'
   test_lib_target_ai_skill_file_write "$target_bundle_root/shims/skills/shimmy-tool-beta/SKILL.md" shimmy-tool-beta 'Beta fixture.'
-  target_control_hash=$(shimmy_sha256_fingerprint_file_render "$target_bundle_root/control/skills/shimmy-install/SKILL.md")
   target_alpha_hash=$(shimmy_sha256_fingerprint_file_render "$target_bundle_root/shims/skills/shimmy-tool-alpha/SKILL.md")
   target_beta_hash=$(shimmy_sha256_fingerprint_file_render "$target_bundle_root/shims/skills/shimmy-tool-beta/SKILL.md")
-  target_control_records="shimmy-install|$target_control_hash|control|shimmy-install|$target_bundle_commit"
   target_shim_records="shimmy-tool-alpha|$target_alpha_hash|default|alpha|$target_bundle_generation
 shimmy-tool-beta|$target_beta_hash|default|beta|$target_bundle_generation"
   shimmy_target_ai_skill_bundle_render control "$target_bundle_profile" "$target_bundle_commit" "$target_control_records" > "$target_bundle_root/control/bundle.conf"
@@ -37,7 +46,7 @@ test_lib_target_ai_skill_bundle_round_trip() {
   rm "$SCENARIO_DIR/bundles/control/bundle.round-trip"
   shimmy_target_ai_skill_bundle_read "$SCENARIO_DIR/bundles/shims" shims team-one || fail_test 'valid shims bundle rejected'
   assert_equals "$(shimmy_sha256_fingerprint_file_render "$SCENARIO_DIR/bundles/shims/skills/shimmy-tool-alpha/SKILL.md")" \
-    sha256:ae52e93cd56008e821bc4dce820a60c5b6d6de4561cbcbc22e8d20a774047f9c
+    sha256:240a4db8851770e79daaf1724b163cf60a69f59bf5940b7e74b699700461a2d9
   pass 'control and shims bundle fixtures round-trip with fixed SHA-256 skill identity'
 }
 

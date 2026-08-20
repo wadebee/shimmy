@@ -23,8 +23,13 @@ reusable behavior belongs in `../lib/`.
 - `shim-target.sh` is an uninstalled private candidate for version-2
   profile-local shim list/add/remove/set-version/sync/test behavior. It resolves
   only the active disposable target profile and its retained catalog pin,
-  prepares images before mutation, and has no route from the current installed
-  dispatcher.
+  prepares images before mutation, regenerates the shim AI-skill bundle, and
+  reconciles exact active user links in one bounded rollback workflow. It has no
+  route from the current installed dispatcher.
+- `ai-skill-target.sh` is an uninstalled private candidate for active-profile
+  bundle/link list and repair behavior. It classifies malformed and unsupported
+  bundle state, reports exact destructive collisions, and never sweeps the
+  recorded user skills root.
 - `dispatch-tool.sh` validates exact manifest ownership and a fixed regular,
   executable, non-symlink `commands/run-tool.sh` target, then dispatches the
   profile-local logical tool without resolving the catalog checkout.

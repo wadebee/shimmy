@@ -368,12 +368,23 @@ EOF
   shimmy_target_shim_bundle_input_render "$SHIMMY_TARGET_SHIM_PROFILE_NAME" "$SHIMMY_TARGET_SHIM_CATALOG_GENERATION" \
     "$SHIMMY_TARGET_SHIM_CATALOG_FINGERPRINT" "$SHIMMY_TARGET_SHIM_CANDIDATE_RECORDS" > "$SHIMMY_TARGET_SHIM_STAGE_ROOT/config/shim-bundle-input.conf" || return 1
   chmod 0644 "$SHIMMY_TARGET_SHIM_STAGE_ROOT/config/shim-bundle-input.conf"
+  [ -d "$SHIMMY_TARGET_SHIM_STAGE_ROOT/ai-skills" ] && [ ! -L "$SHIMMY_TARGET_SHIM_STAGE_ROOT/ai-skills" ] || return 1
+  if [ -e "$SHIMMY_TARGET_SHIM_STAGE_ROOT/ai-skills/shims" ] || [ -L "$SHIMMY_TARGET_SHIM_STAGE_ROOT/ai-skills/shims" ]; then
+    [ -d "$SHIMMY_TARGET_SHIM_STAGE_ROOT/ai-skills/shims" ] && [ ! -L "$SHIMMY_TARGET_SHIM_STAGE_ROOT/ai-skills/shims" ] || return 1
+    rm -rf "$SHIMMY_TARGET_SHIM_STAGE_ROOT/ai-skills/shims" || return 1
+  fi
+  shimmy_target_ai_skill_shims_bundle_materialize \
+    "$SHIMMY_TARGET_SHIM_STAGE_ROOT/config/shim-bundle-input.conf" \
+    "$SHIMMY_TARGET_SHIM_CATALOG_ROOT" "$SHIMMY_TARGET_SHIM_STAGE_ROOT/ai-skills/shims" || return 1
   shimmy_target_profile_manifest_render "$SHIMMY_TARGET_SHIM_PROFILE_NAME" "$SHIMMY_TARGET_SHIM_SOURCE_URL" \
     "$SHIMMY_TARGET_SHIM_SOURCE_REF" "$SHIMMY_TARGET_SHIM_CATALOG_RECORD" \
     "$SHIMMY_TARGET_SHIM_CANDIDATE_RECORDS" "$SHIMMY_TARGET_SHIM_CANDIDATE_VERSIONS" \
     "$SHIMMY_TARGET_SHIM_STARTUP_SHELL" "$SHIMMY_TARGET_SHIM_STARTUP_FILES" > "$SHIMMY_TARGET_SHIM_STAGE_ROOT/install-manifest.txt" || return 1
   chmod 0644 "$SHIMMY_TARGET_SHIM_STAGE_ROOT/install-manifest.txt"
-  shimmy_target_shim_materialization_validate "$SHIMMY_TARGET_SHIM_STAGE_ROOT" "$SHIMMY_TARGET_SHIM_CATALOG_ROOT"
+  shimmy_target_shim_materialization_validate "$SHIMMY_TARGET_SHIM_STAGE_ROOT" "$SHIMMY_TARGET_SHIM_CATALOG_ROOT" || return 1
+  shimmy_target_profile_state_validate "$SHIMMY_TARGET_SHIM_STAGE_ROOT/install-manifest.txt" \
+    "$SHIMMY_TARGET_CATALOG_REGISTRY_PATH" "$SHIMMY_TARGET_SHIM_CATALOG_ROOT" \
+    "$SHIMMY_TARGET_SHIM_STAGE_ROOT/ai-skills/control" "$SHIMMY_TARGET_SHIM_STAGE_ROOT/ai-skills/shims"
 }
 
 shimmy_target_shim_images_prepare() {
@@ -399,7 +410,7 @@ EOF
 
 shimmy_target_shim_commit_restore() {
   [ -n "$SHIMMY_TARGET_SHIM_BACKUP_ROOT" ] || return 0
-  for shimmy_target_shim_restore_path in bin tools config/shims config/shim-bundle-input.conf install-manifest.txt; do
+  for shimmy_target_shim_restore_path in bin tools config/shims config/shim-bundle-input.conf ai-skills/shims install-manifest.txt; do
     shimmy_target_shim_restore_target=$SHIMMY_TARGET_SHIM_PROFILE_ROOT/$shimmy_target_shim_restore_path
     shimmy_target_shim_restore_backup=$SHIMMY_TARGET_SHIM_BACKUP_ROOT/$shimmy_target_shim_restore_path
     if [ -e "$shimmy_target_shim_restore_target" ] || [ -L "$shimmy_target_shim_restore_target" ]; then
@@ -425,6 +436,10 @@ shimmy_target_shim_authority_revalidate() {
 }
 
 shimmy_target_shim_candidate_commit() {
+  shimmy_target_lock_acquire activation "$SHIMMY_TARGET_CONFIG_ROOT" || {
+    shimmy_target_shim_error_set "$SHIMMY_TARGET_LOCK_ERROR"
+    return 1
+  }
   shimmy_target_lock_acquire profile "$SHIMMY_TARGET_CONFIG_ROOT" "$SHIMMY_TARGET_SHIM_PROFILE_NAME" || {
     shimmy_target_shim_error_set "$SHIMMY_TARGET_LOCK_ERROR"
     return 1
@@ -440,7 +455,7 @@ shimmy_target_shim_candidate_commit() {
   SHIMMY_TARGET_SHIM_BACKUP_ROOT=$SHIMMY_TARGET_SHIM_PROFILE_ROOT/.shim-backup.$$
   [ ! -e "$SHIMMY_TARGET_SHIM_BACKUP_ROOT" ] && [ ! -L "$SHIMMY_TARGET_SHIM_BACKUP_ROOT" ] || return 1
   mkdir -p "$SHIMMY_TARGET_SHIM_BACKUP_ROOT/config"
-  for shimmy_target_shim_commit_path in bin tools config/shims config/shim-bundle-input.conf install-manifest.txt; do
+  for shimmy_target_shim_commit_path in bin tools config/shims config/shim-bundle-input.conf ai-skills/shims install-manifest.txt; do
     shimmy_target_shim_commit_source=$SHIMMY_TARGET_SHIM_PROFILE_ROOT/$shimmy_target_shim_commit_path
     shimmy_target_shim_commit_backup=$SHIMMY_TARGET_SHIM_BACKUP_ROOT/$shimmy_target_shim_commit_path
     if [ -e "$shimmy_target_shim_commit_source" ] || [ -L "$shimmy_target_shim_commit_source" ]; then
@@ -448,7 +463,7 @@ shimmy_target_shim_candidate_commit() {
       mv "$shimmy_target_shim_commit_source" "$shimmy_target_shim_commit_backup" || { shimmy_target_shim_commit_restore; return 1; }
     fi
   done
-  for shimmy_target_shim_commit_path in bin tools config/shims config/shim-bundle-input.conf; do
+  for shimmy_target_shim_commit_path in bin tools config/shims config/shim-bundle-input.conf ai-skills/shims; do
     shimmy_target_shim_commit_source=$SHIMMY_TARGET_SHIM_STAGE_ROOT/$shimmy_target_shim_commit_path
     shimmy_target_shim_commit_target=$SHIMMY_TARGET_SHIM_PROFILE_ROOT/$shimmy_target_shim_commit_path
     mkdir -p "$(dirname -- "$shimmy_target_shim_commit_target")"
@@ -460,11 +475,18 @@ shimmy_target_shim_candidate_commit() {
     return 1
   fi
   mv "$SHIMMY_TARGET_SHIM_STAGE_ROOT/install-manifest.txt" "$SHIMMY_TARGET_SHIM_MANIFEST_PATH" || { shimmy_target_shim_commit_restore; return 1; }
-  if ! shimmy_target_shim_materialization_validate "$SHIMMY_TARGET_SHIM_PROFILE_ROOT" "$SHIMMY_TARGET_SHIM_CATALOG_ROOT"; then
+  if ! shimmy_target_shim_materialization_validate "$SHIMMY_TARGET_SHIM_PROFILE_ROOT" "$SHIMMY_TARGET_SHIM_CATALOG_ROOT" ||
+    ! shimmy_target_profile_state_validate "$SHIMMY_TARGET_SHIM_MANIFEST_PATH" \
+      "$SHIMMY_TARGET_CATALOG_REGISTRY_PATH" "$SHIMMY_TARGET_SHIM_CATALOG_ROOT" \
+      "$SHIMMY_TARGET_SHIM_PROFILE_ROOT/ai-skills/control" "$SHIMMY_TARGET_SHIM_PROFILE_ROOT/ai-skills/shims"; then
     shimmy_target_shim_commit_restore || true
     shimmy_target_shim_error_set 'committed target shim materialization failed validation'
     return 1
   fi
+}
+
+shimmy_target_shim_commit_finalize() {
+  [ -n "$SHIMMY_TARGET_SHIM_BACKUP_ROOT" ] || return 1
   rm -rf "$SHIMMY_TARGET_SHIM_BACKUP_ROOT"
   SHIMMY_TARGET_SHIM_BACKUP_ROOT=
   shimmy_target_locks_release_all || return 1
@@ -477,7 +499,39 @@ shimmy_target_shim_mutation_apply() {
   shimmy_target_shim_prepare_pairs=${3:-}
   shimmy_target_shim_candidate_prepare "$shimmy_target_shim_new_records" "$shimmy_target_shim_new_versions" || return 1
   shimmy_target_shim_images_prepare "$shimmy_target_shim_prepare_pairs" || return 1
-  shimmy_target_shim_candidate_commit
+  shimmy_target_shim_candidate_commit || return 1
+  if ! shimmy_target_ai_skill_context_resolve "$SHIMMY_TARGET_CONFIG_ROOT" ||
+    ! shimmy_target_ai_skill_reconcile_preflight "$SHIMMY_TARGET_AI_SKILL_PROFILE_ROOT" \
+      "$SHIMMY_TARGET_CATALOG_REGISTRY_PATH" "$SHIMMY_TARGET_AI_SKILL_GENERATION_ROOT" ||
+    ! shimmy_target_ai_skill_reconcile_plan_render human; then
+    shimmy_target_shim_commit_restore || true
+    shimmy_target_locks_release_all || true
+    shimmy_target_shim_error_set "${SHIMMY_TARGET_AI_SKILL_ERROR:-unable to plan target AI-skill reconciliation}"
+    return 1
+  fi
+  shimmy_target_external_transaction_begin || {
+    shimmy_target_shim_commit_restore || true
+    shimmy_target_locks_release_all || true
+    return 1
+  }
+  if ! shimmy_target_ai_skill_reconcile_apply; then
+    shimmy_target_shim_reconcile_reason=${SHIMMY_TARGET_AI_SKILL_ERROR:-target AI-skill reconciliation failed}
+    shimmy_target_external_transaction_rollback "$shimmy_target_shim_reconcile_reason" || true
+    shimmy_target_shim_commit_restore || true
+    shimmy_target_locks_release_all || true
+    shimmy_target_shim_error_set "$shimmy_target_shim_reconcile_reason"
+    return 1
+  fi
+  shimmy_target_external_transaction_commit || {
+    shimmy_target_shim_commit_restore || true
+    shimmy_target_locks_release_all || true
+    return 1
+  }
+  if [ -n "$SHIMMY_TARGET_AI_SKILL_UNSUPPORTED_KINDS" ]; then
+    printf 'WARNING: target shim mutation skipped unsupported AI-skill bundles: %s\n' \
+      "$(printf '%s' "$SHIMMY_TARGET_AI_SKILL_UNSUPPORTED_KINDS" | tr '\n' ',')" >&2
+  fi
+  shimmy_target_shim_commit_finalize
 }
 
 shimmy_target_shim_record_without_tool() {
