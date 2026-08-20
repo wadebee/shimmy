@@ -16,7 +16,11 @@ manifest migration, repository AI-skill export compatibility, or an `upstream`
 profile compatibility layer. Existing pre-redesign installations must be
 removed with the revision that created them and bootstrapped again. Retained
 plans remain historical records; where they conflict, this plan is the
-authoritative forward design.
+authoritative forward design. No pre-redesign profile-manifest or
+catalog-registry reader, renderer, version/source-type branch, fixture, or
+version-specific compatibility test remains after the public cutover.
+Transitional implementations may coexist behind the unexposed pre-cutover
+surface only until the atomic cutover succeeds; Chunk 5 removes them.
 
 ## Target layout and terminology
 
@@ -34,7 +38,7 @@ authoritative forward design.
   and AI-skill materialization below the canonical profiles root.
 - **Active profile**: the one profile selected by Shimmy's installation-wide
   active record and reconciled with Podman registry/connection state and the
-  user AI-skill links.
+  user AI-skill links. There is always exactly one profile active per posix shell session.
 - **Sync**: reconcile a resource from its defined authority. `catalog sync` is
   future external-catalog work, `profile sync` adopts current registered
   catalog generations and current control-plane source, and `shim sync` uses
@@ -46,6 +50,36 @@ authoritative forward design.
   skill. Public Shimmy commands, functions, variables, manifests, tests, and
   guidance use `ai-skill`/`ai_skill` terminology where the subject is the
   Shimmy lifecycle. Canonical files retain the ecosystem filename `SKILL.md`.
+
+### Future-state lifecycle relationship (reference)
+
+```mermaid
+flowchart TD
+  CP[Control plane] -->|registers, publishes, verifies| C[Catalog]
+  CP -->|creates, activates, syncs, deletes| P[Profile]
+  CP -->|materializes management guidance| ACS[Control AI skills]
+
+  C -->|contains available definitions| T[Tool]
+  C -->|publishes canonical tool guidance| ATS[Tool AI skill]
+  P -->|pins immutable generations| C
+  T -->|shim add installs selected versions| S[Shim]
+  P -->|owns profile-local wrappers and versions| S
+  S -->|selects and qualifies installed-tool guidance| SAS[Shim AI skills]
+  ATS --> SAS
+
+  ACS -->|control bundle| B[Profile AI-skill materialization]
+  SAS -->|shims bundle| B
+  P -->|owns both bundles| B
+  P -->|when active, reconciles engine, registry, and links| A[Active profile]
+  A -->|direct symlinks| U["$HOME/.agents/skills"]
+```
+
+This diagram is reference information for the future state. A catalog makes
+tools available; it does not install them. A profile pins catalog generations,
+and `shim add` turns one selected catalog tool into a profile-local shim. Only
+installed shims contribute detailed tool AI skills to that profile. Control AI
+skills exist in every profile. Activating a profile projects that profile's
+control and shim bundles into the user skill directory.
 
 ### Installed state
 
@@ -125,7 +159,7 @@ shimmy
 │   ├── list
 │   ├── add
 │   ├── remove
-│   ├── set-default
+│   ├── set-version
 │   ├── sync
 │   └── test
 └── ai-skill
@@ -143,7 +177,7 @@ shimmy admin uninstall [--stop-running]
 shimmy profile list [--format human|manifest]
 shimmy profile status [--format human|manifest]
 shimmy profile create <name> [--default-catalog <name>]
-  [--catalog <name> ...] [--restart] [--stop-running] [--dry-run]
+  [--include-catalog <name> ...] [--restart] [--stop-running] [--dry-run]
 shimmy profile activate <name> [--default-catalog <member>]
   [--restart] [--stop-running] [--dry-run]
 shimmy profile sync
@@ -166,7 +200,7 @@ shimmy catalog rollback
 shimmy shim list [--format human|manifest]
 shimmy shim add <[catalog/]tool[@version]>
 shimmy shim remove <[catalog/]tool[@version]>
-shimmy shim set-default <[catalog/]tool@version>
+shimmy shim set-version <[catalog/]tool@version>
 shimmy shim sync [<[catalog/]tool[@version]> ...]
 shimmy shim test [<[catalog/]tool[@version]> ...]
 
@@ -201,12 +235,12 @@ nonzero. Do not add placeholder state or speculative remote-pointer schemas.
    an unsafe target, a missing `default` profile, or disagreement that cannot
    be classified against engine state is invalid installation state, not a
    supported "no active profile" mode.
-3. Profile manifest schema 2 is the sole accepted target profile format:
+3. Profile manifest schema 1 is the sole accepted target profile format:
 
    ```text
-   shimmy_install_manifest_version=2
+   shimmy_install_manifest_version=1
    shimmy_install_layout=profile-materialized-root
-   shimmy_profile_manifest_version=2
+   shimmy_profile_manifest_version=1
    shimmy_profile_name=<profile>
    shimmy_source_url=<control-plane-git-url>
    shimmy_source_ref=<materialized-commit>
@@ -223,23 +257,47 @@ nonzero. Do not add placeholder state or speculative remote-pointer schemas.
    `shim`, exactly one `default_catalog` membership must exist, and all
    generation/provenance fields must match the retained immutable generation.
    Record components containing `|` are invalid; URL and absolute-path values
-   are scalar lines and are not split as records.
+   are scalar lines and are not split as records. This value deliberately
+   restarts the redesigned format at 1 even though the pre-redesign format also
+   used 1. It does not denote compatibility: readers validate this complete
+   record contract and its cross-record invariants, never the numeric version
+   alone. Pre-redesign manifests fail validation with remove-and-bootstrap
+   guidance; there is no migration or legacy version dispatch.
 4. `tracking` launcher mode means the unversioned launcher follows the one
    `shim_version=...|default` slot when that slot advances. `pinned` launcher
-   mode means `shim set-default` selected an exact installed version. A shim
+   mode means `shim set-version` selected an exact installed version. A shim
    has at most one catalog-default tracking slot and any number of exact slots.
-5. Catalog registry schema 2 supports only localized immutable generations in
-   this plan. It retains exact current generation, previous generation, source
-   commit, and content fingerprint metadata. The checkout source type,
-   `upstream` catalog/profile pairing, and `catalog rebind` are removed.
+5. Catalog registry schema 1 is the sole accepted target registry format and
+   supports only localized immutable generations:
+
+   ```text
+   catalog_registry_schema=1
+   catalog_name=<catalog>
+   catalog_generation_current=<generation>
+   catalog_generation_previous=<generation-or-empty>
+   catalog_source_commit=<commit>
+   catalog_content_fingerprint=<fingerprint>
+   ```
+
+   Records are in this exact order, scalar, and duplicate-free. The current
+   pre-redesign registry is unversioned and supports `checkout|generation`
+   source-type shapes; neither shape is accepted as compatibility input. The
+   checkout source type, its `catalog_source_type` and `catalog_source_path`
+   records, the `upstream` catalog/profile pairing, and `catalog rebind` are
+   removed. The catalog payload identity in `catalog.conf` remains a separate
+   `catalog_schema=1` format and is not stale registry compatibility code.
 6. State-changing operations use same-filesystem staging, canonical-path and
    non-symlink checks, locks, revalidation under lock, candidate validation,
    and commit-last metadata. A selected unit either exposes the complete new
    state or retains the prior valid state. Engine, startup, and user-link
    operations retain bounded rollback reporting when external state prevents a
    complete restoration.
-7. Temporary implementation chunks may add unexposed schema-2 libraries beside
-   the current implementation. The public cutover must be one review unit:
+7. Temporary implementation chunks may add unexposed redesigned profile and
+   catalog-registry libraries beside the current implementation. Transitional
+   pre-redesign readers/renderers may remain only to keep the old dispatcher
+   operational through Chunks 1–4; mark them as cutover cleanup and do not make
+   the target validators route to them. The public cutover and transitional
+   cleanup must be one review unit:
    profile activation, profile/shim sync, AI-skill bundle materialization, user
    links, launcher dispatch, and their manifest producers switch together.
 
@@ -273,7 +331,7 @@ nonzero. Do not add placeholder state or speculative remote-pointer schemas.
 5. Without catalog options, creation adds the registered catalog literally
    named `default` and designates it as the profile default. With options,
    `--default-catalog` adds and designates that catalog and repeatable
-   `--catalog` adds other distinct memberships. Every catalog must already be
+   `--include-catalog` adds other distinct memberships. Every catalog must already be
    registered with a valid current immutable generation. Creation never
    registers, synchronizes, or remotely verifies a catalog.
 6. Each membership pins its exact generation, source commit, and fingerprint.
@@ -287,18 +345,15 @@ nonzero. Do not add placeholder state or speculative remote-pointer schemas.
    removed; membership add/remove commands remain outside this plan.
 8. Activation validates the named target's profile structure, pinned catalogs,
    shell asset, redirects, engine identity, and both AI-skill bundles before
-   mutation. An unsupported AI-skill bundle schema is the one non-blocking
-   compatibility exception: warn with `profile sync` remediation, skip that
-   bundle independently, remove prior-profile Shimmy links, link supported
-   target bundles, and allow activation. A malformed supported-schema bundle
-   is damaged profile state and blocks activation.
+   mutation. A malformed supported-schema bundle or invalidation of target's preflight
+   represents damaged profile state and blocks activation with output describing problem and remediation steps.
 9. Activation retains current workload acknowledgment, `--restart`,
    `--stop-running`, `--dry-run`, Linux registry-link, Darwin VM projection,
    default-connection commit-last, and shell-session-switch guarantees. The
    active record and user-link set are committed only after engine/registry
    validation. Direct execution prints the exact `shell-init.sh` source command;
    a sourced Shimmy function switches the caller only after success.
-10. `default` cannot be deleted. The active profile cannot be deleted; activate
+10. `default` profile cannot be deleted. The active profile cannot be deleted; activate
     another profile first. Deleting an inactive profile reuses exact startup,
     projection, machine-restoration, profile-lock, and ownership cleanup. It
     never changes current user AI-skill links. `--stop-running` is required only
@@ -387,7 +442,7 @@ nonzero. Do not add placeholder state or speculative remote-pointer schemas.
 ### Shims
 
 1. Shim reads and mutations apply only to the invoking profile. `shim add`,
-   `shim remove`, `shim set-default`, and `shim sync` require that profile to be
+   `shim remove`, `shim set-version`, and `shim sync` require that profile to be
    active so image work and user AI-skill reconciliation share one authority.
    `shim list` and `shim test` remain read-only; test still requires valid
    runtime affinity when it executes a wrapper.
@@ -399,10 +454,10 @@ nonzero. Do not add placeholder state or speculative remote-pointer schemas.
    a non-default membership. Automation must provide `@version`.
 3. The first installed version becomes the unversioned launcher's default.
    Later additions never change it. A catalog-default tracking launcher follows
-   its tracking slot during sync; `shim set-default tool@version` changes it to
+   its tracking slot during sync; `shim set-version tool@version` changes it to
    `pinned` and requires that exact origin/version already be installed.
-   `shim set-default tool` is invalid.
-4. Adding a same-named tool from another membership rejects until the existing
+   `shim set-version tool` without version is invalid and should report available versions to user for clarification.
+4. Adding a same-named tool from another membership rejects with remediation warning and blocks until the existing
    shim is removed. `shim remove tool` removes all versions, launcher/config,
    manifest entries, and the qualified AI skill. `shim remove tool@version`
    removes only that exact installed version and rejects the selected launcher
@@ -598,17 +653,21 @@ nonzero. Do not add placeholder state or speculative remote-pointer schemas.
 - Root `bootstrap.sh` currently accepts only `default|upstream`, always appends
   `jq` and `rg`, delegates both bootstrap and installed shim addition to
   `commands/install.sh`, and treats engine activation as optional.
-- `lib/install/launcher-template.sh` validates manifest version 1 and exact
-  profile/catalog name equality, dispatches the current top-level
+- `lib/install/launcher-template.sh` validates the pre-redesign manifest version
+  1 and exact profile/catalog name equality, dispatches the current top-level
   `catalog|images|install|uninstall|netinfo|profile|skills|status|test|update`
-  surface, and special-cases profile help before manifest validation.
+  surface, and special-cases profile help before manifest validation. Because
+  the redesigned manifest also starts at version 1, the cutover must replace
+  this shape-specific reader rather than route on the version value.
 - `lib/profile/profile.sh`, registry projection code, install/uninstall, update,
   tests, and generated fixed VM scripts encode the `default|upstream` allowlist
   and current one-profile/one-catalog manifest model.
 - `lib/catalog/catalog.sh` already provides strict catalog/generation metadata,
   fingerprint, path, tool, and canonical `SKILL.md` validation. The registry
-  currently supports both immutable `generation` and live `checkout` source
-  types; publication retains current/previous generations.
+  is currently unversioned and supports both immutable `generation` and live
+  `checkout` source types; publication retains current/previous generations.
+  The separate catalog payload already declares `catalog_schema=1` and remains
+  part of the target catalog-generation contract.
 - `commands/images.sh` and `lib/images/images.sh` already provide the Skopeo
   index, platform, access, digest, and drift checks to move under `catalog
   verify`.
@@ -650,7 +709,7 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Add unexposed schema-2 state and transaction primitives.
+- [ ] Chunk 1 — Add unexposed redesigned state and transaction primitives.
 - [ ] Chunk 2 — Implement the immutable catalog surface and publication checks.
 - [ ] Chunk 3 — Build profile/admin lifecycle and status internals behind the current dispatcher.
 - [ ] Chunk 4 — Build shim and AI-skill bundle/link internals behind the current dispatcher.
@@ -673,7 +732,7 @@ For every chunk:
 Repository paths in this plan are relative to `<repo>` so it remains portable
 across workstations and sessions.
 
-## Chunk 1 — Schema-2 state and transaction primitives
+## Chunk 1 — Redesigned state and transaction primitives
 
 ### Goal
 
@@ -695,9 +754,14 @@ launcher dispatch or installed behavior.
 
 ### Implementation requirements
 
-- Add the exact schema/record validators from this plan, including cross-record
-  membership, origin, tracking-slot, launcher-default, provenance, path, and
-  ordering checks. Keep final schema-2 code independent of v1 assumptions.
+- Add the exact target schema-1 record validators from this plan, including
+  cross-record membership, origin, tracking-slot, launcher-default, provenance,
+  path, and ordering checks. Validate one complete target shape; do not add a
+  version router or reuse a pre-redesign shape parser merely because both
+  formats use version 1.
+- Add the exact catalog-registry schema-1 validator and renderer, including
+  ordered scalar identity, current/previous generation, commit, and fingerprint
+  validation. Do not retain source-type dispatch in the target implementation.
 - Add the canonical active-record resolver and atomic renderer without making
   any current public command consume it yet.
 - Add bundle validators/renderers for independent control/shims schemas and a
@@ -705,14 +769,19 @@ launcher dispatch or installed behavior.
 - Extract reusable same-filesystem stage, lock, revalidate, commit, and bounded
   rollback operations instead of copying update/install logic. Preserve the
   existing exact projection/startup ownership boundaries.
-- Keep the current public tests green during preparation. Mark temporary v1
-  support clearly as a cutover-only seam scheduled for deletion in Chunk 5;
-  do not turn it into compatibility behavior.
+- Keep the current public tests green during preparation. Mark the temporary
+  pre-redesign profile-manifest and catalog-registry implementations clearly as
+  cutover-only seams scheduled for complete deletion in Chunk 5; do not turn
+  them into compatibility behavior.
 
 ### Verification checklist
 
-- [ ] Schema-2 round-trip fixtures prove deterministic manifest, active-record,
-  catalog-pin, shim-ledger, and two-bundle rendering/validation.
+- [ ] Target profile-manifest schema-1 round-trip fixtures prove deterministic
+  manifest, active-record, catalog-pin, shim-ledger, and two-bundle
+  rendering/validation.
+- [ ] Target catalog-registry schema-1 round-trip fixtures prove deterministic
+  current/previous generation and provenance rendering/validation without
+  source-type routing.
 - [ ] Positive fixtures prove arbitrary safe profile names, multiple catalog
   pins with one default, duplicate tool names across catalogs, one installed
   origin, tracking/exact coexistence, and qualified materialized AI-skill names.
@@ -739,8 +808,9 @@ launcher dispatch or installed behavior.
 ### Human review gate
 
 Confirm the owned formats, validators, transaction ordering, direct-link
-classification, and explicitly temporary unexposed v1 seam. Acceptance
-authorizes catalog implementation, not public profile/shim/AI-skill cutover.
+classification, and explicitly temporary pre-redesign profile/registry seams.
+Acceptance authorizes catalog implementation, not public
+profile/shim/AI-skill cutover.
 
 ## Chunk 2 — Immutable catalog surface and publication constraints
 
@@ -766,6 +836,10 @@ tool AI-skill publication constraint.
 - Implement list/status/tools/verify output and exit contracts exactly as
   recorded, including literal-default selection and exact retained-generation
   inspection.
+- Make every target catalog registry producer and consumer use the exact schema
+  1 registry contract. Keep any old unversioned registry implementation isolated
+  behind the pre-cutover dispatcher and marked for Chunk 5 deletion; do not add
+  fallback reads, migration, or dual-format writes.
 - Move Skopeo verification orchestration under catalog without changing strict
   redirects, authentication redaction, platform/digest checks, drift severity,
   or public-only skip visibility.
@@ -781,6 +855,8 @@ tool AI-skill publication constraint.
 
 - [ ] Catalog list reports valid and invalid registered entries as rows and
   reserves nonzero for enumeration/orchestration failure.
+- [ ] Registry schema-1 creation, publication advance, and rollback round-trip
+  the exact ordered format and retain valid current/previous generation state.
 - [ ] Status and tools inspect local default/current and explicit retained
   generations without network or profile mutation; output is deterministic.
 - [ ] Verify covers complete default selection, repeated tool narrowing,
@@ -805,16 +881,18 @@ tool AI-skill publication constraint.
 
 ### Human review gate
 
-Confirm immutable default catalog ownership, local versus remote read
-boundaries, exact output schemas, static AI-skill alignment, and image
-verification parity. Acceptance authorizes internal profile lifecycle work.
+Confirm immutable default catalog ownership, registry schema-1 boundaries,
+local versus remote reads, exact output schemas, static AI-skill alignment, and
+image verification parity. Acceptance authorizes internal profile lifecycle
+work.
 
 ## Chunk 3 — Profile and administration internals
 
 ### Goal
 
-Build and directly test the complete schema-2 profile/admin workflows behind
-the current public dispatcher, including bootstrap/create plans, activation,
+Build and directly test the complete redesigned profile-manifest schema-1
+profile/admin workflows behind the current public dispatcher, including
+bootstrap/create plans, activation,
 sync orchestration hooks, status, startup repair, deletion, redirects, network,
 and global uninstall.
 
@@ -910,7 +988,7 @@ to make profile activation and both sync commands change together.
 
 - Implement exact catalog-qualified parsing, interactive/default versus exact
   add intent, single-origin ownership, installed version/default records,
-  remove/set-default, pinned-generation sync, and smoke selection.
+  remove/set-version, pinned-generation sync, and smoke selection.
 - Make pull/build mandatory for add/sync candidates and validate image readiness
   before any manifest, wrapper, bundle, or link commit.
 - Materialize qualified tool skills from the pinned catalog and control skills
@@ -992,10 +1070,20 @@ repo-target surfaces in the same unit.
 
 ### Implementation requirements
 
-- Change every public producer and consumer to schema 2; remove temporary v1,
-  upstream profile/catalog checkout, rebind, optional bootstrap activation,
-  old dispatcher, copied/exported skills, and split update/image commands
-  together. Do not retain hidden forwarding aliases.
+- Change every public profile-manifest producer and consumer to the exact
+  redesigned schema 1 shape. Remove the pre-redesign manifest readers,
+  renderers, version branches, fixtures, and version-specific compatibility
+  tests together with the upstream profile/catalog checkout, rebind, optional
+  bootstrap activation, old dispatcher, copied/exported skills, and split
+  update/image commands. Do not retain hidden forwarding aliases. Retain only
+  schema-integrity tests that exercise the redesigned format's durable
+  validation contract rather than a prior version's compatibility behavior.
+- Change every public catalog-registry producer and consumer to the exact
+  redesigned schema 1 shape. Remove the unversioned checkout/generation
+  readers, renderers, source-type dispatch, rebind paths, fixtures, and
+  compatibility-only tests after target publication/rollback succeeds. Retain
+  the separate catalog-payload `catalog_schema=1` validator and its durable
+  payload-integrity coverage.
 - Make a successful bootstrap commit default profile, active record, catalog
   pin, baseline shims/images, bundles, user links, engine/registry state, and
   startup state as one lifecycle result.
@@ -1022,7 +1110,7 @@ repo-target surfaces in the same unit.
   one default catalog pin, jq/rg shims, both bundles, direct user links, valid
   engine/registry state, and optional exact startup ledger; a failed activation
   leaves no installed state.
-- [ ] End-to-end create → activate → shim add/set-default/sync/remove → profile
+- [ ] End-to-end create → activate → shim add/set-version/sync/remove → profile
   sync → startup repair → activate sibling → delete inactive demonstrates the
   recorded ownership and atomicity contracts.
 - [ ] Admin status/network/uninstall, catalog publish/rollback/verify, strict
@@ -1035,6 +1123,16 @@ repo-target surfaces in the same unit.
   initially installed `shimmy-install` copy successfully bootstraps, then its
   exact user path is a direct active-profile symlink.
 - [ ] Syntax-check all runnable shell sources and rendered installed assets.
+- [ ] Inventory searches and test-group review confirm no pre-redesign
+  profile-manifest parser, renderer, version branch, fixture, or
+  compatibility-only test remains. Redesigned round-trip and manifest-integrity
+  coverage proves that readers accept only the complete target record contract
+  without adding an old-manifest rejection fixture.
+- [ ] Inventory searches and test-group review confirm no unversioned catalog
+  registry parser/renderer, checkout source-type branch, rebind path, fixture,
+  or compatibility-only test remains. Registry schema-1 round-trip and
+  transaction coverage proves the target contract without adding an old-format
+  rejection fixture.
 - [ ] Run all new resource groups with bounded concurrency, then the complete
   suite with the default three workers:
 
@@ -1130,6 +1228,20 @@ explicitly deferred native acceptance. Acceptance completes the redesign plan.
   and AI links are coupled. Mitigation: build/test unexposed primitives in
   Chunks 1–4, then switch every public producer/consumer in one Chunk 5 review
   unit; do not publish intermediate chunks as a release.
+- **Reused profile schema number:** Both the pre-redesign and redesigned
+  profile manifests identify themselves as version 1, so the number cannot
+  distinguish their incompatible shapes. Mitigation: accept only the complete
+  redesigned record set and cross-record invariants, delete every legacy
+  reader/renderer/test fixture at cutover, and give invalid old installations
+  remove-and-bootstrap guidance. This deliberately gives up precise
+  version-based diagnostics for old manifests.
+- **Catalog schema-name ambiguity:** The future state uses schema 1 for both
+  `catalogs/<name>/registry.conf` and the distinct catalog payload
+  `catalog.conf`; the current registry itself is unversioned. Mitigation: use
+  distinct identity keys (`catalog_registry_schema` versus `catalog_schema`),
+  validate each file against its own exact contract, delete unversioned
+  registry/source-type paths after cutover, and retain payload schema-1 code and
+  integrity tests.
 - **External engine rollback:** Podman machine/connection and registry state can
   fail outside filesystem transactions. Mitigation: retain current workload
   guards, exact projection records, locks, commit-last connection/active record,
@@ -1173,8 +1285,13 @@ explicitly deferred native acceptance. Acceptance completes the redesign plan.
 - The current implementation's two-name allowlists span more than command help:
   manifest identity, catalog registry source types, VM scripts, registry link
   parsing, test fixtures, bootstrap, updater, uninstall, and canonical AI
-  guidance all encode them. The redesign needs an owned-format epoch and one
-  public cutover.
+  guidance all encode them. The redesign needs one public cutover. Because the
+  new profile format restarts at version 1, its full record shape—not a numeric
+  epoch—must enforce the hard boundary.
+- The current catalog registry has no schema record; schema 1 is a clean target
+  baseline rather than a reused registry number. The existing
+  `catalog_schema=1` belongs to catalog payloads, so cleanup must distinguish
+  obsolete registry source-type code from retained payload validation.
 - The accepted direct-link model does not need stable dispatcher skills or
   runtime installed-state checks. Direct links can follow profile activation;
   static catalog publication checks and transactional profile materialization
@@ -1194,6 +1311,14 @@ explicitly deferred native acceptance. Acceptance completes the redesign plan.
 This plan is awaiting human review. Before implementing Chunk 1, read the
 repository instructions and contexts, inspect the current worktree without
 altering the pre-existing `plans/default-command-help.md`, read this entire
-plan, and confirm
-Chunk 1 alone is explicitly accepted. Do not begin a later chunk without its
-preceding human review gate.
+plan, and confirm Chunk 1 alone is explicitly accepted. The target profile
+manifest is the redesigned schema 1 record contract; do not add migration,
+numeric-version routing, or any retained pre-redesign manifest code or tests at
+the public cutover. The target catalog registry is the exact schema 1 localized
+generation contract; transitional unversioned/source-type code may support the
+old dispatcher only through Chunks 1–4 and must be removed in Chunk 5. Preserve
+the separate catalog-payload schema 1 validator. Keep catalogs
+installation-wide, profiles independently materialized and generation-pinned,
+shims profile-local, and exposed AI skills derived only from the active
+profile's control and installed-shim bundles. Do not begin a later chunk
+without its preceding human review gate.
