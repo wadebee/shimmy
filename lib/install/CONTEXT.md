@@ -41,6 +41,9 @@ Podman or set connection variables.
   creates or reuses immutable generations, commits schema-1 registry updates
   under the target catalog lock, swaps rollback pointers, and never deletes a
   retained generation.
+- `profile-target.sh` privately renders the exact catalog-default jq, rg, and
+  Skopeo tuple set that later target bootstrap and create lifecycles consume;
+  it does not change the current public jq/rg bootstrap baseline.
 - `profile-assets.sh` stages the profile-local control plane, launcher,
   dispatchers, explicit manifest-tuple smoke metadata, and only
   manifest-selected tool metadata and concrete version assets plus the

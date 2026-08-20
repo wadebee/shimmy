@@ -40,7 +40,8 @@ without starting tool containers. They are sourced by `../test.sh` and use
 - `target-catalog.sh` validates canonical skill alignment and fingerprint
   inputs, then exercises private default-catalog creation, local inspection,
   clean-main publication, repeat publication, rollback, invalid-current
-  recovery, immutable retention, and publication authority failures.
+  recovery, immutable retention, publication authority failures, and the exact
+  jq/rg/Skopeo pristine-profile baseline candidate.
 - `runtime.sh` validates the executable root `bootstrap.sh` and minimal source
   checkout contract, shared Podman OS/architecture resolver, required
   platforms, fail-closed behavior, preview helpers, and installed Darwin

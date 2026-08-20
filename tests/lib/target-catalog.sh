@@ -87,6 +87,22 @@ test_lib_target_catalog_lifecycle() {
   pass 'target catalog create, publish, repeat publish, retained inspection, and rollback preserve generations'
 }
 
+test_lib_target_catalog_pristine_baseline() {
+  setup_scenario
+  target_catalog_checkout=$SCENARIO_DIR/checkout
+  target_catalog_config=$SCENARIO_DIR/config/shimmy
+  test_target_catalog_fixture_create "$target_catalog_checkout" "$target_catalog_config"
+  target_catalog_generation=$(sed -n '3s/^catalog_generation_current=//p' "$target_catalog_config/catalogs/default/registry.conf")
+  target_catalog_generation_root=$target_catalog_config/catalogs/default/generations/$target_catalog_generation
+
+  target_catalog_baseline=$(shimmy_target_profile_baseline_render "$target_catalog_generation_root") ||
+    fail_test 'private pristine-profile baseline could not be rendered'
+  assert_equals "$target_catalog_baseline" 'jq|1.8
+rg|15.1
+skopeo|1.22'
+  pass 'private pristine bootstrap and create candidates select catalog-default jq, rg, and Skopeo'
+}
+
 test_lib_target_catalog_invalid_current_recovery() {
   setup_scenario
   target_catalog_checkout=$SCENARIO_DIR/checkout
@@ -174,6 +190,7 @@ test_lib_target_catalog_publication_rejections() {
 test_lib_target_catalog_run() {
   test_lib_target_catalog_static_validation
   test_lib_target_catalog_lifecycle
+  test_lib_target_catalog_pristine_baseline
   test_lib_target_catalog_invalid_current_recovery
   test_lib_target_catalog_publication_rejections
 }

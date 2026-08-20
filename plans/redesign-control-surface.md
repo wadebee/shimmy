@@ -540,11 +540,12 @@ None.
 - [x] Chunk 1 — Add target formats, codecs, and pure validators. The reconciled
   implementation uses `shim=<tool>|<tracking|pinned>` and exactly one
   authoritative default version slot per shim.
-- [~] Chunk 2 — Shared lock, transaction, and ownership primitives are
-  implemented and verified; human acceptance is pending.
-- [~] Chunk 3 — Private target default-catalog core is implemented and
-  verified; human acceptance is pending.
-- [ ] Chunk 4 — Move image verification behind private catalog verify.
+- [x] Chunk 2 — Shared lock, transaction, and ownership primitives were human
+  verified 2026-08-20 16:50:26 EDT.
+- [x] Chunk 3 — Private target default-catalog core was human verified
+  2026-08-20 16:50:26 EDT.
+- [~] Chunk 4 — Private catalog image verification and the jq/rg/Skopeo
+  baseline candidate are implemented and verified; human acceptance is pending.
 - [ ] Chunk 5 — Implement private profile-local shim lifecycle.
 - [ ] Chunk 6 — Implement AI bundles and narrowly destructive links.
 - [ ] Chunk 7 — Generalize profile identity, activation, and shell selection.
@@ -832,14 +833,40 @@ public baseline yet.
 
 ### Verification checklist
 
-- [ ] OCI/Docker, malformed, platform, auth, digest, cache, warning, and strict
+- [x] OCI/Docker, malformed, platform, auth, digest, cache, warning, and strict
   drift fixtures pass under private catalog verify.
-- [ ] Current-profile registry projection and read-only Skopeo mount remain exact.
-- [ ] Missing jq/Skopeo remediation names an exact-version shim add and uses no
+- [x] Current-profile registry projection and read-only Skopeo mount remain exact.
+- [x] Missing jq/Skopeo remediation names an exact-version shim add and uses no
   hidden fallback.
-- [ ] Private pristine profile candidates contain jq, rg, and Skopeo.
-- [ ] Target catalog/image groups and complete current public suite pass; record
+- [x] Private pristine profile candidates contain jq, rg, and Skopeo.
+- [x] Target catalog/image groups and complete current public suite pass; record
   exact counts.
+
+### Chunk 4 evidence
+
+- The uninstalled `catalog-target.sh verify` route validates the target catalog,
+  active record, version-2 profile manifest, retained profile pin, and current
+  immutable generation before selecting remote image records. No current
+  dispatcher, bootstrap, or installed public command routes to it.
+- Complete current-catalog selection and repeatable `--tool` narrowing preserve
+  OCI/Docker index, required-platform, authenticated/public-only, digest,
+  inspection-cache, warning, and strict upstream-drift behavior. Manifest
+  results retain encoded `image_verify=...` records and redact the explicit
+  Skopeo auth-secret value.
+- jq and Skopeo resolve only from exact default-version records and regular,
+  executable, non-symlink runtimes in the active target profile materialization.
+  Missing runtime tests retain a valid catalog runtime and still fail with
+  exact `shimmy shim add <tool>@<version>` remediation before remote inspection.
+- The private pristine-profile baseline renderer produces exactly `jq|1.8`,
+  `rg|15.1`, and `skopeo|1.22` from catalog defaults. The current public jq/rg
+  bootstrap baseline is unchanged.
+- `./tests/test.sh --group lib-target-catalog --group commands-target-catalog
+  --group commands-images --group lib-registries --group tools-skopeo --jobs 3`
+  passes all 20 focused tests. The complete default parallel suite passes all
+  198 tests with approved live Podman access for its existing non-mutating
+  installed smoke group. Repository shell syntax checks and `git diff --check`
+  pass. After the final manifest-authority tightening, the four
+  `commands-target-catalog` tests pass again in isolation.
 
 ### Human review gate
 
@@ -1355,10 +1382,10 @@ completes this redesign, not external catalogs or release channels.
 ## Session bootstrap
 
 Chunk 1 was accepted by the user's 2026-08-20 request to implement Chunk 2.
-Chunk 2 was accepted by the user's 2026-08-20 request to implement Chunk 3.
-Chunk 3 is implemented and verified, and awaits its human review gate. Do not
-start Chunk 4 without explicit acceptance. The implemented version-2 manifest
-uses `shim=<tool>|<tracking|pinned>`, exactly one authoritative
+Chunks 2 and 3 were explicitly human verified by the user's 2026-08-20 request
+at 16:50:26 EDT. Chunk 4 is implemented and verified, and awaits its human
+review gate. Do not start Chunk 5 without explicit acceptance. The implemented
+version-2 manifest uses `shim=<tool>|<tracking|pinned>`, exactly one authoritative
 `shim_version=<tool>|<version>|default` record, and zero or more non-default
 pinned `exact` records per shim. Resolve concrete runtimes directly from the
 `<tool>|<version>` pair; add no implementation-name field or `implementations/`

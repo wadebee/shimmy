@@ -12,6 +12,10 @@ SHIMMY_CONTROL_ROOT=$ROOT_DIR
 . "$ROOT_DIR/lib/catalog/catalog.sh"
 . "$ROOT_DIR/lib/catalog/state.sh"
 . "$ROOT_DIR/lib/catalog/target.sh"
+. "$ROOT_DIR/lib/shim/state.sh"
+. "$ROOT_DIR/lib/profile/state.sh"
+. "$ROOT_DIR/lib/images/images.sh"
+. "$ROOT_DIR/lib/images/target.sh"
 . "$ROOT_DIR/lib/install/transaction.sh"
 . "$ROOT_DIR/lib/install/catalog-target.sh"
 
@@ -21,6 +25,7 @@ fail() {
 }
 
 cleanup() {
+  shimmy_target_images_cache_cleanup 2>/dev/null || true
   shimmy_target_filesystem_transaction_cleanup 2>/dev/null || true
   shimmy_target_catalog_lifecycle_cleanup 2>/dev/null || true
   shimmy_target_locks_release_all 2>/dev/null || true
@@ -34,6 +39,8 @@ Private target default-catalog candidate.
 Usage:
   catalog-target.sh status [--format human|manifest]
   catalog-target.sh tools [--generation <sha256-generation>] [--format human|manifest]
+  catalog-target.sh verify [--tool <tool[@version]> ...] [--public-only]
+                           [--require-current-upstream] [--format human|manifest]
   catalog-target.sh publish
   catalog-target.sh rollback
 
@@ -48,7 +55,7 @@ target_config_root=${SHIMMY_TARGET_CONFIG_ROOT:-}
 action=${1:-help}
 case "$action" in
   help|-h|--help) usage; exit 0 ;;
-  status|tools|publish|rollback) shift ;;
+  status|tools|verify|publish|rollback) shift ;;
   *) fail "unknown private target catalog command: $action" ;;
 esac
 
@@ -76,6 +83,32 @@ case "$action" in
       esac
     done
     shimmy_target_catalog_tools_render "$target_config_root" "$generation" "$output_format" || fail "$SHIMMY_TARGET_CATALOG_ERROR"
+    ;;
+  verify)
+    output_format=human
+    public_only=0
+    require_current_upstream=0
+    requested_tools=
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --tool)
+          [ "$#" -ge 2 ] || fail 'missing value for --tool'
+          requested_tools=$(shimmy_append_line_list "$requested_tools" "$2")
+          shift 2
+          ;;
+        --public-only) public_only=1; shift ;;
+        --require-current-upstream) require_current_upstream=1; shift ;;
+        --format) [ "$#" -ge 2 ] || fail 'missing value for --format'; output_format=$2; shift 2 ;;
+        -h|--help) usage; exit 0 ;;
+        *) fail "unknown argument: $1" ;;
+      esac
+    done
+    case "$output_format" in human|manifest) ;; *) fail "unsupported catalog verify format: $output_format" ;; esac
+    if ! shimmy_target_images_verify_run "$target_config_root" "$requested_tools" \
+      "$public_only" "$require_current_upstream" "$output_format"; then
+      [ -z "$SHIMMY_TARGET_IMAGES_ERROR" ] || fail "$SHIMMY_TARGET_IMAGES_ERROR"
+      exit 1
+    fi
     ;;
   publish)
     [ "$#" -eq 0 ] || fail "unknown argument: $1"

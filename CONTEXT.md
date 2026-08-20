@@ -68,6 +68,9 @@ runtime directly. Canonical skills remain catalog-owned.
 - Skopeo alone mounts a valid current invoking-profile registry policy
   read-only; no activation omits it, invalid state fails closed, and image
   verification inherits the mount without rewriting logical references.
+- The uninstalled target catalog candidate verifies current catalog images
+  only through jq and Skopeo runtimes from the active target profile's
+  materialization; the current public image route remains unchanged.
 - Version-1 default manifests own exactly one normalized startup shell and zero
   or more exact absolute startup paths; upstream manifests own neither field.
 
