@@ -10,6 +10,9 @@ test_runner_group_registry_read() {
   cat <<'EOF'
 runner|test_lib_runner_run
 lib-catalog|test_lib_catalog_run
+lib-target-codec|test_lib_target_codec_run
+lib-target-profile-state|test_lib_target_profile_state_run
+lib-target-ai-skill-state|test_lib_target_ai_skill_state_run
 lib-runtime|test_lib_runtime_run
 lib-profile-activation|test_lib_profile_activation_run
 lib-registries|test_lib_registries_run
@@ -64,6 +67,9 @@ test_runner_group_assignment_read() {
   cat <<'EOF'
 runner|two-b|three-a
 lib-catalog|two-b|three-a
+lib-target-codec|two-a|three-a
+lib-target-profile-state|two-b|three-b
+lib-target-ai-skill-state|two-a|three-c
 lib-runtime|two-b|three-a
 lib-profile-activation|two-a|three-b
 lib-registries|two-b|three-c

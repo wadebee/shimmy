@@ -28,7 +28,9 @@ Podman or set connection variables.
   generation and atomically swaps registry authority, including recovery from
   an invalid current generation.
 - `manifest.sh` preserves and renders the profile-local version-1 manifest,
-  including its fixed `catalog=default` or `catalog=upstream` binding.
+  including its fixed `catalog=default` or `catalog=upstream` binding. Its
+  explicitly target-prefixed renderer emits deterministic version-2 candidate
+  manifests but is not called by the current lifecycle.
 - `profile-assets.sh` stages the profile-local control plane, launcher,
   dispatchers, explicit manifest-tuple smoke metadata, and only
   manifest-selected tool metadata and concrete version assets plus the

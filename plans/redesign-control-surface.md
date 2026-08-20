@@ -512,7 +512,7 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Add target formats, codecs, and pure validators.
+- [x] Chunk 1 — Add target formats, codecs, and pure validators.
 - [ ] Chunk 2 — Add shared lock, transaction, and ownership primitives.
 - [ ] Chunk 3 — Implement the private target default-catalog core.
 - [ ] Chunk 4 — Move image verification behind private catalog verify.
@@ -581,16 +581,26 @@ state.
 
 ### Verification checklist
 
-- [ ] All target state fixtures round-trip byte-deterministically.
-- [ ] Fixed vectors prove generation, content, and bundle SHA-256 identities.
-- [ ] Fixed vectors prove percent/pipe/CR/LF/path/warning/nested-value encoding
-  without secret leakage.
-- [ ] Positive fixtures prove arbitrary safe profile names, one default pin,
+- [x] All target state fixtures round-trip byte-deterministically. Active,
+  registry, profile-manifest, and bundle renderings compare byte-for-byte.
+- [x] Fixed vectors prove generation, content, and bundle SHA-256 identities.
+  Coverage includes the path-sorted catalog manifest algorithm and exact
+  `SKILL.md` bytes.
+- [x] Fixed vectors prove percent/pipe/CR/LF/path/warning/nested-value encoding
+  without secret leakage. Literal redaction precedes output and handles encoded
+  reserved bytes.
+- [x] Positive fixtures prove arbitrary safe profile names, one default pin,
   tracking/exact coexistence, launcher membership, and bundle consistency.
-- [ ] Durable integrity coverage proves unsafe paths, duplicates, invalid
+- [x] Durable integrity coverage proves unsafe paths, duplicates, invalid
   commit/pin relationships, bundle drift, and cross-bundle collisions fail.
-- [ ] Focused target state groups pass with `--jobs 3`.
-- [ ] Current launcher/manifest tests remain green; no public target route exists.
+  Text-state readers also reject NUL data and missing final line termination.
+- [x] Focused target state groups pass with `--jobs 3` (9 tests across
+  `lib-target-codec`, `lib-target-profile-state`, and
+  `lib-target-ai-skill-state`).
+- [x] Current launcher/manifest tests remain green; no public target route
+  exists. Runner, catalog/context, current dispatcher, and current install
+  groups pass (30 tests), and target symbols have no command/bootstrap/launcher
+  reference.
 
 ### Human review gate
 
@@ -1170,15 +1180,33 @@ completes this redesign, not external catalogs or release channels.
 - The full suite is substantial; focus each gate and run full integration at
   catalog verify, lifecycle, shadow, cutover, and final milestones.
 
+### Chunk 1
+
+- Exact target readers are simpler and safer when byte termination, key order,
+  record order, token grammar, and cross-record relationships are separate
+  checks; command-substitution equality alone cannot prove byte round trips.
+- Profile consistency needs both independently validated bundles at once.
+  Snapshotting each parsed bundle before reading the next prevents shared
+  parser state from hiding cross-bundle name or source collisions.
+- A profile catalog pin may refer to any retained immutable generation, not
+  only registry current or previous. Validation therefore binds the pin to its
+  exact generation path and metadata while validating registry-current state
+  independently.
+- Manifest encoding and diagnostic redaction are separate operations. Encode
+  reserved bytes deterministically, redact encoded secret literals, and never
+  treat encoding as secrecy.
+- The current version-1 lifecycle can coexist safely only when every target
+  function is explicitly prefixed, target modules are sourced by tests alone,
+  and no public dispatcher references them.
+
 ## Session bootstrap
 
-This plan is awaiting human review. Before Chunk 1, read repository instructions
-and contexts, inspect worktree, read this plan, and confirm Chunk 1 alone is
-accepted. Target profile manifest is version 2; add no migration or target
-version-1 reader. Target catalog is only immutable `default`; add no external
-catalog commands, memberships, or qualified selectors. Control sync resolves
-exactly `refs/heads/main`; add no release selection. Bootstrap/create install
-jq, rg, and Skopeo.
+Chunk 1 is implemented and awaits its human review gate. Do not start Chunk 2
+without explicit acceptance. Target profile manifest is version 2; add no
+migration or target version-1 reader. Target catalog is only immutable
+`default`; add no external catalog commands, memberships, or qualified
+selectors. Control sync resolves exactly `refs/heads/main`; add no release
+selection. Bootstrap/create install jq, rg, and Skopeo.
 
 Keep public entrypoints/state unchanged through Chunk 9 and use private target
 routing/disposable roots. Home AI reconciliation may unconditionally overwrite

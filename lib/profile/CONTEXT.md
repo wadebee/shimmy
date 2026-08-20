@@ -38,3 +38,8 @@ profiles require the authoritative file to be a regular non-symlink with exact
 profile/version markers; any retained projection record must have strict
 identity, target, fingerprint, and mode. Only the installer may recognize an
 absent registry file as the valid pre-feature upgrade shape.
+
+`state.sh` is private target-only code. It parameterizes disposable
+installation roots, reads/renders active-record schema 1, reads profile
+manifest version 2 without falling back to version 1, and validates profile,
+catalog-generation, shim, and AI-bundle records as one mutation-free state.

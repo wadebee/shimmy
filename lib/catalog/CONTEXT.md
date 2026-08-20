@@ -19,3 +19,9 @@ and deterministic content fingerprints.
 Tool and concrete-version discovery remains metadata-driven; this module must
 not grow a central tool, version, or default list. Image schema details remain
 in `../runtime/image.sh`.
+
+`state.sh` is the unexposed target-only schema boundary for the redesigned
+default catalog. It reads and renders exact version-1 registry and generation
+metadata, fixed `default` identity, immutable SHA-256 generation names, and
+profile catalog-pin records without accepting current unversioned registry
+shapes.

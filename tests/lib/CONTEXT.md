@@ -17,6 +17,14 @@ without starting tool containers. They are sourced by `../test.sh` and use
 - `catalog.sh` validates exact catalog schema rejection, metadata discovery,
   all-version native-platform previews, image configuration failures, and
   local cache identity.
+- `target-codec.sh` validates fixed target name, commit, SHA-256, generation,
+  manifest encoding/decoding, and diagnostic-redaction vectors.
+- `target-profile-state.sh` validates deterministic active, catalog-registry,
+  generation, and profile-manifest target formats plus disposable roots and
+  durable cross-record integrity failures.
+- `target-ai-skill-state.sh` validates both target bundle kinds, exact content
+  fingerprints, complete profile consistency, bundle drift, source/pin
+  mismatch, and cross-bundle collision rejection.
 - `runtime.sh` validates the executable root `bootstrap.sh` and minimal source
   checkout contract, shared Podman OS/architecture resolver, required
   platforms, fail-closed behavior, preview helpers, and installed Darwin

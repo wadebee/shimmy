@@ -10,8 +10,10 @@ profiles below `shimmy/profiles/<profile>`.
 ## Child contexts
 
 - [catalog](catalog/CONTEXT.md)
+- [AI-skill bundles](ai-skill/CONTEXT.md)
 - [common helpers](common/CONTEXT.md)
 - [profiles](profile/CONTEXT.md)
+- [profile-local shims](shim/CONTEXT.md)
 - [registry redirects](registries/CONTEXT.md)
 - [runtime](runtime/CONTEXT.md)
 - [startup](startup/CONTEXT.md)
