@@ -29,6 +29,7 @@ commands-skills|test_commands_skills_run
 commands-dispatcher|test_commands_dispatcher_run
 commands-netinfo|test_commands_netinfo_run
 tools-aws|test_tools_aws_run
+tools-bats|test_tools_bats_run
 tools-community-ansible-dev-tools|test_tools_community_ansible_dev_tools_run
 tools-gcloud|test_tools_gcloud_run
 tools-gdrive|test_tools_gdrive_run
@@ -83,6 +84,7 @@ commands-skills|two-b|three-c
 commands-dispatcher|two-b|three-c
 commands-netinfo|two-a|three-b
 tools-aws|two-a|three-b
+tools-bats|two-a|three-b
 tools-community-ansible-dev-tools|two-b|three-c
 tools-gcloud|two-a|three-b
 tools-gdrive|two-b|three-c

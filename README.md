@@ -279,6 +279,7 @@ unsupported or unreadable host values fail before Podman is invoked.
 | Tool | Guide |
 |---|---|
 | aws | [tools/aws/guide.md](tools/aws/guide.md) |
+| bats | [tools/bats/guide.md](tools/bats/guide.md) |
 | community-ansible-dev-tools | [tools/community-ansible-dev-tools/guide.md](tools/community-ansible-dev-tools/guide.md) |
 | gcloud | [tools/gcloud/guide.md](tools/gcloud/guide.md) |
 | gdrive | [tools/gdrive/guide.md](tools/gdrive/guide.md) |
