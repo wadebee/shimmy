@@ -21,7 +21,8 @@ without starting tool containers. They are sourced by `../test.sh` and use
   manifest encoding/decoding, and diagnostic-redaction vectors.
 - `target-profile-state.sh` validates deterministic active, catalog-registry,
   generation, and profile-manifest target formats plus disposable roots and
-  durable cross-record integrity failures.
+  durable cross-record integrity failures, including two-field shim policy and
+  sole-default version ownership.
 - `target-ai-skill-state.sh` validates both target bundle kinds, exact content
   fingerprints, complete profile consistency, bundle drift, source/pin
   mismatch, and cross-bundle collision rejection.

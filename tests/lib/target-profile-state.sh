@@ -6,11 +6,11 @@ test_lib_target_profile_state_fixture_create() {
   target_catalog_commit=2222222222222222222222222222222222222222
   target_fingerprint=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   target_generation=sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-  target_shims='alpha|alpha-1|tracking
-beta|beta-2|pinned'
+  target_shims='alpha|tracking
+beta|pinned'
   target_versions='alpha|alpha-1|default
 alpha|alpha-legacy|exact
-beta|beta-2|exact'
+beta|beta-2|default'
   target_startup_files="$target_fixture_root/home/.profile
 $target_fixture_root/home/.zprofile"
   mkdir -p "$target_fixture_root/catalogs/default/generations/$target_generation" "$target_fixture_root/profile"
@@ -55,9 +55,15 @@ test_lib_target_profile_state_integrity() {
 
   sed 's#refs/heads/main#refs/heads/release#' "$target_saved" > "$target_manifest"
   if shimmy_target_profile_manifest_read "$target_manifest"; then fail_test 'non-main tracking ref accepted'; fi
-  sed 's#alpha|alpha-1|default#alpha|not-installed|default#' "$target_saved" > "$target_manifest"
-  if shimmy_target_profile_manifest_read "$target_manifest"; then fail_test 'launcher/version mismatch accepted'; fi
-  awk '{ print; if ($0 == "shim=beta|beta-2|pinned") print }' "$target_saved" > "$target_manifest"
+  sed 's#shim=alpha|tracking#shim=alpha|alpha-1|tracking#' "$target_saved" > "$target_manifest"
+  if shimmy_target_profile_manifest_read "$target_manifest"; then fail_test 'redundant shim version field accepted'; fi
+  sed 's#alpha|alpha-1|default#alpha|alpha-1|exact#' "$target_saved" > "$target_manifest"
+  if shimmy_target_profile_manifest_read "$target_manifest"; then fail_test 'shim with no default version accepted'; fi
+  sed 's#alpha|alpha-legacy|exact#alpha|alpha-legacy|default#' "$target_saved" > "$target_manifest"
+  if shimmy_target_profile_manifest_read "$target_manifest"; then fail_test 'shim with multiple default versions accepted'; fi
+  awk '{ print; if ($0 == "shim_version=alpha|alpha-1|default") print "shim_version=alpha|alpha-1|exact" }' "$target_saved" > "$target_manifest"
+  if shimmy_target_profile_manifest_read "$target_manifest"; then fail_test 'one version in default and exact roles accepted'; fi
+  awk '{ print; if ($0 == "shim=beta|pinned") print }' "$target_saved" > "$target_manifest"
   if shimmy_target_profile_manifest_read "$target_manifest"; then fail_test 'duplicate shim accepted'; fi
   sed "s#startup_file=.*#startup_file=$SCENARIO_DIR/state/home/../escape#" "$target_saved" > "$target_manifest"
   if shimmy_target_profile_manifest_read "$target_manifest"; then fail_test 'unsafe startup path accepted'; fi
@@ -72,7 +78,7 @@ test_lib_target_profile_state_integrity() {
   if shimmy_target_catalog_registry_render "$target_generation" "$target_generation" 2222222222222222222222222222222222222222 "$target_fingerprint" >/dev/null; then
     fail_test 'duplicate current/previous catalog generations accepted'
   fi
-  pass 'target state rejects unsafe paths, duplicates, fixed-ref drift, and launcher inconsistency'
+  pass 'target state rejects unsafe paths, duplicates, fixed-ref drift, redundant policy fields, and invalid default roles'
 }
 
 test_lib_target_profile_state_roots() {

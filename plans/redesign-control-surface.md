@@ -260,6 +260,10 @@ options, or catalog-qualified shim selectors.
    `shim_version=...|exact` slots. One version cannot occupy both roles. The
    default slot alone is authoritative for the bare launcher target; every
    installed version, including the default, remains explicitly addressable.
+   The `<tool>|<version>` pair is the concrete runtime identity and resolves
+   directly to `tools/<tool>/versions/<version>/run.sh`. Version 2 stores no
+   separate implementation/version name and materializes no profile-local
+   `implementations/` adapter layer.
    Catalog provenance matches a retained generation. Record components reject
    `|`, CR, LF, and NUL; scalar URL/path values reject CR, LF, and NUL. No
    target version-1 reader exists.
@@ -492,6 +496,10 @@ options, or catalog-qualified shim selectors.
   those entrypoints in place.
 - Profile, activation, registry, lifecycle, Darwin scripts, and fixtures encode
   two-name and current manifest assumptions.
+- The verified adapter-removal work eliminated profile-local `implementations/`.
+  Current version-1 `tool_version=<tool>|<label>|<version-name>` records retain
+  a legacy implementation-name field only until the hard cut; it is not input
+  to the version-2 schema or runtime identity.
 - Catalog code already validates payload/generation/fingerprint/tool/skill state.
   Its registry is unversioned with checkout/generation types; generation
   directories persist beyond current/previous pointers.
@@ -529,12 +537,9 @@ None.
 
 ## Progress Checklist
 
-- [~] Chunk 1 — Add target formats, codecs, and pure validators. The original
-  three-field shim record implementation and its tests passed, but review found
-  that it duplicated the launcher default already owned by the default version
-  slot. The revised plan uses `shim=<tool>|<tracking|pinned>` and requires one
-  authoritative default version slot. Chunk 1 implementation, fixtures, and
-  focused verification must be revised before acceptance; this blocks Chunk 2.
+- [x] Chunk 1 — Add target formats, codecs, and pure validators. The reconciled
+  implementation uses `shim=<tool>|<tracking|pinned>` and exactly one
+  authoritative default version slot per shim.
 - [ ] Chunk 2 — Add shared lock, transaction, and ownership primitives.
 - [ ] Chunk 3 — Implement the private target default-catalog core.
 - [ ] Chunk 4 — Move image verification behind private catalog verify.
@@ -592,7 +597,8 @@ state.
 
 - Implement profile manifest version 2, active schema 1, catalog registry schema
   1, normalized two-field shim policy records, one authoritative default
-  version slot per shim, and both bundle schema readers/renderers exactly.
+  version slot per shim, direct `<tool>|<version>` runtime identity with no
+  implementation-name field, and both bundle schema readers/renderers exactly.
 - Keep target and current readers separate. Target validators never dispatch to
   old version-1 manifest or unversioned registry parsing.
 - Implement fixed main-ref validation, SHA-256/name algorithms, public manifest
@@ -604,28 +610,26 @@ state.
 
 ### Verification checklist
 
-- [~] All target state fixtures round-trip byte-deterministically. Active,
-  registry, and bundle fixtures passed; profile-manifest fixtures passed the
-  superseded three-field shim schema and must be rewritten for two-field policy
-  records before rerunning byte comparisons.
+- [x] All target state fixtures round-trip byte-deterministically. Active,
+  registry, profile-manifest, and bundle renderings compare byte-for-byte with
+  two-field shim policy records.
 - [x] Fixed vectors prove generation, content, and bundle SHA-256 identities.
   Coverage includes the path-sorted catalog manifest algorithm and exact
   `SKILL.md` bytes.
 - [x] Fixed vectors prove percent/pipe/CR/LF/path/warning/nested-value encoding
   without secret leakage. Literal redaction precedes output and handles encoded
   reserved bytes.
-- [~] Positive fixtures prove arbitrary safe profile names, one default pin,
+- [x] Positive fixtures prove arbitrary safe profile names, one default pin,
   tracking/exact coexistence, launcher membership, and bundle consistency.
-  Existing proofs passed, but launcher membership must be re-proven from the
-  sole default version slot for both tracking and pinned policies.
-- [~] Durable integrity coverage proves unsafe paths, duplicates, invalid
+  Tracking and pinned policies both derive launcher membership from their sole
+  default version slot.
+- [x] Durable integrity coverage proves unsafe paths, duplicates, invalid
   commit/pin relationships, bundle drift, and cross-bundle collisions fail.
-  Existing proofs passed, including NUL and final-line rejection; remaining
-  coverage must reject zero/multiple default slots, one version in both roles,
-  and policy records containing a redundant version field.
-- [~] Focused target state groups pass with `--jobs 3`. Nine tests passed under
-  the superseded shim schema; the same groups must pass after fixture and
-  validator revision.
+  Coverage includes NUL/final-line rejection, zero or multiple default slots,
+  one version in both roles, and a redundant shim-policy version field.
+- [x] Focused target state groups pass with `--jobs 3` (9 tests across
+  `lib-target-codec`, `lib-target-profile-state`, and
+  `lib-target-ai-skill-state`), including an explicit `/bin/dash` run.
 - [x] Current launcher/manifest tests remain green; no public target route
   exists. Runner, catalog/context, current dispatcher, and current install
   groups pass (30 tests), and target symbols have no command/bootstrap/launcher
@@ -810,6 +814,9 @@ Chunk 6.
   tracking advancement, and pinned-generation sync.
 - Stage regenerated wrappers/config/runtime, manifest version 2, and mandatory
   image preparation before commit.
+- Resolve concrete execution and smoke selection directly from the manifest's
+  `<tool>|<version>` pair to `tools/<tool>/versions/<version>/run.sh`; do not
+  recreate or interpret implementation names or `implementations/` adapters.
 - Produce a typed shim-bundle input for Chunk 6. Do not stub profile activation
   or link callbacks and do not expose a partially integrated command.
 
@@ -1053,10 +1060,10 @@ primary guidance in one release boundary.
 
 - Switch every public profile producer/consumer to version 2 and registry
   producer/consumer to target schema 1 together.
-- Remove version-1/unversioned readers/writers, source types, upstream binding,
-  rebind, optional activation, old top-level groups, copied/exported skills, and
-  private shadow route. Retain redesigned integrity tests, not old rejection
-  fixtures.
+- Remove version-1/unversioned readers/writers, legacy `tool_version`
+  implementation-name consumers, source types, upstream binding, rebind,
+  optional activation, old top-level groups, copied/exported skills, and private
+  shadow route. Retain redesigned integrity tests, not old rejection fixtures.
 - Make public bootstrap commit complete default with jq/rg/Skopeo and fixed main.
 - Delete repository `.agents/skills/` recursively as explicitly authorized. Do
   not extend this authorization to home skills or another path.
@@ -1068,8 +1075,8 @@ primary guidance in one release boundary.
 - [ ] Target help/output and end-to-end lifecycle pass through final launcher.
 - [ ] Pristine bootstrap and failure cleanup satisfy target with jq/rg/Skopeo.
 - [ ] Inventory proves no version-1 profile parser/writer, unversioned registry
-  source type, old dispatch, external-catalog placeholder, copied target, or
-  shadow route remains.
+  source type, implementation-name routing, old dispatch, external-catalog
+  placeholder, copied target, or shadow route remains.
 - [ ] `.agents/skills/` is absent; `.agents/plugins/marketplace.json` remains.
 - [ ] Disposable-home tests prove exact collision overwrite and byte-preserve
   unrelated skill names/root.
@@ -1238,23 +1245,26 @@ completes this redesign, not external catalogs or release channels.
   function is explicitly prefixed, target modules are sourced by tests alone,
   and no public dispatcher references them.
 - Review found that the original three-field shim record repeated the launcher
-  version already represented by the default version slot. Chunk 1 is partial
-  until the policy-only shim record and sole-default invariants replace that
-  implementation and its fixtures.
+  version already represented by the default version slot. Reconciliation
+  replaced it with a policy-only shim record and made exactly one version slot
+  authoritative for both tracking and pinned launchers.
+- The completed profile-implementation adapter removal makes `<tool>|<version>`
+  the natural concrete runtime identity. Version 2 must not preserve legacy
+  names such as `jq_1_8` or recreate `implementations/` routing assets.
 
 ## Session bootstrap
 
-Chunk 1 is partially implemented after schema review and must be revised before
-its human review gate. Do not start Chunk 2. Replace the superseded
-`shim=<tool>|<launcher-version>|<tracking|pinned>` implementation with
-`shim=<tool>|<tracking|pinned>`; require exactly one authoritative
-`shim_version=<tool>|<version>|default` record and zero or more non-default
-pinned `exact` records per shim. Update fixtures and rerun every partial Chunk 1
-check. Target profile manifest remains version 2; add no migration, version 3,
-or target version-1 reader. Target catalog is only immutable `default`; add no
-external catalog commands, memberships, or qualified selectors. Control sync
-resolves exactly `refs/heads/main`; add no release selection. Bootstrap/create
-install jq, rg, and Skopeo.
+Chunk 1 is reconciled and awaits its human review gate. Do not start Chunk 2
+without explicit acceptance. The implemented version-2 manifest uses
+`shim=<tool>|<tracking|pinned>`, exactly one authoritative
+`shim_version=<tool>|<version>|default` record, and zero or more non-default
+pinned `exact` records per shim. Resolve concrete runtimes directly from the
+`<tool>|<version>` pair; add no implementation-name field or `implementations/`
+adapter. Add no migration, version 3, or target version-1 reader. Target catalog
+is only immutable `default`; add no external catalog commands, memberships, or
+qualified selectors. Control sync resolves
+exactly `refs/heads/main`; add no release selection. Bootstrap/create install
+jq, rg, and Skopeo.
 
 Keep public entrypoints/state unchanged through Chunk 9 and use private target
 routing/disposable roots. Home AI reconciliation may unconditionally overwrite
