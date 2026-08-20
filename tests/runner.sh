@@ -13,6 +13,9 @@ lib-catalog|test_lib_catalog_run
 lib-target-codec|test_lib_target_codec_run
 lib-target-profile-state|test_lib_target_profile_state_run
 lib-target-ai-skill-state|test_lib_target_ai_skill_state_run
+lib-target-lock|test_lib_target_lock_run
+lib-target-transaction|test_lib_target_transaction_run
+lib-target-ai-skill-link|test_lib_target_ai_skill_link_run
 lib-runtime|test_lib_runtime_run
 lib-profile-activation|test_lib_profile_activation_run
 lib-registries|test_lib_registries_run
@@ -62,15 +65,18 @@ test_runner_group_assignment_read() {
     return 0
   fi
 
-  # Chunk 6's clean full serial measurement projects exact balanced group
-  # totals of 624s/624s for two-a/two-b and 416s/416s/416s for
-  # three-a/three-b/three-c. Zero-second groups balance worker group counts.
+  # Chunk 6's retained clean serial measurement supplies the weighted
+  # assignments. Later fast target-library groups preserve equal worker group
+  # counts without claiming a new timing calibration.
   cat <<'EOF'
 runner|two-b|three-a
 lib-catalog|two-b|three-a
 lib-target-codec|two-a|three-a
 lib-target-profile-state|two-b|three-b
 lib-target-ai-skill-state|two-a|three-c
+lib-target-lock|two-b|three-a
+lib-target-transaction|two-a|three-c
+lib-target-ai-skill-link|two-b|three-c
 lib-runtime|two-b|three-a
 lib-profile-activation|two-a|three-b
 lib-registries|two-b|three-c

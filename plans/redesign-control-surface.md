@@ -540,7 +540,8 @@ None.
 - [x] Chunk 1 — Add target formats, codecs, and pure validators. The reconciled
   implementation uses `shim=<tool>|<tracking|pinned>` and exactly one
   authoritative default version slot per shim.
-- [ ] Chunk 2 — Add shared lock, transaction, and ownership primitives.
+- [~] Chunk 2 — Shared lock, transaction, and ownership primitives are
+  implemented and verified; human acceptance is pending.
 - [ ] Chunk 3 — Implement the private target default-catalog core.
 - [ ] Chunk 4 — Move image verification behind private catalog verify.
 - [ ] Chunk 5 — Implement private profile-local shim lifecycle.
@@ -674,17 +675,49 @@ and exact user-link classification without exposing a target command.
 
 ### Verification checklist
 
-- [ ] Lock tests cover allowed nesting, rejected inversion, concurrent
+- [x] Lock tests cover allowed nesting, rejected inversion, concurrent
   acquisition, stale handling, and signal cleanup.
-- [ ] Failure injection proves candidate filesystem commits expose complete new
+- [x] Failure injection proves candidate filesystem commits expose complete new
   state or prior valid state.
-- [ ] External rollback tests distinguish complete/incomplete restoration.
-- [ ] Link planning classifies empty, file, nonempty directory, foreign link,
+- [x] External rollback tests distinguish complete/incomplete restoration.
+- [x] Link planning classifies empty, file, nonempty directory, foreign link,
   wrong-profile link, and broken link without mutation.
-- [ ] Exact declared collisions are overwritten in mutation tests while
+- [x] Exact declared collisions are overwritten in mutation tests while
   unrelated sibling names/root survive byte-for-byte.
-- [ ] No implementation/test helper recursively deletes the user skills root.
-- [ ] Existing registry activation/uninstall rollback groups remain green.
+- [x] No implementation/test helper recursively deletes the user skills root.
+- [x] Existing registry activation/uninstall rollback groups remain green.
+
+### Chunk 2 evidence
+
+- Private target-only modules add atomically claimed regular-file locks,
+  same-filesystem regular-file candidates, an external compensation journal,
+  and bundle-authorized exact AI-skill link planning/mutation. Searches find no
+  target transaction symbol referenced by a public command, bootstrap, or
+  launcher.
+- The target lock stack proves catalog, activation, lexical profile, and
+  registry ordering; exact owner-only reverse release; live contention;
+  quarantined dead-owner cleanup; and HUP/INT/TERM cleanup. A complete owner
+  record is hard-linked into the final lock path so claim publication has no
+  ownerless intermediate state.
+- Before/after-commit injection retains exact prior bytes and mode or complete
+  new bytes and mode. Candidate fingerprint, target snapshot, validator, and
+  caller authority are all rechecked while a target lock is held.
+- External compensation restores registered Shimmy state in reverse and emits
+  `complete|incomplete`. Exact foreign file, nonempty-directory, and link
+  occupants are overwritten only for validated bundle names; rollback removes
+  projected links but explicitly reports the foreign content unrecoverable.
+  Unrelated root markers and sibling skill bytes remain unchanged.
+- `./tests/test.sh --group runner --group lib-target-codec --group
+  lib-target-profile-state --group lib-target-ai-skill-state --group
+  lib-target-lock --group lib-target-transaction --group
+  lib-target-ai-skill-link --jobs 3` passes 32 tests. The three new groups pass
+  all 8 tests under both the default shell and an explicit `/bin/dash` run.
+- `./tests/test.sh --group lib-profile-activation --group lib-registries
+  --group commands-lifecycle --jobs 3` passes all 30 activation, registry, and
+  uninstall rollback tests. `lib-catalog` passes all 10 context, catalog, and
+  runtime metadata tests, and `commands-startup` passes all 5 startup ownership
+  tests. Repository shell syntax checks and `git diff --check` pass; ShellCheck
+  is unavailable on this host.
 
 ### Human review gate
 
@@ -1252,11 +1285,32 @@ completes this redesign, not external catalogs or release channels.
   the natural concrete runtime identity. Version 2 must not preserve legacy
   names such as `jq_1_8` or recreate `implementations/` routing assets.
 
+### Chunk 2
+
+- Atomic target lock publication is simplest as a fully rendered regular owner
+  record plus a same-directory hard-link claim. This avoids the unclassifiable
+  empty-directory window between `mkdir` and writing ownership metadata.
+- Lock order and lock ownership are separate invariants. Rank and lexical-name
+  validation prevent inversion, while exact PID/token/content validation keeps
+  stale cleanup and release from deleting a changed or foreign claim.
+- Same-filesystem staging does not by itself make a transaction trustworthy.
+  Snapshot bytes/mode, candidate bytes/mode, the validator, and external
+  authority must all be rechecked under lock before the atomic file replace;
+  rollback needs the same exact postcondition check.
+- A symlink to a directory cannot be portably replaced by blindly moving
+  another symlink over it because `mv` may follow the destination. Exact link
+  compensation verifies and removes only the expected current symlink before
+  recreating the prior direct link.
+- Foreign exact-name overwrite is intentionally not compensable. The journal
+  can remove a newly projected Shimmy link, but its result must remain
+  `incomplete` and identify the overwritten foreign occupant as unrecoverable.
+
 ## Session bootstrap
 
-Chunk 1 is reconciled and awaits its human review gate. Do not start Chunk 2
-without explicit acceptance. The implemented version-2 manifest uses
-`shim=<tool>|<tracking|pinned>`, exactly one authoritative
+Chunk 1 was accepted by the user's 2026-08-20 request to implement Chunk 2.
+Chunk 2 is implemented and verified, and awaits its human review gate. Do not
+start Chunk 3 without explicit acceptance. The implemented version-2 manifest
+uses `shim=<tool>|<tracking|pinned>`, exactly one authoritative
 `shim_version=<tool>|<version>|default` record, and zero or more non-default
 pinned `exact` records per shim. Resolve concrete runtimes directly from the
 `<tool>|<version>` pair; add no implementation-name field or `implementations/`

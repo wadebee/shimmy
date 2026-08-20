@@ -21,20 +21,6 @@ shimmy_config_root_resolve() {
   shimmy_join_path "$config_home" shimmy
 }
 
-shimmy_path_parent_chain_validate() {
-  path_value=$1
-
-  case "$path_value" in
-    /*) ;;
-    *) return 1 ;;
-  esac
-
-  while [ "$path_value" != / ]; do
-    [ ! -L "$path_value" ] || return 1
-    path_value=$(dirname -- "$path_value")
-  done
-}
-
 shimmy_profile_name_validate() {
   case "${1:-}" in
     default|upstream) return 0 ;;

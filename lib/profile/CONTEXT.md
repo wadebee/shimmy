@@ -43,3 +43,8 @@ absent registry file as the valid pre-feature upgrade shape.
 installation roots, reads/renders active-record schema 1, reads profile
 manifest version 2 without falling back to version 1, and validates profile,
 catalog-generation, shim, and AI-bundle records as one mutation-free state.
+
+`transaction.sh` is the private target external-compensation journal. It
+restores registered Shimmy state in reverse order, identifies each restored
+resource, returns `complete|incomplete`, and records overwritten foreign
+content as explicitly irrecoverable rather than claiming recovery.

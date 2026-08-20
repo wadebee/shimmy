@@ -31,6 +31,12 @@ Podman or set connection variables.
   including its fixed `catalog=default` or `catalog=upstream` binding. Its
   explicitly target-prefixed renderer emits deterministic version-2 candidate
   manifests but is not called by the current lifecycle.
+- `transaction.sh` is private target-only code for same-filesystem regular-file
+  candidates. It snapshots prior bytes and mode, stages outside locks,
+  requires the caller-declared catalog, activation, profile, or registry lock,
+  revalidates the candidate, target, and caller authority under that lock,
+  commits with atomic replacement, and reports exact rollback as `complete` or
+  `incomplete` after post-commit failure injection.
 - `profile-assets.sh` stages the profile-local control plane, launcher,
   dispatchers, explicit manifest-tuple smoke metadata, and only
   manifest-selected tool metadata and concrete version assets plus the

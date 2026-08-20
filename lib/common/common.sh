@@ -195,6 +195,20 @@ shimmy_validate_remove_path_safe() {
   return 0
 }
 
+shimmy_path_parent_chain_validate() {
+  path_value=$1
+
+  case "$path_value" in
+    /*) ;;
+    *) return 1 ;;
+  esac
+
+  while [ "$path_value" != / ]; do
+    [ ! -L "$path_value" ] || return 1
+    path_value=$(dirname -- "$path_value")
+  done
+}
+
 # Target-state token and codec helpers. These are intentionally independent of
 # the version-1 profile and catalog readers retained by the public commands.
 shimmy_name_component_validate() {
@@ -275,6 +289,13 @@ shimmy_path_absolute_normalized_validate() {
     /|''|/*/|*//*|*/./*|*/../*|*/.|*/..) return 1 ;;
     /*) ;;
     *) return 1 ;;
+  esac
+}
+
+shimmy_shell_function_name_validate() {
+  case "${1:-}" in
+    ''|[!abcdefghijklmnopqrstuvwxyz_]*|*[!abcdefghijklmnopqrstuvwxyz0123456789_]*) return 1 ;;
+    *) return 0 ;;
   esac
 }
 

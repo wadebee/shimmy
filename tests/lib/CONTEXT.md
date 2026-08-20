@@ -26,6 +26,17 @@ without starting tool containers. They are sourced by `../test.sh` and use
 - `target-ai-skill-state.sh` validates both target bundle kinds, exact content
   fingerprints, complete profile consistency, bundle drift, source/pin
   mismatch, and cross-bundle collision rejection.
+- `target-lock.sh` validates the target lock hierarchy, lexical profile order,
+  atomic owner claims, reverse release, live concurrency rejection, classified
+  stale-owner cleanup, exact ownership checks, and signal cleanup.
+- `target-transaction.sh` failure-injects private same-filesystem candidates,
+  under-lock authority revalidation, atomic replacement and exact rollback,
+  plus complete/incomplete external compensation and honest foreign-content
+  reporting.
+- `target-ai-skill-link.sh` classifies exact bundle destinations without
+  mutation, overwrites declared file/directory/link collisions, preserves
+  unrelated sibling bytes and the user root itself, rejects undeclared names,
+  and restores recognized Shimmy links.
 - `runtime.sh` validates the executable root `bootstrap.sh` and minimal source
   checkout contract, shared Podman OS/architecture resolver, required
   platforms, fail-closed behavior, preview helpers, and installed Darwin
