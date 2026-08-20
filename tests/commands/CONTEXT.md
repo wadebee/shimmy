@@ -23,6 +23,12 @@ is the behavior under test.
   status/tools output, clean-main publication, rollback, catalog image
   verification parity, active-materialization-only jq/Skopeo resolution, and
   exact missing-dependency remediation.
+- `target-shim.sh` exercises the uninstalled version-2 profile-local lifecycle
+  through real retained catalog generations. It covers interactive tracking and
+  exact automation, first-default stability, pinned-generation sync,
+  collision-free tracking advancement, role-swapping set-version, guarded and
+  whole-shim removal, image-before-commit rollback, generated launcher/config
+  execution, typed bundle input, and all/tool/version smoke status propagation.
 - `images.sh` covers source and installed selection, fixture-driven OCI/Docker
   parsing, request deduplication, authentication skips/failures, drift policy,
   stable output, and command availability without target-registry access.

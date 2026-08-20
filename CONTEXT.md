@@ -71,6 +71,10 @@ runtime directly. Canonical skills remain catalog-owned.
 - The uninstalled target catalog candidate verifies current catalog images
   only through jq and Skopeo runtimes from the active target profile's
   materialization; the current public image route remains unchanged.
+- The uninstalled target shim candidate mutates only the active disposable
+  version-2 profile against its retained catalog pin. It stages direct
+  `<tool>|<version>` runtimes, prepares images before a manifest-last commit,
+  and emits a typed shim-bundle input without reconciling user links.
 - Version-1 default manifests own exactly one normalized startup shell and zero
   or more exact absolute startup paths; upstream manifests own neither field.
 

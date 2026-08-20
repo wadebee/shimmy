@@ -24,6 +24,7 @@ lib-update|test_lib_update_run
 commands-agent-preflight|test_commands_agent_preflight_run
 commands-catalog|test_commands_catalog_run
 commands-target-catalog|test_commands_target_catalog_run
+commands-target-shim|test_commands_target_shim_run
 commands-images|test_commands_images_run
 commands-lifecycle|test_runner_commands_lifecycle_run
 commands-management|test_commands_management_run
@@ -87,6 +88,7 @@ lib-update|two-a|three-b
 commands-agent-preflight|two-a|three-a
 commands-catalog|two-a|three-b
 commands-target-catalog|two-b|three-c
+commands-target-shim|two-a|three-b
 commands-images|two-b|three-a
 commands-lifecycle|two-a|three-b
 commands-management|two-b|three-b

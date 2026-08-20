@@ -544,9 +544,10 @@ None.
   verified 2026-08-20 16:50:26 EDT.
 - [x] Chunk 3 — Private target default-catalog core was human verified
   2026-08-20 16:50:26 EDT.
-- [~] Chunk 4 — Private catalog image verification and the jq/rg/Skopeo
-  baseline candidate are implemented and verified; human acceptance is pending.
-- [ ] Chunk 5 — Implement private profile-local shim lifecycle.
+- [x] Chunk 4 — Private catalog image verification and the jq/rg/Skopeo
+  baseline candidate were accepted by the user on 2026-08-20.
+- [~] Chunk 5 — Private profile-local shim lifecycle is implemented and
+  verified; human acceptance is pending.
 - [ ] Chunk 6 — Implement AI bundles and narrowly destructive links.
 - [ ] Chunk 7 — Generalize profile identity, activation, and shell selection.
 - [ ] Chunk 8 — Integrate profile, bootstrap, and admin candidate lifecycles.
@@ -909,17 +910,54 @@ Chunk 6.
 
 ### Verification checklist
 
-- [ ] Fixtures prove interactive tracking, noninteractive exact selection,
+- [x] Fixtures prove interactive tracking, noninteractive exact selection,
   first-default stability, explicit-first pinned default, later exact
   additions, set-version role swapping, tracking collisions with an existing
   exact slot, non-retention of replaced tracked defaults, version/all removal,
   and pinned generation sync.
-- [ ] Image/candidate failure leaves wrappers, versions, config, and manifest at
+- [x] Image/candidate failure leaves wrappers, versions, config, and manifest at
   prior valid state.
-- [ ] Rendered dispatchers/config pass syntax and installed-copy execution.
-- [ ] Smoke selection covers all/tool/version, affinity failure, and wrapped
+- [x] Rendered dispatchers/config pass syntax and installed-copy execution.
+- [x] Smoke selection covers all/tool/version, affinity failure, and wrapped
   nonzero propagation.
-- [ ] Focused private shim groups pass; current public suite remains green.
+- [x] Focused private shim groups pass; current public suite remains green.
+
+### Chunk 5 evidence
+
+- `commands/shim-target.sh` and `lib/shim/target.sh` implement the private
+  disposable-root route. No bootstrap, current command, or installed launcher
+  references it. Mutations resolve only the active profile and its exact
+  retained catalog generation; publishing a newer registry current does not
+  change shim sync authority.
+- Unqualified add requires a terminal and records `tracking`; the test-only
+  interactive seam proves a non-default first selection. Explicit add is
+  noninteractive and records `pinned` only when it creates the shim. Later
+  versions remain exact, set-version swaps roles without duplicates, exact
+  removal rejects the selected default, and whole-shim removal clears all
+  owned materialization.
+- Unqualified sync advances only tracking defaults within the pinned
+  generation, removes the prior tracked default rather than retaining it, and
+  consumes an already exact target version without duplicate roles. Exact
+  `tool@version` sync prepares only that installed version and never changes
+  roles.
+- Every mutation stages regenerated regular launchers, per-shim and
+  per-version config, direct `tools/<tool>/versions/<version>/run.sh` assets,
+  and manifest version 2. External images use `pull`, local builds use `build`,
+  and preparation completes before the profile lock and manifest-last commit.
+  Pre-commit image failure and injected post-asset failure retain exact prior
+  manifest, bundle input, wrappers, tools, and config.
+- The typed `config/shim-bundle-input.conf` candidate records schema 1, profile,
+  pinned generation, content fingerprint, and lexical installed shim names.
+  Policy/default authority remains solely in the profile manifest for Chunk 6
+  to validate rather than being duplicated in bundle input.
+- `./tests/test.sh --group commands-target-shim --jobs 3` passes 3 focused
+  tests. A combined target/current run passed every selected group except the
+  existing live smoke when sandboxed; rerunning `commands-test` with approved
+  Podman access passed all 3 tests. The complete default suite then passed all
+  201 tests with approved non-mutating Podman access. Repository shell syntax,
+  generated launcher/config syntax, installed-copy execution,
+  `git diff --check`, context-tree coverage, and executable modes pass.
+  ShellCheck is unavailable on this host.
 
 ### Human review gate
 
@@ -1379,12 +1417,37 @@ completes this redesign, not external catalogs or release channels.
   present catalogs remain valid, while the old command's default five-skill
   export stays unchanged until cutover.
 
+### Chunk 5
+
+- Selector exactness and manifest role are separate. An explicit first add is
+  pinned, a later explicit add is exact, and exact sync narrows image work
+  without implicitly changing the launcher's role.
+- Tracking advancement must remove both the prior default role and a matching
+  exact role before adding the new default. This single normalization handles
+  ordinary advancement and exact-slot collision without preserving the old
+  tracked version or creating duplicates.
+- Image readiness is safest outside the profile lock against the complete
+  candidate. Commit then rechecks the active record, manifest fingerprint, and
+  retained generation under the profile lock before replacing shim-owned
+  assets and committing the manifest last.
+- A generated launcher that hardcodes only the manifest-authoritative
+  `<tool>|<version>` default is simpler than copying the version-1 dispatcher:
+  it avoids implementation names, catalog lookups, and a second default source.
+- Chunk 6 needs shim names plus immutable catalog source identity, not duplicate
+  policy/default records. A small typed input keeps bundle materialization
+  explicit while leaving profile-manifest consistency validation authoritative.
+- Real immutable-catalog fixtures make pin and materialization assertions
+  strong but add several minutes to the static worker schedule. Later suite
+  balancing should reuse a session catalog fixture or recalibrate the group
+  assignment without weakening generation-boundary coverage.
+
 ## Session bootstrap
 
 Chunk 1 was accepted by the user's 2026-08-20 request to implement Chunk 2.
 Chunks 2 and 3 were explicitly human verified by the user's 2026-08-20 request
-at 16:50:26 EDT. Chunk 4 is implemented and verified, and awaits its human
-review gate. Do not start Chunk 5 without explicit acceptance. The implemented
+at 16:50:26 EDT. Chunk 4 was accepted by the user's 2026-08-20 request to
+implement Chunk 5. Chunk 5 is implemented and verified, and awaits its human
+review gate. Do not start Chunk 6 without explicit acceptance. The implemented
 version-2 manifest uses `shim=<tool>|<tracking|pinned>`, exactly one authoritative
 `shim_version=<tool>|<version>|default` record, and zero or more non-default
 pinned `exact` records per shim. Resolve concrete runtimes directly from the

@@ -32,6 +32,13 @@ Skopeo previews additionally prove exact read-only client mounting for the
 active invoking profile, omission with no activation, and fail-closed sibling
 or masking state.
 
+Private target shim tests use disposable version-2 profiles and real immutable
+catalog generations with harmless fixture runtimes. They validate selector and
+default-role transitions, pinned-generation synchronization, image preparation
+before commit, exact shim-owned rollback, generated installed-copy execution,
+typed bundle input, and smoke selection without exposing a current public
+route.
+
 Installation scenarios isolate state with absolute disposable `HOME` and
 `XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or
 installed profile-selection override. Before the initial source snapshot, the

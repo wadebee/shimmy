@@ -29,6 +29,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/catalog/target.sh"
 # shellcheck source=lib/shim/state.sh
 . "$ROOT_DIR/lib/shim/state.sh"
+# shellcheck source=lib/shim/target.sh
+. "$ROOT_DIR/lib/shim/target.sh"
 # shellcheck source=lib/ai-skill/bundle.sh
 . "$ROOT_DIR/lib/ai-skill/bundle.sh"
 # shellcheck source=lib/profile/transaction.sh
@@ -88,6 +90,8 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$SCRIPT_DIR/commands/catalog.sh"
 # shellcheck source=tests/commands/target-catalog.sh
 . "$SCRIPT_DIR/commands/target-catalog.sh"
+# shellcheck source=tests/commands/target-shim.sh
+. "$SCRIPT_DIR/commands/target-shim.sh"
 # shellcheck source=tests/commands/images.sh
 . "$SCRIPT_DIR/commands/images.sh"
 # shellcheck source=tests/commands/lifecycle.sh
