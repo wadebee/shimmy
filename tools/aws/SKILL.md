@@ -3,6 +3,8 @@ name: shimmy-tool-aws
 description: Guidance for using, changing, testing, and troubleshooting the AWS CLI shim in this repository, including AWS credential mounts, AWS env forwarding, and non-mutating AWS CLI smoke checks.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # AWS Shim
 
 Use this skill when working with the AWS tool, its tests, its docs, or AWS CLI usage through Shimmy.

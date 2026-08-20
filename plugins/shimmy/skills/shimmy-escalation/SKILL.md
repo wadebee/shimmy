@@ -3,6 +3,8 @@ name: shimmy-escalation
 description: Request narrow AI Agent escalation permissions for Shimmy wrappers that run through Podman. Use when the user asks to make installed shims usable from AI Agent shells, pre-authorize wrapper smoke checks, or troubleshoot sandbox permission prompts.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Shimmy Escalation Skill
 
 Use this skill when the user wants AI Agent shell approvals for installed Shimmy wrappers.

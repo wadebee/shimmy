@@ -3,6 +3,8 @@ name: shimmy-tool-jq
 description: Guidance for using, changing, testing, and troubleshooting the jq shim in this repository, including filter-style stdin behavior and jq image/version expectations.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # jq Shim
 
 Use this skill when working with the jq tool, its tests, its docs, or jq usage through Shimmy.

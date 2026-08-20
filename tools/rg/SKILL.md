@@ -3,6 +3,8 @@ name: shimmy-tool-rg
 description: Guidance for using, changing, testing, and troubleshooting the ripgrep shim in this repository, including stdin-friendly search behavior and rg image/version expectations.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # ripgrep Shim
 
 Use this skill when working with the ripgrep tool, its tests, its docs, or ripgrep usage through Shimmy.

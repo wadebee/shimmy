@@ -3,6 +3,8 @@ name: shimmy-init
 description: Initialize and verify Podman readiness after an escalated Shimmy wrapper call proves a profile or engine problem. Do not use for sandbox-only reachability failures.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Shimmy Init
 
 Use this skill when a Shimmy tool still fails outside the sandbox because its

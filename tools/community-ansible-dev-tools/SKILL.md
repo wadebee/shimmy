@@ -3,6 +3,8 @@ name: shimmy-tool-community-ansible-dev-tools
 description: Use and maintain the community-ansible-dev-tools Shimmy tool, including its multi-command Ansible development environment, explicit SSH and git credential mounts, and nested-Podman opt-in.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Community Ansible Development Tools Shim
 
 ## AI Agent Evidence Order

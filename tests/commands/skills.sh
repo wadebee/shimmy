@@ -106,7 +106,8 @@ test_commands_skills_manifest_fingerprints() {
 }
 
 test_commands_skills_plugin_and_tool_inventory() {
-  control_skills='shimmy-install
+  control_skills='shimmy-catalog
+shimmy-install
 shimmy-init
 shimmy-create-tool
 shimmy-escalation
@@ -124,7 +125,8 @@ shimmy-tool-local-build'
     assert_path_not_exists "$plugin_skill_dir/CONTEXT.md"
     plugin_skill_count=$((plugin_skill_count + 1))
   done
-  assert_equals "$plugin_skill_count" 5
+  assert_equals "$plugin_skill_count" 6
+  assert_file_contains "$ROOT_DIR/plugins/shimmy/skills/shimmy-catalog/SKILL.md" 'Run `shimmy catalog publish` only from the repository root'
 
   tool_skill_count=0
   for tool_name in $(shimmy_tool_list); do
@@ -138,7 +140,7 @@ shimmy-tool-local-build'
     assert_path_not_exists "$ROOT_DIR/tools/$tool_name/agent"
     tool_skill_count=$((tool_skill_count + 1))
   done
-  assert_equals "$tool_skill_count" 20
+  assert_equals "$tool_skill_count" "$(shimmy_tool_list | wc -l | tr -d ' ')"
   assert_file_contains "$ROOT_DIR/.agents/plugins/marketplace.json" '"path": "./plugins/shimmy"'
   assert_file_contains "$ROOT_DIR/docs/templates/generic-shim/SKILL.md" 'tool-specific approval rule'
   assert_file_contains "$ROOT_DIR/docs/templates/generic-shim/SKILL.md" 'unverified from the sandbox'

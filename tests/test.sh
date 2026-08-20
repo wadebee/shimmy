@@ -25,6 +25,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/profile/profile.sh"
 # shellcheck source=lib/catalog/state.sh
 . "$ROOT_DIR/lib/catalog/state.sh"
+# shellcheck source=lib/catalog/target.sh
+. "$ROOT_DIR/lib/catalog/target.sh"
 # shellcheck source=lib/shim/state.sh
 . "$ROOT_DIR/lib/shim/state.sh"
 # shellcheck source=lib/ai-skill/bundle.sh
@@ -39,6 +41,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/install/manifest.sh"
 # shellcheck source=lib/install/transaction.sh
 . "$ROOT_DIR/lib/install/transaction.sh"
+# shellcheck source=lib/install/catalog-target.sh
+. "$ROOT_DIR/lib/install/catalog-target.sh"
 # shellcheck source=lib/registries/registries.sh
 . "$ROOT_DIR/lib/registries/registries.sh"
 # shellcheck source=lib/images/images.sh
@@ -64,6 +68,8 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$SCRIPT_DIR/lib/target-transaction.sh"
 # shellcheck source=tests/lib/target-ai-skill-link.sh
 . "$SCRIPT_DIR/lib/target-ai-skill-link.sh"
+# shellcheck source=tests/lib/target-catalog.sh
+. "$SCRIPT_DIR/lib/target-catalog.sh"
 # shellcheck source=tests/lib/runtime.sh
 . "$SCRIPT_DIR/lib/runtime.sh"
 # shellcheck source=tests/lib/profile-activation.sh
@@ -76,6 +82,8 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$SCRIPT_DIR/commands/agent-preflight.sh"
 # shellcheck source=tests/commands/catalog.sh
 . "$SCRIPT_DIR/commands/catalog.sh"
+# shellcheck source=tests/commands/target-catalog.sh
+. "$SCRIPT_DIR/commands/target-catalog.sh"
 # shellcheck source=tests/commands/images.sh
 . "$SCRIPT_DIR/commands/images.sh"
 # shellcheck source=tests/commands/lifecycle.sh

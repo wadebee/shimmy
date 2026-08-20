@@ -25,3 +25,10 @@ default catalog. It reads and renders exact version-1 registry and generation
 metadata, fixed `default` identity, immutable SHA-256 generation names, and
 profile catalog-pin records without accepting current unversioned registry
 shapes.
+
+`target.sh` is the private target default-catalog authority. It accepts only
+`catalogs/default`, validates every retained generation identity plus complete
+current/previous payloads, validates an explicitly inspected retained payload,
+enforces the exact canonical control/tool skill mapping and managed-skill
+header, and renders deterministic local status and current/retained tool
+output.

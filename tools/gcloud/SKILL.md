@@ -3,6 +3,8 @@ name: shimmy-tool-gcloud
 description: Guidance for using, changing, testing, and troubleshooting the Google Cloud CLI shim in this repository, including configuration mounts, kubeconfig mounting, and CLOUDSDK_* environment variable forwarding.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Google Cloud CLI Shim
 
 Use this skill when working with the gcloud tool, its tests, its docs, or gcloud usage through Shimmy.

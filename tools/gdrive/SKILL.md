@@ -3,6 +3,8 @@ name: shimmy-tool-gdrive
 description: Guidance for using, changing, testing, and troubleshooting the gdrive MCP server shim in this repository, including local image builds from isaacphi/mcp-gdrive and OAuth credential mounts.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # gdrive Shim
 
 Use this skill when working with the gdrive tool, its local image, its tests, its docs, or Google Drive MCP usage through Shimmy.

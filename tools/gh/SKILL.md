@@ -3,6 +3,8 @@ name: shimmy-tool-gh
 description: Guidance for using, changing, testing, and troubleshooting the GitHub CLI shim in this repository, including persistent authentication configuration and GH_* environment forwarding.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # GitHub CLI Shim
 
 Use this skill when working with the GitHub CLI tool, its tests, its docs, or GitHub CLI usage through Shimmy.

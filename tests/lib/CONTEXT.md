@@ -37,6 +37,10 @@ without starting tool containers. They are sourced by `../test.sh` and use
   mutation, overwrites declared file/directory/link collisions, preserves
   unrelated sibling bytes and the user root itself, rejects undeclared names,
   and restores recognized Shimmy links.
+- `target-catalog.sh` validates canonical skill alignment and fingerprint
+  inputs, then exercises private default-catalog creation, local inspection,
+  clean-main publication, repeat publication, rollback, invalid-current
+  recovery, immutable retention, and publication authority failures.
 - `runtime.sh` validates the executable root `bootstrap.sh` and minimal source
   checkout contract, shared Podman OS/architecture resolver, required
   platforms, fail-closed behavior, preview helpers, and installed Darwin

@@ -542,7 +542,8 @@ None.
   authoritative default version slot per shim.
 - [~] Chunk 2 — Shared lock, transaction, and ownership primitives are
   implemented and verified; human acceptance is pending.
-- [ ] Chunk 3 — Implement the private target default-catalog core.
+- [~] Chunk 3 — Private target default-catalog core is implemented and
+  verified; human acceptance is pending.
 - [ ] Chunk 4 — Move image verification behind private catalog verify.
 - [ ] Chunk 5 — Implement private profile-local shim lifecycle.
 - [ ] Chunk 6 — Implement AI bundles and narrowly destructive links.
@@ -759,14 +760,40 @@ disposable roots.
 
 ### Verification checklist
 
-- [ ] Creation, publish, repeat publish, rollback, and invalid-current recovery
+- [x] Creation, publish, repeat publish, rollback, and invalid-current recovery
   preserve current/previous and all valid generations.
-- [ ] Status/tools are deterministic/local-only; retained inspection is
+- [x] Status/tools are deterministic/local-only; retained inspection is
   non-mutating.
-- [ ] Publication rejects dirty, detached, non-main, moved-HEAD, malformed
+- [x] Publication rejects dirty, detached, non-main, moved-HEAD, malformed
   skill, fingerprint collision, and unsafe generation state.
-- [ ] Positive validation proves exact tool-skill mapping and fingerprint input.
-- [ ] Private catalog groups pass; current public catalog behavior remains green.
+- [x] Positive validation proves exact tool-skill mapping and fingerprint input.
+- [x] Private catalog groups pass; current public catalog behavior remains green.
+
+### Chunk 3 evidence
+
+- `lib/catalog/target.sh`, `lib/install/catalog-target.sh`, and the uninstalled
+  `commands/catalog-target.sh` implement schema-1 `catalogs/default` creation,
+  local status/current-or-retained tools inspection, clean attached-main
+  publication, repeat publication, invalid-current recovery, and rollback.
+  The current installed dispatcher, bootstrap, and public catalog command have
+  no target route.
+- Publication archives the recorded commit's tracked payload, validates and
+  fingerprints that staged copy, rechecks `HEAD`, `refs/heads/main`, and clean
+  state under the target catalog lock, then commits immutable generation bytes
+  before the schema-1 registry. No path deletes a retained generation. A failed
+  moved-HEAD registry commit may leave a valid unreferenced generation, which
+  remains available rather than being garbage-collected.
+- The canonical management plugin now contains `shimmy-catalog`. All six
+  control skills and every tool skill carry the exact managed-copy warning
+  immediately after frontmatter. Target validation proves exact skill names,
+  one-to-one tool mapping, headers, safe files, and inclusion of skill bytes in
+  the catalog fingerprint. The current public five-skill default export remains
+  unchanged.
+- `./tests/test.sh --group lib-target-catalog --group
+  commands-target-catalog --jobs 3` passes all 6 private tests under both the
+  default shell and explicit `/bin/dash` execution. `runner`, `lib-catalog`,
+  `commands-catalog`, and `commands-management` pass 33 tests together;
+  `commands-skills` passes its 10 tests separately.
 
 ### Human review gate
 
@@ -1305,11 +1332,32 @@ completes this redesign, not external catalogs or release channels.
   can remove a newly projected Shimmy link, but its result must remain
   `incomplete` and identify the overwritten foreign occupant as unrecoverable.
 
+### Chunk 3
+
+- Registry recovery and immutable retention require separating registry
+  authority validation from exhaustive payload validation. Current and previous
+  must be valid; an invalid former current may remain as a safe-named,
+  unreferenced retained directory after recovery and is rejected if explicitly
+  inspected.
+- A content-addressed generation is committed before its registry pointer. If
+  Git authority moves after staging, retaining the complete unreferenced
+  generation is safer and consistent with the no-garbage-collection contract;
+  the registry remains byte-identical.
+- Static AI-skill alignment is a catalog integrity property. Enforcing the
+  exact frontmatter name, managed-copy header, and tool-directory mapping in
+  target validation makes skill bytes part of the same reviewed fingerprint as
+  runtime metadata without exposing the target catalog route publicly.
+- Adding a canonical target control skill does not require changing the current
+  public export selection. The current payload validator admits the source so
+  present catalogs remain valid, while the old command's default five-skill
+  export stays unchanged until cutover.
+
 ## Session bootstrap
 
 Chunk 1 was accepted by the user's 2026-08-20 request to implement Chunk 2.
-Chunk 2 is implemented and verified, and awaits its human review gate. Do not
-start Chunk 3 without explicit acceptance. The implemented version-2 manifest
+Chunk 2 was accepted by the user's 2026-08-20 request to implement Chunk 3.
+Chunk 3 is implemented and verified, and awaits its human review gate. Do not
+start Chunk 4 without explicit acceptance. The implemented version-2 manifest
 uses `shim=<tool>|<tracking|pinned>`, exactly one authoritative
 `shim_version=<tool>|<version>|default` record, and zero or more non-default
 pinned `exact` records per shim. Resolve concrete runtimes directly from the

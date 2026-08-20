@@ -545,7 +545,8 @@ catalog_schema'
   }
 
   shimmy__catalog_path_entries_validate "$catalog_payload_root" || return 1
-  catalog_management_skills='shimmy-create-tool
+  catalog_management_skills='shimmy-catalog
+shimmy-create-tool
 shimmy-escalation
 shimmy-init
 shimmy-install
@@ -562,7 +563,7 @@ shimmy-tool-local-build'
       return 1
     }
   done
-  for catalog_management_skill in shimmy-create-tool shimmy-escalation shimmy-init shimmy-install shimmy-tool-local-build; do
+  for catalog_management_skill in shimmy-catalog shimmy-create-tool shimmy-escalation shimmy-init shimmy-install shimmy-tool-local-build; do
     catalog_management_skill_file=$catalog_payload_root/plugins/shimmy/skills/$catalog_management_skill/SKILL.md
     shimmy__catalog_skill_file_validate "$catalog_management_skill_file" "$catalog_management_skill" || return 1
   done

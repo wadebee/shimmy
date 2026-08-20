@@ -3,6 +3,8 @@ name: shimmy-tool-opnsense-mcp-read-only
 description: Guidance for using, changing, testing, and troubleshooting the opnsense-mcp-read-only shim in this repository, including read-only OPNsense MCP routing, API privileges, Podman secrets, supported tool inventory, and MCP stdio smoke tests.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # OPNsense MCP Read-Only Shim
 
 Use this skill when working with the opnsense-mcp-read-only tool, its tests, its docs, or live read-only OPNsense MCP queries.

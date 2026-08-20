@@ -3,6 +3,8 @@ name: shimmy-install
 description: Install, update, validate, initialize shells for, or remove Shimmy profiles. Use for Shimmy lifecycle work, bootstrap-time profile selection, disposable XDG installation validation, external startup or skills integration, and manifest-based state inspection.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Shimmy Installation Lifecycle
 
 ## Source of truth
@@ -152,7 +154,7 @@ shell command. Sourcing selects PATH only and never activates an engine.
 
 ## Shared skills
 
-The canonical five-skill management plugin and co-located tool skills remain
+The canonical six-skill management plugin and co-located tool skills remain
 in the invoking profile's named catalog; they are not copied into the profile.
 Install or update agent skill adapters in a repository or home agent profile
 only when the user explicitly selects that target through standalone `shimmy

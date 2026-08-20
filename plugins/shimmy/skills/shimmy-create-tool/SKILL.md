@@ -3,6 +3,8 @@ name: shimmy-create-tool
 description: Create or extend a Shimmy tool and its concrete CLI versions. Use when adding a wrapped CLI, selecting its image strategy, adding a version track, or wiring tool-local metadata, runtime, tests, guide, and agent guidance.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Shimmy Tool Creation
 
 ## Read first

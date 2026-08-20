@@ -3,6 +3,8 @@ name: shimmy-tool-textual
 description: Guidance for using, changing, testing, and troubleshooting the Textual developer CLI shim in this repository, including local image builds, TTY behavior, and Textual app diagnostics.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Textual Shim
 
 Use this skill when working with the Textual tool, its local image, its tests, its docs, or Textual CLI usage through Shimmy.

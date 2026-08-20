@@ -3,6 +3,8 @@ name: shimmy-tool-opnsense-mcp-admin
 description: Guidance for using, changing, testing, and troubleshooting the opnsense-mcp-admin shim in this repository, including admin-capable OPNsense MCP routing, change-window approval, rollback guidance, Podman secrets, and supported tool inventory.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # OPNsense MCP Admin Shim
 
 Use this skill when working with the opnsense-mcp-admin tool, its tests, its docs, or approved admin-capable OPNsense MCP workflows.

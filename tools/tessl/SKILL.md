@@ -3,6 +3,8 @@ name: shimmy-tool-tessl
 description: Use and maintain the Tessl Shimmy tool.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Tessl Shim
 
 ## AI Agent Evidence Order

@@ -3,6 +3,8 @@ name: shimmy-tool-go
 description: Guidance for using, changing, testing, and troubleshooting the Go toolchain shim in this repository, including stdin-friendly execution, Go command smoke checks, and platform-aware container behavior.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Go Shim
 
 Use this skill when working with the Go tool, its tests, its docs, or Go CLI usage through Shimmy.

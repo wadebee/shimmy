@@ -37,6 +37,10 @@ Podman or set connection variables.
   revalidates the candidate, target, and caller authority under that lock,
   commits with atomic replacement, and reports exact rollback as `complete` or
   `incomplete` after post-commit failure injection.
+- `catalog-target.sh` privately stages clean tracked `main` catalog payloads,
+  creates or reuses immutable generations, commits schema-1 registry updates
+  under the target catalog lock, swaps rollback pointers, and never deletes a
+  retained generation.
 - `profile-assets.sh` stages the profile-local control plane, launcher,
   dispatchers, explicit manifest-tuple smoke metadata, and only
   manifest-selected tool metadata and concrete version assets plus the

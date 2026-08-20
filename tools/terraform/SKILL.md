@@ -3,6 +3,8 @@ name: shimmy-tool-terraform
 description: Guidance for using, changing, testing, and troubleshooting the Terraform shim in this repository, including AWS credential mounts, plugin-cache mounts, TF_VAR forwarding, and plan-first validation.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Terraform Shim
 
 Use this skill when working with the Terraform tool, its tests, its docs, or Terraform usage through Shimmy.

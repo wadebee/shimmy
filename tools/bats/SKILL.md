@@ -3,6 +3,8 @@ name: shimmy-tool-bats
 description: Guidance for using, changing, testing, and troubleshooting the Bats Shimmy tool, including shell-test execution, interactive I/O, and image/version expectations.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Bats Shim
 
 Use this skill when working with the Bats tool, its tests, its docs, or Bats usage through Shimmy.

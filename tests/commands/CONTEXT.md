@@ -18,6 +18,9 @@ is the behavior under test.
   byte-exact retained-generation restoration, invalid-current recovery,
   integrity rejection, explicit catalog-default profile update, and final
   checkout-HEAD rechecking.
+- `target-catalog.sh` exercises the uninstalled candidate route with an
+  explicit disposable configuration root, including deterministic local
+  status/tools output, clean-main publication, and rollback.
 - `images.sh` covers source and installed selection, fixture-driven OCI/Docker
   parsing, request deduplication, authentication skips/failures, drift policy,
   stable output, and command availability without target-registry access.

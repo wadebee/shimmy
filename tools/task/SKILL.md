@@ -3,6 +3,8 @@ name: shimmy-tool-task
 description: Guidance for using, changing, testing, and troubleshooting the Task shim in this repository, including local image builds, host path behavior, home/tmp mounts, and Podman socket forwarding for nested workflows.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Task Shim
 
 Use this skill when working with the Task tool, its local image, its tests, its docs, or Taskfile usage through Shimmy.

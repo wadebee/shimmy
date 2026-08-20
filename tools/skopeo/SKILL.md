@@ -3,6 +3,8 @@ name: shimmy-tool-skopeo
 description: Use and maintain the Skopeo Shimmy tool.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Skopeo Shim
 
 ## AI Agent Evidence Order

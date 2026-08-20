@@ -3,6 +3,8 @@ name: shimmy-tool-npx
 description: Guidance for using, changing, testing, and troubleshooting the npx Shimmy tool, including package-execution safety, ephemeral npm state, interactive I/O, and the observational node-llama-cpp GPU diagnostic.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # npx Shim
 
 Use this skill when working with the npx tool, its tests, its documentation, or

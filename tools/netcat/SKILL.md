@@ -3,6 +3,8 @@ name: shimmy-tool-netcat
 description: Guidance for using, changing, testing, and troubleshooting the Netcat/Ncat shim in this repository, including local image build behavior and network debugging safety.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Netcat Shim
 
 Use this skill when working with the Netcat tool, its local image, its tests, its docs, or Netcat/Ncat usage through Shimmy.

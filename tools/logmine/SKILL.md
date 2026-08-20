@@ -3,6 +3,8 @@ name: shimmy-tool-logmine
 description: Use and maintain the Logmine Shimmy tool.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Logmine Shim
 
 ## AI Agent Evidence Order

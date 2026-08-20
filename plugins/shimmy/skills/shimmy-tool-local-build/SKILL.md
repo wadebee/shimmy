@@ -3,6 +3,8 @@ name: shimmy-tool-local-build
 description: Create, change, test, or troubleshoot a Shimmy concrete version that builds a local Podman image from a tool-owned container context.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Shimmy Local Image Builds
 
 ## Layout
