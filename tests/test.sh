@@ -88,6 +88,8 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$SCRIPT_DIR/commands/netinfo.sh"
 # shellcheck source=tools/aws/tests/aws.sh
 . "$ROOT_DIR/tools/aws/tests/aws.sh"
+# shellcheck source=tools/bats/tests/bats.sh
+. "$ROOT_DIR/tools/bats/tests/bats.sh"
 # shellcheck source=tools/community-ansible-dev-tools/tests/community-ansible-dev-tools.sh
 . "$ROOT_DIR/tools/community-ansible-dev-tools/tests/community-ansible-dev-tools.sh"
 # shellcheck source=tools/gcloud/tests/gcloud.sh
