@@ -43,6 +43,28 @@ shimmy_target_admin_cleanup() {
   shimmy_target_profile_cleanup
 }
 
+shimmy_target_admin_profile_manifest_render() {
+  shimmy_target_admin_profile_name=$1
+  shimmy_target_admin_profile_output=$2
+  printf 'shimmy_admin_profile=%s|ok|-\n' "$shimmy_target_admin_profile_name"
+  while IFS= read -r shimmy_target_admin_profile_line; do
+    [ -n "$shimmy_target_admin_profile_line" ] || continue
+    case "$shimmy_target_admin_profile_line" in
+      *=*)
+        shimmy_target_admin_profile_key=${shimmy_target_admin_profile_line%%=*}
+        shimmy_target_admin_profile_value=${shimmy_target_admin_profile_line#*=}
+        ;;
+      *) return 1 ;;
+    esac
+    shimmy_shell_function_name_validate "$shimmy_target_admin_profile_key" || return 1
+    printf 'shimmy_admin_profile_record=%s|%s|%s\n' "$shimmy_target_admin_profile_name" \
+      "$shimmy_target_admin_profile_key" \
+      "$(shimmy_manifest_value_encode "$shimmy_target_admin_profile_value")"
+  done <<EOF
+$shimmy_target_admin_profile_output
+EOF
+}
+
 shimmy_target_admin_status_render() {
   shimmy_target_admin_status_config=$1
   shimmy_target_admin_status_format=$2
@@ -50,7 +72,6 @@ shimmy_target_admin_status_render() {
   shimmy_target_admin_status_active=$SHIMMY_TARGET_PROFILE_ACTIVE_NAME
   if [ "$shimmy_target_admin_status_format" = manifest ]; then
     printf 'shimmy_admin_active_profile=%s\n' "$shimmy_target_admin_status_active"
-    shimmy_target_catalog_status_render "$shimmy_target_admin_status_config" manifest || return 1
   else
     printf 'INSTALLATION\nActive profile: %s\n\nCATALOG\n' "$shimmy_target_admin_status_active"
     shimmy_target_catalog_status_render "$shimmy_target_admin_status_config" human || return 1
@@ -72,9 +93,8 @@ shimmy_target_admin_status_render() {
       "$shimmy_target_admin_status_config" "$shimmy_target_admin_status_name" \
       "$shimmy_target_admin_status_format" 2>&1); then
       if [ "$shimmy_target_admin_status_format" = manifest ]; then
-        printf 'shimmy_admin_profile_begin=%s\n%s\nshimmy_admin_profile_end=%s\n' \
-          "$shimmy_target_admin_status_name" "$shimmy_target_admin_status_profile" \
-          "$shimmy_target_admin_status_name"
+        shimmy_target_admin_profile_manifest_render "$shimmy_target_admin_status_name" \
+          "$shimmy_target_admin_status_profile" || return 1
       else
         printf '\n%s\n' "$shimmy_target_admin_status_profile"
       fi
@@ -82,7 +102,7 @@ shimmy_target_admin_status_render() {
       shimmy_target_admin_status_reason=$(shimmy_manifest_diagnostic_encode \
         "$shimmy_target_admin_status_profile")
       if [ "$shimmy_target_admin_status_format" = manifest ]; then
-        printf 'shimmy_admin_profile=%s|invalid|%s\n' "$shimmy_target_admin_status_name" \
+        printf 'shimmy_admin_profile=%s|error|%s\n' "$shimmy_target_admin_status_name" \
           "$shimmy_target_admin_status_reason"
       else
         printf '\nPROFILE %s\nState: invalid\nReason: %s\n' "$shimmy_target_admin_status_name" \
@@ -140,4 +160,3 @@ case "$shimmy_target_admin_action" in
     ;;
   *) fail "unknown target administration action: $shimmy_target_admin_action" ;;
 esac
-

@@ -108,6 +108,8 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$SCRIPT_DIR/commands/target-ai-skill.sh"
 # shellcheck source=tests/commands/target-profile.sh
 . "$SCRIPT_DIR/commands/target-profile.sh"
+# shellcheck source=tests/commands/target-surface.sh
+. "$SCRIPT_DIR/commands/target-surface.sh"
 # shellcheck source=tests/commands/target-lifecycle.sh
 . "$SCRIPT_DIR/commands/target-lifecycle.sh"
 # shellcheck source=tests/commands/images.sh

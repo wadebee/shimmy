@@ -15,22 +15,23 @@ reusable behavior belongs in `../lib/`.
   publish clean committed `upstream` content to an immutable `default`
   generation, atomically restore its retained prior generation, or explicitly
   rebind the live upstream registry.
-- `catalog-target.sh` is an uninstalled private candidate for target-schema
+- `catalog-target.sh` is a private candidate for target-schema
   default-catalog status, retained tools inspection, active-profile-backed
   remote image verification, clean-main publication, and rollback. It requires
-  an explicit disposable configuration root and has no route from the current
-  installed dispatcher.
-- `shim-target.sh` is an uninstalled private candidate for version-2
-  profile-local shim list/add/remove/set-version/sync/test behavior. It resolves
-  only the active disposable target profile and its retained catalog pin,
-  prepares images before mutation, regenerates the shim AI-skill bundle, and
+  an explicit disposable configuration root and is installed only into private
+  version-2 candidate profiles, never the current public dispatcher.
+- `shim-target.sh` is a private candidate for version-2 profile-local shim
+  list/add/remove/set-version/sync/test behavior. Reads resolve the invoking
+  disposable target profile and its retained catalog pin; mutations additionally
+  require it to be active. Mutation prepares images before commit, regenerates
+  the shim AI-skill bundle, and
   reconciles exact active user links in one bounded rollback workflow. It has no
-  route from the current installed dispatcher.
-- `ai-skill-target.sh` is an uninstalled private candidate for active-profile
+  route from the current public dispatcher.
+- `ai-skill-target.sh` is a private candidate for active-profile
   bundle/link list and repair behavior. It classifies malformed and unsupported
   bundle state, reports exact destructive collisions, and never sweeps the
   recorded user skills root.
-- `profile-target.sh` is an uninstalled private candidate for arbitrary safe
+- `profile-target.sh` is a private candidate for arbitrary safe
   profile list/status/create/activate/sync/startup-repair/delete and
   invoking-profile redirect behavior. It
   requires launcher-supplied disposable installation and invoking identities,
@@ -43,8 +44,14 @@ reusable behavior belongs in `../lib/`.
   removes the disposable installation root if initial activation fails.
 - `admin-target.sh` is the private installation-wide status/network/uninstall
   candidate. Status aggregates profile failures, network inspection resolves
-  the active profile first, and uninstall removes only validated owned state,
-  exact startup blocks, and recognized direct home skill links.
+  the active profile first, manifest status emits encoded nested per-profile
+  records, and uninstall removes only validated owned state, exact startup
+  blocks, and recognized direct home skill links.
+- `help-target.sh` is the private production-intended root/group/action help
+  renderer. The version-2 launcher invokes it before profile-manifest
+  validation for no-action and `--help` forms. It documents exact target
+  commands, defaults, scopes, overwrite boundaries, and remediation without
+  advertising legacy or external-catalog routes.
 - `dispatch-tool.sh` validates exact manifest ownership and a fixed regular,
   executable, non-symlink `commands/run-tool.sh` target, then dispatches the
   profile-local logical tool without resolving the catalog checkout.

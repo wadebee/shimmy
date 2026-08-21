@@ -50,7 +50,9 @@ Podman or set connection variables.
   POSIX `shell-init.sh`: shell initialization exclusively prepends one selected
   profile bin, delegates through its absolute launcher without recursion, and
   sources a successful create/activate target only after non-dry-run success.
-  It does not change the current public jq/rg bootstrap or launcher behavior.
+  Launcher command/group/action help delegates to the exact private help asset
+  before manifest validation. It does not change the current public jq/rg
+  bootstrap or launcher behavior.
 - `lifecycle-target.sh` privately integrates pristine bootstrap, automatic
   create/activation, image preparation, active authority, exact user links,
   startup compensation, and new-profile rollback. Create dry-run returns

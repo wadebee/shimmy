@@ -128,17 +128,29 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
+shimmy_target_shim_mutation_preflight() {
+  [ "$SHIMMY_TARGET_SHIM_IS_ACTIVE" -eq 1 ] ||
+    fail "shim mutation requires the invoking profile to be active; activate it with: shimmy profile activate $SHIMMY_TARGET_SHIM_PROFILE_NAME"
+  shimmy_target_ai_skill_context_resolve "$shimmy_target_config_root" || fail "$SHIMMY_TARGET_AI_SKILL_ERROR"
+  [ "$SHIMMY_TARGET_AI_SKILL_PROFILE_ROOT" = "$SHIMMY_TARGET_SHIM_PROFILE_ROOT" ] ||
+    fail 'active AI-skill authority does not match the invoking shim profile'
+  shimmy_target_ai_skill_reconcile_preflight "$SHIMMY_TARGET_AI_SKILL_PROFILE_ROOT" \
+    "$SHIMMY_TARGET_CATALOG_REGISTRY_PATH" "$SHIMMY_TARGET_AI_SKILL_GENERATION_ROOT" ||
+    fail "$SHIMMY_TARGET_AI_SKILL_ERROR"
+}
+
 [ "$#" -gt 0 ] || { usage; exit 0; }
 case "$1" in -h|--help|help) usage; exit 0 ;; esac
 shimmy_target_action=$1
 shift
+case "$shimmy_target_action" in list|add|remove|set-version|sync|test) ;; *) fail "unknown target shim action: $shimmy_target_action" ;; esac
 shimmy_target_config_root=${SHIMMY_TARGET_CONFIG_ROOT:-}
 [ -n "$shimmy_target_config_root" ] || fail 'SHIMMY_TARGET_CONFIG_ROOT is required for private target shim routing'
-shimmy_target_shim_context_resolve "$shimmy_target_config_root" || fail "$SHIMMY_TARGET_SHIM_ERROR"
+shimmy_target_invoking_profile=${SHIMMY_TARGET_INVOKING_PROFILE:-}
+shimmy_name_component_validate "$shimmy_target_invoking_profile" ||
+  fail 'private target shim routing requires a valid invoking profile identity'
+shimmy_target_shim_context_resolve "$shimmy_target_config_root" "$shimmy_target_invoking_profile" || fail "$SHIMMY_TARGET_SHIM_ERROR"
 shimmy_target_shim_materialization_validate "$SHIMMY_TARGET_SHIM_PROFILE_ROOT" "$SHIMMY_TARGET_SHIM_CATALOG_ROOT" || fail 'invalid target shim materialization'
-shimmy_target_ai_skill_context_resolve "$shimmy_target_config_root" || fail "$SHIMMY_TARGET_AI_SKILL_ERROR"
-shimmy_target_ai_skill_reconcile_preflight "$SHIMMY_TARGET_AI_SKILL_PROFILE_ROOT" \
-  "$SHIMMY_TARGET_CATALOG_REGISTRY_PATH" "$SHIMMY_TARGET_AI_SKILL_GENERATION_ROOT" || fail "$SHIMMY_TARGET_AI_SKILL_ERROR"
 
 case "$shimmy_target_action" in
   list)
@@ -149,6 +161,7 @@ case "$shimmy_target_action" in
     shimmy_target_shim_list_render "$shimmy_target_format" || fail 'unable to render target shims'
     ;;
   add)
+    shimmy_target_shim_mutation_preflight
     [ "$#" -eq 1 ] || fail 'shim add requires exactly one tool[@version] selector'
     shimmy_target_selector_parse "$1" || fail "invalid shim selector: $1"
     if [ -n "$SHIMMY_TARGET_SELECTOR_VERSION" ]; then shimmy_target_add_mode=pinned; shimmy_target_add_version=$SHIMMY_TARGET_SELECTOR_VERSION
@@ -157,17 +170,20 @@ case "$shimmy_target_action" in
     shimmy_target_shim_add "$SHIMMY_TARGET_SELECTOR_TOOL" "$shimmy_target_add_version" "$shimmy_target_add_mode" || fail "$SHIMMY_TARGET_SHIM_ERROR"
     ;;
   remove)
+    shimmy_target_shim_mutation_preflight
     [ "$#" -eq 1 ] || fail 'shim remove requires exactly one tool[@version] selector'
     shimmy_target_selector_parse "$1" || fail "invalid shim selector: $1"
     shimmy_target_shim_remove "$SHIMMY_TARGET_SELECTOR_TOOL" "$SHIMMY_TARGET_SELECTOR_VERSION" || fail "$SHIMMY_TARGET_SHIM_ERROR"
     ;;
   set-version)
+    shimmy_target_shim_mutation_preflight
     [ "$#" -eq 1 ] || fail 'shim set-version requires exactly one tool@version selector'
     shimmy_target_selector_parse "$1" || fail "invalid shim selector: $1"
     [ -n "$SHIMMY_TARGET_SELECTOR_VERSION" ] || fail 'shim set-version requires an exact tool@version selector'
     shimmy_target_shim_set_version "$SHIMMY_TARGET_SELECTOR_TOOL" "$SHIMMY_TARGET_SELECTOR_VERSION" || fail "$SHIMMY_TARGET_SHIM_ERROR"
     ;;
   sync)
+    shimmy_target_shim_mutation_preflight
     shimmy_target_sync_selectors=$(shimmy_target_selected_tools_resolve "$@")
     shimmy_target_shim_sync "$shimmy_target_sync_selectors" || fail "$SHIMMY_TARGET_SHIM_ERROR"
     ;;
@@ -176,5 +192,4 @@ case "$shimmy_target_action" in
     [ -n "$shimmy_target_smoke_pairs" ] || fail 'profile contains no shims to test'
     shimmy_target_shim_smoke_run "$shimmy_target_smoke_pairs"
     ;;
-  *) fail "unknown target shim action: $shimmy_target_action" ;;
 esac

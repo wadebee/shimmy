@@ -34,10 +34,11 @@ or masking state.
 
 Private target shim tests use disposable version-2 profiles and real immutable
 catalog generations with harmless fixture runtimes. They validate selector and
-default-role transitions, pinned-generation synchronization, image preparation
-before commit, deterministic shim bundle regeneration, exact-link reconciliation,
-cross-resource rollback, generated installed-copy execution, typed bundle input,
-and smoke selection without exposing a current public route. Private target
+default-role transitions, invoking-profile reads and active-only mutation,
+pinned-generation synchronization, image preparation before commit,
+deterministic shim bundle regeneration, exact-link reconciliation,
+cross-resource rollback, generated installed-copy execution, typed bundle
+input, and smoke selection without exposing a current public route. Private target
 AI-skill tests cover deterministic control materialization, valid/empty/invalid/
 unsupported listing, encoded paths, exact foreign collision overwrite, stale
 recognized-link cleanup, rollback honesty, and unrelated user-root preservation.
@@ -48,9 +49,14 @@ bundle policy, Darwin workload guards and ordinary/restart ordering, exact
 direct source guidance, and independent POSIX/Bash/Zsh shell selection.
 Private target lifecycle coverage uses a clean disposable main checkout and
 harmless baseline refresh runtimes to prove pristine bootstrap, read-only
-dry-run planning, create/activate, exact startup repair, control/catalog sync,
-aggregate administration, guarded deletion, failed-bootstrap cleanup, and
-narrow global uninstall without touching unrelated home skills.
+dry-run planning, remote skill-installer destination replacement, complete
+catalog/shim/profile/AI/admin command routing, create/activate sourced-shell
+selection, exact startup repair, control/catalog sync and rollback, aggregate
+encoded administration, active network inspection, guarded deletion,
+failed-bootstrap cleanup, and narrow global uninstall without touching
+unrelated home skills. Private target surface coverage separately proves exact
+root/group/action help before state validation and source/rendered asset syntax,
+modes, and byte identity.
 
 Installation scenarios isolate state with absolute disposable `HOME` and
 `XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or

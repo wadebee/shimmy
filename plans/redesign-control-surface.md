@@ -555,9 +555,10 @@ None.
   the user on 2026-08-21, conditional on dry-run retaining read/classification
   semantics without persistent mutation; the implemented paths maintain that
   invariant.
-- [~] Chunk 8 — Profile, bootstrap, and admin candidate lifecycles are
+- [x] Chunk 8 — Profile, bootstrap, and admin candidate lifecycles were
+  accepted by the user's 2026-08-21 request to implement Chunk 9.
+- [~] Chunk 9 — Complete private target commands and end-to-end tests are
   implemented and automatically verified; human acceptance is pending.
-- [ ] Chunk 9 — Complete private target commands and end-to-end tests.
 - [ ] Chunk 10 — Perform atomic public cutover and primary documentation.
 - [ ] Chunk 11 — Complete repository-wide cleanup and final acceptance.
 
@@ -1267,18 +1268,139 @@ remain unchanged.
 
 ### Verification checklist
 
-- [ ] Root/nested help exactly presents target commands, options, defaults,
+- [x] Root/nested help exactly presents target commands, options, defaults,
   scopes, overwrite warnings, and remediation.
-- [ ] End-to-end bootstrap → create → shim add/set/sync/remove → profile sync →
+- [x] End-to-end bootstrap → create → shim add/set/sync/remove → profile sync →
   startup repair → sibling activation → inactive deletion → uninstall passes
   through the private installed launcher.
-- [ ] Status/network/catalog verify/AI repair/smoke/sourced-shell flows use exact
+- [x] Status/network/catalog verify/AI repair/smoke/sourced-shell flows use exact
   target schemas/statuses.
-- [ ] Remote `$skill-installer` onboarding in disposable home replaces its exact
+- [x] Remote `$skill-installer` onboarding in disposable home replaces its exact
   bootstrap destination while unrelated skills survive.
-- [ ] Runnable/rendered assets pass syntax and executable-bit checks.
-- [ ] All target groups and complete current public suite pass; record counts and
+- [x] Runnable/rendered assets pass syntax and executable-bit checks.
+- [x] All target groups and complete current public suite pass; record counts and
   cutover removal inventory.
+
+### Chunk 10 removal inventory
+
+The hard cut must apply the following producer/consumer inventory as one review
+unit. This is an implementation inventory, not authorization to delete anything
+before Chunk 10 acceptance.
+
+- **Promote the accepted private route:** replace root `bootstrap.sh` with
+  `bootstrap-target.sh`; promote `commands/bootstrap-target.sh` and
+  `commands/{admin,profile,catalog,shim,ai-skill,help}-target.sh` to their
+  unsuffixed public names; replace `lib/install/launcher-template.sh` with the
+  launcher rendered today by `shimmy_target_profile_launcher_render`; and
+  remove every installed reference to `*-target.sh`. The final launcher exposes
+  only `admin`, `profile`, `catalog`, `shim`, and `ai-skill`; its no-action and
+  help routes still execute before state validation.
+- **Remove the version-1 command surface:** delete
+  `commands/{images,install,netinfo,skills,status,update}.sh` and the
+  version-1 installed dispatcher `commands/dispatch-tool.sh`; replace current
+  `commands/{catalog,profile}.sh` with the accepted target implementations.
+  Remove the launcher's old `install`, `uninstall`, `images`, `skills`,
+  `status`, `netinfo`, `update`, and top-level `test` routes. Retain
+  `commands/run-tool.sh` for checkout-local tool execution. Rewrite
+  `commands/agent-preflight.sh` to discover the version-2 active profile and
+  `shim`/`shim_version` records rather than two fixed profiles and `tool`
+  records.
+- **Replace isolated version-1 lifecycle libraries:** remove
+  `lib/install/{catalog-lifecycle,install,profile-assets,request,startup}.sh`;
+  replace `lib/install/uninstall.sh` with `uninstall-target.sh`; promote
+  `lib/install/{catalog,lifecycle,profile}-target.sh` as the canonical
+  lifecycle modules. Remove
+  `lib/update/{management,request,selection,refresh,update}.sh` and replace
+  `lib/update/profile.sh` with `profile-target.sh`. No public caller may retain
+  optional activation, `upstream` checkout refresh, rebind, implementation-name
+  selection, or version-1 asset staging.
+- **Split mixed schema modules before pruning:** `lib/install/manifest.sh`
+  contains both the version-1 writer and accepted version-2 renderer; retain
+  only the promoted version-2 renderer. `lib/profile/profile.sh` contains
+  shared path/engine helpers plus fixed-name version-1 validation; retain the
+  arbitrary-name path helpers used by the target and remove version-1
+  ownership/materialization readers. `lib/catalog/catalog.sh` contains shared
+  payload, fingerprint, tool-metadata, and image-schema helpers plus the old
+  unversioned checkout/generation registry reader; retain the shared payload
+  helpers and remove `catalog_source_type`, `catalog_source_path`, fixed
+  profile-to-catalog binding, checkout authority, and the old registry
+  resolver. Fold `lib/{ai-skill,catalog,images,profile,shim}/target.sh` into
+  canonical modules so no shadow route remains.
+- **Finish runtime/schema consumers together:** remove the version-1 and
+  manifest-less branches from `lib/runtime/podman.sh`, keep only version-2
+  arbitrary-profile active-record affinity, and update the Skopeo runtime plus
+  every installed helper source path to the canonical modules. Inventory
+  searches must find no `shimmy_install_manifest_version=1`,
+  `shimmy_profile_manifest_version=1`, `tool_version=`, implementation-name
+  routing, `default|upstream` profile validator, or unversioned catalog source
+  reader/writer in current production code.
+- **Remove copied/exported skills:** delete `commands/skills.sh`, its manifest,
+  archive/export/copied-home lifecycle, `.shimmy-skills-manifest.txt` fixtures,
+  and repository `.agents/skills/` wholesale while preserving
+  `.agents/plugins/marketplace.json`. Keep only catalog-owned canonical skill
+  sources, profile bundle generators, exact direct user links, and their narrow
+  overwrite/cleanup transactions. This does not authorize broad deletion under
+  a user's home skill root.
+- **Replace tests rather than preserve obsolete rejection surfaces:** promote
+  the `lib-target-*` and `commands-target-*` groups to canonical public groups
+  and make the installed lifecycle use final unsuffixed assets. Retire the
+  version-1 command groups `commands-catalog`, `commands-images`,
+  `commands-lifecycle`, `commands-management`, `commands-onboarding`,
+  `commands-profiles`, `commands-profile`, `commands-status`,
+  `commands-update`, `commands-startup`, `commands-skills`,
+  `commands-dispatcher`, `commands-netinfo`, and `commands-install`; move any
+  still-durable ownership, rollback, startup, registry, and live-smoke proof
+  into the corresponding target/final scenario before removing those fixtures.
+  Replace the old top-level `commands-test` proof with live `shim test`
+  coverage. Retain and update runner, catalog-payload/image, runtime-platform,
+  version-2 affinity, activation, and registries tests; remove `lib-update`
+  after its sole old refresh contract disappears.
+- **Update current guidance in the same boundary:** rewrite root README,
+  BOOTSTRAP, CONTRIBUTING, commands README, AGENTS, current contexts, tool
+  guidance that invokes `commands/images.sh`, and canonical onboarding/control
+  skills. Record fixed `main`, default-only catalog authority, jq/rg/Skopeo
+  bootstrap, exact-name overwrite without recovery, collision-visible dry-run,
+  and the prohibition on broad home-skill deletion. Historical retained plans
+  remain historical.
+
+### Chunk 9 evidence
+
+- `commands/help-target.sh` is the single complete root/group/subgroup/action
+  renderer. The installed launcher routes help before manifest validation and
+  advertises no legacy alias, qualified catalog, or external-catalog command.
+- Shim reads now resolve the invoking launcher's version-2 manifest and catalog
+  pin; mutations independently require that invoking profile to be active
+  before image work. Admin manifest output uses one profile summary record plus
+  repeated encoded nested profile records, including encoded nested pipes and
+  diagnostics.
+- `tests/commands/target-lifecycle.sh` bootstraps a disposable installation,
+  drives every lifecycle through installed candidate launchers, distinguishes
+  inactive invoking-profile reads from active-only mutation, exercises catalog
+  publish/verify/rollback, target status/network/admin schemas, redirects,
+  shim and AI operations, sourced-shell selection, startup repair, deletion,
+  and uninstall, and validates every rendered runnable asset.
+- The onboarding fixture establishes the exact
+  `$HOME/.agents/skills/shimmy-install` destination produced by remote
+  `$skill-installer --dest`; bootstrap replaces only that exact destination
+  with the active-profile direct link and preserves an unrelated sibling skill.
+  The suite remains offline by seeding that documented installer postcondition
+  rather than invoking external network state.
+- `./tests/test.sh --group lib-target-codec --group
+  lib-target-profile-state --group lib-target-ai-skill-state --group
+  lib-target-lock --group lib-target-transaction --group
+  lib-target-ai-skill-link --group lib-target-catalog --group
+  commands-target-catalog --group commands-target-shim --group
+  commands-target-ai-skill --group commands-target-profile --group
+  commands-target-surface --group commands-target-lifecycle --jobs 3` passes
+  all 41 target tests.
+- Sandboxed `./tests/test.sh` reached only the existing live jq smoke before
+  failing because nested Podman access was unavailable. The identical complete
+  default run with approved live Podman access passes all 215 tests, including
+  public, exact-version, and all-version installed smokes.
+- Every repository `*.sh` file passes `/bin/sh -n`, `git diff --check` is clean,
+  source/rendered executable-mode assertions pass, and searches plus an empty
+  diff over the current bootstrap, launcher template, and legacy command
+  entrypoints confirm that the public version-1 route remains unchanged.
 
 ### Human review gate
 
@@ -1643,6 +1765,34 @@ completes this redesign, not external catalogs or release channels.
   promise reconstruction of an earlier projection if a later profile fails;
   the human gate must evaluate that explicit external rollback boundary.
 
+### Chunk 9
+
+- Help-before-state is simplest as an installed launcher invariant, not a
+  special case in every command. Parse the complete known group/action shape,
+  route its canonical renderer, and only then validate manifest authority for
+  an operation.
+- Invoking and active profiles are independent authorities. Read-only shim
+  commands must resolve the invoking launcher's manifest and immutable pin;
+  mutations must additionally prove that profile is active before any image or
+  candidate work.
+- An aggregate manifest row cannot safely splice already encoded child records.
+  Treat the complete nested value as a new manifest value and encode it again,
+  so child pipes and diagnostics remain unambiguous to the outer schema.
+- Offline onboarding acceptance can start from the exact documented
+  postcondition of the external installer. Seeding only
+  `$HOME/.agents/skills/shimmy-install` keeps the suite deterministic while
+  proving that bootstrap owns that exact overwrite boundary and preserves
+  sibling names.
+- An end-to-end candidate test is meaningful only when it uses the rendered
+  installed launcher and copied production assets for every operation. Direct
+  library calls remain useful focused proofs but cannot establish the cutover
+  route, sourced-shell behavior, modes, or generated quoting.
+- The hard-cut inventory must distinguish isolated legacy stacks from mixed
+  modules. Version-1 manifest/profile/catalog files currently contain shared
+  target primitives, so blind file deletion would remove accepted behavior;
+  split or prune those producers and consumers in the same Chunk 10 review
+  unit.
+
 ## Session bootstrap
 
 Chunk 1 was accepted by the user's 2026-08-20 request to implement Chunk 2.
@@ -1654,9 +1804,9 @@ implement Chunk 7. Chunk 7 was accepted by the user's 2026-08-21 request,
 conditional on dry-run retaining read/classification semantics without any
 persistent filesystem, engine, registry, startup, active-record, or user-link
 change; the implemented activation, redirect, and create paths maintain that
-invariant. Chunk 8 is implemented and automatically verified, and awaits its
-human review gate. Do not start Chunk 9 without explicit acceptance. The
-implemented
+invariant. Chunk 8 was accepted by the user's 2026-08-21 request to implement
+Chunk 9. Chunk 9 is implemented and automatically verified and awaits its human
+review gate. Do not start Chunk 10 without explicit acceptance. The implemented
 version-2 manifest uses `shim=<tool>|<tracking|pinned>`, exactly one authoritative
 `shim_version=<tool>|<version>|default` record, and zero or more non-default
 pinned `exact` records per shim. Resolve concrete runtimes directly from the

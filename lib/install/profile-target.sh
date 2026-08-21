@@ -285,6 +285,30 @@ case "$shimmy_launcher_profile_name" in ''|-*|*-|*--*|*[!abcdefghijklmnopqrstuvw
 shimmy_launcher_profiles_root=$(cd -- "$shimmy_launcher_profile_root/.." && pwd -P)
 shimmy_launcher_config_root=$(cd -- "$shimmy_launcher_profiles_root/.." && pwd -P)
 [ "$shimmy_launcher_profile_root" = "$shimmy_launcher_config_root/profiles/$shimmy_launcher_profile_name" ] || { printf '%s\n' 'ERROR: target launcher is outside its canonical profile root' >&2; exit 1; }
+shimmy_launcher_help=$shimmy_launcher_profile_root/commands/help-target.sh
+[ -f "$shimmy_launcher_help" ] && [ ! -L "$shimmy_launcher_help" ] && [ -x "$shimmy_launcher_help" ] || { printf '%s\n' 'ERROR: target command help is missing or unsafe' >&2; exit 1; }
+shimmy_launcher_command=${1:-help}
+case "$shimmy_launcher_command" in
+  help|-h|--help) exec "$shimmy_launcher_help" root ;;
+  admin|profile|catalog|shim|ai-skill) ;;
+  *) printf 'ERROR: unsupported private target command: %s\n' "$shimmy_launcher_command" >&2; exit 1 ;;
+esac
+[ "$#" -gt 1 ] || exec "$shimmy_launcher_help" "$shimmy_launcher_command"
+case "${2:-}" in help|-h|--help) exec "$shimmy_launcher_help" "$shimmy_launcher_command" ;; esac
+if [ "$shimmy_launcher_command" = profile ] && [ "${2:-}" = redirect ]; then
+  [ "$#" -gt 2 ] || exec "$shimmy_launcher_help" profile redirect
+  case "${3:-}" in help|-h|--help) exec "$shimmy_launcher_help" profile redirect ;; esac
+fi
+for shimmy_launcher_arg in "$@"; do
+  case "$shimmy_launcher_arg" in
+    -h|--help)
+      if [ "$shimmy_launcher_command" = profile ] && [ "${2:-}" = redirect ]; then
+        exec "$shimmy_launcher_help" profile redirect "${3:-}"
+      fi
+      exec "$shimmy_launcher_help" "$shimmy_launcher_command" "${2:-}"
+      ;;
+  esac
+done
 shimmy_launcher_manifest=$shimmy_launcher_profile_root/install-manifest.txt
 [ -f "$shimmy_launcher_manifest" ] && [ ! -L "$shimmy_launcher_manifest" ] || { printf '%s\n' 'ERROR: target profile manifest is missing or unsafe' >&2; exit 1; }
 [ "$(sed -n '1s/^shimmy_install_manifest_version=//p' "$shimmy_launcher_manifest")" = 2 ] &&
@@ -293,17 +317,12 @@ shimmy_launcher_manifest=$shimmy_launcher_profile_root/install-manifest.txt
 SHIMMY_TARGET_CONFIG_ROOT=$shimmy_launcher_config_root
 SHIMMY_TARGET_INVOKING_PROFILE=$shimmy_launcher_profile_name
 export SHIMMY_TARGET_CONFIG_ROOT SHIMMY_TARGET_INVOKING_PROFILE
-shimmy_launcher_command=${1:-help}
 case "$shimmy_launcher_command" in
-  help|-h|--help)
-    printf '%s\n' 'Private target Shimmy candidate: admin, profile, catalog, shim, and ai-skill.'
-    ;;
   admin) shift; exec "$shimmy_launcher_profile_root/commands/admin-target.sh" "$@" ;;
   profile) shift; exec "$shimmy_launcher_profile_root/commands/profile-target.sh" "$@" ;;
   catalog) shift; exec "$shimmy_launcher_profile_root/commands/catalog-target.sh" "$@" ;;
   shim) shift; exec "$shimmy_launcher_profile_root/commands/shim-target.sh" "$@" ;;
   ai-skill) shift; exec "$shimmy_launcher_profile_root/commands/ai-skill-target.sh" "$@" ;;
-  *) printf 'ERROR: unsupported private target command: %s\n' "$shimmy_launcher_command" >&2; exit 1 ;;
 esac
 EOF
 }

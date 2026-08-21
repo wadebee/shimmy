@@ -80,7 +80,7 @@ shimmy_target_profile_candidate_resolve() {
       shimmy_target_profile_error_set "missing target profile asset directory: $SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT/$shimmy_target_profile_candidate_dir" || return 1
   done
   for shimmy_target_profile_candidate_command in admin-target.sh ai-skill-target.sh \
-    catalog-target.sh profile-target.sh shim-target.sh; do
+    catalog-target.sh help-target.sh profile-target.sh shim-target.sh; do
     [ -x "$SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT/commands/$shimmy_target_profile_candidate_command" ] &&
       [ ! -L "$SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT/commands/$shimmy_target_profile_candidate_command" ] ||
       shimmy_target_profile_error_set "missing target profile command: $SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT/commands/$shimmy_target_profile_candidate_command" || return 1

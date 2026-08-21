@@ -72,6 +72,11 @@ shimmy_target_shim_catalog_default_read() {
 
 shimmy_target_shim_context_resolve() {
   shimmy_target_shim_context_root=$1
+  shimmy_target_shim_context_profile=$2
+  shimmy_name_component_validate "$shimmy_target_shim_context_profile" || {
+    shimmy_target_shim_error_set "invalid invoking target profile: $shimmy_target_shim_context_profile"
+    return 1
+  }
   shimmy_target_catalog_tree_validate "$shimmy_target_shim_context_root" || {
     shimmy_target_shim_error_set "$SHIMMY_TARGET_CATALOG_ERROR"
     return 1
@@ -82,18 +87,22 @@ shimmy_target_shim_context_resolve() {
     return 1
   }
   shimmy_target_shim_active_name=$SHIMMY_TARGET_ACTIVE_PROFILE_NAME
-  shimmy_target_profile_paths_resolve "$shimmy_target_shim_context_root" "$shimmy_target_shim_active_name" || return 1
+  shimmy_target_profile_paths_resolve "$shimmy_target_shim_context_root" "$shimmy_target_shim_context_profile" || return 1
   [ -d "$SHIMMY_TARGET_PROFILE_ROOT" ] && [ ! -L "$SHIMMY_TARGET_PROFILE_ROOT" ] &&
     shimmy_path_parent_chain_validate "$SHIMMY_TARGET_PROFILE_ROOT" || {
-      shimmy_target_shim_error_set "unsafe active target profile root: $SHIMMY_TARGET_PROFILE_ROOT"
+      shimmy_target_shim_error_set "unsafe invoking target profile root: $SHIMMY_TARGET_PROFILE_ROOT"
       return 1
     }
   shimmy_target_profile_manifest_read "$SHIMMY_TARGET_PROFILE_MANIFEST_PATH" || {
     shimmy_target_shim_error_set "invalid target profile manifest: $SHIMMY_TARGET_PROFILE_MANIFEST_PATH"
     return 1
   }
-  [ "$SHIMMY_TARGET_PROFILE_NAME" = "$shimmy_target_shim_active_name" ] || return 1
+  [ "$SHIMMY_TARGET_PROFILE_NAME" = "$shimmy_target_shim_context_profile" ] || return 1
 
+  SHIMMY_TARGET_SHIM_ACTIVE_NAME=$shimmy_target_shim_active_name
+  SHIMMY_TARGET_SHIM_IS_ACTIVE=0
+  [ "$shimmy_target_shim_context_profile" != "$shimmy_target_shim_active_name" ] ||
+    SHIMMY_TARGET_SHIM_IS_ACTIVE=1
   SHIMMY_TARGET_SHIM_PROFILE_NAME=$SHIMMY_TARGET_PROFILE_NAME
   SHIMMY_TARGET_SHIM_PROFILE_ROOT=$SHIMMY_TARGET_PROFILE_ROOT
   SHIMMY_TARGET_SHIM_MANIFEST_PATH=$SHIMMY_TARGET_PROFILE_MANIFEST_PATH

@@ -90,6 +90,11 @@ runtime directly. Canonical skills remain catalog-owned.
   inspection, and fail-closed owned-state uninstall. Dry-run performs only
   state reads/classification and leaves no filesystem, engine, registry,
   startup, active-record, or user-link mutation behind.
+- The complete private target command surface is installed only into
+  disposable version-2 candidate profiles. Its exact root/group/action help
+  precedes manifest validation, shim reads use the invoking launcher while
+  mutation remains active-only, and aggregate admin manifest output nests
+  encoded profile status records. Current public version-1 routing is unchanged.
 - Version-1 default manifests own exactly one normalized startup shell and zero
   or more exact absolute startup paths; upstream manifests own neither field.
 

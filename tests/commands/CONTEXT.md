@@ -23,7 +23,7 @@ is the behavior under test.
   status/tools output, clean-main publication, rollback, catalog image
   verification parity, active-materialization-only jq/Skopeo resolution, and
   exact missing-dependency remediation.
-- `target-shim.sh` exercises the uninstalled version-2 profile-local lifecycle
+- `target-shim.sh` exercises the private version-2 profile-local lifecycle
   through real retained catalog generations. It covers interactive tracking and
   exact automation, first-default stability, pinned-generation sync,
   collision-free tracking advancement, role-swapping set-version, guarded and
@@ -31,6 +31,11 @@ is the behavior under test.
   execution, typed bundle input, deterministic shim-skill lifecycle, exact-link
   reconciliation, cross-resource rollback, and all/tool/version smoke status
   propagation.
+- `target-surface.sh` renders a private installed launcher over deliberately
+  damaged state and proves exact root, group, subgroup, and action help remains
+  available before manifest validation. It covers every target invocation form,
+  defaults, scopes, overwrite/remediation guidance, absence of legacy/external
+  routes, executable modes, POSIX syntax, and launcher byte validation.
 - `target-ai-skill.sh` exercises the uninstalled active-profile AI-skill route.
   It covers exact-commit control materialization, empty/valid/invalid/unsupported
   list states, encoded paths, wrong-profile and broken links, unconditional
@@ -45,12 +50,17 @@ is the behavior under test.
   shares one real immutable catalog/profile fixture because complete candidate
   validation is intentionally expensive.
 - `target-lifecycle.sh` exercises the private production-intended candidate
-  from pristine bootstrap through create dry-run/create, startup repair,
-  explicit-main and registry-current sync, aggregate administration, inactive
-  deletion, and all-owned-state uninstall. It proves dry-run leaves profile,
-  manifest, image, lock, active-record, engine-link, and user-link state
-  unchanged; failed initial activation leaves no valid installation; and
-  unrelated home skill content survives uninstall.
+  through installed launchers from pristine bootstrap to uninstall. It seeds
+  the exact remote `$skill-installer` destination and an unrelated sibling,
+  then covers catalog status/tools/verify/publish/rollback, shim
+  list/add/set/sync/test/remove, profile status/list/redirect/create/sync/
+  startup repair/activate/delete, AI list/repair, encoded admin status, active
+  network inspection, and sourced create/activate PATH selection. It proves
+  dry-run leaves profile, manifest, image, lock, active-record, engine-link,
+  startup, and user-link state unchanged; inactive invoking-profile shim
+  mutation stops before image work; failed initial activation leaves no valid
+  installation; rendered assets remain runnable; and unrelated home skill
+  content survives exact overwrite and uninstall.
 - `images.sh` covers source and installed selection, fixture-driven OCI/Docker
   parsing, request deduplication, authentication skips/failures, drift policy,
   stable output, and command availability without target-registry access.
