@@ -144,7 +144,17 @@ shimmy_profile_bootstrap_run() {
   SHIMMY_REGISTRY_LOCK_EXTERNAL=1
   SHIMMY_PROFILE_ACTIVATION_DEFER_COMMIT=1
   SHIMMY_PROFILE_ACTIVATION_QUIET_SUCCESS=1
-  shimmy_profile_activate 0 0 0 || return 1
+  shimmy_profile_activation_host_os_resolve
+  case "$SHIMMY_PROFILE_HOST_OS" in
+    darwin) shimmy_profile_bootstrap_restart=1 ;;
+    linux) shimmy_profile_bootstrap_restart=0 ;;
+    *)
+      shimmy_profile_lifecycle_error_set \
+        "unsupported host operating system for bootstrap activation: $SHIMMY_PROFILE_HOST_OS"
+      return 1
+      ;;
+  esac
+  shimmy_profile_activate "$shimmy_profile_bootstrap_restart" 0 0 || return 1
   SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=1
   shimmy_external_transaction_begin || return 1
   shimmy_profile_initial_active_create "$shimmy_profile_bootstrap_config/active-profile.conf" \

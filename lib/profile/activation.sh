@@ -721,7 +721,7 @@ shimmy_profile_activate_darwin() {
     }
     shimmy_profile_workloads_print
     if [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" -gt 0 ] && [ "$stop_running_requested" -eq 0 ]; then
-      printf '%s\n' 'ERROR: running containers block activation; review the workloads and retry with explicit --stop-running acknowledgement' >&2
+      printf '%s\n' 'ERROR: running containers block activation; stop them explicitly before retrying, or use --stop-running when the invoking command supports it' >&2
       return 1
     fi
   fi

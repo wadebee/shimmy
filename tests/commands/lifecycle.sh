@@ -42,6 +42,38 @@ test_lifecycle_fixture_setup() {
   : > "$TEST_LIFECYCLE_VERIFY_RESPONSES"
 }
 
+test_commands_lifecycle_darwin_running_idle_bootstrap() {
+  test_lifecycle_fixture_setup
+  test_lifecycle_bootstrap_output=$(env HOME="$TEST_LIFECYCLE_HOME" \
+    XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_IMAGE_LOG" \
+    SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
+    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
+    FAKE_MACHINE_LIST='shimmy-default|true' \
+    FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
+    FAKE_WORKLOADS= FAKE_DARWIN_PROJECTION_STATE=absent \
+    FAKE_PRIOR_MACHINE=shimmy-default FAKE_TARGET_MACHINE=shimmy-default \
+    FAKE_PRIOR_DEFAULT=shimmy-default \
+    "$TEST_LIFECYCLE_CHECKOUT/commands/bootstrap.sh" --no-startup)
+
+  assert_contains "$test_lifecycle_bootstrap_output" 'Bootstrapped active Shimmy profile default'
+  assert_regular_file_not_symlink \
+    "$TEST_LIFECYCLE_CONFIG/profiles/default/machine-projection.txt"
+  test_lifecycle_stop_line=$(sed -n '/^machine stop shimmy-default$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
+  test_lifecycle_start_line=$(sed -n '/^machine start shimmy-default$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
+  test_lifecycle_projection_line=$(sed -n \
+    '/^machine ssh shimmy-default \/bin\/sh -s -- projection /=' \
+    "$TEST_LIFECYCLE_PODMAN_LOG")
+  test_lifecycle_validation_line=$(sed -n \
+    '/^--connection shimmy-default info /=' "$TEST_LIFECYCLE_PODMAN_LOG" | tail -n 1)
+  [ "$test_lifecycle_stop_line" -lt "$test_lifecycle_start_line" ] &&
+    [ "$test_lifecycle_start_line" -lt "$test_lifecycle_projection_line" ] &&
+    [ "$test_lifecycle_projection_line" -lt "$test_lifecycle_validation_line" ] ||
+    fail_test 'running idle Darwin bootstrap did not restart, project, and validate in order'
+  pass 'Darwin bootstrap restarts an idle running default machine and commits its registry projection'
+}
+
 test_commands_lifecycle_end_to_end() {
   test_lifecycle_fixture_setup
   test_lifecycle_user_skills=$TEST_LIFECYCLE_HOME/.agents/skills
@@ -306,5 +338,6 @@ shim.sh'
 }
 
 test_commands_lifecycle_run() {
+  test_commands_lifecycle_darwin_running_idle_bootstrap
   test_commands_lifecycle_end_to_end
 }
