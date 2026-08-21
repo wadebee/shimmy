@@ -40,9 +40,25 @@ identity, target, fingerprint, and mode. Only the installer may recognize an
 absent registry file as the valid pre-feature upgrade shape.
 
 `state.sh` is private target-only code. It parameterizes disposable
-installation roots, reads/renders active-record schema 1, reads profile
+installation roots, reads/renders mode-`0644` active-record schema 1, reads profile
 manifest version 2 without falling back to version 1, and validates profile,
 catalog-generation, shim, and AI-bundle records as one mutation-free state.
+
+`target.sh` privately validates complete arbitrary-name version-2 profile
+candidates and implements installation-wide list, invoking-profile status and
+redirects, and named activation. Activation requires the active record and
+engine/registry state to agree, preflights supported/unsupported bundle policy,
+holds activation then lexical profile then registry locks, defers shared engine
+commit, and reconciles the active record and exact user links through external
+compensation before finalizing. Human status keeps the recorded PROFILE,
+ENGINE, CATALOG, SHIMS, AI SKILLS, and STARTUP sections; inactive link counts
+are `not-applicable`.
+
+The shared engine identity resolver accepts safe target names and maps them to
+`shimmy-<profile>`, while the public path resolver continues to admit only
+version-1 `default` and `upstream`. Shared activation and registry-lock helpers
+have private externally-held-lock/deferred-commit seams; their default public
+behavior is unchanged.
 
 `transaction.sh` is the private target external-compensation journal. It
 restores registered Shimmy state in reverse order, identifies each restored

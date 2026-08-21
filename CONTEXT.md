@@ -60,11 +60,13 @@ runtime directly. Canonical skills remain catalog-owned.
   profile-local projection record; same-path rootless validation precedes
   engine validation and the global connection commit.
 - Podman is an explicit dependency; do not provision it from Shimmy.
-- Darwin profiles map deterministically to pre-existing `shimmy-default` and
-  `shimmy-upstream` rootless engines; activation is workload-guarded and
-  commits the global default connection last. Stale policy requires explicit
-  restart; uninstall transactionally detaches retained projections, clears
-  live cache, and restores the initial engine/default state before deletion.
+- Darwin profiles map deterministically to pre-existing `shimmy-<profile>`
+  rootless engines; the current public version-1 surface still admits only
+  `default` and `upstream`, while the private version-2 surface admits safe
+  names. Activation is workload-guarded and commits the global default
+  connection last. Stale policy requires explicit restart; uninstall
+  transactionally detaches retained projections, clears live cache, and
+  restores the initial engine/default state before deletion.
 - Skopeo alone mounts a valid current invoking-profile registry policy
   read-only; no activation omits it, invalid state fails closed, and image
   verification inherits the mount without rewriting logical references.
@@ -74,7 +76,14 @@ runtime directly. Canonical skills remain catalog-owned.
 - The uninstalled target shim candidate mutates only the active disposable
   version-2 profile against its retained catalog pin. It stages direct
   `<tool>|<version>` runtimes, prepares images before a manifest-last commit,
-  and emits a typed shim-bundle input without reconciling user links.
+  regenerates the typed shim AI-skill bundle, and reconciles exact active user
+  links through bounded external compensation.
+- The uninstalled target profile candidate accepts arbitrary safe profile
+  names, maps them to deterministic `shimmy-<profile>` engines, and coordinates
+  engine/registry activation, the mode-`0644` active record, exact home
+  AI-skill links, and shell selection under the target lock hierarchy. Its
+  launcher, command, and sourced shell wrapper remain private through Chunk 9;
+  current public profile and bootstrap routing is unchanged.
 - Version-1 default manifests own exactly one normalized startup shell and zero
   or more exact absolute startup paths; upstream manifests own neither field.
 

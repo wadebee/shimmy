@@ -21,6 +21,15 @@ shimmy_profile_activation_host_os_resolve() {
 }
 
 shimmy_profile_activation_lock_acquire() {
+  if [ "${SHIMMY_TARGET_ACTIVATION_LOCK_EXTERNAL:-0}" -eq 1 ]; then
+    command -v shimmy_target_lock_held >/dev/null 2>&1 &&
+      shimmy_target_lock_held activation || {
+        printf '%s\n' 'ERROR: target profile activation requires the externally held installation activation lock' >&2
+        return 1
+      }
+    SHIMMY_PROFILE_ACTIVATION_LOCK_HELD=external
+    return 0
+  fi
   SHIMMY_PROFILE_ACTIVATION_LOCK=$SHIMMY_CONFIG_ROOT/.profile-activation.lock
   [ -d "$SHIMMY_CONFIG_ROOT" ] && [ ! -L "$SHIMMY_CONFIG_ROOT" ] || {
     printf 'ERROR: invalid Shimmy configuration root for profile activation: %s\n' "$SHIMMY_CONFIG_ROOT" >&2
@@ -34,6 +43,15 @@ shimmy_profile_activation_lock_acquire() {
 }
 
 shimmy_profile_activation_lock_check() {
+  if [ "${SHIMMY_TARGET_ACTIVATION_LOCK_EXTERNAL:-0}" -eq 1 ]; then
+    command -v shimmy_target_lock_kind_resolve >/dev/null 2>&1 || return 1
+    shimmy_target_lock_kind_resolve activation "$SHIMMY_CONFIG_ROOT" || return 1
+    if [ -e "$SHIMMY_TARGET_LOCK_PATH" ] || [ -L "$SHIMMY_TARGET_LOCK_PATH" ]; then
+      printf 'ERROR: another target profile activation holds %s; dry-run made no changes\n' "$SHIMMY_TARGET_LOCK_PATH" >&2
+      return 1
+    fi
+    return 0
+  fi
   SHIMMY_PROFILE_ACTIVATION_LOCK=$SHIMMY_CONFIG_ROOT/.profile-activation.lock
   if [ -e "$SHIMMY_PROFILE_ACTIVATION_LOCK" ] || [ -L "$SHIMMY_PROFILE_ACTIVATION_LOCK" ]; then
     printf 'ERROR: another Shimmy profile activation holds %s; dry-run made no changes\n' "$SHIMMY_PROFILE_ACTIVATION_LOCK" >&2
@@ -42,6 +60,10 @@ shimmy_profile_activation_lock_check() {
 }
 
 shimmy_profile_activation_lock_release() {
+  if [ "${SHIMMY_PROFILE_ACTIVATION_LOCK_HELD:-0}" = external ]; then
+    SHIMMY_PROFILE_ACTIVATION_LOCK_HELD=0
+    return 0
+  fi
   [ "${SHIMMY_PROFILE_ACTIVATION_LOCK_HELD:-0}" -eq 1 ] || return 0
   case "${SHIMMY_PROFILE_ACTIVATION_LOCK:-}" in
     "$SHIMMY_CONFIG_ROOT"/.profile-activation.lock)
@@ -126,12 +148,20 @@ shimmy_profile_activation_recommendation_resolve() {
     alternate_running|mismatched_default|ready|stopped)
       SHIMMY_PROFILE_RECOMMENDED_ACTION=profile_activate
       SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL='activate profile'
-      SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate"
+      if [ "${SHIMMY_PROFILE_ACTIVATION_TARGET_REQUIRED:-0}" -eq 1 ]; then
+        SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate ${SHIMMY_PROFILE_NAME:-unknown}"
+      else
+        SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate"
+      fi
       ;;
     registry_restart_required)
       SHIMMY_PROFILE_RECOMMENDED_ACTION=profile_activate_restart
       SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL='restart profile engine'
-      SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate --restart"
+      if [ "${SHIMMY_PROFILE_ACTIVATION_TARGET_REQUIRED:-0}" -eq 1 ]; then
+        SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate ${SHIMMY_PROFILE_NAME:-unknown} --restart"
+      else
+        SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate --restart"
+      fi
       ;;
     overridden)
       SHIMMY_PROFILE_RECOMMENDED_ACTION=unset_override
@@ -582,6 +612,14 @@ shimmy_profile_activation_rollback() {
   rollback_complete=1
   printf 'ERROR: profile activation failed: %s\n' "$rollback_reason" >&2
 
+  if [ "${SHIMMY_REGISTRIES_ACTIVE_LINK_CHANGED:-0}" -eq 1 ]; then
+    if shimmy_registries_active_link_rollback; then
+      printf 'Rollback: Linux active registry link restored for %s\n' "$SHIMMY_PROFILE_NAME" >&2
+    else
+      rollback_complete=0
+    fi
+  fi
+
   if [ "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_CHANGED:-0}" -eq 1 ] ||
     [ "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_CHANGED:-0}" -eq 1 ]; then
     if ! shimmy_registries_machine_projection_rollback; then
@@ -777,12 +815,16 @@ shimmy_profile_activate_darwin() {
     shimmy_profile_podman_run system connection default "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ||
       shimmy_profile_activation_rollback "unable to select default connection $SHIMMY_PROFILE_EXPECTED_CONNECTION"
   fi
-  shimmy_registries_machine_projection_commit
+  if [ "${SHIMMY_PROFILE_ACTIVATION_DEFER_COMMIT:-0}" -ne 1 ]; then
+    shimmy_registries_machine_projection_commit
+  fi
   if [ "$SHIMMY_PROFILE_WORKLOAD_INTERRUPTED" -eq 1 ]; then
     printf '%s\n' 'WARNING: acknowledged workloads were interrupted; verify that they resumed as intended.' >&2
   fi
-  printf 'Activated Shimmy profile %s with Podman machine %s.\n' "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_EXPECTED_MACHINE"
-  printf "Select this profile in the current shell with: . '%s/shell-init.sh'\n" "$SHIMMY_PROFILE_ROOT"
+  if [ "${SHIMMY_PROFILE_ACTIVATION_QUIET_SUCCESS:-0}" -ne 1 ]; then
+    printf 'Activated Shimmy profile %s with Podman machine %s.\n' "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_EXPECTED_MACHINE"
+    printf "Select this profile in the current shell with: . '%s/shell-init.sh'\n" "$SHIMMY_PROFILE_ROOT"
+  fi
 }
 
 shimmy_profile_activate_linux() {
@@ -841,10 +883,22 @@ shimmy_profile_activate_linux() {
     shimmy_registries_lock_release
     return 1
   fi
-  shimmy_registries_active_link_commit
+  if [ "${SHIMMY_PROFILE_ACTIVATION_DEFER_COMMIT:-0}" -ne 1 ]; then
+    shimmy_registries_active_link_commit
+  fi
   shimmy_registries_lock_release
-  printf 'Activated Shimmy profile %s registry policy with the local rootless Podman engine.\n' "$SHIMMY_PROFILE_NAME"
-  printf "Select this profile in the current shell with: . '%s/shell-init.sh'\n" "$SHIMMY_PROFILE_ROOT"
+  if [ "${SHIMMY_PROFILE_ACTIVATION_QUIET_SUCCESS:-0}" -ne 1 ]; then
+    printf 'Activated Shimmy profile %s registry policy with the local rootless Podman engine.\n' "$SHIMMY_PROFILE_NAME"
+    printf "Select this profile in the current shell with: . '%s/shell-init.sh'\n" "$SHIMMY_PROFILE_ROOT"
+  fi
+}
+
+shimmy_profile_activation_commit() {
+  case "${SHIMMY_PROFILE_HOST_OS:-unknown}" in
+    darwin) shimmy_registries_machine_projection_commit ;;
+    linux) shimmy_registries_active_link_commit ;;
+    *) return 1 ;;
+  esac
 }
 
 shimmy_profile_activate() {

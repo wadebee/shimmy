@@ -38,6 +38,12 @@ is the behavior under test.
   byte-preservation of unrelated user skills and root markers. Its cases reuse
   one immutable catalog/profile fixture while selecting a fresh disposable user
   root and restoring only bundle manifests between transitions.
+- `target-profile.sh` exercises private arbitrary-name profile list/status,
+  active-only redirects, Linux/Darwin activation, active-record and exact-link
+  rollback, workload acknowledgment, restart, bundle policy, direct source
+  guidance, and independent shell-selected/invoking/active identities. It
+  shares one real immutable catalog/profile fixture because complete candidate
+  validation is intentionally expensive.
 - `images.sh` covers source and installed selection, fixture-driven OCI/Docker
   parsing, request deduplication, authentication skips/failures, drift policy,
   stable output, and command availability without target-registry access.

@@ -42,8 +42,12 @@ Podman or set connection variables.
   under the target catalog lock, swaps rollback pointers, and never deletes a
   retained generation.
 - `profile-target.sh` privately renders the exact catalog-default jq, rg, and
-  Skopeo tuple set that later target bootstrap and create lifecycles consume;
-  it does not change the current public jq/rg bootstrap baseline.
+  Skopeo tuple set that later target bootstrap and create lifecycles consume.
+  It also renders and byte-validates the private version-2 profile launcher and
+  POSIX `shell-init.sh`: shell initialization exclusively prepends one selected
+  profile bin, delegates through its absolute launcher without recursion, and
+  sources a successful create/activate target only after non-dry-run success.
+  It does not change the current public jq/rg bootstrap or launcher behavior.
 - `profile-assets.sh` stages the profile-local control plane, launcher,
   dispatchers, explicit manifest-tuple smoke metadata, and only
   manifest-selected tool metadata and concrete version assets plus the

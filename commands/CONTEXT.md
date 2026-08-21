@@ -30,6 +30,12 @@ reusable behavior belongs in `../lib/`.
   bundle/link list and repair behavior. It classifies malformed and unsupported
   bundle state, reports exact destructive collisions, and never sweeps the
   recorded user skills root.
+- `profile-target.sh` is an uninstalled private candidate for arbitrary safe
+  profile list/status/activate and invoking-profile redirect behavior. It
+  requires launcher-supplied disposable installation and invoking identities,
+  permits redirect mutation only from the active invoking profile, and commits
+  engine/registry authority before the active record and exact AI-skill links
+  with bounded compensation. It has no current public dispatcher route.
 - `dispatch-tool.sh` validates exact manifest ownership and a fixed regular,
   executable, non-symlink `commands/run-tool.sh` target, then dispatches the
   profile-local logical tool without resolving the catalog checkout.

@@ -158,6 +158,66 @@ podman-machine-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|tru
   pass "Darwin installed runtimes enforce exact profile connection and current registry projection affinity without affecting source execution or exposing overrides"
 }
 
+test_lib_runtime_target_profile_affinity() {
+  setup_scenario
+  affinity_profile_name=team-one
+  affinity_profile_root=$XDG_CONFIG_HOME_DIR/shimmy/profiles/$affinity_profile_name
+  affinity_runtime_dir=$affinity_profile_root/lib/runtime
+  fake_podman=$SCENARIO_DIR/podman
+  fake_log=$SCENARIO_DIR/podman.log
+  mkdir -p "$affinity_runtime_dir" "$affinity_profile_root/lib/common" "$affinity_profile_root/lib/profile" \
+    "$affinity_profile_root/lib/registries" "$HOME_DIR/.agents/skills"
+  cp "$ROOT_DIR/lib/common/common.sh" "$affinity_profile_root/lib/common/common.sh"
+  cp "$ROOT_DIR/lib/profile/profile.sh" "$affinity_profile_root/lib/profile/profile.sh"
+  cp "$ROOT_DIR/lib/profile/state.sh" "$affinity_profile_root/lib/profile/state.sh"
+  cp "$ROOT_DIR/lib/profile/activation.sh" "$affinity_profile_root/lib/profile/activation.sh"
+  cp "$ROOT_DIR/lib/registries/registries.sh" "$affinity_profile_root/lib/registries/registries.sh"
+  printf '%s\n' \
+    'shimmy_install_manifest_version=2' \
+    'shimmy_install_layout=profile-materialized-root' \
+    'shimmy_profile_manifest_version=2' \
+    "shimmy_profile_name=$affinity_profile_name" \
+    > "$affinity_profile_root/install-manifest.txt"
+  shimmy_registries_config_render "$affinity_profile_name" '' > "$affinity_profile_root/registries.conf"
+  chmod 0644 "$affinity_profile_root/registries.conf"
+  affinity_fingerprint=$(shimmy_registries_config_fingerprint_render "$affinity_profile_root/registries.conf")
+  (
+    SHIMMY_CONFIG_ROOT=$XDG_CONFIG_HOME_DIR/shimmy
+    shimmy_registries_machine_projection_record_render "$affinity_profile_name" "$affinity_fingerprint"
+  ) > "$affinity_profile_root/machine-projection.txt"
+  chmod 0644 "$affinity_profile_root/machine-projection.txt"
+  shimmy_target_active_profile_render "$affinity_profile_name" "$HOME_DIR/.agents/skills" \
+    > "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
+  chmod 0644 "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
+  profile_activation_fake_create "$fake_podman"
+  : > "$fake_log"
+  affinity_machines='shimmy-team-one|true'
+  affinity_connections='shimmy-team-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+
+  target_affinity_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
+    SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" FAKE_PODMAN_LOG="$fake_log" \
+    FAKE_MACHINE_LIST="$affinity_machines" FAKE_CONNECTION_LIST="$affinity_connections" \
+    FAKE_DARWIN_PROJECTION_STATE=current /bin/sh -c \
+    'set -e; . "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require; printf target-active-ok' \
+    sh "$ROOT_DIR/lib/runtime/podman.sh")
+  assert_equals "$target_affinity_output" target-active-ok
+
+  shimmy_target_active_profile_render default "$HOME_DIR/.agents/skills" \
+    > "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
+  chmod 0644 "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
+  set +e
+  target_inactive_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
+    SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" FAKE_PODMAN_LOG="$fake_log" \
+    FAKE_MACHINE_LIST="$affinity_machines" FAKE_CONNECTION_LIST="$affinity_connections" \
+    /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require' \
+    sh "$ROOT_DIR/lib/runtime/podman.sh" 2>&1)
+  target_inactive_status=$?
+  set -e
+  [ "$target_inactive_status" -ne 0 ] || fail_test 'inactive version-2 arbitrary profile passed runtime affinity'
+  assert_contains "$target_inactive_output" 'active record belongs to another profile'
+  pass 'version-2 arbitrary runtimes require matching active-record and deterministic engine affinity'
+}
+
 test_lib_runtime_posix_syntax() {
   command -v dash >/dev/null 2>&1 || fail_test "dash is required for parser checks"
 
@@ -232,6 +292,7 @@ test_lib_runtime_run() {
   test_lib_runtime_platform_failures
   test_lib_runtime_preview_helpers
   test_lib_runtime_profile_affinity
+  test_lib_runtime_target_profile_affinity
   test_lib_runtime_posix_syntax
   test_lib_runtime_executable_contract
   test_lib_runtime_source_checkout_contract

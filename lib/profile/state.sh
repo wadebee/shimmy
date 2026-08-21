@@ -19,6 +19,10 @@ shimmy_target_profile_paths_resolve() {
   SHIMMY_TARGET_PROFILE_NAME=$shimmy_target_profile_name
   SHIMMY_TARGET_PROFILE_ROOT=$SHIMMY_TARGET_PROFILES_ROOT/$shimmy_target_profile_name
   SHIMMY_TARGET_PROFILE_MANIFEST_PATH=$SHIMMY_TARGET_PROFILE_ROOT/install-manifest.txt
+  SHIMMY_TARGET_PROFILE_MACHINE_PROJECTION_PATH=$SHIMMY_TARGET_PROFILE_ROOT/machine-projection.txt
+  SHIMMY_TARGET_PROFILE_REGISTRIES_PATH=$SHIMMY_TARGET_PROFILE_ROOT/registries.conf
+  SHIMMY_TARGET_PROFILE_SHELL_INIT_PATH=$SHIMMY_TARGET_PROFILE_ROOT/shell-init.sh
+  SHIMMY_TARGET_PROFILE_LAUNCHER_PATH=$SHIMMY_TARGET_PROFILE_ROOT/bin/shimmy
 }
 
 shimmy_target_active_profile_render() {
@@ -34,6 +38,12 @@ shimmy_target_active_profile_render() {
 shimmy_target_active_profile_read() {
   shimmy_target_active_file=$1
   shimmy_text_file_validate "$shimmy_target_active_file" || return 1
+  if shimmy_target_active_mode=$(stat -c '%a' "$shimmy_target_active_file" 2>/dev/null); then
+    :
+  else
+    shimmy_target_active_mode=$(stat -f '%Lp' "$shimmy_target_active_file" 2>/dev/null) || return 1
+  fi
+  [ "$shimmy_target_active_mode" = 644 ] || return 1
   [ "$(wc -l < "$shimmy_target_active_file" | tr -d ' ')" -eq 3 ] || return 1
   SHIMMY_TARGET_ACTIVE_PROFILE_NAME=$(sed -n '2s/^shimmy_active_profile_name=//p' "$shimmy_target_active_file")
   SHIMMY_TARGET_ACTIVE_AI_SKILL_ROOT=$(sed -n '3s/^shimmy_active_ai_skill_root=//p' "$shimmy_target_active_file")

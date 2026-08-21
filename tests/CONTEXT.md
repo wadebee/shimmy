@@ -41,6 +41,11 @@ and smoke selection without exposing a current public route. Private target
 AI-skill tests cover deterministic control materialization, valid/empty/invalid/
 unsupported listing, encoded paths, exact foreign collision overwrite, stale
 recognized-link cleanup, rollback honesty, and unrelated user-root preservation.
+Private target profile tests reuse that immutable profile fixture to cover
+arbitrary identities, local status and active-only redirects, Linux active
+record/link/link-reconciliation commit and rollback, supported/unsupported
+bundle policy, Darwin workload guards and ordinary/restart ordering, exact
+direct source guidance, and independent POSIX/Bash/Zsh shell selection.
 
 Installation scenarios isolate state with absolute disposable `HOME` and
 `XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or

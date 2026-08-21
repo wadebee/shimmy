@@ -206,9 +206,38 @@ test_lib_registries_machine_projection_record() {
   pass 'machine projection records enforce exact identity, target, fingerprint, mode, atomic replacement, and rollback'
 }
 
+test_lib_registries_arbitrary_profile_active_link() {
+  setup_scenario
+  SHIMMY_CONFIG_ROOT=$XDG_CONFIG_HOME_DIR/shimmy
+  SHIMMY_PROFILE_NAME=team-one
+  SHIMMY_PROFILE_ROOT=$SHIMMY_CONFIG_ROOT/profiles/team-one
+  SHIMMY_PROFILE_REGISTRIES_PATH=$SHIMMY_PROFILE_ROOT/registries.conf
+  SHIMMY_REGISTRIES_CONFIG_DIR=$XDG_CONFIG_HOME_DIR/containers
+  SHIMMY_REGISTRIES_DROPIN_DIR=$SHIMMY_REGISTRIES_CONFIG_DIR/registries.conf.d
+  SHIMMY_REGISTRIES_ACTIVE_LINK=$SHIMMY_REGISTRIES_DROPIN_DIR/shimmy-active-profile.conf
+  mkdir -p "$SHIMMY_PROFILE_ROOT" "$SHIMMY_REGISTRIES_DROPIN_DIR"
+  shimmy_registries_config_render team-one '' > "$SHIMMY_PROFILE_REGISTRIES_PATH"
+  chmod 0644 "$SHIMMY_PROFILE_REGISTRIES_PATH"
+  ln -s "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_REGISTRIES_ACTIVE_LINK"
+  SHIMMY_TEST_PROFILE_OS=Linux shimmy_registries_active_link_state_read
+  assert_equals "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" current
+  assert_equals "$SHIMMY_REGISTRIES_ACTIVE_PROFILE" team-one
+
+  rm -f "$SHIMMY_REGISTRIES_ACTIVE_LINK"
+  mkdir "$SHIMMY_PROFILE_ROOT/nested"
+  shimmy_registries_config_render team-one '' > "$SHIMMY_PROFILE_ROOT/nested/registries.conf"
+  chmod 0644 "$SHIMMY_PROFILE_ROOT/nested/registries.conf"
+  ln -s "$SHIMMY_PROFILE_ROOT/nested/registries.conf" "$SHIMMY_REGISTRIES_ACTIVE_LINK"
+  SHIMMY_TEST_PROFILE_OS=Linux shimmy_registries_active_link_state_read
+  assert_equals "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" invalid
+  assert_equals "$SHIMMY_REGISTRIES_ACTIVE_PROFILE" unknown
+  pass 'arbitrary safe profile links resolve exactly while nested lookalike registry paths fail closed'
+}
+
 test_lib_registries_run() {
   test_lib_registries_endpoint_validation
   test_lib_registries_managed_format
   test_lib_registries_machine_projection_record
+  test_lib_registries_arbitrary_profile_active_link
   test_lib_registries_transaction
 }

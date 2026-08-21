@@ -10,7 +10,9 @@
   profile config. Registry and connection overrides fail closed. Installed
   affinity consumes the shared profile state reader and recommendation resolver
   so recovery guidance uses the exact safe activation or restart command
-  without duplicating engine discovery. Source
+  without duplicating engine discovery. Version-2 arbitrary-name runtimes must
+  also match the mode-`0644` installation active record before engine
+  inspection; version-1 default/upstream affinity and source
   previews retain their behavior. Successful Darwin registry affinity leaves
   current-state evidence for the shared registry-client mount resolver so a
   Skopeo run does not repeat remote projection inspection.

@@ -43,6 +43,8 @@ test_target_shim_fixture_setup() {
   TARGET_SHIM_PROFILE_ROOT=$TARGET_SHIM_CONFIG/profiles/default
   mkdir -p "$TARGET_SHIM_PROFILE_ROOT/bin" "$TARGET_SHIM_PROFILE_ROOT/tools" "$TARGET_SHIM_PROFILE_ROOT/config/shims" \
     "$TARGET_SHIM_PROFILE_ROOT/ai-skills" "$SCENARIO_DIR/home/.agents/skills"
+  test_fixture_tree_copy "$TARGET_SHIM_CHECKOUT/commands" "$TARGET_SHIM_PROFILE_ROOT/commands"
+  test_fixture_tree_copy "$TARGET_SHIM_CHECKOUT/lib" "$TARGET_SHIM_PROFILE_ROOT/lib"
   shimmy_target_active_profile_render default "$SCENARIO_DIR/home/.agents/skills" > "$TARGET_SHIM_CONFIG/active-profile.conf"
   shimmy_target_profile_manifest_render default https://example.invalid/shimmy.git "$TARGET_SHIM_PINNED_COMMIT" \
     "default|$TARGET_SHIM_PINNED_GENERATION|$TARGET_SHIM_PINNED_COMMIT|$TARGET_SHIM_PINNED_FINGERPRINT" '' '' \
@@ -53,7 +55,12 @@ test_target_shim_fixture_setup() {
     default "$TARGET_SHIM_PROFILE_ROOT/ai-skills/control" || fail_test 'unable to create target control bundle fixture'
   shimmy_target_ai_skill_shims_bundle_materialize "$TARGET_SHIM_PROFILE_ROOT/config/shim-bundle-input.conf" \
     "$TARGET_SHIM_PINNED_ROOT" "$TARGET_SHIM_PROFILE_ROOT/ai-skills/shims" || fail_test 'unable to create empty target shims bundle fixture'
-  chmod 0644 "$TARGET_SHIM_PROFILE_ROOT/install-manifest.txt" "$TARGET_SHIM_PROFILE_ROOT/config/shim-bundle-input.conf"
+  shimmy_registries_config_render default '' > "$TARGET_SHIM_PROFILE_ROOT/registries.conf"
+  shimmy_target_profile_launcher_render "$TARGET_SHIM_CONFIG" default > "$TARGET_SHIM_PROFILE_ROOT/bin/shimmy"
+  shimmy_target_profile_shell_init_render "$TARGET_SHIM_CONFIG" default > "$TARGET_SHIM_PROFILE_ROOT/shell-init.sh"
+  chmod 0755 "$TARGET_SHIM_PROFILE_ROOT/bin/shimmy"
+  chmod 0644 "$TARGET_SHIM_PROFILE_ROOT/install-manifest.txt" "$TARGET_SHIM_PROFILE_ROOT/config/shim-bundle-input.conf" \
+    "$TARGET_SHIM_PROFILE_ROOT/registries.conf" "$TARGET_SHIM_PROFILE_ROOT/shell-init.sh"
   : > "$TARGET_SHIM_IMAGE_LOG"
   : > "$TARGET_SHIM_SMOKE_LOG"
   shimmy_target_shim_materialization_validate "$TARGET_SHIM_PROFILE_ROOT" "$TARGET_SHIM_PINNED_ROOT" || fail_test 'empty target shim fixture is invalid'

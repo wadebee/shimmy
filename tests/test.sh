@@ -51,6 +51,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/install/profile-target.sh"
 # shellcheck source=lib/registries/registries.sh
 . "$ROOT_DIR/lib/registries/registries.sh"
+# shellcheck source=lib/profile/target.sh
+. "$ROOT_DIR/lib/profile/target.sh"
 # shellcheck source=lib/images/images.sh
 . "$ROOT_DIR/lib/images/images.sh"
 # shellcheck source=lib/images/target.sh
@@ -96,6 +98,8 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$SCRIPT_DIR/commands/target-shim.sh"
 # shellcheck source=tests/commands/target-ai-skill.sh
 . "$SCRIPT_DIR/commands/target-ai-skill.sh"
+# shellcheck source=tests/commands/target-profile.sh
+. "$SCRIPT_DIR/commands/target-profile.sh"
 # shellcheck source=tests/commands/images.sh
 . "$SCRIPT_DIR/commands/images.sh"
 # shellcheck source=tests/commands/lifecycle.sh

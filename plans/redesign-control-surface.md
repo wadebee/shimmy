@@ -548,9 +548,11 @@ None.
   baseline candidate were accepted by the user on 2026-08-20.
 - [x] Chunk 5 — Private profile-local shim lifecycle was human verified and
   accepted by the user's 2026-08-20 request to implement Chunk 6.
-- [~] Chunk 6 — AI bundles and narrowly destructive links are implemented and
-  automatically verified; human acceptance is pending.
-- [ ] Chunk 7 — Generalize profile identity, activation, and shell selection.
+- [x] Chunk 6 — AI bundles and narrowly destructive links were accepted by the
+  user's 2026-08-20 request to implement Chunk 7.
+- [~] Chunk 7 — Arbitrary profile identity, activation, active authority,
+  redirects, runtime affinity, real links, and shell selection are implemented
+  and automatically verified; human acceptance is pending.
 - [ ] Chunk 8 — Integrate profile, bootstrap, and admin candidate lifecycles.
 - [ ] Chunk 9 — Complete private target commands and end-to-end tests.
 - [ ] Chunk 10 — Perform atomic public cutover and primary documentation.
@@ -1078,17 +1080,56 @@ real links, and implement shell PATH switching behind the private surface.
 
 ### Verification checklist
 
-- [ ] Arbitrary safe names resolve canonical paths/engines; path/link escapes
+- [x] Arbitrary safe names resolve canonical paths/engines; path/link escapes
   fail closed.
-- [ ] Active switch, ordinary/restart, workload refusal, Linux/Darwin
+- [x] Active switch, ordinary/restart, workload refusal, Linux/Darwin
   projection, connection, and rollback ordering pass.
-- [ ] Malformed supported bundles block; unsupported bundles warn/skip and
+- [x] Malformed supported bundles block; unsupported bundles warn/skip and
   remove recognized prior-kind links.
-- [ ] Multiple-shell tests distinguish invoking, active, shell-selected profiles
+- [x] Multiple-shell tests distinguish invoking, active, shell-selected profiles
   and enforce active-only mutation.
-- [ ] Sourced supported shells switch PATH only after success; direct execution
+- [x] Sourced supported shells switch PATH only after success; direct execution
   prints exact source command and preserves status.
-- [ ] Focused profile/registry/shell groups pass; public suite remains green.
+- [x] Focused profile/registry/shell groups pass; public suite remains green.
+
+### Chunk 7 evidence
+
+- Shared profile identity now maps every safe target name to a deterministic
+  `shimmy-<profile>` engine while the public resolver retains version-1
+  `default|upstream` admission. Linux active links, Darwin projection records
+  and remote scripts, registry parsing, client mounts, and Darwin runtime
+  affinity accept only one exact canonical safe-name profile path. Nested
+  lookalikes, unsafe components, symlink parents, mismatched version-2 active
+  records, and malformed mode/identity state fail closed.
+- The private `profile-target.sh` route provides installation-wide list, local
+  invoking-profile status, named activation, and invoking-profile redirects.
+  Mutation acquires activation, lexical prior/target profile, and target
+  registry locks; revalidates authority/candidates under lock; commits the
+  workload-guarded Linux/Darwin engine and registry transition before the
+  mode-`0644` active record and exact user links; and retains rollback until
+  those external resources succeed. Redirect mutation is active-only. Public
+  bootstrap and profile dispatch remain unchanged.
+- Target status preserves PROFILE, ENGINE, CATALOG, SHIMS, AI SKILLS, and
+  STARTUP sections, recorded catalog health/drift and shim default/mode/version
+  fields, prefixed engine records, and active-only link counts. Inactive status
+  reports link counts as `not-applicable` without inspecting the home link root.
+  Malformed supported bundles block before engine mutation; unsupported kinds
+  warn, skip projection, and remove only recognized prior-kind links.
+- The byte-validated target launcher and POSIX shell initializer remove only
+  exact safe sibling profile bins, prepend the selected bin, delegate through
+  an absolute launcher without recursion, preserve command failure status, and
+  source a successful create/activate target only after non-dry-run success.
+  Direct activation prints the shell-quoted exact source command. Independent
+  POSIX, Bash, and Zsh cases distinguish invoking, active, and shell-selected
+  profiles.
+- `commands-target-profile` passes all 5 focused integration scenarios;
+  `lib-registries` passes all 5 tests; and `lib-runtime` passes all 9 tests.
+  The complete default three-worker suite initially reached only its live
+  installed-tool smoke before sandboxed Podman access failed; the identical
+  approved outer-command rerun passes all 212 tests, including public,
+  exact-version, and all-version live Podman smokes. Context-tree coverage,
+  POSIX syntax, executable modes, and `git diff --check` pass. ShellCheck
+  remains unavailable on this host.
 
 ### Human review gate
 
@@ -1499,14 +1540,41 @@ completes this redesign, not external catalogs or release channels.
   retains real generation and fingerprint coverage without multiplying the
   multi-minute setup cost. Fresh disposable user roots isolate each transition.
 
+### Chunk 7
+
+- Reusing the shared activation and registry state machines safely requires an
+  explicit private bridge: external target locks establish the broader lock
+  order, deferred engine commit retains rollback state across active-record and
+  link integration, and default flag values preserve the public transaction.
+- Installed runtime affinity must recognize a canonical profile without first
+  depending on helpers from that profile. Keep the initial name/layout/version
+  identity check self-contained, then source version-specific helpers; only
+  version 2 consumes active-record authority and arbitrary-name paths.
+- Shell selection has three independent identities: the launcher determines the
+  invoking profile, the active record determines mutation and engine authority,
+  and the sourced initializer determines PATH. Successful activation does not
+  change a parent shell, so direct execution must print a safely quoted source
+  command and the sourced wrapper must delay selection until success while
+  detecting `--dry-run` at any argument position.
+- Generalizing a VM projection path is not only a name-parser change. Both root
+  and rootless remote scripts must reconstruct the exact
+  `.../shimmy/profiles/<safe>/registries.conf` shape and reject traversal,
+  symlinked parent/profile directories, and non-regular config targets.
+- Full candidate validation is deliberately expensive. One shared immutable
+  two-profile fixture keeps the proof realistic, but Chunk 7 materially
+  lengthens one default-suite worker; recalibrate runner weights in a later
+  testing chunk instead of weakening semantic validation or forcing serial
+  execution.
+
 ## Session bootstrap
 
 Chunk 1 was accepted by the user's 2026-08-20 request to implement Chunk 2.
 Chunks 2 and 3 were explicitly human verified by the user's 2026-08-20 request
 at 16:50:26 EDT. Chunk 4 was accepted by the user's 2026-08-20 request to
 implement Chunk 5. Chunk 5 was accepted by the user's 2026-08-20 request to
-implement Chunk 6. Chunk 6 is implemented and automatically verified, and
-awaits its human review gate. Do not start Chunk 7 without explicit acceptance.
+implement Chunk 6. Chunk 6 was accepted by the user's 2026-08-20 request to
+implement Chunk 7. Chunk 7 is implemented and automatically verified, and
+awaits its human review gate. Do not start Chunk 8 without explicit acceptance.
 The implemented
 version-2 manifest uses `shim=<tool>|<tracking|pinned>`, exactly one authoritative
 `shim_version=<tool>|<version>|default` record, and zero or more non-default

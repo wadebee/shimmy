@@ -45,8 +45,9 @@ without starting tool containers. They are sourced by `../test.sh` and use
 - `runtime.sh` validates the executable root `bootstrap.sh` and minimal source
   checkout contract, shared Podman OS/architecture resolver, required
   platforms, fail-closed behavior, preview helpers, and installed Darwin
-  profile-affinity plus current registry-projection enforcement and exact
-  shared activation or restart recovery guidance.
+  profile-affinity plus current registry-projection enforcement, version-2
+  arbitrary-profile active-record authority, and exact shared activation or
+  restart recovery guidance.
 - `profile-activation.sh` validates deterministic engine state, workload-aware
   Darwin switching and registry projection, Linux registry-link transitions,
   side-effect-free conservative recommendations, dry runs, fixed root/rootless
@@ -56,6 +57,7 @@ without starting tool containers. They are sourced by `../test.sh` and use
 - `registries.sh` validates strict endpoint grammar, exact managed-file
   parsing/rendering, deterministic mutation, side-effect-free dry runs,
   adjacent locking, strict Darwin projection records and detach primitives,
-  atomic replacement, and exact rollback after injected post-commit failure.
+  atomic replacement, arbitrary safe-name active links, nested lookalike-path
+  rejection, and exact rollback after injected post-commit failure.
 - `update.sh` validates generic dispatch to version-local refresh hooks and the
   shared `pull`/`build` contract.

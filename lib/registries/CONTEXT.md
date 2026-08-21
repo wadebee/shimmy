@@ -14,7 +14,7 @@ the full candidate without locking or mutation.
 
 On Linux, activation owns only
 `<config-home>/containers/registries.conf.d/shimmy-active-profile.conf`, an
-absolute symlink to one canonical profile config. Link creation/switching and
+absolute symlink to one canonical safe-name profile config. Link creation/switching and
 active edits validate fresh local-rootless Podman processes and restore exact
 prior state on failure. Detach and uninstall remove only the exact invoking
 profile link. Foreign, dangling, unsafe, or masking state fails closed.
@@ -22,7 +22,8 @@ profile link. Foreign, dangling, unsafe, or masking state fails closed.
 On Darwin, activation owns only the exact root-managed VM symlink
 `/etc/containers/registries.conf.d/shimmy-profile.conf` and the strict local
 `<profile-root>/machine-projection.txt` identity/fingerprint record. A fixed
-root SSH script accepts only validated action/path arguments, while a separate
+root SSH script accepts only a normalized safe-name profile path with regular,
+non-symlink parent/profile/config state, while a separate
 rootless SSH process validates same-path source visibility, exact link target,
 readability, and fingerprint. Projection precedes engine validation; record
 creation and global default selection follow it. Rollback covers link and
@@ -37,6 +38,10 @@ The registry-client resolver recognizes only canonical materialized profiles.
 It omits a mount when no Shimmy activation exists, returns the invoking
 profile's authoritative config for current Linux or Darwin state, and fails
 closed on sibling, damaged, unsafe, stale, or registry-overridden state.
+Version-2 clients additionally require the installation active record to name
+the invoking arbitrary profile. Private profile orchestration may supply the
+already-held target registry lock; ordinary public mutation still owns the
+adjacent version-1 lock directly.
 Skopeo is the only initial consumer and mounts the result read-only at the
 same fixed container drop-in path; image verification inherits that behavior
 through its existing Skopeo runtime.

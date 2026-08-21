@@ -32,23 +32,30 @@ shimmy_registries_active_link_state_read() {
       SHIMMY_REGISTRIES_ACTIVE_PROFILE=unknown
       return 0
     }
-    for active_profile in default upstream; do
-      expected_target=$SHIMMY_CONFIG_ROOT/profiles/$active_profile/registries.conf
-      [ "$active_target" = "$expected_target" ] || continue
-      if ! shimmy_registries_config_validate "$expected_target" "$active_profile"; then
-        SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=invalid
-        SHIMMY_REGISTRIES_ACTIVE_PROFILE=unknown
+    case "$active_target" in
+      "$SHIMMY_CONFIG_ROOT"/profiles/*/registries.conf)
+        active_remainder=${active_target#"$SHIMMY_CONFIG_ROOT"/profiles/}
+        active_profile=${active_remainder%%/*}
+        [ "$active_remainder" = "$active_profile/registries.conf" ] &&
+          shimmy_name_component_validate "$active_profile" &&
+          [ -d "$SHIMMY_CONFIG_ROOT/profiles/$active_profile" ] &&
+          [ ! -L "$SHIMMY_CONFIG_ROOT/profiles/$active_profile" ] &&
+          shimmy_path_parent_chain_validate "$SHIMMY_CONFIG_ROOT/profiles/$active_profile" &&
+          shimmy_registries_config_validate "$active_target" "$active_profile" || {
+            SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=invalid
+            SHIMMY_REGISTRIES_ACTIVE_PROFILE=unknown
+            return 0
+          }
+        SHIMMY_REGISTRIES_ACTIVE_PROFILE=$active_profile
+        if [ "$active_profile" = "$SHIMMY_PROFILE_NAME" ] &&
+          [ "$active_target" = "$SHIMMY_PROFILE_REGISTRIES_PATH" ]; then
+          SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=current
+        else
+          SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=sibling
+        fi
         return 0
-      fi
-      SHIMMY_REGISTRIES_ACTIVE_PROFILE=$active_profile
-      if [ "$active_profile" = "$SHIMMY_PROFILE_NAME" ] &&
-        [ "$active_target" = "$SHIMMY_PROFILE_REGISTRIES_PATH" ]; then
-        SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=current
-      else
-        SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=sibling
-      fi
-      return 0
-    done
+        ;;
+    esac
     SHIMMY_REGISTRIES_ACTIVE_LINK_STATE=invalid
     SHIMMY_REGISTRIES_ACTIVE_PROFILE=unknown
     return 0
@@ -388,7 +395,8 @@ shimmy_registries_machine_projection_record_read() {
 shimmy_registries_machine_projection_record_render() {
   profile_name=$1
   projection_fingerprint=$2
-  shimmy_profile_name_validate "$profile_name" || return 1
+  shimmy_name_component_validate "$profile_name" || return 1
+  [ -n "${SHIMMY_CONFIG_ROOT:-}" ] || return 1
   shimmy_registries_config_fingerprint_validate "$projection_fingerprint" || return 1
   printf '%s\n' 'shimmy_machine_projection_version=1'
   printf 'profile=%s\n' "$profile_name"
@@ -419,7 +427,7 @@ shimmy_registries_machine_projection_record_validate() {
   record_path=$1
   profile_name=$2
   expected_target=${3:-$(dirname -- "$record_path")/registries.conf}
-  shimmy_profile_name_validate "$profile_name" || return 1
+  shimmy_name_component_validate "$profile_name" || return 1
   [ -f "$record_path" ] && [ ! -L "$record_path" ] || return 1
   if record_mode=$(stat -c '%a' "$record_path" 2>/dev/null); then
     :
@@ -509,7 +517,24 @@ target=$2
 link=$3
 [ "$(id -u)" -eq 0 ]
 [ "$link" = /etc/containers/registries.conf.d/shimmy-profile.conf ]
-case "$target" in /shimmy/profiles/default/registries.conf|/shimmy/profiles/upstream/registries.conf|/*/shimmy/profiles/default/registries.conf|/*/shimmy/profiles/upstream/registries.conf) ;; *) exit 20 ;; esac
+case "$target" in /*) ;; *) exit 20 ;; esac
+case "$target" in *//*|*/./*|*/../*|*/.|*/..) exit 20 ;; esac
+profile_dir=${target%/registries.conf}
+[ "$profile_dir" != "$target" ]
+profile=${profile_dir##*/}
+profiles_dir=${profile_dir%/*}
+[ "$profile_dir" = "$profiles_dir/$profile" ]
+case "$profiles_dir" in /shimmy/profiles|*/shimmy/profiles) ;; *) exit 20 ;; esac
+case "$profile" in ''|-*|*-|*--*|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) exit 20 ;; esac
+parent_dir=$profiles_dir
+while [ "$parent_dir" != / ]; do
+  [ -d "$parent_dir" ] && [ ! -L "$parent_dir" ]
+  parent_dir=${parent_dir%/*}
+  [ -n "$parent_dir" ] || parent_dir=/
+done
+[ -d "$profiles_dir" ] && [ ! -L "$profiles_dir" ]
+[ -d "$profile_dir" ] && [ ! -L "$profile_dir" ]
+[ -f "$target" ] && [ ! -L "$target" ]
 [ -d /etc/containers ] && [ ! -L /etc/containers ]
 [ -d /etc/containers/registries.conf.d ] && [ ! -L /etc/containers/registries.conf.d ]
 state=absent
@@ -598,7 +623,23 @@ target=$2
 link=$3
 [ "$(id -u)" -ne 0 ]
 [ "$link" = /etc/containers/registries.conf.d/shimmy-profile.conf ]
-case "$target" in /shimmy/profiles/default/registries.conf|/shimmy/profiles/upstream/registries.conf|/*/shimmy/profiles/default/registries.conf|/*/shimmy/profiles/upstream/registries.conf) ;; *) exit 30 ;; esac
+case "$target" in /*) ;; *) exit 30 ;; esac
+case "$target" in *//*|*/./*|*/../*|*/.|*/..) exit 30 ;; esac
+profile_dir=${target%/registries.conf}
+[ "$profile_dir" != "$target" ]
+profile=${profile_dir##*/}
+profiles_dir=${profile_dir%/*}
+[ "$profile_dir" = "$profiles_dir/$profile" ]
+case "$profiles_dir" in /shimmy/profiles|*/shimmy/profiles) ;; *) exit 30 ;; esac
+case "$profile" in ''|-*|*-|*--*|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) exit 30 ;; esac
+parent_dir=$profiles_dir
+while [ "$parent_dir" != / ]; do
+  [ -d "$parent_dir" ] && [ ! -L "$parent_dir" ]
+  parent_dir=${parent_dir%/*}
+  [ -n "$parent_dir" ] || parent_dir=/
+done
+[ -d "$profiles_dir" ] && [ ! -L "$profiles_dir" ]
+[ -d "$profile_dir" ] && [ ! -L "$profile_dir" ]
 [ -f "$target" ] && [ ! -L "$target" ] && [ -r "$target" ]
 case "$action" in
   source) fingerprint_path=$target ;;
@@ -673,17 +714,36 @@ shimmy_registries_client_mount_resolve() {
   [ -n "${SHIMMY_RUNTIME_DIR:-}" ] || return 0
   client_profile_root=$(cd -- "$SHIMMY_RUNTIME_DIR/../.." 2>/dev/null && pwd -P) || return 0
   client_profile_name=$(basename -- "$client_profile_root")
-  case "$client_profile_name" in default|upstream) ;; *) return 0 ;; esac
+  shimmy_name_component_validate "$client_profile_name" || return 0
 
-  shimmy_profile_paths_resolve "$client_profile_name" || {
+  shimmy_profile_paths_resolve_name "$client_profile_name" || {
     shimmy_registries_client_mount_fail 'profile paths are invalid'
     return 1
   }
   [ "$client_profile_root" = "$SHIMMY_PROFILE_ROOT" ] || return 0
-  shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$client_profile_name" || {
+  shimmy_profile_runtime_manifest_identity_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$client_profile_name" || {
     shimmy_registries_client_mount_fail 'profile manifest is invalid'
     return 1
   }
+  client_manifest_version=$(shimmy_read_manifest_value "$SHIMMY_PROFILE_MANIFEST_PATH" shimmy_install_manifest_version)
+  if [ "$client_manifest_version" = 2 ]; then
+    client_state_helper=$client_profile_root/lib/profile/state.sh
+    [ -f "$client_state_helper" ] && [ ! -L "$client_state_helper" ] || {
+      shimmy_registries_client_mount_fail 'active profile state helper is unavailable'
+      return 1
+    }
+    command -v shimmy_target_active_profile_read >/dev/null 2>&1 || . "$client_state_helper"
+    shimmy_target_active_profile_read "$SHIMMY_CONFIG_ROOT/active-profile.conf" &&
+      [ "$SHIMMY_TARGET_ACTIVE_PROFILE_NAME" = "$client_profile_name" ] || {
+        shimmy_registries_client_mount_fail 'installation active record belongs to another profile or is invalid'
+        return 1
+      }
+  else
+    shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$client_profile_name" || {
+      shimmy_registries_client_mount_fail 'profile manifest is invalid'
+      return 1
+    }
+  fi
   shimmy_path_parent_chain_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" || {
     shimmy_registries_client_mount_fail 'registry configuration path is unsafe'
     return 1
@@ -763,7 +823,7 @@ shimmy_registries_client_mount_resolve() {
 shimmy_registries_config_entries_read() {
   config_file=$1
   profile_name=$2
-  shimmy_profile_name_validate "$profile_name" || return 1
+  shimmy_name_component_validate "$profile_name" || return 1
   [ -f "$config_file" ] && [ ! -L "$config_file" ] || return 1
   [ "$(tail -c 1 "$config_file" | wc -l | tr -d ' ')" -eq 1 ] 2>/dev/null || return 1
 
@@ -825,7 +885,7 @@ EOF
 shimmy_registries_config_render() {
   profile_name=$1
   registry_entries=${2:-}
-  shimmy_profile_name_validate "$profile_name" || return 1
+  shimmy_name_component_validate "$profile_name" || return 1
 
   printf '# Managed by Shimmy for profile "%s". Use `shimmy profile redirect`; do not edit.\n' "$profile_name"
   printf '%s\n' '# shimmy_registry_redirects_version=1'
@@ -997,6 +1057,15 @@ shimmy_registries_active_edit_prepare() {
 }
 
 shimmy_registries_lock_acquire() {
+  if [ "${SHIMMY_TARGET_REGISTRY_LOCK_EXTERNAL:-0}" -eq 1 ]; then
+    command -v shimmy_target_lock_held >/dev/null 2>&1 &&
+      shimmy_target_lock_held registry "$SHIMMY_PROFILE_NAME" || {
+        printf 'ERROR: target registry mutation requires the externally held profile registry lock for %s\n' "$SHIMMY_PROFILE_NAME" >&2
+        return 1
+      }
+    SHIMMY_REGISTRIES_LOCK_HELD=external
+    return 0
+  fi
   lock_path=$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH
   [ "$SHIMMY_PROFILE_REGISTRIES_PATH" = "$SHIMMY_PROFILE_ROOT/registries.conf" ] &&
     [ "$lock_path" = "$SHIMMY_PROFILE_ROOT/.registries.lock" ] &&
@@ -1016,6 +1085,15 @@ shimmy_registries_lock_acquire() {
 }
 
 shimmy_registries_lock_check() {
+  if [ "${SHIMMY_TARGET_REGISTRY_LOCK_EXTERNAL:-0}" -eq 1 ]; then
+    command -v shimmy_target_lock_kind_resolve >/dev/null 2>&1 || return 1
+    shimmy_target_lock_kind_resolve registry "$SHIMMY_CONFIG_ROOT" "$SHIMMY_PROFILE_NAME" || return 1
+    if [ -e "$SHIMMY_TARGET_LOCK_PATH" ] || [ -L "$SHIMMY_TARGET_LOCK_PATH" ]; then
+      printf 'ERROR: another target registry transaction holds %s; dry-run made no changes\n' "$SHIMMY_TARGET_LOCK_PATH" >&2
+      return 1
+    fi
+    return 0
+  fi
   lock_path=$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH
   [ "$SHIMMY_PROFILE_REGISTRIES_PATH" = "$SHIMMY_PROFILE_ROOT/registries.conf" ] &&
     [ "$lock_path" = "$SHIMMY_PROFILE_ROOT/.registries.lock" ] &&
@@ -1027,6 +1105,10 @@ shimmy_registries_lock_check() {
 }
 
 shimmy_registries_lock_release() {
+  if [ "${SHIMMY_REGISTRIES_LOCK_HELD:-0}" = external ]; then
+    SHIMMY_REGISTRIES_LOCK_HELD=0
+    return 0
+  fi
   [ "${SHIMMY_REGISTRIES_LOCK_HELD:-0}" -eq 1 ] || return 0
   case "${SHIMMY_PROFILE_REGISTRIES_LOCK_PATH:-}" in
     "$SHIMMY_PROFILE_ROOT"/.registries.lock) rmdir "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" 2>/dev/null || true ;;

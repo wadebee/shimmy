@@ -30,15 +30,15 @@ shimmy_profile_name_validate() {
 
 shimmy_profile_engine_identity_resolve() {
   profile_name=${1:-}
-  shimmy_profile_name_validate "$profile_name" || return 1
+  shimmy_name_component_validate "$profile_name" || return 1
 
   SHIMMY_PROFILE_EXPECTED_MACHINE=shimmy-$profile_name
   SHIMMY_PROFILE_EXPECTED_CONNECTION=$SHIMMY_PROFILE_EXPECTED_MACHINE
 }
 
-shimmy_profile_paths_resolve() {
+shimmy_profile_paths_resolve_name() {
   profile_name=$1
-  shimmy_profile_name_validate "$profile_name" || return 1
+  shimmy_name_component_validate "$profile_name" || return 1
 
   SHIMMY_CONFIG_HOME=$(shimmy_config_home_resolve) || return 1
   SHIMMY_CONFIG_ROOT=$(shimmy_config_root_resolve) || return 1
@@ -57,6 +57,31 @@ shimmy_profile_paths_resolve() {
   SHIMMY_PROFILE_CONFIG_DIR=$SHIMMY_PROFILE_ROOT/config
   SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=$SHIMMY_PROFILE_ROOT/tools
   shimmy_path_parent_chain_validate "$SHIMMY_PROFILE_ROOT"
+}
+
+shimmy_profile_paths_resolve() {
+  profile_name=$1
+  shimmy_profile_name_validate "$profile_name" || return 1
+  shimmy_profile_paths_resolve_name "$profile_name"
+}
+
+shimmy_profile_runtime_manifest_identity_validate() {
+  manifest_file=$1
+  profile_name=$2
+  shimmy_name_component_validate "$profile_name" || return 1
+  [ -f "$manifest_file" ] && [ ! -L "$manifest_file" ] || return 1
+  [ "$(shimmy_manifest_key_count "$manifest_file" shimmy_install_manifest_version)" -eq 1 ] || return 1
+  [ "$(shimmy_manifest_key_count "$manifest_file" shimmy_install_layout)" -eq 1 ] || return 1
+  [ "$(shimmy_manifest_key_count "$manifest_file" shimmy_profile_manifest_version)" -eq 1 ] || return 1
+  [ "$(shimmy_manifest_key_count "$manifest_file" shimmy_profile_name)" -eq 1 ] || return 1
+  [ "$(shimmy_read_manifest_value "$manifest_file" shimmy_install_layout)" = profile-materialized-root ] || return 1
+  [ "$(shimmy_read_manifest_value "$manifest_file" shimmy_profile_name)" = "$profile_name" ] || return 1
+  runtime_manifest_version=$(shimmy_read_manifest_value "$manifest_file" shimmy_install_manifest_version)
+  [ "$(shimmy_read_manifest_value "$manifest_file" shimmy_profile_manifest_version)" = "$runtime_manifest_version" ] || return 1
+  case "$runtime_manifest_version:$profile_name" in
+    1:default|1:upstream|2:*) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 shimmy_profile_context_resolve() {
