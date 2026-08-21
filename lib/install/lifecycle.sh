@@ -153,12 +153,13 @@ shimmy_profile_bootstrap_run() {
   esac
   shimmy_profile_activate "$shimmy_profile_bootstrap_restart" 0 0 || return 1
   SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=1
-  shimmy_profile_images_prepare "$SHIMMY_PROFILE_CANDIDATE_ROOT" \
-    "$SHIMMY_PROFILE_BASELINE_PAIRS" || return 1
   shimmy_external_transaction_begin || return 1
   shimmy_profile_initial_active_create "$shimmy_profile_bootstrap_config/active-profile.conf" \
     default "$shimmy_profile_bootstrap_user_root" ||
     shimmy_profile_lifecycle_activation_rollback 'unable to create initial active profile authority' || return 1
+  shimmy_profile_images_prepare "$SHIMMY_PROFILE_CANDIDATE_ROOT" \
+    "$SHIMMY_PROFILE_BASELINE_PAIRS" ||
+    shimmy_profile_lifecycle_activation_rollback 'unable to prepare initial profile images' || return 1
   shimmy_ai_skill_reconcile_apply ||
     shimmy_profile_lifecycle_activation_rollback "${SHIMMY_AI_SKILL_ERROR:-unable to reconcile initial AI-skill links}" || return 1
   shimmy_startup_apply "$shimmy_profile_bootstrap_config" \

@@ -17,6 +17,12 @@ EOF
     cat > "$test_shim_fake_root/refresh.sh" <<EOF
 #!/bin/sh
 set -eu
+if [ -n "\${SHIMMY_TEST_REQUIRED_ACTIVE_PROFILE:-}" ]; then
+  test_shim_fake_active_path=\${SHIMMY_TEST_ACTIVE_PROFILE_PATH:?}
+  [ -f "\$test_shim_fake_active_path" ] && [ ! -L "\$test_shim_fake_active_path" ]
+  [ "\$(sed -n '2s/^shimmy_active_profile_name=//p' "\$test_shim_fake_active_path")" = \
+    "\$SHIMMY_TEST_REQUIRED_ACTIVE_PROFILE" ]
+fi
 printf 'image|$test_shim_fake_tool|$test_shim_fake_version|%s\n' "\${1:-}" >> "\${SHIMMY_TEST_IMAGE_LOG:?}"
 [ "\${SHIMMY_TEST_IMAGE_FAILURE:-}" != '$test_shim_fake_pair' ] || exit 29
 EOF

@@ -48,6 +48,8 @@ test_commands_lifecycle_darwin_bootstrap_case() {
   test_lifecycle_bootstrap_output=$(env HOME="$TEST_LIFECYCLE_HOME" \
     XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
     SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    SHIMMY_TEST_ACTIVE_PROFILE_PATH="$TEST_LIFECYCLE_CONFIG/active-profile.conf" \
+    SHIMMY_TEST_REQUIRED_ACTIVE_PROFILE=default \
     SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
     SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
     FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
@@ -84,7 +86,7 @@ test_commands_lifecycle_darwin_bootstrap_case() {
 test_commands_lifecycle_darwin_bootstrap_engine_states() {
   test_commands_lifecycle_darwin_bootstrap_case false
   test_commands_lifecycle_darwin_bootstrap_case true
-  pass 'Darwin bootstrap activates stopped and idle running default machines before preparing images'
+  pass 'Darwin bootstrap activates the default engine and authority before preparing images'
 }
 
 test_commands_lifecycle_end_to_end() {
