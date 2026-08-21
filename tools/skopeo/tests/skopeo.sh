@@ -30,7 +30,7 @@ test_tools_skopeo_registry_client_mount() {
     > "$DEFAULT_PROFILE_ROOT/install-manifest.txt"
   shimmy_registries_config_render default '' > "$DEFAULT_PROFILE_ROOT/registries.conf"
   shimmy_registries_config_render team-one '' > "$sibling_profile_root/registries.conf"
-  shimmy_target_active_profile_render default "$HOME_DIR/.agents/skills" \
+  shimmy_active_profile_render default "$HOME_DIR/.agents/skills" \
     > "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
   chmod 0644 "$DEFAULT_PROFILE_ROOT/install-manifest.txt" \
     "$DEFAULT_PROFILE_ROOT/registries.conf" "$sibling_profile_root/registries.conf" \

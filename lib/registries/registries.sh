@@ -730,9 +730,9 @@ shimmy_registries_client_mount_resolve() {
     shimmy_registries_client_mount_fail 'active profile state helper is unavailable'
     return 1
   }
-  command -v shimmy_target_active_profile_read >/dev/null 2>&1 || . "$client_state_helper"
-  shimmy_target_active_profile_read "$SHIMMY_CONFIG_ROOT/active-profile.conf" &&
-    [ "$SHIMMY_TARGET_ACTIVE_PROFILE_NAME" = "$client_profile_name" ] || {
+  command -v shimmy_active_profile_read >/dev/null 2>&1 || . "$client_state_helper"
+  shimmy_active_profile_read "$SHIMMY_CONFIG_ROOT/active-profile.conf" &&
+    [ "$SHIMMY_ACTIVE_PROFILE_NAME" = "$client_profile_name" ] || {
       shimmy_registries_client_mount_fail 'installation active record belongs to another profile or is invalid'
       return 1
     }
@@ -1049,10 +1049,10 @@ shimmy_registries_active_edit_prepare() {
 }
 
 shimmy_registries_lock_acquire() {
-  if [ "${SHIMMY_TARGET_REGISTRY_LOCK_EXTERNAL:-0}" -eq 1 ]; then
-    command -v shimmy_target_lock_held >/dev/null 2>&1 &&
-      shimmy_target_lock_held registry "$SHIMMY_PROFILE_NAME" || {
-        printf 'ERROR: target registry mutation requires the externally held profile registry lock for %s\n' "$SHIMMY_PROFILE_NAME" >&2
+  if [ "${SHIMMY_REGISTRY_LOCK_EXTERNAL:-0}" -eq 1 ]; then
+    command -v shimmy_lock_held >/dev/null 2>&1 &&
+      shimmy_lock_held registry "$SHIMMY_PROFILE_NAME" || {
+        printf 'ERROR: registry mutation requires the externally held profile registry lock for %s\n' "$SHIMMY_PROFILE_NAME" >&2
         return 1
       }
     SHIMMY_REGISTRIES_LOCK_HELD=external
@@ -1077,11 +1077,11 @@ shimmy_registries_lock_acquire() {
 }
 
 shimmy_registries_lock_check() {
-  if [ "${SHIMMY_TARGET_REGISTRY_LOCK_EXTERNAL:-0}" -eq 1 ]; then
-    command -v shimmy_target_lock_kind_resolve >/dev/null 2>&1 || return 1
-    shimmy_target_lock_kind_resolve registry "$SHIMMY_CONFIG_ROOT" "$SHIMMY_PROFILE_NAME" || return 1
-    if [ -e "$SHIMMY_TARGET_LOCK_PATH" ] || [ -L "$SHIMMY_TARGET_LOCK_PATH" ]; then
-      printf 'ERROR: another target registry transaction holds %s; dry-run made no changes\n' "$SHIMMY_TARGET_LOCK_PATH" >&2
+  if [ "${SHIMMY_REGISTRY_LOCK_EXTERNAL:-0}" -eq 1 ]; then
+    command -v shimmy_lock_kind_resolve >/dev/null 2>&1 || return 1
+    shimmy_lock_kind_resolve registry "$SHIMMY_CONFIG_ROOT" "$SHIMMY_PROFILE_NAME" || return 1
+    if [ -e "$SHIMMY_LOCK_PATH" ] || [ -L "$SHIMMY_LOCK_PATH" ]; then
+      printf 'ERROR: another registry transaction holds %s; dry-run made no changes\n' "$SHIMMY_LOCK_PATH" >&2
       return 1
     fi
     return 0

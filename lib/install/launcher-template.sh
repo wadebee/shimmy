@@ -55,9 +55,9 @@ shimmy_launcher_manifest=$shimmy_launcher_profile_root/install-manifest.txt
     printf '%s\n' 'ERROR: profile manifest identity is invalid' >&2
     exit 1
   }
-SHIMMY_TARGET_CONFIG_ROOT=$shimmy_launcher_config_root
-SHIMMY_TARGET_INVOKING_PROFILE=$shimmy_launcher_profile_name
-export SHIMMY_TARGET_CONFIG_ROOT SHIMMY_TARGET_INVOKING_PROFILE
+SHIMMY_CONFIG_ROOT=$shimmy_launcher_config_root
+SHIMMY_INVOKING_PROFILE=$shimmy_launcher_profile_name
+export SHIMMY_CONFIG_ROOT SHIMMY_INVOKING_PROFILE
 case "$shimmy_launcher_command" in
   admin) shift; exec "$shimmy_launcher_profile_root/commands/admin.sh" "$@" ;;
   profile) shift; exec "$shimmy_launcher_profile_root/commands/profile.sh" "$@" ;;

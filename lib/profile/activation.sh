@@ -21,10 +21,10 @@ shimmy_profile_activation_host_os_resolve() {
 }
 
 shimmy_profile_activation_lock_acquire() {
-  if [ "${SHIMMY_TARGET_ACTIVATION_LOCK_EXTERNAL:-0}" -eq 1 ]; then
-    command -v shimmy_target_lock_held >/dev/null 2>&1 &&
-      shimmy_target_lock_held activation || {
-        printf '%s\n' 'ERROR: target profile activation requires the externally held installation activation lock' >&2
+  if [ "${SHIMMY_ACTIVATION_LOCK_EXTERNAL:-0}" -eq 1 ]; then
+    command -v shimmy_lock_held >/dev/null 2>&1 &&
+      shimmy_lock_held activation || {
+        printf '%s\n' 'ERROR: profile activation requires the externally held installation activation lock' >&2
         return 1
       }
     SHIMMY_PROFILE_ACTIVATION_LOCK_HELD=external
@@ -43,11 +43,11 @@ shimmy_profile_activation_lock_acquire() {
 }
 
 shimmy_profile_activation_lock_check() {
-  if [ "${SHIMMY_TARGET_ACTIVATION_LOCK_EXTERNAL:-0}" -eq 1 ]; then
-    command -v shimmy_target_lock_kind_resolve >/dev/null 2>&1 || return 1
-    shimmy_target_lock_kind_resolve activation "$SHIMMY_CONFIG_ROOT" || return 1
-    if [ -e "$SHIMMY_TARGET_LOCK_PATH" ] || [ -L "$SHIMMY_TARGET_LOCK_PATH" ]; then
-      printf 'ERROR: another target profile activation holds %s; dry-run made no changes\n' "$SHIMMY_TARGET_LOCK_PATH" >&2
+  if [ "${SHIMMY_ACTIVATION_LOCK_EXTERNAL:-0}" -eq 1 ]; then
+    command -v shimmy_lock_kind_resolve >/dev/null 2>&1 || return 1
+    shimmy_lock_kind_resolve activation "$SHIMMY_CONFIG_ROOT" || return 1
+    if [ -e "$SHIMMY_LOCK_PATH" ] || [ -L "$SHIMMY_LOCK_PATH" ]; then
+      printf 'ERROR: another profile activation holds %s; dry-run made no changes\n' "$SHIMMY_LOCK_PATH" >&2
       return 1
     fi
     return 0

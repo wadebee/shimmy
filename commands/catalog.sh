@@ -24,10 +24,10 @@ fail() {
 }
 
 cleanup() {
-  shimmy_target_images_cache_cleanup 2>/dev/null || true
-  shimmy_target_filesystem_transaction_cleanup 2>/dev/null || true
-  shimmy_target_catalog_lifecycle_cleanup 2>/dev/null || true
-  shimmy_target_locks_release_all 2>/dev/null || true
+  shimmy_images_cache_cleanup 2>/dev/null || true
+  shimmy_filesystem_transaction_cleanup 2>/dev/null || true
+  shimmy_catalog_lifecycle_cleanup 2>/dev/null || true
+  shimmy_locks_release_all 2>/dev/null || true
 }
 trap cleanup 0 HUP INT TERM
 
@@ -47,8 +47,8 @@ Publish runs only from a clean attached local main repository root.
 EOF
 }
 
-target_config_root=${SHIMMY_TARGET_CONFIG_ROOT:-}
-[ -n "$target_config_root" ] || fail 'catalog commands must run through an installed profile launcher'
+config_root=${SHIMMY_CONFIG_ROOT:-}
+[ -n "$config_root" ] || fail 'catalog commands must run through an installed profile launcher'
 
 action=${1:-help}
 case "$action" in
@@ -67,7 +67,7 @@ case "$action" in
         *) fail "unknown argument: $1" ;;
       esac
     done
-    shimmy_target_catalog_status_render "$target_config_root" "$output_format" || fail "$SHIMMY_TARGET_CATALOG_ERROR"
+    shimmy_catalog_status_render "$config_root" "$output_format" || fail "$SHIMMY_CATALOG_AUTHORITY_ERROR"
     ;;
   tools)
     output_format=human
@@ -80,7 +80,7 @@ case "$action" in
         *) fail "unknown argument: $1" ;;
       esac
     done
-    shimmy_target_catalog_tools_render "$target_config_root" "$generation" "$output_format" || fail "$SHIMMY_TARGET_CATALOG_ERROR"
+    shimmy_catalog_tools_render "$config_root" "$generation" "$output_format" || fail "$SHIMMY_CATALOG_AUTHORITY_ERROR"
     ;;
   verify)
     output_format=human
@@ -102,21 +102,21 @@ case "$action" in
       esac
     done
     case "$output_format" in human|manifest) ;; *) fail "unsupported catalog verify format: $output_format" ;; esac
-    if ! shimmy_target_images_verify_run "$target_config_root" "$requested_tools" \
+    if ! shimmy_images_verify_run "$config_root" "$requested_tools" \
       "$public_only" "$require_current_upstream" "$output_format"; then
-      [ -z "$SHIMMY_TARGET_IMAGES_ERROR" ] || fail "$SHIMMY_TARGET_IMAGES_ERROR"
+      [ -z "$SHIMMY_IMAGES_ERROR" ] || fail "$SHIMMY_IMAGES_ERROR"
       exit 1
     fi
     ;;
   publish)
     [ "$#" -eq 0 ] || fail "unknown argument: $1"
     checkout_root=$(pwd -P)
-    shimmy_target_catalog_default_publish "$target_config_root" "$checkout_root" || fail "$SHIMMY_TARGET_CATALOG_ERROR"
-    shimmy_target_catalog_status_render "$target_config_root" manifest
+    shimmy_catalog_default_publish "$config_root" "$checkout_root" || fail "$SHIMMY_CATALOG_AUTHORITY_ERROR"
+    shimmy_catalog_status_render "$config_root" manifest
     ;;
   rollback)
     [ "$#" -eq 0 ] || fail "unknown argument: $1"
-    shimmy_target_catalog_default_rollback "$target_config_root" || fail "$SHIMMY_TARGET_CATALOG_ERROR"
-    shimmy_target_catalog_status_render "$target_config_root" manifest
+    shimmy_catalog_default_rollback "$config_root" || fail "$SHIMMY_CATALOG_AUTHORITY_ERROR"
+    shimmy_catalog_status_render "$config_root" manifest
     ;;
 esac

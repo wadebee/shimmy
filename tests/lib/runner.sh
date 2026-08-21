@@ -76,7 +76,7 @@ test_lib_runner_registry_ordering() {
   assert_equals "$test_runner_first_name" runner
   assert_equals "$test_runner_last_name" tools-textual
   assert_equals "$(printf '%s\n' "$test_runner_registry" | sed -n '/^commands-lifecycle|/p')" \
-    'commands-lifecycle|test_commands_target_lifecycle_run'
+    'commands-lifecycle|test_commands_lifecycle_run'
   pass "runner registry has stable canonical ordering and one lifecycle group"
 }
 
@@ -162,8 +162,8 @@ test_lib_runner_timing_shape() {
 
 test_lib_runner_lifecycle_grouping() {
   test_runner_lifecycle_output=$(
-    test_commands_target_lifecycle_run() { printf '%s\n' lifecycle; }
-    test_commands_target_lifecycle_run
+    test_commands_lifecycle_run() { printf '%s\n' lifecycle; }
+    test_commands_lifecycle_run
   )
   assert_equals "$test_runner_lifecycle_output" lifecycle
   pass "runner keeps the final lifecycle acceptance scenarios indivisible"

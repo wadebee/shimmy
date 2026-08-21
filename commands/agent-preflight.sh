@@ -250,39 +250,39 @@ shimmy_agent_manifest_shims_discover() {
   manifest_file=$2
   bin_dir=$profile_root/bin
 
-  shimmy_target_profile_manifest_read "$manifest_file" || return 1
+  shimmy_profile_manifest_read "$manifest_file" || return 1
   while IFS= read -r shim_record; do
     [ -n "$shim_record" ] || continue
-    shimmy_target_shim_record_validate "$shim_record" || return 1
-    shim_name=$shimmy_target_shim_record_tool
+    shimmy_shim_record_validate "$shim_record" || return 1
+    shim_name=$shimmy_shim_record_tool
     version_label=
     while IFS= read -r version_record; do
       [ -n "$version_record" ] || continue
-      shimmy_target_shim_version_record_validate "$version_record" || return 1
-      [ "$shimmy_target_shim_version_tool" = "$shim_name" ] || continue
-      [ "$shimmy_target_shim_version_kind" = default ] || continue
-      version_label=$shimmy_target_shim_version_name
+      shimmy_shim_version_record_validate "$version_record" || return 1
+      [ "$shimmy_shim_version_tool" = "$shim_name" ] || continue
+      [ "$shimmy_shim_version_kind" = default ] || continue
+      version_label=$shimmy_shim_version_name
       break
     done <<EOF
-$SHIMMY_TARGET_PROFILE_SHIM_VERSION_RECORDS
+$SHIMMY_PROFILE_SHIM_VERSION_RECORDS
 EOF
     [ -n "$version_label" ] || return 1
     shimmy_agent_active_shim_consider "$shim_name" "$bin_dir/$shim_name" \
       "$profile_root/tools/$shim_name/versions/$version_label"
   done <<EOF
-$SHIMMY_TARGET_PROFILE_SHIM_RECORDS
+$SHIMMY_PROFILE_SHIM_RECORDS
 EOF
 }
 
 shimmy_agent_installed_shims_discover() {
   config_root=$1
-  shimmy_target_installation_paths_resolve "$config_root" || return 1
-  [ -f "$SHIMMY_TARGET_ACTIVE_PROFILE_PATH" ] || return 0
-  shimmy_target_active_profile_read "$SHIMMY_TARGET_ACTIVE_PROFILE_PATH" || return 1
-  active_profile=$SHIMMY_TARGET_ACTIVE_PROFILE_NAME
-  shimmy_target_profile_paths_resolve "$config_root" "$active_profile" || return 1
-  shimmy_agent_manifest_shims_discover "$SHIMMY_TARGET_PROFILE_ROOT" \
-    "$SHIMMY_TARGET_PROFILE_MANIFEST_PATH"
+  shimmy_installation_paths_resolve "$config_root" || return 1
+  [ -f "$SHIMMY_ACTIVE_PROFILE_PATH" ] || return 0
+  shimmy_active_profile_read "$SHIMMY_ACTIVE_PROFILE_PATH" || return 1
+  active_profile=$SHIMMY_ACTIVE_PROFILE_NAME
+  shimmy_profile_state_paths_resolve "$config_root" "$active_profile" || return 1
+  shimmy_agent_manifest_shims_discover "$SHIMMY_PROFILE_ROOT" \
+    "$SHIMMY_PROFILE_MANIFEST_PATH"
 }
 
 shimmy_agent_repo_shims_discover() {

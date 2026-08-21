@@ -95,7 +95,7 @@ test_lib_runtime_profile_affinity() {
     shimmy_registries_machine_projection_record_render "$affinity_profile_name" "$affinity_fingerprint"
   ) > "$affinity_profile_root/machine-projection.txt"
   chmod 0644 "$affinity_profile_root/machine-projection.txt"
-  shimmy_target_active_profile_render "$affinity_profile_name" "$HOME_DIR/.agents/skills" \
+  shimmy_active_profile_render "$affinity_profile_name" "$HOME_DIR/.agents/skills" \
     > "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
   chmod 0644 "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
   profile_activation_fake_create "$fake_podman"
@@ -103,27 +103,27 @@ test_lib_runtime_profile_affinity() {
   affinity_machines='shimmy-team-one|true'
   affinity_connections='shimmy-team-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
 
-  target_affinity_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
+  test_affinity_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
     SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" FAKE_PODMAN_LOG="$fake_log" \
     FAKE_MACHINE_LIST="$affinity_machines" FAKE_CONNECTION_LIST="$affinity_connections" \
     FAKE_DARWIN_PROJECTION_STATE=current /bin/sh -c \
-    'set -e; . "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require; printf target-active-ok' \
+    'set -e; . "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require; printf profile-active-ok' \
     sh "$ROOT_DIR/lib/runtime/podman.sh")
-  assert_equals "$target_affinity_output" target-active-ok
+  assert_equals "$test_affinity_output" profile-active-ok
 
-  shimmy_target_active_profile_render default "$HOME_DIR/.agents/skills" \
+  shimmy_active_profile_render default "$HOME_DIR/.agents/skills" \
     > "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
   chmod 0644 "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
   set +e
-  target_inactive_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
+  test_inactive_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
     SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" FAKE_PODMAN_LOG="$fake_log" \
     FAKE_MACHINE_LIST="$affinity_machines" FAKE_CONNECTION_LIST="$affinity_connections" \
     /bin/sh -c '. "$1"; shimmy_podman_bin_require; shimmy_podman_profile_affinity_require' \
     sh "$ROOT_DIR/lib/runtime/podman.sh" 2>&1)
-  target_inactive_status=$?
+  test_inactive_status=$?
   set -e
-  [ "$target_inactive_status" -ne 0 ] || fail_test 'inactive version-2 arbitrary profile passed runtime affinity'
-  assert_contains "$target_inactive_output" 'active record belongs to another profile'
+  [ "$test_inactive_status" -ne 0 ] || fail_test 'inactive version-2 arbitrary profile passed runtime affinity'
+  assert_contains "$test_inactive_output" 'active record belongs to another profile'
   pass 'arbitrary-name runtimes require matching active-record and deterministic engine affinity'
 }
 

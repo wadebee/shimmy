@@ -27,7 +27,7 @@ profile_activation_fake_create() {
       "    printf '%s\\n' \"\${FAKE_WORKLOADS:-}\"" \
       '    ;;' \
       '  "--connection "*" info --format {{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}")' \
-      '    [ "${FAKE_FAIL_ACTION:-}" != target_validation ] || exit 43' \
+      '    [ "${FAKE_FAIL_ACTION:-}" != test_validation ] || exit 43' \
       "    printf '%s\\n' \"\${FAKE_DARWIN_INFO:-true|true}\"" \
       '    ;;' \
       '  "info --format {{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}")' \
@@ -75,12 +75,12 @@ profile_activation_fake_create() {
       '    machine_name=${3:-}' \
       '    fake_fail_requested machine_stop "$machine_name" && exit 60' \
       '    if [ "${FAKE_FAIL_ACTION:-}" = stop ] && [ "$machine_name" = "${FAKE_PRIOR_MACHINE:-}" ]; then exit 44; fi' \
-      '    if [ "${FAKE_ROLLBACK_FAIL:-}" = target_cleanup ] && [ "$machine_name" = "${FAKE_TARGET_MACHINE:-}" ]; then exit 45; fi' \
+      '    if [ "${FAKE_ROLLBACK_FAIL:-}" = test_cleanup ] && [ "$machine_name" = "${FAKE_TARGET_MACHINE:-}" ]; then exit 45; fi' \
       '    ;;' \
       '  "machine start "*)' \
       '    machine_name=${3:-${2:-}}' \
       '    fake_fail_requested machine_start "$machine_name" && exit 61' \
-      '    if [ "${FAKE_FAIL_ACTION:-}" = target_start ] && [ "$machine_name" = "${FAKE_TARGET_MACHINE:-}" ]; then exit 46; fi' \
+      '    if [ "${FAKE_FAIL_ACTION:-}" = test_start ] && [ "$machine_name" = "${FAKE_TARGET_MACHINE:-}" ]; then exit 46; fi' \
       '    if [ "${FAKE_ROLLBACK_FAIL:-}" = prior_restart ] && [ "$machine_name" = "${FAKE_PRIOR_MACHINE:-}" ]; then exit 47; fi' \
       '    ;;' \
       '  "system connection default "*)' \
@@ -397,7 +397,7 @@ test_lib_profile_activation_mapping_and_status() {
   assert_contains "$status_output" 'activation=registry_restart_required'
   FAKE_DARWIN_PROJECTION_FINGERPRINT=
 
-  FAKE_FAIL_ACTION=target_validation
+  FAKE_FAIL_ACTION=test_validation
   status_output=$(profile_activation_library_run default Darwin status)
   assert_contains "$status_output" 'activation=unreachable'
   FAKE_FAIL_ACTION=
@@ -420,8 +420,8 @@ other|true'
 
   FAKE_MACHINE_LIST='podman-machine-default|true'
   FAKE_CONNECTION_LIST='podman-machine-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
-  status_output=$(profile_activation_library_run upstream Darwin status)
-  assert_contains "$status_output" 'expected_engine=shimmy-upstream'
+  status_output=$(profile_activation_library_run prior Darwin status)
+  assert_contains "$status_output" 'expected_engine=shimmy-prior'
   assert_contains "$status_output" 'machine_state=missing'
   assert_contains "$status_output" 'activation=unavailable'
 
@@ -485,7 +485,7 @@ test_lib_profile_activation_recommendations() {
 
   FAKE_MACHINE_LIST='shimmy-default|true'
   FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
-  FAKE_FAIL_ACTION=target_validation
+  FAKE_FAIL_ACTION=test_validation
   recommendation_output=$(profile_activation_library_run default Darwin recommendation)
   assert_contains "$recommendation_output" 'action=investigate'
   assert_contains "$recommendation_output" 'action_command='
@@ -596,27 +596,27 @@ test_lib_profile_activation_switch_and_guard() {
   FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
   profile_activation_fake_create "$FAKE_PODMAN_BIN"
   : > "$FAKE_PODMAN_LOG"
-  FAKE_MACHINE_LIST='shimmy-upstream|true
+  FAKE_MACHINE_LIST='shimmy-prior|true
 shimmy-default|false'
-  FAKE_CONNECTION_LIST='shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true
+  FAKE_CONNECTION_LIST='shimmy-prior|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true
 shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
   FAKE_WORKLOADS=
-  FAKE_PRIOR_MACHINE=shimmy-upstream
+  FAKE_PRIOR_MACHINE=shimmy-prior
   FAKE_TARGET_MACHINE=shimmy-default
-  FAKE_PRIOR_DEFAULT=shimmy-upstream
+  FAKE_PRIOR_DEFAULT=shimmy-prior
   FAKE_FAIL_ACTION=
   FAKE_DARWIN_PROJECTION_STATE=current
   FAKE_DARWIN_PROJECTION_FINGERPRINT=
   FAKE_DARWIN_RECORD_STATE=valid
 
   activation_output=$(profile_activation_library_run default Darwin activate 0 0 0)
-  assert_contains "$activation_output" 'Stopping Podman machine: shimmy-upstream'
+  assert_contains "$activation_output" 'Stopping Podman machine: shimmy-prior'
   assert_contains "$activation_output" 'Starting Podman machine: shimmy-default'
   command_log=$(cat "$FAKE_PODMAN_LOG")
-  assert_contains "$command_log" 'machine stop shimmy-upstream'
+  assert_contains "$command_log" 'machine stop shimmy-prior'
   assert_contains "$command_log" 'machine start shimmy-default'
   assert_contains "$command_log" 'system connection default shimmy-default'
-  stop_line=$(sed -n '/^machine stop shimmy-upstream$/=' "$FAKE_PODMAN_LOG")
+  stop_line=$(sed -n '/^machine stop shimmy-prior$/=' "$FAKE_PODMAN_LOG")
   start_line=$(sed -n '/^machine start shimmy-default$/=' "$FAKE_PODMAN_LOG")
   validate_line=$(sed -n '/^--connection shimmy-default info /=' "$FAKE_PODMAN_LOG" | tail -n 1)
   projection_line=$(sed -n '/^machine ssh shimmy-default \/bin\/sh -s -- projection /=' "$FAKE_PODMAN_LOG" | tail -n 1)
@@ -636,7 +636,7 @@ shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
   assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop'
 
   dry_run_output=$(profile_activation_library_run default Darwin activate 0 1 1)
-  assert_contains "$dry_run_output" 'would_stop=shimmy-upstream'
+  assert_contains "$dry_run_output" 'would_stop=shimmy-prior'
   assert_contains "$dry_run_output" 'would_start=shimmy-default'
   assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop'
   pass "Darwin switching inspects workloads and commits the global default only after target validation"
@@ -647,20 +647,20 @@ test_lib_profile_activation_rollback() {
   FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
   FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
   profile_activation_fake_create "$FAKE_PODMAN_BIN"
-  FAKE_MACHINE_LIST='shimmy-upstream|true
+  FAKE_MACHINE_LIST='shimmy-prior|true
 shimmy-default|false'
-  FAKE_CONNECTION_LIST='shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true
+  FAKE_CONNECTION_LIST='shimmy-prior|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true
 shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
   FAKE_WORKLOADS=
-  FAKE_PRIOR_MACHINE=shimmy-upstream
+  FAKE_PRIOR_MACHINE=shimmy-prior
   FAKE_TARGET_MACHINE=shimmy-default
-  FAKE_PRIOR_DEFAULT=shimmy-upstream
+  FAKE_PRIOR_DEFAULT=shimmy-prior
   FAKE_DARWIN_PROJECTION_STATE=current
   FAKE_DARWIN_PROJECTION_FINGERPRINT=
   FAKE_DARWIN_RECORD_STATE=valid
 
   FAKE_ROLLBACK_FAIL=
-  for failure_action in stop target_start target_validation default_commit; do
+  for failure_action in stop test_start test_validation default_commit; do
     : > "$FAKE_PODMAN_LOG"
     FAKE_FAIL_ACTION=$failure_action
     set +e
@@ -669,10 +669,10 @@ shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
     set -e
     [ "$failure_status" -ne 0 ] || fail_test "failure injection unexpectedly succeeded: $failure_action"
     assert_contains "$failure_output" 'Rollback:'
-    assert_contains "$FAKE_CONNECTION_LIST" shimmy-upstream
+    assert_contains "$FAKE_CONNECTION_LIST" shimmy-prior
   done
 
-  for rollback_failure in target_cleanup prior_restart default_restore; do
+  for rollback_failure in test_cleanup prior_restart default_restore; do
     : > "$FAKE_PODMAN_LOG"
     FAKE_FAIL_ACTION=default_commit
     FAKE_ROLLBACK_FAIL=$rollback_failure

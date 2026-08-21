@@ -7,7 +7,7 @@ fail() {
   exit 1
 }
 
-shimmy_target_help_root() {
+shimmy_help_root() {
   cat <<'EOF'
 Manage the active Shimmy installation and the profile containing this launcher.
 
@@ -60,7 +60,7 @@ Run 'shimmy <group> --help' to list a group's commands.
 EOF
 }
 
-shimmy_target_help_admin() {
+shimmy_help_admin() {
   cat <<'EOF'
 Inspect or remove the complete Shimmy installation.
 
@@ -89,7 +89,7 @@ Run 'shimmy admin <command> --help' for command options and defaults.
 EOF
 }
 
-shimmy_target_help_admin_status() {
+shimmy_help_admin_status() {
   cat <<'EOF'
 Aggregate local catalog and per-profile status without mutation.
 
@@ -117,7 +117,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_admin_network() {
+shimmy_help_admin_network() {
   cat <<'EOF'
 Show network perspectives using the active profile's engine context.
 
@@ -153,7 +153,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_admin_uninstall() {
+shimmy_help_admin_uninstall() {
   cat <<'EOF'
 Remove all validated Shimmy-owned installation state.
 
@@ -183,7 +183,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_profile() {
+shimmy_help_profile() {
   cat <<'EOF'
 Manage independently materialized Shimmy profiles.
 
@@ -218,7 +218,7 @@ Run 'shimmy profile <command> --help' for command options and defaults.
 EOF
 }
 
-shimmy_target_help_profile_list() {
+shimmy_help_profile_list() {
   cat <<'EOF'
 List installed profiles and their local validity.
 
@@ -245,7 +245,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_profile_status() {
+shimmy_help_profile_status() {
   cat <<'EOF'
 Inspect the profile containing this launcher.
 
@@ -273,7 +273,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_profile_create() {
+shimmy_help_profile_create() {
   cat <<'EOF'
 Create a sibling profile from the invoking profile's exact control and catalog pin.
 
@@ -285,7 +285,7 @@ Scope:
   catalog-default jq, rg, and Skopeo and is automatically activated.
 
 Options:
-  --restart       Restart a stale target macOS engine projection.
+  --restart       Restart a stale selected-profile macOS engine projection.
   --stop-running  Acknowledge interruption of listed running containers.
   --dry-run       Read and classify the complete image, engine, link, and startup
                   plan without persistent mutation.
@@ -308,7 +308,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_profile_activate() {
+shimmy_help_profile_activate() {
   cat <<'EOF'
 Activate an installed profile's engine, registry policy, active record, and links.
 
@@ -320,7 +320,7 @@ Scope:
   parent shell's PATH unless invoked through a sourced Shimmy shell wrapper.
 
 Options:
-  --restart       Restart a stale target macOS engine projection.
+  --restart       Restart a stale selected-profile macOS engine projection.
   --stop-running  Acknowledge interruption of listed running containers.
   --dry-run       Inspect the complete transition and exact link collisions
                   without persistent mutation.
@@ -343,7 +343,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_profile_sync() {
+shimmy_help_profile_sync() {
   cat <<'EOF'
 Sync the invoking active profile to explicit refs/heads/main and catalog current.
 
@@ -369,7 +369,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_profile_repair_startup() {
+shimmy_help_profile_repair_startup() {
   cat <<'EOF'
 Repair only the invoking profile's recorded startup files.
 
@@ -395,7 +395,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_profile_delete() {
+shimmy_help_profile_delete() {
   cat <<'EOF'
 Delete an installed inactive non-default profile.
 
@@ -424,7 +424,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_profile_redirect() {
+shimmy_help_profile_redirect() {
   cat <<'EOF'
 Inspect or mutate strict invoking-profile registry redirects.
 
@@ -452,7 +452,7 @@ Run 'shimmy profile redirect <command> --help' for options and defaults.
 EOF
 }
 
-shimmy_target_help_profile_redirect_list() {
+shimmy_help_profile_redirect_list() {
   cat <<'EOF'
 List strict registry redirects for the invoking profile.
 
@@ -479,7 +479,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_profile_redirect_set() {
+shimmy_help_profile_redirect_set() {
   cat <<'EOF'
 Add or replace one exact invoking-profile registry redirect.
 
@@ -509,7 +509,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_profile_redirect_delete() {
+shimmy_help_profile_redirect_delete() {
   cat <<'EOF'
 Delete one or all invoking-profile registry redirects.
 
@@ -542,7 +542,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_catalog() {
+shimmy_help_catalog() {
   cat <<'EOF'
 Inspect and maintain the installation-owned immutable default catalog.
 
@@ -573,7 +573,7 @@ Run 'shimmy catalog <command> --help' for command options and defaults.
 EOF
 }
 
-shimmy_target_help_catalog_status() {
+shimmy_help_catalog_status() {
   cat <<'EOF'
 Show local immutable default-catalog authority.
 
@@ -600,7 +600,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_catalog_tools() {
+shimmy_help_catalog_tools() {
   cat <<'EOF'
 List tools in current or one retained default-catalog generation.
 
@@ -628,7 +628,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_catalog_verify() {
+shimmy_help_catalog_verify() {
   cat <<'EOF'
 Verify default-catalog image indexes, required platforms, digests, and drift.
 
@@ -662,7 +662,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_catalog_publish() {
+shimmy_help_catalog_publish() {
   cat <<'EOF'
 Publish clean committed local main content as an immutable default generation.
 
@@ -689,7 +689,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_catalog_rollback() {
+shimmy_help_catalog_rollback() {
   cat <<'EOF'
 Swap default-catalog current with its retained valid previous generation.
 
@@ -715,7 +715,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_shim() {
+shimmy_help_shim() {
   cat <<'EOF'
 Manage profile-local shims and their installed concrete versions.
 
@@ -748,7 +748,7 @@ Run 'shimmy shim <command> --help' for command options and defaults.
 EOF
 }
 
-shimmy_target_help_shim_list() {
+shimmy_help_shim_list() {
   cat <<'EOF'
 List invoking-profile shims and installed versions.
 
@@ -775,7 +775,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_shim_add() {
+shimmy_help_shim_add() {
   cat <<'EOF'
 Add one tool or exact version to the invoking active profile.
 
@@ -804,7 +804,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_shim_remove() {
+shimmy_help_shim_remove() {
   cat <<'EOF'
 Remove one exact non-default version or a complete shim.
 
@@ -832,7 +832,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_shim_set_version() {
+shimmy_help_shim_set_version() {
   cat <<'EOF'
 Select an installed exact version as the shim default.
 
@@ -857,7 +857,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_shim_sync() {
+shimmy_help_shim_sync() {
   cat <<'EOF'
 Prepare installed shim versions and advance selected tracking defaults.
 
@@ -885,7 +885,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_shim_test() {
+shimmy_help_shim_test() {
   cat <<'EOF'
 Run version-owned non-mutating smoke commands.
 
@@ -913,7 +913,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_ai_skill() {
+shimmy_help_ai_skill() {
   cat <<'EOF'
 Inspect or repair direct user links from the active profile's AI-skill bundles.
 
@@ -943,7 +943,7 @@ Run 'shimmy ai-skill <command> --help' for command options and defaults.
 EOF
 }
 
-shimmy_target_help_ai_skill_list() {
+shimmy_help_ai_skill_list() {
   cat <<'EOF'
 Classify active-profile AI-skill bundles and exact user-link destinations.
 
@@ -971,7 +971,7 @@ Examples:
 EOF
 }
 
-shimmy_target_help_ai_skill_repair() {
+shimmy_help_ai_skill_repair() {
   cat <<'EOF'
 Reconcile supported active-profile AI-skill bundles and exact user links.
 
@@ -1001,34 +1001,34 @@ Examples:
 EOF
 }
 
-shimmy_target_help_group=${1:-root}
-case "$shimmy_target_help_group" in
-  root) shimmy_target_help_root ;;
+shimmy_help_group=${1:-root}
+case "$shimmy_help_group" in
+  root) shimmy_help_root ;;
   admin)
     case "${2:-}" in
-      ''|help|-h|--help) shimmy_target_help_admin ;;
-      status) shimmy_target_help_admin_status ;;
-      network) shimmy_target_help_admin_network ;;
-      uninstall) shimmy_target_help_admin_uninstall ;;
+      ''|help|-h|--help) shimmy_help_admin ;;
+      status) shimmy_help_admin_status ;;
+      network) shimmy_help_admin_network ;;
+      uninstall) shimmy_help_admin_uninstall ;;
       *) fail "unknown admin help topic: ${2:-}" ;;
     esac
     ;;
   profile)
     case "${2:-}" in
-      ''|help|-h|--help) shimmy_target_help_profile ;;
-      list) shimmy_target_help_profile_list ;;
-      status) shimmy_target_help_profile_status ;;
-      create) shimmy_target_help_profile_create ;;
-      activate) shimmy_target_help_profile_activate ;;
-      sync) shimmy_target_help_profile_sync ;;
-      repair-startup) shimmy_target_help_profile_repair_startup ;;
-      delete) shimmy_target_help_profile_delete ;;
+      ''|help|-h|--help) shimmy_help_profile ;;
+      list) shimmy_help_profile_list ;;
+      status) shimmy_help_profile_status ;;
+      create) shimmy_help_profile_create ;;
+      activate) shimmy_help_profile_activate ;;
+      sync) shimmy_help_profile_sync ;;
+      repair-startup) shimmy_help_profile_repair_startup ;;
+      delete) shimmy_help_profile_delete ;;
       redirect)
         case "${3:-}" in
-          ''|help|-h|--help) shimmy_target_help_profile_redirect ;;
-          list) shimmy_target_help_profile_redirect_list ;;
-          set) shimmy_target_help_profile_redirect_set ;;
-          delete) shimmy_target_help_profile_redirect_delete ;;
+          ''|help|-h|--help) shimmy_help_profile_redirect ;;
+          list) shimmy_help_profile_redirect_list ;;
+          set) shimmy_help_profile_redirect_set ;;
+          delete) shimmy_help_profile_redirect_delete ;;
           *) fail "unknown profile redirect help topic: ${3:-}" ;;
         esac
         ;;
@@ -1037,34 +1037,34 @@ case "$shimmy_target_help_group" in
     ;;
   catalog)
     case "${2:-}" in
-      ''|help|-h|--help) shimmy_target_help_catalog ;;
-      status) shimmy_target_help_catalog_status ;;
-      tools) shimmy_target_help_catalog_tools ;;
-      verify) shimmy_target_help_catalog_verify ;;
-      publish) shimmy_target_help_catalog_publish ;;
-      rollback) shimmy_target_help_catalog_rollback ;;
+      ''|help|-h|--help) shimmy_help_catalog ;;
+      status) shimmy_help_catalog_status ;;
+      tools) shimmy_help_catalog_tools ;;
+      verify) shimmy_help_catalog_verify ;;
+      publish) shimmy_help_catalog_publish ;;
+      rollback) shimmy_help_catalog_rollback ;;
       *) fail "unknown catalog help topic: ${2:-}" ;;
     esac
     ;;
   shim)
     case "${2:-}" in
-      ''|help|-h|--help) shimmy_target_help_shim ;;
-      list) shimmy_target_help_shim_list ;;
-      add) shimmy_target_help_shim_add ;;
-      remove) shimmy_target_help_shim_remove ;;
-      set-version) shimmy_target_help_shim_set_version ;;
-      sync) shimmy_target_help_shim_sync ;;
-      test) shimmy_target_help_shim_test ;;
+      ''|help|-h|--help) shimmy_help_shim ;;
+      list) shimmy_help_shim_list ;;
+      add) shimmy_help_shim_add ;;
+      remove) shimmy_help_shim_remove ;;
+      set-version) shimmy_help_shim_set_version ;;
+      sync) shimmy_help_shim_sync ;;
+      test) shimmy_help_shim_test ;;
       *) fail "unknown shim help topic: ${2:-}" ;;
     esac
     ;;
   ai-skill)
     case "${2:-}" in
-      ''|help|-h|--help) shimmy_target_help_ai_skill ;;
-      list) shimmy_target_help_ai_skill_list ;;
-      repair) shimmy_target_help_ai_skill_repair ;;
+      ''|help|-h|--help) shimmy_help_ai_skill ;;
+      list) shimmy_help_ai_skill_list ;;
+      repair) shimmy_help_ai_skill_repair ;;
       *) fail "unknown AI-skill help topic: ${2:-}" ;;
     esac
     ;;
-  *) fail "unknown target help group: $shimmy_target_help_group" ;;
+  *) fail "unknown help group: $shimmy_help_group" ;;
 esac

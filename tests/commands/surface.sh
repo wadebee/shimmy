@@ -1,61 +1,61 @@
 #!/bin/sh
 
-test_target_surface_fixture_setup() {
+test_surface_fixture_setup() {
   setup_scenario
-  TARGET_SURFACE_CONFIG=$SCENARIO_DIR/config/shimmy
-  TARGET_SURFACE_PROFILE=$TARGET_SURFACE_CONFIG/profiles/default
-  TARGET_SURFACE_LAUNCHER=$TARGET_SURFACE_PROFILE/bin/shimmy
-  mkdir -p "$TARGET_SURFACE_PROFILE/bin" "$TARGET_SURFACE_PROFILE/commands"
-  cp "$ROOT_DIR/commands/help.sh" "$TARGET_SURFACE_PROFILE/commands/help.sh"
-  chmod 0755 "$TARGET_SURFACE_PROFILE/commands/help.sh"
-  shimmy_target_profile_launcher_render "$TARGET_SURFACE_CONFIG" default > "$TARGET_SURFACE_LAUNCHER"
-  chmod 0755 "$TARGET_SURFACE_LAUNCHER"
-  printf '%s\n' 'damaged-manifest-for-help-ordering' > "$TARGET_SURFACE_PROFILE/install-manifest.txt"
+  TEST_SURFACE_CONFIG=$SCENARIO_DIR/config/shimmy
+  TEST_SURFACE_PROFILE=$TEST_SURFACE_CONFIG/profiles/default
+  TEST_SURFACE_LAUNCHER=$TEST_SURFACE_PROFILE/bin/shimmy
+  mkdir -p "$TEST_SURFACE_PROFILE/bin" "$TEST_SURFACE_PROFILE/commands"
+  cp "$ROOT_DIR/commands/help.sh" "$TEST_SURFACE_PROFILE/commands/help.sh"
+  chmod 0755 "$TEST_SURFACE_PROFILE/commands/help.sh"
+  shimmy_profile_launcher_render "$TEST_SURFACE_CONFIG" default > "$TEST_SURFACE_LAUNCHER"
+  chmod 0755 "$TEST_SURFACE_LAUNCHER"
+  printf '%s\n' 'damaged-manifest-for-help-ordering' > "$TEST_SURFACE_PROFILE/install-manifest.txt"
 }
 
-test_target_surface_help_run() {
+test_surface_help_run() {
   env HOME="$SCENARIO_DIR/home" XDG_CONFIG_HOME="$SCENARIO_DIR/config" \
-    "$TARGET_SURFACE_LAUNCHER" "$@"
+    "$TEST_SURFACE_LAUNCHER" "$@"
 }
 
-test_commands_target_surface_help_before_state() {
-  test_target_surface_fixture_setup
+test_commands_surface_help_before_state() {
+  test_surface_fixture_setup
 
-  target_surface_root=$(test_target_surface_help_run)
-  assert_equals "$(test_target_surface_help_run help)" "$target_surface_root"
-  assert_equals "$(test_target_surface_help_run --help)" "$target_surface_root"
-  assert_contains "$target_surface_root" 'shimmy <group> <command> [options]'
-  assert_contains "$target_surface_root" 'Human-readable output is the default'
-  assert_contains "$target_surface_root" 'Scope:'
-  assert_contains "$target_surface_root" 'Overwrite warning:'
-  assert_contains "$target_surface_root" 'without backup or recovery'
-  assert_contains "$target_surface_root" 'Remediation:'
-  assert_contains "$target_surface_root" 'profile activate <name> --dry-run'
+  test_surface_root=$(test_surface_help_run)
+  assert_equals "$(test_surface_help_run help)" "$test_surface_root"
+  assert_equals "$(test_surface_help_run --help)" "$test_surface_root"
+  assert_contains "$test_surface_root" 'shimmy <group> <command> [options]'
+  assert_contains "$test_surface_root" 'Human-readable output is the default'
+  assert_contains "$test_surface_root" 'Scope:'
+  assert_contains "$test_surface_root" 'Overwrite warning:'
+  assert_contains "$test_surface_root" 'without backup or recovery'
+  assert_contains "$test_surface_root" 'Remediation:'
+  assert_contains "$test_surface_root" 'profile activate <name> --dry-run'
 
-  for target_surface_group in admin profile catalog shim ai-skill; do
-    target_surface_group_help=$(test_target_surface_help_run "$target_surface_group")
-    assert_equals "$(test_target_surface_help_run "$target_surface_group" --help)" \
-      "$target_surface_group_help"
-    assert_contains "$target_surface_group_help" 'Usage:'
-    assert_contains "$target_surface_group_help" 'Commands:'
-    assert_contains "$target_surface_group_help" 'Scope:'
-    assert_contains "$target_surface_group_help" 'Remediation:'
+  for test_surface_group in admin profile catalog shim ai-skill; do
+    test_surface_group_help=$(test_surface_help_run "$test_surface_group")
+    assert_equals "$(test_surface_help_run "$test_surface_group" --help)" \
+      "$test_surface_group_help"
+    assert_contains "$test_surface_group_help" 'Usage:'
+    assert_contains "$test_surface_group_help" 'Commands:'
+    assert_contains "$test_surface_group_help" 'Scope:'
+    assert_contains "$test_surface_group_help" 'Remediation:'
   done
-  target_surface_redirect_help=$(test_target_surface_help_run profile redirect)
-  assert_equals "$(test_target_surface_help_run profile redirect --help)" \
-    "$target_surface_redirect_help"
-  assert_contains "$target_surface_redirect_help" 'Commands:'
+  test_surface_redirect_help=$(test_surface_help_run profile redirect)
+  assert_equals "$(test_surface_help_run profile redirect --help)" \
+    "$test_surface_redirect_help"
+  assert_contains "$test_surface_redirect_help" 'Commands:'
 
-  while IFS='|' read -r target_surface_path target_surface_usage; do
-    [ -n "$target_surface_path" ] || continue
-    set -- $target_surface_path
-    target_surface_action_help=$(test_target_surface_help_run "$@" --help)
-    assert_contains "$target_surface_action_help" "$target_surface_usage"
-    assert_contains "$target_surface_action_help" 'Scope:'
-    assert_contains "$target_surface_action_help" 'Options:'
-    assert_contains "$target_surface_action_help" 'Defaults:'
-    assert_contains "$target_surface_action_help" 'Remediation:'
-    assert_contains "$target_surface_action_help" 'Examples:'
+  while IFS='|' read -r test_surface_path test_surface_usage; do
+    [ -n "$test_surface_path" ] || continue
+    set -- $test_surface_path
+    test_surface_action_help=$(test_surface_help_run "$@" --help)
+    assert_contains "$test_surface_action_help" "$test_surface_usage"
+    assert_contains "$test_surface_action_help" 'Scope:'
+    assert_contains "$test_surface_action_help" 'Options:'
+    assert_contains "$test_surface_action_help" 'Defaults:'
+    assert_contains "$test_surface_action_help" 'Remediation:'
+    assert_contains "$test_surface_action_help" 'Examples:'
   done <<'EOF'
 admin status|shimmy admin status [--format human|manifest]
 admin network|shimmy admin network [--target <host-or-ip> ...]
@@ -86,29 +86,29 @@ ai-skill repair|shimmy ai-skill repair
 EOF
 
   set +e
-  target_surface_state_output=$(test_target_surface_help_run profile status 2>&1)
-  target_surface_state_status=$?
+  test_surface_state_output=$(test_surface_help_run profile status 2>&1)
+  test_surface_state_status=$?
   set -e
-  [ "$target_surface_state_status" -ne 0 ] ||
-    fail_test 'target launcher accepted damaged state after rendering help'
-  assert_contains "$target_surface_state_output" 'profile manifest identity is invalid'
-  pass 'target root, group, subgroup, and action help is complete and precedes installed-state validation'
+  [ "$test_surface_state_status" -ne 0 ] ||
+    fail_test 'rendered launcher accepted damaged state after rendering help'
+  assert_contains "$test_surface_state_output" 'profile manifest identity is invalid'
+  pass 'root, group, subgroup, and action help is complete and precedes installed-state validation'
 }
 
-test_commands_target_surface_assets() {
-  test_target_surface_fixture_setup
+test_commands_surface_assets() {
+  test_surface_fixture_setup
   assert_file_executable "$ROOT_DIR/commands/help.sh"
-  assert_file_executable "$TARGET_SURFACE_PROFILE/commands/help.sh"
-  assert_file_executable "$TARGET_SURFACE_LAUNCHER"
+  assert_file_executable "$TEST_SURFACE_PROFILE/commands/help.sh"
+  assert_file_executable "$TEST_SURFACE_LAUNCHER"
   /bin/sh -n "$ROOT_DIR/commands/help.sh"
-  /bin/sh -n "$TARGET_SURFACE_PROFILE/commands/help.sh"
-  /bin/sh -n "$TARGET_SURFACE_LAUNCHER"
-  shimmy_target_profile_launcher_validate "$TARGET_SURFACE_LAUNCHER" \
-    "$TARGET_SURFACE_CONFIG" default || fail_test 'rendered target launcher failed byte validation'
-  pass 'source and rendered target surface assets retain executable modes, POSIX syntax, and exact bytes'
+  /bin/sh -n "$TEST_SURFACE_PROFILE/commands/help.sh"
+  /bin/sh -n "$TEST_SURFACE_LAUNCHER"
+  shimmy_profile_launcher_validate "$TEST_SURFACE_LAUNCHER" \
+    "$TEST_SURFACE_CONFIG" default || fail_test 'rendered launcher failed byte validation'
+  pass 'source and rendered surface assets retain executable modes, POSIX syntax, and exact bytes'
 }
 
-test_commands_target_surface_run() {
-  test_commands_target_surface_help_before_state
-  test_commands_target_surface_assets
+test_commands_surface_run() {
+  test_commands_surface_help_before_state
+  test_commands_surface_assets
 }

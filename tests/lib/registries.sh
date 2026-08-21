@@ -51,7 +51,7 @@ registry.redhat.io/openshift4|registry.corp.example/redhat'
     cp "$valid_config" "$config_file"
     chmod 644 "$config_file"
     case "$mutation_name" in
-      wrong_profile) sed 's/profile "default"/profile "upstream"/' "$valid_config" > "$config_file" ;;
+      wrong_profile) sed 's/profile "default"/profile "sibling"/' "$valid_config" > "$config_file" ;;
       wrong_version) sed 's/redirects_version=1/redirects_version=2/' "$valid_config" > "$config_file" ;;
       duplicate_prefix) sed 's/prefix = "registry.redhat.io\/openshift4"/prefix = "docker.io"/' "$valid_config" > "$config_file" ;;
       table_key) sed 's/\[\[registry\]\]/[[registry.mirror]]/' "$valid_config" > "$config_file" ;;
@@ -171,7 +171,7 @@ test_lib_registries_machine_projection_record() {
     chmod 0644 "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
     case "$mutation_name" in
       wrong_version) sed 's/projection_version=1/projection_version=2/' "$valid_record" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
-      wrong_profile) sed 's/profile=default/profile=upstream/' "$valid_record" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
+      wrong_profile) sed 's/profile=default/profile=sibling/' "$valid_record" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
       wrong_machine) sed 's/machine=shimmy-default/machine=other/' "$valid_record" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
       wrong_target) sed 's#target=.*#target=/tmp/other#' "$valid_record" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
       wrong_fingerprint) sed 's/config_fingerprint=.*/config_fingerprint=sha256:bad/' "$valid_record" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;

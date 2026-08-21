@@ -9,23 +9,23 @@ test_runner_group_registry_read() {
 
   cat <<'EOF'
 runner|test_lib_runner_run
-lib-catalog|test_lib_target_catalog_run
-lib-codec|test_lib_target_codec_run
-lib-profile-state|test_lib_target_profile_state_run
-lib-ai-skill-state|test_lib_target_ai_skill_state_run
-lib-lock|test_lib_target_lock_run
-lib-transaction|test_lib_target_transaction_run
-lib-ai-skill-link|test_lib_target_ai_skill_link_run
+lib-catalog|test_lib_catalog_run
+lib-codec|test_lib_codec_run
+lib-profile-state|test_lib_profile_state_run
+lib-ai-skill-state|test_lib_ai_skill_state_run
+lib-lock|test_lib_lock_run
+lib-transaction|test_lib_transaction_run
+lib-ai-skill-link|test_lib_ai_skill_link_run
 lib-runtime|test_lib_runtime_run
 lib-profile-activation|test_lib_profile_activation_run
 lib-registries|test_lib_registries_run
 commands-agent-preflight|test_commands_agent_preflight_run
-commands-catalog|test_commands_target_catalog_run
-commands-shim|test_commands_target_shim_run
-commands-ai-skill|test_commands_target_ai_skill_run
-commands-profile|test_commands_target_profile_run
-commands-surface|test_commands_target_surface_run
-commands-lifecycle|test_commands_target_lifecycle_run
+commands-catalog|test_commands_catalog_run
+commands-shim|test_commands_shim_run
+commands-ai-skill|test_commands_ai_skill_run
+commands-profile|test_commands_profile_run
+commands-surface|test_commands_surface_run
+commands-lifecycle|test_commands_lifecycle_run
 tools-aws|test_tools_aws_run
 tools-bats|test_tools_bats_run
 tools-community-ansible-dev-tools|test_tools_community_ansible_dev_tools_run

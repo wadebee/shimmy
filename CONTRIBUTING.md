@@ -42,9 +42,9 @@ The installation root is
 
 Each profile records source `refs/heads/main`, a retained default-catalog pin,
 profile-local shim policies and concrete versions, startup ownership, and
-validated control/tool skill bundles. There is no live upstream catalog, fixed
-upstream profile, implementation-name routing layer, or profile-copied test
-suite.
+validated control/tool skill bundles. There is no remotely sourced catalog,
+fixed special-purpose profile, implementation-name routing layer, or
+profile-copied test suite.
 
 Catalog publication runs only from a clean attached local `main` checkout.
 Publishing or rolling back changes registry authority but does not rewrite
