@@ -1,3 +1,16 @@
+# Set Default Profile
+There is currently no separate “set default profile” command.
+The supported way to select a profile for the current shell is:
+
+sh
+. '/home/beewa/.config/shimmy/profiles/spi/shell-init.sh'
+as printed by activation and implemented in the shell-init behavior. management.sh:302-304 profile.sh:343-348
+So, in short:
+
+Installation active profile: shimmy profile activate spi
+Current shell PATH selection: . ~/.config/shimmy/profiles/spi/shell-init.sh
+Persistent startup block owner: still default, unless Shimmy gains an explicit feature to transfer startup ownership
+
 # Investigate how to fix these:
 **Status:** in-progress
 
