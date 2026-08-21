@@ -122,9 +122,6 @@ shimmy_profile_bootstrap_run() {
     "$shimmy_profile_bootstrap_source_ref" "$shimmy_profile_bootstrap_catalog_record" \
     "$SHIMMY_PROFILE_BASELINE_SHIMS" "$SHIMMY_PROFILE_BASELINE_VERSIONS" \
     "$shimmy_profile_bootstrap_shell" "$shimmy_profile_bootstrap_startup_files" || return 1
-  shimmy_profile_images_prepare "$SHIMMY_PROFILE_CANDIDATE_STAGE" \
-    "$SHIMMY_PROFILE_BASELINE_PAIRS" || return 1
-
   shimmy_lock_acquire catalog "$shimmy_profile_bootstrap_config" || return 1
   shimmy_lock_acquire activation "$shimmy_profile_bootstrap_config" || return 1
   shimmy_catalog_tree_validate "$shimmy_profile_bootstrap_config" || return 1
@@ -156,6 +153,8 @@ shimmy_profile_bootstrap_run() {
   esac
   shimmy_profile_activate "$shimmy_profile_bootstrap_restart" 0 0 || return 1
   SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=1
+  shimmy_profile_images_prepare "$SHIMMY_PROFILE_CANDIDATE_ROOT" \
+    "$SHIMMY_PROFILE_BASELINE_PAIRS" || return 1
   shimmy_external_transaction_begin || return 1
   shimmy_profile_initial_active_create "$shimmy_profile_bootstrap_config/active-profile.conf" \
     default "$shimmy_profile_bootstrap_user_root" ||

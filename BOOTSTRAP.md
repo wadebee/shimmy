@@ -42,8 +42,9 @@ podman machine init shimmy-default
 
 Bootstrap starts a stopped `shimmy-default` machine. If the machine is already
 running and idle, bootstrap restarts it so the initial registry policy can be
-projected and validated. Running containers block that restart; stop them
-explicitly, then rerun bootstrap. Bootstrap never accepts `--stop-running`.
+projected and validated before images are prepared. Running containers block
+that restart; stop them explicitly, then rerun bootstrap. Bootstrap never
+accepts `--stop-running`.
 
 Create `shimmy-<profile>` separately before activating any later profile.
 
