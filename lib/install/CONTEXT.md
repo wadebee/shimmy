@@ -42,12 +42,24 @@ Podman or set connection variables.
   under the target catalog lock, swaps rollback pointers, and never deletes a
   retained generation.
 - `profile-target.sh` privately renders the exact catalog-default jq, rg, and
-  Skopeo tuple set that later target bootstrap and create lifecycles consume.
+  Skopeo tuple set and stages complete validated target profile candidates from
+  either one exact Git commit or an invoking installed profile's exact control
+  bytes. It prepares direct shims, bundles, launcher, shell initialization,
+  registry policy, and manifest without exposing target routing publicly.
   It also renders and byte-validates the private version-2 profile launcher and
   POSIX `shell-init.sh`: shell initialization exclusively prepends one selected
   profile bin, delegates through its absolute launcher without recursion, and
   sources a successful create/activate target only after non-dry-run success.
   It does not change the current public jq/rg bootstrap or launcher behavior.
+- `lifecycle-target.sh` privately integrates pristine bootstrap, automatic
+  create/activation, image preparation, active authority, exact user links,
+  startup compensation, and new-profile rollback. Create dry-run returns
+  before staging, image execution, locks, or any filesystem/engine/link write.
+- `uninstall-target.sh` privately validates exact profile and installation
+  ownership, guards inactive deletion and Darwin projection cleanup, and owns
+  installation-wide removal. Home cleanup enumerates direct entries and
+  removes only individually validated Shimmy links; it never removes the home
+  skills root or an unrelated child.
 - `profile-assets.sh` stages the profile-local control plane, launcher,
   dispatchers, explicit manifest-tuple smoke metadata, and only
   manifest-selected tool metadata and concrete version assets plus the

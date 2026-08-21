@@ -84,6 +84,12 @@ runtime directly. Canonical skills remain catalog-owned.
   AI-skill links, and shell selection under the target lock hierarchy. Its
   launcher, command, and sourced shell wrapper remain private through Chunk 9;
   current public profile and bootstrap routing is unchanged.
+- The private target lifecycle candidate now integrates pristine default
+  bootstrap, invoking-revision create, explicit-main/registry-current sync,
+  startup repair, guarded deletion, aggregate administration, active network
+  inspection, and fail-closed owned-state uninstall. Dry-run performs only
+  state reads/classification and leaves no filesystem, engine, registry,
+  startup, active-record, or user-link mutation behind.
 - Version-1 default manifests own exactly one normalized startup shell and zero
   or more exact absolute startup paths; upstream manifests own neither field.
 

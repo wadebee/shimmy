@@ -49,6 +49,14 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/install/catalog-target.sh"
 # shellcheck source=lib/install/profile-target.sh
 . "$ROOT_DIR/lib/install/profile-target.sh"
+# shellcheck source=lib/startup/startup.sh
+. "$ROOT_DIR/lib/startup/startup.sh"
+# shellcheck source=lib/install/lifecycle-target.sh
+. "$ROOT_DIR/lib/install/lifecycle-target.sh"
+# shellcheck source=lib/install/uninstall-target.sh
+. "$ROOT_DIR/lib/install/uninstall-target.sh"
+# shellcheck source=lib/update/profile-target.sh
+. "$ROOT_DIR/lib/update/profile-target.sh"
 # shellcheck source=lib/registries/registries.sh
 . "$ROOT_DIR/lib/registries/registries.sh"
 # shellcheck source=lib/profile/target.sh
@@ -100,6 +108,8 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$SCRIPT_DIR/commands/target-ai-skill.sh"
 # shellcheck source=tests/commands/target-profile.sh
 . "$SCRIPT_DIR/commands/target-profile.sh"
+# shellcheck source=tests/commands/target-lifecycle.sh
+. "$SCRIPT_DIR/commands/target-lifecycle.sh"
 # shellcheck source=tests/commands/images.sh
 . "$SCRIPT_DIR/commands/images.sh"
 # shellcheck source=tests/commands/lifecycle.sh

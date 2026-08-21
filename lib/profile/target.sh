@@ -79,9 +79,12 @@ shimmy_target_profile_candidate_resolve() {
       [ ! -L "$SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT/$shimmy_target_profile_candidate_dir" ] ||
       shimmy_target_profile_error_set "missing target profile asset directory: $SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT/$shimmy_target_profile_candidate_dir" || return 1
   done
-  [ -x "$SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT/commands/profile-target.sh" ] &&
-    [ ! -L "$SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT/commands/profile-target.sh" ] ||
-    shimmy_target_profile_error_set "missing target profile command: $SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT/commands/profile-target.sh" || return 1
+  for shimmy_target_profile_candidate_command in admin-target.sh ai-skill-target.sh \
+    catalog-target.sh profile-target.sh shim-target.sh; do
+    [ -x "$SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT/commands/$shimmy_target_profile_candidate_command" ] &&
+      [ ! -L "$SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT/commands/$shimmy_target_profile_candidate_command" ] ||
+      shimmy_target_profile_error_set "missing target profile command: $SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT/commands/$shimmy_target_profile_candidate_command" || return 1
+  done
   shimmy_target_ai_skill_supported_bundles_validate "$SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT" \
     "$SHIMMY_TARGET_CATALOG_REGISTRY_PATH" "$SHIMMY_TARGET_PROFILE_CANDIDATE_GENERATION_ROOT" ||
     shimmy_target_profile_error_set 'supported target AI-skill bundle consistency validation failed'

@@ -15,7 +15,9 @@ for shimmy_target_helper in \
   lib/profile/transaction.sh lib/ai-skill/link.sh lib/shim/target.sh \
   lib/ai-skill/target.sh lib/install/profile-target.sh \
   lib/profile/profile.sh lib/profile/activation.sh \
-  lib/registries/registries.sh lib/profile/target.sh
+  lib/registries/registries.sh lib/profile/target.sh \
+  lib/startup/startup.sh lib/install/lifecycle-target.sh lib/install/uninstall-target.sh \
+  lib/update/profile-target.sh
 do
   [ -f "$ROOT_DIR/$shimmy_target_helper" ] && [ ! -L "$ROOT_DIR/$shimmy_target_helper" ] ||
     fail "missing target profile helper: $shimmy_target_helper"
@@ -29,7 +31,11 @@ Private target profile candidate.
 Usage:
   profile-target.sh list [--format human|manifest]
   profile-target.sh status [--format human|manifest]
+  profile-target.sh create <name> [--restart] [--stop-running] [--dry-run]
   profile-target.sh activate <name> [--restart] [--stop-running] [--dry-run]
+  profile-target.sh sync
+  profile-target.sh repair-startup
+  profile-target.sh delete <name> [--stop-running]
   profile-target.sh redirect list [--format human|manifest]
   profile-target.sh redirect set --prefix <logical> --location <physical> [--dry-run]
   profile-target.sh redirect delete (--prefix <logical> | --all) [--detach] [--dry-run]
@@ -42,6 +48,8 @@ EOF
 }
 
 shimmy_target_profile_command_cleanup() {
+  shimmy_target_profile_sync_cleanup
+  shimmy_target_profile_bootstrap_cleanup
   shimmy_target_profile_cleanup
 }
 trap shimmy_target_profile_command_cleanup EXIT
@@ -59,6 +67,29 @@ shimmy_path_absolute_normalized_validate "$shimmy_target_profile_config" || fail
 shimmy_target_profile_invoking=${SHIMMY_TARGET_INVOKING_PROFILE:-}
 
 case "$shimmy_target_profile_action" in
+  create)
+    shimmy_name_component_validate "$shimmy_target_profile_invoking" || fail 'create requires a valid private invoking profile identity'
+    [ "$#" -ge 1 ] || fail 'profile create requires a new profile name'
+    shimmy_target_profile_name=$1
+    shimmy_name_component_validate "$shimmy_target_profile_name" || fail "invalid target profile name: $shimmy_target_profile_name"
+    shift
+    shimmy_target_profile_restart=0
+    shimmy_target_profile_stop_running=0
+    shimmy_target_profile_dry_run=0
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --restart) [ "$shimmy_target_profile_restart" -eq 0 ] || fail 'duplicate option: --restart'; shimmy_target_profile_restart=1 ;;
+        --stop-running) [ "$shimmy_target_profile_stop_running" -eq 0 ] || fail 'duplicate option: --stop-running'; shimmy_target_profile_stop_running=1 ;;
+        --dry-run) [ "$shimmy_target_profile_dry_run" -eq 0 ] || fail 'duplicate option: --dry-run'; shimmy_target_profile_dry_run=1 ;;
+        *) fail "unknown profile create argument: $1" ;;
+      esac
+      shift
+    done
+    shimmy_target_profile_create_run "$shimmy_target_profile_config" "$shimmy_target_profile_invoking" \
+      "$shimmy_target_profile_name" "$shimmy_target_profile_restart" \
+      "$shimmy_target_profile_stop_running" "$shimmy_target_profile_dry_run" ||
+      fail "${SHIMMY_TARGET_PROFILE_LIFECYCLE_ERROR:-target profile creation failed}"
+    ;;
   list)
     shimmy_target_profile_format=human
     while [ "$#" -gt 0 ]; do
@@ -83,6 +114,35 @@ case "$shimmy_target_profile_action" in
     case "$shimmy_target_profile_format" in human|manifest) ;; *) fail "unsupported profile status format: $shimmy_target_profile_format" ;; esac
     shimmy_target_profile_status_render "$shimmy_target_profile_config" "$shimmy_target_profile_invoking" "$shimmy_target_profile_format" ||
       fail "${SHIMMY_TARGET_PROFILE_ERROR:-unable to inspect target profile}"
+    ;;
+  sync)
+    [ "$#" -eq 0 ] || fail 'profile sync accepts no arguments'
+    shimmy_name_component_validate "$shimmy_target_profile_invoking" || fail 'sync requires a valid private invoking profile identity'
+    shimmy_target_profile_sync_run "$shimmy_target_profile_config" "$shimmy_target_profile_invoking" ||
+      fail "${SHIMMY_TARGET_PROFILE_SYNC_ERROR:-target profile sync failed}"
+    ;;
+  repair-startup)
+    [ "$#" -eq 0 ] || fail 'profile repair-startup accepts no arguments'
+    shimmy_name_component_validate "$shimmy_target_profile_invoking" || fail 'startup repair requires a valid private invoking profile identity'
+    shimmy_target_profile_startup_repair_run "$shimmy_target_profile_config" "$shimmy_target_profile_invoking" ||
+      fail 'target profile startup repair failed'
+    ;;
+  delete)
+    [ "$#" -ge 1 ] || fail 'profile delete requires an installed profile name'
+    shimmy_target_profile_name=$1
+    shimmy_name_component_validate "$shimmy_target_profile_name" || fail "invalid target profile name: $shimmy_target_profile_name"
+    shift
+    shimmy_target_profile_stop_running=0
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --stop-running) [ "$shimmy_target_profile_stop_running" -eq 0 ] || fail 'duplicate option: --stop-running'; shimmy_target_profile_stop_running=1 ;;
+        *) fail "unknown profile delete argument: $1" ;;
+      esac
+      shift
+    done
+    shimmy_target_profile_delete_run "$shimmy_target_profile_config" "$shimmy_target_profile_name" \
+      "$shimmy_target_profile_stop_running" ||
+      fail "${SHIMMY_TARGET_UNINSTALL_ERROR:-target profile deletion failed}"
     ;;
   activate)
     [ "$#" -ge 1 ] || fail 'profile activate requires an installed profile name'

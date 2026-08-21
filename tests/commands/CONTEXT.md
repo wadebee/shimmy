@@ -44,6 +44,13 @@ is the behavior under test.
   guidance, and independent shell-selected/invoking/active identities. It
   shares one real immutable catalog/profile fixture because complete candidate
   validation is intentionally expensive.
+- `target-lifecycle.sh` exercises the private production-intended candidate
+  from pristine bootstrap through create dry-run/create, startup repair,
+  explicit-main and registry-current sync, aggregate administration, inactive
+  deletion, and all-owned-state uninstall. It proves dry-run leaves profile,
+  manifest, image, lock, active-record, engine-link, and user-link state
+  unchanged; failed initial activation leaves no valid installation; and
+  unrelated home skill content survives uninstall.
 - `images.sh` covers source and installed selection, fixture-driven OCI/Docker
   parsing, request deduplication, authentication skips/failures, drift policy,
   stable output, and command availability without target-registry access.

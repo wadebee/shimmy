@@ -27,6 +27,7 @@ commands-target-catalog|test_commands_target_catalog_run
 commands-target-shim|test_commands_target_shim_run
 commands-target-ai-skill|test_commands_target_ai_skill_run
 commands-target-profile|test_commands_target_profile_run
+commands-target-lifecycle|test_commands_target_lifecycle_run
 commands-images|test_commands_images_run
 commands-lifecycle|test_runner_commands_lifecycle_run
 commands-management|test_commands_management_run
@@ -93,6 +94,7 @@ commands-target-catalog|two-b|three-c
 commands-target-shim|two-a|three-b
 commands-target-ai-skill|two-b|three-a
 commands-target-profile|two-a|three-c
+commands-target-lifecycle|two-b|three-a
 commands-images|two-b|three-a
 commands-lifecycle|two-a|three-b
 commands-management|two-b|three-b

@@ -31,11 +31,20 @@ reusable behavior belongs in `../lib/`.
   bundle state, reports exact destructive collisions, and never sweeps the
   recorded user skills root.
 - `profile-target.sh` is an uninstalled private candidate for arbitrary safe
-  profile list/status/activate and invoking-profile redirect behavior. It
+  profile list/status/create/activate/sync/startup-repair/delete and
+  invoking-profile redirect behavior. It
   requires launcher-supplied disposable installation and invoking identities,
   permits redirect mutation only from the active invoking profile, and commits
   engine/registry authority before the active record and exact AI-skill links
   with bounded compensation. It has no current public dispatcher route.
+- `bootstrap-target.sh` is the executable half of the private pristine target
+  bootstrap. It publishes the default catalog, materializes the jq/rg/Skopeo
+  profile baseline, activates it, reconciles exact user links and startup, and
+  removes the disposable installation root if initial activation fails.
+- `admin-target.sh` is the private installation-wide status/network/uninstall
+  candidate. Status aggregates profile failures, network inspection resolves
+  the active profile first, and uninstall removes only validated owned state,
+  exact startup blocks, and recognized direct home skill links.
 - `dispatch-tool.sh` validates exact manifest ownership and a fixed regular,
   executable, non-symlink `commands/run-tool.sh` target, then dispatches the
   profile-local logical tool without resolving the catalog checkout.

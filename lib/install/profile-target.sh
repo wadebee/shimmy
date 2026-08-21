@@ -3,6 +3,258 @@
 # create candidates consume this exact catalog-default tuple set in later
 # lifecycle chunks; current public bootstrap remains unchanged.
 
+SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE=
+
+shimmy_target_profile_candidate_stage_cleanup() {
+  [ -n "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE" ] || return 0
+  case "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE" in
+    "$SHIMMY_TARGET_PROFILES_ROOT"/.*.profile-candidate.*)
+      [ ! -e "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE" ] &&
+        [ ! -L "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE" ] ||
+        rm -rf "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE"
+      ;;
+    *) return 1 ;;
+  esac
+  SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE=
+}
+
+shimmy_target_profile_control_assets_copy() {
+  shimmy_target_profile_control_source=$1
+  shimmy_target_profile_control_destination=$2
+  shimmy_path_absolute_normalized_validate "$shimmy_target_profile_control_source" || return 1
+  shimmy_path_absolute_normalized_validate "$shimmy_target_profile_control_destination" || return 1
+  [ -d "$shimmy_target_profile_control_source" ] && [ ! -L "$shimmy_target_profile_control_source" ] &&
+    shimmy_path_parent_chain_validate "$shimmy_target_profile_control_source" || return 1
+  for shimmy_target_profile_control_asset in commands lib tests; do
+    [ -d "$shimmy_target_profile_control_source/$shimmy_target_profile_control_asset" ] &&
+      [ ! -L "$shimmy_target_profile_control_source/$shimmy_target_profile_control_asset" ] || return 1
+    cp -R "$shimmy_target_profile_control_source/$shimmy_target_profile_control_asset" \
+      "$shimmy_target_profile_control_destination/$shimmy_target_profile_control_asset" || return 1
+  done
+}
+
+shimmy_target_profile_control_assets_extract() {
+  shimmy_target_profile_control_checkout=$1
+  shimmy_target_profile_control_ref=$2
+  shimmy_target_profile_control_destination=$3
+  shimmy_path_absolute_normalized_validate "$shimmy_target_profile_control_checkout" || return 1
+  shimmy_path_absolute_normalized_validate "$shimmy_target_profile_control_destination" || return 1
+  shimmy_git_commit_validate "$shimmy_target_profile_control_ref" || return 1
+  shimmy_target_profile_control_archive=$shimmy_target_profile_control_destination/.control-assets.$$.tar
+  [ ! -e "$shimmy_target_profile_control_archive" ] && [ ! -L "$shimmy_target_profile_control_archive" ] || return 1
+  git -C "$shimmy_target_profile_control_checkout" archive --format=tar \
+    --output="$shimmy_target_profile_control_archive" "$shimmy_target_profile_control_ref" \
+    commands lib tests 2>/dev/null || return 1
+  tar -xf "$shimmy_target_profile_control_archive" -C "$shimmy_target_profile_control_destination" || {
+    rm -f "$shimmy_target_profile_control_archive"
+    return 1
+  }
+  rm -f "$shimmy_target_profile_control_archive"
+}
+
+shimmy_target_profile_control_bundle_copy() {
+  shimmy_target_profile_control_bundle_source=$1
+  shimmy_target_profile_control_bundle_profile=$2
+  shimmy_target_profile_control_bundle_ref=$3
+  shimmy_target_profile_control_bundle_destination=$4
+  shimmy_target_ai_skill_bundle_read "$shimmy_target_profile_control_bundle_source" control || return 1
+  shimmy_target_profile_control_bundle_source_ref=$SHIMMY_TARGET_AI_SKILL_SOURCE_REF
+  shimmy_target_profile_control_bundle_records=$SHIMMY_TARGET_AI_SKILL_RECORDS
+  [ "$shimmy_target_profile_control_bundle_source_ref" = "$shimmy_target_profile_control_bundle_ref" ] || return 1
+  mkdir -p "$shimmy_target_profile_control_bundle_destination" || return 1
+  cp -R "$shimmy_target_profile_control_bundle_source/skills" \
+    "$shimmy_target_profile_control_bundle_destination/skills" || return 1
+  shimmy_target_ai_skill_bundle_render control "$shimmy_target_profile_control_bundle_profile" \
+    "$shimmy_target_profile_control_bundle_ref" "$shimmy_target_profile_control_bundle_records" \
+    > "$shimmy_target_profile_control_bundle_destination/bundle.conf" || return 1
+  chmod 0644 "$shimmy_target_profile_control_bundle_destination/bundle.conf" || return 1
+  shimmy_target_ai_skill_bundle_read "$shimmy_target_profile_control_bundle_destination" control \
+    "$shimmy_target_profile_control_bundle_profile"
+}
+
+shimmy_target_profile_image_plan_render() {
+  shimmy_target_profile_image_plan_catalog=$1
+  shimmy_target_profile_image_plan_pairs=${2:-}
+  while IFS='|' read -r shimmy_target_profile_image_plan_tool shimmy_target_profile_image_plan_version shimmy_target_profile_image_plan_extra; do
+    [ -n "$shimmy_target_profile_image_plan_tool" ] || continue
+    [ -z "$shimmy_target_profile_image_plan_extra" ] || return 1
+    shimmy_name_component_validate "$shimmy_target_profile_image_plan_tool" || return 1
+    shimmy_version_token_validate "$shimmy_target_profile_image_plan_version" || return 1
+    shimmy_target_profile_image_plan_config=$shimmy_target_profile_image_plan_catalog/tools/$shimmy_target_profile_image_plan_tool/versions/$shimmy_target_profile_image_plan_version/image.conf
+    shimmy_target_profile_image_plan_source=$(shimmy__catalog_config_value_read \
+      "$shimmy_target_profile_image_plan_config" image_source) || return 1
+    case "$shimmy_target_profile_image_plan_source" in
+      external) shimmy_target_profile_image_plan_action=pull ;;
+      local-build) shimmy_target_profile_image_plan_action=build ;;
+      *) return 1 ;;
+    esac
+    printf 'would_prepare_image=%s|%s|%s\n' "$shimmy_target_profile_image_plan_tool" \
+      "$shimmy_target_profile_image_plan_version" "$shimmy_target_profile_image_plan_action"
+  done <<EOF
+$shimmy_target_profile_image_plan_pairs
+EOF
+}
+
+shimmy_target_profile_images_prepare() {
+  shimmy_target_profile_images_stage=$1
+  shimmy_target_profile_images_pairs=${2:-}
+  while IFS='|' read -r shimmy_target_profile_images_tool shimmy_target_profile_images_version shimmy_target_profile_images_extra; do
+    [ -n "$shimmy_target_profile_images_tool" ] || continue
+    [ -z "$shimmy_target_profile_images_extra" ] || return 1
+    shimmy_target_profile_images_root=$shimmy_target_profile_images_stage/tools/$shimmy_target_profile_images_tool/versions/$shimmy_target_profile_images_version
+    shimmy_target_profile_images_source=$(shimmy__catalog_config_value_read \
+      "$shimmy_target_profile_images_root/image.conf" image_source) || return 1
+    case "$shimmy_target_profile_images_source" in
+      external) shimmy_target_profile_images_action=pull ;;
+      local-build) shimmy_target_profile_images_action=build ;;
+      *) return 1 ;;
+    esac
+    [ -x "$shimmy_target_profile_images_root/refresh.sh" ] &&
+      [ ! -L "$shimmy_target_profile_images_root/refresh.sh" ] || return 1
+    "$shimmy_target_profile_images_root/refresh.sh" "$shimmy_target_profile_images_action" || return 1
+  done <<EOF
+$shimmy_target_profile_images_pairs
+EOF
+}
+
+shimmy_target_profile_materialization_prepare() {
+  shimmy_target_profile_materialize_config=$1
+  shimmy_target_profile_materialize_name=$2
+  shimmy_target_profile_materialize_source_kind=$3
+  shimmy_target_profile_materialize_control_root=$4
+  shimmy_target_profile_materialize_source_url=$5
+  shimmy_target_profile_materialize_source_ref=$6
+  shimmy_target_profile_materialize_catalog_record=$7
+  shimmy_target_profile_materialize_shims=${8:-}
+  shimmy_target_profile_materialize_versions=${9:-}
+  shift 9
+  shimmy_target_profile_materialize_startup_shell=${1:-}
+  shimmy_target_profile_materialize_startup_files=${2:-}
+  shimmy_target_profile_materialize_registries_source=${3:-}
+  shimmy_target_profile_materialize_control_bundle_source=${4:-}
+
+  shimmy_target_installation_paths_resolve "$shimmy_target_profile_materialize_config" || return 1
+  shimmy_name_component_validate "$shimmy_target_profile_materialize_name" || return 1
+  shimmy_target_profile_manifest_render "$shimmy_target_profile_materialize_name" \
+    "$shimmy_target_profile_materialize_source_url" "$shimmy_target_profile_materialize_source_ref" \
+    "$shimmy_target_profile_materialize_catalog_record" "$shimmy_target_profile_materialize_shims" \
+    "$shimmy_target_profile_materialize_versions" "$shimmy_target_profile_materialize_startup_shell" \
+    "$shimmy_target_profile_materialize_startup_files" >/dev/null || return 1
+  shimmy_target_catalog_pin_validate "$shimmy_target_profile_materialize_catalog_record" || return 1
+  shimmy_target_profile_materialize_generation=$shimmy_target_catalog_pin_generation
+  shimmy_target_profile_materialize_fingerprint=$shimmy_target_catalog_pin_fingerprint
+  shimmy_target_profile_materialize_catalog=$SHIMMY_TARGET_CATALOG_DEFAULT_ROOT/generations/$shimmy_target_profile_materialize_generation
+  shimmy_target_catalog_generation_record_validate "$shimmy_target_profile_materialize_catalog" \
+    "$shimmy_target_profile_materialize_generation" || return 1
+
+  SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE=$SHIMMY_TARGET_PROFILES_ROOT/.$shimmy_target_profile_materialize_name.profile-candidate.$$
+  [ ! -e "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE" ] && [ ! -L "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE" ] || return 1
+  mkdir -p "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/bin" \
+    "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/config/shims" \
+    "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/tools" \
+    "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/ai-skills" || return 1
+
+  case "$shimmy_target_profile_materialize_source_kind" in
+    git)
+      shimmy_target_profile_control_assets_extract "$shimmy_target_profile_materialize_control_root" \
+        "$shimmy_target_profile_materialize_source_ref" "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE" || return 1
+      shimmy_target_ai_skill_control_bundle_materialize "$shimmy_target_profile_materialize_control_root" \
+        "$shimmy_target_profile_materialize_source_ref" "$shimmy_target_profile_materialize_name" \
+        "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/ai-skills/control" || return 1
+      ;;
+    installed)
+      shimmy_target_profile_control_assets_copy "$shimmy_target_profile_materialize_control_root" \
+        "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE" || return 1
+      shimmy_target_profile_control_bundle_copy "$shimmy_target_profile_materialize_control_bundle_source" \
+        "$shimmy_target_profile_materialize_name" "$shimmy_target_profile_materialize_source_ref" \
+        "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/ai-skills/control" || return 1
+      ;;
+    *) return 1 ;;
+  esac
+
+  shimmy_target_profile_launcher_render "$shimmy_target_profile_materialize_config" \
+    "$shimmy_target_profile_materialize_name" > "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/bin/shimmy" || return 1
+  chmod 0755 "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/bin/shimmy" || return 1
+  shimmy_target_profile_shell_init_render "$shimmy_target_profile_materialize_config" \
+    "$shimmy_target_profile_materialize_name" > "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/shell-init.sh" || return 1
+  chmod 0644 "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/shell-init.sh" || return 1
+  if [ -n "$shimmy_target_profile_materialize_registries_source" ]; then
+    shimmy_registries_config_validate "$shimmy_target_profile_materialize_registries_source" \
+      "$shimmy_target_profile_materialize_name" || return 1
+    cp "$shimmy_target_profile_materialize_registries_source" \
+      "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/registries.conf" || return 1
+  else
+    shimmy_registries_config_render "$shimmy_target_profile_materialize_name" '' \
+      > "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/registries.conf" || return 1
+  fi
+  chmod 0644 "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/registries.conf" || return 1
+
+  SHIMMY_TARGET_SHIM_VERSION_RECORDS=$shimmy_target_profile_materialize_versions
+  while IFS= read -r shimmy_target_profile_materialize_shim_record; do
+    [ -n "$shimmy_target_profile_materialize_shim_record" ] || continue
+    shimmy_target_shim_record_validate "$shimmy_target_profile_materialize_shim_record" || return 1
+    shimmy_target_profile_materialize_tool=$shimmy_target_shim_record_tool
+    shimmy_target_profile_materialize_mode=$shimmy_target_shim_record_mode
+    shimmy_target_profile_materialize_default=$(shimmy_target_shim_default_read \
+      "$shimmy_target_profile_materialize_tool") || return 1
+    shimmy_target_profile_materialize_tool_source=$shimmy_target_profile_materialize_catalog/tools/$shimmy_target_profile_materialize_tool
+    shimmy_target_profile_materialize_tool_target=$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/tools/$shimmy_target_profile_materialize_tool
+    mkdir -p "$shimmy_target_profile_materialize_tool_target/versions" \
+      "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/config/shims/$shimmy_target_profile_materialize_tool" || return 1
+    shimmy_target_shim_tool_config_render "$shimmy_target_profile_materialize_tool_source/tool.conf" \
+      "$shimmy_target_profile_materialize_default" > "$shimmy_target_profile_materialize_tool_target/tool.conf" || return 1
+    chmod 0644 "$shimmy_target_profile_materialize_tool_target/tool.conf" || return 1
+    shimmy_target_shim_config_render "$shimmy_target_profile_materialize_tool" \
+      "$shimmy_target_profile_materialize_default" "$shimmy_target_profile_materialize_mode" \
+      > "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/config/shims/$shimmy_target_profile_materialize_tool/shim.conf" || return 1
+    chmod 0644 "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/config/shims/$shimmy_target_profile_materialize_tool/shim.conf" || return 1
+    while IFS= read -r shimmy_target_profile_materialize_version_record; do
+      [ -n "$shimmy_target_profile_materialize_version_record" ] || continue
+      shimmy_target_shim_version_record_validate "$shimmy_target_profile_materialize_version_record" || return 1
+      [ "$shimmy_target_shim_version_tool" = "$shimmy_target_profile_materialize_tool" ] || continue
+      shimmy_target_profile_materialize_version=$shimmy_target_shim_version_name
+      cp -R "$shimmy_target_profile_materialize_tool_source/versions/$shimmy_target_profile_materialize_version" \
+        "$shimmy_target_profile_materialize_tool_target/versions/$shimmy_target_profile_materialize_version" || return 1
+      cp "$shimmy_target_profile_materialize_tool_source/versions/$shimmy_target_profile_materialize_version/smoke.conf" \
+        "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/config/shims/$shimmy_target_profile_materialize_tool/$shimmy_target_profile_materialize_version.conf" || return 1
+      chmod 0644 "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/config/shims/$shimmy_target_profile_materialize_tool/$shimmy_target_profile_materialize_version.conf" || return 1
+    done <<EOF
+$shimmy_target_profile_materialize_versions
+EOF
+    shimmy_target_shim_wrapper_render "$shimmy_target_profile_materialize_tool" \
+      "$shimmy_target_profile_materialize_default" > "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/bin/$shimmy_target_profile_materialize_tool" || return 1
+    chmod 0755 "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/bin/$shimmy_target_profile_materialize_tool" || return 1
+  done <<EOF
+$shimmy_target_profile_materialize_shims
+EOF
+
+  shimmy_target_shim_bundle_input_render "$shimmy_target_profile_materialize_name" \
+    "$shimmy_target_profile_materialize_generation" "$shimmy_target_profile_materialize_fingerprint" \
+    "$shimmy_target_profile_materialize_shims" > "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/config/shim-bundle-input.conf" || return 1
+  chmod 0644 "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/config/shim-bundle-input.conf" || return 1
+  shimmy_target_ai_skill_shims_bundle_materialize \
+    "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/config/shim-bundle-input.conf" \
+    "$shimmy_target_profile_materialize_catalog" \
+    "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/ai-skills/shims" || return 1
+  shimmy_target_profile_manifest_render "$shimmy_target_profile_materialize_name" \
+    "$shimmy_target_profile_materialize_source_url" "$shimmy_target_profile_materialize_source_ref" \
+    "$shimmy_target_profile_materialize_catalog_record" "$shimmy_target_profile_materialize_shims" \
+    "$shimmy_target_profile_materialize_versions" "$shimmy_target_profile_materialize_startup_shell" \
+    "$shimmy_target_profile_materialize_startup_files" > "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/install-manifest.txt" || return 1
+  chmod 0644 "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/install-manifest.txt" || return 1
+
+  shimmy_target_profile_launcher_validate "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/bin/shimmy" \
+    "$shimmy_target_profile_materialize_config" "$shimmy_target_profile_materialize_name" || return 1
+  shimmy_target_profile_shell_init_validate "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/shell-init.sh" \
+    "$shimmy_target_profile_materialize_config" "$shimmy_target_profile_materialize_name" || return 1
+  shimmy_target_shim_materialization_validate "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE" \
+    "$shimmy_target_profile_materialize_catalog" || return 1
+  shimmy_target_profile_state_validate "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/install-manifest.txt" \
+    "$SHIMMY_TARGET_CATALOG_DEFAULT_ROOT/registry.conf" "$shimmy_target_profile_materialize_catalog" \
+    "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/ai-skills/control" \
+    "$SHIMMY_TARGET_PROFILE_CANDIDATE_STAGE/ai-skills/shims"
+}
+
 shimmy_target_profile_baseline_render() {
   shimmy_target_profile_baseline_catalog_root=$1
   shimmy_target_catalog_payload_validate "$shimmy_target_profile_baseline_catalog_root" || return 1
@@ -44,8 +296,9 @@ export SHIMMY_TARGET_CONFIG_ROOT SHIMMY_TARGET_INVOKING_PROFILE
 shimmy_launcher_command=${1:-help}
 case "$shimmy_launcher_command" in
   help|-h|--help)
-    printf '%s\n' 'Private target Shimmy candidate: profile, catalog, shim, and ai-skill.'
+    printf '%s\n' 'Private target Shimmy candidate: admin, profile, catalog, shim, and ai-skill.'
     ;;
+  admin) shift; exec "$shimmy_launcher_profile_root/commands/admin-target.sh" "$@" ;;
   profile) shift; exec "$shimmy_launcher_profile_root/commands/profile-target.sh" "$@" ;;
   catalog) shift; exec "$shimmy_launcher_profile_root/commands/catalog-target.sh" "$@" ;;
   shim) shift; exec "$shimmy_launcher_profile_root/commands/shim-target.sh" "$@" ;;

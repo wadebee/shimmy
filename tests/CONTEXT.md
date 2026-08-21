@@ -46,6 +46,11 @@ arbitrary identities, local status and active-only redirects, Linux active
 record/link/link-reconciliation commit and rollback, supported/unsupported
 bundle policy, Darwin workload guards and ordinary/restart ordering, exact
 direct source guidance, and independent POSIX/Bash/Zsh shell selection.
+Private target lifecycle coverage uses a clean disposable main checkout and
+harmless baseline refresh runtimes to prove pristine bootstrap, read-only
+dry-run planning, create/activate, exact startup repair, control/catalog sync,
+aggregate administration, guarded deletion, failed-bootstrap cleanup, and
+narrow global uninstall without touching unrelated home skills.
 
 Installation scenarios isolate state with absolute disposable `HOME` and
 `XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or

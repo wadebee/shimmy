@@ -2,7 +2,7 @@
 
 test_target_shim_fake_versions_write() {
   test_target_shim_fake_checkout=$1
-  for test_target_shim_fake_pair in jq@1.8 oc@4.18 oc@4.20 oc@4.22; do
+  for test_target_shim_fake_pair in jq@1.8 oc@4.18 oc@4.20 oc@4.22 rg@15.1 skopeo@1.22; do
     test_target_shim_fake_tool=${test_target_shim_fake_pair%%@*}
     test_target_shim_fake_version=${test_target_shim_fake_pair#*@}
     test_target_shim_fake_root=$test_target_shim_fake_checkout/tools/$test_target_shim_fake_tool/versions/$test_target_shim_fake_version
@@ -32,7 +32,7 @@ test_target_shim_fixture_setup() {
   TARGET_SHIM_SMOKE_LOG=$SCENARIO_DIR/smoke.log
   test_target_catalog_checkout_create "$TARGET_SHIM_CHECKOUT"
   test_target_shim_fake_versions_write "$TARGET_SHIM_CHECKOUT"
-  git -C "$TARGET_SHIM_CHECKOUT" add tools/jq/versions tools/oc/versions
+  git -C "$TARGET_SHIM_CHECKOUT" add tools/jq/versions tools/oc/versions tools/rg/versions tools/skopeo/versions
   git -C "$TARGET_SHIM_CHECKOUT" commit -qm target-shim-fakes
   mkdir -p "$TARGET_SHIM_CONFIG"
   shimmy_target_catalog_default_create "$TARGET_SHIM_CONFIG" "$TARGET_SHIM_CHECKOUT" || fail_test "$SHIMMY_TARGET_CATALOG_ERROR"

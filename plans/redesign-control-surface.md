@@ -550,10 +550,13 @@ None.
   accepted by the user's 2026-08-20 request to implement Chunk 6.
 - [x] Chunk 6 — AI bundles and narrowly destructive links were accepted by the
   user's 2026-08-20 request to implement Chunk 7.
-- [~] Chunk 7 — Arbitrary profile identity, activation, active authority,
-  redirects, runtime affinity, real links, and shell selection are implemented
-  and automatically verified; human acceptance is pending.
-- [ ] Chunk 8 — Integrate profile, bootstrap, and admin candidate lifecycles.
+- [x] Chunk 7 — Arbitrary profile identity, activation, active authority,
+  redirects, runtime affinity, real links, and shell selection were accepted by
+  the user on 2026-08-21, conditional on dry-run retaining read/classification
+  semantics without persistent mutation; the implemented paths maintain that
+  invariant.
+- [~] Chunk 8 — Profile, bootstrap, and admin candidate lifecycles are
+  implemented and automatically verified; human acceptance is pending.
 - [ ] Chunk 9 — Complete private target commands and end-to-end tests.
 - [ ] Chunk 10 — Perform atomic public cutover and primary documentation.
 - [ ] Chunk 11 — Complete repository-wide cleanup and final acceptance.
@@ -1170,18 +1173,64 @@ the private dispatcher without future stubs.
 
 ### Verification checklist
 
-- [ ] Pristine candidate bootstrap produces active default with jq/rg/Skopeo,
+- [x] Pristine candidate bootstrap produces active default with jq/rg/Skopeo,
   registry, manifest v2, bundles, links, startup, and shell selection; failed
   activation leaves no valid installation.
-- [ ] Create copies invoking exact control without fetch, prepares baseline,
+- [x] Create copies invoking exact control without fetch, prepares baseline,
   activates, and restores prior Shimmy state within documented boundaries.
-- [ ] Sync adopts explicit main plus registry current atomically while preserving
+- [x] Sync adopts explicit main plus registry current atomically while preserving
   exact intent, redirects, startup bytes, and launcher pins.
-- [ ] Startup repair, inactive deletion, admin status/network, and uninstall
+- [x] Startup repair, inactive deletion, admin status/network, and uninstall
   preserve ownership/workload/machine safeguards.
-- [ ] Admin uninstall removes recognized home links only and never recursively
+- [x] Admin uninstall removes recognized home links only and never recursively
   deletes the home skills root.
-- [ ] Target lifecycle groups and complete public suite pass; record counts.
+- [x] Target lifecycle groups and complete public suite pass; record counts.
+
+### Chunk 8 evidence
+
+- The sourceable private `bootstrap-target.sh` and executable
+  `commands/bootstrap-target.sh` publish one clean, exact-main default catalog,
+  materialize a version-2 `default` profile with catalog-default jq, rg, and
+  Skopeo, prepare its images, validate its control/shim bundles, activate its
+  engine and registry, commit the active record, reconcile exact user links,
+  and apply the startup ledger. Injected initial engine failure removes the
+  configuration root and leaves no active registry link or valid installation.
+- Create reads the invoking profile's validated installed control bytes, exact
+  source commit, and exact catalog pin without Git fetch. Its dry-run branch
+  occurs before profile staging, image preparation, lock acquisition, engine or
+  registry transition, active-record/startup writes, and link reconciliation.
+  It may inspect engine, catalog, and link state to classify the complete plan;
+  checksum, path, engine-log, lock, active-link, startup, and user-link
+  assertions prove that no mutation semantics or persistent change remain.
+- Active-only sync fetches exactly `refs/heads/main`, snapshots registry-current
+  catalog authority and registry-policy bytes, resolves tracking defaults while
+  preserving exact slots, redirects, startup bytes/ledger, and launcher pins,
+  prepares the full control/shim/bundle/image candidate, then revalidates the
+  remote ref, active record, prior manifest, registry, policy, and catalog under
+  catalog → activation → profile → registry locks. Profile assets commit with
+  the manifest last and retain internal rollback until exact links succeed.
+- Exact-ledger startup repair is a no-op with no ledger and compensates each
+  recorded startup file otherwise. Inactive deletion rejects `default` and the
+  active profile, validates the complete owned root, retains Linux/Darwin
+  projection and workload guards, and removes locks last. Admin status
+  aggregates classified per-profile failures, while network requires a valid
+  active profile before reusing the established read-only netinfo path.
+- Admin uninstall validates every installation/profile entry before mutation,
+  acquires the global lock hierarchy, removes the Linux active registry link or
+  guarded Darwin projections, removes exact startup blocks, enumerates direct
+  home-skill children, and removes only individually recognized canonical
+  Shimmy links. The user skill root and unrelated child bytes are never
+  recursively removed. Darwin projection cleanup is necessarily external and
+  sequential: if a later profile cleanup fails, an earlier successfully
+  detached projection is not reconstructed, while profile/catalog filesystem
+  state remains uncommitted. This bounded limitation is reported for human
+  review rather than described as complete rollback.
+- `./tests/test.sh --group commands-target-lifecycle` passes its complete
+  private lifecycle scenario. The default bounded three-worker suite passes all
+  213 tests with approved live Podman access for existing non-mutating smokes.
+  POSIX syntax checks, executable modes, `git diff --check`, private-route
+  searches, and callback/stub searches pass. Current public bootstrap and
+  dispatch routing remain unchanged.
 
 ### Human review gate
 
@@ -1566,6 +1615,34 @@ completes this redesign, not external catalogs or release channels.
   testing chunk instead of weakening semantic validation or forcing serial
   execution.
 
+### Chunk 8
+
+- Dry-run is safest as an explicit read/classification branch before candidate
+  staging, image preparation, mutation locks, or external transactions. Engine
+  and link inspection can still produce a complete collision/workload plan
+  without adopting mutation semantics; acceptance should compare every
+  relevant authority and external integration before and after the call.
+- Profile creation does not need a repository checkout when its authority is
+  the invoking installed profile. Copying only validated exact control bytes,
+  then binding the new manifest to the invoking commit and immutable catalog
+  pin, prevents an accidental fetch or registry-current adoption during clone.
+- Initial bootstrap must keep the configuration root provisional until engine,
+  active record, links, and startup integration all succeed. Recording the
+  exact newly created root lets signal/failure cleanup remove an otherwise
+  valid-looking partial installation without touching a pre-existing root.
+- Profile sync has three independent moving authorities: explicit remote main,
+  registry-current catalog, and the invoking profile. Snapshot all three before
+  expensive rendering, prepare images outside locks, and revalidate all three
+  under the global lock order before committing the manifest last.
+- Installation-wide uninstall is auditable when it validates a closed set of
+  owned root entries and enumerates only direct user-link children. Recursive
+  removal is appropriate only after the exact configuration root has been
+  renamed out of authority; it is never appropriate for the home skill root.
+- Multi-profile Darwin projection cleanup is not one atomic engine operation.
+  Sequential detachment preserves workload and ownership checks but cannot
+  promise reconstruction of an earlier projection if a later profile fails;
+  the human gate must evaluate that explicit external rollback boundary.
+
 ## Session bootstrap
 
 Chunk 1 was accepted by the user's 2026-08-20 request to implement Chunk 2.
@@ -1573,9 +1650,13 @@ Chunks 2 and 3 were explicitly human verified by the user's 2026-08-20 request
 at 16:50:26 EDT. Chunk 4 was accepted by the user's 2026-08-20 request to
 implement Chunk 5. Chunk 5 was accepted by the user's 2026-08-20 request to
 implement Chunk 6. Chunk 6 was accepted by the user's 2026-08-20 request to
-implement Chunk 7. Chunk 7 is implemented and automatically verified, and
-awaits its human review gate. Do not start Chunk 8 without explicit acceptance.
-The implemented
+implement Chunk 7. Chunk 7 was accepted by the user's 2026-08-21 request,
+conditional on dry-run retaining read/classification semantics without any
+persistent filesystem, engine, registry, startup, active-record, or user-link
+change; the implemented activation, redirect, and create paths maintain that
+invariant. Chunk 8 is implemented and automatically verified, and awaits its
+human review gate. Do not start Chunk 9 without explicit acceptance. The
+implemented
 version-2 manifest uses `shim=<tool>|<tracking|pinned>`, exactly one authoritative
 `shim_version=<tool>|<version>|default` record, and zero or more non-default
 pinned `exact` records per shim. Resolve concrete runtimes directly from the
