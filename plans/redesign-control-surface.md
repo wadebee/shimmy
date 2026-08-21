@@ -561,10 +561,11 @@ None.
   accepted by the user's 2026-08-21 request to implement Chunk 9.
 - [x] Chunk 9 — Complete private target commands and end-to-end tests were
   accepted by the user's 2026-08-21 request to implement Chunk 10.
-- [~] Chunk 10 — Atomic public cutover and primary documentation are
-  implemented and automatically verified; native acceptance and human review
-  remain pending.
-- [ ] Chunk 11 — Complete repository-wide cleanup and final acceptance.
+- [~] Chunk 10 — Atomic public cutover and primary documentation were accepted
+  by the user's 2026-08-21 request to implement Chunk 11; native disposable-
+  home/machine acceptance remains pending and was not reviewer-deferred.
+- [~] Chunk 11 — Repository-wide cleanup is implemented and automatically
+  verified; native acceptance and final human review remain pending.
 
 ## Execution protocol
 
@@ -1547,18 +1548,56 @@ plans.
 
 ### Verification checklist
 
-- [ ] Searches find no stale upstream profile/catalog, old top-level lifecycle,
+- [x] Searches find no stale upstream profile/catalog, old top-level lifecycle,
   images/skills groups, external-catalog placeholder, copied target, or ad-hoc
   generated profile-skill guidance.
-- [ ] Remaining upstream terms are legitimate Git/image terms or historical.
-- [ ] Canonical skill metadata, warnings, identities, commands, paths pass
+- [x] Remaining upstream terms are legitimate Git/image terms or historical.
+- [x] Canonical skill metadata, warnings, identities, commands, paths pass
   publication validation.
-- [ ] Context tree, group assignment, syntax, executable bits, payloads, and
+- [x] Context tree, group assignment, syntax, executable bits, payloads, and
   default parallel suite pass.
-- [ ] Run full suite once; if order sensitivity is proven, diagnose failures
+- [x] Run full suite once; if order sensitivity is proven, diagnose failures
   serially and repeat a clean default run.
-- [ ] Record counts, native/deferred state, dirty-worktree classification,
+- [x] Record counts, native/deferred state, dirty-worktree classification,
   prerequisites, and release risks.
+
+### Chunk 11 evidence
+
+- Removed the staged `shimmy_target_*`, `SHIMMY_TARGET_*`, double-underscore
+  bootstrap target, target-prefixed test helper/fixture, and target-named test
+  group function namespaces. Four production collisions were resolved with
+  truthful canonical names for catalog authority validation, explicit-config
+  profile-state paths, and command-level profile activation. The final search
+  finds zero staged-identifier matches.
+- Classified current-tree terminology instead of rewriting retained historical
+  plans. Searches find zero old top-level command/group matches and zero
+  obsolete source-type, external-catalog placeholder, qualified/release
+  selector, copied-target, shadow-route, or target-image-workspace matches.
+  The 147 remaining `upstream` line matches describe image tags/digests,
+  publisher/tool behavior, or Git/source documentation; obsolete profile-name
+  fixtures were renamed to ordinary sibling/prior identities.
+- Canonical payload validation, skill frontmatter/header/warning identity,
+  exact control/tool skill inventory, content fingerprints, generated launcher
+  bytes, context hierarchy, 38-group assignment, POSIX syntax, executable
+  modes, and installed command inventory all pass. Repository
+  `.agents/skills/` remains absent and `.agents/plugins/marketplace.json`
+  remains present.
+- The fast renamed library/surface gate first exposed only the intentionally
+  changed codec fixture SHA-256 vector; after updating that vector, its focused
+  rerun passed 5 tests. The three-worker catalog/shim/AI/profile/lifecycle gate
+  passed all 22 tests. One clean default three-worker run with live Podman
+  access passed all 115 tests; no order sensitivity was observed and no serial
+  diagnosis was needed.
+- Prerequisites available for automatic acceptance were `/bin/sh`, Git, and a
+  reachable live Podman engine for non-mutating tool smokes. Native disposable-
+  `HOME`/`XDG_CONFIG_HOME` acceptance against pre-existing Linux `amd64` and
+  Apple Silicon macOS `arm64` machines remains unexecuted and was not
+  reviewer-deferred. This is the remaining release risk; the default suite's
+  fake lifecycle transitions and live tool smokes do not replace that evidence.
+- The worktree was clean when Chunk 11 began. During verification the user
+  committed the implementation as `266335b`; immediately before this evidence
+  update the worktree was clean, so this retained-plan update is the only
+  uncommitted path introduced afterward.
 
 ### Human review gate
 
@@ -1872,6 +1911,24 @@ completes this redesign, not external catalogs or release channels.
   default run and roughly 18 minutes for focused lifecycle/catalog coverage,
   then use the recorded group timings to choose focused gates.
 
+### Chunk 11
+
+- A hard cut is incomplete while staged namespaces survive inside otherwise
+  canonical files. Rename functions, globals, fixtures, group entrypoints, and
+  rendered assets as one review unit; precompute collisions and give genuinely
+  distinct operations semantic names before applying the mechanical portion.
+- POSIX shell temporaries are process-global, so a repository-wide prefix
+  removal needs both duplicate-function analysis and a transformed-versus-
+  existing variable inventory. Compatible state handoffs may intentionally
+  converge; unrelated operations require distinct canonical names.
+- Terminology cleanup must retain real destination, network-target, build-
+  architecture, Git-source, and image-publisher language. Test fixtures that
+  use an obsolete product identity such as `upstream` as a profile name are
+  current behavior evidence, not history, and should be renamed.
+- A fixed hash-vector fixture must be updated when its intentionally literal
+  input text changes. Treat that as an expected vector revision, then rerun the
+  focused codec proof before the final suite.
+
 ## Session bootstrap
 
 Chunk 1 was accepted by the user's 2026-08-20 request to implement Chunk 2.
@@ -1885,9 +1942,10 @@ persistent filesystem, engine, registry, startup, active-record, or user-link
 change; the implemented activation, redirect, and create paths maintain that
 invariant. Chunk 8 was accepted by the user's 2026-08-21 request to implement
 Chunk 9. Chunk 9 was accepted by the user's 2026-08-21 request to implement
-Chunk 10. Chunk 10 is implemented and automatically verified and awaits native
-acceptance and its human review gate. Do not start Chunk 11 without explicit
-acceptance. The implemented
+Chunk 10. Chunk 10 was accepted by the user's 2026-08-21 request to implement
+Chunk 11. Chunk 11 cleanup is implemented and automatically verified; native
+disposable-home/machine acceptance remains unexecuted and not reviewer-deferred,
+and final human review is pending. The implemented
 version-2 manifest uses `shim=<tool>|<tracking|pinned>`, exactly one authoritative
 `shim_version=<tool>|<version>|default` record, and zero or more non-default
 pinned `exact` records per shim. Resolve concrete runtimes directly from the
