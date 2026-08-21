@@ -153,9 +153,9 @@ Feature acceptance requires native Linux `amd64` and Apple Silicon macOS
   tests may fake engine state only for lifecycle transaction boundaries.
 - Do not put remote registry checks into the default offline suite.
 
-Before completion, run relevant focused groups, then the full suite once,
+Before completion, run relevant focused groups,
 followed by shell syntax, executable-mode, inventory, and `git diff --check`
-validation. Rerun only failures serially.
+validation. 
 
 ## Naming conventions
 
