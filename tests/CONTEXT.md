@@ -1,128 +1,27 @@
-# Tests
+# Test suite
 
-`test.sh` is the canonical POSIX test runner, `runner.sh` owns the ordered
-source-suite group registry, bounded one-to-three-worker orchestration,
-deterministic log replay, result validation, signal cleanup, option validation,
-and opt-in timing, and `support.sh` provides shared assertions, scenarios, and
-cleanup.
-`profile-smoke.sh` independently parses installed-profile test requests and
-runs the enclosing profile's non-mutating smoke commands.
-Smoke output capture preserves the wrapped command's exit status so engine or
-tool failures cannot be reported as passes.
-Tests use live Podman only for non-mutating commands; preview rendering is
-preferred where it proves the same behavior. The default suite validates image
-metadata offline and previews every concrete runtime across the supported
-Linux/Darwin and amd64/arm64 host matrix.
+`tests/test.sh` is a source-checkout-only runner. It validates the current
+catalog before creating one private session root, detects copy-on-write support,
+then runs named groups with one to three bounded workers. There is no installed-
+profile test mode or session-wide legacy profile fixture.
 
-Profile activation tests use a purpose-built Podman command seam and disposable
-configuration roots. They verify discovery, workload guards, transition and
-rollback ordering, and installed-runtime affinity without changing a developer
-machine. Bootstrap activation coverage reuses that seam to verify post-commit
-ordinary/restart selection, workload refusal, recovery, and PATH selection.
-Shared installed-command helpers force unrelated top-level status
-calls through an explicit unsupported-host test state; dedicated status tests
-use the fake Podman seam for deterministic engine details.
+The runner registry contains promoted canonical library/command groups followed
+by tool groups. The lifecycle group is indivisible. Group logs replay in registry
+order and exact count/status/worker artifacts fail closed. Default execution uses
+three workers; use serial only for one group or failure diagnosis.
 
-Registry redirect tests use disposable profile and containers configuration
-roots. They validate strict parsing, deterministic rendering, locking, Linux
-link ownership, Darwin same-path projection/link/record seams, fingerprint
-freshness, restart requirements, transaction rollback, standalone detach, and
-single-command uninstall cleanup without contacting a registry or host engine.
-Skopeo previews additionally prove exact read-only client mounting for the
-active invoking profile, omission with no activation, and fail-closed sibling
-or masking state.
+Fixtures use absolute disposable XDG/HOME roots. Catalog-heavy groups create
+clean local-main Git copies because publication validates real Git state and
+tracked archive content. Lifecycle tests use fake Podman state only to exercise
+engine transaction boundaries; tool acceptance uses live non-mutating runtimes.
 
-Private target shim tests use disposable version-2 profiles and real immutable
-catalog generations with harmless fixture runtimes. They validate selector and
-default-role transitions, invoking-profile reads and active-only mutation,
-pinned-generation synchronization, image preparation before commit,
-deterministic shim bundle regeneration, exact-link reconciliation,
-cross-resource rollback, generated installed-copy execution, typed bundle
-input, and smoke selection without exposing a current public route. Private target
-AI-skill tests cover deterministic control materialization, valid/empty/invalid/
-unsupported listing, encoded paths, exact foreign collision overwrite, stale
-recognized-link cleanup, rollback honesty, and unrelated user-root preservation.
-Private target profile tests reuse that immutable profile fixture to cover
-arbitrary identities, local status and active-only redirects, Linux active
-record/link/link-reconciliation commit and rollback, supported/unsupported
-bundle policy, Darwin workload guards and ordinary/restart ordering, exact
-direct source guidance, and independent POSIX/Bash/Zsh shell selection.
-Private target lifecycle coverage uses a clean disposable main checkout and
-harmless baseline refresh runtimes to prove pristine bootstrap, read-only
-dry-run planning, remote skill-installer destination replacement, complete
-catalog/shim/profile/AI/admin command routing, create/activate sourced-shell
-selection, exact startup repair, control/catalog sync and rollback, aggregate
-encoded administration, active network inspection, guarded deletion,
-failed-bootstrap cleanup, and narrow global uninstall without touching
-unrelated home skills. Private target surface coverage separately proves exact
-root/group/action help before state validation and source/rendered asset syntax,
-modes, and byte identity.
-
-Installation scenarios isolate state with absolute disposable `HOME` and
-`XDG_CONFIG_HOME` values. They do not use a Shimmy installation-directory or
-installed profile-selection override. Before the initial source snapshot, the
-runner probes copy-on-write support from the checkout into the session
-filesystem. One shared fixture-tree helper then materializes the clean source,
-update source, catalogs, profiles, and large scenario trees with clone copies
-when that probe succeeds and portable recursive copies otherwise. The helper
-accepts only real source directories and nonexistent targets beneath the
-physical session root; it rejects repository, source-equal, source-descendant,
-pre-existing, and escaped targets. Recursive copies preserve internal
-symlinks, modes, Git metadata, and independent mutation semantics.
-
-The runner creates one disposable clean committed source checkout, then
-creates pristine shared catalogs plus default and upstream profiles once per
-session. Scenarios that do not need to exercise bootstrap or registration copy
-those catalog and profile fixtures through the shared helper. Relocated
-profiles rewrite only the generated `shell-init.sh` path; runtime dispatch is
-already relative to each materialized profile root. Dirty-publication and
-live-upstream tests use isolated Git checkout copies. The immutable committed
-source repository used by self-update scenarios is also created once per
-session.
-Source-suite runner options are validated before these session fixtures or the
-session temporary root are created. Parent-only fixture setup precedes static
-bounded workers; each worker reads shared session fixtures and creates mutable
-state only through unique scenario roots. Groups capture private logs and
-result files, and the parent waits for every worker, validates exact registry
-coverage and assertion counts, then replays output in canonical order.
-Lifecycle prepare and complete are one indivisible group. Recorded live worker
-PIDs are the only processes terminated during signal cleanup. Timing records
-for setup, each selected group, and the total run are emitted only when
-`SHIMMY_TEST_TIMING=1`. Every group runs as a background process, including a
-one-worker `--serial` run, so the group shell rejects kernel-level SIGINT
-delivery and directs signal-boundary tests to invoke the installed cleanup
-handler and assert status 130.
-The retained 2026-08-17 measurements are historical evidence from the former
-three-sample policy; current timing guidance uses one coarse measurement and
-does not repeat runs solely to calculate a median. The full serial measurement
-sums to 1,248 group seconds;
-the static schedule partitions it at 624/624 seconds for two workers and
-416/416/416 seconds for three, with balanced group counts. Acceptance passed
-all 41 groups and 159 tests in serial, two-worker, and three clean default
-runs; the default real-time median is 532.16 seconds. Transition-pruned
-onboarding, startup, catalog, skills, and lifecycle scenarios remain owned by
-their registered groups, and their documented 109-second aggregate savings do
-not meet the retained plan's 255-second threshold.
-
-Onboarding coverage sources root `bootstrap.sh` to initialize PATH and
-executes it separately to verify automation semantics.
-
-`context-tree.sh` validates the retained hierarchical context links below
-`commands/`, `lib/`, and `tests/`. It rejects any
-`CONTEXT.md` below `tools/` or `plugins/shimmy/` and independently verifies
-every concrete tool version's executable runtime and refresh hook plus its
-smoke and image metadata.
-
-Lifecycle coverage includes isolated version-1 default/upstream bootstrap, clean
-publication, retained-generation rollback (including invalid-current
-recovery), catalog-default adoption only on explicit update, source-loss
-execution independence, profile-only uninstall, and explicit global removal
-that preserves bound checkouts, external skill exports, and unowned profile
-paths. Darwin lifecycle
-coverage uses a purpose-built Podman seam for running, stopped, missing,
-workload-guarded, rollback, and two-profile transaction states.
+Coverage preserves schema/ownership, unsafe-path, collision, locking,
+transaction, rollback, engine/registry, startup, active-record, and exact skill-
+link invariants. Do not add tests merely to prove removed files or aliases remain
+absent.
 
 ## Child contexts
 
-- [shared-library behavior](lib/CONTEXT.md)
-- [management commands](commands/CONTEXT.md)
+- [command tests](commands/CONTEXT.md)
+- [library tests](lib/CONTEXT.md)
+- tool-specific tests live under `tools/<tool>/tests/`

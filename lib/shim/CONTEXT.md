@@ -1,19 +1,13 @@
 # Profile-local shim state
 
-`state.sh` owns the private target schema for profile manifest `shim` and
-`shim_version` records. It validates lexical uniqueness, two-field
-tracking/pinned policy, exactly one authoritative default version per shim,
-duplicate-free non-default exact versions, and tool ownership.
+`state.sh` validates schema-2 `shim` and `shim_version` records: lexical
+uniqueness, tracking/pinned policy, one default concrete version per tool, and
+duplicate-free exact versions.
 
-`target.sh` owns the private target shim lifecycle. It resolves the invoking
-profile and its retained immutable catalog pin; reads remain bound to that
-launcher even when a sibling is active, while mutation requires invoking and
-active identity to match before image work. It applies first-default and
-tracking/pinned role transitions, stages direct `<tool>|<version>` runtimes,
-generated launchers/config, and a typed shim-bundle input, prepares images
-before locking, regenerates the deterministic shims AI-skill bundle, then
-commits shim-owned assets with the manifest last and reconciles exact user
-links under activation/profile locks. Internal state and compensable Shimmy
-links roll back together; overwritten foreign content is reported as
-unrecoverable. It also selects non-mutating all/tool/version smokes and
-propagates runtime status unchanged. Current public commands do not source it.
+`shim.sh` resolves the invoking profile and its retained catalog pin. Reads stay
+bound to that launcher; mutation requires invoking and active identity to match.
+It stages direct `tool|version` runtimes, generated `bin/<tool>` launchers,
+typed configuration, manifest-last state, and the deterministic tool-skill
+bundle. Internal state and recognized links compensate together; overwritten
+foreign skill content is irrecoverable. Smokes select all/tool/exact versions
+from `smoke.conf` and propagate runtime status unchanged.

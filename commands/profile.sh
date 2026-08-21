@@ -1,392 +1,252 @@
 #!/bin/sh
-# Inspect or activate the invoking installed profile's Podman engine.
+# Installed profile lifecycle command.
 set -eu
-
-profile_usage() {
-  cat <<'EOF'
-Manage this installed Shimmy profile's Podman engine and strict registry
-redirects.
-
-Usage:
-  shimmy profile --help
-  shimmy profile status [--format human|manifest]
-  shimmy profile activate [--restart] [--stop-running] [--dry-run]
-  shimmy profile redirect --help
-
-Commands:
-  status    Inspect profile-bound engine and connection state without mutation.
-  activate  Select and validate this profile's deterministic engine.
-  redirect  Manage strict registry prefix replacement for this profile.
-
-PATH selection is separate: source the profile's shell-init.sh after activation.
-
-Examples:
-  shimmy profile status --format manifest
-  shimmy profile activate --dry-run
-  shimmy profile redirect list
-EOF
-}
-
-profile_redirect_list_usage() {
-  cat <<'EOF'
-List this profile's strict registry redirects and activation state.
-
-Usage:
-  shimmy profile redirect list [--format human|manifest]
-
-Options:
-  --format human|manifest  Select human-readable or stable key/value output.
-
-Linux reports current policy only for the exact active profile link and a
-reachable local-rootless engine. Darwin reports VM link, record, and cache
-freshness for the deterministic profile machine.
-
-Examples:
-  shimmy profile redirect list
-  shimmy profile redirect list --format manifest
-EOF
-}
-
-profile_redirect_remove_usage() {
-  cat <<'EOF'
-Remove strict registry redirects from this profile.
-
-Usage:
-  shimmy profile redirect remove (--prefix <logical-prefix> | --all)
-                                 [--detach] [--dry-run]
-
-Options:
-  --prefix <logical-prefix>  Remove one exact logical prefix.
-  --all                      Leave the required managed file empty.
-  --detach                   Also detach owned projection state when supported.
-  --dry-run                  Render the full candidate without filesystem changes.
-
-On Linux, --detach requires the exact active link to point to this profile. On
-Darwin it requires the exact recorded VM projection or proof that the expected
-machine no longer exists. It is valid only with --all.
-
-Examples:
-  shimmy profile redirect remove --prefix docker.io
-  shimmy profile redirect remove --all --dry-run
-EOF
-}
-
-profile_redirect_usage() {
-  cat <<'EOF'
-Manage strict registry prefix replacement for this profile.
-
-Usage:
-  shimmy profile redirect --prefix <logical-prefix> --location <physical-location>
-                          [--dry-run]
-  shimmy profile redirect list [--format human|manifest]
-  shimmy profile redirect remove (--prefix <logical-prefix> | --all)
-                                 [--detach] [--dry-run]
-
-Commands:
-  list    List deterministic redirects and their prepared/inactive state.
-  remove  Remove one exact prefix or all redirects.
-
-The direct option form atomically upserts one [[registry]] prefix/location
-replacement. It does not create a mirror or fallback. Activation selects the
-invoking profile policy on Linux and in the deterministic Darwin machine.
-
-Examples:
-  shimmy profile redirect --prefix docker.io --location registry.corp.example/docker
-  shimmy profile redirect list --format manifest
-  shimmy profile redirect remove --all --dry-run
-EOF
-}
-
-profile_status_usage() {
-  cat <<'EOF'
-Inspect this profile's engine and registry state without mutation.
-
-Usage:
-  shimmy profile status [--format human|manifest]
-
-Options:
-  --format human|manifest  Select human-readable or stable key/value output.
-
-Examples:
-  shimmy profile status
-  shimmy profile status --format manifest
-EOF
-}
-
-profile_activate_usage() {
-  cat <<'EOF'
-Activate this profile's deterministic Podman engine.
-
-Usage:
-  shimmy profile activate [--restart] [--stop-running] [--dry-run]
-
-Options:
-  --restart       Restart an already running expected macOS machine.
-  --stop-running  Acknowledge interruption of listed running containers.
-  --dry-run       Inspect and print the transition without changing state.
-
-Shimmy never creates, adopts, renames, or removes Podman machines.
-
-Examples:
-  shimmy profile activate --dry-run
-  shimmy profile activate
-  shimmy profile activate --restart --stop-running
-EOF
-}
-
-operation=${1:-}
-case "$operation" in
-  -h|--help) profile_usage; exit 0 ;;
-  status)
-    case "${2:-}" in -h|--help) profile_status_usage; exit 0 ;; esac
-    ;;
-  activate)
-    case "${2:-}" in -h|--help) profile_activate_usage; exit 0 ;; esac
-    ;;
-  redirect)
-    case "${2:-}" in
-      -h|--help) profile_redirect_usage; exit 0 ;;
-      list) case "${3:-}" in -h|--help) profile_redirect_list_usage; exit 0 ;; esac ;;
-      remove) case "${3:-}" in -h|--help) profile_redirect_remove_usage; exit 0 ;; esac ;;
-      mirror|set|registries) printf 'ERROR: unsupported profile redirect alias: %s\n' "$2" >&2; exit 1 ;;
-    esac
-    ;;
-  --profile|--machine) printf 'ERROR: unknown argument: %s\n' "$operation" >&2; exit 1 ;;
-  '') profile_usage >&2; printf '%s\n' 'ERROR: missing profile operation' >&2; exit 1 ;;
-  *) profile_usage >&2; printf 'ERROR: unknown profile operation: %s\n' "$operation" >&2; exit 1 ;;
-esac
-
-for selector_name in SHIMMY_PROFILE SHIMMY_PROFILE_NAME SHIMMY_MACHINE SHIMMY_PODMAN_MACHINE; do
-  eval "selector_value=\${$selector_name:-}"
-  [ -z "$selector_value" ] || {
-    printf 'ERROR: profile and machine environment selectors are unsupported: %s\n' "$selector_name" >&2
-    exit 1
-  }
-done
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd -P)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd -P)
-for helper_file in "$ROOT_DIR/lib/common/common.sh" "$ROOT_DIR/lib/profile/profile.sh" "$ROOT_DIR/lib/profile/activation.sh" "$ROOT_DIR/lib/registries/registries.sh"; do
-  [ -f "$helper_file" ] || { printf 'ERROR: missing Shimmy profile helper: %s\n' "$helper_file" >&2; exit 1; }
+SHIMMY_CONTROL_ROOT=$ROOT_DIR
+
+fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+
+for shimmy_target_helper in \
+  lib/common/common.sh lib/common/lock.sh lib/catalog/catalog.sh \
+  lib/catalog/state.sh lib/catalog/authority.sh lib/shim/state.sh \
+  lib/ai-skill/bundle.sh lib/profile/state.sh lib/install/manifest.sh \
+  lib/profile/transaction.sh lib/ai-skill/link.sh lib/shim/shim.sh \
+  lib/ai-skill/ai-skill.sh lib/install/profile.sh \
+  lib/profile/profile.sh lib/profile/activation.sh \
+  lib/registries/registries.sh lib/profile/management.sh \
+  lib/startup/startup.sh lib/install/lifecycle.sh lib/install/uninstall.sh \
+  lib/update/profile.sh
+do
+  [ -f "$ROOT_DIR/$shimmy_target_helper" ] && [ ! -L "$ROOT_DIR/$shimmy_target_helper" ] ||
+    fail "missing profile helper: $shimmy_target_helper"
+  . "$ROOT_DIR/$shimmy_target_helper"
 done
-. "$ROOT_DIR/lib/common/common.sh"
-. "$ROOT_DIR/lib/profile/profile.sh"
-. "$ROOT_DIR/lib/profile/activation.sh"
-. "$ROOT_DIR/lib/registries/registries.sh"
 
-shimmy_profile_context_resolve "$ROOT_DIR" || {
-  printf '%s\n' 'ERROR: profile operations require an installed canonical default or upstream profile launcher' >&2
-  exit 1
+usage() {
+  cat <<'EOF'
+Manage Shimmy profiles.
+
+Usage:
+  shimmy profile list [--format human|manifest]
+  shimmy profile status [--format human|manifest]
+  shimmy profile create <name> [--restart] [--stop-running] [--dry-run]
+  shimmy profile activate <name> [--restart] [--stop-running] [--dry-run]
+  shimmy profile sync
+  shimmy profile repair-startup
+  shimmy profile delete <name> [--stop-running]
+  shimmy profile redirect list [--format human|manifest]
+  shimmy profile redirect set --prefix <logical> --location <physical> [--dry-run]
+  shimmy profile redirect delete (--prefix <logical> | --all) [--detach] [--dry-run]
+
+Status and redirect use the invoking profile identity set by the launcher.
+Activation changes engine/registry authority first,
+then the active record and exact AI-skill links with bounded rollback.
+EOF
 }
-shimmy_profile_structure_validate "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" || {
-  printf 'ERROR: incomplete or damaged Shimmy profile at %s\n' "$SHIMMY_PROFILE_ROOT" >&2
-  exit 1
+
+shimmy_target_profile_command_cleanup() {
+  shimmy_target_profile_sync_cleanup
+  shimmy_target_profile_bootstrap_cleanup
+  shimmy_target_profile_cleanup
 }
+trap shimmy_target_profile_command_cleanup EXIT
+trap 'shimmy_target_profile_command_cleanup; trap - HUP; exit 129' HUP
+trap 'shimmy_target_profile_command_cleanup; trap - INT; exit 130' INT
+trap 'shimmy_target_profile_command_cleanup; trap - TERM; exit 143' TERM
 
-SHIMMY_PROFILE_ACTIVATION_LOCK_HELD=0
-SHIMMY_REGISTRIES_LOCK_HELD=0
-trap 'shimmy_registries_lock_release; shimmy_profile_activation_lock_release' EXIT
-trap 'shimmy_registries_lock_release; shimmy_profile_activation_lock_release; exit 1' HUP INT TERM
+[ "$#" -gt 0 ] || { usage; exit 0; }
+case "$1" in -h|--help|help) usage; exit 0 ;; esac
+shimmy_target_profile_action=$1
+shift
+shimmy_target_profile_config=${SHIMMY_TARGET_CONFIG_ROOT:-}
+[ -n "$shimmy_target_profile_config" ] || fail 'profile commands must run through an installed profile launcher'
+shimmy_path_absolute_normalized_validate "$shimmy_target_profile_config" || fail 'invalid SHIMMY_TARGET_CONFIG_ROOT'
+shimmy_target_profile_invoking=${SHIMMY_TARGET_INVOKING_PROFILE:-}
 
-case "$operation" in
-  status)
-    output_format=human
+case "$shimmy_target_profile_action" in
+  create)
+    shimmy_name_component_validate "$shimmy_target_profile_invoking" || fail 'create requires a valid invoking profile identity'
+    [ "$#" -ge 1 ] || fail 'profile create requires a new profile name'
+    shimmy_target_profile_name=$1
+    shimmy_name_component_validate "$shimmy_target_profile_name" || fail "invalid target profile name: $shimmy_target_profile_name"
     shift
+    shimmy_target_profile_restart=0
+    shimmy_target_profile_stop_running=0
+    shimmy_target_profile_dry_run=0
     while [ "$#" -gt 0 ]; do
       case "$1" in
-        --format)
-          [ "$#" -ge 2 ] || { printf '%s\n' 'ERROR: missing value for --format' >&2; exit 1; }
-          output_format=$2
-          shift 2
-          ;;
-        *) printf 'ERROR: unknown profile status option: %s\n' "$1" >&2; exit 1 ;;
-      esac
-    done
-    case "$output_format" in human|manifest) ;; *) printf 'ERROR: unsupported profile status format: %s\n' "$output_format" >&2; exit 1 ;; esac
-    shimmy_profile_status_print "$output_format"
-    shimmy_registries_active_link_state_read
-    shimmy_registries_override_read
-    registry_policy=$(shimmy_registries_policy_state_read)
-    registry_machine_link=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE:-not_applicable}
-    registry_projection_record=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE:-not_applicable}
-    registry_config_fingerprint=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT:-not_applicable}
-    registry_applied_fingerprint=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORDED_FINGERPRINT:-not_applicable}
-    case "$output_format" in
-      manifest)
-        printf '%s\n' 'registry_config=valid'
-        printf 'registry_active_link=%s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE"
-        printf 'registry_active_profile=%s\n' "$SHIMMY_REGISTRIES_ACTIVE_PROFILE"
-        printf 'registry_override=%s\n' "$SHIMMY_REGISTRIES_OVERRIDE"
-        printf 'registry_machine_link=%s\n' "$registry_machine_link"
-        printf 'registry_projection_record=%s\n' "$registry_projection_record"
-        printf 'registry_config_fingerprint=%s\n' "$registry_config_fingerprint"
-        printf 'registry_applied_fingerprint=%s\n' "$registry_applied_fingerprint"
-        printf 'registry_policy=%s\n' "$registry_policy"
-        ;;
-      human)
-        printf '%s\n' 'Registry configuration: valid'
-        printf 'Registry active link: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE"
-        printf 'Registry active profile: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_PROFILE"
-        printf 'Registry override: %s\n' "$SHIMMY_REGISTRIES_OVERRIDE"
-        printf 'Registry machine link: %s\n' "$registry_machine_link"
-        printf 'Registry projection record: %s\n' "$registry_projection_record"
-        printf 'Registry config fingerprint: %s\n' "$registry_config_fingerprint"
-        printf 'Registry applied fingerprint: %s\n' "$registry_applied_fingerprint"
-        printf 'Registry policy: %s\n' "$registry_policy"
-        ;;
-    esac
-    ;;
-  activate)
-    restart_requested=0
-    stop_running_requested=0
-    dry_run_requested=0
-    shift
-    while [ "$#" -gt 0 ]; do
-      case "$1" in
-        --restart) [ "$restart_requested" -eq 0 ] || { printf '%s\n' 'ERROR: duplicate option: --restart' >&2; exit 1; }; restart_requested=1 ;;
-        --stop-running) [ "$stop_running_requested" -eq 0 ] || { printf '%s\n' 'ERROR: duplicate option: --stop-running' >&2; exit 1; }; stop_running_requested=1 ;;
-        --dry-run) [ "$dry_run_requested" -eq 0 ] || { printf '%s\n' 'ERROR: duplicate option: --dry-run' >&2; exit 1; }; dry_run_requested=1 ;;
-        *) printf 'ERROR: unknown profile activate option: %s\n' "$1" >&2; exit 1 ;;
+        --restart) [ "$shimmy_target_profile_restart" -eq 0 ] || fail 'duplicate option: --restart'; shimmy_target_profile_restart=1 ;;
+        --stop-running) [ "$shimmy_target_profile_stop_running" -eq 0 ] || fail 'duplicate option: --stop-running'; shimmy_target_profile_stop_running=1 ;;
+        --dry-run) [ "$shimmy_target_profile_dry_run" -eq 0 ] || fail 'duplicate option: --dry-run'; shimmy_target_profile_dry_run=1 ;;
+        *) fail "unknown profile create argument: $1" ;;
       esac
       shift
     done
-    shimmy_profile_activate "$restart_requested" "$stop_running_requested" "$dry_run_requested"
+    shimmy_target_profile_create_run "$shimmy_target_profile_config" "$shimmy_target_profile_invoking" \
+      "$shimmy_target_profile_name" "$shimmy_target_profile_restart" \
+      "$shimmy_target_profile_stop_running" "$shimmy_target_profile_dry_run" ||
+      fail "${SHIMMY_TARGET_PROFILE_LIFECYCLE_ERROR:-target profile creation failed}"
+    ;;
+  list)
+    shimmy_target_profile_format=human
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --format) [ "$#" -ge 2 ] || fail 'missing value for --format'; shimmy_target_profile_format=$2; shift 2 ;;
+        *) fail "unknown profile list argument: $1" ;;
+      esac
+    done
+    case "$shimmy_target_profile_format" in human|manifest) ;; *) fail "unsupported profile list format: $shimmy_target_profile_format" ;; esac
+    shimmy_target_profile_list_render "$shimmy_target_profile_config" "$shimmy_target_profile_format" ||
+      fail "${SHIMMY_TARGET_PROFILE_ERROR:-unable to list target profiles}"
+    ;;
+  status)
+    shimmy_target_profile_format=human
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --format) [ "$#" -ge 2 ] || fail 'missing value for --format'; shimmy_target_profile_format=$2; shift 2 ;;
+        *) fail "unknown profile status argument: $1" ;;
+      esac
+    done
+    shimmy_name_component_validate "$shimmy_target_profile_invoking" || fail 'status requires a valid invoking profile identity'
+    case "$shimmy_target_profile_format" in human|manifest) ;; *) fail "unsupported profile status format: $shimmy_target_profile_format" ;; esac
+    shimmy_target_profile_status_render "$shimmy_target_profile_config" "$shimmy_target_profile_invoking" "$shimmy_target_profile_format" ||
+      fail "${SHIMMY_TARGET_PROFILE_ERROR:-unable to inspect target profile}"
+    ;;
+  sync)
+    [ "$#" -eq 0 ] || fail 'profile sync accepts no arguments'
+    shimmy_name_component_validate "$shimmy_target_profile_invoking" || fail 'sync requires a valid invoking profile identity'
+    shimmy_target_profile_sync_run "$shimmy_target_profile_config" "$shimmy_target_profile_invoking" ||
+      fail "${SHIMMY_TARGET_PROFILE_SYNC_ERROR:-target profile sync failed}"
+    ;;
+  repair-startup)
+    [ "$#" -eq 0 ] || fail 'profile repair-startup accepts no arguments'
+    shimmy_name_component_validate "$shimmy_target_profile_invoking" || fail 'startup repair requires a valid invoking profile identity'
+    shimmy_target_profile_startup_repair_run "$shimmy_target_profile_config" "$shimmy_target_profile_invoking" ||
+      fail 'target profile startup repair failed'
+    ;;
+  delete)
+    [ "$#" -ge 1 ] || fail 'profile delete requires an installed profile name'
+    shimmy_target_profile_name=$1
+    shimmy_name_component_validate "$shimmy_target_profile_name" || fail "invalid target profile name: $shimmy_target_profile_name"
+    shift
+    shimmy_target_profile_stop_running=0
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --stop-running) [ "$shimmy_target_profile_stop_running" -eq 0 ] || fail 'duplicate option: --stop-running'; shimmy_target_profile_stop_running=1 ;;
+        *) fail "unknown profile delete argument: $1" ;;
+      esac
+      shift
+    done
+    shimmy_target_profile_delete_run "$shimmy_target_profile_config" "$shimmy_target_profile_name" \
+      "$shimmy_target_profile_stop_running" ||
+      fail "${SHIMMY_TARGET_UNINSTALL_ERROR:-target profile deletion failed}"
+    ;;
+  activate)
+    [ "$#" -ge 1 ] || fail 'profile activate requires an installed profile name'
+    shimmy_target_profile_name=$1
+    shimmy_name_component_validate "$shimmy_target_profile_name" || fail "invalid target profile name: $shimmy_target_profile_name"
+    shift
+    shimmy_target_profile_restart=0
+    shimmy_target_profile_stop_running=0
+    shimmy_target_profile_dry_run=0
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --restart) [ "$shimmy_target_profile_restart" -eq 0 ] || fail 'duplicate option: --restart'; shimmy_target_profile_restart=1 ;;
+        --stop-running) [ "$shimmy_target_profile_stop_running" -eq 0 ] || fail 'duplicate option: --stop-running'; shimmy_target_profile_stop_running=1 ;;
+        --dry-run) [ "$shimmy_target_profile_dry_run" -eq 0 ] || fail 'duplicate option: --dry-run'; shimmy_target_profile_dry_run=1 ;;
+        *) fail "unknown profile activate argument: $1" ;;
+      esac
+      shift
+    done
+    shimmy_target_profile_activate "$shimmy_target_profile_config" "$shimmy_target_profile_name" \
+      "$shimmy_target_profile_restart" "$shimmy_target_profile_stop_running" "$shimmy_target_profile_dry_run" ||
+      fail "${SHIMMY_TARGET_PROFILE_ERROR:-target profile activation failed}"
     ;;
   redirect)
+    shimmy_name_component_validate "$shimmy_target_profile_invoking" || fail 'redirect requires a valid invoking profile identity'
+    shimmy_target_profile_redirect_action=${1:-}
+    [ -n "$shimmy_target_profile_redirect_action" ] || fail 'profile redirect requires list, set, or delete'
     shift
-    redirect_action=${1:-upsert}
-    case "$redirect_action" in
+    case "$shimmy_target_profile_redirect_action" in
       list)
-        shift
-        output_format=human
+        shimmy_target_profile_format=human
         while [ "$#" -gt 0 ]; do
           case "$1" in
-            --format)
-              [ "$#" -ge 2 ] || { printf '%s\n' 'ERROR: missing value for --format' >&2; exit 1; }
-              output_format=$2
-              shift 2
-              ;;
-            *) printf 'ERROR: unknown profile redirect list option: %s\n' "$1" >&2; exit 1 ;;
+            --format) [ "$#" -ge 2 ] || fail 'missing value for --format'; shimmy_target_profile_format=$2; shift 2 ;;
+            *) fail "unknown profile redirect list argument: $1" ;;
           esac
         done
-        case "$output_format" in human|manifest) ;; *) printf 'ERROR: unsupported profile redirect list format: %s\n' "$output_format" >&2; exit 1 ;; esac
-        registry_entries=$(shimmy_registries_config_entries_read "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_NAME") || {
-          printf 'ERROR: invalid managed registry redirect configuration: %s\n' "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
-          exit 1
-        }
-        shimmy_registries_host_os_resolve
-        case "$SHIMMY_REGISTRIES_HOST_OS" in
-          linux) shimmy_profile_state_read ;;
-          darwin)
-            shimmy_registries_machine_projection_record_read
-            if [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" = valid ]; then
-              shimmy_profile_state_read
-            else
-              SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE=unverified
-              SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT=$(shimmy_registries_config_fingerprint_render "$SHIMMY_PROFILE_REGISTRIES_PATH")
-              SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=unverified
-            fi
-            ;;
-        esac
+        case "$shimmy_target_profile_format" in human|manifest) ;; *) fail "unsupported profile redirect format: $shimmy_target_profile_format" ;; esac
+        shimmy_target_profile_redirect_context_resolve "$shimmy_target_profile_config" "$shimmy_target_profile_invoking" ||
+          fail "${SHIMMY_TARGET_PROFILE_ERROR:-unable to inspect target redirects}"
+        shimmy_target_profile_redirect_entries=$(shimmy_registries_config_entries_read "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_NAME") ||
+          fail 'invalid target registry configuration'
+        shimmy_profile_state_read
         shimmy_registries_active_link_state_read
-        shimmy_registries_override_read
-        registry_policy=$(shimmy_registries_policy_state_read)
-        registry_machine_link=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE:-not_applicable}
-        registry_projection_record=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE:-not_applicable}
-        registry_config_fingerprint=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT:-not_applicable}
-        registry_applied_fingerprint=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORDED_FINGERPRINT:-not_applicable}
-        case "$output_format" in
-          manifest)
-            printf 'profile=%s\nregistry_config=valid\n' "$SHIMMY_PROFILE_NAME"
-            printf 'registry_active_link=%s\nregistry_active_profile=%s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" "$SHIMMY_REGISTRIES_ACTIVE_PROFILE"
-            printf 'registry_override=%s\nregistry_policy=%s\n' "$SHIMMY_REGISTRIES_OVERRIDE" "$registry_policy"
-            printf 'registry_machine_link=%s\nregistry_projection_record=%s\n' "$registry_machine_link" "$registry_projection_record"
-            printf 'registry_config_fingerprint=%s\nregistry_applied_fingerprint=%s\n' "$registry_config_fingerprint" "$registry_applied_fingerprint"
-            while IFS= read -r registry_entry; do [ -z "$registry_entry" ] || printf 'redirect=%s\n' "$registry_entry"; done <<EOF
-$registry_entries
+        shimmy_target_profile_redirect_policy=$(shimmy_registries_policy_state_read)
+        if [ "$shimmy_target_profile_format" = manifest ]; then
+          printf 'shimmy_profile_redirect_profile=%s\n' "$SHIMMY_PROFILE_NAME"
+          printf 'shimmy_profile_redirect_policy=%s\n' "$shimmy_target_profile_redirect_policy"
+          printf 'shimmy_profile_redirect_active=%s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE"
+          while IFS= read -r shimmy_target_profile_redirect_entry; do
+            [ -z "$shimmy_target_profile_redirect_entry" ] || printf 'shimmy_profile_redirect=%s\n' "$shimmy_target_profile_redirect_entry"
+          done <<EOF
+$shimmy_target_profile_redirect_entries
 EOF
-            ;;
-          human)
-            printf 'Profile: %s\nConfiguration: valid\n' "$SHIMMY_PROFILE_NAME"
-            printf 'Active link: %s\nActive profile: %s\nRegistry override: %s\nPolicy: %s\n' "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" "$SHIMMY_REGISTRIES_ACTIVE_PROFILE" "$SHIMMY_REGISTRIES_OVERRIDE" "$registry_policy"
-            printf 'Machine link: %s\nProjection record: %s\nConfig fingerprint: %s\nApplied fingerprint: %s\n' "$registry_machine_link" "$registry_projection_record" "$registry_config_fingerprint" "$registry_applied_fingerprint"
-            if [ -z "$registry_entries" ]; then
-              printf '%s\n' 'Redirects: none'
-            else
-              printf '%s\n' 'Redirects:'
-              while IFS='|' read -r logical_prefix physical_location; do
-                [ -z "$logical_prefix" ] || printf '  %s -> %s\n' "$logical_prefix" "$physical_location"
-              done <<EOF
-$registry_entries
-EOF
-            fi
-            ;;
-        esac
-        ;;
-      remove)
-        shift
-        remove_prefix=
-        remove_all=0
-        detach_requested=0
-        dry_run_requested=0
-        while [ "$#" -gt 0 ]; do
-          case "$1" in
-            --prefix)
-              [ "$#" -ge 2 ] || { printf '%s\n' 'ERROR: missing value for --prefix' >&2; exit 1; }
-              [ -z "$remove_prefix" ] || { printf '%s\n' 'ERROR: duplicate option: --prefix' >&2; exit 1; }
-              remove_prefix=$2
-              shift 2
-              ;;
-            --all) [ "$remove_all" -eq 0 ] || { printf '%s\n' 'ERROR: duplicate option: --all' >&2; exit 1; }; remove_all=1; shift ;;
-            --detach) [ "$detach_requested" -eq 0 ] || { printf '%s\n' 'ERROR: duplicate option: --detach' >&2; exit 1; }; detach_requested=1; shift ;;
-            --dry-run) [ "$dry_run_requested" -eq 0 ] || { printf '%s\n' 'ERROR: duplicate option: --dry-run' >&2; exit 1; }; dry_run_requested=1; shift ;;
-            *) printf 'ERROR: unknown profile redirect remove option: %s\n' "$1" >&2; exit 1 ;;
-          esac
-        done
-        [ -z "$remove_prefix" ] || shimmy_registries_endpoint_validate "$remove_prefix" || { printf 'ERROR: invalid logical registry prefix: %s\n' "$remove_prefix" >&2; exit 1; }
-        if [ "$remove_all" -eq 1 ] && [ -n "$remove_prefix" ]; then printf '%s\n' 'ERROR: --all cannot be combined with --prefix' >&2; exit 1; fi
-        if [ "$remove_all" -eq 0 ] && [ -z "$remove_prefix" ]; then printf '%s\n' 'ERROR: redirect remove requires --prefix or --all' >&2; exit 1; fi
-        [ "$detach_requested" -eq 0 ] || [ "$remove_all" -eq 1 ] || { printf '%s\n' 'ERROR: --detach requires --all' >&2; exit 1; }
-        if [ "$remove_all" -eq 1 ]; then
-          if [ "$detach_requested" -eq 1 ]; then
-            shimmy_registries_mutate_remove_all_detach "$dry_run_requested"
-          else
-            shimmy_registries_mutate remove_all '' '' "$dry_run_requested"
-          fi
         else
-          shimmy_registries_mutate remove "$remove_prefix" '' "$dry_run_requested"
+          printf 'PROFILE POLICY ACTIVE\n%s %s %s\n' "$SHIMMY_PROFILE_NAME" "$shimmy_target_profile_redirect_policy" "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE"
+          if [ -z "$shimmy_target_profile_redirect_entries" ]; then printf '%s\n' 'Redirects: none'; else printf 'Redirects:\n%s\n' "$shimmy_target_profile_redirect_entries"; fi
         fi
         ;;
-      --*)
-        logical_prefix=
-        physical_location=
-        dry_run_requested=0
+      set)
+        shimmy_target_profile_redirect_prefix=
+        shimmy_target_profile_redirect_location=
+        shimmy_target_profile_redirect_dry_run=0
         while [ "$#" -gt 0 ]; do
           case "$1" in
-            --prefix)
-              [ "$#" -ge 2 ] || { printf '%s\n' 'ERROR: missing value for --prefix' >&2; exit 1; }
-              [ -z "$logical_prefix" ] || { printf '%s\n' 'ERROR: duplicate option: --prefix' >&2; exit 1; }
-              logical_prefix=$2
-              shift 2
-              ;;
-            --location)
-              [ "$#" -ge 2 ] || { printf '%s\n' 'ERROR: missing value for --location' >&2; exit 1; }
-              [ -z "$physical_location" ] || { printf '%s\n' 'ERROR: duplicate option: --location' >&2; exit 1; }
-              physical_location=$2
-              shift 2
-              ;;
-            --dry-run) [ "$dry_run_requested" -eq 0 ] || { printf '%s\n' 'ERROR: duplicate option: --dry-run' >&2; exit 1; }; dry_run_requested=1; shift ;;
-            *) printf 'ERROR: unknown profile redirect option: %s\n' "$1" >&2; exit 1 ;;
+            --prefix) [ "$#" -ge 2 ] || fail 'missing value for --prefix'; [ -z "$shimmy_target_profile_redirect_prefix" ] || fail 'duplicate option: --prefix'; shimmy_target_profile_redirect_prefix=$2; shift 2 ;;
+            --location) [ "$#" -ge 2 ] || fail 'missing value for --location'; [ -z "$shimmy_target_profile_redirect_location" ] || fail 'duplicate option: --location'; shimmy_target_profile_redirect_location=$2; shift 2 ;;
+            --dry-run) [ "$shimmy_target_profile_redirect_dry_run" -eq 0 ] || fail 'duplicate option: --dry-run'; shimmy_target_profile_redirect_dry_run=1; shift ;;
+            *) fail "unknown profile redirect set argument: $1" ;;
           esac
         done
-        [ -n "$logical_prefix" ] || { printf '%s\n' 'ERROR: redirect upsert requires --prefix' >&2; exit 1; }
-        [ -n "$physical_location" ] || { printf '%s\n' 'ERROR: redirect upsert requires --location' >&2; exit 1; }
-        shimmy_registries_endpoint_validate "$logical_prefix" || { printf 'ERROR: invalid logical registry prefix: %s\n' "$logical_prefix" >&2; exit 1; }
-        shimmy_registries_endpoint_validate "$physical_location" || { printf 'ERROR: invalid physical registry location: %s\n' "$physical_location" >&2; exit 1; }
-        shimmy_registries_mutate upsert "$logical_prefix" "$physical_location" "$dry_run_requested"
+        shimmy_registries_endpoint_validate "$shimmy_target_profile_redirect_prefix" || fail 'invalid logical registry prefix'
+        shimmy_registries_endpoint_validate "$shimmy_target_profile_redirect_location" || fail 'invalid physical registry location'
+        shimmy_target_profile_redirect_mutate "$shimmy_target_profile_config" "$shimmy_target_profile_invoking" upsert \
+          "$shimmy_target_profile_redirect_prefix" "$shimmy_target_profile_redirect_location" 0 "$shimmy_target_profile_redirect_dry_run" ||
+          fail "${SHIMMY_TARGET_PROFILE_ERROR:-target redirect mutation failed}"
         ;;
-      '') profile_redirect_usage >&2; printf '%s\n' 'ERROR: missing profile redirect request' >&2; exit 1 ;;
-      *) printf 'ERROR: unknown profile redirect operation: %s\n' "$redirect_action" >&2; exit 1 ;;
+      delete)
+        shimmy_target_profile_redirect_prefix=
+        shimmy_target_profile_redirect_all=0
+        shimmy_target_profile_redirect_detach=0
+        shimmy_target_profile_redirect_dry_run=0
+        while [ "$#" -gt 0 ]; do
+          case "$1" in
+            --prefix) [ "$#" -ge 2 ] || fail 'missing value for --prefix'; [ -z "$shimmy_target_profile_redirect_prefix" ] || fail 'duplicate option: --prefix'; shimmy_target_profile_redirect_prefix=$2; shift 2 ;;
+            --all) [ "$shimmy_target_profile_redirect_all" -eq 0 ] || fail 'duplicate option: --all'; shimmy_target_profile_redirect_all=1; shift ;;
+            --detach) [ "$shimmy_target_profile_redirect_detach" -eq 0 ] || fail 'duplicate option: --detach'; shimmy_target_profile_redirect_detach=1; shift ;;
+            --dry-run) [ "$shimmy_target_profile_redirect_dry_run" -eq 0 ] || fail 'duplicate option: --dry-run'; shimmy_target_profile_redirect_dry_run=1; shift ;;
+            *) fail "unknown profile redirect delete argument: $1" ;;
+          esac
+        done
+        [ "$shimmy_target_profile_redirect_all" -eq 0 ] || [ -z "$shimmy_target_profile_redirect_prefix" ] || fail '--all cannot be combined with --prefix'
+        if [ "$shimmy_target_profile_redirect_all" -eq 0 ]; then
+          shimmy_registries_endpoint_validate "$shimmy_target_profile_redirect_prefix" || fail 'redirect delete requires a valid --prefix or --all'
+          [ "$shimmy_target_profile_redirect_detach" -eq 0 ] || fail '--detach requires --all'
+          shimmy_target_profile_redirect_mutation=remove
+        else
+          shimmy_target_profile_redirect_mutation=remove_all
+        fi
+        shimmy_target_profile_redirect_mutate "$shimmy_target_profile_config" "$shimmy_target_profile_invoking" \
+          "$shimmy_target_profile_redirect_mutation" "$shimmy_target_profile_redirect_prefix" '' \
+          "$shimmy_target_profile_redirect_detach" "$shimmy_target_profile_redirect_dry_run" ||
+          fail "${SHIMMY_TARGET_PROFILE_ERROR:-target redirect mutation failed}"
+        ;;
+      *) fail "unknown profile redirect action: $shimmy_target_profile_redirect_action" ;;
     esac
     ;;
+  *) fail "unknown target profile action: $shimmy_target_profile_action" ;;
 esac

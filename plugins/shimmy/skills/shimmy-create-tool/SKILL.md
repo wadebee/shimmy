@@ -72,17 +72,15 @@ in the guide and the tool skill.
 is the source of truth for the concrete version's non-mutating smoke command.
 `image.conf` is the source of truth for image strategy, immutable defaults,
 registry access, local context/build arguments, and required platforms.
-Do not add central tool-name, status-image, or refresh case lists. Follow the
-existing catalog and lifecycle contracts until version-local refresh hooks
-replace the remaining update logic.
+Do not add central tool-name, implementation-name, status-image, or refresh
+case lists. Version-local refresh hooks own pull/build preparation.
 
-A complete schema-valid tool added to the bound live upstream checkout is
-available to upstream catalog operations on the next command, including while
-the checkout is dirty. It reaches immutable default only through `shimmy
-catalog publish` from a clean commit. Publication changes availability but does
-not change installed profile versions; use an explicit profile install or
-update to adopt a new catalog default. Schema-invalid partial entries fail the
-whole catalog before mutation.
+A complete schema-valid tool reaches the installation's immutable default
+catalog only through `shimmy catalog publish` from a clean committed attached
+`main`. Publication changes availability but does not change installed profile
+versions; use explicit `shimmy shim add`, `shimmy shim sync`, or `shimmy profile
+sync` to adopt content. Schema-invalid partial entries fail the whole catalog
+before mutation.
 
 For local builds, audit packages, install scripts, compiled dependencies, and
 release archive URLs for both target architectures. A compatible base index is
@@ -94,7 +92,7 @@ Run, as applicable:
 
 ```sh
 ./commands/run-tool.sh <tool> --preview-shim --help
-./commands/images.sh verify --shim <tool>@<version>
+shimmy catalog verify --tool <tool>@<version> --format manifest
 ./tests/test.sh
 git diff --check
 ```
@@ -102,7 +100,8 @@ git diff --check
 Use a live non-mutating `--version`, `version`, or `--help` smoke only after
 Podman and the exact outer Shimmy wrapper command have the required approval.
 For installed behavior, use an absolute disposable `XDG_CONFIG_HOME` and inspect
-`shimmy status --format manifest` rather than relying on `command -v` alone.
+`shimmy profile status --format manifest` plus `shimmy shim list --format
+manifest` rather than relying on `command -v` alone.
 Feature acceptance requires the version-owned smoke on native Linux `amd64`
 and native Apple Silicon macOS `arm64`; do not substitute cross-emulation.
 

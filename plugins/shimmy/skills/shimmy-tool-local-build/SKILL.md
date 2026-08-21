@@ -56,7 +56,7 @@ Use preview first:
 
 ```sh
 ./commands/run-tool.sh <tool> --preview-shim --help
-./commands/images.sh verify --shim <tool>@<version>
+shimmy catalog verify --tool <tool>@<version>
 ```
 
 Use a live build only with explicit user authorization and a running Podman

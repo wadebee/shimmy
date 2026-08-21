@@ -1,561 +1,165 @@
 # Podman for Shimmy
 
-Shimmy is built on Podman. Every runtime shim is a small shell wrapper that
-starts a container with `podman run`, so a working Podman install is a
-foundational requirement, not an optional accelerator.
+Every Shimmy tool wrapper runs a short-lived container through Podman. Podman
+is an explicit dependency; Shimmy does not install it, provision machines, or
+adopt existing machines.
 
-Shimmy does not install or provision Podman for you. Install Podman with your
-operating system's package manager or the official installer, then verify that
-the `podman` CLI can talk to the engine from the same shell where you will run
-Shimmy.
+Official installation guidance: <https://podman.io/docs/installation>
 
-Official Podman installation guide: <https://podman.io/docs/installation>
+## Initial setup
 
-## Quick Start
-
-1. Install Podman.
-
-2. Verify the CLI is on `PATH`:
-
-   ```sh
-   podman --version
-   ```
-
-3. On macOS, initialize the deterministic machine for the profile you will use:
-
-   ```sh
-   podman machine init shimmy-default
-   ```
-
-   Use `shimmy-upstream` for the maintainer profile. Shimmy never runs machine
-   initialization itself.
-
-4. Verify that the named machine exists:
-
-   ```sh
-   podman machine list
-
-   ```
-   Do not substitute or rename `podman-machine-default`; Shimmy does not adopt
-   it.
-
-5. Source the Shimmy bootstrap and explicitly activate its engine:
-
-   ```sh
-   . ./bootstrap.sh
-   shimmy profile activate
-   ```
-
-6. Verify the selected engine and run a shim smoke check:
-
-   ```sh
-   podman info
-   jq --version
-   rg --version
-   ```
-
-For a human checkout workflow, bootstrap activation can perform installation
-and the same profile-bound activation in one explicit request. On macOS it may
-stop an idle alternate VM or restart the idle selected VM for stale registry
-policy; displayed running containers block the transition because bootstrap
-never supplies `--stop-running`:
-
-```sh
-. ./bootstrap.sh --activate
-```
-
-An activation failure returns nonzero after retaining the installed profile
-and startup integration, with exact status and recovery commands. An
-unqualified bootstrap remains non-activating. Sourcing selects PATH after
-success, while executing `./bootstrap.sh --activate` cannot change its parent
-shell.
-
-## What Podman Does For Shimmy
-
-Shimmy exposes command-line tools as if they were installed locally, but the
-tools actually run in containers. That gives Shimmy its main value:
-
-- Tools do not need separate local installs.
-- Tool versions and runtime dependencies are isolated from the workstation.
-- Project directories can be mounted into short-lived tool containers.
-- Users can override container images with `SHIMMY_{TOOL_PREFIX}_IMAGE`.
-
-Every concrete version owns validated `image.conf` metadata. Direct-image
-defaults and local-build base defaults are pinned to immutable
-multi-architecture index digests that declare `linux/amd64` and `linux/arm64`.
-User-supplied image overrides remain outside that repository guarantee.
-Pull refreshes re-fetch the configured digest and do not advance the upstream
-tag recorded for discovery.
-
-Use `shimmy images verify` for an explicit, non-mutating registry check. It
-uses the profile's catalog-default Skopeo runtime for remote inspection and jq
-runtime for raw index parsing, verifies both required platforms, and reports
-whether a tag-form upstream reference still resolves to the pinned digest. It
-does not pull target layers or change image configuration. Drift warns by
-default and fails with `--require-current-upstream`.
-
-Authenticated registries are never given implicit access to host credential
-files. Select the Skopeo Podman secret explicitly with
-`SHIMMY_SKOPEO_AUTH_SECRET`, or use `--public-only` to report authenticated
-entries as skipped while checking public entries:
-
-```sh
-shimmy images verify --all --public-only
-SHIMMY_SKOPEO_AUTH_SECRET=registry-auth shimmy images verify --all
-```
-
-For an installed active profile, the Skopeo runtime mounts that profile's
-strict registry policy read-only, so `images verify` inherits redirects without
-changing logical image references. Skopeo is the only initial tool-container
-opt-in. The mount supplies neither credentials nor private CA or signature
-trust; configure those separately. No activation omits the mount, while
-mismatched, damaged, stale, unsafe, or registry-overridden state fails closed.
-
-For tools that do not ship a usable upstream image, Shimmy builds and caches a
-local image from a checked-in `Containerfile` context. The local image tag is
-derived from the complete context, exact image configuration, ordered effective
-build arguments, and selected platform. Podman reuses the cache only while all
-of those inputs remain identical.
-
-Shimmy resolves both the host operating system and CPU architecture at runtime.
-Linux and Darwin hosts normalize `x86_64`/`amd64` to `amd64` and
-`aarch64`/`arm64` to `arm64`, then select the matching native `linux/amd64` or
-`linux/arm64` image platform. Unreadable or unsupported values fail before
-Podman is invoked.
-
-## Native image acceptance
-
-A multi-platform index proves that descriptors exist; it does not prove that a
-tool or local build works on each target. Accept image changes with the
-version-owned non-mutating smoke on both native targets:
-
-- Linux on `amd64`, running `linux/amd64` containers.
-- Apple Silicon macOS with a running Podman machine, running `linux/arm64`
-  containers.
-
-For local images, build on each native target before running the smoke. Inspect
-architecture-dependent downloads such as release archives explicitly. Do not
-use cross-emulated Containerfile success as a substitute; Shimmy does not
-provision host emulation.
-
-To rotate a repository default, resolve the publisher's tag to the immutable
-top-level index digest, verify both required descriptors and registry access,
-change only the affected `image.conf`, confirm local cache identity changes
-when applicable, and repeat both native smokes. Keep the old digest in git
-history and call it out as the rollback reference in review notes. Registry
-verification remains explicit rather than an always-on default test.
-
-Podman Desktop is not required. Shimmy needs the Podman CLI and an engine the
-CLI can reach.
-
-## Linux Setup
-
-Most Linux distributions package Podman directly. Install Podman with your OS
-package manager, then verify:
+Verify the CLI from the shell that will run Shimmy:
 
 ```sh
 podman --version
 podman info
 ```
 
-Shimmy expects a working rootless Podman setup for normal tool execution. In
-rootless mode, containers run as your user instead of requiring a root-owned
-daemon.
-
-After installing a profile, activate its strict registry policy explicitly:
-
-```sh
-shimmy profile status
-shimmy profile activate --dry-run
-shimmy profile activate
-```
-
-Linux activation manages no VM or system connection. It selects only the
-invoking profile's user registry drop-in and validates a fresh local-rootless
-Podman process. Remote and rootful engines are rejected before link mutation.
-Unset `CONTAINER_CONNECTION`, `CONTAINER_HOST`,
-`CONTAINERS_REGISTRIES_CONF`, and
-`CONTAINERS_REGISTRIES_CONF_OVERRIDE` before activation. See
-[Registry redirects](registries.md) for link ownership, rollback, detach, and
-status semantics.
-
-Darwin activation projects the same profile policy into the deterministic
-machine through only
-`/etc/containers/registries.conf.d/shimmy-profile.conf`. It verifies the host
-config at the same absolute VM path, root-writes the exact symlink,
-rootless-validates its fingerprint, and only then validates the target engine.
-No registry content is copied into the VM.
-
-### Rootless ID Ranges
-
-Some minimal Linux environments, including Chromebook Crostini, may not have
-subordinate UID/GID ranges configured. Podman can warn with text like `no subuid
-ranges found` and fall back to a single UID/GID mapping. That can work for some
-containers, but it is not the best baseline for Shimmy.
-
-Check the current user's ranges:
-
-```sh
-grep "^$(whoami):" /etc/subuid /etc/subgid
-```
-
-A healthy setup usually shows ranges similar to:
-
-```text
-/etc/subuid:current-user:100000:65536
-/etc/subgid:current-user:100000:65536
-```
-
-If no range exists, add one and migrate Podman state:
-
-```sh
-sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 "$(whoami)"
-podman system migrate
-```
-
-Log out and back in if your distribution requires a new login session for the
-updated user mapping.
-
-### Storage Performance
-
-Shimmy starts many short-lived containers, so Podman's storage driver matters.
-The best baseline is `overlay` storage. While `vfs` provides a "lowest common denominator" of compatibility it also makes working with container images noticeably slower because of the inherent disk-heavy copying of filesystem data instead of using overlay layers.
-
-On Linux rootless Podman, many distros use `fuse-overlayfs` which works well when native rootless kernel overlay support is unavailable or not configured.
-
-On macOS, Podman runs inside a Linux VM. The default high-performance
-`overlay` storage backed by the VM's Linux filesystem is `xfs`. It is
-better than a userspace `fuse-overlayfs` path and does not require extra
-Shimmy-specific tuning.
-
-Check the active storage driver:
-
-```sh
-podman info --format '{{.Store.GraphDriverName}}'
-```
-
-If this reports `vfs` on Linux, consider reconfiguring it to use `fuse-overlayfs`.
-Changing your existing Podman storage driver requires a `podman system reset`, which removes local Podman containers, images, pods, and **volumes** for that user. 
-
-**Data Loss Alert**: Treat this as you would any system reset. If you have been running podman for awhile and have existing container services and volumes - be sure to back them up! 
-
-## macOS Setup
-
-On macOS, Podman runs Linux containers inside a small virtual machine. Install
-Podman with the official installer or another trusted package source, then run
-the provisioning command for each profile you need from a normal user shell:
+On macOS, create the deterministic machine for each intended profile in a
+normal user shell before bootstrap or profile creation:
 
 ```sh
 podman machine init shimmy-default
-podman machine init shimmy-upstream
+podman machine init shimmy-team-one
 ```
 
-Podman permits only one managed VM to run at a time on macOS. Activating a
-Shimmy profile may stop `podman-machine-default` or another running Podman VM
-and interrupt workloads hosted there; Shimmy requires explicit
-`--stop-running` acknowledgement when it can identify running containers.
+If the configuration home is outside the normal home share, use the exact
+same-path `--volume` form printed by Shimmy. Do not rename or substitute
+`podman-machine-default`; Shimmy does not adopt or migrate it.
 
-If a named machine already exists, `podman machine init` may report that and no
-longer be needed. Do not substitute `podman-machine-default`; Shimmy neither
-adopts it nor migrates its data.
+Create and activate the fresh default profile:
 
-The official macOS pkg installer may place the binary at:
-
-```text
-/opt/podman/bin/podman
+```sh
+. ./bootstrap.sh
+podman info
+jq --version
+rg --version
 ```
 
-Shimmy accounts for that path during shell initialization and runtime preflight
-checks.
-If you are running Podman manually and `podman` is not found, either add
-`/opt/podman/bin` to `PATH` or call `/opt/podman/bin/podman` directly while you
-repair your shell setup.
+Bootstrap always creates and activates `default` with jq, rg, and Skopeo.
+Executing `./bootstrap.sh` is suitable for automation, but only sourcing can
+select the installed `bin/` directory in the parent shell.
 
-Useful macOS checks:
+## Profiles and engine authority
+
+Inspect and activate an existing profile through an absolute launcher:
+
+```sh
+profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/team-one
+"$profile_root/bin/shimmy" profile status
+"$profile_root/bin/shimmy" profile activate team-one --dry-run
+"$profile_root/bin/shimmy" profile activate team-one
+. "$profile_root/shell-init.sh"
+```
+
+Activation aligns engine, registry projection, the installation active record,
+and exact AI-skill links. It does not change a parent shell's PATH. Running
+containers are listed and block an interrupting transition unless the user
+separately acknowledges them with `--stop-running`.
+
+On Linux, activation requires a local rootless engine and manages only the
+Shimmy-owned user registry drop-in. On macOS, profile `<name>` owns the
+pre-existing `shimmy-<name>` machine. Only one Podman-managed VM can run, so a
+profile switch may stop an idle alternate VM. Shimmy never directly creates,
+deletes, renames, or adopts a VM.
+
+Unset connection and registry overrides before activation:
+
+```sh
+unset CONTAINER_CONNECTION CONTAINER_HOST
+unset CONTAINERS_REGISTRIES_CONF CONTAINERS_REGISTRIES_CONF_OVERRIDE
+```
+
+Shimmy reports only a masking variable's name, not its value.
+
+## Images
+
+Each concrete version owns `image.conf`. Repository defaults and non-`scratch`
+local-build bases are immutable top-level multi-platform digests that include
+`linux/amd64` and `linux/arm64`. User image overrides remain outside that
+guarantee.
+
+Verify registry metadata explicitly through an installed profile:
+
+```sh
+shimmy catalog verify --public-only
+shimmy catalog verify --tool jq@1.8 --public-only
+SHIMMY_SKOPEO_AUTH_SECRET=registry-auth shimmy catalog verify
+```
+
+Verification inspects remote manifests without pulling target layers. Skopeo
+is the initial tool-container consumer of active profile registry redirects.
+Credentials remain explicit Podman secrets; Shimmy does not mount host auth,
+private CA, or signature-policy directories implicitly.
+
+Local-build image identity includes the complete context, image metadata,
+ordered effective build arguments, and selected platform. Identical inputs
+reuse the cache; changed inputs select a new reference.
+
+## Native acceptance
+
+Descriptor presence is not runtime acceptance. Run each new or rotated
+concrete version's non-mutating smoke on native Linux `amd64` and native Apple
+Silicon macOS `arm64`. Build local images natively before their smoke. Preview
+and cross-emulation do not replace either host result.
+
+## Linux notes
+
+Normal Shimmy execution expects rootless Podman. Check rootless state and the
+storage driver:
+
+```sh
+podman info --format '{{.Host.Security.Rootless}}'
+podman info --format '{{.Store.GraphDriverName}}'
+```
+
+`overlay` is the preferred storage baseline. If subordinate UID/GID warnings
+appear, inspect `/etc/subuid` and `/etc/subgid` and follow the distribution's
+rootless Podman guidance. Storage migration and `podman system reset` can be
+destructive and are not Shimmy lifecycle operations.
+
+## macOS notes
+
+The official pkg installer may place the CLI at `/opt/podman/bin/podman`.
+Shimmy accounts for this location; add `/opt/podman/bin` to PATH for direct
+manual use if needed.
+
+Useful inspection commands are:
 
 ```sh
 podman machine list
 podman system connection list
 ```
 
-After installing a profile, activate and validate its engine explicitly:
+If status reports a stale registry projection, use the exact named command it
+prints, normally:
 
 ```sh
-shimmy profile status
-shimmy profile activate --dry-run
-shimmy profile activate
-podman info
+"$profile_root/bin/shimmy" profile activate team-one --restart
 ```
 
-Activation uses the invoking profile's deterministic machine, not an arbitrary
-default machine.
-
-Human checkout users who have already reviewed the VM switching and workload
-boundary above may instead request `. ./bootstrap.sh --activate`. It selects a
-required stale-policy restart automatically but still refuses any
-unacknowledged workload interruption.
-
-## Verification Checks
-
-Use these checks after installing Podman, after major OS changes, or when Shimmy
-wrappers feel slow or unreliable.
-
-Confirm the binary and engine:
-
-```sh
-podman --version
-podman info
-```
-
-Confirm storage driver on Linux:
-
-```sh
-podman info --format '{{.Store.GraphDriverName}}'
-```
-
-Confirm rootless mode:
-
-```sh
-podman info --format '{{.Host.Security.Rootless}}'
-```
-
-Confirm the default connection, especially on macOS or remote Podman setups:
-
-```sh
-podman system connection list
-```
-
-Run a harmless container:
-
-```sh
-podman run --rm quay.io/podman/hello
-```
-
-Run Shimmy's own status and smoke checks:
-
-```sh
-shimmy status
-shimmy test
-```
-
-From a source checkout, run the repository suite directly:
-
-```sh
-./tests/test.sh
-```
-
-For maintainer testing through the upstream profile, source its bootstrap
-first:
-
-```sh
-. ./bootstrap.sh --profile upstream
-shimmy status
-shimmy test
-rg --version
-```
-
-Every bootstrap includes jq and rg; add other tools afterward with the
-installed `shimmy install --shim <tool>` command. Executing the bootstrap is
-suitable for automation but cannot change its parent shell. To select an
-existing profile, activate its engine through the absolute profile launcher,
-then source its generated `shell-init.sh`. The latter selects PATH only.
-Installed commands manage only the profile whose `bin/shimmy` launcher invoked
-them. The `upstream` profile never manages persistent shell startup files.
-
-### macOS profile machines
-
-Create required machines explicitly in a normal user shell:
-
-```sh
-podman machine init shimmy-default
-podman machine init shimmy-upstream
-```
-
-Shimmy does not create, adopt, rename, migrate, or remove Podman machines.
-`podman-machine-default` remains external and its data is untouched. If a
-custom XDG configuration home is outside the normal home share, expose that
-same absolute path when creating the machine.
-
-Activate and select a profile in two phases:
-
-```sh
-profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
-"$profile_root/bin/shimmy" profile status
-"$profile_root/bin/shimmy" profile activate --dry-run
-"$profile_root/bin/shimmy" profile activate
-. "$profile_root/shell-init.sh"
-```
-
-Activation can stop one idle alternate machine, but displays and refuses
-running containers unless `--stop-running` is supplied. A failed post-stop
-transition attempts target cleanup, prior-machine restart, and prior-default
-restoration. Acknowledged workloads may not resume automatically. Non-empty
-`CONTAINER_CONNECTION`, `CONTAINER_HOST`, `CONTAINERS_REGISTRIES_CONF`, or
-`CONTAINERS_REGISTRIES_CONF_OVERRIDE` blocks active projection mutation and its
-value is not displayed.
-
-Successful activation stores a strict local projection record and config
-fingerprint. If a running machine's projection is absent or stale, use the
-exact absolute `profile activate --restart` command printed by Shimmy. The
-normal workload guard still applies. Active redirect edits never restart a VM.
-Ordinary and global uninstall detach an exact recorded VM link themselves,
-restart an initially running projected machine to clear cached policy, and
-restore the initial running machine and default connection before local
-deletion. A stopped projected machine is temporarily started, verified,
-detached, and returned to stopped state; a proven-missing machine permits
-record-only cleanup. If a planned stop has running containers, uninstall lists
-them and requires an explicit retry with `--stop-running`. Acknowledged
-workloads may not resume automatically.
-
-Manual detach remains available for recovery and debugging:
-
-```sh
-"$profile_root/bin/shimmy" profile redirect remove --all --detach
-```
-
-The standalone detach command still requires a stopped existing machine to be
-activated first; uninstall handles that transition internally. Neither command
-removes a machine.
-
-`shimmy test` uses live Podman execution for supported tools. It is a stronger
-check than `podman info` because it verifies that Shimmy's wrappers can actually
-start the tool containers.
+The ordinary workload acknowledgement boundary still applies.
 
 ## Troubleshooting
 
-### `podman` is missing
+If `podman info` fails, inspect the selected profile rather than starting an
+arbitrary machine. If direct Podman works but a wrapper fails in an AI Agent
+sandbox, retry the same wrapper through the outer-command approval boundary.
+Approval for `podman info` does not approve Podman nested through a wrapper.
 
-Shimmy reports a missing Podman dependency when it cannot find the CLI. Install
-Podman, then ensure `podman` is available on `PATH`.
-
-On macOS, also check:
-
-```sh
-ls /opt/podman/bin/podman
-```
-
-Shimmy checks that path directly, but adding `/opt/podman/bin` to your shell
-`PATH` still makes manual Podman debugging easier.
-
-### `podman info` fails
-
-If the binary exists but the engine is unreachable, Shimmy cannot start tool
-containers. Run:
-
-```sh
-podman info
-podman system connection list
-```
-
-On macOS, inspect and activate the invoking installed profile rather than
-starting an arbitrary default VM:
-
-```sh
-shimmy profile status
-shimmy profile activate --dry-run
-shimmy profile activate
-```
-
-If you use `CONTAINER_HOST`, verify that it points at a reachable Podman service
-or unset it to use the default connection:
-
-```sh
-unset CONTAINER_HOST
-podman info
-```
-
-Do not print connection-variable contents in shared diagnostics; `shimmy
-profile status` reports only the masking variable name.
-
-### Shimmy fails but `podman info` works
-
-First run a simple Shimmy smoke check:
-
-```sh
-jq --version
-rg --version
-```
-
-From a source checkout:
+Source validation can avoid the engine entirely:
 
 ```sh
 ./commands/run-tool.sh jq --preview-shim --version
-./commands/run-tool.sh rg --preview-shim --version
-```
-
-In AI Agent environments, command approvals are often evaluated on the outer
-command. Approving `podman info` only proves the engine works; it may not
-approve nested Podman access through a Shimmy wrapper. Approve the exact dry-run
-shim command prefix the agent needs, such as `["rg","--version"]` for an
-installed shim selected on `PATH` or
-`["./commands/run-tool.sh","rg","--preview-shim","--version"]` for a
-repo-local runtime.
-
-The source checkout includes a preflight helper that prints useful approval
-prefixes and smoke commands:
-
-```sh
 ./commands/agent-preflight.sh
 ```
 
-Use `--smoke` from a normal shell when you want the script to run those checks
-directly.
+Use `shimmy admin network` when the host, VM, and container network
+perspectives differ. See [Networking tools](network-tools.md).
 
-### Linux rootless warnings
+## Hygiene
 
-If Podman warns about missing subuid or subgid ranges, review the Linux rootless
-ID range section above. After changing ranges, `podman system migrate` usually
-updates Podman state for the new mapping.
-
-### Slow image startup or high disk usage
-
-Check whether Podman is using `vfs` instead of `overlay`:
-
-```sh
-podman info --format '{{.Store.GraphDriverName}}'
-```
-
-Prefer `overlay` for normal Shimmy usage. On macOS, `overlay` backed by the
-Podman VM's `xfs` filesystem is a good default. On Linux rootless systems,
-`fuse-overlayfs` may be the right support package for a working `overlay`
-configuration.
-
-Also inspect image usage:
-
-```sh
-podman images
-podman system df
-```
-
-If old images dominate disk usage, see the hygiene section below.
-
-### Networking looks different inside a shim
-
-Containers do not always share the same network view as the host shell. This is
-especially visible on macOS, where Podman containers run inside a Linux VM, and
-in Chromebook Crostini or other VM-heavy environments.
-
-Use Shimmy's local network perspective command before assuming a container sees
-the same LAN as the host:
-
-```sh
-shimmy netinfo
-```
-
-For network-oriented shims, also see [network-tools.md](network-tools.md).
-
-## Basic Podman Hygiene
-
-Podman keeps downloaded images, locally built images, stopped containers,
-volumes, and build cache under your user's Podman storage. That cache is useful:
-it makes repeated Shimmy commands faster. It can also grow over time as images
-are updated, local image builds change, and short-lived containers come and go.
-
-A good maintenance habit is to inspect first, prune conservative categories
-periodically, and reserve broad cleanup for cases where disk usage is clearly
-out of hand.
-
-Useful inspection commands:
+Inspect before pruning:
 
 ```sh
 podman ps --all
@@ -563,37 +167,6 @@ podman images
 podman system df
 ```
 
-Stopped containers are usually safe to remove when you do not need their logs or
-filesystem state:
-
-```sh
-podman container prune
-```
-
-Dangling or unused images are a normal source of growth after image updates and
-local rebuilds:
-
-```sh
-podman image prune
-```
-
-For a broader cleanup, remove unused containers, networks, dangling images, and
-build cache:
-
-```sh
-podman system prune
-```
-
-Use more aggressive image cleanup only when you understand that older images may
-need to be pulled or rebuilt later:
-
-```sh
-podman system prune --all
-```
-
-Avoid `podman system reset` as routine hygiene. It removes all containers,
-images, pods, and volumes for the current user and is better treated as a last
-resort or an intentional rebuild of local Podman state.
-
-After pruning images, the next Shimmy command may need to pull or rebuild the
-tool image. That is expected.
+Podman prune operations and storage resets are outside Shimmy's lifecycle.
+Review their effects independently, especially volumes and locally built
+images.

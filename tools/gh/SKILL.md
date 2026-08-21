@@ -40,13 +40,13 @@ Use this skill when working with the GitHub CLI tool, its tests, its docs, or Gi
 ## Installed Workflow
 
 When the installed profile is selected on `PATH`, invoke `gh` normally
-and inspect the invoking profile with `shimmy status --format manifest`.
+and inspect the invoking profile with `shimmy profile status --format manifest`.
 
 Before using another existing profile, resolve its absolute `profile_root` and
 run `"$profile_root/bin/shimmy" profile status`, then
-`"$profile_root/bin/shimmy" profile activate --dry-run`, then request approval
+`"$profile_root/bin/shimmy" profile activate <name> --dry-run`, then request approval
 for the exact absolute
-`"$profile_root/bin/shimmy" profile activate` command. Running containers
+`"$profile_root/bin/shimmy" profile activate <name>` command. Running containers
 require separate explicit confirmation before adding `--stop-running`. A missing
 machine must be provisioned by the user in a normal shell with the exact
 `podman machine init shimmy-<profile>` guidance; agents never run direct Podman
@@ -55,8 +55,8 @@ machine lifecycle commands.
 After activation, source `"$profile_root/shell-init.sh"` to select PATH.
 Installed commands do not accept a profile selector. AI Agent calls do not
 retain earlier sourcing, so invoke the absolute profile dispatcher or source
-`shell-init.sh` in the same command as the tool. To test `upstream`, use the
-absolute root `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream`.
+`shell-init.sh` in the same command as the tool. To inspect a named profile, use its
+absolute root `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<name>`.
 
 For source validation, use `./commands/run-tool.sh gh --preview-shim --version`
 or the concrete `tools/gh/versions/2.94/run.sh` runtime. Do not use

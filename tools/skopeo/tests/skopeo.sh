@@ -15,8 +15,26 @@ test_tools_skopeo_preview_contract() {
 }
 
 test_tools_skopeo_registry_client_mount() {
-  setup_scenario_with_profiles default upstream
-  default_shimmy install --shim skopeo >/dev/null
+  setup_scenario
+  sibling_profile_root=$XDG_CONFIG_HOME_DIR/shimmy/profiles/team-one
+  mkdir -p "$DEFAULT_PROFILE_ROOT/tools/skopeo/versions" "$sibling_profile_root" \
+    "$HOME_DIR/.agents/skills"
+  test_fixture_tree_copy "$ROOT_DIR/lib" "$DEFAULT_PROFILE_ROOT/lib"
+  test_fixture_tree_copy "$ROOT_DIR/tools/skopeo/versions/1.22" \
+    "$DEFAULT_PROFILE_ROOT/tools/skopeo/versions/1.22"
+  printf '%s\n' \
+    'shimmy_install_manifest_version=2' \
+    'shimmy_install_layout=profile-materialized-root' \
+    'shimmy_profile_manifest_version=2' \
+    'shimmy_profile_name=default' \
+    > "$DEFAULT_PROFILE_ROOT/install-manifest.txt"
+  shimmy_registries_config_render default '' > "$DEFAULT_PROFILE_ROOT/registries.conf"
+  shimmy_registries_config_render team-one '' > "$sibling_profile_root/registries.conf"
+  shimmy_target_active_profile_render default "$HOME_DIR/.agents/skills" \
+    > "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
+  chmod 0644 "$DEFAULT_PROFILE_ROOT/install-manifest.txt" \
+    "$DEFAULT_PROFILE_ROOT/registries.conf" "$sibling_profile_root/registries.conf" \
+    "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
   skopeo_run=$DEFAULT_PROFILE_ROOT/tools/skopeo/versions/1.22/run.sh
   active_link=$XDG_CONFIG_HOME_DIR/containers/registries.conf.d/shimmy-active-profile.conf
   expected_mount=$DEFAULT_PROFILE_ROOT/registries.conf:/etc/containers/registries.conf.d/shimmy-profile.conf:ro
@@ -57,7 +75,7 @@ test_tools_skopeo_registry_client_mount() {
   assert_not_contains "$connection_output" 'secret-remote-endpoint'
 
   rm -f "$active_link"
-  ln -s "$UPSTREAM_PROFILE_ROOT/registries.conf" "$active_link"
+  ln -s "$sibling_profile_root/registries.conf" "$active_link"
   set +e
   sibling_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
     SHIMMY_TEST_OS=Linux SHIMMY_TEST_PROFILE_OS=Linux \
@@ -65,7 +83,7 @@ test_tools_skopeo_registry_client_mount() {
   sibling_status=$?
   set -e
   [ "$sibling_status" -ne 0 ] || fail_test 'Skopeo preview unexpectedly accepted a sibling profile policy'
-  assert_contains "$sibling_output" 'active registry policy belongs to profile upstream'
+  assert_contains "$sibling_output" 'active registry policy belongs to profile team-one'
 
   rm -f "$active_link"
   rmdir "$(dirname -- "$active_link")"

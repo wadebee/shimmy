@@ -5,43 +5,27 @@ description: Template for a Shimmy CLI tool backed by Podman.
 
 # Generic Shimmy tool template
 
-Read root `CONTEXT.md`, `CONTRIBUTING.md`, and the guide and canonical skill
-for the closest existing tool. Create one self-contained `tools/<tool>/`
-directory.
+Read root `CONTEXT.md`, `CONTRIBUTING.md`, and the closest existing tool guide
+and canonical skill. Create one self-contained `tools/<tool>/` directory.
 
-## Installed profile workflow
+## Installed workflow
 
-Every generated tool skill must include this evidence order, followed by a
-tool-specific approval rule:
+Every generated skill must keep this evidence order:
 
-1. If the installed wrapper's safe outer-command prefix is already approved,
-   run the actual requested operation with escalation on the first attempt. Do
-   not first run a sandboxed Podman call or a version smoke.
-2. Treat a sandbox-only unreachable, unknown, socket-denied, or
-   `operation not permitted` result as `unverified from the sandbox`, not as an
-   inactive profile. Retry the same wrapper operation through
-   `shimmy-escalation` before profile inspection or fallback.
-3. Use `shimmy-init` only if the escalated wrapper still proves a
-   profile-affinity, engine, connection, or registry-projection failure. Never
-   activate a profile automatically from sandbox-only evidence.
-4. Add an `Approval scope:` rule specific to the tool. Permit a reusable
-   wrapper prefix only for a demonstrably local, read-only command. Require an
-   exact operation-specific prefix for credentialed, networked, potentially
-   mutating, privileged, or arbitrary-code execution. Keep wrapper approval
-   separate from authorization for external writes or other side effects.
+1. Use an already-approved safe outer-wrapper prefix for the requested
+   operation on the first attempt.
+2. Treat sandbox-only socket, reachability, or permission errors as
+   `unverified from the sandbox`; retry the same wrapper through escalation.
+3. Use `shimmy-init` only when the escalated wrapper proves a profile, engine,
+   connection, or registry-projection failure.
+4. Define tool-specific approval scope. Credentialed, networked, privileged,
+   mutating, and arbitrary-code operations require exact authorization.
 
-When a generated tool skill describes installed use, require the target
-profile's absolute launcher to run `profile status`, `profile activate
---dry-run`, and then the exact approved `profile activate` command. Running
-containers require separate explicit confirmation before `--stop-running` is
-added. A missing `shimmy-<profile>` machine is provisioned only by the user in
-a normal shell with the exact guidance emitted by Shimmy; agents never run
-direct Podman machine lifecycle commands.
-
-After activation, sourcing the profile's `shell-init.sh` selects PATH only.
-AI Agent tool calls do not retain earlier sourcing, so later calls use the
-absolute profile dispatcher or source `shell-init.sh` in the same command.
-Installed commands never accept a profile selector.
+For another profile, resolve its absolute launcher, run `profile status`, then
+`profile activate <name> --dry-run`, obtain approval for the exact activation,
+and source `shell-init.sh` only after success. Running containers require
+separate confirmation before `--stop-running`. Agents never provision or
+directly manage Podman machines.
 
 ## Required structure
 
@@ -50,37 +34,40 @@ tools/<tool>/
   tool.conf
   guide.md
   SKILL.md
+  tests/<tool>.sh
   versions/<major.minor>/
     run.sh
+    refresh.sh
     smoke.conf
     image.conf
-    container/Containerfile  # only for local builds
+    container/Containerfile  # local builds only
 ```
 
-`tool.conf` must retain `shim_name=<tool>` for manifest compatibility and add:
+`tool.conf` declares:
 
 ```text
 tool_default_version=<major.minor>
 tool_selector_env=<SHIMMY_SELECTOR_ENV or empty>
 ```
 
-`run.sh` receives the original CLI argument vector unchanged, uses
-`lib/runtime/podman.sh`, mounts `$PWD:/work`, and supports
-`--preview-shim`. Use `lib/runtime/image.sh` for local build contexts after
-setting `SHIMMY_RUNTIME_DIR` to `lib/runtime`.
+Do not declare concrete implementation names or add shared routing maps.
+`run.sh` receives the original argument vector, mounts `$PWD:/work`, uses the
+shared Podman helper, and supports `--preview-shim`. Local builds use the shared
+image helper and set `SHIMMY_RUNTIME_DIR` to `lib/runtime`.
 
-Choose `image_source=external` when a usable publisher image exists or
-`image_source=local-build` for a version-owned container context. Complete the
-matching schema in `image.conf`. Pin every repository default and non-`scratch`
-base to an immutable top-level OCI index or Docker manifest-list digest with
-`linux/amd64` and `linux/arm64`; keep publisher tags as upstream discovery
-references only. Do not duplicate defaults in `run.sh` or a `Containerfile`.
+Every repository image default and non-`scratch` base must be an immutable
+top-level index digest containing `linux/amd64` and `linux/arm64`. Keep mutable
+publisher tags only as discovery references.
 
-Audit packages and downloaded artifacts for both target architectures. Run
-`./commands/images.sh verify --shim <tool>@<version>`, the preview suite, and
-the version-owned smoke on native Linux `amd64` and Apple Silicon macOS
-`arm64`. Cross-emulated builds do not satisfy native acceptance.
+Validate with:
 
-The catalog discovers tool metadata automatically. Do not add central catalog,
-status, or update case statements. Add focused metadata and preview validation
-to `tests/` and run `./tests/test.sh`.
+```sh
+./commands/run-tool.sh <tool> --preview-shim <smoke-arguments>
+./tests/test.sh --group tools-<tool>
+shimmy catalog verify --tool <tool>@<version>
+shimmy shim add <tool>@<version>
+shimmy shim test <tool>@<version>
+```
+
+Run the version-owned smoke on native Linux `amd64` and native Apple Silicon
+macOS `arm64`. Cross-emulation does not satisfy native acceptance.

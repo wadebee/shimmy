@@ -39,14 +39,14 @@ npm package execution through Shimmy.
 
 ## Installed Workflow
 
-Install this opt-in tool with `shimmy install --shim npx`. When the installed
+Install this opt-in tool with `shimmy shim add npx`. When the installed
 profile is selected on `PATH`, invoke `npx` normally and inspect the invoking
-profile with `shimmy status --format manifest`.
+profile with `shimmy profile status --format manifest`.
 
 Before using another existing profile, resolve its absolute `profile_root` and
 run `"$profile_root/bin/shimmy" profile status`, then
-`"$profile_root/bin/shimmy" profile activate --dry-run`, then request approval
-for the exact `"$profile_root/bin/shimmy" profile activate` command. Require
+`"$profile_root/bin/shimmy" profile activate <name> --dry-run`, then request approval
+for the exact `"$profile_root/bin/shimmy" profile activate <name>` command. Require
 separate confirmation before adding `--stop-running`. The user provisions any
 missing Podman machine in a normal shell; agents do not create, replace,
 rename, adopt, start, or delete machines.
@@ -83,7 +83,7 @@ concrete `tools/npx/versions/24.18/run.sh` runtime.
 
 - Preview: `./commands/run-tool.sh npx --preview-shim --version`
 - Direct smoke: `./commands/run-tool.sh npx --version`
-- Image verification: `./commands/images.sh verify --shim npx --public-only`
+- Image verification: `shimmy catalog verify --tool npx --public-only`
 - Focused preview contract: run `test_tools_npx_run` through `./tests/test.sh`
 - Full suite: `./tests/test.sh`
 - Observational package execution: `./commands/run-tool.sh npx --yes node-llama-cpp@3.19.1 inspect gpu`

@@ -14,17 +14,16 @@ missing, stale, masked, or unreachable.
 ## Goal
 
 Make Shimmy wrappers usable from an AI Agent shell through the installed
-profile's activation control plane. On macOS, `default` requires the
-pre-existing `shimmy-default` machine and `upstream` requires the pre-existing
-`shimmy-upstream` machine. Only the exact absolute profile-local launcher may
-activate that deterministic engine.
+profile activation control plane. On macOS, profile `<name>` requires the
+pre-existing `shimmy-<name>` machine. Use an exact absolute installed launcher
+for the named activation.
 
 Do not install Podman or directly provision, start, stop, restart, delete,
 rename, or adopt a Podman machine. Do not request a broad Podman, shell, or
 scripting-language approval.
-The combined `bootstrap.sh --activate` human convenience is not evidence of AI
-Agent authorization and must not replace the separate status, dry-run,
-activation, and workload-interruption approval gates below.
+Checkout bootstrap activation is not general authorization to switch an
+existing installation. Retain the separate status, named dry-run, activation,
+and workload-interruption approval gates below.
 
 ## Workflow
 
@@ -39,7 +38,8 @@ activation, and workload-interruption approval gates below.
 2. Resolve the selected installed profile:
    - Prefer the profile containing the resolved `shimmy` or tool command.
    - Require the canonical absolute root
-     `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<default|upstream>`.
+     `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<name>` and validate the
+     safe profile name.
    - Set `profile_root` to that validated absolute path and use
      `"$profile_root/bin/shimmy"` for every management check. Do not activate a
      sibling profile through the currently selected launcher.
@@ -50,7 +50,7 @@ activation, and workload-interruption approval gates below.
      the missing control plane with direct `podman machine` lifecycle commands.
 4. Inspect without mutation:
    - Run `"$profile_root/bin/shimmy" profile status`.
-   - Run `"$profile_root/bin/shimmy" profile activate --dry-run`.
+   - Run `"$profile_root/bin/shimmy" profile activate "$profile_name" --dry-run`.
    - Use narrow escalation for these exact absolute commands if the AI Agent
      sandbox blocks inspection.
    - Never print values of `CONTAINER_CONNECTION` or `CONTAINER_HOST`; identify
@@ -66,8 +66,9 @@ activation, and workload-interruption approval gates below.
      `podman-machine-default`.
 6. Activate only after status and dry-run succeed:
    - Request approval for the exact absolute command recommended by the
-     resolved state: `"$profile_root/bin/shimmy" profile activate`, or the same
-     command with `--restart` for a stale Darwin projection.
+     resolved state: `"$profile_root/bin/shimmy" profile activate
+     "$profile_name"`, or the same command with `--restart` for a stale Darwin
+     projection.
    - Use the exact prefix equivalent, including `--restart` when recommended;
      never request `["shimmy"]`, `["podman"]`, a shell prefix, or a wildcard
      path.
@@ -80,14 +81,14 @@ activation, and workload-interruption approval gates below.
    - Only after that confirmation, request and run the exact absolute command
      recommended by status, adding `--stop-running` to the existing options.
      For a stale projection, the exact absolute command ends in `profile
-     activate --restart --stop-running`; otherwise it ends in `profile activate
-     --stop-running`. Use the exact prefix equivalent.
+     activate <name> --restart --stop-running`; otherwise it ends in `profile
+     activate <name> --stop-running`. Use the exact prefix equivalent.
    - Treat `--stop-running` as acknowledgement, not a promise that interrupted
      containers will resume during rollback.
 8. Verify the result:
    - Run `"$profile_root/bin/shimmy" profile status` and `podman info`.
    - If registry redirects are configured, require status to report current
-     policy. Use the exact printed `profile activate --restart` command for a
+     policy. Use the exact printed `profile activate <name> --restart` command for a
      stale Darwin projection; do not let Skopeo silently omit a prepared or
      stale policy.
    - If direct Podman access succeeds but a wrapper remains sandbox-blocked,
@@ -102,13 +103,13 @@ activation, and workload-interruption approval gates below.
 Acceptable approval prefixes are limited to:
 
 - `["<profile-root>/bin/shimmy","profile","status"]`
-- `["<profile-root>/bin/shimmy","profile","activate","--dry-run"]`
-- `["<profile-root>/bin/shimmy","profile","activate"]`
-- `["<profile-root>/bin/shimmy","profile","activate","--restart"]` when
+- `["<profile-root>/bin/shimmy","profile","activate","<name>","--dry-run"]`
+- `["<profile-root>/bin/shimmy","profile","activate","<name>"]`
+- `["<profile-root>/bin/shimmy","profile","activate","<name>","--restart"]` when
   recommended for a stale Darwin projection
-- `["<profile-root>/bin/shimmy","profile","activate","--stop-running"]` only
+- `["<profile-root>/bin/shimmy","profile","activate","<name>","--stop-running"]` only
   after separate workload-interruption confirmation
-- `["<profile-root>/bin/shimmy","profile","activate","--restart","--stop-running"]`
+- `["<profile-root>/bin/shimmy","profile","activate","<name>","--restart","--stop-running"]`
   only when both restart and workload interruption were separately justified
 - `["podman","info"]` for final read-only verification
 

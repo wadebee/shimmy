@@ -4,8 +4,9 @@ Library modules are sourced by commands and tool runtimes. Keep modules narrow;
 do not add tool-specific behavior here.
 
 `profile/profile.sh` is the canonical XDG path resolver. It maps an absolute
-`XDG_CONFIG_HOME`, or the `$HOME/.config` fallback, to independent flat
-profiles below `shimmy/profiles/<profile>`.
+`XDG_CONFIG_HOME`, or the `$HOME/.config` fallback, to independent arbitrary-
+name profiles below `shimmy/profiles/<profile>` and validates schema-2 runtime
+identity.
 
 ## Child contexts
 
@@ -22,5 +23,5 @@ profiles below `shimmy/profiles/<profile>`.
 - [update lifecycle](update/CONTEXT.md)
 - [image verification](images/CONTEXT.md)
 
-The public `commands/netinfo.sh` entrypoint sources the host-network
-implementation from `netinfo/`.
+The installed `admin network` route sources the host-network implementation
+from `netinfo/`.

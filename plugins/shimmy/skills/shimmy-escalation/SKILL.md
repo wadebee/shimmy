@@ -47,16 +47,15 @@ outer-wrapper retry and delegates only evidence-backed engine remediation.
      absolute `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>/bin`
      directory for that profile.
 3. Discover installed shims:
-   - Use `shimmy status --format manifest`, then read
-     the invoking profile manifest's `tool=` entries.
-   - If status is unavailable, inspect the manifest in the selected
+   - Use `shimmy profile status --format manifest` and
+     `shimmy shim list --format manifest` through the selected launcher.
+   - If those commands are unavailable, inspect the manifest in the selected
      profile root, then that profile's `bin/` directory.
    - If that is unavailable, inspect executables in `PATH` directories whose
-     path ends in `/shimmy/profiles/default/bin` or
-     `/shimmy/profiles/upstream/bin`.
+     path matches `/shimmy/profiles/<name>/bin` after validating `<name>`.
 4. Keep only executable shim names that resolve through the active shell with
-   `command -v <name>`. Use `shimmy status` for the invoking profile's
-   implementation path.
+   `command -v <name>`. Use `shimmy profile status` and `shimmy shim list` for
+   the invoking profile's identity and installed shim inventory.
 
 ## Evidence order
 
@@ -70,7 +69,7 @@ outer-wrapper retry and delegates only evidence-backed engine remediation.
 3. If approval is unavailable, request it for that wrapper operation. Do not
    fall back to a host tool merely to avoid the approval boundary.
 4. If the escalated wrapper succeeds, continue the task. Do not invoke
-   `shimmy-init`, run `profile activate --dry-run`, or announce that the
+   `shimmy-init`, run `profile activate <name> --dry-run`, or announce that the
    profile was inactive.
 5. Delegate to `shimmy-init` only when the escalated wrapper still reports an
    affinity mismatch, stopped or missing deterministic machine, unreachable
@@ -130,7 +129,7 @@ Shimmy source checkout.
 - Do not modify repository files, startup files, manifests, or shell profiles during a permission-only run.
 - Do not install Podman or directly provision, start, stop, restart, delete,
   rename, or adopt a Podman machine. Profile switching is permitted only
-  through the exact absolute `profile activate` command delegated to
+  through the exact absolute `profile activate <name>` command delegated to
   `shimmy-init`.
 - Do not infer or perform profile activation from sandbox-only reachability
   evidence.

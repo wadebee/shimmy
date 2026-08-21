@@ -1,6 +1,5 @@
 #!/bin/sh
-# Private target default-catalog state formats. No public command sources this
-# module before the control-surface cutover.
+# Immutable default-catalog state formats.
 
 SHIMMY_TARGET_CATALOG_REGISTRY_SCHEMA=1
 

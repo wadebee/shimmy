@@ -38,13 +38,12 @@ The registry-client resolver recognizes only canonical materialized profiles.
 It omits a mount when no Shimmy activation exists, returns the invoking
 profile's authoritative config for current Linux or Darwin state, and fails
 closed on sibling, damaged, unsafe, stale, or registry-overridden state.
-Version-2 clients additionally require the installation active record to name
-the invoking arbitrary profile. Private profile orchestration may supply the
-already-held target registry lock; ordinary public mutation still owns the
-adjacent version-1 lock directly.
+Clients require the installation active record to name the invoking arbitrary
+profile. Profile orchestration may supply an already-held registry lock;
+standalone redirect mutation owns the adjacent lock directly.
 Skopeo is the only initial consumer and mounts the result read-only at the
 same fixed container drop-in path; image verification inherits that behavior
-through its existing Skopeo runtime.
+through the active profile's Skopeo runtime.
 
 ## Parent context
 

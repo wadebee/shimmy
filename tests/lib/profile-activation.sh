@@ -181,10 +181,10 @@ test_lib_profile_activation_linux_registry_projection() {
   status_output=$(profile_activation_library_run default Linux status)
   assert_contains "$status_output" 'activation=active'
 
-  profile_activation_library_run upstream Linux status >/dev/null
-  upstream_config=$XDG_CONFIG_HOME_DIR/shimmy/profiles/upstream/registries.conf
-  profile_activation_library_run upstream Linux activate 0 0 0 >/dev/null
-  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$upstream_config"
+  profile_activation_library_run team-one Linux status >/dev/null
+  sibling_config=$XDG_CONFIG_HOME_DIR/shimmy/profiles/team-one/registries.conf
+  profile_activation_library_run team-one Linux activate 0 0 0 >/dev/null
+  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$sibling_config"
 
   FAKE_FAIL_LINUX_TARGET=$FAKE_ACTIVE_CONFIG
   set +e
@@ -193,7 +193,7 @@ test_lib_profile_activation_linux_registry_projection() {
   set -e
   [ "$rollback_status" -ne 0 ] || fail_test 'failed Linux validation unexpectedly committed an active link'
   assert_contains "$rollback_output" 'prior active profile restored'
-  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$upstream_config"
+  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$sibling_config"
   FAKE_FAIL_LINUX_TARGET=
 
   secret_registry_path=$SCENARIO_DIR/secret-registry-path
@@ -206,7 +206,7 @@ test_lib_profile_activation_linux_registry_projection() {
   [ "$override_status" -ne 0 ] || fail_test 'masking registry override unexpectedly allowed Linux activation'
   assert_contains "$override_output" 'CONTAINERS_REGISTRIES_CONF masks Shimmy registry activation'
   assert_not_contains "$override_output" "$secret_registry_path"
-  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$upstream_config"
+  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$sibling_config"
 
   export CONTAINERS_REGISTRIES_CONF_OVERRIDE=$secret_registry_path
   set +e
@@ -217,7 +217,7 @@ test_lib_profile_activation_linux_registry_projection() {
   [ "$override_status" -ne 0 ] || fail_test 'masking registry override file unexpectedly allowed Linux activation'
   assert_contains "$override_output" 'CONTAINERS_REGISTRIES_CONF_OVERRIDE masks Shimmy registry activation'
   assert_not_contains "$override_output" "$secret_registry_path"
-  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$upstream_config"
+  assert_equals "$(readlink "$FAKE_ACTIVE_LINK")" "$sibling_config"
 
   rm -f "$FAKE_ACTIVE_LINK"
   printf '%s\n' foreign > "$FAKE_ACTIVE_LINK"
@@ -305,7 +305,7 @@ test_lib_profile_activation_darwin_registry_projection() {
   stale_status=$?
   set -e
   [ "$stale_status" -ne 0 ] || fail_test 'stale running Darwin projection unexpectedly passed ordinary activation'
-  assert_contains "$stale_output" "'$XDG_CONFIG_HOME_DIR/shimmy/profiles/default/bin/shimmy' profile activate --restart"
+  assert_contains "$stale_output" "'$XDG_CONFIG_HOME_DIR/shimmy/profiles/default/bin/shimmy' profile activate default --restart"
   assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop'
 
   : > "$FAKE_PODMAN_LOG"
@@ -453,14 +453,14 @@ test_lib_profile_activation_recommendations() {
   FAKE_MACHINE_LIST='shimmy-default|false'
   recommendation_output=$(profile_activation_library_run default Darwin recommendation)
   assert_contains "$recommendation_output" 'action=profile_activate'
-  assert_contains "$recommendation_output" "action_command='$XDG_CONFIG_HOME_DIR/shimmy/profiles/default/bin/shimmy' profile activate"
+  assert_contains "$recommendation_output" "action_command='$XDG_CONFIG_HOME_DIR/shimmy/profiles/default/bin/shimmy' profile activate default"
 
   FAKE_MACHINE_LIST='shimmy-default|true'
   FAKE_DARWIN_PROJECTION_FINGERPRINT=0-0
   recommendation_output=$(profile_activation_library_run default Darwin recommendation)
   assert_contains "$recommendation_output" 'activation_label=registry restart required'
   assert_contains "$recommendation_output" 'action=profile_activate_restart'
-  assert_contains "$recommendation_output" "action_command='$XDG_CONFIG_HOME_DIR/shimmy/profiles/default/bin/shimmy' profile activate --restart"
+  assert_contains "$recommendation_output" "action_command='$XDG_CONFIG_HOME_DIR/shimmy/profiles/default/bin/shimmy' profile activate default --restart"
   FAKE_DARWIN_PROJECTION_FINGERPRINT=
 
   FAKE_MACHINE_LIST='podman-machine-default|true'

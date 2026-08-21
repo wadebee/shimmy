@@ -1,27 +1,14 @@
 # Podman runtime
 
-- `podman.sh` resolves Podman, normalizes supported Linux/Darwin host CPU
-  aliases to the native `linux/amd64` or `linux/arm64` image platform, exposes
-  that required-platform set, and owns preview, privileged-connection, and
-  installed Darwin profile-affinity checks. Real installed tool runs require
-  the invoking profile's rootless connection to be the reachable global
-  default and require a valid, current Darwin registry projection whose VM
-  link, rootless-visible fingerprint, and local record match the authoritative
-  profile config. Registry and connection overrides fail closed. Installed
-  affinity consumes the shared profile state reader and recommendation resolver
-  so recovery guidance uses the exact safe activation or restart command
-  without duplicating engine discovery. Version-2 arbitrary-name runtimes must
-  also match the mode-`0644` installation active record before engine
-  inspection; version-1 default/upstream affinity and source
-  previews retain their behavior. Successful Darwin registry affinity leaves
-  current-state evidence for the shared registry-client mount resolver so a
-  Skopeo run does not repeat remote projection inspection.
-- `image.sh` validates version-owned `image.conf` metadata, supplies configured
-  external defaults and local base-image build arguments, hashes complete local
-  image inputs, and removes stale tagged images after a version-owned rebuild.
-- `log.sh` provides shared runtime logging.
+`podman.sh` resolves Podman, normalizes supported Linux/Darwin CPU aliases to
+native `linux/amd64` or `linux/arm64`, owns preview/privileged behavior, and
+enforces schema-2 arbitrary-name installed-profile affinity. Darwin runs require
+the active record, deterministic rootless connection, and current registry
+projection; connection/registry overrides fail closed.
 
-Callers sourcing `image.sh` must set `SHIMMY_RUNTIME_DIR` to this directory so
-its sibling modules resolve correctly. Installed copies live in each
-materialized profile's `lib/runtime/` directory and do not depend on a shared
-payload.
+`image.sh` validates version-owned `image.conf`, supplies immutable external and
+local-build defaults, hashes complete local build inputs, and removes stale
+tagged images after rebuild. `log.sh` provides runtime logging.
+
+Installed copies are self-contained below each profile and do not depend on the
+source checkout. Source previews bypass installed-profile affinity.

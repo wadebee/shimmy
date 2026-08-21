@@ -148,20 +148,12 @@ shimmy_profile_activation_recommendation_resolve() {
     alternate_running|mismatched_default|ready|stopped)
       SHIMMY_PROFILE_RECOMMENDED_ACTION=profile_activate
       SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL='activate profile'
-      if [ "${SHIMMY_PROFILE_ACTIVATION_TARGET_REQUIRED:-0}" -eq 1 ]; then
-        SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate ${SHIMMY_PROFILE_NAME:-unknown}"
-      else
-        SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate"
-      fi
+      SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate ${SHIMMY_PROFILE_NAME:-unknown}"
       ;;
     registry_restart_required)
       SHIMMY_PROFILE_RECOMMENDED_ACTION=profile_activate_restart
       SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL='restart profile engine'
-      if [ "${SHIMMY_PROFILE_ACTIVATION_TARGET_REQUIRED:-0}" -eq 1 ]; then
-        SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate ${SHIMMY_PROFILE_NAME:-unknown} --restart"
-      else
-        SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate --restart"
-      fi
+      SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate ${SHIMMY_PROFILE_NAME:-unknown} --restart"
       ;;
     overridden)
       SHIMMY_PROFILE_RECOMMENDED_ACTION=unset_override
@@ -750,7 +742,7 @@ shimmy_profile_activate_darwin() {
         return 1
         ;;
       *)
-        printf "ERROR: Darwin registry projection for profile %s is missing, stale, or unverified; restart it with: '%s/bin/shimmy' profile activate --restart\n" "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_ROOT" >&2
+        printf "ERROR: Darwin registry projection for profile %s is missing, stale, or unverified; restart it with: '%s/bin/shimmy' profile activate %s --restart\n" "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" >&2
         return 1
         ;;
     esac

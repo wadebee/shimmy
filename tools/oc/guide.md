@@ -1,175 +1,68 @@
-# OpenShift CLI (oc) Multi-Version Shim
+# OpenShift CLI (`oc`)
 
-## Overview
+Shimmy exposes one public `oc` wrapper with retained concrete tracks `4.18`,
+`4.20`, and `4.22`. The catalog default is `4.20`; no concrete implementation
+commands are installed.
 
-The `oc` shim is the user-facing tool dispatcher for several concrete
-OpenShift CLI version shims. When no selector is set, `oc` dispatches to the
-catalog default version `oc_4_20`.
+## Install and select versions
 
-Supported minor tracks (initial set):
+```sh
+shimmy shim add oc
+shimmy shim add oc@4.18
+shimmy shim set-version oc@4.18
+shimmy shim list --format manifest
+shimmy shim sync oc
+shimmy shim test oc@4.18
+```
 
-- `4.18` → `oc_4_18`
-- `4.20` → `oc_4_20`
-- `4.22` → `oc_4_22`
-
-Future 5.x tracks can be added without changing the selector variable name.
-
-## Commands
-
-- `oc` - dispatcher that reads optional `SHIMMY_OC_VERSION` and execs the matching `oc_4_xx` shim.
-- `oc_4_18`, `oc_4_20`, `oc_4_22` – version-specific shims that run a locally built `ose-cli` image for the corresponding minor track.
-
-## Version Selection
-
-Shimmy uses a version-agnostic selector:
-
-- `SHIMMY_OC_VERSION` - optional, value is `major.minor` (for example, `4.18`, `4.20`, `4.22`).
-
-Dispatcher behavior:
-
-- If `SHIMMY_OC_VERSION` is unset or empty, `oc` uses the default `4.20` selector and execs `oc_4_20`.
-- If `SHIMMY_OC_VERSION` is set to an unsupported value, `oc` prints an error listing the supported values and exits non-zero.
-- For supported values, `oc` resolves the matching versioned shim in the same directory and `exec`s it.
-
-Example:
+An unqualified add is interactive and records tracking policy. An explicit
+first add is noninteractive and records pinned policy. Retained versions can
+also be selected per invocation:
 
 ```sh
 oc version
 SHIMMY_OC_VERSION=4.18 oc version
-oc get pods -A
 ```
 
-## Images, Local Builds, and Environment
+Unsupported or uninstalled selector values fail before Podman.
 
-Each minor track has its own image environment variables and local-build behavior:
+## Runtime
 
-- `oc_4_18`
-  - `SHIMMY_OC_4_18_IMAGE` – optional override. When set, the shim runs this image directly.
-  - `SHIMMY_OC_4_18_IMAGE_BUILD` – `auto` (default) or `always` when building the local image.
-  - `SHIMMY_OC_4_18_BASE_IMAGE` – optional base image override for local builds.
-- `oc_4_20`
-  - `SHIMMY_OC_4_20_IMAGE` – optional override.
-  - `SHIMMY_OC_4_20_IMAGE_BUILD` – `auto` (default) or `always`.
-  - `SHIMMY_OC_4_20_BASE_IMAGE` – optional base image override for local builds.
-- `oc_4_22`
-  - `SHIMMY_OC_4_22_IMAGE` – optional override.
-  - `SHIMMY_OC_4_22_IMAGE_BUILD` – `auto` (default) or `always`.
-  - `SHIMMY_OC_4_22_BASE_IMAGE` – optional base image override for local builds.
+Each track uses a version-owned local image based on the authenticated Red Hat
+`ose-cli-rhel9` multi-platform digest in its `image.conf`. The runtime mounts
+`$PWD` at `/work`, selects the native `linux/amd64` or `linux/arm64` platform,
+adds a TTY only when stdin and stdout are terminals, and forwards `KUBECONFIG`
+when set. It does not automatically mount `$HOME/.kube`; referenced paths must
+be reachable inside the container.
 
-When `SHIMMY_OC_4_xx_IMAGE` is **not** set, Shimmy uses a local image built from the corresponding version-local `container/Containerfile` context:
+Version-specific settings are:
 
-- `versions/4.18/container/Containerfile`
-- `versions/4.20/container/Containerfile`
-- `versions/4.22/container/Containerfile`
+- `SHIMMY_OC_4_18_IMAGE`, `SHIMMY_OC_4_18_IMAGE_BUILD`,
+  `SHIMMY_OC_4_18_IMAGE_PULL`, and `SHIMMY_OC_4_18_BASE_IMAGE`.
+- Equivalent `SHIMMY_OC_4_20_*` and `SHIMMY_OC_4_22_*` variables for those
+  tracks.
 
-Each version's `image.conf` selects the authenticated Red Hat base and passes
-it to the Containerfile as a required build argument. The defaults are
-publisher-supplied manifest-list digests rather than architecture-specific
-child manifests:
+Image and build-argument changes affect cache identity. A strict profile
+redirect may replace `registry.redhat.io`, but it is not a fallback and does
+not provide credentials, Red Hat signatures, corporate CA trust, or policy.
 
-- `SHIMMY_OC_4_18_BASE_IMAGE=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:16c25aadbd5f564a7c5f1508470f734d676a411b89bd98b307001619d1a5338f`
-- `SHIMMY_OC_4_20_BASE_IMAGE=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:61136a31003a378aae4039be61cfe10f3d2b60399f08a5325233826deb569383`
-- `SHIMMY_OC_4_22_BASE_IMAGE=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:83541f26b665963dea277a7f893725f4a1812b0550d07404f1429ed8da6b3bb2`
-
-You can override a base for the current build with the corresponding
-`SHIMMY_OC_4_xx_BASE_IMAGE` variable. Configuration and effective build
-arguments are part of cache identity, so an override selects a distinct cache
-without requiring `IMAGE_BUILD=always`; that option remains available for an
-explicit rebuild.
-
-For corporate, proxy, or air-gapped use, configure a strict profile redirect
-for `registry.redhat.io` and activate or restart that profile. Shimmy uses a
-replacement `location`, not a fallback-capable mirror: an unavailable physical
-endpoint or missing digest fails without contacting the public registry.
-Redirects do not install Red Hat signatures, registry credentials, corporate
-CA trust, or `policy.json`; copy images and signatures together and configure
-those trust inputs separately before relying on the local build.
-
-Runtime behavior for each versioned shim:
-
-- Uses Shimmy's shared Podman helper to select the native `linux/amd64` or
-  `linux/arm64` platform on supported Linux/macOS hosts.
-- Mounts `$PWD` to `/work` and sets `-w /work`.
-- Adds `-it` only when stdin and stdout are terminals.
-- Forwards `KUBECONFIG` into the container when it is set in the host environment.
-
-Note: The shim does **not** automatically mount `$HOME/.kube`. Ensure that any paths referenced by `KUBECONFIG` are reachable inside the container (for example, under the current working directory or via your own volume mounts).
-
-## Preview Mode
-
-All versioned shims support Shimmy's `--preview-shim` behavior via the shared Podman helper:
+## Validation
 
 ```sh
-oc --preview-shim version
-SHIMMY_OC_VERSION=4.18 oc --preview-shim version
+./commands/run-tool.sh oc --preview-shim version
+SHIMMY_OC_VERSION=4.18 ./commands/run-tool.sh oc --preview-shim version
+./tests/test.sh --group tools-oc
+shimmy catalog verify --tool oc@4.20
+shimmy shim test oc@4.20
 ```
 
-With `--preview-shim`, Shimmy prints the shell-quoted `podman run` command and exits without contacting the Podman engine, pulling images, or starting a container.
+Catalog verification of these authenticated bases requires an explicitly
+selected Skopeo auth secret. Native acceptance requires the version-owned
+`--help` smoke after a local build on Linux `amd64` and Apple Silicon macOS
+`arm64`.
 
-## Smoke Tests
+## Adding a track
 
-The dispatcher and each versioned shim have corresponding config files used by `shimmy test`:
-
-- `tool.conf`
-- `versions/4.18/smoke.conf`
-- `versions/4.20/smoke.conf`
-- `versions/4.22/smoke.conf`
-
-The dispatcher config uses preview mode and a non-secret selector pinned to the default track, so installed smoke tests can validate dispatch without contacting Podman:
-
-- `smoke_env=SHIMMY_OC_VERSION=4.20`
-- `smoke_arg=--preview-shim`
-- `smoke_arg=--help`
-
-The versioned configs use a single-token smoke command:
-
-- `smoke_arg=version`
-
-Examples:
-
-```sh
-. ./bootstrap.sh
-shimmy install --shim oc
-"${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" install --shim oc@4.18
-./tests/test.sh --shim oc
-./tests/test.sh --shim oc_4_20
-./tests/test.sh --shim oc_4_18
-./tests/test.sh --shim oc_4_22
-```
-
-## Installation and Profiles
-
-The oc shims are wired into Shimmy's catalog and installer:
-
-- Supported tool: `oc`.
-- Supported concrete versions: `oc_4_18`, `oc_4_20`, and `oc_4_22`.
-- Default version: `oc_4_20`.
-- `shimmy install --shim oc` installs the `oc` dispatcher and default `oc_4_20`.
-- `shimmy install --shim oc@4.18` installs the `oc` dispatcher, default `oc_4_20`, and selected `oc_4_18`.
-
-Examples:
-
-```sh
-# Bootstrap upstream with jq/rg, then add the default oc 4.20
-. ./bootstrap.sh --profile upstream
-shimmy install --shim oc
-
-# Install the 4.18 selector as an additional concrete version
-"${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy" install --shim oc@4.18
-
-# In the initialized upstream shell, an unset selector uses 4.20
-oc version
-SHIMMY_OC_VERSION=4.18 oc version
-```
-
-`shimmy status` reports `oc` as an installed tool, the default version, and each installed version label. `shimmy update --shim oc --build` refreshes the dispatcher and installed `oc_4_xx` local images for the invoking profile. `shimmy update --shim oc@4.18 --build` refreshes only the selected concrete version plus the required dispatcher.
-
-## Extending to New Tracks
-
-To add a new minor track in the future (for example, `5.1`):
-
-- Add a version directory such as `versions/5.1/` with its local-build configuration and `SHIMMY_OC_5_1_IMAGE` / `SHIMMY_OC_5_1_IMAGE_BUILD` env vars.
-- Add `versions/5.1/smoke.conf` with `shim_name=oc_5_1` and `smoke_arg=version`.
-- Extend the `oc` dispatcher to map `SHIMMY_OC_VERSION=5.1` to `oc_5_1`.
-- Update the catalog tool metadata, status, and update scripts to include the new concrete version.
-- Update `tool.conf` only if the metadata default or dispatcher smoke version should change.
+Add `versions/<major.minor>/` with `run.sh`, `refresh.sh`, `smoke.conf`,
+`image.conf`, and `container/Containerfile`. Extend catalog metadata only; do
+not add public implementation commands or shared implementation-name maps.

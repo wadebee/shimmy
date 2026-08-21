@@ -515,8 +515,10 @@ options, or catalog-qualified shim selectors.
   explicitly authorized for Chunk 10.
 - Current status, netinfo, startup, activation, redirects, uninstall, image, and
   smoke tests contain safeguards to preserve.
-- The retained suite baseline is 41 groups/159 tests and roughly nine minutes;
-  focused checks belong in each chunk and full runs at integration milestones.
+- The pre-cutover retained suite baseline was 41 groups/159 tests and roughly
+  nine minutes; Chunk 10 replaces it with the measured post-cutover baseline
+  recorded in the Chunk 10 evidence section. Focused checks belong in each
+  chunk and full runs at integration milestones.
 - Current guidance contains old command/profile terminology requiring
   classification; legitimate Git/image `upstream` language remains.
 - The worktree was clean when this revision began. Later sessions must recheck
@@ -557,9 +559,11 @@ None.
   invariant.
 - [x] Chunk 8 — Profile, bootstrap, and admin candidate lifecycles were
   accepted by the user's 2026-08-21 request to implement Chunk 9.
-- [~] Chunk 9 — Complete private target commands and end-to-end tests are
-  implemented and automatically verified; human acceptance is pending.
-- [ ] Chunk 10 — Perform atomic public cutover and primary documentation.
+- [x] Chunk 9 — Complete private target commands and end-to-end tests were
+  accepted by the user's 2026-08-21 request to implement Chunk 10.
+- [~] Chunk 10 — Atomic public cutover and primary documentation are
+  implemented and automatically verified; native acceptance and human review
+  remain pending.
 - [ ] Chunk 11 — Complete repository-wide cleanup and final acceptance.
 
 ## Execution protocol
@@ -1446,20 +1450,65 @@ primary guidance in one release boundary.
 
 ### Verification checklist
 
-- [ ] Target help/output and end-to-end lifecycle pass through final launcher.
-- [ ] Pristine bootstrap and failure cleanup satisfy target with jq/rg/Skopeo.
-- [ ] Inventory proves no version-1 profile parser/writer, unversioned registry
+- [x] Target help/output and end-to-end lifecycle pass through final launcher.
+- [x] Pristine bootstrap and failure cleanup satisfy target with jq/rg/Skopeo.
+- [x] Inventory proves no version-1 profile parser/writer, unversioned registry
   source type, implementation-name routing, old dispatch, external-catalog
   placeholder, copied target, or shadow route remains.
-- [ ] `.agents/skills/` is absent; `.agents/plugins/marketplace.json` remains.
-- [ ] Disposable-home tests prove exact collision overwrite and byte-preserve
+- [x] `.agents/skills/` is absent; `.agents/plugins/marketplace.json` remains.
+- [x] Disposable-home tests prove exact collision overwrite and byte-preserve
   unrelated skill names/root.
-- [ ] Primary guidance records main authority, catalog exclusion, overwrite
+- [x] Primary guidance records main authority, catalog exclusion, overwrite
   warning, and approval workflow.
-- [ ] All target groups and complete default suite pass.
+- [x] All target groups and complete default suite pass.
 - [ ] Native Podman acceptance uses disposable config/home and pre-existing
   machines; capture before/after engine, workload, registry, active, profile,
   catalog, bundle, and link state. Mark `[~]` only for reviewer-approved deferral.
+
+### Chunk 10 evidence
+
+- Public bootstrap, final grouped commands, launcher template, schema-2
+  producers/consumers, immutable default catalog, arbitrary-name profiles,
+  profile-local shims, direct AI-skill links, and grouped help are canonical.
+  Legacy commands, version-1/unversioned readers and writers, implementation
+  routing, copied/exported skills, target-named files, old fixtures, and shadow
+  routes are removed.
+- Repository `.agents/skills/` is absent and
+  `.agents/plugins/marketplace.json` is preserved. Disposable lifecycle tests
+  replace exact bundle-declared collisions and preserve unrelated user skill
+  bytes and the containing skill root.
+- Focused runtime/activation/registry/profile/surface verification passed 26
+  tests. Focused catalog/lifecycle verification passed 5 tests in about
+  17 minutes 38 seconds. A test-only fixture helper omitted during promotion
+  was moved to the canonical catalog test before that successful run.
+- The first timed complete run exposed one stale test variable after the final
+  fixed-name fixture was renamed. It ran for `real 1244.86`, `user 819.87`,
+  `sys 1341.08` seconds; the corrected `lib-profile-activation` group then
+  passed 7 tests in `real 10.42` seconds.
+- The clean default three-worker suite passed all 115 tests with runner total
+  `1287` seconds and `/usr/bin/time -p` values `real 1294.46`, `user 1112.42`,
+  and `sys 1876.22` seconds. This 21-minute-34.46-second clean run is the
+  post-cutover baseline for future chunks.
+
+### Chunk 10 timing baseline
+
+The dominant clean-run group timings were:
+
+| Group | Seconds | Approximate wall time |
+|---|---:|---:|
+| `commands-lifecycle` | 1151 | 19m 11s |
+| `commands-shim` | 735 | 12m 15s |
+| `commands-profile` | 647 | 10m 47s |
+| `lib-catalog` | 252 | 4m 12s |
+| `commands-catalog` | 131 | 2m 11s |
+| `commands-ai-skill` | 123 | 2m 03s |
+
+Use roughly 22 minutes as the current clean parallel-suite planning baseline,
+not the former roughly nine-minute value. Focused lifecycle/catalog work can
+also take about 18 minutes. Preserve the default three-worker schedule; group
+times overlap and therefore must not be summed to estimate total wall time.
+Native disposable-home/machine acceptance remains unexecuted and has not been
+marked as reviewer-deferred.
 
 ### Human review gate
 
@@ -1792,6 +1841,36 @@ completes this redesign, not external catalogs or release channels.
   target primitives, so blind file deletion would remove accepted behavior;
   split or prune those producers and consumers in the same Chunk 10 review
   unit.
+- Minimize verification to the behavior changed at each edit: run only the
+  directly affected focused groups while iterating, then one complete default
+  suite at the chunk gate. Do not run an aggregate target matrix immediately
+  before a complete suite that already contains those same target groups unless
+  a distinct failure requires that isolation; rerun only failed or changed
+  groups before the final gate run.
+- When a selected acceptance suite is known to include live Shimmy-wrapper
+  smokes, invoke the actual suite with outer-command Podman escalation on the
+  first attempt. Do not spend a full sandboxed run proving the already-known
+  nested engine restriction, and do not substitute a preliminary Podman smoke
+  for the real test operation. Preserve default bounded parallel execution and
+  use serial runs only to diagnose demonstrated order sensitivity.
+
+### Chunk 10
+
+- Restrict installed control payloads by explicit file inventory. Copying the
+  checkout's entire `commands/` directory silently retains source-only
+  bootstrap, preflight, and preview entrypoints even when the launcher cannot
+  dispatch them.
+- Promoting a test group requires promoting every fixture helper it owns.
+  Removing an obsolete command test file without moving its still-current
+  catalog fixture writer can pass earlier focused groups and fail only at the
+  lifecycle gate.
+- Activation remediation is part of the public grammar. Once activation
+  requires a profile name, every status recommendation, registry restart,
+  detach message, canonical skill, and assertion must render that name.
+- The post-cutover suite is dominated by complete materialization and catalog
+  validation. Future chunks should budget roughly 22 minutes for a clean
+  default run and roughly 18 minutes for focused lifecycle/catalog coverage,
+  then use the recorded group timings to choose focused gates.
 
 ## Session bootstrap
 
@@ -1805,8 +1884,10 @@ conditional on dry-run retaining read/classification semantics without any
 persistent filesystem, engine, registry, startup, active-record, or user-link
 change; the implemented activation, redirect, and create paths maintain that
 invariant. Chunk 8 was accepted by the user's 2026-08-21 request to implement
-Chunk 9. Chunk 9 is implemented and automatically verified and awaits its human
-review gate. Do not start Chunk 10 without explicit acceptance. The implemented
+Chunk 9. Chunk 9 was accepted by the user's 2026-08-21 request to implement
+Chunk 10. Chunk 10 is implemented and automatically verified and awaits native
+acceptance and its human review gate. Do not start Chunk 11 without explicit
+acceptance. The implemented
 version-2 manifest uses `shim=<tool>|<tracking|pinned>`, exactly one authoritative
 `shim_version=<tool>|<version>|default` record, and zero or more non-default
 pinned `exact` records per shim. Resolve concrete runtimes directly from the

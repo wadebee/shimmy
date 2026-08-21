@@ -2,19 +2,10 @@
 # Named catalog resolution, schema-1 validation, and metadata discovery.
 
 SHIMMY_CATALOG_ACCEPTED_SCHEMA=1
-SHIMMY_CATALOG_AUTHORITY_ROOT=
 SHIMMY_CATALOG_CONTENT_FINGERPRINT=
 SHIMMY_CATALOG_ERROR=
-SHIMMY_CATALOG_GENERATION=
-SHIMMY_CATALOG_GENERATION_PREVIOUS=
 SHIMMY_CATALOG_HEALTH=unknown
-SHIMMY_CATALOG_NAME=
-SHIMMY_CATALOG_REGISTRY_FILE=
 SHIMMY_CATALOG_SCHEMA=
-SHIMMY_CATALOG_SOURCE_COMMIT=
-SHIMMY_CATALOG_SOURCE_PATH=
-SHIMMY_CATALOG_SOURCE_TYPE=
-SHIMMY_CATALOG_TOOLS_DIR=
 
 shimmy__catalog_config_key_count() {
   catalog_config_file=$1
@@ -60,32 +51,6 @@ shimmy__catalog_config_value_read() {
   catalog_config_key=$2
 
   awk -F= -v key="$catalog_config_key" '$1 == key { print substr($0, length($1) + 2); exit }' "$catalog_config_file"
-}
-
-shimmy__catalog_generation_metadata_validate() {
-  catalog_generation_root=$1
-  catalog_generation_file=$catalog_generation_root/generation.conf
-  catalog_generation_allowed_keys='catalog_source_commit
-catalog_content_fingerprint'
-
-  [ -f "$catalog_generation_file" ] && [ ! -L "$catalog_generation_file" ] || {
-    shimmy_catalog_error_set "invalid catalog generation: missing regular metadata file $catalog_generation_file"
-    return 1
-  }
-  shimmy__catalog_config_keys_validate "$catalog_generation_file" "$catalog_generation_allowed_keys" || return 1
-  shimmy__catalog_config_scalar_require "$catalog_generation_file" catalog_source_commit || return 1
-  shimmy__catalog_config_scalar_require "$catalog_generation_file" catalog_content_fingerprint || return 1
-
-  catalog_generation_commit=$(shimmy__catalog_config_value_read "$catalog_generation_file" catalog_source_commit)
-  shimmy_catalog_git_commit_validate "$catalog_generation_commit" || {
-    shimmy_catalog_error_set "invalid catalog generation metadata $catalog_generation_file: catalog_source_commit must be a Git object ID"
-    return 1
-  }
-  catalog_generation_fingerprint=$(shimmy__catalog_config_value_read "$catalog_generation_file" catalog_content_fingerprint)
-  shimmy_catalog_fingerprint_validate "$catalog_generation_fingerprint" || {
-    shimmy_catalog_error_set "invalid catalog generation metadata $catalog_generation_file: catalog_content_fingerprint must be sha256:<64-lowercase-hex>"
-    return 1
-  }
 }
 
 shimmy__catalog_hash_file() {
@@ -196,58 +161,6 @@ shimmy__catalog_skill_file_validate() {
   }
 }
 
-shimmy__catalog_registry_file_validate() {
-  catalog_registry_file=$1
-  catalog_expected_name=$2
-  catalog_registry_common_keys='catalog_name
-catalog_source_type'
-
-  [ -f "$catalog_registry_file" ] && [ ! -L "$catalog_registry_file" ] || {
-    shimmy_catalog_error_set "missing catalog registry entry: $catalog_registry_file"
-    return 1
-  }
-  [ "$(shimmy__catalog_config_key_count "$catalog_registry_file" catalog_source_type)" -eq 1 ] || {
-    shimmy_catalog_error_set "invalid catalog registry $catalog_registry_file: catalog_source_type is required exactly once"
-    return 1
-  }
-  catalog_registry_source_type=$(shimmy__catalog_config_value_read "$catalog_registry_file" catalog_source_type)
-  case "$catalog_registry_source_type" in
-    checkout)
-      catalog_registry_allowed_keys="$catalog_registry_common_keys
-catalog_source_path"
-      ;;
-    generation)
-      catalog_registry_allowed_keys="$catalog_registry_common_keys
-catalog_generation_current
-catalog_generation_previous
-catalog_source_commit
-catalog_content_fingerprint"
-      ;;
-    *)
-      shimmy_catalog_error_set "invalid catalog registry $catalog_registry_file: catalog_source_type must equal checkout or generation"
-      return 1
-      ;;
-  esac
-
-  shimmy__catalog_config_keys_validate "$catalog_registry_file" "$catalog_registry_allowed_keys" || return 1
-  for catalog_registry_key in $catalog_registry_allowed_keys; do
-    shimmy__catalog_config_scalar_require "$catalog_registry_file" "$catalog_registry_key" || return 1
-  done
-
-  catalog_registry_name=$(shimmy__catalog_config_value_read "$catalog_registry_file" catalog_name)
-  shimmy_catalog_name_validate "$catalog_registry_name" || {
-    shimmy_catalog_error_set "invalid catalog registry $catalog_registry_file: unsafe catalog_name $catalog_registry_name"
-    return 1
-  }
-  [ "$catalog_registry_name" = "$catalog_expected_name" ] || {
-    shimmy_catalog_error_set "catalog registry name mismatch: profile requested $catalog_expected_name but $catalog_registry_file records $catalog_registry_name"
-    return 1
-  }
-
-  SHIMMY_CATALOG_NAME=$catalog_registry_name
-  SHIMMY_CATALOG_SOURCE_TYPE=$catalog_registry_source_type
-}
-
 shimmy__catalog_tool_validate() {
   catalog_tool_dir=$1
   catalog_tool_name=$(basename -- "$catalog_tool_dir")
@@ -260,7 +173,7 @@ smoke_env
 smoke_arg'
   catalog_tool_scalar_keys='shim_config_version shim_name tool_default_version tool_selector_env'
 
-  shimmy_tool_name_validate "$catalog_tool_name" || {
+  shimmy_name_component_validate "$catalog_tool_name" || {
     shimmy_catalog_error_set "invalid catalog tool directory name: $catalog_tool_name"
     return 1
   }
@@ -323,10 +236,9 @@ shimmy__catalog_version_validate() {
   catalog_version_label=$(basename -- "$catalog_version_dir")
   catalog_version_smoke_file=$catalog_version_dir/smoke.conf
   catalog_version_allowed_keys='shim_config_version
-shim_name
 smoke_env
 smoke_arg'
-  catalog_version_scalar_keys='shim_config_version shim_name'
+  catalog_version_scalar_keys='shim_config_version'
 
   shimmy_version_token_validate "$catalog_version_label" || {
     shimmy_catalog_error_set "invalid catalog version label for $catalog_version_tool: $catalog_version_label"
@@ -347,7 +259,6 @@ smoke_arg'
 
   shimmy__catalog_metadata_keys_validate "$catalog_version_smoke_file" "$catalog_version_allowed_keys" "$catalog_version_scalar_keys" || return 1
   shimmy__catalog_config_scalar_require "$catalog_version_smoke_file" shim_config_version || return 1
-  shimmy__catalog_config_scalar_require "$catalog_version_smoke_file" shim_name || return 1
   [ "$(shimmy__catalog_config_value_read "$catalog_version_smoke_file" shim_config_version)" = 1 ] || {
     shimmy_catalog_error_set "invalid catalog version $catalog_version_tool@$catalog_version_label: shim_config_version must equal 1"
     return 1
@@ -356,17 +267,6 @@ smoke_arg'
     shimmy_catalog_error_set "invalid catalog version $catalog_version_tool@$catalog_version_label: smoke_arg is required"
     return 1
   }
-  catalog_version_name=$(shimmy__catalog_config_value_read "$catalog_version_smoke_file" shim_name)
-  shimmy_version_token_validate "$catalog_version_name" || {
-    shimmy_catalog_error_set "invalid catalog version $catalog_version_tool@$catalog_version_label: unsafe shim_name $catalog_version_name"
-    return 1
-  }
-  if shimmy_contains_line_list "$SHIMMY_CATALOG_VERSION_NAMES_SEEN" "$catalog_version_name"; then
-    shimmy_catalog_error_set "invalid catalog payload: duplicate logical concrete version $catalog_version_name"
-    return 1
-  fi
-  SHIMMY_CATALOG_VERSION_NAMES_SEEN=$(shimmy_append_line_list "$SHIMMY_CATALOG_VERSION_NAMES_SEEN" "$catalog_version_name")
-
   if ! catalog_image_error=$(shimmy_image_config_validate "$catalog_version_dir/image.conf" 2>&1); then
     shimmy_catalog_error_set "invalid catalog version $catalog_version_tool@$catalog_version_label: $catalog_image_error"
     return 1
@@ -379,49 +279,6 @@ smoke_arg'
       return 1
     }
   fi
-}
-
-shimmy__tool_dir() {
-  tool_name=$1
-  [ -n "$SHIMMY_CATALOG_TOOLS_DIR" ] || return 1
-  printf '%s/%s\n' "$SHIMMY_CATALOG_TOOLS_DIR" "$tool_name"
-}
-
-shimmy__tool_metadata_read() {
-  tool_file=$1
-  key=$2
-
-  sed -n "s/^${key}=//p" "$tool_file" | sed -n '1p'
-}
-
-shimmy__version_name_read() {
-  version_dir=$1
-
-  shimmy__tool_metadata_read "$version_dir/smoke.conf" shim_name
-}
-
-shimmy_catalog_checkout_resolve() {
-  catalog_checkout_root=$1
-  catalog_checkout_name=${2:-upstream}
-
-  shimmy_catalog_state_reset
-  shimmy_catalog_name_validate "$catalog_checkout_name" || {
-    shimmy_catalog_error_set "unsafe catalog name: $catalog_checkout_name"
-    return 1
-  }
-  catalog_checkout_root=$(shimmy_resolve_path_absolute "$catalog_checkout_root") || {
-    shimmy_catalog_error_set "unable to resolve catalog checkout: $1"
-    return 1
-  }
-  SHIMMY_CATALOG_NAME=$catalog_checkout_name
-  SHIMMY_CATALOG_SOURCE_TYPE=checkout
-  SHIMMY_CATALOG_SOURCE_PATH=$catalog_checkout_root
-  shimmy_catalog_payload_validate "$catalog_checkout_root" "$catalog_checkout_name" || return 1
-  SHIMMY_CATALOG_AUTHORITY_ROOT=$catalog_checkout_root
-  SHIMMY_CATALOG_TOOLS_DIR=$catalog_checkout_root/tools
-  SHIMMY_CATALOG_CONTENT_FINGERPRINT=$(shimmy_catalog_fingerprint_render "$catalog_checkout_root") || return 1
-  SHIMMY_CATALOG_SOURCE_COMMIT=$(shimmy_catalog_git_head_read "$catalog_checkout_root" || true)
-  SHIMMY_CATALOG_HEALTH=ok
 }
 
 shimmy_catalog_error_set() {
@@ -460,56 +317,6 @@ shimmy_catalog_fingerprint_render() {
   printf 'sha256:%s\n' "$catalog_fingerprint_hash"
 }
 
-shimmy_catalog_fingerprint_validate() {
-  catalog_fingerprint_value=$1
-  case "$catalog_fingerprint_value" in sha256:*) ;; *) return 1 ;; esac
-  catalog_fingerprint_hash=${catalog_fingerprint_value#sha256:}
-  [ "${#catalog_fingerprint_hash}" -eq 64 ] || return 1
-  case "$catalog_fingerprint_hash" in *[!0-9a-f]*) return 1 ;; esac
-}
-
-shimmy_catalog_generation_name_render() {
-  catalog_generation_fingerprint=$1
-  shimmy_catalog_fingerprint_validate "$catalog_generation_fingerprint" || return 1
-  printf 'sha256-%s\n' "${catalog_generation_fingerprint#sha256:}"
-}
-
-shimmy_catalog_generation_name_validate() {
-  catalog_generation_name=$1
-  case "$catalog_generation_name" in sha256-*) ;; *) return 1 ;; esac
-  catalog_generation_hash=${catalog_generation_name#sha256-}
-  [ "${#catalog_generation_hash}" -eq 64 ] || return 1
-  case "$catalog_generation_hash" in *[!0-9a-f]*) return 1 ;; esac
-}
-
-shimmy_catalog_git_commit_validate() {
-  catalog_git_commit=$1
-  case "${#catalog_git_commit}" in 40|64) ;; *) return 1 ;; esac
-  case "$catalog_git_commit" in *[!0-9a-f]*) return 1 ;; esac
-}
-
-shimmy_catalog_git_head_read() {
-  catalog_git_root=$1
-  command -v git >/dev/null 2>&1 || return 1
-  git -C "$catalog_git_root" rev-parse --verify HEAD 2>/dev/null
-}
-
-shimmy_catalog_name_validate() {
-  case "${1:-}" in
-    ''|-*|*--*|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) return 1 ;;
-    *) return 0 ;;
-  esac
-}
-
-shimmy_catalog_path_parent_chain_validate() {
-  catalog_path_value=$1
-  case "$catalog_path_value" in /*) ;; *) return 1 ;; esac
-  while [ "$catalog_path_value" != / ]; do
-    [ ! -L "$catalog_path_value" ] || return 1
-    catalog_path_value=$(dirname -- "$catalog_path_value")
-  done
-}
-
 shimmy_catalog_payload_validate() {
   catalog_payload_root=$1
   catalog_payload_name=${2:-unknown}
@@ -522,7 +329,7 @@ catalog_schema'
     shimmy_catalog_error_set "catalog $catalog_payload_name authority is unavailable: $catalog_payload_root"
     return 1
   }
-  shimmy_catalog_path_parent_chain_validate "$catalog_payload_root" || {
+  shimmy_path_parent_chain_validate "$catalog_payload_root" || {
     shimmy_catalog_error_set "catalog $catalog_payload_name authority has a symbolic-link path component: $catalog_payload_root"
     return 1
   }
@@ -579,7 +386,6 @@ shimmy-tool-local-build'
     . "$SHIMMY_RUNTIME_DIR/image.sh"
   fi
 
-  SHIMMY_CATALOG_VERSION_NAMES_SEEN=
   catalog_payload_tool_count=0
   for catalog_tool_entry in "$catalog_payload_root"/tools/*; do
     [ -e "$catalog_tool_entry" ] || continue
@@ -595,284 +401,4 @@ shimmy-tool-local-build'
     return 1
   }
   SHIMMY_CATALOG_SCHEMA=$catalog_payload_schema
-}
-
-shimmy_catalog_profile_resolve() {
-  catalog_profile_manifest=$1
-  catalog_config_root=$2
-
-  shimmy_catalog_state_reset
-  [ -f "$catalog_profile_manifest" ] || {
-    shimmy_catalog_error_set "missing profile manifest for catalog resolution: $catalog_profile_manifest"
-    return 1
-  }
-  [ "$(shimmy__catalog_config_key_count "$catalog_profile_manifest" catalog)" -eq 1 ] || {
-    shimmy_catalog_error_set "profile manifest must record catalog exactly once: $catalog_profile_manifest"
-    return 1
-  }
-  catalog_profile_name=$(shimmy__catalog_config_value_read "$catalog_profile_manifest" catalog)
-  shimmy_catalog_name_validate "$catalog_profile_name" || {
-    shimmy_catalog_error_set "profile manifest records unsafe catalog name: $catalog_profile_name"
-    return 1
-  }
-  [ "$(shimmy__catalog_config_key_count "$catalog_profile_manifest" shimmy_profile_name)" -eq 1 ] || {
-    shimmy_catalog_error_set "profile manifest must record shimmy_profile_name exactly once for catalog resolution: $catalog_profile_manifest"
-    return 1
-  }
-  catalog_profile_identity=$(shimmy__catalog_config_value_read "$catalog_profile_manifest" shimmy_profile_name)
-  [ "$catalog_profile_name" = "$catalog_profile_identity" ] || {
-    shimmy_catalog_error_set "profile $catalog_profile_identity must bind the fixed $catalog_profile_identity catalog, not $catalog_profile_name"
-    return 1
-  }
-  shimmy_catalog_registry_resolve "$catalog_config_root" "$catalog_profile_name"
-}
-
-shimmy_catalog_registry_resolve() {
-  catalog_config_root=$1
-  catalog_registry_name=$2
-
-  shimmy_catalog_state_reset
-  shimmy_catalog_name_validate "$catalog_registry_name" || {
-    shimmy_catalog_error_set "unsafe catalog name: $catalog_registry_name"
-    return 1
-  }
-  case "$catalog_config_root" in /*) ;; *) shimmy_catalog_error_set "catalog configuration root must be absolute: $catalog_config_root"; return 1 ;; esac
-  shimmy_catalog_path_parent_chain_validate "$catalog_config_root" || {
-    shimmy_catalog_error_set "catalog configuration root has a symbolic-link path component: $catalog_config_root"
-    return 1
-  }
-
-  catalog_registry_dir=$catalog_config_root/catalogs/$catalog_registry_name
-  catalog_registry_file=$catalog_registry_dir/registry.conf
-  SHIMMY_CATALOG_REGISTRY_FILE=$catalog_registry_file
-  shimmy_catalog_path_parent_chain_validate "$catalog_registry_dir" || {
-    shimmy_catalog_error_set "catalog registry path has a symbolic-link component: $catalog_registry_dir"
-    return 1
-  }
-  shimmy__catalog_registry_file_validate "$catalog_registry_file" "$catalog_registry_name" || return 1
-
-  case "$SHIMMY_CATALOG_SOURCE_TYPE" in
-    checkout)
-      catalog_registry_source_path=$(shimmy__catalog_config_value_read "$catalog_registry_file" catalog_source_path)
-      case "$catalog_registry_source_path" in /*) ;; *) shimmy_catalog_error_set "catalog $catalog_registry_name records a relative checkout path: $catalog_registry_source_path"; return 1 ;; esac
-      catalog_registry_source_real=$(shimmy_resolve_path_absolute "$catalog_registry_source_path") || {
-        shimmy_catalog_error_set "catalog $catalog_registry_name checkout is unavailable: $catalog_registry_source_path"
-        return 1
-      }
-      [ "$catalog_registry_source_real" = "$catalog_registry_source_path" ] || {
-        shimmy_catalog_error_set "catalog $catalog_registry_name checkout must be a canonical non-symlink path: $catalog_registry_source_path"
-        return 1
-      }
-      SHIMMY_CATALOG_SOURCE_PATH=$catalog_registry_source_path
-      shimmy_catalog_payload_validate "$catalog_registry_source_path" "$catalog_registry_name" || return 1
-      SHIMMY_CATALOG_SOURCE_COMMIT=$(shimmy_catalog_git_head_read "$catalog_registry_source_path" || true)
-      shimmy_catalog_git_commit_validate "$SHIMMY_CATALOG_SOURCE_COMMIT" || {
-        shimmy_catalog_error_set "catalog $catalog_registry_name checkout is not a Git worktree with a readable HEAD: $catalog_registry_source_path"
-        return 1
-      }
-      SHIMMY_CATALOG_AUTHORITY_ROOT=$catalog_registry_source_path
-      SHIMMY_CATALOG_CONTENT_FINGERPRINT=$(shimmy_catalog_fingerprint_render "$catalog_registry_source_path") || return 1
-      ;;
-    generation)
-      catalog_registry_generation=$(shimmy__catalog_config_value_read "$catalog_registry_file" catalog_generation_current)
-      shimmy_catalog_generation_name_validate "$catalog_registry_generation" || {
-        shimmy_catalog_error_set "catalog $catalog_registry_name records an unsafe current generation: $catalog_registry_generation"
-        return 1
-      }
-      catalog_registry_previous=$(shimmy__catalog_config_value_read "$catalog_registry_file" catalog_generation_previous)
-      if [ -n "$catalog_registry_previous" ]; then
-        shimmy_catalog_generation_name_validate "$catalog_registry_previous" || {
-          shimmy_catalog_error_set "catalog $catalog_registry_name records an unsafe previous generation: $catalog_registry_previous"
-          return 1
-        }
-        [ "$catalog_registry_previous" != "$catalog_registry_generation" ] || {
-          shimmy_catalog_error_set "catalog $catalog_registry_name current and previous generations must differ"
-          return 1
-        }
-      fi
-      catalog_registry_commit=$(shimmy__catalog_config_value_read "$catalog_registry_file" catalog_source_commit)
-      shimmy_catalog_git_commit_validate "$catalog_registry_commit" || {
-        shimmy_catalog_error_set "catalog $catalog_registry_name records an invalid source commit: $catalog_registry_commit"
-        return 1
-      }
-      catalog_registry_fingerprint=$(shimmy__catalog_config_value_read "$catalog_registry_file" catalog_content_fingerprint)
-      shimmy_catalog_fingerprint_validate "$catalog_registry_fingerprint" || {
-        shimmy_catalog_error_set "catalog $catalog_registry_name records an invalid content fingerprint: $catalog_registry_fingerprint"
-        return 1
-      }
-      [ "$(shimmy_catalog_generation_name_render "$catalog_registry_fingerprint")" = "$catalog_registry_generation" ] || {
-        shimmy_catalog_error_set "catalog $catalog_registry_name generation does not match its content fingerprint"
-        return 1
-      }
-      catalog_current_generation_root=$catalog_registry_dir/generations/$catalog_registry_generation
-      shimmy_catalog_payload_validate "$catalog_current_generation_root" "$catalog_registry_name" || return 1
-      shimmy__catalog_generation_metadata_validate "$catalog_current_generation_root" || return 1
-      catalog_generation_fingerprint=$(shimmy__catalog_config_value_read "$catalog_current_generation_root/generation.conf" catalog_content_fingerprint)
-      [ "$catalog_generation_fingerprint" = "$catalog_registry_fingerprint" ] || {
-        shimmy_catalog_error_set "catalog $catalog_registry_name generation metadata fingerprint does not match its registry"
-        return 1
-      }
-      catalog_resolved_fingerprint=$(shimmy_catalog_fingerprint_render "$catalog_current_generation_root") || return 1
-      [ "$catalog_resolved_fingerprint" = "$catalog_registry_fingerprint" ] || {
-        shimmy_catalog_error_set "catalog $catalog_registry_name generation content fingerprint mismatch: $catalog_registry_generation"
-        return 1
-      }
-      if [ -n "$catalog_registry_previous" ]; then
-        catalog_previous_root=$catalog_registry_dir/generations/$catalog_registry_previous
-        shimmy_catalog_payload_validate "$catalog_previous_root" "$catalog_registry_name previous generation" || return 1
-        shimmy__catalog_generation_metadata_validate "$catalog_previous_root" || return 1
-        catalog_previous_fingerprint=$(shimmy__catalog_config_value_read "$catalog_previous_root/generation.conf" catalog_content_fingerprint)
-        [ "$(shimmy_catalog_generation_name_render "$catalog_previous_fingerprint")" = "$catalog_registry_previous" ] || {
-          shimmy_catalog_error_set "catalog $catalog_registry_name previous generation metadata does not match its name: $catalog_registry_previous"
-          return 1
-        }
-        catalog_previous_resolved_fingerprint=$(shimmy_catalog_fingerprint_render "$catalog_previous_root") || return 1
-        [ "$catalog_previous_resolved_fingerprint" = "$catalog_previous_fingerprint" ] || {
-          shimmy_catalog_error_set "catalog $catalog_registry_name previous generation content fingerprint mismatch: $catalog_registry_previous"
-          return 1
-        }
-      fi
-      SHIMMY_CATALOG_AUTHORITY_ROOT=$catalog_current_generation_root
-      SHIMMY_CATALOG_CONTENT_FINGERPRINT=$catalog_registry_fingerprint
-      SHIMMY_CATALOG_GENERATION=$catalog_registry_generation
-      SHIMMY_CATALOG_GENERATION_PREVIOUS=$catalog_registry_previous
-      SHIMMY_CATALOG_SOURCE_COMMIT=$catalog_registry_commit
-      SHIMMY_CATALOG_SOURCE_PATH=$catalog_current_generation_root
-      ;;
-  esac
-
-  SHIMMY_CATALOG_TOOLS_DIR=$SHIMMY_CATALOG_AUTHORITY_ROOT/tools
-  SHIMMY_CATALOG_HEALTH=ok
-}
-
-shimmy_catalog_state_reset() {
-  SHIMMY_CATALOG_AUTHORITY_ROOT=
-  SHIMMY_CATALOG_CONTENT_FINGERPRINT=
-  SHIMMY_CATALOG_ERROR=
-  SHIMMY_CATALOG_GENERATION=
-  SHIMMY_CATALOG_GENERATION_PREVIOUS=
-  SHIMMY_CATALOG_HEALTH=unknown
-  SHIMMY_CATALOG_NAME=
-  SHIMMY_CATALOG_REGISTRY_FILE=
-  SHIMMY_CATALOG_SCHEMA=
-  SHIMMY_CATALOG_SOURCE_COMMIT=
-  SHIMMY_CATALOG_SOURCE_PATH=
-  SHIMMY_CATALOG_SOURCE_TYPE=
-  SHIMMY_CATALOG_TOOLS_DIR=
-}
-
-shimmy_is_version() {
-  shimmy_tool_version_tool "$1" >/dev/null 2>&1
-}
-
-shimmy_tool_exists() {
-  [ -f "$(shimmy__tool_dir "$1")/tool.conf" ]
-}
-
-shimmy_tool_list() {
-  [ -n "$SHIMMY_CATALOG_TOOLS_DIR" ] || return 1
-  for tool_file in "$SHIMMY_CATALOG_TOOLS_DIR"/*/tool.conf; do
-    [ -f "$tool_file" ] || continue
-    basename "$(dirname "$tool_file")"
-  done | sort
-}
-
-shimmy_tool_name_validate() {
-  case "${1:-}" in
-    ''|-*|*--*|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) return 1 ;;
-    *) return 0 ;;
-  esac
-}
-
-shimmy_tool_selector_env() {
-  tool_name=$1
-  tool_file=$(shimmy__tool_dir "$tool_name")/tool.conf
-  [ -f "$tool_file" ] || return 1
-  shimmy__tool_metadata_read "$tool_file" tool_selector_env
-}
-
-shimmy_tool_version_default() {
-  tool_name=$1
-  tool_file=$(shimmy__tool_dir "$tool_name")/tool.conf
-  default_label=$(shimmy__tool_metadata_read "$tool_file" tool_default_version)
-
-  shimmy_tool_version_label_resolve "$tool_name" "$default_label"
-}
-
-shimmy_tool_version_label_list() {
-  tool_name=$1
-
-  for version_dir in "$(shimmy__tool_dir "$tool_name")"/versions/*; do
-    [ -d "$version_dir" ] || continue
-    basename "$version_dir"
-  done | sort
-}
-
-shimmy_tool_version_label_resolve() {
-  tool_name=$1
-  version_label=$2
-  version_dir=$(shimmy__tool_dir "$tool_name")/versions/$version_label
-
-  [ -d "$version_dir" ] || return 1
-  shimmy__version_name_read "$version_dir"
-}
-
-shimmy_tool_version_list() {
-  tool_name=$1
-
-  for version_label in $(shimmy_tool_version_label_list "$tool_name"); do
-    shimmy_tool_version_label_resolve "$tool_name" "$version_label"
-  done
-}
-
-shimmy_tool_version_tool() {
-  version_name=$1
-
-  for tool_name in $(shimmy_tool_list); do
-    for version_name_current in $(shimmy_tool_version_list "$tool_name"); do
-      if [ "$version_name_current" = "$version_name" ]; then
-        printf '%s\n' "$tool_name"
-        return 0
-      fi
-    done
-  done
-
-  return 1
-}
-
-shimmy_version_dir() {
-  version_name=$1
-  tool_name=$(shimmy_tool_version_tool "$version_name") || return 1
-  version_label=$(shimmy_version_label "$version_name") || return 1
-
-  printf '%s/%s/versions/%s\n' "$SHIMMY_CATALOG_TOOLS_DIR" "$tool_name" "$version_label"
-}
-
-shimmy_version_image_config_file() {
-  version_name=$1
-  version_dir=$(shimmy_version_dir "$version_name") || return 1
-
-  printf '%s/image.conf\n' "$version_dir"
-}
-
-shimmy_version_label() {
-  version_name=$1
-
-  for tool_name in $(shimmy_tool_list); do
-    for version_label in $(shimmy_tool_version_label_list "$tool_name"); do
-      if [ "$(shimmy_tool_version_label_resolve "$tool_name" "$version_label")" = "$version_name" ]; then
-        printf '%s\n' "$version_label"
-        return 0
-      fi
-    done
-  done
-
-  return 1
-}
-
-shimmy_version_token_validate() {
-  case "${1:-}" in
-    ''|*[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-]*) return 1 ;;
-    *) return 0 ;;
-  esac
 }

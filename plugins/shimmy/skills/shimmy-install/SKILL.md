@@ -1,6 +1,6 @@
 ---
 name: shimmy-install
-description: Install, update, validate, initialize shells for, or remove Shimmy profiles. Use for Shimmy lifecycle work, bootstrap-time profile selection, disposable XDG installation validation, external startup or skills integration, and manifest-based state inspection.
+description: Install, inspect, activate, synchronize, repair, or remove Shimmy profiles and their direct AI-skill links. Use for first-time bootstrap, disposable XDG validation, profile lifecycle, startup integration, and owned-state removal.
 ---
 
 > Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
@@ -9,185 +9,159 @@ description: Install, update, validate, initialize shells for, or remove Shimmy 
 
 ## Source of truth
 
-- For first-time checkout installation, read `BOOTSTRAP.md`, use the public
-  `./bootstrap.sh` checkout bootstrap, and use `./tests/test.sh` for repository
-  validation. There is no repository `shimmy` launcher.
-- In an installed environment, use the desired profile's absolute
-  `bin/shimmy` launcher or its `shimmy` command after sourcing `shell-init.sh`.
-- Inspect the invoking profile with `shimmy status --format manifest`.
-- Profile manifests are authoritative for installed tools and concrete
-  versions. Do not edit manifests directly when a Shimmy command supports the
-  action.
+- Read repository `BOOTSTRAP.md` before first-time installation.
+- Use root `./bootstrap.sh` from a clean committed attached `main` checkout.
+- In an installation, use the desired profile's absolute `bin/shimmy` launcher
+  or `shimmy` after sourcing that profile's `shell-init.sh`.
+- Inspect with `shimmy admin status --format manifest`, `shimmy profile status
+  --format manifest`, and `shimmy shim list --format manifest`.
+- Never edit manifests, active records, registry files, or bundles directly.
 
-## Profiles
+The repository has no runnable `shimmy` launcher and no generated
+`.agents/skills` adapter tree. Canonical management skills live under
+`plugins/shimmy/skills`; tool skills live under `tools/<tool>/SKILL.md`.
 
-Shimmy provides independent `default` and `upstream` profiles below
-`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`. Require
-`XDG_CONFIG_HOME` to be absolute when it is non-empty.
+## First contact
 
-- `default` is the normal external-user profile.
-- `upstream` is intended for maintainers; its catalog resolves the recorded
-  source checkout, while installed tools execute from profile-local
-  materialized assets.
-- Only `./bootstrap.sh` accepts `--profile default|upstream`. An installed
-  launcher manages only its enclosing profile and rejects profile selection.
-- Use `SHIMMY_UPSTREAM_CHECKOUT_DIR` only to select the absolute checkout
-  recorded while bootstrapping `upstream`; it never relocates installed state.
+When no checkout exists, install this canonical skill with `$skill-installer`
+from:
 
-Each profile records one fixed named-catalog binding. `upstream` resolves a
-validated live Git checkout on every catalog-aware invocation, while `default`
-resolves a Shimmy-owned immutable generation. Valid upstream edits are visible
-on the next command. Default changes only after clean committed publication,
-and existing profile materializations remain unchanged until explicit update.
+```text
+https://github.com/wadebee/shimmy/tree/main/plugins/shimmy/skills/shimmy-install
+```
 
-## Lifecycle commands
+Restart Codex, create or use a checkout, read `BOOTSTRAP.md`, and continue from
+the checkout. Do not treat the installed skill copy as a source tree.
+
+## Bootstrap
 
 ```sh
 . ./bootstrap.sh
-SHIMMY_UPSTREAM_CHECKOUT_DIR=/absolute/checkout
-export SHIMMY_UPSTREAM_CHECKOUT_DIR
-. ./bootstrap.sh --profile upstream
-shimmy install --shim task
-"${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" status --format manifest
-"${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" update --shim jq
-"${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/bin/shimmy" uninstall
-"${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy" catalog publish
-"${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/bin/shimmy" catalog rollback
 ```
 
-For disposable validation, set an absolute temporary `XDG_CONFIG_HOME` and use
-fresh-default-bootstrap `--no-startup`. Do not add an installation-directory
-override.
+Bootstrap creates and activates only `default`, publishes the first immutable
+default-catalog generation, installs jq/rg/Skopeo, reconciles direct user skill
+links, applies startup policy, and sources the generated shell initializer when
+itself sourced. It accepts only `--shell <name>` and `--no-startup` lifecycle
+options. The config root must not already exist.
 
-Every repository bootstrap includes jq and rg. Add any other tool afterward
-through the installed `shimmy install --shim <tool>` command; it installs the
-tool dispatcher and its default concrete version. Use `--shim
-<tool>@<major.minor>` for a non-default version.
+For disposable validation, use fresh absolute `HOME` and `XDG_CONFIG_HOME`
+roots and `./bootstrap.sh --no-startup`. Do not invent an install-directory,
+profile, source, activation, or migration option.
 
-`--activate` is a human checkout-bootstrap convenience for an explicit
-post-commit engine transition. It may switch or restart an idle Darwin VM,
-never supplies `--stop-running`, and retains the installed profile if
-activation fails. Do not use `. ./bootstrap.sh --activate` as an AI Agent
-shortcut: it does not authorize an AI Agent to combine installation, status,
-dry-run, activation approval, or workload acknowledgement. Follow the separate
-absolute-launcher workflow below.
+Bootstrap activation is part of one compensated lifecycle. On macOS it requires
+the user's pre-existing `shimmy-default` machine; on Linux it validates the
+current user's local rootless engine. Shimmy never provisions a machine and
+bootstrap never supplies `--stop-running`.
 
-Catalog-dependent install, update, status, image, and skill operations validate
-the registry and exact schema before mutation. Already-materialized tools do
-not require the catalog to run. Recover a moved upstream checkout with explicit
-`shimmy catalog rebind --checkout <absolute-path>` and recover default with
-`shimmy catalog rollback` when a retained valid generation exists.
+Earlier schemas are unsupported. Use the version that created an old
+installation to remove it, then bootstrap fresh. Do not add forwarding or an
+in-place migration.
 
-The root rename from `install.sh` to `bootstrap.sh` is a hard compatibility
-break. Before adopting the renamed checkout, use the old installed control
-plane to run `shimmy uninstall --global`, then reinstall with `. ./bootstrap.sh`.
-Do not attempt an in-place self-update or add a forwarding entrypoint.
+## Profiles
 
-## Profile activation
-
-After installing or updating a target profile, activate it before recommending
-shell selection or tool use:
+Profiles live below
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<name>` and use arbitrary
+safe lowercase names. The invoking launcher and installation active profile
+are distinct identities.
 
 ```sh
-profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
-"$profile_root/bin/shimmy" profile status
-"$profile_root/bin/shimmy" profile activate --dry-run
-"$profile_root/bin/shimmy" profile activate
+shimmy profile list --format manifest
+shimmy profile status --format manifest
+shimmy profile create team-one --dry-run
+shimmy profile create team-one
+shimmy profile activate default --dry-run
+shimmy profile activate default
+shimmy profile sync
+shimmy profile repair-startup
+shimmy profile delete team-one
 ```
 
-Use the target profile's validated absolute launcher even when another profile
-is selected on `PATH`. Run status and dry-run first. Request approval only for
-the exact absolute `bin/shimmy profile activate` command. If the workload guard
-lists running containers, stop and obtain separate explicit confirmation before
-adding `--stop-running`.
+Creation activates the new profile. Before selecting an existing profile, run
+status and the exact named activation dry-run through an absolute installed
+launcher. Request approval only for the exact named activation. If the dry run
+lists workloads, obtain separate explicit confirmation before adding
+`--stop-running`.
 
-Never provision, delete, rename, or adopt a Podman machine. If the expected
-machine is missing, repeat Shimmy's exact `podman machine init
-shimmy-<profile>` guidance, including its same-path volume form when shown, for
-the user to run in a normal shell. If an older installed profile lacks `profile
-activate`, stop and guide the user to update or reinstall it; do not run direct
-Podman machine lifecycle commands as a fallback.
+Never provision, delete, rename, migrate, or adopt a Podman machine. For a
+missing macOS machine, repeat Shimmy's exact `podman machine init
+shimmy-<profile>` guidance for the user to execute in a normal shell.
 
-Profile activation also selects strict registry redirects. Skopeo and
-`shimmy images verify` mount only a valid current invoking-profile policy;
-profiles with no activation omit it, while prepared, stale, mismatched, or
-damaged active state must be corrected through `shimmy profile` rather than
-bypassed.
+After activation, source the selected profile's absolute `shell-init.sh` to
+change PATH. Sourcing never changes engine or registry state. AI-agent calls do
+not retain sourcing across tool calls; use an absolute launcher or source and
+invoke in the same command.
 
-## Shell initialization and startup
-
-Sourcing the repository bootstrap installs the profile and sources its
-generated `shell-init.sh` in the caller. Executing it performs the same install
-for automation, but initialization ends with that process.
+## Shims and catalog
 
 ```sh
-. "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream/shell-init.sh"
+shimmy shim add task@3.45
+shimmy shim list --format manifest
+shimmy shim sync task
+shimmy shim test task@3.45
+shimmy catalog status --format manifest
+shimmy catalog tools
+shimmy catalog verify --tool task@3.45 --format manifest
 ```
 
-After successful activation, users can switch their current shell by sourcing
-the desired profile's absolute `shell-init.sh`.
-Only `default` may manage persistent startup blocks. Fresh bootstrap records
-one normalized shell from `--shell <name>` or `$SHELL`. Managed policy resolves
-that shell's conventional paths once. When a sourced bootstrap identifies a
-running Bash or Zsh that differs from the managed startup shell, bootstrap warns
-with both values and requires confirmation before mutation. Align them by
-running bootstrap from the configured shell or selecting the running shell with
-`--shell` during fresh creation. Executed automation remains non-interactive.
-Fresh-bootstrap `--no-startup` records manual policy with no owned files. Later
-bootstraps and installed lifecycle operations inherit the manifest state.
-`shimmy update --repair-startup` repairs only the exact recorded paths and is a
-no-op for manual policy. Changing policy requires uninstalling and recreating
-the default profile; `upstream` never changes shell startup files. Installed
-`shimmy install` accepts only repeatable `--shim` selection, and installed
-launchers derive profile identity from their enclosing root rather than a
-`--profile` option.
+Shim selectors are `tool` or `tool@version`. An unqualified add is interactive
+and tracks catalog defaults; an exact first add is pinned and noninteractive.
+Mutations require the invoking profile to be active.
 
-For a manual policy with a nonstandard startup chain, add the generated
-`shell-init.sh` source block to the chosen interactive or login startup file.
-Require non-empty `XDG_CONFIG_HOME` to be absolute. The block selects PATH only;
-Bash users must not apply it globally through `BASH_ENV`.
+The installation owns exactly one immutable catalog named `default`. Publish
+only from a clean committed attached `main` root; rollback selects the retained
+previous generation. Neither changes existing profile pins. Use active-profile
+`profile sync` or shim operations for explicit adoption.
 
-AI Agent tool calls do not retain a sourcing operation performed in an earlier
-tool call. For a later management or tool command, use the absolute target
-dispatcher or source `shell-init.sh` and invoke the command within the same
-shell command. Sourcing selects PATH only and never activates an engine.
+## Skills and collisions
 
-## Shared skills
+Each profile owns validated control and shim bundles. Activation, shim mutation,
+and `shimmy ai-skill repair` reconcile direct links under the active record's
+exact `$HOME/.agents/skills` root.
 
-The canonical six-skill management plugin and co-located tool skills remain
-in the invoking profile's named catalog; they are not copied into the profile.
-Install or update agent skill adapters in a repository or home agent profile
-only when the user explicitly selects that target through standalone `shimmy
-skills` commands. Shimmy stages the complete adapter set and validates the
-catalog again before changing the target. The target's
-`.shimmy-skills-manifest.txt` owns those entries; no profile manifest owns the
-target. Profile and catalog install, update, and uninstall never implicitly
-refresh or remove it. Target-owned uninstall remains available if the catalog
-is unavailable:
+They unconditionally overwrite every exact bundle-declared collision without
+backup or recovery. They may remove recognized stale Shimmy links. They never
+recursively delete the user root or unrelated names. Always review activation
+dry-run collision output before mutation; report any overwritten foreign
+content as irrecoverable.
+
+There is no repo/profile export target and no `.shimmy-skills-manifest.txt`
+lifecycle. Do not recreate the deleted adapter mechanism.
+
+## Startup
+
+Fresh bootstrap records one normalized shell and either conventional exact
+startup paths or manual `--no-startup` policy. Only recorded paths may be
+repaired or removed. Sibling profiles own no persistent startup block.
+`shimmy profile repair-startup` is a no-op for manual policy.
+
+## Removal
 
 ```sh
-shimmy skills update --target <repo|profile>
-shimmy skills uninstall --target <repo|profile>
+shimmy admin status --format manifest
+shimmy admin uninstall
 ```
 
-Ordinary `shimmy uninstall` removes only the invoking profile and preserves
-sibling profiles and shared catalogs. It cleans an exact Linux activation or
-Darwin projection itself; manual `profile redirect remove --all --detach` is
-recovery/debugging functionality, not a prerequisite. Darwin cleanup restores
-the initial machine/default state and may need to stop a running machine. Run
-uninstall without `--stop-running` first; if it lists workloads and refuses,
-obtain explicit confirmation before retrying with that acknowledgement.
-Explicit `shimmy uninstall --global` detaches every owned profile before
-removing all valid manifest-owned profiles and registry-owned catalogs while
-preserving bound checkouts and these external exports; it refuses unrecognized
-shared state.
+Uninstall validates and removes all installation-owned profiles, catalog state,
+active state, exact startup blocks, recognized registry projections, and
+recognized direct Shimmy user-skill links. It preserves source checkouts,
+Podman machines, unrelated registry policy, unrelated skills, and the user
+skill root.
 
-## Podman and validation
+Run uninstall without `--stop-running` first. If macOS cleanup lists workloads,
+obtain explicit confirmation before retrying with the acknowledgement.
 
-Podman is an explicit dependency. Do not provision it. Run `podman info` only
-when appropriate; if a Shimmy wrapper is sandbox-blocked despite direct Podman
-access, use the exact-wrapper approval workflow before any fallback.
+## Agent evidence order
 
-Validate with status, an XDG-isolated disposable profile install, and
-non-mutating tool smokes. Earlier layouts must be removed with the Shimmy
-version that created them and reinstalled; do not migrate their manifests.
+1. For an already-selected Shimmy wrapper with an approved safe outer prefix,
+   run the actual task operation with escalation first.
+2. Treat sandbox-only socket/permission/unreachable results as unverified, then
+   retry the same wrapper operation through `shimmy-escalation`.
+3. Use `shimmy-init` only after an escalated wrapper proves an engine/profile
+   problem.
+4. Keep status, named activation dry-run, activation approval, and any
+   `--stop-running` acknowledgement separate.
+5. Validate with admin/profile/shim manifest output and non-mutating tool smokes.
+
+Podman is an explicit dependency. Do not install or provision it as part of
+this lifecycle.

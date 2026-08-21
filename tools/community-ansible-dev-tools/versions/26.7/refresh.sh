@@ -1,5 +1,5 @@
 #!/bin/sh
-# Refresh the community Ansible development tools 26.7 image when requested by shimmy update.
+# Refresh the community Ansible development tools 26.7 image during shim synchronization.
 set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)

@@ -26,60 +26,6 @@ EOF
   return 1
 }
 
-shimmy_manifest_tool_contains() {
-  manifest_file=$1
-  tool_name=$2
-
-  [ -f "$manifest_file" ] || return 1
-
-  while IFS= read -r manifest_tool_name; do
-    [ -n "$manifest_tool_name" ] || continue
-    if [ "$manifest_tool_name" = "$tool_name" ]; then
-      return 0
-    fi
-  done <<EOF
-$(shimmy_manifest_tool_list_read "$manifest_file")
-EOF
-
-  return 1
-}
-
-shimmy_contains_manifest_shim() {
-  shimmy_manifest_tool_contains "$@"
-}
-
-shimmy_profile_tool_other_contains() {
-  install_dir=$1
-  tool_name=$2
-  skip_manifest_one=${3:-}
-
-  for manifest_file in "$install_dir"/profiles/*/install-manifest.txt; do
-    [ -f "$manifest_file" ] || continue
-    [ "$manifest_file" != "$skip_manifest_one" ] || continue
-    if shimmy_manifest_tool_contains "$manifest_file" "$tool_name"; then
-      return 0
-    fi
-  done
-
-  return 1
-}
-
-shimmy_contains_profile_shim_other() {
-  shimmy_profile_tool_other_contains "$@"
-}
-
-shimmy_count_profile_manifests() {
-  install_dir=$1
-  manifest_count=0
-
-  for manifest_file in "$install_dir"/profiles/*/install-manifest.txt; do
-    [ -f "$manifest_file" ] || continue
-    manifest_count=$((manifest_count + 1))
-  done
-
-  printf '%s\n' "$manifest_count"
-}
-
 shimmy_join_path() {
   base_path=$1
   path_suffix=$2
@@ -93,46 +39,6 @@ shimmy_join_path() {
 
 shimmy_quote_shell_word() {
   printf "%s" "$1" | sed "s/'/'\\\\''/g; 1s/^/'/; \$s/\$/'/"
-}
-
-shimmy_manifest_tool_version_list_read() {
-  manifest_file=$1
-
-  shimmy_read_manifest_values "$manifest_file" tool_version
-}
-
-shimmy_manifest_tool_list_read() {
-  manifest_file=$1
-
-  shimmy_read_manifest_values "$manifest_file" tool
-}
-
-shimmy_read_manifest_shims() {
-  manifest_file=$1
-
-  shimmy_manifest_tool_list_read "$manifest_file"
-}
-
-shimmy_read_manifest_value() {
-  manifest_file=$1
-  key=$2
-
-  if [ ! -f "$manifest_file" ]; then
-    return 1
-  fi
-
-  sed -n "s/^${key}=//p" "$manifest_file" | sed -n '1p'
-}
-
-shimmy_read_manifest_values() {
-  manifest_file=$1
-  key=$2
-
-  if [ ! -f "$manifest_file" ]; then
-    return 1
-  fi
-
-  sed -n "s/^${key}=//p" "$manifest_file"
 }
 
 shimmy_resolve_path_absolute() {
@@ -209,11 +115,17 @@ shimmy_path_parent_chain_validate() {
   done
 }
 
-# Target-state token and codec helpers. These are intentionally independent of
-# the version-1 profile and catalog readers retained by the public commands.
+# State token and codec helpers.
 shimmy_name_component_validate() {
   case "${1:-}" in
     ''|-*|*-|*--*|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+shimmy_version_token_validate() {
+  case "${1:-}" in
+    ''|*[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-]*) return 1 ;;
     *) return 0 ;;
   esac
 }

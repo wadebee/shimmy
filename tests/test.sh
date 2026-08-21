@@ -25,117 +25,86 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/profile/profile.sh"
 # shellcheck source=lib/catalog/state.sh
 . "$ROOT_DIR/lib/catalog/state.sh"
-# shellcheck source=lib/catalog/target.sh
-. "$ROOT_DIR/lib/catalog/target.sh"
+# shellcheck source=lib/catalog/authority.sh
+. "$ROOT_DIR/lib/catalog/authority.sh"
 # shellcheck source=lib/shim/state.sh
 . "$ROOT_DIR/lib/shim/state.sh"
-# shellcheck source=lib/shim/target.sh
-. "$ROOT_DIR/lib/shim/target.sh"
+# shellcheck source=lib/shim/shim.sh
+. "$ROOT_DIR/lib/shim/shim.sh"
 # shellcheck source=lib/ai-skill/bundle.sh
 . "$ROOT_DIR/lib/ai-skill/bundle.sh"
 # shellcheck source=lib/profile/transaction.sh
 . "$ROOT_DIR/lib/profile/transaction.sh"
 # shellcheck source=lib/ai-skill/link.sh
 . "$ROOT_DIR/lib/ai-skill/link.sh"
-# shellcheck source=lib/ai-skill/target.sh
-. "$ROOT_DIR/lib/ai-skill/target.sh"
+# shellcheck source=lib/ai-skill/ai-skill.sh
+. "$ROOT_DIR/lib/ai-skill/ai-skill.sh"
 # shellcheck source=lib/profile/state.sh
 . "$ROOT_DIR/lib/profile/state.sh"
 # shellcheck source=lib/install/manifest.sh
 . "$ROOT_DIR/lib/install/manifest.sh"
 # shellcheck source=lib/install/transaction.sh
 . "$ROOT_DIR/lib/install/transaction.sh"
-# shellcheck source=lib/install/catalog-target.sh
-. "$ROOT_DIR/lib/install/catalog-target.sh"
-# shellcheck source=lib/install/profile-target.sh
-. "$ROOT_DIR/lib/install/profile-target.sh"
+# shellcheck source=lib/install/catalog.sh
+. "$ROOT_DIR/lib/install/catalog.sh"
+# shellcheck source=lib/install/profile.sh
+. "$ROOT_DIR/lib/install/profile.sh"
 # shellcheck source=lib/startup/startup.sh
 . "$ROOT_DIR/lib/startup/startup.sh"
-# shellcheck source=lib/install/lifecycle-target.sh
-. "$ROOT_DIR/lib/install/lifecycle-target.sh"
-# shellcheck source=lib/install/uninstall-target.sh
-. "$ROOT_DIR/lib/install/uninstall-target.sh"
-# shellcheck source=lib/update/profile-target.sh
-. "$ROOT_DIR/lib/update/profile-target.sh"
+# shellcheck source=lib/install/lifecycle.sh
+. "$ROOT_DIR/lib/install/lifecycle.sh"
+# shellcheck source=lib/install/uninstall.sh
+. "$ROOT_DIR/lib/install/uninstall.sh"
+# shellcheck source=lib/update/profile.sh
+. "$ROOT_DIR/lib/update/profile.sh"
 # shellcheck source=lib/registries/registries.sh
 . "$ROOT_DIR/lib/registries/registries.sh"
-# shellcheck source=lib/profile/target.sh
-. "$ROOT_DIR/lib/profile/target.sh"
+# shellcheck source=lib/profile/management.sh
+. "$ROOT_DIR/lib/profile/management.sh"
 # shellcheck source=lib/images/images.sh
 . "$ROOT_DIR/lib/images/images.sh"
-# shellcheck source=lib/images/target.sh
-. "$ROOT_DIR/lib/images/target.sh"
-# shellcheck source=tests/profile-smoke.sh
-. "$SCRIPT_DIR/profile-smoke.sh"
-if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
+# shellcheck source=lib/images/catalog.sh
+. "$ROOT_DIR/lib/images/catalog.sh"
+
 # shellcheck source=tests/runner.sh
 . "$SCRIPT_DIR/runner.sh"
 # shellcheck source=tests/lib/runner.sh
 . "$SCRIPT_DIR/lib/runner.sh"
 # shellcheck source=tests/lib/catalog.sh
 . "$SCRIPT_DIR/lib/catalog.sh"
-# shellcheck source=tests/lib/target-codec.sh
-. "$SCRIPT_DIR/lib/target-codec.sh"
-# shellcheck source=tests/lib/target-profile-state.sh
-. "$SCRIPT_DIR/lib/target-profile-state.sh"
-# shellcheck source=tests/lib/target-ai-skill-state.sh
-. "$SCRIPT_DIR/lib/target-ai-skill-state.sh"
-# shellcheck source=tests/lib/target-lock.sh
-. "$SCRIPT_DIR/lib/target-lock.sh"
-# shellcheck source=tests/lib/target-transaction.sh
-. "$SCRIPT_DIR/lib/target-transaction.sh"
-# shellcheck source=tests/lib/target-ai-skill-link.sh
-. "$SCRIPT_DIR/lib/target-ai-skill-link.sh"
-# shellcheck source=tests/lib/target-catalog.sh
-. "$SCRIPT_DIR/lib/target-catalog.sh"
+# shellcheck source=tests/lib/codec.sh
+. "$SCRIPT_DIR/lib/codec.sh"
+# shellcheck source=tests/lib/profile-state.sh
+. "$SCRIPT_DIR/lib/profile-state.sh"
+# shellcheck source=tests/lib/ai-skill-state.sh
+. "$SCRIPT_DIR/lib/ai-skill-state.sh"
+# shellcheck source=tests/lib/lock.sh
+. "$SCRIPT_DIR/lib/lock.sh"
+# shellcheck source=tests/lib/transaction.sh
+. "$SCRIPT_DIR/lib/transaction.sh"
+# shellcheck source=tests/lib/ai-skill-link.sh
+. "$SCRIPT_DIR/lib/ai-skill-link.sh"
 # shellcheck source=tests/lib/runtime.sh
 . "$SCRIPT_DIR/lib/runtime.sh"
 # shellcheck source=tests/lib/profile-activation.sh
 . "$SCRIPT_DIR/lib/profile-activation.sh"
 # shellcheck source=tests/lib/registries.sh
 . "$SCRIPT_DIR/lib/registries.sh"
-# shellcheck source=tests/lib/update.sh
-. "$SCRIPT_DIR/lib/update.sh"
 # shellcheck source=tests/commands/agent-preflight.sh
 . "$SCRIPT_DIR/commands/agent-preflight.sh"
 # shellcheck source=tests/commands/catalog.sh
 . "$SCRIPT_DIR/commands/catalog.sh"
-# shellcheck source=tests/commands/target-catalog.sh
-. "$SCRIPT_DIR/commands/target-catalog.sh"
-# shellcheck source=tests/commands/target-shim.sh
-. "$SCRIPT_DIR/commands/target-shim.sh"
-# shellcheck source=tests/commands/target-ai-skill.sh
-. "$SCRIPT_DIR/commands/target-ai-skill.sh"
-# shellcheck source=tests/commands/target-profile.sh
-. "$SCRIPT_DIR/commands/target-profile.sh"
-# shellcheck source=tests/commands/target-surface.sh
-. "$SCRIPT_DIR/commands/target-surface.sh"
-# shellcheck source=tests/commands/target-lifecycle.sh
-. "$SCRIPT_DIR/commands/target-lifecycle.sh"
-# shellcheck source=tests/commands/images.sh
-. "$SCRIPT_DIR/commands/images.sh"
-# shellcheck source=tests/commands/lifecycle.sh
-. "$SCRIPT_DIR/commands/lifecycle.sh"
-# shellcheck source=tests/commands/management.sh
-. "$SCRIPT_DIR/commands/management.sh"
-# shellcheck source=tests/commands/onboarding.sh
-. "$SCRIPT_DIR/commands/onboarding.sh"
-# shellcheck source=tests/commands/profiles.sh
-. "$SCRIPT_DIR/commands/profiles.sh"
+# shellcheck source=tests/commands/shim.sh
+. "$SCRIPT_DIR/commands/shim.sh"
+# shellcheck source=tests/commands/ai-skill.sh
+. "$SCRIPT_DIR/commands/ai-skill.sh"
 # shellcheck source=tests/commands/profile.sh
 . "$SCRIPT_DIR/commands/profile.sh"
-# shellcheck source=tests/commands/status.sh
-. "$SCRIPT_DIR/commands/status.sh"
-# shellcheck source=tests/commands/update.sh
-. "$SCRIPT_DIR/commands/update.sh"
-# shellcheck source=tests/commands/startup.sh
-. "$SCRIPT_DIR/commands/startup.sh"
-# shellcheck source=tests/commands/skills.sh
-. "$SCRIPT_DIR/commands/skills.sh"
-# shellcheck source=tests/commands/dispatcher.sh
-. "$SCRIPT_DIR/commands/dispatcher.sh"
-# shellcheck source=tests/commands/netinfo.sh
-. "$SCRIPT_DIR/commands/netinfo.sh"
+# shellcheck source=tests/commands/surface.sh
+. "$SCRIPT_DIR/commands/surface.sh"
+# shellcheck source=tests/commands/lifecycle.sh
+. "$SCRIPT_DIR/commands/lifecycle.sh"
+
 # shellcheck source=tools/aws/tests/aws.sh
 . "$ROOT_DIR/tools/aws/tests/aws.sh"
 # shellcheck source=tools/bats/tests/bats.sh
@@ -176,27 +145,15 @@ if [ ! -f "$ROOT_DIR/install-manifest.txt" ]; then
 . "$ROOT_DIR/tools/tessl/tests/tessl.sh"
 # shellcheck source=tools/textual/tests/textual.sh
 . "$ROOT_DIR/tools/textual/tests/textual.sh"
-# shellcheck source=tests/commands/install.sh
-. "$SCRIPT_DIR/commands/install.sh"
-# shellcheck source=tests/commands/test.sh
-. "$SCRIPT_DIR/commands/test.sh"
-fi
 
 main() {
-  if [ -f "$ROOT_DIR/install-manifest.txt" ]; then
-    test_profile_mode_parse "$@"
-    test_profile_smoke_run
-    printf 'All %s Shimmy tests passed.\n' "$TEST_COUNT"
-    return 0
-  fi
-
   test_runner_options_parse "$@"
   if [ "$TEST_RUNNER_LIST_GROUPS" -eq 1 ]; then
     test_runner_group_list
     return 0
   fi
 
-  shimmy_catalog_checkout_resolve "$ROOT_DIR" upstream || fail_test "$SHIMMY_CATALOG_ERROR"
+  shimmy_catalog_payload_validate "$ROOT_DIR" default || fail_test "$SHIMMY_CATALOG_ERROR"
   test_runner_total_started=$(test_runner_now)
   TMP_ROOT=$(mktemp -d "$TMP_PARENT/shimmy-test.XXXXXX")
   TEST_RUNNER_WORKER_PIDS=
@@ -207,10 +164,9 @@ main() {
   TMP_ROOT=$(cd -- "$TMP_ROOT" && pwd -P)
 
   test_runner_setup_started=$(test_runner_now)
-  setup_session_profile_fixtures
-  setup_session_update_source_fixture
+  test_fixture_copy_on_write_detect
   test_runner_setup_finished=$(test_runner_now)
-  test_runner_timing_record setup session-fixtures \
+  test_runner_timing_record setup copy-on-write-probe \
     "$((test_runner_setup_finished - test_runner_setup_started))"
 
   test_runner_groups_run

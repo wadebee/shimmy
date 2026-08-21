@@ -1,5 +1,5 @@
 #!/bin/sh
-# Refresh the Google Cloud CLI 573.0 runtime image when requested by shimmy update.
+# Refresh the Google Cloud CLI 573.0 runtime image during shim synchronization.
 set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)

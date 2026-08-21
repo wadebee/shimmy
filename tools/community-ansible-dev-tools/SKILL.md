@@ -59,7 +59,7 @@ description: Use and maintain the community-ansible-dev-tools Shimmy tool, inclu
 - Mount override preview: `./commands/run-tool.sh community-ansible-dev-tools --preview-shim --mount-workdir /absolute/host/path ansible-playbook -i inventory.ini hello.yaml`
 - Credential preview: `SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_SSH_AGENT=1 SSH_AUTH_SOCK=/example/agent.sock ./commands/run-tool.sh community-ansible-dev-tools --preview-shim ansible --version`
 - Nested-Podman preview: `SHIMMY_COMMUNITY_ANSIBLE_DEV_TOOLS_NESTED_PODMAN=1 ./commands/run-tool.sh community-ansible-dev-tools --preview-shim --version`
-- Image verification: `./commands/images.sh verify --shim community-ansible-dev-tools@26.7`
+- Image verification: `shimmy catalog verify --tool community-ansible-dev-tools@26.7`
 - Native smoke: `./commands/run-tool.sh community-ansible-dev-tools --version`
 
 ## Learning Guidance

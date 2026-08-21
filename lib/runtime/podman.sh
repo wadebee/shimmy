@@ -180,16 +180,11 @@ shimmy_podman_profile_affinity_require() {
     shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'profile manifest is missing or invalid'
     return 1
   fi
-  affinity_install_version=$(sed -n 's/^shimmy_install_manifest_version=//p' "$affinity_manifest")
-  affinity_profile_version=$(sed -n 's/^shimmy_profile_manifest_version=//p' "$affinity_manifest")
-  case "$affinity_install_version:$affinity_profile_version:$runtime_profile" in
-    ::default|::upstream|1:1:default|1:1:upstream) affinity_manifest_version=1 ;;
-    2:2:*) affinity_manifest_version=2 ;;
-    *)
+  [ "$(sed -n 's/^shimmy_install_manifest_version=//p' "$affinity_manifest")" = 2 ] &&
+    [ "$(sed -n 's/^shimmy_profile_manifest_version=//p' "$affinity_manifest")" = 2 ] || {
       shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'profile manifest version or identity is invalid'
       return 1
-      ;;
-  esac
+    }
 
   if [ "${SHIMMY_TEST_OS+x}" = x ]; then affinity_host_os=$SHIMMY_TEST_OS; else affinity_host_os=$(uname -s 2>/dev/null || true); fi
   [ "$affinity_host_os" = Darwin ] || return 0
@@ -204,32 +199,24 @@ shimmy_podman_profile_affinity_require() {
       return 1
     }
   done
-  if [ "$affinity_manifest_version" = 2 ] &&
-    { [ ! -f "$runtime_profile_root/lib/profile/state.sh" ] || [ -L "$runtime_profile_root/lib/profile/state.sh" ]; }; then
+  if [ ! -f "$runtime_profile_root/lib/profile/state.sh" ] || [ -L "$runtime_profile_root/lib/profile/state.sh" ]; then
     shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'active profile state helper is missing or invalid'
     return 1
   fi
   . "$runtime_profile_root/lib/common/common.sh"
   . "$runtime_profile_root/lib/profile/profile.sh"
-  [ "$affinity_manifest_version" != 2 ] || . "$runtime_profile_root/lib/profile/state.sh"
+  . "$runtime_profile_root/lib/profile/state.sh"
   . "$runtime_profile_root/lib/profile/activation.sh"
   . "$runtime_profile_root/lib/registries/registries.sh"
-  if [ "$affinity_manifest_version" = 2 ]; then
-    shimmy_profile_paths_resolve_name "$runtime_profile"
-  else
-    shimmy_profile_paths_resolve "$runtime_profile"
-  fi || {
+  shimmy_profile_paths_resolve_name "$runtime_profile" || {
     shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'profile engine paths are invalid'
     return 1
   }
-  if [ "$affinity_manifest_version" = 2 ]; then
-    shimmy_target_active_profile_read "$SHIMMY_CONFIG_ROOT/active-profile.conf" &&
-      [ "$SHIMMY_TARGET_ACTIVE_PROFILE_NAME" = "$runtime_profile" ] || {
-        shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'installation active record belongs to another profile or is invalid'
-        return 1
-      }
-    SHIMMY_PROFILE_ACTIVATION_TARGET_REQUIRED=1
-  fi
+  shimmy_target_active_profile_read "$SHIMMY_CONFIG_ROOT/active-profile.conf" &&
+    [ "$SHIMMY_TARGET_ACTIVE_PROFILE_NAME" = "$runtime_profile" ] || {
+      shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'installation active record belongs to another profile or is invalid'
+      return 1
+    }
   shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$runtime_profile" || {
     shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'registry configuration is invalid'
     return 1

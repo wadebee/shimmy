@@ -19,7 +19,7 @@ the official Node 24.18.0 Bookworm image. It does not install public `node` or
 Install the opt-in tool, then invoke `npx` normally:
 
 ```sh
-shimmy install --shim npx
+shimmy shim add npx
 npx --version
 npx cowsay@1.6.0 hello
 npx --yes node-llama-cpp@3.19.1 inspect gpu

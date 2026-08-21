@@ -1,5 +1,5 @@
 #!/bin/sh
-# Refresh the OpenShift CLI 4.22 local image when requested by shimmy update.
+# Refresh the OpenShift CLI 4.22 local image during shim synchronization.
 set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)

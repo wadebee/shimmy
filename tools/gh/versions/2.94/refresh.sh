@@ -1,5 +1,5 @@
 #!/bin/sh
-# Refresh the GitHub CLI 2.94 local image when requested by shimmy update.
+# Refresh the GitHub CLI 2.94 local image during shim synchronization.
 set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)

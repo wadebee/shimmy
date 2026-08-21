@@ -1,6 +1,5 @@
 #!/bin/sh
-# Private target installation/profile state. Public version-1 profile commands
-# continue to source profile.sh only.
+# Canonical installation and profile state for schema-2 profiles.
 
 shimmy_target_installation_paths_resolve() {
   shimmy_target_config_root=$1

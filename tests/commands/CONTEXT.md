@@ -1,156 +1,23 @@
-# Management-command test modules
+# Command tests
 
-These modules exercise the public command lifecycle using disposable install
-XDG configuration homes. They are sourced by `../test.sh` and must not modify
-a user's Shimmy installation or shell startup files. Large checkout, catalog,
-profile, and source-tree fixtures use the boundary-checked copy helper from
-`../support.sh`; small direct copies remain local when duplication or mutation
-is the behavior under test.
+- `agent-preflight.sh` proves source and schema-2 active-profile smoke discovery.
+- `catalog.sh` covers local status/tools, clean-main publish/rollback, image
+  verification, and catalog transaction boundaries.
+- `shim.sh` covers tracking/pinning, direct runtime selection, concrete version
+  roles, image preparation, manifest-last commit, skill reconciliation, rollback,
+  and smoke status propagation.
+- `ai-skill.sh` covers bundle list/repair, exact collision replacement,
+  recognized stale-link cleanup, unrelated-name preservation, unsupported
+  bundles, source mismatch, and compensation.
+- `profile.sh` covers arbitrary-name list/status, active-only redirects, Linux
+  and Darwin activation ordering, dry-run, bundle policy, workload guards,
+  rollback, and sourced-shell retargeting.
+- `surface.sh` proves complete root/group/subgroup/action help before state
+  validation and exact rendered launcher bytes.
+- `lifecycle.sh` is the public end-to-end acceptance world: clean bootstrap,
+  jq/rg/Skopeo inventory, catalog/shim/profile/skill/network/startup flows,
+  sibling isolation, sync/rollback, admin status, deletion, global uninstall,
+  unrelated home-skill preservation, and failed-bootstrap cleanup.
 
-## Files
-
-- `catalog.sh` covers complete deterministic named-catalog listing, list input
-  validation and non-mutation, exact schema rejection, live-checkout
-  registration and explicit rebind, immediate dirty upstream visibility,
-  clean committed publication, immutable provenance, ignored-content
-  exclusion, and retained rollback generation state. One progressive
-  rebind/publication scenario also covers atomic rollback after source loss,
-  byte-exact retained-generation restoration, invalid-current recovery,
-  integrity rejection, explicit catalog-default profile update, and final
-  checkout-HEAD rechecking.
-- `target-catalog.sh` exercises the uninstalled candidate route with an
-  explicit disposable configuration root, including deterministic local
-  status/tools output, clean-main publication, rollback, catalog image
-  verification parity, active-materialization-only jq/Skopeo resolution, and
-  exact missing-dependency remediation.
-- `target-shim.sh` exercises the private version-2 profile-local lifecycle
-  through real retained catalog generations. It covers interactive tracking and
-  exact automation, first-default stability, pinned-generation sync,
-  collision-free tracking advancement, role-swapping set-version, guarded and
-  whole-shim removal, image-before-commit rollback, generated launcher/config
-  execution, typed bundle input, deterministic shim-skill lifecycle, exact-link
-  reconciliation, cross-resource rollback, and all/tool/version smoke status
-  propagation.
-- `target-surface.sh` renders a private installed launcher over deliberately
-  damaged state and proves exact root, group, subgroup, and action help remains
-  available before manifest validation. It covers every target invocation form,
-  defaults, scopes, overwrite/remediation guidance, absence of legacy/external
-  routes, executable modes, POSIX syntax, and launcher byte validation.
-- `target-ai-skill.sh` exercises the uninstalled active-profile AI-skill route.
-  It covers exact-commit control materialization, empty/valid/invalid/unsupported
-  list states, encoded paths, wrong-profile and broken links, unconditional
-  exact collision overwrite, recognized stale cleanup, rollback honesty, and
-  byte-preservation of unrelated user skills and root markers. Its cases reuse
-  one immutable catalog/profile fixture while selecting a fresh disposable user
-  root and restoring only bundle manifests between transitions.
-- `target-profile.sh` exercises private arbitrary-name profile list/status,
-  active-only redirects, Linux/Darwin activation, active-record and exact-link
-  rollback, workload acknowledgment, restart, bundle policy, direct source
-  guidance, and independent shell-selected/invoking/active identities. It
-  shares one real immutable catalog/profile fixture because complete candidate
-  validation is intentionally expensive.
-- `target-lifecycle.sh` exercises the private production-intended candidate
-  through installed launchers from pristine bootstrap to uninstall. It seeds
-  the exact remote `$skill-installer` destination and an unrelated sibling,
-  then covers catalog status/tools/verify/publish/rollback, shim
-  list/add/set/sync/test/remove, profile status/list/redirect/create/sync/
-  startup repair/activate/delete, AI list/repair, encoded admin status, active
-  network inspection, and sourced create/activate PATH selection. It proves
-  dry-run leaves profile, manifest, image, lock, active-record, engine-link,
-  startup, and user-link state unchanged; inactive invoking-profile shim
-  mutation stops before image work; failed initial activation leaves no valid
-  installation; rendered assets remain runnable; and unrelated home skill
-  content survives exact overwrite and uninstall.
-- `images.sh` covers source and installed selection, fixture-driven OCI/Docker
-  parsing, request deduplication, authentication skips/failures, drift policy,
-  stable output, and command availability without target-registry access.
-- `image-fixtures/` owns committed raw manifest responses for those tests. Its
-  retained context is [image-fixtures/CONTEXT.md](image-fixtures/CONTEXT.md).
-- `lifecycle.sh` covers install, selected-only materialization, catalog-loss
-  execution, installed control-plane refresh boundaries, dispatch, status,
-  update, rollback, profile-only uninstall, and explicit global uninstall. Its
-  indivisible prepare/complete world proves additive task materialization and
-  upstream/catalog isolation before progressing through default sibling
-  preservation and real last-profile cleanup. Layout and launcher-refresh
-  cases retain independent profile clones and real operations. Registry
-  lifecycle cases preserve valid Darwin projection-record bytes across update;
-  uninstall cases cover running/stopped/missing machines, workload guards,
-  refusal and rollback injection, global detach-before-delete ordering, and
-  reprojection after a later profile failure. Finalization coverage injects a
-  backup-cleanup failure plus INT and TERM cleanup after the commit boundary
-  and proves that none can invoke rollback with destroyed recovery material.
-- `onboarding.sh` covers sourced and executed root `bootstrap.sh` onboarding,
-  failure cleanup, optional post-commit engine activation, automatic stale
-  restart, workload refusal and retry recovery, the fixed jq/rg bootstrap
-  baseline, explicit additive installed selection, direct shell initialization,
-  PATH precedence, and profile-local launcher binding. One progressive scenario
-  rejects repository tool selection, executes the upstream bootstrap outside
-  the checkout, sources default while preserving caller state, installs task
-  plus OC, refreshes default, and sources upstream then default to prove
-  deterministic PATH switching. It compares initial selections with immutable
-  session fixtures; failure and shell-compatibility boundaries remain isolated,
-  and shell-init PATH behavior runs against relocated clones.
-- `status.sh` covers the sectioned profile, read-only Podman engine, catalog,
-  and installed-tool output through deterministic fake and unsupported engine
-  states. It proves the additive `shimmy_engine_*` manifest schema,
-  restart-required action, override-value redaction, engine-unavailable catalog
-  continuity, and version-owned image descriptions. It starts from pristine
-  profile clones and retains a real additive install for local-build status
-  coverage.
-- `management.sh` covers the installed command surface, complete second- and
-  third-level help discovery, action guidance before validation, profile
-  binding, skills, and netinfo behavior.
-- `profiles.sh` covers profile precedence, profile-isolated uninstalls, status
-  identity and version-owned image descriptions, and profile error
-  guidance. Its identity, malformed-manifest, invalid-upstream-checkout,
-  partial-profile, and independent shell-init damage cases start from pristine
-  profile clones while retaining real invalid-XDG and bootstrap
-  repair-rejection checks.
-- `profile.sh` covers profile command help and rejection, installed control
-  materialization, read-only state, deterministic profile identity, and
-  override redaction through the fake Podman seam. It also covers strict
-  redirect CRUD, Linux link activation/current status, active-edit rollback,
-  inactive edits, detach, Darwin active-edit restart guidance, projection
-  freshness status, exact/stopped/missing/foreign detach behavior, rejected
-  aliases/options, and profile isolation.
-- `update.sh` covers fetched `bootstrap.sh` self-update for both profiles,
-  selected-shim and all-profile refresh behavior, version-
-  local irrelevant image-refresh actions, manifest-preserving self-update for
-  non-baseline tools and concrete versions, and update request validation. Its
-  self-update scenario starts from session-scoped pristine profile clones so
-  it measures update behavior without repeating repository bootstraps.
-- `startup.sh` covers inferred Bash targets, explicit zsh selection, dash
-  normalization, manual policy, required consent for an identifiable running
-  shell discrepancy, immutable repeat bootstrap, and preservation across
-  additive install and ordinary update. It proves exact-ledger repair under a
-  changed home, upstream isolation, exact uninstall cleanup, and post-commit
-  startup failure/retry against conventional targets.
-- `skills.sh` covers split catalog-owned canonical skill sources, checked-in
-  adapter fingerprints, one-file repository/home and portable exports,
-  profile-local activation/workload/provisioning guidance in refreshed exports,
-  Skopeo registry-policy readiness and strict OC redirect guidance,
-  management plugin discovery, installed-tool selection, absence of canonical
-  skill sources from profile payloads, live-upstream versus published-default
-  visibility, coherent staged target replacement, catalog failure boundaries,
-  lifecycle isolation, refresh, and manifest-tracked cleanup. Its
-  directory export is the semantic authority for an exact relative-path,
-  checksum, and byte-count comparison with the extracted ZIP. Stale-manifest,
-  removed-target, retryable external-target, and catalog-failure cases share
-  one pristine default profile while retaining isolated repository work roots.
-  Target ownership and catalog authority remain independent profile worlds.
-- `dispatcher.sh` covers profile-bound installed dispatchers, ownership, and
-  fixed-target symlink and executable protections using isolated pristine
-  clones for destructive cases; repository previews use `commands/run-tool.sh`.
-- `netinfo.sh` covers deterministic CIDR rendering, explicit host-LAN
-  precedence, help output, and request validation.
-- `install.sh` covers additive installed-tool requests, uninstall workload
-  acknowledgement validation, positive engine-state preservation, generic
-  request rejection, invalid combinations, and macOS Podman guidance.
-- `test.sh` covers installed-profile test request, metadata validation,
-  profile binding, public dispatch, and manifest-tuple concrete-version
-  orchestration. Its installed profile-binding scenario starts from a pristine
-  clone, exercises public, exact-version, and all-version smokes with live
-  Podman, and retains a focused failing-smoke fixture that must propagate its
-  nonzero status.
-- `agent-preflight.sh` covers image-metadata-driven approval smoke commands and
-  local-build preview selection without requiring a live Podman engine.
+Command tests call public installed launchers for acceptance. Direct source
+entrypoint calls are limited to focused parser/transaction seams.

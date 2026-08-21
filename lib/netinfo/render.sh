@@ -117,10 +117,10 @@ EOF
 
 shimmy_usage_print() {
   cat <<'EOF'
-Print shell network perspective for VM and container-heavy workstations.
+Print active-profile network perspectives for VM and container-heavy workstations.
 
 Usage:
-  shimmy netinfo [options]
+  shimmy admin network [options]
 
 Options:
   --target <host-or-ip>    Add an IPv4 route perspective target. Repeatable.
@@ -140,9 +140,9 @@ Notes:
   router or local DNS resolves for the Chromebook.
 
 Examples:
-  shimmy netinfo
-  shimmy netinfo --target 8.8.8.8 --target 192.168.1.1
-  shimmy netinfo --host-name workstation.home.arpa --host-prefix 24
-  shimmy netinfo --host-ip 192.168.1.20 --host-lan 192.168.1.0/24 --format manifest
+  shimmy admin network
+  shimmy admin network --target 8.8.8.8 --target 192.168.1.1
+  shimmy admin network --host-name workstation.home.arpa --host-prefix 24
+  shimmy admin network --host-ip 192.168.1.20 --host-lan 192.168.1.0/24 --format manifest
 EOF
 }

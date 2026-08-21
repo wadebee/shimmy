@@ -1,5 +1,5 @@
 #!/bin/sh
-# Refresh the Textual 8.2 local image when requested by shimmy update.
+# Refresh the Textual 8.2 local image during shim synchronization.
 set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)

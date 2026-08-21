@@ -53,7 +53,7 @@ The authoritative Shimmy control-plane skills are under
 - Use `SHIMMY_{TOOL_PREFIX}_IMAGE` for image override and `SHIMMY_{TOOL_PREFIX}_IMAGE_PULL=always` for pull policy.
 - Use Shimmy's shared Podman helper for runtime platform selection instead of hardcoding per-shim OS or architecture checks.
 - Treat registry redirect mounting as an explicit client capability. Skopeo is
-  the only initial tool-container consumer; `shimmy images verify` inherits it
+  the only initial tool-container consumer; `shimmy catalog verify` inherits it
   through Skopeo, while other runtimes remain unchanged.
 - Any Shimmy-defined user-facing environment variable must use the `SHIMMY_` prefix, including image overrides, pull or build flags, opt-in behavior switches, and secret-name selectors.
 - Update bootstrap and install code, tests, and README together when behavior changes.
@@ -72,11 +72,11 @@ The authoritative Shimmy control-plane skills are under
   wrapper operation before considering a host-tool fallback. Use a non-shim
   fallback only after the user explicitly approves it, preferably with the
   phrase `fallback approved`.
-- For installed shims already selected on `PATH`, invoke the normal tool name such as `rg` or `jq`; do not call the resolved installed shim path. Before selecting another profile, use its absolute launcher for `profile status`, `profile activate --dry-run`, and the exact approved `profile activate` command. Require separate confirmation before adding `--stop-running`; never provision, delete, rename, or adopt a machine. Source the profile's `shell-init.sh` only after activation when PATH initialization is needed. Agent tool calls do not retain earlier sourcing, so use an absolute dispatcher or same-command sourcing when the target is not already on `PATH`. For source previews, use `./commands/run-tool.sh <tool> --preview-shim ...` or the concrete version runtime selected by that tool's `tool.conf`.
-- The combined `bootstrap.sh --activate` form is a human convenience and does
-  not authorize AI agents to combine installation with engine mutation. Agents
-  retain the absolute-launcher status, dry-run, exact activation approval, and
-  separate `--stop-running` confirmation sequence.
+- For installed shims already selected on `PATH`, invoke the normal tool name such as `rg` or `jq`; do not call the resolved installed shim path. Before selecting another profile, use an absolute installed launcher for `profile status`, `profile activate <name> --dry-run`, and the exact approved `profile activate <name>` command. Require separate confirmation before adding `--stop-running`; never provision, delete, rename, or adopt a machine. Source the selected profile's `shell-init.sh` only after activation when PATH initialization is needed. Agent tool calls do not retain earlier sourcing, so use an absolute launcher or same-command sourcing when the target is not already on `PATH`. For source previews, use `./commands/run-tool.sh <tool> --preview-shim ...` or the concrete version runtime selected by that tool's `tool.conf`.
+- Checkout bootstrap creates and activates `default` as one compensated
+  lifecycle. Inspect `./bootstrap.sh --help`, use a disposable absolute
+  `XDG_CONFIG_HOME` for validation, and do not add a hidden activation or
+  machine-provisioning step. Bootstrap never accepts `--stop-running`.
 - When running repo commands, invoke them directly with `exec_command` `login=false` unless profile or startup-file behavior is explicitly under test. Do not use `bash -lc` or login shells for Shimmy commands unless needed.
 - In AI Agent environments, approvals are evaluated on the outer command. A
   sandbox-only `unreachable`, `unknown`, socket-denied, or
@@ -88,7 +88,10 @@ The authoritative Shimmy control-plane skills are under
   a profile automatically from sandbox-only evidence. Approval for
   `["podman","info"]` does not approve Podman access nested through a wrapper,
   and wrapper approval does not authorize profile activation.
-- Canonical skill changes never authorize edits to generated `.agents/skills/` adapters. Refresh accepted repository or home adapters only with the explicit profile-local `shimmy skills update --target repo|profile` lifecycle.
+- Canonical skill changes never authorize a repository `.agents/skills/`
+  adapter tree. Installed active-profile bundles own exact direct links in the
+  user's skill root and reconcile them only through profile activation,
+  shim lifecycle, or `shimmy ai-skill repair`.
 
 ## Test concurrency
 

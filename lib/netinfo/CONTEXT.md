@@ -1,10 +1,8 @@
 # Host network information
 
-`netinfo.sh` orchestrates the sourceable host-network implementation for the
-public `commands/netinfo.sh` entrypoint. Focused modules preserve the POSIX
-behavior while isolating request handling, IPv4/CIDR logic, platform discovery,
-and rendering. It runs from an installed profile launcher or directly through
-the source command; it is not a repository-launcher mode.
+`netinfo.sh` orchestrates the sourceable host-network implementation behind
+installed `shimmy admin network`. Focused modules preserve POSIX behavior while
+isolating request handling, IPv4/CIDR logic, platform discovery, and rendering.
 
 ## Files
 

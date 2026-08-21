@@ -1,355 +1,291 @@
 #!/bin/sh
-# Installed profile command tests.
 
-profile_projection_record_write() {
-  profile_root=$1
-  profile_name=$2
-  projection_fingerprint=$(shimmy_registries_config_fingerprint_render "$profile_root/registries.conf")
-  (
-    SHIMMY_CONFIG_ROOT=$XDG_CONFIG_HOME_DIR/shimmy
-    shimmy_registries_machine_projection_record_render "$profile_name" "$projection_fingerprint"
-  ) > "$profile_root/machine-projection.txt"
-  chmod 0644 "$profile_root/machine-projection.txt"
+test_target_profile_named_create() {
+  test_target_profile_create_name=$1
+  test_target_profile_create_root=$TARGET_SHIM_CONFIG/profiles/$test_target_profile_create_name
+  test_fixture_tree_copy "$TARGET_SHIM_PROFILE_ROOT" "$test_target_profile_create_root"
+  shimmy_target_profile_manifest_render "$test_target_profile_create_name" https://example.invalid/shimmy.git \
+    "$TARGET_SHIM_PINNED_COMMIT" \
+    "default|$TARGET_SHIM_PINNED_GENERATION|$TARGET_SHIM_PINNED_COMMIT|$TARGET_SHIM_PINNED_FINGERPRINT" '' '' \
+    > "$test_target_profile_create_root/install-manifest.txt"
+  shimmy_target_shim_bundle_input_render "$test_target_profile_create_name" "$TARGET_SHIM_PINNED_GENERATION" \
+    "$TARGET_SHIM_PINNED_FINGERPRINT" '' > "$test_target_profile_create_root/config/shim-bundle-input.conf"
+  rm -rf "$test_target_profile_create_root/ai-skills/control" "$test_target_profile_create_root/ai-skills/shims"
+  shimmy_target_ai_skill_control_bundle_materialize "$TARGET_SHIM_CHECKOUT" "$TARGET_SHIM_PINNED_COMMIT" \
+    "$test_target_profile_create_name" "$test_target_profile_create_root/ai-skills/control" || fail_test 'unable to create named control bundle fixture'
+  shimmy_target_ai_skill_shims_bundle_materialize "$test_target_profile_create_root/config/shim-bundle-input.conf" \
+    "$TARGET_SHIM_PINNED_ROOT" "$test_target_profile_create_root/ai-skills/shims" || fail_test 'unable to create named shims bundle fixture'
+  shimmy_registries_config_render "$test_target_profile_create_name" '' > "$test_target_profile_create_root/registries.conf"
+  shimmy_target_profile_launcher_render "$TARGET_SHIM_CONFIG" "$test_target_profile_create_name" > "$test_target_profile_create_root/bin/shimmy"
+  shimmy_target_profile_shell_init_render "$TARGET_SHIM_CONFIG" "$test_target_profile_create_name" > "$test_target_profile_create_root/shell-init.sh"
+  chmod 0755 "$test_target_profile_create_root/bin/shimmy"
+  chmod 0644 "$test_target_profile_create_root/install-manifest.txt" \
+    "$test_target_profile_create_root/config/shim-bundle-input.conf" "$test_target_profile_create_root/registries.conf" \
+    "$test_target_profile_create_root/shell-init.sh"
+  shimmy_target_profile_candidate_resolve "$TARGET_SHIM_CONFIG" "$test_target_profile_create_name" ||
+    fail_test "named profile fixture is invalid: $SHIMMY_TARGET_PROFILE_ERROR"
 }
 
-test_commands_profile_help_and_validation() {
-  setup_scenario_with_profiles default
-  help_output=$(default_shimmy profile --help)
-  assert_contains "$help_output" 'shimmy profile status'
-  assert_contains "$help_output" 'shimmy profile activate'
-  assert_contains "$help_output" 'shimmy profile redirect'
-  assert_contains "$(default_shimmy profile status --help)" 'without mutation'
-  assert_contains "$(default_shimmy profile activate --help)" '--stop-running'
-  assert_contains "$(default_shimmy profile redirect --help)" 'deterministic Darwin machine'
-  assert_contains "$(default_shimmy profile redirect list --help)" '--format human|manifest'
-  assert_contains "$(default_shimmy profile redirect remove --help)" '--detach'
+test_target_profile_fixture_setup() {
+  test_target_shim_fixture_setup
+  TARGET_PROFILE_TEAM=team-one
+  TARGET_PROFILE_TEAM_ROOT=$TARGET_SHIM_CONFIG/profiles/$TARGET_PROFILE_TEAM
+  TARGET_PROFILE_CONFIG_HOME=$(dirname -- "$TARGET_SHIM_CONFIG")
+  TARGET_PROFILE_ACTIVE_LINK=$TARGET_PROFILE_CONFIG_HOME/containers/registries.conf.d/shimmy-active-profile.conf
+  TARGET_PROFILE_PODMAN=$SCENARIO_DIR/podman
+  TARGET_PROFILE_PODMAN_LOG=$SCENARIO_DIR/podman.log
+  profile_activation_fake_create "$TARGET_PROFILE_PODMAN"
+  : > "$TARGET_PROFILE_PODMAN_LOG"
+  test_target_profile_named_create "$TARGET_PROFILE_TEAM"
+}
 
-  for invalid_args in \
-    'profile' \
-    'profile unknown' \
-    'profile status --profile upstream' \
-    'profile activate --machine anything' \
-    'profile activate --restart --restart' \
-    'profile redirect mirror' \
-    'profile redirect set' \
-    'profile redirect registries' \
-    'profile redirect upsert --prefix docker.io --location registry.example.com' \
-    'profile status --format json'; do
-    set +e
-    invalid_output=$(default_shimmy $invalid_args 2>&1)
-    invalid_status=$?
-    set -e
-    [ "$invalid_status" -ne 0 ] || fail_test "invalid profile request unexpectedly succeeded: $invalid_args"
-    assert_contains "$invalid_output" 'ERROR:'
+test_target_profile_linux_active_prepare() {
+  mkdir -p "$(dirname -- "$TARGET_PROFILE_ACTIVE_LINK")"
+  ln -s "$TARGET_SHIM_PROFILE_ROOT/registries.conf" "$TARGET_PROFILE_ACTIVE_LINK"
+}
+
+test_target_profile_state_reset_default() {
+  shimmy_target_active_profile_render default "$SCENARIO_DIR/home/.agents/skills" > "$TARGET_SHIM_CONFIG/active-profile.conf"
+  chmod 0644 "$TARGET_SHIM_CONFIG/active-profile.conf"
+  if [ -L "$TARGET_PROFILE_ACTIVE_LINK" ]; then rm -f "$TARGET_PROFILE_ACTIVE_LINK"; fi
+  [ ! -e "$TARGET_PROFILE_ACTIVE_LINK" ] || fail_test 'foreign active-link state reached target profile reset'
+  test_target_profile_linux_active_prepare
+  for test_target_profile_reset_name in $(shimmy_target_ai_skill_control_names_render) shimmy-tool-stale; do
+    test_target_profile_reset_path=$SCENARIO_DIR/home/.agents/skills/$test_target_profile_reset_name
+    [ ! -L "$test_target_profile_reset_path" ] || rm -f "$test_target_profile_reset_path"
   done
-  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/.profile-activation.lock"
-  pass "profile launcher help precedes engine access and unsupported selectors and aliases fail without mutation"
+  rm -f "$TARGET_SHIM_PROFILE_ROOT/machine-projection.txt" "$TARGET_PROFILE_TEAM_ROOT/machine-projection.txt"
+  : > "$TARGET_PROFILE_PODMAN_LOG"
 }
 
-test_commands_profile_installed_status_and_materialization() {
-  setup_scenario_with_profiles default upstream
-  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
-  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
-  profile_activation_fake_create "$FAKE_PODMAN_BIN"
-  : > "$FAKE_PODMAN_LOG"
-  fake_connections='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true
-shimmy-upstream|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
-
-  status_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
-    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true
-shimmy-upstream|false' FAKE_CONNECTION_LIST="$fake_connections" \
-    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile status --format manifest)
-  assert_contains "$status_output" 'profile=default'
-  assert_contains "$status_output" 'activation=registry_restart_required'
-  assert_contains "$status_output" 'registry_config=valid'
-  assert_contains "$status_output" 'registry_policy=restart-required'
-  assert_file_executable "$DEFAULT_PROFILE_ROOT/commands/profile.sh"
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/lib/profile/activation.sh"
-  assert_equals "$(profile_manifest_value "$DEFAULT_PROFILE_ROOT/install-manifest.txt" shimmy_install_manifest_version)" 1
-
-  secret_uri='ssh://secret@example.invalid/run/user/1/podman/podman.sock'
-  overridden_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    CONTAINER_HOST="$secret_uri" SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
-    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' FAKE_CONNECTION_LIST="$fake_connections" \
-    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile status --format manifest)
-  assert_contains "$overridden_output" 'connection_override=CONTAINER_HOST'
-  assert_contains "$overridden_output" 'activation=overridden'
-  assert_not_contains "$overridden_output" "$secret_uri"
-  pass "fresh profiles materialize the profile control plane and status hides connection override values"
+test_target_profile_run() {
+  test_target_profile_run_invoking=$1
+  shift
+  env HOME="$SCENARIO_DIR/home" XDG_CONFIG_HOME="$TARGET_PROFILE_CONFIG_HOME" \
+    SHIMMY_TARGET_CONFIG_ROOT="$TARGET_SHIM_CONFIG" SHIMMY_TARGET_INVOKING_PROFILE="$test_target_profile_run_invoking" \
+    SHIMMY_TEST_PROFILE_OS="${TARGET_PROFILE_OS:-Linux}" SHIMMY_TEST_PROFILE_PODMAN_BIN="$TARGET_PROFILE_PODMAN" \
+    FAKE_PODMAN_LOG="$TARGET_PROFILE_PODMAN_LOG" FAKE_ACTIVE_LINK="$TARGET_PROFILE_ACTIVE_LINK" \
+    FAKE_ACTIVE_CONFIG="$TARGET_SHIM_PROFILE_ROOT/registries.conf" FAKE_LINUX_INFO="${TARGET_PROFILE_LINUX_INFO:-true|false}" \
+    FAKE_MACHINE_LIST="${TARGET_PROFILE_MACHINE_LIST:-}" FAKE_CONNECTION_LIST="${TARGET_PROFILE_CONNECTION_LIST:-}" \
+    FAKE_WORKLOADS="${TARGET_PROFILE_WORKLOADS:-}" FAKE_DARWIN_INFO="${TARGET_PROFILE_DARWIN_INFO:-true|true}" \
+    FAKE_DARWIN_PROJECTION_STATE="${TARGET_PROFILE_PROJECTION_STATE:-current}" \
+    FAKE_FAIL_ACTION="${TARGET_PROFILE_FAIL_ACTION:-}" FAKE_ROLLBACK_FAIL="${TARGET_PROFILE_ROLLBACK_FAIL:-}" \
+    FAKE_PRIOR_MACHINE="${TARGET_PROFILE_PRIOR_MACHINE:-}" FAKE_TARGET_MACHINE="${TARGET_PROFILE_TARGET_MACHINE:-}" \
+    FAKE_PRIOR_DEFAULT="${TARGET_PROFILE_PRIOR_DEFAULT:-}" \
+    "$ROOT_DIR/commands/profile.sh" "$@"
 }
 
-test_commands_profile_redirect_crud() {
-  setup_scenario_with_profiles default upstream
-  default_config=$DEFAULT_PROFILE_ROOT/registries.conf
-  upstream_config=$UPSTREAM_PROFILE_ROOT/registries.conf
-  upstream_checksum=$(cksum < "$upstream_config")
+test_commands_target_profile_identity_status_and_redirect() {
+  test_target_profile_state_reset_default
+  target_profile_list=$(test_target_profile_run default list --format manifest)
+  assert_contains "$target_profile_list" 'shimmy_profile=default|yes|'
+  assert_contains "$target_profile_list" 'shimmy_profile=team-one|no|'
+  assert_contains "$target_profile_list" '|valid'
+  target_profile_status=$(test_target_profile_run "$TARGET_PROFILE_TEAM" status --format manifest)
+  assert_contains "$target_profile_status" 'shimmy_profile_name=team-one'
+  assert_contains "$target_profile_status" 'shimmy_profile_active=no'
+  assert_contains "$target_profile_status" 'shimmy_engine_activation=ready'
+  assert_contains "$target_profile_status" 'shimmy_profile_ai_skill_links=control|not-applicable|not-applicable'
+  shimmy_target_profile_engine_context_resolve "$TARGET_SHIM_CONFIG" "$TARGET_PROFILE_TEAM"
+  target_profile_status_human=$(test_target_profile_run "$TARGET_PROFILE_TEAM" status)
+  assert_contains "$target_profile_status_human" 'CATALOG PINNED CURRENT DRIFT HEALTH'
+  assert_contains "$target_profile_status_human" 'SHIM DEFAULT MODE VERSIONS'
+  assert_contains "$target_profile_status_human" 'BUNDLE STATUS LINKS REASON'
 
-  inactive_output=$(default_shimmy profile redirect list --format manifest)
-  assert_contains "$inactive_output" 'registry_policy=inactive'
-  assert_no_line_with_prefix "$inactive_output" 'redirect='
-
-  dry_run_before=$(cksum < "$default_config")
-  dry_run_output=$(default_shimmy profile redirect --prefix quay.io/team --location registry.corp.example:5443/quay --dry-run)
-  assert_contains "$dry_run_output" 'prefix = "quay.io/team"'
-  assert_contains "$dry_run_output" 'location = "registry.corp.example:5443/quay"'
-  assert_equals "$(cksum < "$default_config")" "$dry_run_before"
-  assert_path_not_exists "$DEFAULT_PROFILE_ROOT/.registries.lock"
-
-  default_shimmy profile redirect --prefix quay.io/team --location registry.corp.example:5443/quay
-  default_shimmy profile redirect --prefix docker.io --location registry.corp.example/docker
-  assert_regular_file_not_symlink "$default_config"
-  assert_file_mode "$default_config" 644
-  prepared_output=$(default_shimmy profile redirect list --format manifest)
-  assert_contains "$prepared_output" 'registry_policy=unverified'
-  redirect_lines=$(printf '%s\n' "$prepared_output" | sed -n 's/^redirect=//p')
-  assert_equals "$redirect_lines" 'docker.io|registry.corp.example/docker
-quay.io/team|registry.corp.example:5443/quay'
-  assert_equals "$(cksum < "$upstream_config")" "$upstream_checksum"
-
-  no_op_checksum=$(cksum < "$default_config")
-  default_shimmy profile redirect --prefix docker.io --location registry.corp.example/docker
-  assert_equals "$(cksum < "$default_config")" "$no_op_checksum"
-  default_shimmy profile redirect --prefix docker.io --location registry.new.example/docker
-  assert_file_contains "$default_config" 'location = "registry.new.example/docker"'
-  assert_file_not_contains "$default_config" 'location = "registry.corp.example/docker"'
-
-  remove_dry_run_before=$(cksum < "$default_config")
-  remove_dry_run=$(default_shimmy profile redirect remove --prefix docker.io --dry-run)
-  assert_not_contains "$remove_dry_run" 'prefix = "docker.io"'
-  assert_contains "$remove_dry_run" 'prefix = "quay.io/team"'
-  assert_equals "$(cksum < "$default_config")" "$remove_dry_run_before"
-
-  default_shimmy profile redirect remove --prefix docker.io
-  assert_file_not_contains "$default_config" 'prefix = "docker.io"'
-  assert_file_contains "$default_config" 'prefix = "quay.io/team"'
-  default_shimmy profile redirect remove --all
-  final_output=$(default_shimmy profile redirect list)
-  assert_contains "$final_output" 'Policy: inactive'
-  assert_contains "$final_output" 'Redirects: none'
-  assert_equals "$(cksum < "$upstream_config")" "$upstream_checksum"
-  pass "profile redirect dry-run, sorted upsert, no-op, replacement, exact removal, full removal, formats, and profile isolation are deterministic"
-}
-
-test_commands_profile_linux_registry_activation_and_edit() {
-  setup_scenario_with_profiles default upstream
-  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
-  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
-  profile_activation_fake_create "$FAKE_PODMAN_BIN"
-  : > "$FAKE_PODMAN_LOG"
-  active_link=$XDG_CONFIG_HOME_DIR/containers/registries.conf.d/shimmy-active-profile.conf
-  default_config=$DEFAULT_PROFILE_ROOT/registries.conf
-  common_env="XDG_CONFIG_HOME=$XDG_CONFIG_HOME_DIR HOME=$HOME_DIR SHIMMY_TEST_PROFILE_OS=Linux SHIMMY_TEST_PROFILE_PODMAN_BIN=$FAKE_PODMAN_BIN FAKE_PODMAN_LOG=$FAKE_PODMAN_LOG FAKE_LINUX_INFO=true|false FAKE_ACTIVE_LINK=$active_link FAKE_ACTIVE_CONFIG=$default_config"
-
-  activation_output=$(env $common_env "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile activate)
-  assert_contains "$activation_output" 'Activated Shimmy profile default registry policy'
-  assert_path_symlink "$active_link"
-  assert_equals "$(readlink "$active_link")" "$default_config"
-
-  env $common_env "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect --prefix docker.io --location registry.corp.example/docker
-  current_output=$(env $common_env "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect list --format manifest)
-  assert_contains "$current_output" 'registry_active_link=current'
-  assert_contains "$current_output" 'registry_active_profile=default'
-  assert_contains "$current_output" 'registry_override=none'
-  assert_contains "$current_output" 'registry_policy=current'
-
-  before_failure=$SCENARIO_DIR/before-active-edit
-  cp "$default_config" "$before_failure"
+  team_registry_before=$(cksum < "$TARGET_PROFILE_TEAM_ROOT/registries.conf")
   set +e
-  failed_edit_output=$(env $common_env FAKE_FAIL_LINUX_CONFIG_PATTERN=registry.fail.example \
-    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect --prefix docker.io --location registry.fail.example/docker 2>&1)
-  failed_edit_status=$?
+  target_profile_inactive_redirect=$(test_target_profile_run "$TARGET_PROFILE_TEAM" redirect set \
+    --prefix docker.io --location registry.example.invalid/docker 2>&1)
+  target_profile_inactive_status=$?
   set -e
-  [ "$failed_edit_status" -ne 0 ] || fail_test 'active Linux edit unexpectedly survived fresh-process validation failure'
-  assert_contains "$failed_edit_output" 'prior configuration restored'
-  cmp -s "$before_failure" "$default_config" || fail_test 'active Linux edit rollback did not restore exact prior bytes'
-
-  upstream_before=$(cksum < "$UPSTREAM_PROFILE_ROOT/registries.conf")
-  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_TEST_PROFILE_OS=Linux \
-    SHIMMY_TEST_PROFILE_PODMAN_BIN="$SCENARIO_DIR/missing-podman" \
-    "$UPSTREAM_PROFILE_ROOT/bin/shimmy" profile redirect --prefix quay.io --location registry.corp.example/quay
-  [ "$(cksum < "$UPSTREAM_PROFILE_ROOT/registries.conf")" != "$upstream_before" ] || fail_test 'inactive Linux profile edit was not committed'
-
-  detach_dry_run=$(env $common_env "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach --dry-run)
-  assert_contains "$detach_dry_run" "would_detach=$active_link"
-  assert_path_symlink "$active_link"
-  env $common_env "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach
-  assert_path_not_exists "$active_link"
-  assert_contains "$(env $common_env "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect list --format manifest)" 'registry_policy=inactive'
-  pass 'installed Linux profile activation, current status, active-edit rollback, inactive edits, and detach are isolated'
+  [ "$target_profile_inactive_status" -ne 0 ] || fail_test 'inactive invoking profile changed redirects'
+  assert_contains "$target_profile_inactive_redirect" 'requires the active invoking profile'
+  assert_equals "$(cksum < "$TARGET_PROFILE_TEAM_ROOT/registries.conf")" "$team_registry_before"
+  test_target_profile_run default redirect set --prefix docker.io --location registry.example.invalid/docker
+  assert_file_contains "$TARGET_SHIM_PROFILE_ROOT/registries.conf" 'location = "registry.example.invalid/docker"'
+  assert_contains "$(test_target_profile_run default redirect list --format manifest)" \
+    'shimmy_profile_redirect=docker.io|registry.example.invalid/docker'
+  pass 'safe arbitrary profiles list and report local state while redirect mutation remains active-only'
 }
 
-test_commands_profile_linux_detach_refuses_sibling() {
-  setup_scenario_with_profiles default upstream
-  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
-  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
-  profile_activation_fake_create "$FAKE_PODMAN_BIN"
-  active_link=$XDG_CONFIG_HOME_DIR/containers/registries.conf.d/shimmy-active-profile.conf
-  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_TEST_PROFILE_OS=Linux \
-    SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_LINUX_INFO='true|false' \
-    FAKE_ACTIVE_LINK="$active_link" FAKE_ACTIVE_CONFIG="$DEFAULT_PROFILE_ROOT/registries.conf" \
-    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile activate >/dev/null
+test_commands_target_profile_linux_activation_and_rollback() {
+  test_target_profile_state_reset_default
+  target_profile_dry_run=$(test_target_profile_run default activate "$TARGET_PROFILE_TEAM" --dry-run)
+  assert_contains "$target_profile_dry_run" "would_target=$TARGET_PROFILE_TEAM_ROOT/registries.conf"
+  assert_contains "$target_profile_dry_run" 'would_activate_profile=team-one'
+  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TARGET_SHIM_CONFIG/active-profile.conf")" default
+  assert_equals "$(readlink "$TARGET_PROFILE_ACTIVE_LINK")" "$TARGET_SHIM_PROFILE_ROOT/registries.conf"
+
+  target_profile_activation=$(test_target_profile_run default activate "$TARGET_PROFILE_TEAM")
+  assert_contains "$target_profile_activation" 'Activated Shimmy profile team-one.'
+  assert_contains "$target_profile_activation" \
+    "Select it in the current shell with: . '$TARGET_PROFILE_TEAM_ROOT/shell-init.sh'"
+  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TARGET_SHIM_CONFIG/active-profile.conf")" team-one
+  assert_equals "$(readlink "$TARGET_PROFILE_ACTIVE_LINK")" "$TARGET_PROFILE_TEAM_ROOT/registries.conf"
+  assert_equals "$(readlink "$SCENARIO_DIR/home/.agents/skills/shimmy-catalog")" \
+    "$TARGET_PROFILE_TEAM_ROOT/ai-skills/control/skills/shimmy-catalog"
+
   set +e
-  detach_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" SHIMMY_TEST_PROFILE_OS=Linux \
-    "$UPSTREAM_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach 2>&1)
-  detach_status=$?
+  target_profile_rollback=$(env HOME="$SCENARIO_DIR/home" XDG_CONFIG_HOME="$TARGET_PROFILE_CONFIG_HOME" \
+    SHIMMY_TARGET_CONFIG_ROOT="$TARGET_SHIM_CONFIG" SHIMMY_TARGET_INVOKING_PROFILE=team-one \
+    SHIMMY_TEST_PROFILE_OS=Linux SHIMMY_TEST_PROFILE_PODMAN_BIN="$TARGET_PROFILE_PODMAN" \
+    SHIMMY_TARGET_TEST_MODE=1 SHIMMY_TARGET_TEST_PROFILE_FAILURE=after-active-record \
+    FAKE_PODMAN_LOG="$TARGET_PROFILE_PODMAN_LOG" FAKE_ACTIVE_LINK="$TARGET_PROFILE_ACTIVE_LINK" \
+    FAKE_ACTIVE_CONFIG="$TARGET_PROFILE_TEAM_ROOT/registries.conf" FAKE_LINUX_INFO=true\|false \
+    "$ROOT_DIR/commands/profile.sh" activate default 2>&1)
+  target_profile_rollback_status=$?
   set -e
-  [ "$detach_status" -ne 0 ] || fail_test 'inactive sibling unexpectedly detached the active Linux profile'
-  assert_contains "$detach_output" 'not actively linked to profile upstream'
-  assert_equals "$(readlink "$active_link")" "$DEFAULT_PROFILE_ROOT/registries.conf"
-  pass 'Linux detach is bound to the invoking active profile'
+  [ "$target_profile_rollback_status" -ne 0 ] || fail_test 'injected activation failure unexpectedly succeeded'
+  assert_contains "$target_profile_rollback" 'Rollback result: complete'
+  assert_contains "$target_profile_rollback" 'Linux active registry link restored'
+  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TARGET_SHIM_CONFIG/active-profile.conf")" team-one
+  assert_equals "$(readlink "$TARGET_PROFILE_ACTIVE_LINK")" "$TARGET_PROFILE_TEAM_ROOT/registries.conf"
+  assert_equals "$(readlink "$SCENARIO_DIR/home/.agents/skills/shimmy-catalog")" \
+    "$TARGET_PROFILE_TEAM_ROOT/ai-skills/control/skills/shimmy-catalog"
+  pass 'Linux target activation commits engine authority before active record and links and restores all three on failure'
 }
 
-test_commands_profile_darwin_projection_edit_and_detach() {
-  setup_scenario_with_profiles default upstream
-  FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
-  FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
-  profile_activation_fake_create "$FAKE_PODMAN_BIN"
-  : > "$FAKE_PODMAN_LOG"
-  default_config=$DEFAULT_PROFILE_ROOT/registries.conf
-  record_path=$DEFAULT_PROFILE_ROOT/machine-projection.txt
-  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
-  fake_connections='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
-
-  edit_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
-    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
-    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=current \
-    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect --prefix docker.io --location registry.corp.example/docker)
-  assert_contains "$edit_output" "'$DEFAULT_PROFILE_ROOT/bin/shimmy' profile activate --restart"
-  assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop'
-  stale_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
-    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
-    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=current \
-    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect list --format manifest)
-  assert_contains "$stale_output" 'registry_machine_link=current'
-  assert_contains "$stale_output" 'registry_projection_record=valid'
-  assert_contains "$stale_output" 'registry_policy=restart-required'
-
-  dry_run_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
-    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
-    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=current \
-    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach --dry-run)
-  assert_contains "$dry_run_output" "would_detach=shimmy-default:/etc/containers/registries.conf.d/shimmy-profile.conf"
-  assert_file_exists "$record_path"
-  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
-    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
-    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=current \
-    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach
-  assert_path_not_exists "$record_path"
-  assert_file_not_contains "$default_config" '[[registry]]'
-  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh --username root shimmy-default /bin/sh -s -- detach'
-
-  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
-  before_stopped=$(cksum < "$record_path")
+test_commands_target_profile_bundle_policy() {
+  test_target_profile_state_reset_default
+  target_profile_control_bundle=$TARGET_PROFILE_TEAM_ROOT/ai-skills/control/bundle.conf
+  cp "$target_profile_control_bundle" "$target_profile_control_bundle.saved"
+  printf 'malformed=1\n' >> "$target_profile_control_bundle"
   set +e
-  stopped_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
-    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|false' \
-    FAKE_CONNECTION_LIST="$fake_connections" "$DEFAULT_PROFILE_ROOT/bin/shimmy" \
-    profile redirect remove --all --detach 2>&1)
-  stopped_status=$?
+  target_profile_malformed=$(test_target_profile_run default activate "$TARGET_PROFILE_TEAM" 2>&1)
+  target_profile_malformed_status=$?
   set -e
-  [ "$stopped_status" -ne 0 ] || fail_test 'stopped existing Darwin machine unexpectedly detached'
-  assert_contains "$stopped_output" "'$DEFAULT_PROFILE_ROOT/bin/shimmy' profile activate"
-  assert_equals "$(cksum < "$record_path")" "$before_stopped"
+  [ "$target_profile_malformed_status" -ne 0 ] || fail_test 'malformed supported bundle activated'
+  assert_contains "$target_profile_malformed" 'supported target AI-skill bundle consistency validation failed'
+  assert_not_contains "$(cat "$TARGET_PROFILE_PODMAN_LOG")" 'machine stop '
+  assert_not_contains "$(cat "$TARGET_PROFILE_PODMAN_LOG")" 'machine start '
+  assert_not_contains "$(cat "$TARGET_PROFILE_PODMAN_LOG")" 'system connection default '
+  mv "$target_profile_control_bundle.saved" "$target_profile_control_bundle"
 
-  : > "$FAKE_PODMAN_LOG"
-  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
-    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='other|false' \
-    FAKE_CONNECTION_LIST="$fake_connections" "$DEFAULT_PROFILE_ROOT/bin/shimmy" \
-    profile redirect remove --all --detach
-  assert_path_not_exists "$record_path"
-  assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh'
-
-  profile_projection_record_write "$DEFAULT_PROFILE_ROOT" default
-  set +e
-  foreign_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
-    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
-    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=foreign \
-    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach 2>&1)
-  foreign_status=$?
-  set -e
-  [ "$foreign_status" -ne 0 ] || fail_test 'foreign Darwin projection unexpectedly detached'
-  assert_contains "$foreign_output" 'foreign, absent, or invalid machine projection'
-  assert_file_exists "$record_path"
-
-  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
-    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
-    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=current \
-    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect --prefix docker.io --location registry.corp.example/docker >/dev/null
-  failure_bin=$SCENARIO_DIR/failure-bin
-  real_mv=$(command -v mv)
-  mkdir "$failure_bin"
-  {
-    printf '%s\n' '#!/bin/sh' 'set -eu'
-    printf '%s\n' 'if [ "${FAKE_FAIL_REGISTRY_REPLACE:-0}" -eq 1 ] && [ "${2:-}" = "${FAKE_FAIL_REGISTRY_PATH:-}" ]; then exit 77; fi'
-    printf '%s\n' 'exec "$FAKE_REAL_MV" "$@"'
-  } > "$failure_bin/mv"
-  chmod 755 "$failure_bin/mv"
-  before_failure_record=$(cksum < "$record_path")
-  before_failure_config=$(cksum < "$default_config")
-  : > "$FAKE_PODMAN_LOG"
-  set +e
-  rollback_output=$(env PATH="$failure_bin:$PATH" FAKE_REAL_MV="$real_mv" \
-    FAKE_FAIL_REGISTRY_REPLACE=1 FAKE_FAIL_REGISTRY_PATH="$default_config" \
-    XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$FAKE_PODMAN_BIN" \
-    FAKE_PODMAN_LOG="$FAKE_PODMAN_LOG" FAKE_MACHINE_LIST='shimmy-default|true' \
-    FAKE_CONNECTION_LIST="$fake_connections" FAKE_DARWIN_PROJECTION_STATE=current \
-    FAKE_DARWIN_APPLY_RESULT=changed \
-    "$DEFAULT_PROFILE_ROOT/bin/shimmy" profile redirect remove --all --detach 2>&1)
-  rollback_status=$?
-  set -e
-  [ "$rollback_status" -ne 0 ] || fail_test 'failed Darwin detach transaction unexpectedly succeeded'
-  assert_contains "$rollback_output" 'prior projection and record restored'
-  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh --username root shimmy-default /bin/sh -s -- detach'
-  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh --username root shimmy-default /bin/sh -s -- apply'
-  assert_equals "$(cksum < "$record_path")" "$before_failure_record"
-  assert_equals "$(cksum < "$default_config")" "$before_failure_config"
-  pass 'Darwin active edits require restart and detach handles exact, stopped, missing-machine, foreign, and rollback state'
+  target_profile_shims_bundle=$TARGET_PROFILE_TEAM_ROOT/ai-skills/shims/bundle.conf
+  sed 's/^shimmy_ai_skill_bundle_schema=1$/shimmy_ai_skill_bundle_schema=2/' \
+    "$target_profile_shims_bundle" > "$target_profile_shims_bundle.tmp"
+  mv "$target_profile_shims_bundle.tmp" "$target_profile_shims_bundle"
+  target_profile_stale_source=$TARGET_SHIM_PROFILE_ROOT/ai-skills/shims/skills/shimmy-tool-stale
+  ln -s "$target_profile_stale_source" "$SCENARIO_DIR/home/.agents/skills/shimmy-tool-stale"
+  target_profile_unsupported=$(test_target_profile_run default activate "$TARGET_PROFILE_TEAM" 2>&1)
+  assert_contains "$target_profile_unsupported" 'skipping unsupported shims AI-skill bundle'
+  assert_path_not_exists "$SCENARIO_DIR/home/.agents/skills/shimmy-tool-stale"
+  assert_path_symlink "$SCENARIO_DIR/home/.agents/skills/shimmy-catalog"
+  pass 'malformed supported bundles block before engine mutation while unsupported bundles warn, skip, and clean prior-kind links'
 }
 
-test_commands_profile_redirect_rejection() {
-  setup_scenario_with_profiles default
-  config_file=$DEFAULT_PROFILE_ROOT/registries.conf
-  original_checksum=$(cksum < "$config_file")
+test_commands_target_profile_darwin_activation() {
+  test_target_profile_state_reset_default
+  TARGET_PROFILE_OS=Darwin
+  TARGET_PROFILE_MACHINE_LIST='shimmy-default|true
+shimmy-team-one|false'
+  TARGET_PROFILE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true
+shimmy-team-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
+  TARGET_PROFILE_PRIOR_MACHINE=shimmy-default
+  TARGET_PROFILE_TARGET_MACHINE=shimmy-team-one
+  TARGET_PROFILE_PRIOR_DEFAULT=shimmy-default
+  target_profile_default_fingerprint=$(shimmy_registries_config_fingerprint_render "$TARGET_SHIM_PROFILE_ROOT/registries.conf")
+  SHIMMY_CONFIG_ROOT=$TARGET_SHIM_CONFIG \
+  shimmy_registries_machine_projection_record_render default "$target_profile_default_fingerprint" \
+      > "$TARGET_SHIM_PROFILE_ROOT/machine-projection.txt"
+  chmod 0644 "$TARGET_SHIM_PROFILE_ROOT/machine-projection.txt"
 
-  for invalid_args in \
-    'profile redirect --prefix docker.io' \
-    'profile redirect --location registry.example.com' \
-    'profile redirect --prefix docker.io --location https://registry.example.com' \
-    'profile redirect --prefix docker.io/repo:tag --location registry.example.com/repo' \
-    'profile redirect remove' \
-    'profile redirect remove --all --prefix docker.io' \
-    'profile redirect remove --prefix docker.io --detach' \
-    'profile redirect list --format json' \
-    'profile redirect --prefix docker.io --location registry.example.com --profile upstream' \
-    'profile redirect --prefix docker.io --location registry.example.com --machine anything'; do
-    set +e
-    invalid_output=$(default_shimmy $invalid_args 2>&1)
-    invalid_status=$?
-    set -e
-    [ "$invalid_status" -ne 0 ] || fail_test "invalid redirect request unexpectedly succeeded: $invalid_args"
-    assert_contains "$invalid_output" 'ERROR:'
-    assert_equals "$(cksum < "$config_file")" "$original_checksum"
-    assert_path_not_exists "$DEFAULT_PROFILE_ROOT/.registries.lock"
+  TARGET_PROFILE_WORKLOADS='abc123|important'
+  set +e
+  target_profile_guard=$(test_target_profile_run default activate team-one 2>&1)
+  target_profile_guard_status=$?
+  set -e
+  [ "$target_profile_guard_status" -ne 0 ] || fail_test 'unacknowledged target-profile workload switch succeeded'
+  assert_contains "$target_profile_guard" 'abc123|important'
+  assert_not_contains "$(cat "$TARGET_PROFILE_PODMAN_LOG")" 'machine stop shimmy-default'
+  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TARGET_SHIM_CONFIG/active-profile.conf")" default
+
+  : > "$TARGET_PROFILE_PODMAN_LOG"
+  test_target_profile_run default activate team-one --stop-running >/dev/null
+  target_profile_darwin_log=$(cat "$TARGET_PROFILE_PODMAN_LOG")
+  assert_contains "$target_profile_darwin_log" 'machine stop shimmy-default'
+  assert_contains "$target_profile_darwin_log" 'machine start shimmy-team-one'
+  assert_contains "$target_profile_darwin_log" 'system connection default shimmy-team-one'
+  target_profile_darwin_projection_line=$(sed -n '/^machine ssh shimmy-team-one \/bin\/sh -s -- projection /=' "$TARGET_PROFILE_PODMAN_LOG" | tail -n 1)
+  target_profile_darwin_validate_line=$(sed -n '/^--connection shimmy-team-one info /=' "$TARGET_PROFILE_PODMAN_LOG" | tail -n 1)
+  target_profile_darwin_default_line=$(sed -n '/^system connection default shimmy-team-one$/=' "$TARGET_PROFILE_PODMAN_LOG")
+  [ "$target_profile_darwin_projection_line" -lt "$target_profile_darwin_validate_line" ] &&
+    [ "$target_profile_darwin_validate_line" -lt "$target_profile_darwin_default_line" ] ||
+    fail_test 'Darwin target activation ordering is invalid'
+  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TARGET_SHIM_CONFIG/active-profile.conf")" team-one
+  assert_regular_file_not_symlink "$TARGET_PROFILE_TEAM_ROOT/machine-projection.txt"
+
+  : > "$TARGET_PROFILE_PODMAN_LOG"
+  TARGET_PROFILE_MACHINE_LIST='shimmy-default|false
+shimmy-team-one|true'
+  TARGET_PROFILE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
+shimmy-team-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  TARGET_PROFILE_PRIOR_MACHINE=shimmy-team-one
+  TARGET_PROFILE_TARGET_MACHINE=shimmy-team-one
+  TARGET_PROFILE_PRIOR_DEFAULT=shimmy-team-one
+  TARGET_PROFILE_WORKLOADS=
+  test_target_profile_run team-one activate team-one --restart >/dev/null
+  assert_contains "$(cat "$TARGET_PROFILE_PODMAN_LOG")" 'machine stop shimmy-team-one'
+  assert_contains "$(cat "$TARGET_PROFILE_PODMAN_LOG")" 'machine start shimmy-team-one'
+  pass 'Darwin arbitrary-profile activation guards workloads and preserves ordinary, restart, projection, validation, and connection ordering'
+}
+
+test_commands_target_profile_shell_selection() {
+  test_target_profile_state_reset_default
+  target_profile_shell_output=$(env HOME="$SCENARIO_DIR/home" XDG_CONFIG_HOME="$TARGET_PROFILE_CONFIG_HOME" \
+    SHIMMY_TEST_PROFILE_OS=Linux SHIMMY_TEST_PROFILE_PODMAN_BIN="$TARGET_PROFILE_PODMAN" \
+    FAKE_PODMAN_LOG="$TARGET_PROFILE_PODMAN_LOG" FAKE_ACTIVE_LINK="$TARGET_PROFILE_ACTIVE_LINK" \
+    FAKE_ACTIVE_CONFIG="$TARGET_SHIM_PROFILE_ROOT/registries.conf" FAKE_LINUX_INFO=true\|false \
+    TEST_DEFAULT_SHELL="$TARGET_SHIM_PROFILE_ROOT/shell-init.sh" TEST_TEAM_BIN="$TARGET_PROFILE_TEAM_ROOT/bin" \
+    TEST_DEFAULT_BIN="$TARGET_SHIM_PROFILE_ROOT/bin" /bin/sh -c '
+      PATH=$TEST_DEFAULT_BIN:/usr/bin:$TEST_TEAM_BIN:/bin:$TEST_DEFAULT_BIN
+      . "$TEST_DEFAULT_SHELL"
+      selected_before=$(command -v shimmy)
+      selected_path_before=$PATH
+      shimmy profile activate team-one --dry-run >/dev/null
+      printf "dry_same=%s\n" "$([ "$PATH" = "$selected_path_before" ] && printf yes || printf no)"
+      shimmy profile activate missing-profile >/dev/null 2>&1
+      failure_status=$?
+      printf "failure_status=%s\nfailure_same=%s\n" "$failure_status" "$([ "$PATH" = "$selected_path_before" ] && printf yes || printf no)"
+      shimmy profile activate team-one >/dev/null
+      printf "selected=%s\npath=%s\nprior_function=%s\n" "$(command -v shimmy)" "$PATH" "$selected_before"
+      printf "team_launcher=%s\n" "$(shimmy profile status --format manifest | sed -n "s/^shimmy_profile_name=//p")"
+      [ "$selected_path_before" != "$PATH" ]
+    ')
+  assert_contains "$target_profile_shell_output" 'dry_same=yes'
+  assert_contains "$target_profile_shell_output" 'failure_status=1'
+  assert_contains "$target_profile_shell_output" 'failure_same=yes'
+  assert_contains "$target_profile_shell_output" 'selected=shimmy'
+  assert_contains "$target_profile_shell_output" "path=$TARGET_PROFILE_TEAM_ROOT/bin:/usr/bin:/bin"
+  assert_contains "$target_profile_shell_output" 'team_launcher=team-one'
+  assert_contains "$target_profile_shell_output" 'prior_function=shimmy'
+
+  target_profile_default_shell_status=$(env HOME="$SCENARIO_DIR/home" XDG_CONFIG_HOME="$TARGET_PROFILE_CONFIG_HOME" \
+    TEST_SHELL_INIT="$TARGET_SHIM_PROFILE_ROOT/shell-init.sh" /bin/sh -c \
+    '. "$TEST_SHELL_INIT"; shimmy profile status --format manifest')
+  assert_contains "$target_profile_default_shell_status" 'shimmy_profile_name=default'
+  assert_contains "$target_profile_default_shell_status" 'shimmy_profile_active=no'
+  target_profile_team_shell_status=$(env HOME="$SCENARIO_DIR/home" XDG_CONFIG_HOME="$TARGET_PROFILE_CONFIG_HOME" \
+    TEST_SHELL_INIT="$TARGET_PROFILE_TEAM_ROOT/shell-init.sh" /bin/sh -c \
+    '. "$TEST_SHELL_INIT"; shimmy profile status --format manifest')
+  assert_contains "$target_profile_team_shell_status" 'shimmy_profile_name=team-one'
+  assert_contains "$target_profile_team_shell_status" 'shimmy_profile_active=yes'
+  assert_contains "$target_profile_team_shell_status" 'shimmy_profile_ai_skill_links=control|'
+
+  for target_profile_shell in /bin/bash /bin/zsh; do
+    [ -x "$target_profile_shell" ] || continue
+    env HOME="$SCENARIO_DIR/home" XDG_CONFIG_HOME="$TARGET_PROFILE_CONFIG_HOME" \
+      TEST_SHELL_INIT="$TARGET_PROFILE_TEAM_ROOT/shell-init.sh" TEST_TEAM_BIN="$TARGET_PROFILE_TEAM_ROOT/bin" \
+      "$target_profile_shell" -c '. "$TEST_SHELL_INIT"; [ "$(command -v shimmy)" = shimmy ]; case "$PATH" in "$TEST_TEAM_BIN"*) ;; *) exit 1 ;; esac'
   done
-  pass "redirect aliases, selectors, malformed endpoints, conflicting requests, and unknown formats fail before mutation"
+  pass 'supported sourced shells defer exclusive PATH/function switching until successful non-dry-run activation'
 }
 
-test_commands_profile_run() {
-  test_commands_profile_help_and_validation
-  test_commands_profile_installed_status_and_materialization
-  test_commands_profile_redirect_crud
-  test_commands_profile_redirect_rejection
-  test_commands_profile_linux_registry_activation_and_edit
-  test_commands_profile_linux_detach_refuses_sibling
-  test_commands_profile_darwin_projection_edit_and_detach
+test_commands_target_profile_run() {
+  test_target_profile_fixture_setup
+  test_commands_target_profile_identity_status_and_redirect
+  test_commands_target_profile_linux_activation_and_rollback
+  test_commands_target_profile_bundle_policy
+  test_commands_target_profile_darwin_activation
+  test_commands_target_profile_shell_selection
 }

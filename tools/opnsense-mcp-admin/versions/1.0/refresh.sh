@@ -1,5 +1,5 @@
 #!/bin/sh
-# Refresh the OPNsense admin MCP 1.0 local image when requested by shimmy update.
+# Refresh the OPNsense admin MCP 1.0 local image during shim synchronization.
 set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
@@ -14,7 +14,7 @@ case "${1:-}" in
     ;;
   build)
     [ -z "${SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE:-}" ] || exit 0
-    shimmy_podman_preflight_require "shimmy update --build"
+    shimmy_podman_preflight_require "shimmy shim sync"
     if [ -n "${SHIMMY_OPNSENSE_MCP_ADMIN_SOURCE_REF:-}" ]; then
       shimmy_local_image_ensure \
         "$SCRIPT_DIR/image.conf" \

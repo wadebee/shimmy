@@ -71,7 +71,7 @@ SHIMMY_SKOPEO_AUTH_SECRET=registry-example-auth \
 
 Registry redirects use containers/image `prefix`/replacement `location`
 semantics. The logical `docker://` reference remains unchanged and there is no
-configured upstream fallback. `shimmy images verify` uses this same runtime,
+configured upstream fallback. `shimmy catalog verify` uses this same runtime,
 so it inherits the active profile policy automatically.
 
 The policy mount does not provide credentials, install a corporate CA, or

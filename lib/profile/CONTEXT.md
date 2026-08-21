@@ -1,66 +1,23 @@
 # Profiles
 
-`profile.sh` resolves `default` and `upstream` profiles, their installation
-paths, version-1 manifests, materialized installation structure, and upstream
-source validity. A valid source checkout requires executable root
-`bootstrap.sh`, the control, library, and tool trees, and the launcher
-template. The canonical profile roots are
-`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`; a non-empty
-relative `XDG_CONFIG_HOME` is invalid. Installed launchers and dispatchers
-derive identity from their enclosing canonical profile and never select a
-sibling profile. Each manifest must bind `default` to the shared `default`
-catalog or `upstream` to the shared `upstream` catalog; missing, mismatched,
-duplicate, or unsafe bindings reject the profile before mutation. Shell
-selection is performed by sourcing that profile's generated `shell-init.sh`.
-A default manifest requires one normalized startup shell and permits unique
-absolute `startup_file` ownership entries; zero entries is manual policy.
-Upstream manifests forbid both startup fields.
-A valid current profile has no `plugins/` or retired `agent/` directory. Its
-`tools/` and shim configuration contain exactly the tools and concrete versions
-recorded by the manifest; canonical skills and unselected catalog entries are
-invalid mixed-layout payload.
+`profile.sh` resolves canonical XDG installation/profile paths for arbitrary
+safe names, maps engine identity to `shimmy-<profile>`, and validates schema-2
+runtime identity.
 
-`activation.sh` owns deterministic engine discovery, read-only status,
-side-effect-free activation-state labels and conservative recommended actions,
-workload-guarded Darwin transitions, commit-last default selection, rollback
-reporting, Linux active-link plus fresh local-rootless validation, and Darwin
-same-path registry projection before target engine validation. Darwin
-activation records projected config freshness only after rootless remote
-validation; stale running state requires explicit workload-guarded restart.
-Uninstall reuses bounded start, stop, restart, validation, and restoration
-primitives while holding the activation lock. Neither lifecycle provisions or
-removes a VM.
+`state.sh` reads/renders mode-0644 active records and schema-2 profile manifests,
+then validates profile, catalog generation, shim/version, startup, and AI-skill
+bundle state as one read-only authority.
 
-Path resolution also records the authoritative profile-specific
-`registries.conf`, adjacent transaction lock, exact Linux user drop-in, exact
-Darwin VM link, and optional profile-local machine projection record. Current
-profiles require the authoritative file to be a regular non-symlink with exact
-profile/version markers; any retained projection record must have strict
-identity, target, fingerprint, and mode. Only the installer may recognize an
-absent registry file as the valid pre-feature upgrade shape.
+`management.sh` implements installation-wide list, invoking-profile status,
+create/activate/delete routing, and redirects. Activation validates candidate
+materialization, holds activation then lexical profile/registry locks, defers
+engine commit, and compensates active-record and exact user-skill link changes.
 
-`state.sh` is private target-only code. It parameterizes disposable
-installation roots, reads/renders mode-`0644` active-record schema 1, reads profile
-manifest version 2 without falling back to version 1, and validates profile,
-catalog-generation, shim, and AI-bundle records as one mutation-free state.
+`activation.sh` owns deterministic engine discovery, read-only status, dry-run,
+Linux registry-link selection and local-rootless validation, workload-guarded
+Darwin transitions, same-path registry projection, commit-last default
+selection, and rollback. It never provisions or removes a VM.
 
-`target.sh` privately validates complete arbitrary-name version-2 profile
-candidates and implements installation-wide list, invoking-profile status and
-redirects, and named activation. Activation requires the active record and
-engine/registry state to agree, preflights supported/unsupported bundle policy,
-holds activation then lexical profile then registry locks, defers shared engine
-commit, and reconciles the active record and exact user links through external
-compensation before finalizing. Human status keeps the recorded PROFILE,
-ENGINE, CATALOG, SHIMS, AI SKILLS, and STARTUP sections; inactive link counts
-are `not-applicable`.
-
-The shared engine identity resolver accepts safe target names and maps them to
-`shimmy-<profile>`, while the public path resolver continues to admit only
-version-1 `default` and `upstream`. Shared activation and registry-lock helpers
-have private externally-held-lock/deferred-commit seams; their default public
-behavior is unchanged.
-
-`transaction.sh` is the private target external-compensation journal. It
-restores registered Shimmy state in reverse order, identifies each restored
-resource, returns `complete|incomplete`, and records overwritten foreign
-content as explicitly irrecoverable rather than claiming recovery.
+`transaction.sh` is the external compensation journal. It restores registered
+Shimmy state in reverse and reports overwritten foreign skill content as
+irrecoverable rather than claiming recovery.

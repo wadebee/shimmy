@@ -1,339 +1,277 @@
 #!/bin/sh
 
-# shellcheck source=lib/install/catalog-lifecycle.sh
-. "$ROOT_DIR/lib/install/catalog-lifecycle.sh"
+images_fixture_fake_runtimes_write() {
+  fixture_root=$1
+  jq_run=$fixture_root/tools/jq/versions/1.8/run.sh
+  skopeo_run=$fixture_root/tools/skopeo/versions/1.22/run.sh
 
-test_catalog_tool_create() {
-  catalog_checkout=$1
-  catalog_tool_name=$2
-  cp -R "$catalog_checkout/tools/jq" "$catalog_checkout/tools/$catalog_tool_name"
-  sed "s/^shim_name=jq$/shim_name=$catalog_tool_name/" "$catalog_checkout/tools/$catalog_tool_name/tool.conf" > "$catalog_checkout/tools/$catalog_tool_name/tool.conf.tmp"
-  mv "$catalog_checkout/tools/$catalog_tool_name/tool.conf.tmp" "$catalog_checkout/tools/$catalog_tool_name/tool.conf"
-  sed "s/^shim_name=jq_1_8$/shim_name=${catalog_tool_name}_1_8/" "$catalog_checkout/tools/$catalog_tool_name/versions/1.8/smoke.conf" > "$catalog_checkout/tools/$catalog_tool_name/versions/1.8/smoke.conf.tmp"
-  mv "$catalog_checkout/tools/$catalog_tool_name/versions/1.8/smoke.conf.tmp" "$catalog_checkout/tools/$catalog_tool_name/versions/1.8/smoke.conf"
-  sed "s/^name: shimmy-tool-jq$/name: shimmy-tool-$catalog_tool_name/" "$catalog_checkout/tools/$catalog_tool_name/SKILL.md" > "$catalog_checkout/tools/$catalog_tool_name/SKILL.md.tmp"
-  mv "$catalog_checkout/tools/$catalog_tool_name/SKILL.md.tmp" "$catalog_checkout/tools/$catalog_tool_name/SKILL.md"
-}
+  cat > "$jq_run" <<'EOF'
+#!/bin/sh
+payload=$(cat)
+case "$payload" in
+  *'"_fixture": "oci-valid"'*) printf 'verified\tapplication/vnd.oci.image.index.v1+json\tverified\n' ;;
+  *'"_fixture": "docker-valid"'*) printf 'verified\tapplication/vnd.docker.distribution.manifest.list.v2+json\tverified\n' ;;
+  *'"_fixture":"single-manifest"'*) printf 'unsupported-media-type\tunsupported\tfailed\n' ;;
+  *'"_fixture":"child-digest"'*) printf 'unsupported-media-type\tunsupported\tfailed\n' ;;
+  *'"_fixture":"missing-arm64"'*) printf 'missing-required-platform\tapplication/vnd.oci.image.index.v1+json\tfailed\n' ;;
+  *'"_fixture":"unsupported-media"'*) printf 'unsupported-media-type\tunsupported\tfailed\n' ;;
+  *'"_fixture":"empty-index"'*) printf 'missing-descriptors\tapplication/vnd.oci.image.index.v1+json\tfailed\n' ;;
+  *'"_fixture":"absent-manifests"'*) printf 'missing-descriptors\tapplication/vnd.oci.image.index.v1+json\tfailed\n' ;;
+  *) exit 4 ;;
+esac
+EOF
 
-test_catalog_jq_version_create() {
-  catalog_checkout=$1
-  cp -R "$catalog_checkout/tools/jq/versions/1.8" "$catalog_checkout/tools/jq/versions/1.9"
-  sed 's/^shim_name=jq_1_8$/shim_name=jq_1_9/' "$catalog_checkout/tools/jq/versions/1.9/smoke.conf" > "$catalog_checkout/tools/jq/versions/1.9/smoke.conf.tmp"
-  mv "$catalog_checkout/tools/jq/versions/1.9/smoke.conf.tmp" "$catalog_checkout/tools/jq/versions/1.9/smoke.conf"
-  sed 's/^tool_default_version=1.8$/tool_default_version=1.9/' "$catalog_checkout/tools/jq/tool.conf" > "$catalog_checkout/tools/jq/tool.conf.tmp"
-  mv "$catalog_checkout/tools/jq/tool.conf.tmp" "$catalog_checkout/tools/jq/tool.conf"
-}
-
-test_catalog_list_failure() {
-  expected_error=$1
-  shift
-
-  set +e
-  catalog_list_failure_output=$(default_shimmy catalog list "$@" 2>&1)
-  catalog_list_failure_status=$?
-  set -e
-  [ "$catalog_list_failure_status" -ne 0 ] || fail_test "catalog list unexpectedly accepted: $*"
-  assert_contains "$catalog_list_failure_output" "$expected_error"
-}
-
-test_commands_catalog_list() {
-  setup_scenario_with_profiles default upstream
-  default_manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
-  upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
-  default_shell_init_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/shell-init.sh")
-  upstream_shell_init_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/shell-init.sh")
-  default_registry=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf
-  upstream_registry=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf
-  default_registry_checksum=$(cksum < "$default_registry")
-  upstream_registry_checksum=$(cksum < "$upstream_registry")
-
-  default_manifest=$(default_shimmy catalog list --format manifest)
-  upstream_manifest=$(upstream_shimmy catalog list --format manifest)
-  assert_contains "$default_manifest" 'shimmy_catalog_name=default'
-  assert_contains "$upstream_manifest" 'shimmy_catalog_name=upstream'
-  assert_contains "$default_manifest" 'shimmy_catalog_tool=jq'
-  assert_contains "$default_manifest" 'shimmy_catalog_tool=rg'
-  assert_contains "$default_manifest" 'shimmy_catalog_tool=task'
-  expected_tools=$(
-    for tool_file in "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"/tools/*/tool.conf; do
-      basename "$(dirname "$tool_file")"
-    done | sort
-  )
-  default_tools=$(printf '%s\n' "$default_manifest" | sed -n 's/^shimmy_catalog_tool=//p')
-  upstream_tools=$(printf '%s\n' "$upstream_manifest" | sed -n 's/^shimmy_catalog_tool=//p')
-  assert_equals "$default_tools" "$expected_tools"
-  assert_equals "$upstream_tools" "$expected_tools"
-
-  default_human=$(default_shimmy catalog list)
-  assert_contains "$default_human" 'Shimmy Catalog'
-  assert_contains "$default_human" 'catalog: default'
-  assert_contains "$default_human" '- jq'
-  assert_contains "$default_human" '- rg'
-  assert_contains "$default_human" '- task'
-  assert_equals "$(printf '%s\n' "$default_human" | sed -n 's/^- //p')" "$expected_tools"
-
-  test_catalog_list_failure 'missing value for --format' --format
-  test_catalog_list_failure '--format may be specified only once' --format human --format manifest
-  test_catalog_list_failure 'unsupported catalog list format: json' --format json
-  test_catalog_list_failure 'missing value for --name' --name
-  test_catalog_list_failure '--name may be specified only once' --name default --name upstream
-  test_catalog_list_failure 'unsafe catalog name: ../default' --name ../default
-  test_catalog_list_failure 'unknown argument: --unknown' --unknown
-  test_catalog_list_failure 'missing catalog registry entry:' --name missing
-
-  mkdir "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/broken"
-  : > "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/broken/registry.conf"
-  test_catalog_list_failure 'catalog_source_type is required exactly once' --name broken
-
-  list_help=$(run_in_repo ./commands/catalog.sh list --help)
-  assert_contains "$list_help" 'shimmy catalog list [--name <catalog>] [--format human|manifest]'
-  assert_contains "$list_help" 'shimmy_catalog_tool'
-  mv "$default_registry" "$default_registry.unavailable"
-  assert_contains "$(default_shimmy catalog list --help)" 'List every tool in a resolved named catalog.'
-  mv "$default_registry.unavailable" "$default_registry"
-
-  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$default_manifest_checksum"
-  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"
-  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/shell-init.sh")" "$default_shell_init_checksum"
-  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/shell-init.sh")" "$upstream_shell_init_checksum"
-  assert_equals "$(cksum < "$default_registry")" "$default_registry_checksum"
-  assert_equals "$(cksum < "$upstream_registry")" "$upstream_registry_checksum"
-  pass "catalog list renders complete deterministic named catalog membership without mutation"
-}
-
-test_commands_catalog_dirty_initial_publication_rejection() {
-  setup_scenario
-  dirty_checkout=$SCENARIO_DIR/dirty-checkout
-  test_fixture_tree_copy "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$dirty_checkout"
-  printf '%s\n' dirty > "$dirty_checkout/untracked-publication-sentinel"
-
-  set +e
-  dirty_output=$(
-    cd "$dirty_checkout"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile default --no-startup 2>&1
-  )
-  dirty_status=$?
-  set -e
-  [ "$dirty_status" -ne 0 ] || fail_test 'dirty initial default publication unexpectedly succeeded'
-  assert_contains "$dirty_output" 'refusing to publish catalog from dirty checkout'
-  assert_contains "$dirty_output" 'commit all index, worktree, and untracked changes first'
-  assert_path_not_exists "$DEFAULT_PROFILE_ROOT"
-  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default"
-  for catalog_stage in "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"/.default.stage.* "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default"/.publish-stage.*; do
-    [ ! -e "$catalog_stage" ] && [ ! -L "$catalog_stage" ] || fail_test "dirty initial publication left staging state: $catalog_stage"
-  done
-  pass "dirty initial default publication rejects before profile, registry, staging, or generation mutation"
-}
-
-test_commands_catalog_registration_collision() {
-  setup_scenario
-  mkdir -p "$XDG_CONFIG_HOME_DIR/shimmy"
-  test_fixture_tree_copy "$SHIMMY_TEST_CATALOG_FIXTURES_ROOT" "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
-  collision_checkout=$SCENARIO_DIR/collision-checkout
-  test_fixture_tree_copy "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$collision_checkout"
-  registry_file=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf
-  registry_checksum=$(cksum < "$registry_file")
-
-  set +e
-  collision_output=$(
-    cd "$collision_checkout"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile upstream 2>&1
-  )
-  collision_status=$?
-  set -e
-  [ "$collision_status" -ne 0 ] || fail_test 'second checkout silently replaced upstream registration'
-  assert_contains "$collision_output" 'upstream catalog is already bound to'
-  assert_contains "$collision_output" 'shimmy catalog rebind --checkout'
-  assert_equals "$(cksum < "$registry_file")" "$registry_checksum"
-  assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
-  pass "a second checkout cannot silently replace the upstream registry authority"
-}
-
-test_commands_catalog_registry_symlink_rejection() {
-  setup_scenario
-  mkdir -p "$XDG_CONFIG_HOME_DIR/shimmy" "$SCENARIO_DIR/catalog-target"
-  ln -s "$SCENARIO_DIR/catalog-target" "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
-
-  set +e
-  symlink_output=$(bootstrap_upstream 2>&1)
-  symlink_status=$?
-  set -e
-  [ "$symlink_status" -ne 0 ] || fail_test 'symlinked shared catalog root unexpectedly accepted'
-  assert_contains "$symlink_output" 'catalog registry root has a symbolic-link path component'
-  assert_path_not_exists "$UPSTREAM_PROFILE_ROOT"
-  assert_path_not_exists "$SCENARIO_DIR/catalog-target/upstream"
-  pass "shared catalog registry mutation rejects symlink traversal"
-}
-
-test_commands_catalog_rebind_and_publish() {
-  setup_scenario_with_profiles default upstream
-  replacement_checkout=$SCENARIO_DIR/replacement-checkout
-  test_fixture_tree_copy "$SHIMMY_TEST_CLEAN_SOURCE_ROOT" "$replacement_checkout"
-  upstream_registry=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/upstream/registry.conf
-  default_registry=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/registry.conf
-  upstream_registry_checksum=$(cksum < "$upstream_registry")
-
-  invalid_checkout=$SCENARIO_DIR/invalid-checkout
-  mkdir "$invalid_checkout"
-  set +e
-  invalid_output=$(upstream_shimmy catalog rebind --checkout "$invalid_checkout" 2>&1)
-  invalid_status=$?
-  set -e
-  [ "$invalid_status" -ne 0 ] || fail_test 'invalid upstream rebind unexpectedly succeeded'
-  assert_contains "$invalid_output" 'missing regular payload identity file'
-  assert_equals "$(cksum < "$upstream_registry")" "$upstream_registry_checksum"
-
-  rebind_output=$(upstream_shimmy catalog rebind --checkout "$replacement_checkout")
-  assert_contains "$rebind_output" "prior_source_path=$ROOT_DIR"
-  assert_contains "$rebind_output" "new_source_path=$replacement_checkout"
-  assert_file_contains "$upstream_registry" "catalog_source_path=$replacement_checkout"
-  assert_dir_exists "$ROOT_DIR"
-  assert_dir_exists "$replacement_checkout"
-
-  initial_default_generation=$(profile_manifest_value "$default_registry" catalog_generation_current)
-  default_registry_checksum=$(cksum < "$default_registry")
-  default_manifest_checksum=$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")
-  upstream_manifest_checksum=$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")
-  test_catalog_tool_create "$replacement_checkout" instant
-  test_catalog_jq_version_create "$replacement_checkout"
-  sed 's|^image_upstream_ref=ghcr.io/jqlang/jq:1.8.1$|image_upstream_ref=ghcr.io/jqlang/jq:catalog-new|' "$replacement_checkout/tools/jq/versions/1.8/image.conf" > "$replacement_checkout/tools/jq/versions/1.8/image.conf.tmp"
-  mv "$replacement_checkout/tools/jq/versions/1.8/image.conf.tmp" "$replacement_checkout/tools/jq/versions/1.8/image.conf"
-
-  upstream_catalog=$(upstream_shimmy catalog list --format manifest)
-  assert_contains "$upstream_catalog" 'shimmy_catalog_tool=instant'
-  default_catalog=$(default_shimmy catalog list --format manifest)
-  assert_not_contains "$default_catalog" 'shimmy_catalog_tool=instant'
-
-  set +e
-  dirty_publish_output=$(upstream_shimmy catalog publish 2>&1)
-  dirty_publish_status=$?
-  set -e
-  [ "$dirty_publish_status" -ne 0 ] || fail_test 'dirty upstream publication unexpectedly succeeded'
-  assert_contains "$dirty_publish_output" 'refusing to publish catalog from dirty checkout'
-  assert_contains "$dirty_publish_output" 'commit all index, worktree, and untracked changes first'
-  assert_equals "$(cksum < "$default_registry")" "$default_registry_checksum"
-  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$default_manifest_checksum"
-  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"
-  for catalog_stage in "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"/.default.stage.* "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default"/.publish-stage.*; do
-    [ ! -e "$catalog_stage" ] && [ ! -L "$catalog_stage" ] || fail_test "dirty publication left staging state: $catalog_stage"
-  done
-
-  git -C "$replacement_checkout" add tools/instant tools/jq/tool.conf tools/jq/versions/1.8/image.conf tools/jq/versions/1.9
-  git -C "$replacement_checkout" commit -qm 'add instant catalog tool'
-  published_head=$(git -C "$replacement_checkout" rev-parse HEAD)
-  printf '%s\n' 'tools/instant/ignored-publication-sentinel' >> "$replacement_checkout/.git/info/exclude"
-  printf '%s\n' ignored > "$replacement_checkout/tools/instant/ignored-publication-sentinel"
-  [ -z "$(git -C "$replacement_checkout" status --porcelain --untracked-files=all)" ] || fail_test 'ignored publication fixture is unexpectedly dirty'
-
-  publish_output=$(upstream_shimmy catalog publish)
-  published_generation=$(profile_manifest_value "$default_registry" catalog_generation_current)
-  published_previous=$(profile_manifest_value "$default_registry" catalog_generation_previous)
-  published_fingerprint=$(profile_manifest_value "$default_registry" catalog_content_fingerprint)
-  published_registry_checksum=$(cksum < "$default_registry")
-  assert_contains "$publish_output" "Published default catalog generation: $published_generation"
-  assert_contains "$publish_output" "source_commit=$published_head"
-  assert_contains "$publish_output" "content_fingerprint=$published_fingerprint"
-  [ "$published_generation" != "$initial_default_generation" ] || fail_test 'publication did not advance the default generation'
-  assert_equals "$published_previous" "$initial_default_generation"
-  assert_dir_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$published_previous"
-  assert_dir_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$published_generation"
-  assert_path_not_exists "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$published_generation/tools/instant/ignored-publication-sentinel"
-  assert_file_contains "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$published_generation/generation.conf" "catalog_source_commit=$published_head"
-  assert_file_contains "$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$published_generation/generation.conf" "catalog_content_fingerprint=$published_fingerprint"
-  published_default_catalog=$(default_shimmy catalog list --format manifest)
-  assert_contains "$published_default_catalog" 'shimmy_catalog_tool=instant'
-  published_default_status=$(default_shimmy status --format manifest)
-  assert_contains "$published_default_status" 'shimmy_profile_tool_version=jq|1.8|jq_1_8'
-  assert_not_contains "$published_default_status" 'shimmy_profile_tool_version=jq|1.9|jq_1_9'
-  SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=$DEFAULT_PROFILE_ROOT/tools
-  SHIMMY_IMAGES_USE_PROFILE_METADATA=1
-  materialized_image_records=$(shimmy_images_config_records_print jq jq_1_8)
-  assert_contains "$materialized_image_records" 'ghcr.io/jqlang/jq:1.8.1'
-  assert_not_contains "$materialized_image_records" 'ghcr.io/jqlang/jq:catalog-new'
-  shimmy_catalog_registry_resolve "$XDG_CONFIG_HOME_DIR/shimmy" default || fail_test "$SHIMMY_CATALOG_ERROR"
-  SHIMMY_IMAGES_USE_PROFILE_METADATA=0
-  catalog_image_records=$(shimmy_images_config_records_print jq jq_1_8)
-  assert_contains "$catalog_image_records" 'ghcr.io/jqlang/jq:catalog-new'
-  assert_equals "$(cksum < "$DEFAULT_PROFILE_ROOT/install-manifest.txt")" "$default_manifest_checksum"
-  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"
-
-  test_manifest_source_url_replace "$DEFAULT_PROFILE_ROOT/install-manifest.txt" "$SHIMMY_TEST_UPDATE_SOURCE_REPOSITORY"
-  default_shimmy update --shim jq >/dev/null
-  updated_default_status=$(default_shimmy status --format manifest)
-  assert_contains "$updated_default_status" 'shimmy_profile_tool_version=jq|1.9|jq_1_9'
-  assert_file_contains "$DEFAULT_PROFILE_ROOT/install-manifest.txt" 'tool_version=jq|default|jq_1_9'
-  assert_file_exists "$DEFAULT_PROFILE_ROOT/tools/jq/versions/1.9/run.sh"
-  assert_equals "$(cksum < "$UPSTREAM_PROFILE_ROOT/install-manifest.txt")" "$upstream_manifest_checksum"
-
-  SHIMMY_CATALOG_PUBLICATION_CHECKOUT=$replacement_checkout
-  SHIMMY_CATALOG_PUBLICATION_HEAD=$published_head
-  printf '%s\n' changed > "$replacement_checkout/head-change-sentinel"
-  git -C "$replacement_checkout" add head-change-sentinel
-  git -C "$replacement_checkout" commit -qm 'advance checkout during publication fixture'
-  if shimmy_catalog_checkout_recheck >/dev/null 2>&1; then
-    fail_test 'publication checkout recheck accepted a changed HEAD'
+  cat > "$skopeo_run" <<'EOF'
+#!/bin/sh
+mode=digest
+remote_ref=
+for inspect_arg in "$@"; do
+  [ "$inspect_arg" != --raw ] || mode=raw
+  case "$inspect_arg" in docker://*) remote_ref=${inspect_arg#docker://} ;; esac
+done
+[ -n "$remote_ref" ] || exit 2
+cat >/dev/null
+printf '%s|%s\n' "$mode" "$remote_ref" >> "$SHIMMY_TEST_IMAGES_CALL_LOG"
+while IFS='|' read -r response_mode response_ref response_value response_status; do
+  [ "$response_mode" = "$mode" ] || continue
+  [ "$response_ref" = "$remote_ref" ] || continue
+  [ "$response_status" = ok ] || exit 3
+  if [ "$mode" = raw ]; then
+    cat "$SHIMMY_TEST_IMAGES_FIXTURE_DIR/$response_value"
+  else
+    printf '%s\n' "$response_value"
   fi
-  assert_contains "$SHIMMY_CATALOG_ERROR" 'HEAD changed during publication'
-
-  initial_catalog_conf=$XDG_CONFIG_HOME_DIR/shimmy/catalogs/default/generations/$published_previous/catalog.conf
-  initial_catalog_conf_saved=$SCENARIO_DIR/initial-catalog.conf.saved
-  cp "$initial_catalog_conf" "$initial_catalog_conf_saved"
-  printf '%s\n' 'catalog_test_corruption=1' >> "$initial_catalog_conf"
-  set +e
-  corrupt_rollback_output=$(default_shimmy status --format manifest 2>&1)
-  corrupt_rollback_status=$?
-  set -e
-  [ "$corrupt_rollback_status" -ne 0 ] || fail_test 'corrupt retained rollback generation unexpectedly resolved'
-  assert_contains "$corrupt_rollback_output" 'unknown key catalog_test_corruption'
-  set +e
-  corrupt_rollback_command_output=$(upstream_shimmy catalog rollback 2>&1)
-  corrupt_rollback_command_status=$?
-  set -e
-  [ "$corrupt_rollback_command_status" -ne 0 ] || fail_test 'catalog rollback unexpectedly accepted a corrupt retained generation'
-  assert_contains "$corrupt_rollback_command_output" 'unknown key catalog_test_corruption'
-  assert_equals "$(cksum < "$default_registry")" "$published_registry_checksum"
-
-  cp "$initial_catalog_conf_saved" "$initial_catalog_conf"
-  cmp -s "$initial_catalog_conf_saved" "$initial_catalog_conf" || fail_test 'retained generation restoration changed catalog.conf bytes'
-  restored_status=$(default_shimmy status --format manifest)
-  assert_contains "$restored_status" 'shimmy_catalog_health=ok'
-  assert_equals "$(profile_manifest_value "$default_registry" catalog_generation_current)" "$published_generation"
-  assert_equals "$(profile_manifest_value "$default_registry" catalog_generation_previous)" "$initial_default_generation"
-
-  relocated_checkout=$SCENARIO_DIR/relocated-replacement-checkout
-  mv "$replacement_checkout" "$relocated_checkout"
-  assert_path_not_exists "$replacement_checkout"
-  rollback_output=$(upstream_shimmy catalog rollback)
-  assert_contains "$rollback_output" "Rolled back default catalog generation: $initial_default_generation"
-  assert_not_contains "$(default_shimmy catalog list --format manifest)" 'shimmy_catalog_tool=instant'
-  assert_contains "$(default_shimmy status --format manifest)" 'shimmy_catalog_health=ok'
-  assert_equals "$(profile_manifest_value "$default_registry" catalog_generation_previous)" "$published_generation"
-
-  printf '%s\n' 'catalog_test_corruption=1' >> "$initial_catalog_conf"
-  set +e
-  invalid_current_status=$(default_shimmy status --format manifest 2>&1)
-  invalid_current_code=$?
-  set -e
-  [ "$invalid_current_code" -ne 0 ] || fail_test 'corrupt current generation unexpectedly resolved'
-  assert_contains "$invalid_current_status" 'catalog_test_corruption'
-
-  recovery_output=$(upstream_shimmy catalog rollback)
-  assert_contains "$recovery_output" "Rolled back default catalog generation: $published_generation"
-  assert_contains "$(default_shimmy catalog list --format manifest)" 'shimmy_catalog_tool=instant'
-  assert_equals "$(profile_manifest_value "$default_registry" catalog_generation_previous)" ''
-  assert_dir_exists "$relocated_checkout"
-  assert_contains "$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/jq" --preview-shim --version)" 'ghcr.io/jqlang/jq@sha256:'
-  SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=
-  SHIMMY_IMAGES_USE_PROFILE_METADATA=0
-  test_lib_catalog_activate
-  pass "explicit rebind and clean publication preserve authority, provenance, ignored-content, profile, checkout-race, and rollback boundaries"
-  pass "default catalog rollback survives upstream source loss and recovers from an invalid current generation"
+  exit 0
+done < "$SHIMMY_TEST_IMAGES_RESPONSE_FILE"
+exit 4
+EOF
+  chmod 0755 "$jq_run" "$skopeo_run"
 }
 
-test_commands_catalog_run() {
-  test_commands_catalog_list
-  test_commands_catalog_dirty_initial_publication_rejection
-  test_commands_catalog_registration_collision
-  test_commands_catalog_registry_symlink_rejection
-  test_commands_catalog_rebind_and_publish
+test_target_images_fixture_setup() {
+  test_target_images_access=${1:-public}
+  setup_scenario
+  TARGET_IMAGES_CHECKOUT=$SCENARIO_DIR/checkout
+  TARGET_IMAGES_CONFIG=$SCENARIO_DIR/config/shimmy
+  TARGET_IMAGES_CALL_LOG=$SCENARIO_DIR/image-calls
+  TARGET_IMAGES_RESPONSES=$SCENARIO_DIR/image-responses
+
+  test_target_catalog_checkout_create "$TARGET_IMAGES_CHECKOUT"
+  for test_target_images_tool_dir in "$TARGET_IMAGES_CHECKOUT"/tools/*; do
+    [ -d "$test_target_images_tool_dir" ] || continue
+    test_target_images_tool_name=$(basename -- "$test_target_images_tool_dir")
+    case "$test_target_images_tool_name" in jq|rg|skopeo) continue ;; esac
+    git -C "$TARGET_IMAGES_CHECKOUT" rm -qr "tools/$test_target_images_tool_name"
+  done
+  if [ "$test_target_images_access" = authenticated ]; then
+    sed 's/^image_registry_access=public$/image_registry_access=authenticated/' \
+      "$TARGET_IMAGES_CHECKOUT/tools/jq/versions/1.8/image.conf" \
+      > "$TARGET_IMAGES_CHECKOUT/tools/jq/versions/1.8/image.conf.tmp"
+    mv "$TARGET_IMAGES_CHECKOUT/tools/jq/versions/1.8/image.conf.tmp" \
+      "$TARGET_IMAGES_CHECKOUT/tools/jq/versions/1.8/image.conf"
+    git -C "$TARGET_IMAGES_CHECKOUT" add tools/jq/versions/1.8/image.conf
+  fi
+  git -C "$TARGET_IMAGES_CHECKOUT" commit -qm target-images-fixture
+  mkdir -p "$TARGET_IMAGES_CONFIG"
+  shimmy_target_catalog_default_create "$TARGET_IMAGES_CONFIG" "$TARGET_IMAGES_CHECKOUT" ||
+    fail_test "$SHIMMY_TARGET_CATALOG_ERROR"
+
+  TARGET_IMAGES_GENERATION=$(sed -n '3s/^catalog_generation_current=//p' \
+    "$TARGET_IMAGES_CONFIG/catalogs/default/registry.conf")
+  TARGET_IMAGES_GENERATION_ROOT=$TARGET_IMAGES_CONFIG/catalogs/default/generations/$TARGET_IMAGES_GENERATION
+  TARGET_IMAGES_COMMIT=$(sed -n '1s/^catalog_source_commit=//p' "$TARGET_IMAGES_GENERATION_ROOT/generation.conf")
+  TARGET_IMAGES_FINGERPRINT=$(sed -n '2s/^catalog_content_fingerprint=//p' "$TARGET_IMAGES_GENERATION_ROOT/generation.conf")
+  TARGET_IMAGES_PROFILE_ROOT=$TARGET_IMAGES_CONFIG/profiles/default
+  mkdir -p "$TARGET_IMAGES_PROFILE_ROOT/tools" "$SCENARIO_DIR/home/.agents/skills"
+  for test_target_images_tool_name in jq rg skopeo; do
+    test_fixture_tree_copy "$TARGET_IMAGES_GENERATION_ROOT/tools/$test_target_images_tool_name" \
+      "$TARGET_IMAGES_PROFILE_ROOT/tools/$test_target_images_tool_name"
+  done
+  images_fixture_fake_runtimes_write "$TARGET_IMAGES_PROFILE_ROOT"
+  shimmy_target_active_profile_render default "$SCENARIO_DIR/home/.agents/skills" \
+    > "$TARGET_IMAGES_CONFIG/active-profile.conf"
+  shimmy_target_profile_manifest_render default https://example.invalid/shimmy.git "$TARGET_IMAGES_COMMIT" \
+    "default|$TARGET_IMAGES_GENERATION|$TARGET_IMAGES_COMMIT|$TARGET_IMAGES_FINGERPRINT" \
+    'jq|tracking
+rg|tracking
+skopeo|tracking' \
+    'jq|1.8|default
+rg|15.1|default
+skopeo|1.22|default' > "$TARGET_IMAGES_PROFILE_ROOT/install-manifest.txt"
+
+  : > "$TARGET_IMAGES_CALL_LOG"
+  test_target_images_responses_write oci-index.json \
+    sha256:4f34c6d23f4b1372ac789752cc955dc67c2ae177eb1b5860b75cdc5091ce6f91
+}
+
+test_target_images_fixture_run() {
+  env \
+    SHIMMY_TEST_IMAGES_CALL_LOG="$TARGET_IMAGES_CALL_LOG" \
+    SHIMMY_TEST_IMAGES_FIXTURE_DIR="$ROOT_DIR/tests/commands/image-fixtures" \
+    SHIMMY_TEST_IMAGES_RESPONSE_FILE="$TARGET_IMAGES_RESPONSES" \
+    SHIMMY_TARGET_CONFIG_ROOT="$TARGET_IMAGES_CONFIG" \
+    "$ROOT_DIR/commands/catalog.sh" verify "$@"
+}
+
+test_target_images_responses_write() {
+  test_target_images_jq_fixture=$1
+  test_target_images_jq_digest=$2
+  : > "$TARGET_IMAGES_RESPONSES"
+  for test_target_images_tool_name in jq rg skopeo; do
+    test_target_images_tool_file=$TARGET_IMAGES_GENERATION_ROOT/tools/$test_target_images_tool_name/tool.conf
+    test_target_images_version=$(sed -n 's/^tool_default_version=//p' "$test_target_images_tool_file")
+    test_target_images_config_file=$TARGET_IMAGES_GENERATION_ROOT/tools/$test_target_images_tool_name/versions/$test_target_images_version/image.conf
+    test_target_images_default_ref=$(sed -n 's/^image_default_ref=//p' "$test_target_images_config_file")
+    test_target_images_upstream_ref=$(sed -n 's/^image_upstream_ref=//p' "$test_target_images_config_file")
+    test_target_images_digest=$(shimmy_images_digest_read "$test_target_images_default_ref")
+    test_target_images_fixture=oci-index.json
+    [ "$test_target_images_tool_name" != skopeo ] || test_target_images_fixture=docker-list.json
+    [ "$test_target_images_tool_name" != jq ] || {
+      test_target_images_fixture=$test_target_images_jq_fixture
+      test_target_images_digest=$test_target_images_jq_digest
+    }
+    printf 'raw|%s|%s|ok\n' "$test_target_images_default_ref" "$test_target_images_fixture" \
+      >> "$TARGET_IMAGES_RESPONSES"
+    printf 'digest|%s|%s|ok\n' "$test_target_images_upstream_ref" "$test_target_images_digest" \
+      >> "$TARGET_IMAGES_RESPONSES"
+  done
+}
+
+test_commands_target_catalog_inspection() {
+  setup_scenario
+  target_catalog_checkout=$SCENARIO_DIR/checkout
+  target_catalog_config=$SCENARIO_DIR/config/shimmy
+  test_target_catalog_fixture_create "$target_catalog_checkout" "$target_catalog_config"
+  target_catalog_generation=$(sed -n '3s/^catalog_generation_current=//p' "$target_catalog_config/catalogs/default/registry.conf")
+
+  target_catalog_status=$(env SHIMMY_TARGET_CONFIG_ROOT="$target_catalog_config" "$ROOT_DIR/commands/catalog.sh" status --format manifest)
+  target_catalog_tools=$(env SHIMMY_TARGET_CONFIG_ROOT="$target_catalog_config" "$ROOT_DIR/commands/catalog.sh" tools --format manifest)
+  target_catalog_retained=$(env SHIMMY_TARGET_CONFIG_ROOT="$target_catalog_config" "$ROOT_DIR/commands/catalog.sh" tools --generation "$target_catalog_generation" --format manifest)
+  assert_contains "$target_catalog_status" "shimmy_catalog=default|$target_catalog_generation||"
+  assert_equals "$target_catalog_tools" "$target_catalog_retained"
+  assert_contains "$target_catalog_tools" "default|$target_catalog_generation|rg|"
+  pass 'catalog command renders deterministic local status and retained tools'
+}
+
+test_commands_target_catalog_mutation() {
+  setup_scenario
+  target_catalog_checkout=$SCENARIO_DIR/checkout
+  target_catalog_config=$SCENARIO_DIR/config/shimmy
+  test_target_catalog_fixture_create "$target_catalog_checkout" "$target_catalog_config"
+  target_catalog_initial=$(sed -n '3s/^catalog_generation_current=//p' "$target_catalog_config/catalogs/default/registry.conf")
+  test_target_catalog_source_advance "$target_catalog_checkout" 'Command publication.'
+  target_catalog_publish_output=$(cd "$target_catalog_checkout" && env SHIMMY_TARGET_CONFIG_ROOT="$target_catalog_config" ./commands/catalog.sh publish)
+  target_catalog_published=$(sed -n '3s/^catalog_generation_current=//p' "$target_catalog_config/catalogs/default/registry.conf")
+  assert_contains "$target_catalog_publish_output" "shimmy_catalog=default|$target_catalog_published|$target_catalog_initial|"
+  target_catalog_rollback_output=$(env SHIMMY_TARGET_CONFIG_ROOT="$target_catalog_config" "$ROOT_DIR/commands/catalog.sh" rollback)
+  assert_contains "$target_catalog_rollback_output" "shimmy_catalog=default|$target_catalog_initial|$target_catalog_published|"
+  pass 'catalog command publishes clean main and rolls back'
+}
+
+test_commands_target_catalog_verify_dependencies() {
+  test_target_images_fixture_setup
+
+  for test_target_images_dependency in jq skopeo; do
+    case "$test_target_images_dependency" in
+      jq) test_target_images_dependency_version=1.8 ;;
+      skopeo) test_target_images_dependency_version=1.22 ;;
+    esac
+    test_target_images_runtime=$TARGET_IMAGES_PROFILE_ROOT/tools/$test_target_images_dependency/versions/$test_target_images_dependency_version/run.sh
+    mv "$test_target_images_runtime" "$test_target_images_runtime.missing"
+    : > "$TARGET_IMAGES_CALL_LOG"
+    set +e
+    test_target_images_missing_output=$(test_target_images_fixture_run --tool jq --format manifest 2>&1)
+    test_target_images_missing_status=$?
+    set -e
+    [ "$test_target_images_missing_status" -ne 0 ] ||
+      fail_test "target catalog verification accepted missing $test_target_images_dependency runtime"
+    assert_contains "$test_target_images_missing_output" \
+      "shimmy shim add $test_target_images_dependency@$test_target_images_dependency_version"
+    assert_equals "$(cat "$TARGET_IMAGES_CALL_LOG")" ''
+    mv "$test_target_images_runtime.missing" "$test_target_images_runtime"
+  done
+
+  cp "$TARGET_IMAGES_PROFILE_ROOT/install-manifest.txt" "$SCENARIO_DIR/install-manifest.saved"
+  sed '/^shim=jq|/d; /^shim_version=jq|/d' "$SCENARIO_DIR/install-manifest.saved" \
+    > "$TARGET_IMAGES_PROFILE_ROOT/install-manifest.txt"
+  : > "$TARGET_IMAGES_CALL_LOG"
+  set +e
+  test_target_images_missing_output=$(test_target_images_fixture_run --tool jq --format manifest 2>&1)
+  test_target_images_missing_status=$?
+  set -e
+  [ "$test_target_images_missing_status" -ne 0 ] ||
+    fail_test 'target catalog verification accepted a stray jq runtime without manifest authority'
+  assert_contains "$test_target_images_missing_output" 'shimmy shim add jq@1.8'
+  assert_equals "$(cat "$TARGET_IMAGES_CALL_LOG")" ''
+  mv "$SCENARIO_DIR/install-manifest.saved" "$TARGET_IMAGES_PROFILE_ROOT/install-manifest.txt"
+  pass 'target catalog verification resolves jq and Skopeo only from active materialization with exact add remediation'
+}
+
+test_commands_target_catalog_verify_fixtures() {
+  test_target_images_fixture_setup
+
+  test_target_images_all_output=$(test_target_images_fixture_run --format manifest)
+  assert_equals "$(printf '%s\n' "$test_target_images_all_output" | awk '/^image_verify=/ { count++ } END { print count + 0 }')" 3
+  assert_contains "$test_target_images_all_output" 'image_verify=jq|1.8|runtime|'
+  assert_contains "$test_target_images_all_output" 'image_verify=skopeo|1.22|runtime|'
+
+  : > "$TARGET_IMAGES_CALL_LOG"
+  test_target_images_repeated_output=$(test_target_images_fixture_run \
+    --tool jq --tool skopeo --tool jq --format manifest)
+  assert_equals "$(printf '%s\n' "$test_target_images_repeated_output" | awk '/^image_verify=/ { count++ } END { print count + 0 }')" 2
+  assert_equals "$(awk -F '|' '$1 == "raw" { count++ } END { print count + 0 }' "$TARGET_IMAGES_CALL_LOG")" 2
+  assert_equals "$(awk -F '|' '$1 == "digest" { count++ } END { print count + 0 }' "$TARGET_IMAGES_CALL_LOG")" 2
+
+  for test_target_images_fixture_case in \
+    'single-manifest.json|unsupported-media-type' \
+    'malformed.json|malformed-json' \
+    'missing-arm64.json|missing-required-platform' \
+    'empty-index.json|missing-descriptors'
+  do
+    test_target_images_fixture_file=${test_target_images_fixture_case%%|*}
+    test_target_images_fixture_error=${test_target_images_fixture_case#*|}
+    test_target_images_responses_write "$test_target_images_fixture_file" \
+      sha256:4f34c6d23f4b1372ac789752cc955dc67c2ae177eb1b5860b75cdc5091ce6f91
+    set +e
+    test_target_images_fixture_output=$(test_target_images_fixture_run --tool jq --format manifest 2>&1)
+    test_target_images_fixture_status=$?
+    set -e
+    [ "$test_target_images_fixture_status" -ne 0 ] ||
+      fail_test "$test_target_images_fixture_file unexpectedly passed target catalog verification"
+    assert_contains "$test_target_images_fixture_output" "|fail|$test_target_images_fixture_error"
+  done
+
+  test_target_images_responses_write oci-index.json \
+    sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+  test_target_images_drift_output=$(test_target_images_fixture_run --tool jq --format manifest)
+  assert_contains "$test_target_images_drift_output" '|moved|warning|none'
+  set +e
+  test_target_images_strict_output=$(test_target_images_fixture_run \
+    --tool jq --require-current-upstream --format manifest 2>&1)
+  test_target_images_strict_status=$?
+  set -e
+  [ "$test_target_images_strict_status" -ne 0 ] || fail_test 'strict target upstream drift unexpectedly passed'
+  assert_contains "$test_target_images_strict_output" '|moved|fail|upstream-drift'
+
+  test_target_images_fixture_setup authenticated
+  set +e
+  test_target_images_auth_output=$(test_target_images_fixture_run --tool jq --format manifest 2>&1)
+  test_target_images_auth_status=$?
+  set -e
+  [ "$test_target_images_auth_status" -ne 0 ] || fail_test 'authenticated target verification passed without a secret'
+  assert_contains "$test_target_images_auth_output" '|missing|not-checked|fail|authentication-required'
+  test_target_images_public_output=$(test_target_images_fixture_run --tool jq --public-only --format manifest)
+  assert_contains "$test_target_images_public_output" '|skipped|not-checked|skip|none'
+  test_target_images_secret_output=$(SHIMMY_SKOPEO_AUTH_SECRET='secret|value' \
+    test_target_images_fixture_run --tool jq --format manifest)
+  assert_contains "$test_target_images_secret_output" '|authenticated|current|pass|none'
+  assert_not_contains "$test_target_images_secret_output" 'secret|value'
+  pass 'target catalog verify preserves selection, cache, index, authentication, encoding, and drift semantics'
+}
+
+test_commands_target_catalog_run() {
+  test_commands_target_catalog_inspection
+  test_commands_target_catalog_mutation
+  test_commands_target_catalog_verify_fixtures
+  test_commands_target_catalog_verify_dependencies
 }

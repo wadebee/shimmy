@@ -9,38 +9,23 @@ test_runner_group_registry_read() {
 
   cat <<'EOF'
 runner|test_lib_runner_run
-lib-catalog|test_lib_catalog_run
-lib-target-codec|test_lib_target_codec_run
-lib-target-profile-state|test_lib_target_profile_state_run
-lib-target-ai-skill-state|test_lib_target_ai_skill_state_run
-lib-target-lock|test_lib_target_lock_run
-lib-target-transaction|test_lib_target_transaction_run
-lib-target-ai-skill-link|test_lib_target_ai_skill_link_run
-lib-target-catalog|test_lib_target_catalog_run
+lib-catalog|test_lib_target_catalog_run
+lib-codec|test_lib_target_codec_run
+lib-profile-state|test_lib_target_profile_state_run
+lib-ai-skill-state|test_lib_target_ai_skill_state_run
+lib-lock|test_lib_target_lock_run
+lib-transaction|test_lib_target_transaction_run
+lib-ai-skill-link|test_lib_target_ai_skill_link_run
 lib-runtime|test_lib_runtime_run
 lib-profile-activation|test_lib_profile_activation_run
 lib-registries|test_lib_registries_run
-lib-update|test_lib_update_run
 commands-agent-preflight|test_commands_agent_preflight_run
-commands-catalog|test_commands_catalog_run
-commands-target-catalog|test_commands_target_catalog_run
-commands-target-shim|test_commands_target_shim_run
-commands-target-ai-skill|test_commands_target_ai_skill_run
-commands-target-profile|test_commands_target_profile_run
-commands-target-surface|test_commands_target_surface_run
-commands-target-lifecycle|test_commands_target_lifecycle_run
-commands-images|test_commands_images_run
-commands-lifecycle|test_runner_commands_lifecycle_run
-commands-management|test_commands_management_run
-commands-onboarding|test_commands_onboarding_run
-commands-profiles|test_commands_profiles_run
-commands-profile|test_commands_profile_run
-commands-status|test_commands_status_run
-commands-update|test_commands_update_run
-commands-startup|test_commands_startup_run
-commands-skills|test_commands_skills_run
-commands-dispatcher|test_commands_dispatcher_run
-commands-netinfo|test_commands_netinfo_run
+commands-catalog|test_commands_target_catalog_run
+commands-shim|test_commands_target_shim_run
+commands-ai-skill|test_commands_target_ai_skill_run
+commands-profile|test_commands_target_profile_run
+commands-surface|test_commands_target_surface_run
+commands-lifecycle|test_commands_target_lifecycle_run
 tools-aws|test_tools_aws_run
 tools-bats|test_tools_bats_run
 tools-community-ansible-dev-tools|test_tools_community_ansible_dev_tools_run
@@ -61,8 +46,6 @@ tools-task|test_tools_task_run
 tools-terraform|test_tools_terraform_run
 tools-tessl|test_tools_tessl_run
 tools-textual|test_tools_textual_run
-commands-install|test_commands_install_run
-commands-test|test_commands_test_run
 EOF
 }
 
@@ -72,43 +55,27 @@ test_runner_group_assignment_read() {
     return 0
   fi
 
-  # Chunk 6's retained clean serial measurement supplies the weighted
-  # assignments. Later fast target-library groups preserve equal worker group
-  # counts without claiming a new timing calibration.
+  # Preserve the last calibrated worker distribution while the final-surface
+  # suite establishes a new timing baseline.
   cat <<'EOF'
 runner|two-b|three-a
-lib-catalog|two-b|three-a
-lib-target-codec|two-a|three-a
-lib-target-profile-state|two-b|three-b
-lib-target-ai-skill-state|two-a|three-c
-lib-target-lock|two-b|three-a
-lib-target-transaction|two-a|three-c
-lib-target-ai-skill-link|two-b|three-c
-lib-target-catalog|two-a|three-b
+lib-catalog|two-a|three-b
+lib-codec|two-a|three-a
+lib-profile-state|two-b|three-b
+lib-ai-skill-state|two-a|three-c
+lib-lock|two-b|three-a
+lib-transaction|two-a|three-c
+lib-ai-skill-link|two-b|three-c
 lib-runtime|two-b|three-a
 lib-profile-activation|two-a|three-b
 lib-registries|two-b|three-c
-lib-update|two-a|three-b
 commands-agent-preflight|two-a|three-a
-commands-catalog|two-a|three-b
-commands-target-catalog|two-b|three-c
-commands-target-shim|two-a|three-b
-commands-target-ai-skill|two-b|three-a
-commands-target-profile|two-a|three-c
-commands-target-surface|two-b|three-b
-commands-target-lifecycle|two-b|three-a
-commands-images|two-b|three-a
-commands-lifecycle|two-a|three-b
-commands-management|two-b|three-b
-commands-onboarding|two-a|three-a
-commands-profiles|two-b|three-a
-commands-profile|two-b|three-a
-commands-status|two-b|three-c
-commands-update|two-b|three-a
-commands-startup|two-b|three-c
-commands-skills|two-b|three-c
-commands-dispatcher|two-b|three-c
-commands-netinfo|two-a|three-b
+commands-catalog|two-b|three-c
+commands-shim|two-a|three-b
+commands-ai-skill|two-b|three-a
+commands-profile|two-a|three-c
+commands-surface|two-b|three-b
+commands-lifecycle|two-b|three-a
 tools-aws|two-a|three-b
 tools-bats|two-a|three-b
 tools-community-ansible-dev-tools|two-b|three-c
@@ -129,8 +96,6 @@ tools-task|two-a|three-a
 tools-terraform|two-a|three-a
 tools-tessl|two-b|three-c
 tools-textual|two-b|three-c
-commands-install|two-b|three-c
-commands-test|two-b|three-c
 EOF
 }
 
@@ -330,11 +295,6 @@ test_runner_timing_record() {
   [ "${SHIMMY_TEST_TIMING:-0}" = 1 ] || return 0
   printf 'shimmy_test_timing=%s|%s|%s\n' \
     "$test_runner_timing_scope" "$test_runner_timing_name" "$test_runner_timing_elapsed"
-}
-
-test_runner_commands_lifecycle_run() {
-  test_commands_lifecycle_prepare
-  test_commands_lifecycle_complete
 }
 
 test_runner_group_worker_resolve() {

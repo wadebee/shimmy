@@ -1,339 +1,206 @@
 # Shimmy
 
-Shimmy makes common CLI tools available through small POSIX shell wrappers that
-run containers with Podman. Tools mount the present working directory as `/work`, retain
-their documented configuration and credential mounts, and expose image
-overrides through `SHIMMY_*` environment variables.
+Shimmy exposes CLI tools through small POSIX shell wrappers that run containers
+with Podman. Tool runtimes mount the current directory at `/work`, select the
+native Linux platform, and retain each tool's documented configuration and
+credential boundaries.
+
+> **Overwrite warning:** profile activation and `shimmy ai-skill repair`
+> unconditionally replace every exact skill destination declared by the active
+> profile's bundles. Shimmy creates no backup and provides no recovery for
+> overwritten foreign content. It never recursively deletes the user's skill
+> root or unrelated skill names. Run `shimmy profile activate <name> --dry-run`
+> before activation to inspect exact collisions.
 
 ## Requirements
 
 - POSIX-compatible `/bin/sh`
-- Podman CLI and a reachable local rootless engine in the shell that invokes
-  Shimmy
+- Git
+- Podman CLI and a reachable local rootless engine
 
-On macOS, the Podman pkg installer may place the binary at
-`/opt/podman/bin/podman`. Each profile uses a pre-existing named rootless
-machine created explicitly in a normal user shell:
+Shimmy does not install, provision, adopt, rename, or delete Podman. On macOS,
+create the deterministic machine for each profile in a normal user shell before
+using that profile, for example:
 
 ```sh
 podman machine init shimmy-default
-podman machine init shimmy-upstream
+podman machine init shimmy-team-one
 ```
 
-Shimmy never provisions, adopts, renames, or removes machines. Existing data
-in `podman-machine-default` is not migrated or removed.
+The official macOS package may install Podman at `/opt/podman/bin/podman`.
 
-## Install and use
+## Bootstrap
 
-For first-time checkout prerequisites, entrypoint roles, profile selection,
-and verification, see [BOOTSTRAP.md](BOOTSTRAP.md).
+Bootstrap from a clean, committed checkout on the attached local `main` branch:
 
 ```sh
 . ./bootstrap.sh
 jq --version
 rg --version
-
-shimmy install --shim oc@4.18
-SHIMMY_OC_VERSION=4.18 oc version
 ```
 
-Each installed launcher exposes this management surface:
+The bootstrap creates and activates `default`, publishes the checkout as the
+first immutable `default` catalog generation, installs jq, rg, and Skopeo, and
+sources the generated `shell-init.sh` when the bootstrap itself is sourced.
+Executing `./bootstrap.sh` performs the same installation but cannot change its
+parent shell.
 
-| Command | Purpose |
+Use `--shell <bash|zsh|sh|ksh|mksh>` to select the recorded startup shell or
+`--no-startup` to record manual startup policy. The installation root is
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy`; a non-empty `XDG_CONFIG_HOME` must
+be absolute. Bootstrap refuses any pre-existing installation root instead of
+merging or migrating it.
+
+See [BOOTSTRAP.md](BOOTSTRAP.md) for first-contact installation and engine
+preparation.
+
+## Command surface
+
+The installed launcher has five groups:
+
+| Group | Purpose |
 |---|---|
-| `shimmy catalog` | List catalog tools, publish or roll back `default`, or rebind `upstream`. |
-| `shimmy images` | Verify pinned remote image indexes and report upstream drift. |
-| `shimmy install` | Add explicitly selected tool shims to the profile. |
-| `shimmy uninstall` | Remove one profile, or explicitly remove all Shimmy-owned state. |
-| `shimmy netinfo` | Show host, VM, and container network perspectives. |
-| `shimmy profile` | Inspect or activate the engine and manage strict registry redirects. |
-| `shimmy skills` | Install, update, uninstall, or export Shimmy agent skills. |
-| `shimmy status` | Show installed shims, versions, and profile details. |
-| `shimmy test` | Validate the profile with non-mutating shim smoke commands. |
-| `shimmy update` | Refresh the profile and optionally pull or build tool images. |
+| `shimmy admin` | Inspect network/installation state or uninstall all owned state. |
+| `shimmy profile` | List, inspect, create, activate, sync, repair, or delete profiles and redirects. |
+| `shimmy catalog` | Inspect, verify, publish, or roll back the immutable default catalog. |
+| `shimmy shim` | Add, remove, select, sync, list, or test profile-local tool versions. |
+| `shimmy ai-skill` | Inspect or repair active-profile skill links. |
 
-Every second-level command supports `shimmy <command> --help` with its usage,
-options, and examples. Command groups also summarize their third-level actions
-when invoked without one; use `shimmy <group> <action> --help` for action
-requirements and examples.
-
-The repository contains only the minimal `bootstrap.sh` entrypoint; it does not
-contain a runnable `shimmy` launcher. Source `. ./bootstrap.sh` to bootstrap
-`default` and initialize the current shell, or source `. ./bootstrap.sh
---profile upstream` for the maintainer profile. Every bootstrap installs jq
-and rg.
-Install any other tool afterward with `shimmy install --shim <tool>`.
-A fresh default bootstrap records one normalized startup shell from `$SHELL`;
-`--shell <name>` overrides detection and `--no-startup` records manual policy
-with no owned startup files. Managed policy resolves the conventional files
-for that shell once. Later bootstraps inherit the immutable policy, installed
-tool additions do not touch startup files, and `shimmy update
---repair-startup` repairs only the exact recorded paths. Changing policy
-requires uninstalling and recreating the default profile.
-
-Executing `./bootstrap.sh` performs the same bootstrap for automation, but its
-shell initialization ends with that process. To initialize another shell
-directly from an existing profile, source its generated asset:
+Help is state-independent:
 
 ```sh
+shimmy --help
+shimmy profile --help
+shimmy profile activate --help
+```
+
+There are no compatibility aliases for the previous `install`, `update`,
+`images`, `skills`, `status`, `test`, `netinfo`, or `uninstall` top-level
+commands. Remove an older layout with the Shimmy version that created it before
+bootstrapping this one.
+
+## Profiles and activation
+
+Profiles are independent materialized installations below
+`.../shimmy/profiles/<name>`. Names use lowercase letters, digits, and single
+hyphens. The launcher containing the command is the invoking profile; the
+installation-wide active record independently owns engine, registry, mutation,
+and user-skill-link authority.
+
+Create and inspect a sibling safely:
+
+```sh
+shimmy profile create team-one --dry-run
+shimmy profile create team-one
+shimmy profile list
+```
+
+Creation activates the new profile. To switch back, inspect the transition
+before applying it, then source the selected profile in the current shell:
+
+```sh
+shimmy profile activate default --dry-run
+shimmy profile activate default
 . "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/shell-init.sh"
 ```
 
-Each profile has its own self-contained `bin/shimmy`, and installed launchers
-manage only their enclosing profile. Public `bin/<tool>` links dispatch through
-the profile-local `commands/run-tool.sh`, while exact-version smoke tests run
-the recorded materialized version directly.
+On Linux, activation selects the exact user registry-policy link and validates
+the current user's local rootless Podman process. On macOS, it uses the
+pre-existing same-name `shimmy-<profile>` machine and may need to stop an idle
+alternate machine or restart the selected machine after registry changes.
+Running containers block interruption unless the separately reviewed command
+includes `--stop-running`. Shimmy never provisions a missing machine.
 
-On macOS, engine activation and shell selection are separate. The launcher
-fixes the engine name (`default -> shimmy-default`, `upstream ->
-shimmy-upstream`). Podman permits only one managed VM to run at a time, so
-activation may stop one idle alternate machine or restart the idle selected
-machine when its registry projection is stale. Either transition can interrupt
-workloads hosted there. Running containers are displayed and block a stop
-unless interruption is explicitly acknowledged with `--stop-running`:
+`CONTAINER_CONNECTION`, `CONTAINER_HOST`, `CONTAINERS_REGISTRIES_CONF`, and
+`CONTAINERS_REGISTRIES_CONF_OVERRIDE` can mask profile authority and therefore
+fail closed. Diagnostics name the variable but do not print its value.
 
-```sh
-profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default
-"$profile_root/bin/shimmy" profile status
-"$profile_root/bin/shimmy" profile activate --dry-run
-"$profile_root/bin/shimmy" profile activate
-. "$profile_root/shell-init.sh"
-```
-
-After reviewing that boundary, a human can request installation and safe
-activation in one explicit checkout workflow:
+Registry redirects are profile-local:
 
 ```sh
-. ./bootstrap.sh --activate
-```
-
-The bootstrap automatically selects ordinary activation or the required stale
-projection restart, but never supplies `--stop-running`. If activation fails,
-the installed profile and startup integration remain valid, the bootstrap
-returns nonzero, and its exact status and retry commands can be used for
-recovery. Sourcing selects PATH only after success; executing the same command
-cannot change its parent shell. The option is bootstrap-only: ordinary
-`. ./bootstrap.sh`, installed `shimmy install`, and `shell-init.sh` remain
-engine-neutral.
-
-On Linux, activation atomically selects the invoking profile's registry policy
-through the exact user drop-in
-`containers/registries.conf.d/shimmy-active-profile.conf`, then validates a
-fresh current-user local-rootless Podman process. It never manages a VM.
-Non-empty `CONTAINER_CONNECTION`, `CONTAINER_HOST`,
-`CONTAINERS_REGISTRIES_CONF`, or `CONTAINERS_REGISTRIES_CONF_OVERRIDE` must be
-unset; status reports only the masking variable name, never its value.
-
-Each profile also owns a strict generated `registries.conf`. Redirect CRUD is
-deterministic and profile-local:
-
-```sh
-shimmy profile redirect --prefix docker.io --location registry.corp.example/docker
 shimmy profile redirect list
-shimmy profile redirect remove --prefix docker.io
+shimmy profile redirect set --prefix docker.io \
+  --location registry.corp.example/docker --dry-run
+shimmy profile redirect delete --prefix docker.io
 ```
 
-Linux status reports `current` only for the exact active profile link with a
-reachable local-rootless engine; sibling or absent state is `inactive`, and
-damaged, foreign, or masked state is `invalid`. Active Linux edits validate in
-a fresh process and restore prior bytes on failure.
+Skopeo is the only initial tool-container consumer of this policy.
+`shimmy catalog verify` inherits it through the active profile's Skopeo shim.
 
-On macOS, activation installs only
-`/etc/containers/registries.conf.d/shimmy-profile.conf` in the deterministic
-profile machine as a same-path symlink to the host profile config, validates it
-as the rootless VM user, and records its fingerprint locally. Active edits do
-not restart the machine; they print the exact profile-local `profile activate
---restart` command. `remove --all --detach` removes only the invoking profile's
-recognized Linux link or Darwin link/record and remains available for recovery
-or debugging. Ordinary and global uninstall clean exact attached state
-themselves, restart a running projected machine to clear cached policy, and
-restore the initial machine/default state before local deletion. Running
-containers block a required stop unless `--stop-running` acknowledges their
-interruption. Skopeo is the only initial tool-container opt-in: a current
-invoking profile mounts its authoritative file read-only, and `shimmy images
-verify` inherits that policy without changing logical references. Profiles
-with no activation omit the mount; mismatched, damaged, stale, unsafe, or
-connection/registry-overridden state fails closed. Redirects use replacement
-`location` with no configured mirror fallback. See
-[docs/registries.md](docs/registries.md) for the full ownership and lifecycle
-contract.
+## Catalog and shims
 
-Profiles are independent materialized installations below an absolute
-`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>` root. A relative,
-non-empty `XDG_CONFIG_HOME` is rejected. The `default` profile alone may own a
-persistent startup block; `upstream` never changes shell startup files. The
-default manifest records one normalized shell and either an exact startup-file
-ownership ledger or manual policy with no files. Source the desired profile's
-`shell-init.sh` to select PATH only; it never starts or stops Podman or sets
-connection variables. Installed commands accept no profile, machine, shell,
-startup-path, or startup-suppression selector.
-
-Shared named catalogs live beside profiles under the same `shimmy/` config
-root. `upstream` is a validated live binding to one Git checkout, so a complete
-schema-valid tool or skill edit is visible to upstream catalog operations on
-the next command. `default` is an immutable generation published only from a
-clean committed upstream checkout. Publication changes catalog availability;
-installed profile versions remain materialized and unchanged until an explicit
-`shimmy update` or `shimmy install --shim` operation selects the newer catalog
-default. Installed execution remains profile-local if the recorded upstream
-checkout becomes unavailable; catalog-aware operations continue to require it.
-
-List the complete tool membership of the invoking profile's recorded catalog,
-or select either named catalog without changing the active profile:
+The installation owns exactly one catalog named `default`. It contains retained
+immutable generations. Each profile pins one generation, so publication and
+rollback never silently change installed profile contents.
 
 ```sh
-shimmy catalog list
-shimmy catalog list --name upstream --format manifest
+shimmy catalog status
+shimmy catalog tools
+shimmy catalog verify --tool jq@1.8 --format manifest
 ```
 
-Use the upstream profile for catalog administration:
+`shimmy catalog publish` must run at a clean committed checkout root on attached
+local `main`; it publishes tracked `catalog.conf`, `tools/`, and canonical
+`plugins/shimmy/skills/` content. `shimmy catalog rollback` selects the retained
+previous valid generation without deleting generations. `shimmy profile sync`
+updates the invoking active profile from `refs/heads/main` and reconciles its
+materialized assets explicitly.
+
+Shim selectors are `tool` or `tool@version` without catalog prefixes:
 
 ```sh
-shimmy catalog publish
-shimmy catalog rollback
-shimmy catalog rebind --checkout /absolute/path/to/shimmy
+shimmy shim add task@3.45
+shimmy shim list --format manifest
+shimmy shim set-version oc@4.20
+shimmy shim sync oc
+shimmy shim test oc@4.20
 ```
 
-Catalog-dependent operations fail before mutation when a registry, checkout,
-generation, or schema is unavailable or invalid. Existing materialized tool
-commands continue to run. Ordinary `shimmy uninstall` removes only the
-invoking profile, including its exact registry activation, and leaves shared
-catalogs and sibling profiles intact;
-`shimmy uninstall --global` explicitly removes every valid owned profile and
-shared catalog after detaching every owned projection, without deleting a
-bound source checkout or external skill export.
+An unqualified `shim add` is interactive and records tracking policy. An exact
+first selection is noninteractive and records pinned policy. Every profile owns
+its direct `bin/<tool>` wrapper and concrete version assets; no implementation-
+name routing layer exists.
 
-Agent skills exported to a repository or home agent profile are external,
-target-manifest-owned state. Canonical management and tool skills remain in
-the invoking profile's named catalog and are not copied into profile payloads.
-With no explicit skill names, export selects the core management skills plus
-skills for tools installed in the invoking profile. The complete output is
-staged and catalog-validated before the target changes. Profile and catalog
-lifecycle operations do not implicitly refresh or remove repository or home
-exports. Use the standalone `shimmy skills install --target repo|profile` or
-`shimmy skills update --target repo|profile` operation to write those external
-targets, and `shimmy skills uninstall --target repo|profile` to remove their
-manifest-owned entries even if the source catalog is unavailable.
-After accepting canonical skill changes in a newer catalog generation, use the
-explicit `skills update` operation to refresh an existing target; generated
-adapters are never refreshed by profile lifecycle commands.
+## AI skills
 
-Earlier installation layouts are intentionally unsupported. Remove them with
-the Shimmy version that created them, then bootstrap the desired profile.
-
-## Preview a runtime command
-
-`--preview-shim` prints the Podman command without contacting the engine,
-pulling, building, or running a container:
+Canonical management skills live under `plugins/shimmy/skills/`; tool skills
+live beside each tool under `tools/<tool>/SKILL.md`. Installed profiles hold
+validated bundles and reconcile direct links in the active user's
+`$HOME/.agents/skills` directory.
 
 ```sh
-jq --preview-shim --version
-oc --preview-shim version
+shimmy ai-skill list --format manifest
+shimmy ai-skill repair
 ```
 
-Every concrete version owns an `image.conf` that records its public or
-authenticated upstream reference, immutable multi-architecture default, and
-the required `linux/amd64` and `linux/arm64` platforms. Direct runtimes consume
-the pinned digest. Local builds consume configured pinned base digests, and
-their cache identity changes with the image configuration, effective build
-arguments, context, or selected native platform. Runtime image and base-image
-overrides retain their documented `SHIMMY_*` names.
+Only exact bundle-declared names are replaced. Recognized stale Shimmy links may
+be removed; unrelated names and the skill root itself are preserved. This
+repository deliberately does not contain generated `.agents/skills` adapters.
 
-`shimmy update --pull` re-fetches the configured immutable digest; it does not
-advance the recorded upstream tag. Adopting a newer upstream artifact requires
-a reviewed `image.conf` change.
-
-For a digest rotation, resolve the publisher tag to its top-level index,
-verify `linux/amd64` and `linux/arm64`, update only the affected version's
-`image.conf`, confirm any local-build cache identity changes, and run the
-version-owned smoke on native Linux `amd64` and Apple Silicon `arm64` hosts.
-Record the previous digest in review notes as the rollback reference; git
-history retains the actual prior value. Upstream drift reported by the verifier
-does not modify the pinned snapshot automatically.
-
-Run explicit remote verification when reviewing those pinned defaults:
+## Administration and removal
 
 ```sh
-shimmy images verify
-shimmy images verify --all --public-only
-shimmy images verify --shim oc@4.18 --require-current-upstream
+shimmy admin status --format manifest
+shimmy admin network --format manifest
+shimmy admin uninstall
 ```
 
-Installed verification defaults to concrete versions recorded in the invoking
-profile. `--all` selects every catalog version, repeated `--shim` selects a tool
-default or an exact `tool@version`, and `--format manifest` emits stable
-machine-readable result lines. Source-checkout use is
-`./commands/images.sh verify` and requires `--all` or an explicit `--shim`.
-The command inspects manifests without pulling target layers and never changes
-`image.conf`. Upstream movement is a warning unless
-`--require-current-upstream` is set. Authenticated entries require the Skopeo
-runtime's explicit `SHIMMY_SKOPEO_AUTH_SECRET`; `--public-only` reports them as
-skipped rather than verified.
+Uninstall validates ownership before removing all profiles, retained catalog
+state, the active record, exact startup blocks, recognized registry projections,
+and recognized direct Shimmy skill links. It preserves source checkouts, Podman
+machines, unrelated registry policy, unrelated skill names, and the user skill
+root. If macOS cleanup requires interrupting listed workloads, review the output
+and retry with `--stop-running` only after explicit acceptance.
 
-Shimmy detects both host OS and CPU. Supported Linux and Darwin hosts running
-on `amd64` or `arm64` select the matching native Linux image platform;
-unsupported or unreadable host values fail before Podman is invoked.
+## Development
 
-## Included tools
-
-| Tool | Guide |
-|---|---|
-| aws | [tools/aws/guide.md](tools/aws/guide.md) |
-| bats | [tools/bats/guide.md](tools/bats/guide.md) |
-| community-ansible-dev-tools | [tools/community-ansible-dev-tools/guide.md](tools/community-ansible-dev-tools/guide.md) |
-| gcloud | [tools/gcloud/guide.md](tools/gcloud/guide.md) |
-| gdrive | [tools/gdrive/guide.md](tools/gdrive/guide.md) |
-| gh | [tools/gh/guide.md](tools/gh/guide.md) |
-| go | [tools/go/guide.md](tools/go/guide.md) |
-| jq | [tools/jq/guide.md](tools/jq/guide.md) |
-| netcat | [tools/netcat/guide.md](tools/netcat/guide.md) |
-| nmap | [tools/nmap/guide.md](tools/nmap/guide.md) |
-| npx | [tools/npx/guide.md](tools/npx/guide.md) |
-| oc | [tools/oc/guide.md](tools/oc/guide.md) |
-| opnsense-mcp-admin | [tools/opnsense-mcp-admin/guide.md](tools/opnsense-mcp-admin/guide.md) |
-| opnsense-mcp-read-only | [tools/opnsense-mcp-read-only/guide.md](tools/opnsense-mcp-read-only/guide.md) |
-| rg | [tools/rg/guide.md](tools/rg/guide.md) |
-| skopeo | [tools/skopeo/guide.md](tools/skopeo/guide.md) |
-| task | [tools/task/guide.md](tools/task/guide.md) |
-| terraform | [tools/terraform/guide.md](tools/terraform/guide.md) |
-| tessl | [tools/tessl/guide.md](tools/tessl/guide.md) |
-| textual | [tools/textual/guide.md](tools/textual/guide.md) |
-
-## AI Aware repo layout
-
-Agents are instructed via [AGENTS.md](AGENTS.md) to read [CONTEXT.md](CONTEXT.md)
-before changing the repository. Retained module contexts cover management,
-shared-library, and test code; tool and management-plugin guidance lives in
-their guides and canonical skills:
-
-```text
-commands/  management entrypoints
-lib/       shared catalog, profile, runtime, startup, and network behavior
-tools/     one self-contained directory per tool and version
-tests/     POSIX validation and retained context-tree verification
-```
-
-Each tool directory owns its guide, version metadata including `image.conf`, concrete runtime,
-container context, test guidance, and canonical `SKILL.md`. `tool.conf` defines the
-default version and optional selector; `commands/run-tool.sh` resolves it.
-This keeps tool-specific operating guidance close to the files it may change
-and makes that guidance installable from the canonical source tree.
-
-## Contributor Guidance and Testing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/testing.md](docs/testing.md), and
-[docs/podman.md](docs/podman.md) for contributor, testing, and Podman details.
-
-Run a complete repository check from the root:
-
-```sh
-./tests/test.sh
-```
-
-For a tool-specific preview, invoke its generic dispatcher or a concrete
-version runtime selected by `tool.conf`:
+Source previews remain available without contacting Podman:
 
 ```sh
 ./commands/run-tool.sh jq --preview-shim --version
-./commands/run-tool.sh oc --preview-shim version
+./tests/test.sh --list-groups
+./tests/test.sh
 ```
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing the repository. Registry
+ownership details are in [docs/registries.md](docs/registries.md).

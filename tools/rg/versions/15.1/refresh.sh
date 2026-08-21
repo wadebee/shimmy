@@ -1,5 +1,5 @@
 #!/bin/sh
-# Refresh the ripgrep 15.1 runtime image when requested by shimmy update.
+# Refresh the ripgrep 15.1 runtime image during shim synchronization.
 set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)

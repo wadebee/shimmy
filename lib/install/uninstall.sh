@@ -1,516 +1,346 @@
 #!/bin/sh
-# Remove only manifest-, registry-, or catalog-owned Shimmy assets.
+# Private target inactive-profile deletion and installation-wide uninstall.
 
-perform_uninstall_global() {
-  global_config_root=$SHIMMY_CONFIG_ROOT
-  global_profiles_root=$SHIMMY_PROFILES_ROOT
-  global_profile_names='default
-upstream'
+SHIMMY_TARGET_UNINSTALL_ERROR=
+SHIMMY_TARGET_UNINSTALL_PROJECTION_BACKUP=
 
-  shimmy_catalog_owned_state_validate "$global_config_root" 0 || fail "$SHIMMY_CATALOG_ERROR"
-  shimmy_profile_activation_lock_check || fail "unable to preflight the profile activation lock for global uninstall"
-  shimmy_uninstall_plan_build "$global_profile_names" 0 1 || exit 1
-  shimmy_uninstall_locks_acquire "$SHIMMY_UNINSTALL_PRESENT_PROFILES" || exit 1
-  shimmy_catalog_lock_acquire "$global_config_root" || fail "$SHIMMY_CATALOG_ERROR"
-  shimmy_catalog_owned_state_validate "$global_config_root" 1 || fail "$SHIMMY_CATALOG_ERROR"
-  shimmy_uninstall_plan_build "$global_profile_names" 1 0 || exit 1
-
-  shimmy_uninstall_projection_cleanup || exit 1
-  shimmy_uninstall_linux_links_detach || exit 1
-
-  for global_profile_name in $SHIMMY_UNINSTALL_PRESENT_PROFILES; do
-    shimmy_uninstall_profile_assets_remove "$global_profile_name"
-  done
-  shimmy_uninstall_registry_locks_release
-  for global_profile_name in $SHIMMY_UNINSTALL_PRESENT_PROFILES; do
-    shimmy_uninstall_profile_context_resolve "$global_profile_name" || exit 1
-    rmdir "$SHIMMY_PROFILE_BIN_DIR" 2>/dev/null || true
-    rmdir "$SHIMMY_PROFILE_ROOT" 2>/dev/null || true
-  done
-  shimmy_catalog_owned_state_remove "$global_config_root" 1 || fail "$SHIMMY_CATALOG_ERROR"
-  shimmy_catalog_lock_release
-  shimmy_profile_activation_lock_release
-  rmdir "$global_profiles_root" 2>/dev/null || true
-  rmdir "$global_config_root/catalogs" 2>/dev/null || true
-  rmdir "$global_config_root" 2>/dev/null || true
-  log_info "Removed all manifest-owned Shimmy profiles and shared catalogs from $global_config_root"
+shimmy_target_profile_active_link_restore() {
+  shimmy_target_profile_active_link_restore_path=$1
+  shimmy_target_profile_active_link_restore_prior=$2
+  shimmy_target_profile_active_link_restore_committed=$3
+  [ "$shimmy_target_profile_active_link_restore_committed" = absent ] || return 1
+  [ ! -e "$shimmy_target_profile_active_link_restore_path" ] &&
+    [ ! -L "$shimmy_target_profile_active_link_restore_path" ] || return 1
+  shimmy_path_absolute_normalized_validate "$shimmy_target_profile_active_link_restore_prior" || return 1
+  shimmy_target_profile_active_link_restore_stage=$(dirname -- "$shimmy_target_profile_active_link_restore_path")/.shimmy-active-profile.uninstall-rollback.$$
+  [ ! -e "$shimmy_target_profile_active_link_restore_stage" ] &&
+    [ ! -L "$shimmy_target_profile_active_link_restore_stage" ] || return 1
+  ln -s "$shimmy_target_profile_active_link_restore_prior" \
+    "$shimmy_target_profile_active_link_restore_stage" || return 1
+  mv "$shimmy_target_profile_active_link_restore_stage" "$shimmy_target_profile_active_link_restore_path"
 }
 
-perform_uninstall_profile() {
-  uninstall_profile_name=$SHIMMY_PROFILE_RESOLVED
-  shimmy_profile_activation_lock_check || fail "unable to preflight the profile activation lock for profile uninstall"
-  shimmy_uninstall_plan_build "$uninstall_profile_name" 0 1 || exit 1
-  shimmy_uninstall_locks_acquire "$SHIMMY_UNINSTALL_PRESENT_PROFILES" || exit 1
-  shimmy_uninstall_plan_build "$uninstall_profile_name" 1 0 || exit 1
-
-  shimmy_uninstall_projection_cleanup || exit 1
-  shimmy_uninstall_linux_links_detach || exit 1
-  shimmy_uninstall_profile_assets_remove "$uninstall_profile_name"
-  shimmy_uninstall_registry_locks_release
-  shimmy_profile_activation_lock_release
-  shimmy_uninstall_empty_roots_remove
-}
-
-profile_owned_path_remove() {
-  path_value=$1
-  [ -e "$path_value" ] || [ -L "$path_value" ] || return 0
-  case "$path_value" in
-    "$SHIMMY_PROFILE_ROOT"/*) ;;
-    *) fail "refusing to remove path outside profile root: $path_value" ;;
-  esac
-
-  if [ -L "$path_value" ] || [ -f "$path_value" ]; then
-    rm -f "$path_value"
-  else
-    rm -rf "$path_value"
-  fi
-}
-
-shimmy_uninstall_darwin_profile_plan() {
-  uninstall_plan_profile=$1
-  shimmy_profile_activation_override_reject || return 1
-  shimmy_registries_override_reject || return 1
-  shimmy_profile_activation_expected_resolve || return 1
-  shimmy_profile_state_darwin_read
-
-  [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" = valid ] || {
-    printf 'ERROR: invalid Darwin machine projection record: %s\n' "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" >&2
+shimmy_target_profile_delete_run() {
+  shimmy_target_profile_delete_config=$1
+  shimmy_target_profile_delete_name=$2
+  shimmy_target_profile_delete_stop=$3
+  shimmy_name_component_validate "$shimmy_target_profile_delete_name" || return 1
+  case "$shimmy_target_profile_delete_stop" in 0|1) ;; *) return 1 ;; esac
+  [ "$shimmy_target_profile_delete_name" != default ] || {
+    SHIMMY_TARGET_UNINSTALL_ERROR='the default Shimmy profile cannot be deleted'
     return 1
   }
-  [ "$SHIMMY_PROFILE_MACHINE_METADATA" = valid ] || {
-    printf 'ERROR: Podman machine metadata is %s; refusing uninstall cleanup for profile %s\n' \
-      "$SHIMMY_PROFILE_MACHINE_METADATA" "$uninstall_plan_profile" >&2
+  shimmy_target_profile_installation_context_resolve "$shimmy_target_profile_delete_config" || return 1
+  [ "$SHIMMY_TARGET_PROFILE_ACTIVE_NAME" != "$shimmy_target_profile_delete_name" ] || {
+    SHIMMY_TARGET_UNINSTALL_ERROR="the active Shimmy profile cannot be deleted: $shimmy_target_profile_delete_name"
     return 1
   }
-
-  SHIMMY_UNINSTALL_PROJECTED_PROFILES=$(shimmy_append_line_list \
-    "$SHIMMY_UNINSTALL_PROJECTED_PROFILES" "$uninstall_plan_profile")
-  if [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" = missing ]; then
-    SHIMMY_UNINSTALL_MISSING_PROFILES=$(shimmy_append_line_list \
-      "$SHIMMY_UNINSTALL_MISSING_PROFILES" "$uninstall_plan_profile")
-    return 0
-  fi
-
-  [ "$SHIMMY_PROFILE_CONNECTION_METADATA" = valid ] &&
-    [ "$SHIMMY_PROFILE_EXPECTED_CONNECTION_STATE" = rootless ] || {
-      printf 'ERROR: required same-name rootless Podman connection is missing or invalid: %s\n' \
-        "$SHIMMY_PROFILE_EXPECTED_CONNECTION" >&2
-      return 1
-    }
-  case "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" in
-    running)
-      [ "$SHIMMY_PROFILE_ENGINE_REACHABLE" = true ] || {
-        printf 'ERROR: expected machine %s is unreachable; refusing uninstall cleanup\n' \
-          "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-        return 1
-      }
-      [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE" = current ] || {
-        printf 'ERROR: refusing uninstall with foreign, absent, or invalid Darwin machine projection: %s\n' \
-          "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK" >&2
-        return 1
-      }
-      SHIMMY_UNINSTALL_RUNNING_PROFILES=$(shimmy_append_line_list \
-        "$SHIMMY_UNINSTALL_RUNNING_PROFILES" "$uninstall_plan_profile")
-      ;;
-    stopped)
-      SHIMMY_UNINSTALL_STOPPED_PROFILES=$(shimmy_append_line_list \
-        "$SHIMMY_UNINSTALL_STOPPED_PROFILES" "$uninstall_plan_profile")
-      ;;
-    *)
-      printf 'ERROR: unable to prove Darwin machine state for uninstall cleanup: %s\n' \
-        "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-      return 1
-      ;;
-  esac
-
-  SHIMMY_UNINSTALL_NONMISSING_PROFILES=$(shimmy_append_line_list \
-    "$SHIMMY_UNINSTALL_NONMISSING_PROFILES" "$uninstall_plan_profile")
-  if [ "$SHIMMY_UNINSTALL_SNAPSHOT_SET" -eq 0 ]; then
-    SHIMMY_UNINSTALL_INITIAL_RUNNING_MACHINE=$SHIMMY_PROFILE_RUNNING_MACHINE
-    SHIMMY_UNINSTALL_INITIAL_DEFAULT_CONNECTION=$SHIMMY_PROFILE_DEFAULT_CONNECTION
-    SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINER_COUNT=$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT
-    SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINERS=$SHIMMY_PROFILE_RUNNING_CONTAINERS
-    SHIMMY_UNINSTALL_SNAPSHOT_SET=1
-  elif [ "$SHIMMY_UNINSTALL_INITIAL_RUNNING_MACHINE" != "$SHIMMY_PROFILE_RUNNING_MACHINE" ] ||
-    [ "$SHIMMY_UNINSTALL_INITIAL_DEFAULT_CONNECTION" != "$SHIMMY_PROFILE_DEFAULT_CONNECTION" ] ||
-    [ "$SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINER_COUNT" != "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" ]; then
-    printf '%s\n' 'ERROR: Podman machine or connection state changed while building the uninstall plan' >&2
-    return 1
-  fi
+  shimmy_target_profile_owned_root_validate "$shimmy_target_profile_delete_config" \
+    "$shimmy_target_profile_delete_name" 0 || return 1
+  shimmy_target_lock_acquire activation "$shimmy_target_profile_delete_config" || return 1
+  shimmy_target_lock_acquire profile "$shimmy_target_profile_delete_config" \
+    "$shimmy_target_profile_delete_name" || return 1
+  shimmy_target_lock_acquire registry "$shimmy_target_profile_delete_config" \
+    "$shimmy_target_profile_delete_name" || return 1
+  shimmy_target_profile_installation_context_resolve "$shimmy_target_profile_delete_config" || return 1
+  [ "$SHIMMY_TARGET_PROFILE_ACTIVE_NAME" != "$shimmy_target_profile_delete_name" ] || return 1
+  shimmy_target_profile_owned_root_validate "$shimmy_target_profile_delete_config" \
+    "$shimmy_target_profile_delete_name" 1 || return 1
+  shimmy_target_profile_projection_cleanup "$shimmy_target_profile_delete_config" \
+    "$shimmy_target_profile_delete_name" "$shimmy_target_profile_delete_stop" || return 1
+  shimmy_target_profile_owned_assets_remove "$shimmy_target_profile_delete_config" \
+    "$shimmy_target_profile_delete_name" || return 1
+  shimmy_target_locks_release_all || return 1
+  shimmy_target_profile_paths_resolve "$shimmy_target_profile_delete_config" \
+    "$shimmy_target_profile_delete_name" || return 1
+  rmdir "$SHIMMY_TARGET_PROFILE_ROOT" || return 1
+  printf 'Deleted inactive Shimmy profile %s.\n' "$shimmy_target_profile_delete_name"
 }
 
-shimmy_uninstall_empty_roots_remove() {
-  rmdir "$SHIMMY_PROFILE_ROOT/bin" 2>/dev/null || true
-  rmdir "$SHIMMY_PROFILE_ROOT" 2>/dev/null || true
-  rmdir "$SHIMMY_PROFILES_ROOT" 2>/dev/null || true
-  rmdir "$SHIMMY_CONFIG_ROOT" 2>/dev/null || true
+shimmy_target_profile_owned_assets_remove() {
+  shimmy_target_profile_owned_remove_config=$1
+  shimmy_target_profile_owned_remove_name=$2
+  shimmy_target_profile_paths_resolve "$shimmy_target_profile_owned_remove_config" \
+    "$shimmy_target_profile_owned_remove_name" || return 1
+  for shimmy_target_profile_owned_remove_entry in ai-skills bin commands config lib tools \
+    install-manifest.txt machine-projection.txt registries.conf shell-init.sh; do
+    shimmy_target_profile_owned_remove_path=$SHIMMY_TARGET_PROFILE_ROOT/$shimmy_target_profile_owned_remove_entry
+    if [ -d "$shimmy_target_profile_owned_remove_path" ] && [ ! -L "$shimmy_target_profile_owned_remove_path" ]; then
+      rm -rf "$shimmy_target_profile_owned_remove_path" || return 1
+    elif [ -e "$shimmy_target_profile_owned_remove_path" ] || [ -L "$shimmy_target_profile_owned_remove_path" ]; then
+      rm -f "$shimmy_target_profile_owned_remove_path" || return 1
+    fi
+  done
 }
 
-shimmy_uninstall_linux_links_detach() {
-  [ "$SHIMMY_UNINSTALL_HOST_OS" = linux ] || return 0
-  for uninstall_link_profile in $SHIMMY_UNINSTALL_PRESENT_PROFILES; do
-    shimmy_uninstall_profile_context_resolve "$uninstall_link_profile" || return 1
-    shimmy_registries_active_link_state_read
-    case "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" in
-      current) shimmy_registries_active_link_detach || return 1 ;;
-      absent|sibling) ;;
+shimmy_target_profile_owned_root_validate() {
+  shimmy_target_profile_owned_config=$1
+  shimmy_target_profile_owned_name=$2
+  shimmy_target_profile_owned_locks=${3:-0}
+  shimmy_target_profile_candidate_resolve "$shimmy_target_profile_owned_config" \
+    "$shimmy_target_profile_owned_name" || return 1
+  shimmy_target_profile_owned_root=$SHIMMY_TARGET_PROFILE_CANDIDATE_ROOT
+  for shimmy_target_profile_owned_entry in "$shimmy_target_profile_owned_root"/* \
+    "$shimmy_target_profile_owned_root"/.[!.]* "$shimmy_target_profile_owned_root"/..?*; do
+    [ -e "$shimmy_target_profile_owned_entry" ] || [ -L "$shimmy_target_profile_owned_entry" ] || continue
+    shimmy_target_profile_owned_base=$(basename -- "$shimmy_target_profile_owned_entry")
+    case "$shimmy_target_profile_owned_base" in
+      ai-skills|bin|commands|config|lib|tools)
+        [ -d "$shimmy_target_profile_owned_entry" ] && [ ! -L "$shimmy_target_profile_owned_entry" ] || return 1
+        ;;
+      install-manifest.txt|machine-projection.txt|registries.conf|shell-init.sh)
+        [ -f "$shimmy_target_profile_owned_entry" ] && [ ! -L "$shimmy_target_profile_owned_entry" ] || return 1
+        ;;
+      .profile.lock|.registries.lock)
+        [ "$shimmy_target_profile_owned_locks" -eq 1 ] &&
+          [ -f "$shimmy_target_profile_owned_entry" ] && [ ! -L "$shimmy_target_profile_owned_entry" ] || return 1
+        ;;
       *)
-        printf 'ERROR: refusing to remove profile with invalid or foreign registry activation state: %s\n' \
-          "$SHIMMY_REGISTRIES_ACTIVE_LINK" >&2
+        SHIMMY_TARGET_UNINSTALL_ERROR="unrecognized target profile state blocks deletion: $shimmy_target_profile_owned_entry"
         return 1
         ;;
     esac
   done
 }
 
-shimmy_uninstall_locks_acquire() {
-  uninstall_lock_profiles=$1
-  shimmy_profile_activation_lock_acquire || return 1
-  for uninstall_lock_profile in $uninstall_lock_profiles; do
-    shimmy_uninstall_profile_context_resolve "$uninstall_lock_profile" || return 1
-    shimmy_registries_lock_acquire || return 1
-    SHIMMY_UNINSTALL_REGISTRY_LOCK_PROFILES=$(shimmy_append_line_list \
-      "$SHIMMY_UNINSTALL_REGISTRY_LOCK_PROFILES" "$uninstall_lock_profile")
-    SHIMMY_REGISTRIES_LOCK_HELD=0
-  done
-}
-
-shimmy_uninstall_plan_build() {
-  uninstall_plan_profiles=$1
-  uninstall_plan_under_lock=$2
-  uninstall_plan_report_workloads=$3
-  shimmy_uninstall_plan_reset
+shimmy_target_profile_projection_cleanup() {
+  shimmy_target_profile_projection_config=$1
+  shimmy_target_profile_projection_name=$2
+  shimmy_target_profile_projection_stop=$3
+  shimmy_target_profile_projection_strict_stop=${4:-1}
+  shimmy_target_profile_engine_context_resolve "$shimmy_target_profile_projection_config" \
+    "$shimmy_target_profile_projection_name" || return 1
+  shimmy_profile_activation_expected_resolve || return 1
   shimmy_profile_activation_host_os_resolve
-  SHIMMY_UNINSTALL_HOST_OS=$SHIMMY_PROFILE_HOST_OS
-
-  for uninstall_plan_profile in $uninstall_plan_profiles; do
-    shimmy_uninstall_profile_context_resolve "$uninstall_plan_profile" || return 1
-    if [ ! -e "$SHIMMY_PROFILE_ROOT" ] && [ ! -L "$SHIMMY_PROFILE_ROOT" ]; then
-      [ "$uninstall_plan_profiles" != "$uninstall_plan_profile" ] || {
-        printf 'ERROR: no Shimmy profile manifest found at %s\n' "$SHIMMY_PROFILE_MANIFEST_PATH" >&2
+  case "$SHIMMY_PROFILE_HOST_OS" in
+    linux)
+      [ "$shimmy_target_profile_projection_stop" -eq 0 ] ||
+        [ "$shimmy_target_profile_projection_strict_stop" -eq 0 ] || {
+        SHIMMY_TARGET_UNINSTALL_ERROR='--stop-running is not supported for local Linux profile deletion'
         return 1
       }
-      continue
-    fi
-    [ -f "$SHIMMY_PROFILE_MANIFEST_PATH" ] && [ ! -L "$SHIMMY_PROFILE_MANIFEST_PATH" ] || {
-      printf 'ERROR: refusing uninstall with unmanaged or incomplete profile state: %s\n' "$SHIMMY_PROFILE_ROOT" >&2
-      return 1
-    }
-    shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$uninstall_plan_profile" || return 1
-    if [ -e "$SHIMMY_PROFILE_REGISTRIES_PATH" ] || [ -L "$SHIMMY_PROFILE_REGISTRIES_PATH" ]; then
-      shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$uninstall_plan_profile" || {
-        printf 'ERROR: refusing to remove invalid or unmanaged registry configuration: %s\n' \
-          "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
-        return 1
-      }
-    fi
-    if [ "$uninstall_plan_under_lock" -eq 1 ]; then
-      [ -d "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" ] && [ ! -L "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" ] || {
-        printf 'ERROR: registry transaction lock changed during uninstall: %s\n' \
-          "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" >&2
-        return 1
-      }
-    elif [ -e "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" ] || [ -L "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" ]; then
-      printf 'ERROR: refusing uninstall while a registry transaction is active or damaged: %s\n' \
-        "$SHIMMY_PROFILE_REGISTRIES_LOCK_PATH" >&2
-      return 1
-    fi
-
-    SHIMMY_UNINSTALL_PRESENT_PROFILES=$(shimmy_append_line_list \
-      "$SHIMMY_UNINSTALL_PRESENT_PROFILES" "$uninstall_plan_profile")
-    shimmy_registries_active_link_state_read
-    [ "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" != invalid ] || {
-      printf 'ERROR: refusing uninstall with invalid or foreign registry activation state: %s\n' \
-        "$SHIMMY_REGISTRIES_ACTIVE_LINK" >&2
-      return 1
-    }
-
-    if [ -e "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] ||
-      [ -L "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ]; then
-      [ -f "$SHIMMY_PROFILE_REGISTRIES_PATH" ] && [ ! -L "$SHIMMY_PROFILE_REGISTRIES_PATH" ] || {
-        printf 'ERROR: refusing uninstall with a Darwin projection record but no valid registry configuration: %s\n' \
-          "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
-        return 1
-      }
-      shimmy_registries_machine_projection_record_validate \
-        "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" "$uninstall_plan_profile" || {
-          printf 'ERROR: refusing uninstall with invalid Darwin machine projection record: %s\n' \
-            "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" >&2
-          return 1
-        }
-      [ "$SHIMMY_UNINSTALL_HOST_OS" = darwin ] || {
-        printf 'ERROR: retained Darwin projection for profile %s can be cleaned only from macOS\n' \
-          "$uninstall_plan_profile" >&2
-        return 1
-      }
-      shimmy_uninstall_darwin_profile_plan "$uninstall_plan_profile" || return 1
-    fi
-  done
-
-  [ -z "$SHIMMY_UNINSTALL_NONMISSING_PROFILES" ] || SHIMMY_UNINSTALL_MACHINE_OPERATIONS=1
-  uninstall_stop_planned=0
-  if [ "$SHIMMY_UNINSTALL_MACHINE_OPERATIONS" -eq 1 ] &&
-    [ "$SHIMMY_UNINSTALL_INITIAL_RUNNING_MACHINE" != none ]; then
-    uninstall_stop_planned=1
-    [ "$SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINER_COUNT" != unknown ] || {
-      printf 'ERROR: unable to inspect running workloads on %s; no machine was stopped\n' \
-        "$SHIMMY_UNINSTALL_INITIAL_RUNNING_MACHINE" >&2
-      return 1
-    }
-    if [ "$uninstall_plan_report_workloads" -eq 1 ] &&
-      [ -n "$SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINERS" ]; then
-      printf 'Running containers on %s:\n' "$SHIMMY_UNINSTALL_INITIAL_RUNNING_MACHINE"
-      printf '%s\n' "$SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINERS"
-    fi
-    if [ "$SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINER_COUNT" -gt 0 ] && [ "$STOP_RUNNING" -eq 0 ]; then
-      if [ "$uninstall_plan_report_workloads" -eq 0 ] &&
-        [ -n "$SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINERS" ]; then
-        printf 'Running containers on %s:\n' "$SHIMMY_UNINSTALL_INITIAL_RUNNING_MACHINE"
-        printf '%s\n' "$SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINERS"
-      fi
-      printf '%s\n' 'ERROR: running containers block uninstall cleanup; review the workloads and retry with explicit --stop-running acknowledgement' >&2
+      shimmy_registries_active_link_state_read
+      case "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" in absent|sibling) return 0 ;; *) return 1 ;; esac
+      ;;
+    darwin) ;;
+    *) SHIMMY_TARGET_UNINSTALL_ERROR="unsupported host operating system for profile deletion: $SHIMMY_PROFILE_HOST_OS"; return 1 ;;
+  esac
+  shimmy_registries_machine_projection_record_read
+  case "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" in
+    absent)
+      [ "$shimmy_target_profile_projection_stop" -eq 0 ] ||
+        [ "$shimmy_target_profile_projection_strict_stop" -eq 0 ] || return 1
+      return 0
+      ;;
+    valid) ;;
+    *) return 1 ;;
+  esac
+  shimmy_profile_state_darwin_read
+  case "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" in
+    missing)
+      [ "$shimmy_target_profile_projection_stop" -eq 0 ] ||
+        [ "$shimmy_target_profile_projection_strict_stop" -eq 0 ] || return 1
+      shimmy_registries_machine_projection_detach_prepare || return 1
+      SHIMMY_TARGET_UNINSTALL_PROJECTION_BACKUP=$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$
+      shimmy_registries_machine_projection_detach_record_remove \
+        "$SHIMMY_TARGET_UNINSTALL_PROJECTION_BACKUP" || return 1
+      shimmy_registries_machine_projection_detach_finalize \
+        "$SHIMMY_TARGET_UNINSTALL_PROJECTION_BACKUP" || return 1
+      SHIMMY_TARGET_UNINSTALL_PROJECTION_BACKUP=
+      return 0
+      ;;
+    running|stopped) ;;
+    *) return 1 ;;
+  esac
+  [ "$SHIMMY_PROFILE_CONNECTION_METADATA" = valid ] &&
+    [ "$SHIMMY_PROFILE_EXPECTED_CONNECTION_STATE" = rootless ] || return 1
+  shimmy_target_profile_projection_stop_planned=0
+  [ "$SHIMMY_PROFILE_RUNNING_MACHINE" = none ] ||
+    shimmy_target_profile_projection_stop_planned=1
+  if [ "$shimmy_target_profile_projection_stop_planned" -eq 1 ]; then
+    [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" != unknown ] || return 1
+    shimmy_profile_workloads_print
+    if [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" -gt 0 ] &&
+      [ "$shimmy_target_profile_projection_stop" -eq 0 ]; then
+      SHIMMY_TARGET_UNINSTALL_ERROR='running containers block profile deletion; retry with explicit --stop-running acknowledgement'
       return 1
     fi
-  fi
-  if [ "$STOP_RUNNING" -eq 1 ] && [ "$uninstall_stop_planned" -eq 0 ]; then
-    printf '%s\n' 'ERROR: --stop-running is valid only when uninstall cleanup will stop an already running machine' >&2
+  elif [ "$shimmy_target_profile_projection_stop" -eq 1 ] &&
+    [ "$shimmy_target_profile_projection_strict_stop" -eq 1 ]; then
+    SHIMMY_TARGET_UNINSTALL_ERROR='--stop-running is valid only when profile deletion must stop a running machine'
     return 1
   fi
-}
-
-shimmy_uninstall_plan_reset() {
-  SHIMMY_UNINSTALL_HOST_OS=unsupported
-  SHIMMY_UNINSTALL_INITIAL_DEFAULT_CONNECTION=unknown
-  SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINER_COUNT=unknown
-  SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINERS=
-  SHIMMY_UNINSTALL_INITIAL_RUNNING_MACHINE=none
-  SHIMMY_UNINSTALL_MACHINE_OPERATIONS=0
-  SHIMMY_UNINSTALL_MISSING_PROFILES=
-  SHIMMY_UNINSTALL_NONMISSING_PROFILES=
-  SHIMMY_UNINSTALL_PREPARED_PROFILES=
-  SHIMMY_UNINSTALL_PRESENT_PROFILES=
-  SHIMMY_UNINSTALL_PROJECTED_PROFILES=
-  SHIMMY_UNINSTALL_RUNNING_PROFILES=
-  SHIMMY_UNINSTALL_SNAPSHOT_SET=0
-  SHIMMY_UNINSTALL_STOPPED_PROFILES=
-}
-
-shimmy_uninstall_profile_assets_remove() {
-  uninstall_remove_profile=$1
-  shimmy_uninstall_profile_context_resolve "$uninstall_remove_profile" || return 1
-  installed_tools=$(shimmy_manifest_tool_list_read "$SHIMMY_PROFILE_MANIFEST_PATH" || true)
-  startup_files=
-  if [ "$uninstall_remove_profile" = default ]; then
-    startup_files=$(shimmy_read_manifest_values "$SHIMMY_PROFILE_MANIFEST_PATH" startup_file || true)
+  shimmy_registries_machine_projection_detach_prepare || return 1
+  shimmy_profile_cleanup_transaction_begin "$SHIMMY_PROFILE_RUNNING_MACHINE" \
+    "$SHIMMY_PROFILE_DEFAULT_CONNECTION" || return 1
+  shimmy_target_profile_projection_was_running=0
+  [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" != running ] ||
+    shimmy_target_profile_projection_was_running=1
+  shimmy_profile_cleanup_machine_switch "$SHIMMY_PROFILE_EXPECTED_MACHINE" || return 1
+  shimmy_profile_cleanup_engine_validate "$SHIMMY_PROFILE_EXPECTED_CONNECTION" || return 1
+  shimmy_registries_machine_projection_detach_remote || return 1
+  if [ "$shimmy_target_profile_projection_was_running" -eq 1 ]; then
+    shimmy_profile_cleanup_machine_restart "$SHIMMY_PROFILE_EXPECTED_MACHINE" || return 1
   fi
-
-  for asset_name in agent commands config lib plugins tests tools; do
-    profile_owned_path_remove "$SHIMMY_PROFILE_ROOT/$asset_name"
-  done
-  while IFS= read -r tool_name; do
-    [ -n "$tool_name" ] || continue
-    profile_owned_path_remove "$SHIMMY_PROFILE_BIN_DIR/$tool_name"
-  done <<EOF
-$installed_tools
-EOF
-  profile_owned_path_remove "$SHIMMY_PROFILE_BIN_DIR/shimmy"
-  profile_owned_path_remove "$SHIMMY_PROFILE_ROOT/shell-init.sh"
-  profile_owned_path_remove "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-  profile_owned_path_remove "$SHIMMY_PROFILE_REGISTRIES_PATH"
-  profile_owned_path_remove "$SHIMMY_PROFILE_MANIFEST_PATH"
-
-  while IFS= read -r startup_file; do
-    [ -n "$startup_file" ] || continue
-    shimmy_startup_block_remove "$startup_file" "$SHIMMY_STARTUP_BLOCK_START" "$SHIMMY_STARTUP_BLOCK_END"
-    log_info "Removed managed Shimmy startup block from: $startup_file"
-  done <<EOF
-$startup_files
-EOF
-  log_info "Removed Shimmy $uninstall_remove_profile profile from $SHIMMY_PROFILE_ROOT"
-}
-
-shimmy_uninstall_profile_context_resolve() {
-  uninstall_context_profile=$1
-  shimmy_profile_paths_resolve "$uninstall_context_profile" || {
-    printf 'ERROR: unable to resolve canonical %s profile\n' "$uninstall_context_profile" >&2
-    return 1
-  }
-  SHIMMY_PROFILE_RESOLVED=$uninstall_context_profile
-  SHIMMY_BIN_DIR=$SHIMMY_PROFILE_BIN_DIR
-  SHIMMY_CONTROL_BIN=$SHIMMY_BIN_DIR/shimmy
-  SHIMMY_SHELL_INIT_FILE=$SHIMMY_PROFILE_ROOT/shell-init.sh
-  INSTALL_MANIFEST_FILE=$SHIMMY_PROFILE_MANIFEST_PATH
-}
-
-shimmy_uninstall_projection_cleanup() {
-  [ "$SHIMMY_UNINSTALL_HOST_OS" = darwin ] || return 0
-  [ -n "$SHIMMY_UNINSTALL_PROJECTED_PROFILES" ] || return 0
-
-  SHIMMY_UNINSTALL_DETACHED_PROFILES=
-  SHIMMY_UNINSTALL_PREPARED_PROFILES=
-  SHIMMY_UNINSTALL_RECORD_REMOVED_PROFILES=
-  SHIMMY_UNINSTALL_TRANSACTION_ACTIVE=1
-  if [ "$SHIMMY_UNINSTALL_MACHINE_OPERATIONS" -eq 1 ]; then
-    shimmy_profile_cleanup_transaction_begin \
-      "$SHIMMY_UNINSTALL_INITIAL_RUNNING_MACHINE" "$SHIMMY_UNINSTALL_INITIAL_DEFAULT_CONNECTION"
-  fi
-
-  for uninstall_projection_profile in $SHIMMY_UNINSTALL_PROJECTED_PROFILES; do
-    shimmy_uninstall_profile_context_resolve "$uninstall_projection_profile" || {
-      shimmy_uninstall_transaction_fail "unable to resolve profile $uninstall_projection_profile during cleanup"
-      return 1
-    }
-    shimmy_profile_activation_expected_resolve || {
-      shimmy_uninstall_transaction_fail "unable to resolve engine identity for $uninstall_projection_profile"
-      return 1
-    }
-    shimmy_registries_machine_projection_detach_prepare || {
-      shimmy_uninstall_transaction_fail "unable to prepare projection cleanup for $uninstall_projection_profile"
-      return 1
-    }
-    SHIMMY_UNINSTALL_PREPARED_PROFILES=$(shimmy_append_line_list \
-      "$SHIMMY_UNINSTALL_PREPARED_PROFILES" "$uninstall_projection_profile")
-    if shimmy_contains_line_list "$SHIMMY_UNINSTALL_MISSING_PROFILES" "$uninstall_projection_profile"; then
-      printf 'Removing projection record for proven-missing machine: %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE"
-      continue
-    fi
-    if ! shimmy_profile_cleanup_machine_switch "$SHIMMY_PROFILE_EXPECTED_MACHINE" ||
-      ! shimmy_profile_cleanup_engine_validate "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ||
-      ! shimmy_registries_machine_projection_detach_remote; then
-      shimmy_uninstall_transaction_fail "unable to detach registry policy for $uninstall_projection_profile"
-      return 1
-    fi
-    SHIMMY_UNINSTALL_DETACHED_PROFILES=$(shimmy_append_line_list \
-      "$SHIMMY_UNINSTALL_DETACHED_PROFILES" "$uninstall_projection_profile")
-    printf 'Detached Darwin registry projection for profile %s from %s\n' \
-      "$uninstall_projection_profile" "$SHIMMY_PROFILE_EXPECTED_MACHINE"
-    if shimmy_contains_line_list "$SHIMMY_UNINSTALL_RUNNING_PROFILES" "$uninstall_projection_profile"; then
-      if ! shimmy_profile_cleanup_machine_restart "$SHIMMY_PROFILE_EXPECTED_MACHINE"; then
-        shimmy_uninstall_transaction_fail "unable to restart $SHIMMY_PROFILE_EXPECTED_MACHINE after detach"
-        return 1
-      fi
-    fi
-  done
-
-  if [ "$SHIMMY_UNINSTALL_MACHINE_OPERATIONS" -eq 1 ] && ! shimmy_profile_cleanup_restore; then
-    shimmy_uninstall_transaction_fail 'unable to restore the initial Podman machine and default connection state'
-    return 1
-  fi
-  for uninstall_projection_profile in $SHIMMY_UNINSTALL_PREPARED_PROFILES; do
-    shimmy_uninstall_profile_context_resolve "$uninstall_projection_profile" || {
-      shimmy_uninstall_transaction_fail "unable to resolve profile $uninstall_projection_profile before record removal"
-      return 1
-    }
-    projection_backup=$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$
-    if ! shimmy_registries_machine_projection_detach_record_remove "$projection_backup"; then
-      shimmy_uninstall_transaction_fail "unable to remove projection record for $uninstall_projection_profile"
-      return 1
-    fi
-    SHIMMY_UNINSTALL_RECORD_REMOVED_PROFILES=$(shimmy_append_line_list \
-      "$SHIMMY_UNINSTALL_RECORD_REMOVED_PROFILES" "$uninstall_projection_profile")
-  done
-  SHIMMY_UNINSTALL_TRANSACTION_ACTIVE=0
-  for uninstall_projection_profile in $SHIMMY_UNINSTALL_PREPARED_PROFILES; do
-    shimmy_uninstall_profile_context_resolve "$uninstall_projection_profile" || {
-      printf 'ERROR: uninstall projection cleanup committed, but unable to resolve profile %s during backup finalization\n' \
-        "$uninstall_projection_profile" >&2
-      return 1
-    }
-    if ! shimmy_registries_machine_projection_detach_finalize \
-      "$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$"; then
-      printf 'ERROR: uninstall projection cleanup committed, but unable to finalize rollback backup for profile %s\n' \
-        "$uninstall_projection_profile" >&2
-      return 1
-    fi
-  done
-  if [ "$STOP_RUNNING" -eq 1 ] &&
-    [ "$SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINER_COUNT" -gt 0 ]; then
+  shimmy_profile_cleanup_restore || return 1
+  SHIMMY_TARGET_UNINSTALL_PROJECTION_BACKUP=$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$
+  shimmy_registries_machine_projection_detach_record_remove \
+    "$SHIMMY_TARGET_UNINSTALL_PROJECTION_BACKUP" || return 1
+  shimmy_registries_machine_projection_detach_finalize \
+    "$SHIMMY_TARGET_UNINSTALL_PROJECTION_BACKUP" || return 1
+  SHIMMY_TARGET_UNINSTALL_PROJECTION_BACKUP=
+  if [ "$shimmy_target_profile_projection_stop" -eq 1 ] &&
+    [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" -gt 0 ]; then
     printf '%s\n' 'WARNING: acknowledged workloads were interrupted; verify that they resumed as intended.' >&2
   fi
 }
 
-shimmy_uninstall_registry_locks_release() {
-  for uninstall_lock_profile in $SHIMMY_UNINSTALL_REGISTRY_LOCK_PROFILES; do
-    uninstall_lock_path=$SHIMMY_PROFILES_ROOT/$uninstall_lock_profile/.registries.lock
-    case "$uninstall_lock_path" in
-      "$SHIMMY_PROFILES_ROOT"/default/.registries.lock|"$SHIMMY_PROFILES_ROOT"/upstream/.registries.lock)
-        rmdir "$uninstall_lock_path" 2>/dev/null || true
+shimmy_target_startup_remove_apply() {
+  shimmy_target_startup_remove_config=$1
+  shimmy_target_startup_remove_files=${2:-}
+  [ -n "$shimmy_target_startup_remove_files" ] || return 0
+  shimmy_target_startup_remove_sequence=0
+  SHIMMY_TARGET_PROFILE_LIFECYCLE_STARTUP_BACKUP=$shimmy_target_startup_remove_config/.startup-backup.$$
+  mkdir "$SHIMMY_TARGET_PROFILE_LIFECYCLE_STARTUP_BACKUP" || return 1
+  while IFS= read -r shimmy_target_startup_remove_file; do
+    [ -n "$shimmy_target_startup_remove_file" ] || continue
+    [ -f "$shimmy_target_startup_remove_file" ] && [ ! -L "$shimmy_target_startup_remove_file" ] || return 1
+    shimmy_target_startup_remove_sequence=$((shimmy_target_startup_remove_sequence + 1))
+    shimmy_target_startup_remove_backup=$SHIMMY_TARGET_PROFILE_LIFECYCLE_STARTUP_BACKUP/$shimmy_target_startup_remove_sequence
+    cp "$shimmy_target_startup_remove_file" "$shimmy_target_startup_remove_backup" || return 1
+    shimmy_target_external_rollback_register "$shimmy_target_startup_remove_file" \
+      shimmy_target_startup_restore "$shimmy_target_startup_remove_backup" present \
+      'restore startup file removed during uninstall' || return 1
+    shimmy_startup_block_remove "$shimmy_target_startup_remove_file" \
+      "$SHIMMY_STARTUP_BLOCK_START" "$SHIMMY_STARTUP_BLOCK_END" || return 1
+  done <<EOF
+$shimmy_target_startup_remove_files
+EOF
+}
+
+shimmy_target_uninstall_config_validate() {
+  shimmy_target_uninstall_config=$1
+  shimmy_target_uninstall_locks=${2:-0}
+  shimmy_target_profile_installation_context_resolve "$shimmy_target_uninstall_config" || return 1
+  SHIMMY_TARGET_UNINSTALL_ACTIVE=$SHIMMY_TARGET_PROFILE_ACTIVE_NAME
+  SHIMMY_TARGET_UNINSTALL_USER_ROOT=$SHIMMY_TARGET_PROFILE_USER_SKILL_ROOT
+  SHIMMY_TARGET_UNINSTALL_PROFILES=
+  for shimmy_target_uninstall_profile_path in "$SHIMMY_TARGET_PROFILES_ROOT"/*; do
+    [ -e "$shimmy_target_uninstall_profile_path" ] || [ -L "$shimmy_target_uninstall_profile_path" ] || continue
+    shimmy_target_uninstall_profile_name=$(basename -- "$shimmy_target_uninstall_profile_path")
+    shimmy_name_component_validate "$shimmy_target_uninstall_profile_name" || return 1
+    shimmy_target_profile_owned_root_validate "$shimmy_target_uninstall_config" \
+      "$shimmy_target_uninstall_profile_name" "$shimmy_target_uninstall_locks" || return 1
+    SHIMMY_TARGET_UNINSTALL_PROFILES=$(shimmy_append_line_list "$SHIMMY_TARGET_UNINSTALL_PROFILES" \
+      "$shimmy_target_uninstall_profile_name")
+  done
+  SHIMMY_TARGET_UNINSTALL_PROFILES=$(printf '%s\n' "$SHIMMY_TARGET_UNINSTALL_PROFILES" | sed '/^$/d' | LC_ALL=C sort)
+  shimmy_contains_line_list "$SHIMMY_TARGET_UNINSTALL_PROFILES" default || return 1
+  for shimmy_target_uninstall_entry in "$shimmy_target_uninstall_config"/* \
+    "$shimmy_target_uninstall_config"/.[!.]* "$shimmy_target_uninstall_config"/..?*; do
+    [ -e "$shimmy_target_uninstall_entry" ] || [ -L "$shimmy_target_uninstall_entry" ] || continue
+    shimmy_target_uninstall_base=$(basename -- "$shimmy_target_uninstall_entry")
+    case "$shimmy_target_uninstall_base" in
+      active-profile.conf) [ -f "$shimmy_target_uninstall_entry" ] && [ ! -L "$shimmy_target_uninstall_entry" ] || return 1 ;;
+      catalogs|profiles) [ -d "$shimmy_target_uninstall_entry" ] && [ ! -L "$shimmy_target_uninstall_entry" ] || return 1 ;;
+      .catalog.lock|.activation.lock)
+        [ "$shimmy_target_uninstall_locks" -eq 1 ] && [ -f "$shimmy_target_uninstall_entry" ] &&
+          [ ! -L "$shimmy_target_uninstall_entry" ] || return 1
+        ;;
+      *) SHIMMY_TARGET_UNINSTALL_ERROR="unrecognized installation-owned state blocks uninstall: $shimmy_target_uninstall_entry"; return 1 ;;
+    esac
+  done
+}
+
+shimmy_target_uninstall_links_apply() {
+  shimmy_target_uninstall_links_user=$1
+  shimmy_target_uninstall_links_profiles=$2
+  for shimmy_target_uninstall_links_entry in "$shimmy_target_uninstall_links_user"/*; do
+    [ -e "$shimmy_target_uninstall_links_entry" ] || [ -L "$shimmy_target_uninstall_links_entry" ] || continue
+    [ -L "$shimmy_target_uninstall_links_entry" ] || continue
+    shimmy_target_uninstall_links_target=$(readlink "$shimmy_target_uninstall_links_entry") || return 1
+    case "$shimmy_target_uninstall_links_target" in
+      "$shimmy_target_uninstall_links_profiles"/*)
+        shimmy_target_ai_skill_link_recognized_read "$shimmy_target_uninstall_links_entry" \
+          "$shimmy_target_uninstall_links_user" "$shimmy_target_uninstall_links_profiles" || return 1
+        shimmy_target_ai_skill_link_remove_recognized "$shimmy_target_uninstall_links_user" \
+          "$shimmy_target_uninstall_links_profiles" "$(basename -- "$shimmy_target_uninstall_links_entry")" || return 1
         ;;
     esac
   done
-  SHIMMY_UNINSTALL_REGISTRY_LOCK_PROFILES=
 }
 
-shimmy_uninstall_transaction_abort() {
-  [ "${SHIMMY_UNINSTALL_TRANSACTION_ACTIVE:-0}" -eq 1 ] || return 0
-  shimmy_uninstall_transaction_rollback 'uninstall interrupted before commit'
-}
+shimmy_target_uninstall_run() {
+  shimmy_target_uninstall_config=$1
+  shimmy_target_uninstall_stop=$2
+  case "$shimmy_target_uninstall_stop" in 0|1) ;; *) return 1 ;; esac
+  shimmy_target_uninstall_config_validate "$shimmy_target_uninstall_config" 0 || return 1
+  shimmy_target_uninstall_initial_active=$SHIMMY_TARGET_UNINSTALL_ACTIVE
+  shimmy_target_uninstall_user_root=$SHIMMY_TARGET_UNINSTALL_USER_ROOT
+  shimmy_target_uninstall_profiles=$SHIMMY_TARGET_UNINSTALL_PROFILES
+  shimmy_target_profile_candidate_resolve "$shimmy_target_uninstall_config" default || return 1
+  shimmy_target_uninstall_startup_files=$SHIMMY_TARGET_PROFILE_CANDIDATE_STARTUP_FILES
+  shimmy_target_lock_acquire catalog "$shimmy_target_uninstall_config" || return 1
+  shimmy_target_lock_acquire activation "$shimmy_target_uninstall_config" || return 1
+  while IFS= read -r shimmy_target_uninstall_profile; do
+    shimmy_target_lock_acquire profile "$shimmy_target_uninstall_config" \
+      "$shimmy_target_uninstall_profile" || return 1
+  done <<EOF
+$shimmy_target_uninstall_profiles
+EOF
+  shimmy_target_uninstall_config_validate "$shimmy_target_uninstall_config" 1 || return 1
+  [ "$SHIMMY_TARGET_UNINSTALL_ACTIVE" = "$shimmy_target_uninstall_initial_active" ] &&
+    [ "$SHIMMY_TARGET_UNINSTALL_USER_ROOT" = "$shimmy_target_uninstall_user_root" ] &&
+    [ "$SHIMMY_TARGET_UNINSTALL_PROFILES" = "$shimmy_target_uninstall_profiles" ] || return 1
 
-shimmy_uninstall_transaction_fail() {
-  uninstall_failure_reason=$1
-  printf 'ERROR: uninstall cleanup failed: %s\n' "$uninstall_failure_reason" >&2
-  shimmy_uninstall_transaction_rollback "$uninstall_failure_reason"
-}
-
-shimmy_uninstall_transaction_rollback() {
-  uninstall_rollback_reason=$1
-  uninstall_rollback_complete=1
-
-  for uninstall_rollback_profile in $SHIMMY_UNINSTALL_PREPARED_PROFILES; do
-    shimmy_uninstall_profile_context_resolve "$uninstall_rollback_profile" || {
-      uninstall_rollback_complete=0
-      continue
-    }
-    projection_backup=$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$
-    if shimmy_registries_machine_projection_detach_record_rollback "$projection_backup"; then
-      printf 'Rollback: projection record retained for %s\n' "$uninstall_rollback_profile" >&2
-    else
-      printf 'Rollback: projection record restoration failed for %s\n' "$uninstall_rollback_profile" >&2
-      uninstall_rollback_complete=0
-    fi
-  done
-
-  for uninstall_rollback_profile in $SHIMMY_UNINSTALL_DETACHED_PROFILES; do
-    shimmy_uninstall_profile_context_resolve "$uninstall_rollback_profile" || {
-      uninstall_rollback_complete=0
-      continue
-    }
-    shimmy_profile_activation_expected_resolve || {
-      uninstall_rollback_complete=0
-      continue
-    }
-    if shimmy_profile_cleanup_machine_switch "$SHIMMY_PROFILE_EXPECTED_MACHINE" &&
-      shimmy_profile_cleanup_engine_validate "$SHIMMY_PROFILE_EXPECTED_CONNECTION" &&
-      shimmy_registries_machine_projection_detach_remote_rollback &&
-      shimmy_profile_cleanup_machine_restart "$SHIMMY_PROFILE_EXPECTED_MACHINE"; then
-      printf 'Rollback: registry projection restored for %s\n' "$uninstall_rollback_profile" >&2
-    else
-      printf 'Rollback: registry projection restoration failed for %s\n' "$uninstall_rollback_profile" >&2
-      uninstall_rollback_complete=0
-    fi
-  done
-  if [ "$SHIMMY_UNINSTALL_MACHINE_OPERATIONS" -eq 1 ] && ! shimmy_profile_cleanup_restore; then
-    uninstall_rollback_complete=0
+  shimmy_target_profile_engine_context_resolve "$shimmy_target_uninstall_config" \
+    "$shimmy_target_uninstall_initial_active" || return 1
+  shimmy_profile_activation_host_os_resolve
+  shimmy_target_uninstall_host_os=$SHIMMY_PROFILE_HOST_OS
+  if [ "$shimmy_target_uninstall_host_os" = linux ] && [ "$shimmy_target_uninstall_stop" -eq 1 ]; then
+    SHIMMY_TARGET_UNINSTALL_ERROR='--stop-running is not supported for local Linux uninstall'
+    return 1
   fi
-  if [ "$STOP_RUNNING" -eq 1 ] &&
-    [ "$SHIMMY_UNINSTALL_INITIAL_RUNNING_CONTAINER_COUNT" -gt 0 ]; then
-    printf '%s\n' 'Rollback warning: acknowledged running workloads may not have resumed; inspect them manually.' >&2
-    uninstall_rollback_complete=0
+  if [ "$shimmy_target_uninstall_host_os" = darwin ]; then
+    while IFS= read -r shimmy_target_uninstall_profile; do
+      shimmy_target_lock_acquire registry "$shimmy_target_uninstall_config" \
+        "$shimmy_target_uninstall_profile" || return 1
+      shimmy_target_profile_projection_cleanup "$shimmy_target_uninstall_config" \
+        "$shimmy_target_uninstall_profile" "$shimmy_target_uninstall_stop" 0 || return 1
+      shimmy_target_lock_release || return 1
+    done <<EOF
+$shimmy_target_uninstall_profiles
+EOF
   fi
-  for uninstall_rollback_profile in $SHIMMY_UNINSTALL_PREPARED_PROFILES; do
-    shimmy_uninstall_profile_context_resolve "$uninstall_rollback_profile" || continue
-    projection_backup=$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$
-    if shimmy_registries_machine_projection_record_validate \
-      "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" "$uninstall_rollback_profile"; then
-      shimmy_registries_machine_projection_detach_finalize "$projection_backup" || true
-    fi
-  done
-  SHIMMY_UNINSTALL_TRANSACTION_ACTIVE=0
-  if [ "$uninstall_rollback_complete" -eq 1 ]; then
-    printf 'Rollback result: prior projections and engine selection restored after %s.\n' \
-      "$uninstall_rollback_reason" >&2
-  else
-    printf '%s\n' 'Rollback result: incomplete; profiles and catalogs were retained for recovery.' >&2
+
+  shimmy_target_external_transaction_begin || return 1
+  shimmy_target_profile_engine_context_resolve "$shimmy_target_uninstall_config" \
+    "$shimmy_target_uninstall_initial_active" || return 1
+  if [ "$shimmy_target_uninstall_host_os" = linux ]; then
+    shimmy_registries_active_link_state_read
+    [ "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" = current ] || return 1
+    shimmy_target_uninstall_active_link_prior=$(readlink "$SHIMMY_REGISTRIES_ACTIVE_LINK") || return 1
+    shimmy_target_external_rollback_register "$SHIMMY_REGISTRIES_ACTIVE_LINK" \
+      shimmy_target_profile_active_link_restore "$shimmy_target_uninstall_active_link_prior" absent \
+      'restore Linux active registry link' || return 1
+    shimmy_registries_active_link_detach || return 1
   fi
-  return 1
+  shimmy_target_uninstall_links_apply "$shimmy_target_uninstall_user_root" \
+    "$SHIMMY_TARGET_PROFILES_ROOT" || return 1
+  shimmy_target_startup_remove_apply "$shimmy_target_uninstall_config" \
+    "$shimmy_target_uninstall_startup_files" || return 1
+
+  shimmy_target_uninstall_parent=$(dirname -- "$shimmy_target_uninstall_config")
+  shimmy_target_uninstall_backup=$shimmy_target_uninstall_parent/.shimmy-uninstall.$$
+  [ ! -e "$shimmy_target_uninstall_backup" ] && [ ! -L "$shimmy_target_uninstall_backup" ] || return 1
+  shimmy_target_locks_release_all || return 1
+  mv "$shimmy_target_uninstall_config" "$shimmy_target_uninstall_backup" || {
+    shimmy_target_external_transaction_rollback 'unable to remove target installation root' || true
+    return 1
+  }
+  shimmy_target_external_transaction_commit || return 1
+  SHIMMY_TARGET_PROFILE_LIFECYCLE_STARTUP_BACKUP=
+  rm -rf "$shimmy_target_uninstall_backup" || return 1
+  printf 'Uninstalled all Shimmy-owned profiles and default catalog from %s.\n' \
+    "$shimmy_target_uninstall_config"
 }

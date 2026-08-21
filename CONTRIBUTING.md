@@ -1,325 +1,198 @@
 # Contributing
 
-This document is the entrypoint for contributing to the Shimmy project.
+This is the source of truth for repository contribution guidance.
 
-Use it as the source of truth for repository contribution guidance that should be readable by humans, automation and AI.
+## Workflow
 
-## Contributor Workflow
+- Read root `CONTEXT.md` and every retained child `CONTEXT.md` on the path to
+  changed files under `commands/`, `lib/`, or `tests/`.
+- For tool or plugin work, also read the canonical `SKILL.md` and tool guide.
+- Update implementation, tests, bootstrap/install behavior, documentation, and
+  retained-plan evidence together when behavior changes.
+- Keep executable shell files executable and validate generated shell artifacts
+  by parsing and exercising the rendered result.
+- Preserve unrelated work in a dirty tree.
+- Follow [docs/testing.md](docs/testing.md) for test organization.
 
-- Keep runtime shims small and readable.
-- Read root `CONTEXT.md` and the relevant retained child context before changing
-  `commands/`, `lib/`, or `tests/`. Tool and management-plugin work uses this
-  guide plus the tool guide or canonical skill; those trees do not own
-  `CONTEXT.md` files.
-- Update related implementation, tests, installer behavior, and user-facing docs together when behavior changes.
-- When implementing a retained plan chunk, reconcile its objective verification
-  checklist in the same change after validation. Mark only evidence-backed
-  items complete; leave human review or acceptance gates pending until a human
-  explicitly accepts them.
-- Reuse established repo patterns before introducing new structure or naming.
-- Keep runnable shell files executable.
-- Follow `docs/testing.md` for POSIX-only test structure, shared assertions, and default-suite scope.
-- Treat Podman as an explicit Shimmy dependency. Do not install or provision it from Shimmy code, tests, or CI helpers.
-- Use live Podman execution for shim tests. Do not replace `podman` with fake binaries or argv-only mocks when validating shim behavior.
-- Use the shared Podman helper for runtime platform selection. Supported Linux
-  and Darwin hosts normalize `x86_64`/`amd64` and `aarch64`/`arm64`, then run
-  the matching native `linux/amd64` or `linux/arm64` image. Unsupported or
-  unreadable hosts fail closed.
+Shimmy is a POSIX shell project. Do not replace shared behavior or runtimes with
+Go, Rust, Python, or another language unless the requested design explicitly
+leaves this architecture.
 
-## Profile Workflow
+## Architecture
 
-Shimmy has two built-in profiles, each installed as a complete independent
-tree below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`:
+The root `bootstrap.sh` is the only checkout lifecycle entrypoint. It delegates
+to `commands/bootstrap.sh`. An installed profile owns a direct `bin/shimmy`
+launcher with this fixed group surface:
 
-- `default` is the external-user profile and the default for top-level commands.
-- `upstream` is the maintainer profile whose catalog binds to the recorded
-  source checkout while installed tools execute from the profile
-  materialization.
-
-The root `bootstrap.sh` is the minimal checkout bootstrap and the repository
-has no runnable `shimmy` launcher. `./bootstrap.sh` selects `default`; only
-the bootstrap accepts `--profile upstream`. Each installed profile has a
-self-contained
-`bin/shimmy` launcher bound to its enclosing profile. Installed management and
-tool commands have no profile-selection option or environment selector.
-
-For source changes that should be tested through normal installed commands,
-bootstrap the upstream profile, activate its deterministic engine through the
-absolute launcher, then select its PATH:
-
-```sh
-. ./bootstrap.sh --profile upstream
-profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/upstream
-"$profile_root/bin/shimmy" profile status
-"$profile_root/bin/shimmy" profile activate --dry-run
-"$profile_root/bin/shimmy" profile activate
-. "$profile_root/shell-init.sh"
-"$profile_root/bin/shimmy" status --format manifest
-"$profile_root/bin/shimmy" test
-rg --version
+```text
+admin  profile  catalog  shim  ai-skill
 ```
 
-Human checkout users may explicitly request the combined
-`. ./bootstrap.sh --activate` workflow after reviewing its idle VM
-switch/restart and workload-refusal behavior. Contributors acting as AI agents
-must retain the absolute-launcher status, dry-run, and separately approved
-activation sequence above; the combined bootstrap option does not authorize or
-collapse those approval gates.
+Do not add compatibility forwarding for removed top-level commands. Public
+management entrypoints live in `commands/`; shared modules live in `lib/`;
+runtime, metadata, guides, tests, skills, and concrete versions live below
+`tools/<tool>/`.
 
-On macOS, activation may stop the one alternate Podman-managed VM. Running
-containers block that stop unless interruption is separately acknowledged with
-`--stop-running`. Contributors and agents must never provision, delete, rename,
-or adopt machines through Shimmy workflows; a missing deterministic machine is
-created by the user in a normal shell from the exact diagnostic guidance.
+The installation root is
+`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy`. It contains:
 
-Every bootstrap installs jq and rg. Add other tools afterward through the
-installed command, for example `shimmy install --shim task`. Executing
-`./bootstrap.sh --profile upstream` is appropriate for automation but cannot
-initialize its parent shell. Switch an existing shell by sourcing the desired
-profile's absolute `shell-init.sh`; it prepends that profile's `bin/` directory
-to `PATH`.
+- one immutable, retained-generation catalog named `default`;
+- arbitrary safe-name materialized profiles under `profiles/<name>`;
+- one exact active-profile record.
 
-For repo-local previews, use `./commands/run-tool.sh rg --preview-shim
---version` or the concrete runtime selected by `tools/rg/tool.conf`. For
-installed-state inspection, prefer `shimmy status --format manifest` over
-`command -v <tool>`: `command -v` shows the invoking profile's dispatcher
-entrypoint, while status shows that profile's manifest-derived metadata.
+Each profile records source `refs/heads/main`, a retained default-catalog pin,
+profile-local shim policies and concrete versions, startup ownership, and
+validated control/tool skill bundles. There is no live upstream catalog, fixed
+upstream profile, implementation-name routing layer, or profile-copied test
+suite.
 
-`SHIMMY_UPSTREAM_CHECKOUT_DIR` is the only upstream-specific path input. It
-selects the absolute source checkout recorded when `./bootstrap.sh --profile
-upstream` runs; it never relocates installed profile state.
+Catalog publication runs only from a clean attached local `main` checkout.
+Publishing or rolling back changes registry authority but does not rewrite
+existing profile pins. Profile adoption requires explicit `profile sync` or
+shim lifecycle work.
 
-The shared `upstream` catalog is a live binding to that validated checkout.
-The shared `default` catalog is an immutable generation published only from a
-clean committed upstream `HEAD`. Publication changes availability, not an
-installed profile's materialization; selected tools adopt a new catalog
-default only through an explicit profile install or update. Keep publication,
-retained-generation rollback, explicit checkout rebind, profile uninstall, and
-global owned-state uninstall as separate validated transactions.
+## Profiles, Podman, and startup
 
-Only `default` may create, repair, or remove Shimmy's persistent shell-startup
-blocks. A fresh checkout bootstrap records one normalized shell from
-`--shell` or `$SHELL`; managed policy records that shell's conventional exact
-paths, while `--no-startup` records manual policy with no owned paths. Later
-bootstraps inherit that immutable state, additive install never changes startup
-files, and `shimmy update --repair-startup` consumes only the recorded ledger.
-Changing policy requires uninstalling and recreating the profile. `upstream`
-never changes shell startup files. Canonical
-management and tool skills remain in the selected named catalog and are not
-copied into profiles. Shared repository and home agent skill adapters live
-outside profile roots and are owned by their target's
-`.shimmy-skills-manifest.txt`. Profile lifecycle operations never implicitly
-refresh or remove them. Use explicit standalone `shimmy skills install
---target repo|profile` or `shimmy skills update --target repo|profile`
-operations to write them and `shimmy skills uninstall --target repo|profile`
-for removal. Stage and validate complete skill output against one coherent
-catalog snapshot before changing an external target.
+Profile names use lowercase letters, digits, and single hyphens. On macOS the
+deterministic engine identity is `shimmy-<profile>`; on Linux Shimmy validates
+the current user's local rootless engine. Podman is an explicit dependency:
+never add installation, provisioning, adoption, renaming, migration, or
+deletion behavior for it.
 
-After accepting canonical skill changes in a newer catalog generation, refresh
-an existing repository or home adapter only through the explicit profile-local
-`shimmy skills update --target repo|profile` operation. Never edit generated
-`.agents/skills/` copies directly.
+Activation owns engine, registry, active-record, and AI-skill-link transitions.
+On macOS, switching or refreshing projection state may stop an idle machine;
+running workloads require a separate `--stop-running` acknowledgement. On
+Linux, activation atomically switches only the exact user registry-policy link.
+Never print the values of connection or registry override variables.
 
-Repository and home `.agents/skills/<name>/` targets are one-file compatibility
-adapters containing only `SKILL.md`. Do not copy other repository metadata
-into those targets. The packaged management plugin is canonical source, not a
-writable skills target.
+The initial default bootstrap and `profile create` activate their profile.
+`profile activate <name> --dry-run` must remain side-effect free and list exact
+collisions and engine effects. `shell-init.sh` is PATH-only and must never
+activate an engine.
 
-## Shim Tool Workflow
+Managed startup policy owns exact marked blocks in a recorded path ledger.
+Manual policy owns no startup files. `profile repair-startup` consumes only the
+recorded ledger. Preserve sourced-script failure behavior under callers using
+`set -e`.
 
-Shimmy exposes logical tools as the user-facing commands on `PATH`.
-Runtime behavior belongs in concrete major.minor version shims under those tools.
+## AI-skill ownership
 
-- Tool tools live at `tools/<tool>/tool.conf`; generic dispatch selects their default or selected version.
-- Concrete version runtimes live at `tools/<tool>/versions/<major.minor>/run.sh` and contain Podman, image, mount, credential, and local-build logic.
-- Every concrete version owns exactly one validated `image.conf`. Repository
-  defaults are immutable OCI-index or Docker-manifest-list digests that declare
-  both required platforms. Direct runtimes read their default from that file;
-  local Containerfiles receive configured base defaults as build arguments and
-  do not duplicate them.
-- Every installable tool must have at least one concrete version and exactly one catalog default version.
-- `shimmy install --shim <tool>` installs the tool dispatcher plus its default version. Use `shimmy install --shim <tool>@<version-label>` when a non-default version is needed.
-- Profile manifests record `tool=` for installed user-facing commands and `tool_version=<tool>|<label>|<version>` for installed concrete versions.
-- Do not put tool-specific runtime behavior in a tool dispatcher. Add or update the relevant version shim instead.
+Canonical management skills live in `plugins/shimmy/skills/`; tool skills live
+at `tools/<tool>/SKILL.md`. Do not create or edit generated repository adapters
+under `.agents/skills`; this repository intentionally has no such tree.
 
-### Image selection and rotation
+Every canonical skill must place this warning immediately after frontmatter:
 
-Choose the image strategy before adding a concrete version:
+> Shimmy active-profile reconciliation unconditionally overwrites this exact
+> bundle-declared skill destination without backup, never deletes unrelated
+> skill names, and profile copies must not be edited.
 
-- Use `image_source=external` when a suitable publisher image exists.
-- Use `image_source=local-build` when Shimmy must build a version-owned
-  `container/` context. Every non-`scratch` base is part of the same image
-  contract.
+Profiles materialize validated bundles and reconcile direct links in the active
+user's `$HOME/.agents/skills`. Exact declared collisions are overwritten with
+no backup or recovery. Never recursively clean that root. Preserve unrelated
+names and reject unsafe parent/path state.
 
-Every concrete version must own one valid `image.conf`. Repository defaults
-must be fully qualified immutable OCI-index or Docker-manifest-list digests
-whose descriptors include both `linux/amd64` and `linux/arm64`; tags belong in
-the upstream discovery fields, not in default fields. Use the shared runtime
-helpers for host OS/architecture selection and image consumption. Audit any
-download URL, package, installer, or compiled dependency in a local build for
-target-architecture behavior rather than assuming a multi-platform base is
-sufficient.
+## Tool workflow
 
-Before accepting a new or rotated default, run `shimmy images verify` (or
-`./commands/images.sh verify` from source) and native version-owned smokes on
-Linux `amd64` and Apple Silicon macOS `arm64`. Cross-emulated builds do not
-replace either native acceptance run.
+A tool is the stable user command. A concrete version owns its runtime:
 
-Rotate a digest as a focused reviewed change:
+```text
+tools/<tool>/
+  tool.conf
+  guide.md
+  SKILL.md
+  tests/
+  versions/<major.minor>/
+    run.sh
+    smoke.conf
+    image.conf
+    refresh.sh
+    container/       # local builds only
+```
 
-1. Locate the publisher's intended tag or release reference.
-2. Resolve its top-level index digest and verify both required platforms and
-   any required registry authentication.
-3. Update only the affected version's `image.conf` default and upstream
-   discovery fields as applicable.
-4. For a local build, confirm the derived cache identity changes.
-5. Pull or build the selected native image and run the version-owned smoke on
-   both native acceptance hosts.
-6. Keep the prior digest recoverable in git history and identify it in review
-   notes as the rollback reference.
+- Keep `run.sh` small with `#!/bin/sh` and `set -eu`.
+- Mount `$PWD` at `/work` unless the tool has a documented exception.
+- Use the shared Podman helper for native platform selection.
+- Put tool-specific behavior in the concrete version, not a central dispatcher.
+- `tool.conf` declares the default version and optional selector environment.
+- `smoke.conf` declares non-mutating smoke environment and arguments; it does
+  not declare an implementation name.
+- Add no central tool-name or implementation-name routing map.
 
-Do not make remote registry checks part of the default offline suite. A
-scheduled verifier requires a separately reviewed runner and credential
-design.
+Every version owns one valid `image.conf`. Use `image_source=external` for a
+suitable publisher image or `image_source=local-build` for a version-owned
+container context. Repository defaults and every non-`scratch` base must be
+fully qualified immutable top-level OCI index or Docker manifest-list digests
+with both `linux/amd64` and `linux/arm64`. Mutable tags belong only in upstream
+discovery fields.
 
-`shimmy images verify` uses the profile-local Skopeo runtime and therefore
-inherits a valid current invoking-profile registry redirect mount. Skopeo is
-the only initial tool-container opt-in. Keep logical image references
-unchanged, preserve explicit auth-secret handling, and do not infer that other
-tool containers receive registry policy.
+Audit companion CLIs, plugins, credentials, privileges, packages, installers,
+and downloaded archives for both architectures before implementation. Security-
+sensitive network, credential, privilege, and write behavior must remain
+explicit opt-ins.
 
-## Naming Conventions
+Source preview and catalog verification examples:
 
-Use these naming conventions for files, functions, and variables unless a stronger repo-specific rule already exists.
+```sh
+./commands/run-tool.sh <tool> --preview-shim --help
+shimmy catalog verify --tool <tool>@<version> --format manifest
+```
 
-Default to POSIX shell best practices when choosing names. Apply the overrides in this section when they are more specific.
+Feature acceptance requires native Linux `amd64` and Apple Silicon macOS
+`arm64` version-owned smokes. Cross-emulation is not a substitute.
 
-### Naming Priorities
+## Testing
 
-- Prefer names that read from general to specific, left to right.
-- Arrange naming tokens in `{resource} {action} {instance}` order when that structure fits the thing being named.
-- Reuse existing naming tokens when they clearly represent the thing being named.
-- If clarity and reuse conflict, choose clarity.
-- If two names are equally clear, choose the one that is more consistent with nearby code.
+- Use `./tests/test.sh` with the default bounded parallel runner.
+- Use `--jobs 3` when stating concurrency explicitly.
+- Use `--serial` only for one group, failure diagnosis, or known ordering.
+- Prefer positive observable behavior. Do not add absence/rejection tests unless
+  they protect an explicit durable security, ownership, integrity, rollback, or
+  compatibility invariant.
+- Use live Podman and non-mutating tool calls for container acceptance. Unit
+  tests may fake engine state only for lifecycle transaction boundaries.
+- Do not put remote registry checks into the default offline suite.
 
-Examples:
+Before completion, run relevant focused groups, then the full suite once,
+followed by shell syntax, executable-mode, inventory, and `git diff --check`
+validation. Rerun only failures serially.
 
-- `shimmy_install_path_render`
-- `image_build_context_hash`
-- `aws_config_mount`
+## Naming conventions
 
-### Action Tokens
+Prefer names that read general-to-specific and use truthful actions such as
+`create`, `read`, `update`, `delete`, `render`, `resolve`, `install`, and
+`validate`. Avoid vague verbs such as `handle`, `process`, or `do`.
 
-- Prefer action names that align with CRUD when that matches the real behavior.
-- Do not force CRUD wording when a more specific verb is clearer.
-- Choose the most truthful action available.
+### Files
 
-Prefer:
+- Executable management commands and shared modules use lowercase kebab-case
+  ending in `.sh`.
+- Concrete runtimes are always `tools/<tool>/versions/<major.minor>/run.sh`.
+- Final public and canonical files do not use `-target` or `target.sh` suffixes.
+- Conventional contributor documents use names such as `README.md`,
+  `CONTRIBUTING.md`, and `AGENTS.md`; other docs use lowercase kebab-case.
 
-- `create`
-- `read`
-- `update`
-- `delete`
-- `render`
-- `resolve`
-- `install`
-- `validate`
-
-Avoid:
-
-- vague verbs such as `handle`, `process`, or `do`
-- misleading CRUD verbs when the function is actually rendering, resolving, normalizing, or validating
-
-### File Naming
-
-Use names that communicate role first, then scope.
-
-- Public installed commands keep the CLI command name with no extension; source runtime entrypoints use `run.sh` below their version directory.
-- Executable management commands in `commands/` and shared shell modules in `lib/` use lowercase kebab-case and end in `.sh`.
-- Contributor-facing Markdown documents should use uppercase conventional names when they are standard repo entrypoints such as `README.md`, `AGENTS.md`, and `CONTRIBUTING.md`.
-- Other documentation files should use lowercase kebab-case.
-
-Examples:
-
-- `tools/aws/versions/2.31/run.sh`
-- `commands/install.sh`
-- `lib/startup/startup.sh`
-- `docs/prompt-shimmy-project.md`
-
-### Function Naming
-
-Use function names that are explicit, source-safe, and easy to scan.
+### Functions
 
 - Do not use the `function` keyword.
-- Keep functions in a file sorted alphabetically unless a different order materially improves readability.
-- For shell functions, use the POSIX-safe `shimmy_` prefix to avoid collisions with other libraries or built-in commands.
-- Internal helper functions that are not intended for external use should start with `shimmy__`.
-- Use lowercase snake_case after the prefix.
-- For shared shell helpers, prefer action-first names after the prefix: `shimmy_<action>_<resource>[_<resource_id>]`.
-- Choose conformity when it improves scanning, but do not force action-first or CRUD wording when it makes the function less clear.
-- Flag functions that return `0/1` or `true/false` intent should be prefixed with `is_`.
-- Name flag functions so the predicate is obvious from the call site.
-- Internal helper function names are not public API. Compatibility wrappers are not required when refactoring internal helpers; update all in-repo call sites instead.
+- Use POSIX-safe `shimmy_` lowercase snake-case names for shared functions.
+- Use `shimmy__` for internal helpers.
+- Use predicate names that make their `0/1` meaning clear.
+- Internal helper names are not API; update all callers instead of adding
+  compatibility wrappers.
 
-Patterns:
+Examples: `shimmy_catalog_payload_validate`,
+`shimmy_profile_paths_resolve_name`, `shimmy__catalog_config_value_read`.
 
-- public shared helper: `shimmy_<action>_<resource>[_<qualifier>]`
-- internal shared helper: `shimmy__<action>_<resource>[_<qualifier>]`
-- public flag function: `shimmy_is_<resource>_<state>`
-- internal flag function: `shimmy__is_<resource>_<state>`
+### Variables
 
-Examples:
+- Local variables use lowercase snake case.
+- Constants and exported environment variables use uppercase snake case.
+- Every Shimmy-defined user-facing environment variable starts with `SHIMMY_`.
+- Non-`SHIMMY_` values are allowed only for documented upstream pass-throughs
+  such as `AWS_*` or `TF_VAR_*`.
+- Do not retain `target` in a name after a staged implementation becomes the
+  sole canonical route unless it still describes a real destination.
 
-- `shimmy_read_manifest_value`
-- `shimmy_resolve_path_absolute`
-- `shimmy_validate_remove_path_safe`
-- `shimmy_is_shimmy_in_path`
-- `shimmy__read_shim_list`
-- `shimmy__log_level_normalize`
-
-Avoid:
-
-- `function shimmy_install()`
-- `shimmyInstall`
-- `_shimmy_install`
-- `shimmy::install_path_render`
-- `install_shimmy_thing`
-
-### Variable Naming
-
-Choose variable names using the same general-to-specific token flow.
-
-- Local shell variables should use lowercase snake_case.
-- Exported environment variables and shared constants should use uppercase snake_case.
-- Global environment variables should use uppercase snake_case and start with the `SHIMMY_` prefix.
-- Any Shimmy-defined user-facing environment variable must use the `SHIMMY_` prefix, including image overrides, pull or build flags, opt-in behavior switches, and secret-name selectors.
-- Non-`SHIMMY_` environment variables are allowed only when they are upstream-defined pass-through variables such as `AWS_*`, `TF_VAR_*`, or another tool's documented native configuration.
-- Use resource-first ordering where possible.
-- Reuse established env var prefixes for tool shims.
-
-Patterns:
-
-- local value: `<resource>_<action>_<instance>`
-- env var or constant: `<RESOURCE>_<ACTION>_<INSTANCE>`
-
-Examples:
-
-- `image_build_context`
-- `install_dir_target`
-- `shim_name_requested`
-- `SHIMMY_AWS_IMAGE`
-- `SHIMMY_OC_VERSION`
-
-Avoid:
-
-- `installDir`
-- `doThing`
-- `tmp1`
-- `foo`
-
-### Consistency Rules
-
-- When extending an existing area of the repo, prefer the established local vocabulary unless it is actively confusing.
-- Do not rename only to introduce a personal preference.
-- Rename when the current name is misleading, conflicts with these conventions, or blocks readability.
-- In naming decisions, consistency is the tie-breaker.
+Consistency with clear nearby vocabulary is the tie-breaker; do not rename
+solely for preference.

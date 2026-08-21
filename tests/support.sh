@@ -142,99 +142,13 @@ run_in_repo() {
   )
 }
 
-run_in_clean_source() {
-  (
-    cd "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
-    "$@"
-  )
-}
-
-bootstrap_default() {
-  (
-    cd "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
-    if [ -f "$DEFAULT_PROFILE_ROOT/install-manifest.txt" ] || [ -L "$DEFAULT_PROFILE_ROOT/install-manifest.txt" ]; then
-      env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile default "$@"
-    else
-      env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile default --no-startup "$@"
-    fi
-  )
-}
-
-bootstrap_upstream() {
-  run_in_repo env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile upstream "$@"
-}
-
-default_shimmy() {
-  if [ "${1:-}" = status ]; then
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-      SHIMMY_TEST_PROFILE_OS="${SHIMMY_TEST_PROFILE_OS:-Unsupported}" \
-      "$DEFAULT_PROFILE_ROOT/bin/shimmy" "$@"
-    return
-  fi
-  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$DEFAULT_PROFILE_ROOT/bin/shimmy" "$@"
-}
-
-upstream_shimmy() {
-  if [ "${1:-}" = status ]; then
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" \
-      SHIMMY_TEST_PROFILE_OS="${SHIMMY_TEST_PROFILE_OS:-Unsupported}" \
-      "$UPSTREAM_PROFILE_ROOT/bin/shimmy" "$@"
-    return
-  fi
-  env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" "$UPSTREAM_PROFILE_ROOT/bin/shimmy" "$@"
-}
-
-profile_manifest_value() {
-  manifest_file=$1
-  manifest_key=$2
-  sed -n "s/^$manifest_key=//p" "$manifest_file" | sed -n '1p'
-}
-
 setup_scenario() {
   SCENARIO_DIR=$(mktemp -d "$TMP_ROOT/scenario.XXXXXX")
   HOME_DIR=$SCENARIO_DIR/home
   XDG_CONFIG_HOME_DIR=$SCENARIO_DIR/config
   DEFAULT_PROFILE_ROOT=$XDG_CONFIG_HOME_DIR/shimmy/profiles/default
-  UPSTREAM_PROFILE_ROOT=$XDG_CONFIG_HOME_DIR/shimmy/profiles/upstream
   WORK_DIR=$SCENARIO_DIR/work
   mkdir -p "$HOME_DIR" "$XDG_CONFIG_HOME_DIR" "$WORK_DIR"
-}
-
-setup_scenario_with_profiles() {
-  setup_scenario
-  mkdir -p "$XDG_CONFIG_HOME_DIR/shimmy/profiles"
-  test_fixture_tree_copy "$SHIMMY_TEST_CATALOG_FIXTURES_ROOT" "$XDG_CONFIG_HOME_DIR/shimmy/catalogs"
-
-  for profile_name in "$@"; do
-    case "$profile_name" in
-      default)
-        profile_target=$DEFAULT_PROFILE_ROOT
-        ;;
-      upstream)
-        profile_target=$UPSTREAM_PROFILE_ROOT
-        ;;
-      *)
-        fail_test "unknown pristine profile fixture: $profile_name"
-        ;;
-    esac
-
-    profile_source=$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/$profile_name
-    test_fixture_tree_copy "$profile_source" "$profile_target"
-
-    shell_init_file=$profile_target/shell-init.sh
-    shell_init_tmp=$profile_target/.shell-init.sh.fixture.tmp
-    quoted_bin_dir=$(shimmy_quote_shell_word "$profile_target/bin")
-    {
-      printf 'shimmy_shell_init_bin_dir=%s\n' "$quoted_bin_dir"
-      sed -n '2,$p' "$shell_init_file"
-    } > "$shell_init_tmp"
-    mv "$shell_init_tmp" "$shell_init_file"
-    chmod 644 "$shell_init_file"
-
-    shimmy_profile_manifest_validate "$profile_target/install-manifest.txt" "$profile_name" ||
-      fail_test "invalid cloned $profile_name profile fixture"
-    assert_file_contains "$shell_init_file" "shimmy_shell_init_bin_dir=$quoted_bin_dir"
-  done
 }
 
 test_fixture_copy_on_write_detect() {
@@ -313,31 +227,6 @@ setup_clean_source_fixture() {
   git -C "$clean_source_target" config user.name 'Shimmy Tests'
   git -C "$clean_source_target" add -A
   git -C "$clean_source_target" commit -qm fixture
-}
-
-setup_session_profile_fixtures() {
-  SHIMMY_TEST_PROFILE_FIXTURES_ROOT=$TMP_ROOT/profile-fixtures
-  SHIMMY_TEST_CATALOG_FIXTURES_ROOT=$TMP_ROOT/catalog-fixtures
-  SHIMMY_TEST_CLEAN_SOURCE_ROOT=$TMP_ROOT/clean-source
-  fixture_home=$TMP_ROOT/profile-fixture-home
-  fixture_config=$TMP_ROOT/profile-fixture-config
-  HOME_DIR=$fixture_home
-  XDG_CONFIG_HOME_DIR=$fixture_config
-  DEFAULT_PROFILE_ROOT=$fixture_config/shimmy/profiles/default
-  UPSTREAM_PROFILE_ROOT=$fixture_config/shimmy/profiles/upstream
-
-  mkdir -p "$fixture_home" "$fixture_config" "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT"
-  test_fixture_copy_on_write_detect
-  setup_clean_source_fixture "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
-
-  (
-    cd "$SHIMMY_TEST_CLEAN_SOURCE_ROOT"
-    env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" ./bootstrap.sh --profile default --no-startup
-  ) >/dev/null 2>&1
-  bootstrap_upstream >/dev/null 2>&1
-  mv "$DEFAULT_PROFILE_ROOT" "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/default"
-  mv "$UPSTREAM_PROFILE_ROOT" "$SHIMMY_TEST_PROFILE_FIXTURES_ROOT/upstream"
-  mv "$fixture_config/shimmy/catalogs" "$SHIMMY_TEST_CATALOG_FIXTURES_ROOT"
 }
 
 shimmy_test_cleanup() {

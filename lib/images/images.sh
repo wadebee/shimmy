@@ -80,50 +80,30 @@ shimmy_images_cache_inspect() {
 }
 
 shimmy_images_catalog_selection_all() {
-  for tool_name in $(shimmy_tool_list); do
-    shimmy_tool_version_list "$tool_name"
+  for tool_file in "$SHIMMY_CATALOG_TOOLS_DIR"/*/tool.conf; do
+    [ -f "$tool_file" ] || continue
+    tool_name=$(basename -- "$(dirname -- "$tool_file")")
+    for version_dir in "$SHIMMY_CATALOG_TOOLS_DIR/$tool_name"/versions/*; do
+      [ -d "$version_dir" ] || continue
+      printf '%s|%s\n' "$tool_name" "$(basename -- "$version_dir")"
+    done
   done
-}
-
-shimmy_images_materialized_version_resolve() {
-  materialized_version_name=$1
-  SHIMMY_IMAGES_MATERIALIZED_TOOL=
-  SHIMMY_IMAGES_MATERIALIZED_LABEL=
-  SHIMMY_IMAGES_MATERIALIZED_VERSION_DIR=
-  [ -n "${SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR:-}" ] || return 1
-
-  for materialized_smoke_file in "$SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR"/*/versions/*/smoke.conf; do
-    [ -f "$materialized_smoke_file" ] && [ ! -L "$materialized_smoke_file" ] || continue
-    [ "$(sed -n 's/^shim_name=//p' "$materialized_smoke_file" | sed -n '1p')" = "$materialized_version_name" ] || continue
-    materialized_version_dir=$(dirname -- "$materialized_smoke_file")
-    materialized_tool_dir=$(dirname -- "$(dirname -- "$materialized_version_dir")")
-    SHIMMY_IMAGES_MATERIALIZED_TOOL=$(basename -- "$materialized_tool_dir")
-    SHIMMY_IMAGES_MATERIALIZED_LABEL=$(basename -- "$materialized_version_dir")
-    SHIMMY_IMAGES_MATERIALIZED_VERSION_DIR=$materialized_version_dir
-    return 0
-  done
-  return 1
 }
 
 shimmy_images_config_records_print() {
   tool_name=$1
-  version_name=$2
-  if [ "${SHIMMY_IMAGES_USE_PROFILE_METADATA:-0}" -eq 1 ]; then
-    shimmy_images_materialized_version_resolve "$version_name" || return 1
-    [ "$SHIMMY_IMAGES_MATERIALIZED_TOOL" = "$tool_name" ] || return 1
-    version_label=$SHIMMY_IMAGES_MATERIALIZED_LABEL
-    config_file=$SHIMMY_IMAGES_MATERIALIZED_VERSION_DIR/image.conf
-  else
-    version_label=$(shimmy_version_label "$version_name") || return 1
-    config_file=$(shimmy_version_image_config_file "$version_name") || return 1
-  fi
+  version_label=$2
+  shimmy_name_component_validate "$tool_name" || return 1
+  shimmy_version_token_validate "$version_label" || return 1
+  config_file=$SHIMMY_CATALOG_TOOLS_DIR/$tool_name/versions/$version_label/image.conf
+  version_identity=$tool_name@$version_label
 
   shimmy_image_config_validate "$config_file" || return 1
   image_source=$(shimmy_image_config_scalar_read "$config_file" image_source)
   case "$image_source" in
     external)
       printf '%s|%s|%s|runtime|%s|%s|%s\n' \
-        "$tool_name" "$version_label" "$version_name" \
+        "$tool_name" "$version_label" "$version_identity" \
         "$(shimmy_image_config_scalar_read "$config_file" image_upstream_ref)" \
         "$(shimmy_image_config_scalar_read "$config_file" image_default_ref)" \
         "$(shimmy_image_config_scalar_read "$config_file" image_registry_access)"
@@ -135,7 +115,7 @@ shimmy_images_config_records_print() {
         default_ref=$(shimmy_image_config_scalar_read "$config_file" "image_base_${image_base_index}_default_ref")
         if [ "$default_ref" != scratch ]; then
           printf '%s|%s|%s|base-%s|%s|%s|%s\n' \
-            "$tool_name" "$version_label" "$version_name" "$image_base_index" \
+            "$tool_name" "$version_label" "$version_identity" "$image_base_index" \
             "$(shimmy_image_config_scalar_read "$config_file" "image_base_${image_base_index}_upstream_ref")" \
             "$default_ref" \
             "$(shimmy_image_config_scalar_read "$config_file" "image_base_${image_base_index}_registry_access")"
@@ -164,22 +144,6 @@ shimmy_images_index_parse() {
   "$SHIMMY_IMAGES_JQ_RUNTIME" -er "$SHIMMY_IMAGES_INDEX_FILTER"
 }
 
-shimmy_images_manifest_selection() {
-  manifest_file=$1
-  selected_versions=
-
-  while IFS= read -r tool_version_entry; do
-    [ -n "$tool_version_entry" ] || continue
-    version_name=${tool_version_entry##*|}
-    if ! shimmy_contains_line_list "$selected_versions" "$version_name"; then
-      selected_versions=$(shimmy_append_line_list "$selected_versions" "$version_name")
-    fi
-  done <<EOF
-$(shimmy_manifest_tool_version_list_read "$manifest_file")
-EOF
-  printf '%s\n' "$selected_versions"
-}
-
 shimmy_images_request_selection() {
   requested_shims=$1
   selected_versions=
@@ -189,44 +153,30 @@ shimmy_images_request_selection() {
       *@*)
         tool_name=${requested_shim%%@*}
         version_label=${requested_shim#*@}
-        shimmy_tool_exists "$tool_name" || {
+        [ -f "$SHIMMY_CATALOG_TOOLS_DIR/$tool_name/tool.conf" ] || {
           printf 'ERROR: unsupported shim tool: %s\n' "$tool_name" >&2
           return 1
         }
-        version_name=$(shimmy_tool_version_label_resolve "$tool_name" "$version_label" || true)
-        [ -n "$version_name" ] || {
+        [ -d "$SHIMMY_CATALOG_TOOLS_DIR/$tool_name/versions/$version_label" ] || {
           printf 'ERROR: unsupported %s version: %s\n' "$tool_name" "$version_label" >&2
           return 1
         }
         ;;
       *)
-        if shimmy_tool_exists "$requested_shim"; then
-          version_name=$(shimmy_tool_version_default "$requested_shim")
-        elif shimmy_is_version "$requested_shim"; then
-          version_name=$requested_shim
+        tool_name=$requested_shim
+        if [ -f "$SHIMMY_CATALOG_TOOLS_DIR/$tool_name/tool.conf" ]; then
+          version_label=$(shimmy__catalog_config_value_read \
+            "$SHIMMY_CATALOG_TOOLS_DIR/$tool_name/tool.conf" tool_default_version)
         else
           printf 'ERROR: unsupported shim tool: %s\n' "$requested_shim" >&2
           return 1
         fi
         ;;
     esac
-    if ! shimmy_contains_line_list "$selected_versions" "$version_name"; then
-      selected_versions=$(shimmy_append_line_list "$selected_versions" "$version_name")
+    version_pair=$tool_name\|$version_label
+    if ! shimmy_contains_line_list "$selected_versions" "$version_pair"; then
+      selected_versions=$(shimmy_append_line_list "$selected_versions" "$version_pair")
     fi
   done
   printf '%s\n' "$selected_versions"
-}
-
-shimmy_images_runtime_resolve() {
-  runtime_tool=$1
-  runtime_version=$(shimmy_tool_version_default "$runtime_tool") || return 1
-  if [ -n "${SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR:-}" ]; then
-    runtime_label=$(shimmy_version_label "$runtime_version") || return 1
-    runtime_dir=$SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR/$runtime_tool/versions/$runtime_label
-  else
-    runtime_dir=$(shimmy_version_dir "$runtime_version") || return 1
-  fi
-  runtime_file=$runtime_dir/run.sh
-  [ -x "$runtime_file" ] || return 1
-  printf '%s\n' "$runtime_file"
 }

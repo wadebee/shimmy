@@ -725,25 +725,17 @@ shimmy_registries_client_mount_resolve() {
     shimmy_registries_client_mount_fail 'profile manifest is invalid'
     return 1
   }
-  client_manifest_version=$(shimmy_read_manifest_value "$SHIMMY_PROFILE_MANIFEST_PATH" shimmy_install_manifest_version)
-  if [ "$client_manifest_version" = 2 ]; then
-    client_state_helper=$client_profile_root/lib/profile/state.sh
-    [ -f "$client_state_helper" ] && [ ! -L "$client_state_helper" ] || {
-      shimmy_registries_client_mount_fail 'active profile state helper is unavailable'
+  client_state_helper=$client_profile_root/lib/profile/state.sh
+  [ -f "$client_state_helper" ] && [ ! -L "$client_state_helper" ] || {
+    shimmy_registries_client_mount_fail 'active profile state helper is unavailable'
+    return 1
+  }
+  command -v shimmy_target_active_profile_read >/dev/null 2>&1 || . "$client_state_helper"
+  shimmy_target_active_profile_read "$SHIMMY_CONFIG_ROOT/active-profile.conf" &&
+    [ "$SHIMMY_TARGET_ACTIVE_PROFILE_NAME" = "$client_profile_name" ] || {
+      shimmy_registries_client_mount_fail 'installation active record belongs to another profile or is invalid'
       return 1
     }
-    command -v shimmy_target_active_profile_read >/dev/null 2>&1 || . "$client_state_helper"
-    shimmy_target_active_profile_read "$SHIMMY_CONFIG_ROOT/active-profile.conf" &&
-      [ "$SHIMMY_TARGET_ACTIVE_PROFILE_NAME" = "$client_profile_name" ] || {
-        shimmy_registries_client_mount_fail 'installation active record belongs to another profile or is invalid'
-        return 1
-      }
-  else
-    shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$client_profile_name" || {
-      shimmy_registries_client_mount_fail 'profile manifest is invalid'
-      return 1
-    }
-  fi
   shimmy_path_parent_chain_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" || {
     shimmy_registries_client_mount_fail 'registry configuration path is unsafe'
     return 1
@@ -1154,7 +1146,7 @@ shimmy_registries_mutate() {
   shimmy_registries_file_replace "$candidate_entries" || mutation_status=$?
   shimmy_registries_lock_release
   if [ "$mutation_status" -eq 0 ] && [ "$SHIMMY_REGISTRIES_ACTIVE_EDIT" = darwin ]; then
-    printf "Registry policy changed for running profile %s; restart it with: '%s/bin/shimmy' profile activate --restart\n" "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_ROOT"
+    printf "Registry policy changed for running profile %s; restart it with: '%s/bin/shimmy' profile activate %s --restart\n" "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME"
   fi
   return "$mutation_status"
 }
@@ -1239,7 +1231,7 @@ shimmy_registries_mutate_remove_all_detach_darwin() {
   case "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" in
     missing) detach_mode=missing_machine ;;
     stopped)
-      printf "ERROR: expected machine %s is stopped; activate it before detach with: '%s/bin/shimmy' profile activate\n" "$SHIMMY_PROFILE_EXPECTED_MACHINE" "$SHIMMY_PROFILE_ROOT" >&2
+      printf "ERROR: expected machine %s is stopped; activate it before detach with: '%s/bin/shimmy' profile activate %s\n" "$SHIMMY_PROFILE_EXPECTED_MACHINE" "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" >&2
       return 1
       ;;
     running)

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Refresh the Node 24.18 image used by npx when requested by shimmy update.
+# Refresh the Node 24.18 image used by npx during shim synchronization.
 set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)

@@ -1,112 +1,81 @@
-# Shimmy
+# Shimmy Context
 
-Shimmy exposes common CLI tools through small POSIX shell wrappers that run
-Podman containers. Read this file first, then the retained `CONTEXT.md` files
-on the path to changed code under `commands/`, `lib/`, or `tests/`. Tool and
-management-plugin directories deliberately have no context-file hierarchy.
+Shimmy packages CLI tools as small POSIX shell wrappers around `podman run`.
+The repository is both the source catalog and the source control plane.
 
-## Architecture
+## Public model
 
-- `commands/` is the public management-command surface.
-- `lib/` contains shared catalog, profile, runtime, startup, and networking
-  modules.
-- `lib/registries/` owns strict profile registry redirect data, atomic
-  profile-local transactions, the exact Linux active-profile drop-in, and the
-  exact Darwin VM projection plus local fingerprint record lifecycle.
-- `commands/profile.sh` and `lib/profile/activation.sh` own explicit
-  profile-bound Podman engine status and activation plus uninstall's guarded
-  Darwin cleanup transitions. Shell initialization owns PATH selection only.
-- `bootstrap.sh` bootstraps one canonical profile with the fixed jq/rg baseline
-  and sources its generated `shell-init.sh`; the repository has no runnable
-  `shimmy` launcher and does not accept tool selection. Sourcing the bootstrap
-  retains shell initialization, while execution remains suitable for
-  automation and absolute-path self-update. Explicit `--activate` performs a
-  post-commit profile activation through the shared state machine, selects a
-  required stale Darwin restart, and never acknowledges running workloads;
-  activation failure retains the installed profile. Fresh default bootstrap
-  records one immutable normalized startup shell and a managed exact-path or
-  manual policy; an identifiable running-shell discrepancy requires consent
-  before managed startup mutation, and later lifecycle operations inherit that
-  manifest-owned state.
-- `tools/` owns each tool's metadata, versions, container context, guide, and
-  canonical skill.
-- `plugins/shimmy/skills/` owns the five canonical control-plane skills.
-- `tests/` contains the POSIX test runner and shared test support.
+- `bootstrap.sh` is the sole checkout lifecycle entrypoint. It delegates to
+  `commands/bootstrap.sh`, creates and activates `default`, and sources the
+  installed shell initializer when itself sourced.
+- Installed `bin/shimmy` launchers expose only `admin`, `profile`, `catalog`,
+  `shim`, and `ai-skill` groups.
+- `commands/run-tool.sh` remains a contributor/source dispatcher;
+  `commands/agent-preflight.sh` renders AI-agent smoke approval guidance.
+- There is no repository `shimmy` launcher, compatibility command forwarding,
+  implementation-name routing, or generated repository `.agents/skills` tree.
 
-Installed profiles are independent materialized control/runtime trees under
-`${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<profile>`. Each owns its
-own `bin/shimmy`; no installed control payload is shared between profiles.
-Each `tools/` tree contains only manifest-selected tool metadata and concrete
-version assets. Public `bin/<tool>` links dispatch through the profile-local
-`commands/run-tool.sh`; exact-version smokes execute the selected materialized
-runtime directly. Canonical skills remain catalog-owned.
+## Installation state
 
-## Invariants
+State lives below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy`:
 
-- Runtime code is POSIX shell and uses `set -eu`.
-- User-facing tool variables use the `SHIMMY_` prefix.
-- Tool runs mount `$PWD` at `/work` unless its local context documents why.
-- Supported Linux and Darwin hosts select the matching native
-  `linux/amd64` or `linux/arm64` image platform; unsupported hosts fail closed.
-- Every concrete version owns validated `image.conf` metadata with immutable
-  multi-platform defaults.
-- Every current profile owns one mode-`0644`, regular non-symlink
-  `registries.conf` with exact profile/version markers.
-- Linux activation owns only the exact user
-  `registries.conf.d/shimmy-active-profile.conf` symlink and validates policy
-  with a fresh local-rootless Podman process.
-- Darwin activation owns only the exact VM-side
-  `/etc/containers/registries.conf.d/shimmy-profile.conf` symlink and a strict
-  profile-local projection record; same-path rootless validation precedes
-  engine validation and the global connection commit.
-- Podman is an explicit dependency; do not provision it from Shimmy.
-- Darwin profiles map deterministically to pre-existing `shimmy-<profile>`
-  rootless engines; the current public version-1 surface still admits only
-  `default` and `upstream`, while the private version-2 surface admits safe
-  names. Activation is workload-guarded and commits the global default
-  connection last. Stale policy requires explicit restart; uninstall
-  transactionally detaches retained projections, clears live cache, and
-  restores the initial engine/default state before deletion.
-- Skopeo alone mounts a valid current invoking-profile registry policy
-  read-only; no activation omits it, invalid state fails closed, and image
-  verification inherits the mount without rewriting logical references.
-- The uninstalled target catalog candidate verifies current catalog images
-  only through jq and Skopeo runtimes from the active target profile's
-  materialization; the current public image route remains unchanged.
-- The uninstalled target shim candidate mutates only the active disposable
-  version-2 profile against its retained catalog pin. It stages direct
-  `<tool>|<version>` runtimes, prepares images before a manifest-last commit,
-  regenerates the typed shim AI-skill bundle, and reconciles exact active user
-  links through bounded external compensation.
-- The uninstalled target profile candidate accepts arbitrary safe profile
-  names, maps them to deterministic `shimmy-<profile>` engines, and coordinates
-  engine/registry activation, the mode-`0644` active record, exact home
-  AI-skill links, and shell selection under the target lock hierarchy. Its
-  launcher, command, and sourced shell wrapper remain private through Chunk 9;
-  current public profile and bootstrap routing is unchanged.
-- The private target lifecycle candidate now integrates pristine default
-  bootstrap, invoking-revision create, explicit-main/registry-current sync,
-  startup repair, guarded deletion, aggregate administration, active network
-  inspection, and fail-closed owned-state uninstall. Dry-run performs only
-  state reads/classification and leaves no filesystem, engine, registry,
-  startup, active-record, or user-link mutation behind.
-- The complete private target command surface is installed only into
-  disposable version-2 candidate profiles. Its exact root/group/action help
-  precedes manifest validation, shim reads use the invoking launcher while
-  mutation remains active-only, and aggregate admin manifest output nests
-  encoded profile status records. Current public version-1 routing is unchanged.
-- Version-1 default manifests own exactly one normalized startup shell and zero
-  or more exact absolute startup paths; upstream manifests own neither field.
+- `catalogs/default/` contains one registry and retained immutable generations;
+- `profiles/<name>/` contains independent control/runtime materializations;
+- `active-profile.conf` records the installation-wide active profile and exact
+  user skill root.
 
-## Child contexts
+Profile names use lowercase letters, digits, and single hyphens. Every profile
+records schema-2 identity, source `refs/heads/main` and commit, one retained
+default-catalog generation, shim tracking/pinning and concrete-version roles,
+startup ownership, and validated AI-skill bundles.
 
-- [commands](commands/CONTEXT.md)
-- [shared library](lib/CONTEXT.md)
-- [tests](tests/CONTEXT.md)
+Catalog publication accepts only a clean committed attached local `main`
+checkout. Profiles do not follow registry changes implicitly; `profile sync`
+or shim operations adopt content explicitly.
 
-## Maintaining this tree
+## Transactions and ownership
 
-The default test suite verifies that every source-bearing directory has a
-linked context file and that referenced paths exist. When changing a module,
-update only its closest context and its parent link. Periodically ask an LLM:
-“Read the CONTEXT tree and verify it is up to date.”
+Catalog, profile, shim, startup, registry, engine, active-record, and skill-link
+changes use staged validation, locks, exact commit checks, and compensating
+rollback. Preserve the last valid manifest or registry until its replacement is
+committed. Unrecognized or unsafe state blocks mutation.
+
+Activation is the authority boundary for engine, registry, active record, and
+AI-skill links. Exact bundle-declared user skill destinations are overwritten
+without backup or recovery. Only recognized stale links may be removed; never
+recursively clean the user skill root or unrelated names.
+
+Uninstall removes validated Shimmy-owned installation state and preserves source
+checkouts, Podman machines, unrelated registry policy, unrelated user skills,
+and the user skill root.
+
+## Podman and runtimes
+
+Podman is an explicit dependency. Shimmy never installs it or provisions,
+adopts, renames, migrates, or deletes machines. On macOS, a profile uses the
+pre-existing deterministic `shimmy-<profile>` machine/connection. On Linux it
+validates the current user's local rootless engine.
+
+The runtime helper normalizes supported Linux/Darwin `amd64` and `arm64` hosts
+to native `linux/amd64` or `linux/arm64`. Concrete versions own `run.sh`,
+`smoke.conf`, `image.conf`, refresh behavior, and local container contexts.
+Runtimes mount `$PWD:/work` unless documented otherwise. Skopeo is the initial
+registry-policy consumer; catalog verification inherits that policy through
+Skopeo.
+
+Every Shimmy-defined user environment variable uses `SHIMMY_`. Tool-native
+variables are forwarded only where documented.
+
+## Source map
+
+- `commands/`: checkout and installed management entrypoints
+- `lib/`: shared sourceable modules
+- `tools/<tool>/`: metadata, canonical skill, guide, tests, and versions
+- `plugins/shimmy/skills/`: canonical management skills
+- `tests/`: bounded POSIX behavioral suite
+- `docs/`: contributor and subsystem documentation
+- `plans/`: retained plans and evidence
+
+Read relevant child context before changing `commands/`, `lib/`, or `tests/`.
+Tool and plugin trees use their guide and canonical skill instead of child
+context files.

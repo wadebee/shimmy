@@ -15,6 +15,9 @@ SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 SHIMMY_IMAGE_HELPER_FILE=$SHIMMY_RUNTIME_DIR/image.sh
 CATALOG_HELPER_FILE=$ROOT_DIR/lib/catalog/catalog.sh
 PROFILE_HELPER_FILE=$ROOT_DIR/lib/profile/profile.sh
+PROFILE_STATE_HELPER_FILE=$ROOT_DIR/lib/profile/state.sh
+CATALOG_STATE_HELPER_FILE=$ROOT_DIR/lib/catalog/state.sh
+SHIM_STATE_HELPER_FILE=$ROOT_DIR/lib/shim/state.sh
 RUN_SMOKE=no
 PREFLIGHT_STATUS=0
 ACTIVE_SHIM_SEEN=
@@ -62,7 +65,9 @@ if [ ! -f "$SHIMMY_IMAGE_HELPER_FILE" ]; then
   exit 1
 fi
 
-if [ ! -f "$COMMON_HELPER_FILE" ] || [ ! -f "$CATALOG_HELPER_FILE" ] || [ ! -f "$PROFILE_HELPER_FILE" ]; then
+if [ ! -f "$COMMON_HELPER_FILE" ] || [ ! -f "$CATALOG_HELPER_FILE" ] ||
+  [ ! -f "$PROFILE_HELPER_FILE" ] || [ ! -f "$PROFILE_STATE_HELPER_FILE" ] ||
+  [ ! -f "$CATALOG_STATE_HELPER_FILE" ] || [ ! -f "$SHIM_STATE_HELPER_FILE" ]; then
   printf 'ERROR: missing catalog helper: %s\n' "$CATALOG_HELPER_FILE" >&2
   exit 1
 fi
@@ -77,6 +82,12 @@ fi
 . "$CATALOG_HELPER_FILE"
 # shellcheck source=lib/profile/profile.sh
 . "$PROFILE_HELPER_FILE"
+# shellcheck source=lib/catalog/state.sh
+. "$CATALOG_STATE_HELPER_FILE"
+# shellcheck source=lib/shim/state.sh
+. "$SHIM_STATE_HELPER_FILE"
+# shellcheck source=lib/profile/state.sh
+. "$PROFILE_STATE_HELPER_FILE"
 
 shimmy_agent_json_string_print() {
   json_value=$1
@@ -121,29 +132,7 @@ shimmy_agent_manifest_value() {
 }
 
 shimmy_agent_smoke_args_render() {
-  shim_name=$1
-
-  if shimmy_tool_exists "$shim_name"; then
-    version_name=$(shimmy_tool_version_default "$shim_name") || {
-      printf '%s\n' '--version'
-      return 0
-    }
-  elif shimmy_is_version "$shim_name"; then
-    version_name=$shim_name
-  else
-    printf '%s\n' '--version'
-    return 0
-  fi
-
-  tool_name=$(shimmy_tool_version_tool "$version_name") || {
-    printf '%s\n' '--version'
-    return 0
-  }
-  version_label=$(shimmy_version_label "$version_name") || {
-    printf '%s\n' '--version'
-    return 0
-  }
-  version_dir=$SHIMMY_CATALOG_TOOLS_DIR/$tool_name/versions/$version_label
+  version_dir=$1
   smoke_file=$version_dir/smoke.conf
   image_config_file=$version_dir/image.conf
 
@@ -164,7 +153,8 @@ shimmy_agent_smoke_run() {
   shim_kind=$1
   shim_name=$2
   command_prefix=$3
-  smoke_args=$(shimmy_agent_smoke_args_render "$shim_name")
+  version_dir=$4
+  smoke_args=$(shimmy_agent_smoke_args_render "$version_dir")
   smoke_output=
 
   if [ "$shim_kind" = repo ]; then
@@ -199,7 +189,8 @@ shimmy_agent_shim_print() {
   shim_name=$2
   command_prefix=$3
   shim_path=$4
-  smoke_args=$(shimmy_agent_smoke_args_render "$shim_name")
+  version_dir=$5
+  smoke_args=$(shimmy_agent_smoke_args_render "$version_dir")
   smoke_args_display=$(printf '%s\n' "$smoke_args" | tr '\n' ' ' | sed 's/ $//')
 
   case "$shim_kind" in
@@ -220,13 +211,14 @@ shimmy_agent_shim_print() {
   printf 'smoke_command=%s %s\n' "$command_prefix" "$smoke_args_display"
 
   if [ "$RUN_SMOKE" = yes ]; then
-    shimmy_agent_smoke_run "$shim_kind" "$shim_name" "$command_prefix"
+    shimmy_agent_smoke_run "$shim_kind" "$shim_name" "$command_prefix" "$version_dir"
   fi
 }
 
 shimmy_agent_active_shim_consider() {
   shim_name=$1
   expected_path=$2
+  version_dir=$3
 
   shimmy_agent_shim_name_validate "$shim_name" || return 0
   resolved_path=$(command -v "$shim_name" 2>/dev/null || true)
@@ -250,7 +242,7 @@ $shim_name
 $shim_name
 "
   ACTIVE_SHIM_COUNT=$((ACTIVE_SHIM_COUNT + 1))
-  shimmy_agent_shim_print active "$shim_name" "$shim_name" "$resolved_path"
+  shimmy_agent_shim_print active "$shim_name" "$shim_name" "$resolved_path" "$version_dir"
 }
 
 shimmy_agent_manifest_shims_discover() {
@@ -258,46 +250,43 @@ shimmy_agent_manifest_shims_discover() {
   manifest_file=$2
   bin_dir=$profile_root/bin
 
-  while IFS= read -r shim_name; do
-    [ -n "$shim_name" ] || continue
-    shimmy_agent_active_shim_consider "$shim_name" "$bin_dir/$shim_name"
+  shimmy_target_profile_manifest_read "$manifest_file" || return 1
+  while IFS= read -r shim_record; do
+    [ -n "$shim_record" ] || continue
+    shimmy_target_shim_record_validate "$shim_record" || return 1
+    shim_name=$shimmy_target_shim_record_tool
+    version_label=
+    while IFS= read -r version_record; do
+      [ -n "$version_record" ] || continue
+      shimmy_target_shim_version_record_validate "$version_record" || return 1
+      [ "$shimmy_target_shim_version_tool" = "$shim_name" ] || continue
+      [ "$shimmy_target_shim_version_kind" = default ] || continue
+      version_label=$shimmy_target_shim_version_name
+      break
+    done <<EOF
+$SHIMMY_TARGET_PROFILE_SHIM_VERSION_RECORDS
+EOF
+    [ -n "$version_label" ] || return 1
+    shimmy_agent_active_shim_consider "$shim_name" "$bin_dir/$shim_name" \
+      "$profile_root/tools/$shim_name/versions/$version_label"
   done <<EOF
-$(sed -n 's/^tool=//p' "$manifest_file")
+$SHIMMY_TARGET_PROFILE_SHIM_RECORDS
 EOF
 }
 
 shimmy_agent_installed_shims_discover() {
-  config_home=$1
-  for manifest_file in "$config_home"/shimmy/profiles/default/install-manifest.txt "$config_home"/shimmy/profiles/upstream/install-manifest.txt; do
-    [ -f "$manifest_file" ] || continue
-    shimmy_agent_manifest_shims_discover "$(dirname "$manifest_file")" "$manifest_file"
-  done
-}
-
-shimmy_agent_path_shims_discover() {
-  old_ifs=$IFS
-  IFS=:
-  for path_dir in ${PATH:-}; do
-    IFS=$old_ifs
-    [ -n "$path_dir" ] || continue
-    case "$path_dir" in
-      */shimmy/profiles/*/bin)
-        [ -d "$path_dir" ] || continue
-        for shim_path in "$path_dir"/*; do
-          [ -f "$shim_path" ] || continue
-          [ -x "$shim_path" ] || continue
-          [ "$(basename "$shim_path")" != shimmy ] || continue
-          shimmy_agent_active_shim_consider "$(basename "$shim_path")" "$shim_path"
-        done
-        ;;
-    esac
-    IFS=:
-  done
-  IFS=$old_ifs
+  config_root=$1
+  shimmy_target_installation_paths_resolve "$config_root" || return 1
+  [ -f "$SHIMMY_TARGET_ACTIVE_PROFILE_PATH" ] || return 0
+  shimmy_target_active_profile_read "$SHIMMY_TARGET_ACTIVE_PROFILE_PATH" || return 1
+  active_profile=$SHIMMY_TARGET_ACTIVE_PROFILE_NAME
+  shimmy_target_profile_paths_resolve "$config_root" "$active_profile" || return 1
+  shimmy_agent_manifest_shims_discover "$SHIMMY_TARGET_PROFILE_ROOT" \
+    "$SHIMMY_TARGET_PROFILE_MANIFEST_PATH"
 }
 
 shimmy_agent_repo_shims_discover() {
-  tools_dir=$SHIMMY_CATALOG_TOOLS_DIR
+  tools_dir=$ROOT_DIR/tools
 
   [ -d "$tools_dir" ] || return 0
 
@@ -319,7 +308,10 @@ $shim_name
 $shim_name
 "
     REPO_SHIM_COUNT=$((REPO_SHIM_COUNT + 1))
-    smoke_args=$(shimmy_agent_smoke_args_render "$shim_name")
+    version_label=$(shimmy__catalog_config_value_read "$tool_dir/tool.conf" tool_default_version)
+    shimmy_version_token_validate "$version_label" || continue
+    version_dir=$tool_dir/versions/$version_label
+    smoke_args=$(shimmy_agent_smoke_args_render "$version_dir")
     smoke_args_display=$(printf '%s\n' "$smoke_args" | tr '\n' ' ' | sed 's/ $//')
     printf 'repo_shim=%s\n' "$shim_name"
     printf 'path=%s\n' "$tool_dir"
@@ -339,13 +331,7 @@ $shim_name
   done
 }
 
-if shimmy_profile_context_resolve "$ROOT_DIR" 2>/dev/null; then
-  shimmy_profile_manifest_validate "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_PROFILE_NAME" || exit 1
-  shimmy_catalog_profile_resolve "$SHIMMY_PROFILE_MANIFEST_PATH" "$SHIMMY_CONFIG_ROOT" || {
-    printf 'ERROR: %s\n' "$SHIMMY_CATALOG_ERROR" >&2
-    exit 1
-  }
-elif ! shimmy_catalog_checkout_resolve "$ROOT_DIR" upstream; then
+if ! shimmy_catalog_payload_validate "$ROOT_DIR" default; then
   printf 'ERROR: %s\n' "$SHIMMY_CATALOG_ERROR" >&2
   exit 1
 fi
@@ -372,11 +358,10 @@ fi
 printf '\nActive Shimmy command approvals:\n'
 
 if [ -n "${XDG_CONFIG_HOME:-}" ]; then
-  case "$XDG_CONFIG_HOME" in /*) shimmy_agent_installed_shims_discover "$XDG_CONFIG_HOME" ;; esac
+  case "$XDG_CONFIG_HOME" in /*) shimmy_agent_installed_shims_discover "$XDG_CONFIG_HOME/shimmy" ;; esac
 elif [ -n "${HOME:-}" ]; then
-  shimmy_agent_installed_shims_discover "$HOME/.config"
+  shimmy_agent_installed_shims_discover "$HOME/.config/shimmy"
 fi
-shimmy_agent_path_shims_discover
 
 if [ "$ACTIVE_SHIM_COUNT" -eq 0 ]; then
   printf 'active_shims=none\n'
