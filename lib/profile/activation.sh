@@ -779,33 +779,47 @@ shimmy_profile_activate_darwin() {
       SHIMMY_PROFILE_WORKLOAD_INTERRUPTED=1
     fi
     printf 'Stopping Podman machine: %s\n' "$SHIMMY_PROFILE_RUNNING_MACHINE"
-    shimmy_profile_podman_run machine stop "$SHIMMY_PROFILE_RUNNING_MACHINE" </dev/null ||
-      shimmy_profile_activation_rollback "unable to stop $SHIMMY_PROFILE_RUNNING_MACHINE"
+    if ! shimmy_profile_podman_run machine stop "$SHIMMY_PROFILE_RUNNING_MACHINE" </dev/null; then
+      shimmy_profile_activation_rollback "unable to stop $SHIMMY_PROFILE_RUNNING_MACHINE" || true
+      return 1
+    fi
   fi
   if [ "$target_start_planned" -eq 1 ]; then
     SHIMMY_PROFILE_TARGET_START_ATTEMPTED=1
     printf 'Starting Podman machine: %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE"
-    shimmy_profile_podman_run machine start "$SHIMMY_PROFILE_EXPECTED_MACHINE" </dev/null ||
-      shimmy_profile_activation_rollback "unable to start $SHIMMY_PROFILE_EXPECTED_MACHINE"
+    if ! shimmy_profile_podman_run machine start "$SHIMMY_PROFILE_EXPECTED_MACHINE" </dev/null; then
+      shimmy_profile_activation_rollback "unable to start $SHIMMY_PROFILE_EXPECTED_MACHINE" || true
+      return 1
+    fi
   fi
   if [ "$target_start_planned" -eq 1 ]; then
-    shimmy_registries_machine_projection_reconcile ||
-      shimmy_profile_activation_rollback "unable to project registry policy into $SHIMMY_PROFILE_EXPECTED_MACHINE"
+    if ! shimmy_registries_machine_projection_reconcile; then
+      shimmy_profile_activation_rollback "unable to project registry policy into $SHIMMY_PROFILE_EXPECTED_MACHINE" || true
+      return 1
+    fi
   fi
-  target_info=$(shimmy_profile_podman_run --connection "$SHIMMY_PROFILE_EXPECTED_CONNECTION" info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}' 2>/dev/null) ||
-    shimmy_profile_activation_rollback "unable to validate $SHIMMY_PROFILE_EXPECTED_CONNECTION"
-  [ "$target_info" = 'true|true' ] ||
-    shimmy_profile_activation_rollback "connection $SHIMMY_PROFILE_EXPECTED_CONNECTION is not a rootless Podman machine engine"
+  if ! target_info=$(shimmy_profile_podman_run --connection "$SHIMMY_PROFILE_EXPECTED_CONNECTION" info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}' 2>/dev/null); then
+    shimmy_profile_activation_rollback "unable to validate $SHIMMY_PROFILE_EXPECTED_CONNECTION" || true
+    return 1
+  fi
+  if [ "$target_info" != 'true|true' ]; then
+    shimmy_profile_activation_rollback "connection $SHIMMY_PROFILE_EXPECTED_CONNECTION is not a rootless Podman machine engine" || true
+    return 1
+  fi
 
   if [ "$target_start_planned" -eq 1 ]; then
-    shimmy_registries_machine_projection_record_apply "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT" ||
-      shimmy_profile_activation_rollback "unable to record registry projection ownership for $SHIMMY_PROFILE_EXPECTED_MACHINE"
+    if ! shimmy_registries_machine_projection_record_apply "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT"; then
+      shimmy_profile_activation_rollback "unable to record registry projection ownership for $SHIMMY_PROFILE_EXPECTED_MACHINE" || true
+      return 1
+    fi
   fi
 
   if [ "$SHIMMY_PROFILE_DEFAULT_CONNECTION" != "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ]; then
     printf 'Selecting Podman default connection: %s\n' "$SHIMMY_PROFILE_EXPECTED_CONNECTION"
-    shimmy_profile_podman_run system connection default "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ||
-      shimmy_profile_activation_rollback "unable to select default connection $SHIMMY_PROFILE_EXPECTED_CONNECTION"
+    if ! shimmy_profile_podman_run system connection default "$SHIMMY_PROFILE_EXPECTED_CONNECTION"; then
+      shimmy_profile_activation_rollback "unable to select default connection $SHIMMY_PROFILE_EXPECTED_CONNECTION" || true
+      return 1
+    fi
   fi
   if [ "${SHIMMY_PROFILE_ACTIVATION_DEFER_COMMIT:-0}" -ne 1 ]; then
     shimmy_registries_machine_projection_commit

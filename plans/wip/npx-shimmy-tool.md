@@ -264,7 +264,13 @@ None.
       manifest-v2 installed add/test/remove flow are required, non-deferred
       acceptance items; the installed macOS smoke remains proposed for
       deferral because its native source-runtime smoke passed. Human review
-      remains pending.
+      remains pending. On 2026-08-22 the current source preview, focused npx
+      test, generic catalog/profile/shim lifecycle coverage, and upstream
+      digest/platform recheck passed. The native Linux smoke remains
+      unavailable. A current native macOS retry was blocked after an image
+      pull ended with `unexpected EOF`, the default Podman connection became
+      unreachable, and the previously inspected installed profile disappeared
+      through external state change; no machine or installation was recreated.
 
 ## Execution protocol
 
@@ -359,19 +365,30 @@ review instead of expanding this chunk silently.
 ### Verification checklist
 
 - [x] Confirm the worktree baseline and preserve unrelated user changes. The
-      worktree was clean before implementation.
+      worktree was clean before implementation and again before the 2026-08-22
+      acceptance pass.
 - [x] Confirm all new runnable shell files pass POSIX syntax checks and retain
       executable mode.
 - [x] Run `./commands/run-tool.sh npx --preview-shim --version` and verify the
       pinned image, native platform, `/work` mount, working directory,
-      `--entrypoint npx`, and stdin/TTY contract.
+      `--entrypoint npx`, and stdin/TTY contract. Repeated on 2026-08-22 on
+      Darwin `arm64`; the preview selected `linux/arm64` and rendered the
+      recorded digest and expected arguments.
 - [x] Run the focused `tools/npx/tests/npx.sh` coverage through the repository
-      test runner and confirm override/pull/isolation assertions pass.
+      test runner and confirm override/pull/isolation assertions pass. On
+      2026-08-22, `./tests/test.sh --group commands-shim --group tools-npx`
+      passed all four selected assertions, including the npx preview contract.
 - [x] The implementation-time `./tests/test.sh` run confirmed catalog
       discovery, metadata/image validation, all platform previews, installation,
       lifecycle, and existing regressions. All then-current 145 tests passed
       after updating the canonical tool-skill count from 19 to 20. This is
       historical pre-redesign evidence, not proof of the current sync surface.
+      The 2026-08-22 current full-suite run exited 1 after the unrelated
+      `lib-catalog` heading assertion expected one combined string instead of
+      the current three rendered columns; the resulting three-b worker coverage
+      mismatch was consequential. Every group that ran otherwise passed, and
+      the skipped `commands-shim` and `tools-npx` groups passed in a separate
+      four-test run.
 - [x] Run `git diff --check` and inspect the complete diff, including mode bits
       and the absence of unintended shared-code or generated-adapter changes.
 - [x] The historical
@@ -380,17 +397,24 @@ review instead of expanding this chunk silently.
       `linux/arm64`, public access, and `upstream=current`. The redesigned
       equivalent is `shimmy catalog verify --tool npx@24.18 --public-only` from
       an installed profile whose pinned retained generation contains npx; do
-      not recreate the historical command or selectors.
-- [~] Run current focused catalog/profile/shim lifecycle coverage and confirm
+      not recreate the historical command or selectors. On 2026-08-22 the
+      Docker Hub public tag API independently reconfirmed the recorded
+      top-level OCI-index digest and active `linux/amd64` and `linux/arm64`
+      descriptors; this does not replace the installed catalog-verifier run.
+- [x] Run current focused catalog/profile/shim lifecycle coverage and confirm
       the redesigned update invariants: catalog publication does not mutate
       profile pins; active `shimmy profile sync` adopts registry current and
       advances tracking npx while preserving pinned npx; `shimmy shim sync npx`
       uses only the existing pin; exact sync prepares only an installed exact
       version; and each mutation prepares the image and validates the shims
-      bundle before commit. Static inspection confirms the implementation
-      routes and generic tests exist, but this post-redesign acceptance run has
-      not been recorded in this plan. It is required before final acceptance
-      and is not proposed for deferral.
+      bundle before commit. On 2026-08-22 the current `commands-catalog`,
+      `commands-profile`, `commands-lifecycle`, and `commands-shim` groups
+      passed these generic contracts, including clean-main publication,
+      profile adoption, pin-bounded tracking and exact shim sync, image
+      preparation, bundle validation, and rollback behavior. The combined run
+      also exposed an unrelated pre-existing `lib-catalog` human-header
+      assertion (`TOOL DEFAULT VERSIONS` versus the current three-column
+      header); the affected groups were rerun independently where needed.
 - [~] On native Linux `amd64`, run the version-owned `npx --version` smoke and
       record host platform, concrete version, command, exit status, and output.
       No native Linux `amd64` host was available in this session. Preview and
@@ -412,7 +436,11 @@ review instead of expanding this chunk silently.
       npx@24.18` plus the installed `npx --version`. Use the exact supported
       `shimmy profile activate <name> --dry-run` and separately approved
       activation workflow when a profile switch is required. Explicit deferral
-      remains requested until that installed smoke is recorded.
+      remains requested until that installed smoke is recorded. A 2026-08-22
+      source-runtime retry reached the pinned image but failed during pull with
+      `unexpected EOF`; its retry then failed Podman preflight because the
+      default connection was unreachable. This does not supersede the accepted
+      2026-08-16 native source smoke and supplies no new installed evidence.
 - [x] On at least one accepted native host, run
       `npx --yes node-llama-cpp@3.19.1 inspect gpu`; confirm package fetch and
       CLI execution complete, record the reported compute backend, and treat
@@ -430,7 +458,15 @@ review instead of expanding this chunk silently.
       former install/preview/uninstall route and recorded the obsolete
       `npx|24.18|npx_24_18` implementation identity; it is not manifest-v2
       evidence. The redesigned end-to-end installed flow remains required and
-      is not proposed for deferral.
+      is not proposed for deferral. On 2026-08-22 the installed default profile
+      was initially inspected at source commit `49bbd7c11b3817402c68bd0a4edf666452843e61`,
+      pinned catalog generation
+      `sha256-0bf5d15ae4d2744e613ee991d4712a1a0e06ff53ee733627e303b78981a6604e`,
+      with only jq, rg, and Skopeo tracking. Its deterministic machine was
+      stopped and the required activation dry-run failed closed. Later the
+      profile launcher path disappeared during an external state change, so no
+      catalog publication, profile mutation, npx add/test/remove, or skill-link
+      mutation was attempted.
 - [x] Reconcile every checklist item in this plan. Any unavailable second-host
       native run must be marked `[~]` with what passed, what remains, impact,
       proposed next action, and whether explicit deferral is requested.
@@ -523,6 +559,19 @@ this tool.
 - Canonical `tools/npx/SKILL.md` remains repository-owned, while the catalog
   fingerprints it and active profiles materialize/link it. Repository
   `.agents/skills/` adapters are not part of this lifecycle.
+
+### Acceptance pass 2026-08-22
+
+- Generic catalog, profile, and shim lifecycle tests are sufficient to prove
+  the redesigned publication/adoption/sync authority boundaries for the npx
+  source addition; live installed evidence remains a separate acceptance item.
+- A publisher API digest/platform recheck can detect recorded-tag drift while
+  the installed catalog verifier is unavailable, but it does not prove active
+  profile policy, Skopeo routing, or installed catalog selection.
+- Engine and installation state can change independently during acceptance.
+  When a required activation dry-run fails or the installed launcher
+  disappears, preserve that state and stop rather than provisioning, adopting,
+  or switching machines outside the profile control plane.
 
 ## Session bootstrap
 

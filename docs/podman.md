@@ -57,6 +57,11 @@ and exact AI-skill links. It does not change a parent shell's PATH. Running
 containers are listed and block an interrupting transition unless the user
 separately acknowledges them with `--stop-running`.
 
+When the requested profile is also the recorded active profile, activation can
+repair its target-owned engine or registry state. A switch to a different
+profile still requires the recorded prior profile to be fully active so it
+remains a known-good rollback source.
+
 On Linux, activation requires a local rootless engine and manages only the
 Shimmy-owned user registry drop-in. On macOS, profile `<name>` owns the
 pre-existing `shimmy-<name>` machine. Only one Podman-managed VM can run, so a
@@ -130,6 +135,20 @@ Useful inspection commands are:
 podman machine list
 podman system connection list
 ```
+
+If status reports that the recorded active profile's deterministic machine is
+stopped, recover it through the ordinary named activation workflow:
+
+```sh
+"$profile_root/bin/shimmy" profile status
+"$profile_root/bin/shimmy" profile activate team-one --dry-run
+"$profile_root/bin/shimmy" profile activate team-one
+```
+
+The dry run reports the managed machine start and registry projection without
+changing either. Do not substitute a direct `podman machine start`; activation
+also validates and reconciles registry, connection, active-record, and exact
+AI-skill-link authority.
 
 If status reports a stale registry projection, use the exact named command it
 prints, normally:

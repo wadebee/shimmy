@@ -192,6 +192,32 @@ machines, unrelated registry policy, unrelated skill names, and the user skill
 root. If macOS cleanup requires interrupting listed workloads, review the output
 and retry with `--stop-running` only after explicit acceptance.
 
+## Tool guides
+
+| Tool | Guide |
+|---|---|
+| aws | [tools/aws/guide.md](tools/aws/guide.md) |
+| bats | [tools/bats/guide.md](tools/bats/guide.md) |
+| community-ansible-dev-tools | [tools/community-ansible-dev-tools/guide.md](tools/community-ansible-dev-tools/guide.md) |
+| gcloud | [tools/gcloud/guide.md](tools/gcloud/guide.md) |
+| gdrive | [tools/gdrive/guide.md](tools/gdrive/guide.md) |
+| gh | [tools/gh/guide.md](tools/gh/guide.md) |
+| go | [tools/go/guide.md](tools/go/guide.md) |
+| jq | [tools/jq/guide.md](tools/jq/guide.md) |
+| logmine | [tools/logmine/guide.md](tools/logmine/guide.md) |
+| netcat | [tools/netcat/guide.md](tools/netcat/guide.md) |
+| nmap | [tools/nmap/guide.md](tools/nmap/guide.md) |
+| npx | [tools/npx/guide.md](tools/npx/guide.md) |
+| oc | [tools/oc/guide.md](tools/oc/guide.md) |
+| opnsense-mcp-admin | [tools/opnsense-mcp-admin/guide.md](tools/opnsense-mcp-admin/guide.md) |
+| opnsense-mcp-read-only | [tools/opnsense-mcp-read-only/guide.md](tools/opnsense-mcp-read-only/guide.md) |
+| rg | [tools/rg/guide.md](tools/rg/guide.md) |
+| skopeo | [tools/skopeo/guide.md](tools/skopeo/guide.md) |
+| task | [tools/task/guide.md](tools/task/guide.md) |
+| terraform | [tools/terraform/guide.md](tools/terraform/guide.md) |
+| tessl | [tools/tessl/guide.md](tools/tessl/guide.md) |
+| textual | [tools/textual/guide.md](tools/textual/guide.md) |
+
 ## Development
 
 Source previews remain available without contacting Podman:

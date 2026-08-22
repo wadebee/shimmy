@@ -141,6 +141,19 @@ shimmy_profile_active_engine_validate() {
     shimmy_profile_error_set "active record and engine/registry state disagree for $shimmy_profile_active_engine_name: $SHIMMY_PROFILE_ACTIVATION_STATE"
 }
 
+shimmy_profile_activate_prior_engine_validate() {
+  shimmy_profile_activate_prior_engine_config=$1
+  shimmy_profile_activate_prior_engine_name=$2
+  shimmy_profile_activate_prior_engine_requested=$3
+  shimmy_name_component_validate "$shimmy_profile_activate_prior_engine_name" ||
+    shimmy_profile_error_set "invalid recorded active profile name: $shimmy_profile_activate_prior_engine_name" || return 1
+  shimmy_name_component_validate "$shimmy_profile_activate_prior_engine_requested" ||
+    shimmy_profile_error_set "invalid requested profile name: $shimmy_profile_activate_prior_engine_requested" || return 1
+  [ "$shimmy_profile_activate_prior_engine_name" != "$shimmy_profile_activate_prior_engine_requested" ] || return 0
+  shimmy_profile_active_engine_validate "$shimmy_profile_activate_prior_engine_config" \
+    "$shimmy_profile_activate_prior_engine_name"
+}
+
 shimmy_active_profile_rollback() {
   shimmy_active_rollback_path=$1
   shimmy_active_rollback_prior=$2
@@ -225,7 +238,8 @@ shimmy_profile_activate_run() {
   shimmy_profile_installation_context_resolve "$shimmy_profile_activate_config" || return 1
   shimmy_profile_activate_prior=$SHIMMY_PROFILE_ACTIVE_NAME
   shimmy_profile_activate_user_root=$SHIMMY_PROFILE_USER_SKILL_ROOT
-  shimmy_profile_active_engine_validate "$shimmy_profile_activate_config" "$shimmy_profile_activate_prior" || return 1
+  shimmy_profile_activate_prior_engine_validate "$shimmy_profile_activate_config" \
+    "$shimmy_profile_activate_prior" "$shimmy_profile_activate_name" || return 1
   shimmy_profile_candidate_resolve "$shimmy_profile_activate_config" "$shimmy_profile_activate_name" || return 1
   shimmy_profile_activate_target_root=$SHIMMY_PROFILE_CANDIDATE_ROOT
   shimmy_profile_activate_generation_root=$SHIMMY_PROFILE_CANDIDATE_GENERATION_ROOT
@@ -258,7 +272,8 @@ shimmy_profile_activate_run() {
       shimmy_profile_error_set 'active profile authority changed during profile activation'
       return 1
     }
-  shimmy_profile_active_engine_validate "$shimmy_profile_activate_config" "$shimmy_profile_activate_prior" || {
+  shimmy_profile_activate_prior_engine_validate "$shimmy_profile_activate_config" \
+    "$shimmy_profile_activate_prior" "$shimmy_profile_activate_name" || {
     shimmy_locks_release_all || true
     return 1
   }

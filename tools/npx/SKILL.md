@@ -39,9 +39,15 @@ npm package execution through Shimmy.
 
 ## Installed Workflow
 
-Install this opt-in tool with `shimmy shim add npx`. When the installed
-profile is selected on `PATH`, invoke `npx` normally and inspect the invoking
-profile with `shimmy profile status --format manifest`.
+Install this opt-in tool with `shimmy shim add npx` for a tracking default or
+`shimmy shim add npx@24.18` for an explicitly pinned first default. When the
+installed profile is selected on `PATH`, invoke `npx` normally and inspect the
+invoking profile with `shimmy profile status --format manifest` and
+`shimmy shim list --format manifest`.
+
+Catalog publication changes registry authority without mutating profile pins.
+`shimmy profile sync` explicitly adopts registry current, while
+`shimmy shim sync npx` uses only the invoking profile's existing catalog pin.
 
 Before using another existing profile, resolve its absolute `profile_root` and
 run `"$profile_root/bin/shimmy" profile status`, then
@@ -83,7 +89,7 @@ concrete `tools/npx/versions/24.18/run.sh` runtime.
 
 - Preview: `./commands/run-tool.sh npx --preview-shim --version`
 - Direct smoke: `./commands/run-tool.sh npx --version`
-- Image verification: `shimmy catalog verify --tool npx --public-only`
+- Image verification: `shimmy catalog verify --tool npx@24.18 --public-only`
 - Focused preview contract: run `test_tools_npx_run` through `./tests/test.sh`
 - Full suite: `./tests/test.sh`
 - Observational package execution: `./commands/run-tool.sh npx --yes node-llama-cpp@3.19.1 inspect gpu`

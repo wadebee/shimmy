@@ -16,14 +16,31 @@ the official Node 24.18.0 Bookworm image. It does not install public `node` or
 
 ## Shimmy Usage
 
-Install the opt-in tool, then invoke `npx` normally:
+For a tracking first install:
 
 ```sh
 shimmy shim add npx
+```
+
+For an explicitly pinned first default instead:
+
+```sh
+shimmy shim add npx@24.18
+```
+
+Then invoke `npx` normally:
+
+```sh
 npx --version
 npx cowsay@1.6.0 hello
 npx --yes node-llama-cpp@3.19.1 inspect gpu
 ```
+
+An unqualified first install tracks the catalog default recorded by the
+profile. An exact first install makes `24.18` the pinned default. Catalog
+publication does not mutate either profile: `shimmy profile sync` explicitly
+adopts registry current, while `shimmy shim sync npx` remains bounded by the
+profile's existing catalog pin.
 
 Pin package versions when repeatability matters. The wrapper does not add
 `--yes` or `--no`; use `--yes` only when you deliberately intend to bypass

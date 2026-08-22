@@ -12,6 +12,10 @@ bundle state as one read-only authority.
 create/activate/delete routing, and redirects. Activation validates candidate
 materialization, holds activation then lexical profile/registry locks, defers
 engine commit, and compensates active-record and exact user-skill link changes.
+Same-profile activation lets the target activation layer validate and repair
+its own inactive engine or registry state. A cross-profile transition still
+requires the recorded active profile to be fully active before planning and
+again after locks are acquired so it remains a known-good rollback source.
 
 `activation.sh` owns deterministic engine discovery, read-only status, dry-run,
 Linux registry-link selection and local-rootless validation, workload-guarded
