@@ -332,7 +332,10 @@ shimmy_profile_list_render() {
   done
   shimmy_profile_list_names=$(printf '%s\n' "$shimmy_profile_list_names" | sed '/^$/d' | LC_ALL=C sort)
   [ -n "$shimmy_profile_list_names" ] || return 1
-  [ "$shimmy_profile_list_format" != human ] || printf 'PROFILE ACTIVE CONTROL CATALOG STATE\n'
+  if [ "$shimmy_profile_list_format" = human ]; then
+    shimmy_style_init
+    printf '%s%-12s %-10s %-15s %-15s %-10s%s\n' "$SHIMMY_STYLE_DIM" "PROFILE" "ACTIVE" "CONTROL" "CATALOG" "STATE" "$SHIMMY_STYLE_RESET"
+  fi
   while IFS= read -r shimmy_profile_list_name; do
     [ -n "$shimmy_profile_list_name" ] || continue
     shimmy_profile_list_is_active=no
@@ -351,8 +354,17 @@ shimmy_profile_list_render() {
         "$shimmy_profile_list_is_active" "$shimmy_profile_list_source" \
         "$shimmy_profile_list_generation" "$shimmy_profile_list_state"
     else
-      printf '%s %s %s %s %s\n' "$shimmy_profile_list_name" "$shimmy_profile_list_is_active" \
-        "$shimmy_profile_list_source" "$shimmy_profile_list_generation" "$shimmy_profile_list_state"
+      shimmy_source_fmt=$(shimmy_digest_format "$shimmy_profile_list_source")
+      shimmy_gen_fmt=$(shimmy_digest_format "$shimmy_profile_list_generation")
+      shimmy_active_fmt=$shimmy_profile_list_is_active
+      if [ "$shimmy_profile_list_is_active" = yes ] && [ -n "$SHIMMY_STYLE_GREEN" ]; then
+        shimmy_active_fmt="${SHIMMY_STYLE_GREEN}yes${SHIMMY_STYLE_RESET}       "
+        printf '%-12s %s %-15s %-15s %-10s\n' "$shimmy_profile_list_name" "$shimmy_active_fmt" \
+          "$shimmy_source_fmt" "$shimmy_gen_fmt" "$shimmy_profile_list_state"
+      else
+        printf '%-12s %-10s %-15s %-15s %-10s\n' "$shimmy_profile_list_name" "$shimmy_active_fmt" \
+          "$shimmy_source_fmt" "$shimmy_gen_fmt" "$shimmy_profile_list_state"
+      fi
     fi
   done <<EOF
 $shimmy_profile_list_names

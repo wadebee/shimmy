@@ -661,7 +661,10 @@ EOF
 shimmy_shim_list_render() {
   shimmy_shim_list_format=${1:-human}
   case "$shimmy_shim_list_format" in human|manifest) ;; *) return 1 ;; esac
-  [ "$shimmy_shim_list_format" != human ] || printf 'SHIM DEFAULT MODE VERSIONS\n'
+  if [ "$shimmy_shim_list_format" = human ]; then
+    shimmy_style_init
+    printf '%s%-12s %-12s %-12s %-32s%s\n' "$SHIMMY_STYLE_DIM" "SHIM" "DEFAULT" "MODE" "VERSIONS" "$SHIMMY_STYLE_RESET"
+  fi
   while IFS= read -r shimmy_shim_list_record; do
     [ -n "$shimmy_shim_list_record" ] || continue
     shimmy_shim_record_validate "$shimmy_shim_list_record" || return 1
@@ -680,7 +683,7 @@ EOF
     if [ "$shimmy_shim_list_format" = manifest ]; then
       printf 'shimmy_shim=%s|%s|%s|%s\n' "$shimmy_shim_list_tool" "$shimmy_shim_list_default" "$shimmy_shim_list_mode" "$shimmy_shim_list_versions"
     else
-      printf '%s %s %s %s\n' "$shimmy_shim_list_tool" "$shimmy_shim_list_default" "$shimmy_shim_list_mode" "$shimmy_shim_list_versions"
+      printf '%-12s %-12s %-12s %-32s\n' "$shimmy_shim_list_tool" "$shimmy_shim_list_default" "$shimmy_shim_list_mode" "$shimmy_shim_list_versions"
     fi
   done <<EOF
 $SHIMMY_SHIM_RECORDS

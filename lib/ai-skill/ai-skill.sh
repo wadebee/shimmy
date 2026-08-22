@@ -450,7 +450,8 @@ shimmy_ai_skill_list_render() {
   shimmy_ai_skill_list_format=${1:-human}
   case "$shimmy_ai_skill_list_format" in human|manifest) ;; *) return 1 ;; esac
   if [ "$shimmy_ai_skill_list_format" = human ]; then
-    printf 'BUNDLE STATUS SKILLS REASON\n'
+    shimmy_style_init
+    printf '%s%-12s %-12s %-12s %-32s%s\n' "$SHIMMY_STYLE_DIM" "BUNDLE" "STATUS" "SKILLS" "REASON" "$SHIMMY_STYLE_RESET"
   fi
   for shimmy_ai_skill_list_kind in control shims; do
     shimmy_ai_skill_list_bundle=$SHIMMY_AI_SKILL_PROFILE_ROOT/ai-skills/$shimmy_ai_skill_list_kind
@@ -471,7 +472,7 @@ EOF
         "$shimmy_ai_skill_list_kind" "$shimmy_ai_skill_list_status" \
         "$shimmy_ai_skill_list_count" "$(shimmy_manifest_value_encode "$shimmy_ai_skill_list_reason")"
     else
-      printf '%s %s %s %s\n' "$shimmy_ai_skill_list_kind" \
+      printf '%-12s %-12s %-12s %-32s\n' "$shimmy_ai_skill_list_kind" \
         "$shimmy_ai_skill_list_status" "$shimmy_ai_skill_list_count" "$shimmy_ai_skill_list_reason"
     fi
     case "$shimmy_ai_skill_list_status" in valid|empty) ;; *) continue ;; esac
@@ -492,7 +493,7 @@ EOF
           "$(shimmy_manifest_value_encode "$shimmy_ai_skill_list_identity")" \
           "$(shimmy_manifest_value_encode "$SHIMMY_AI_SKILL_LINK_DESTINATION")"
       else
-        printf '  %s %s %s\n' "$shimmy_ai_skill_list_name" \
+        printf '  %-20s %-15s %-40s\n' "$shimmy_ai_skill_list_name" \
           "$SHIMMY_AI_SKILL_LINK_CLASSIFICATION" "$SHIMMY_AI_SKILL_LINK_DESTINATION"
       fi
     done <<EOF

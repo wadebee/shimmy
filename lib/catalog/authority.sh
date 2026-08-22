@@ -234,7 +234,8 @@ shimmy_catalog_tools_render() {
   shimmy_catalog_generation_record_validate "$SHIMMY_CATALOG_GENERATIONS_ROOT/$shimmy_catalog_tools_generation" "$shimmy_catalog_tools_generation" || return 1
   shimmy_catalog_tools_payload=$SHIMMY_CATALOG_GENERATIONS_ROOT/$shimmy_catalog_tools_generation
   if [ "$shimmy_catalog_tools_format" = human ]; then
-    printf 'TOOL DEFAULT VERSIONS\n'
+    shimmy_style_init
+    printf '%s%-12s %-12s %-32s%s\n' "$SHIMMY_STYLE_DIM" "TOOL" "DEFAULT" "VERSIONS" "$SHIMMY_STYLE_RESET"
   fi
   shimmy_catalog_tool_names=$(
     for shimmy_catalog_tool_dir in "$shimmy_catalog_tools_payload"/tools/*; do
@@ -251,7 +252,7 @@ shimmy_catalog_tools_render() {
       printf 'shimmy_catalog_tool=default|%s|%s|%s|%s\n' "$shimmy_catalog_tools_generation" \
         "$shimmy_catalog_tool_name" "$shimmy_catalog_tool_default" "$shimmy_catalog_tool_versions"
     else
-      printf '%s %s %s\n' "$shimmy_catalog_tool_name" "$shimmy_catalog_tool_default" "$shimmy_catalog_tool_versions"
+      printf '%-12s %-12s %-32s\n' "$shimmy_catalog_tool_name" "$shimmy_catalog_tool_default" "$shimmy_catalog_tool_versions"
     fi
   done <<EOF
 $shimmy_catalog_tool_names

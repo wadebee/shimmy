@@ -196,7 +196,15 @@ case "$shimmy_profile_action" in
 $shimmy_profile_redirect_entries
 EOF
         else
-          printf 'PROFILE POLICY ACTIVE\n%s %s %s\n' "$SHIMMY_PROFILE_NAME" "$shimmy_profile_redirect_policy" "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE"
+          shimmy_style_init
+          printf '%s%-12s %-12s %-10s%s\n' "$SHIMMY_STYLE_DIM" "PROFILE" "POLICY" "ACTIVE" "$SHIMMY_STYLE_RESET"
+          shimmy_active_fmt=$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE
+          if [ "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" = yes ] && [ -n "$SHIMMY_STYLE_GREEN" ]; then
+            shimmy_active_fmt="${SHIMMY_STYLE_GREEN}yes${SHIMMY_STYLE_RESET}      "
+            printf '%-12s %-12s %s\n' "$SHIMMY_PROFILE_NAME" "$shimmy_profile_redirect_policy" "$shimmy_active_fmt"
+          else
+            printf '%-12s %-12s %-10s\n' "$SHIMMY_PROFILE_NAME" "$shimmy_profile_redirect_policy" "$shimmy_active_fmt"
+          fi
           if [ -z "$shimmy_profile_redirect_entries" ]; then printf '%s\n' 'Redirects: none'; else printf 'Redirects:\n%s\n' "$shimmy_profile_redirect_entries"; fi
         fi
         ;;
