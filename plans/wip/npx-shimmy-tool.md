@@ -8,14 +8,17 @@ executor in an OCI container without requiring a host Node.js installation.
 
 Success means:
 
-- `shimmy install --shim npx` installs a normal profile-owned `npx` command;
+- `shimmy shim add npx` installs a normal profile-owned tracking `npx` shim,
+  while `shimmy shim add npx@24.18` installs the initial version explicitly as
+  a pinned default;
 - the command runs the official Node 24 LTS image on native `linux/amd64` and
   `linux/arm64` through Shimmy's existing platform and image helpers;
 - the current directory is available read-write at `/work`, stdin works in
   pipelines, and interactive terminals receive a TTY;
-- image override, pull refresh, source preview, catalog validation, installed
-  smoke testing, documentation, and canonical agent guidance follow existing
-  tool contracts; and
+- image override, version-owned pull refresh, source preview, catalog
+  validation/publication, profile and shim synchronization, installed smoke
+  testing, documentation, and canonical/profile-materialized agent guidance
+  follow existing tool contracts; and
 - `npx --yes node-llama-cpp@3.19.1 inspect gpu` is exercised as an observational
   package-execution diagnostic, with the detected compute backend recorded.
 
@@ -26,7 +29,8 @@ Explicit exclusions:
 - persistent npm cache, host `HOME`, host `~/.npm`, private-registry credential,
   or project-independent configuration mounts;
 - automatic `--yes` or `--no` injection into user commands;
-- Podman machine creation, replacement, provider changes, or activation changes;
+- Podman machine creation, replacement, provider changes, or changes to the
+  existing activation contract;
 - `/dev/dri` passthrough, patched Mesa/Vulkan packaging, or a promise of GPU
   acceleration from the official Node image;
 - model download, model storage, chat/inference workflows, or a dedicated
@@ -35,9 +39,11 @@ Explicit exclusions:
 
 ## Target layout and terminology
 
-`npx` is the sole **tool kind** and sole installed public command. `24.18` is
-the initial **concrete version label**, backed by Node `24.18.0` LTS. The
-container includes `node`, `npm`, and `npx`, but only `npx` is a Shimmy command.
+`npx` is the sole **tool** and sole installed public command. `24.18` is the
+initial **concrete version label**, backed by Node `24.18.0` LTS. A **shim** is
+the profile-local installed `npx` launcher plus its installed versions and
+tracking/pinned policy. The container includes `node`, `npm`, and `npx`, but
+only `npx` is a Shimmy command.
 
 ```text
 tools/npx/
@@ -55,9 +61,45 @@ tools/npx/
 ```
 
 Tool directories deliberately do not contain `CONTEXT.md` in the current
-repository architecture. `README.md` gains the catalog guide link. No shared
-dispatcher, catalog, installer, or test-runner allowlist is expected because
-those consumers discover complete tool metadata.
+repository architecture. `README.md` owns the catalog guide link. The default
+catalog discovers the complete tool metadata; profiles materialize only
+installed versions and resolve `<tool>|<version>` directly to the concrete
+runtime. No shared dispatcher or tool-name routing map is required.
+
+### Publication and profile update process
+
+Repository changes and installed-profile adoption are separate transactions:
+
+1. A new npx version is added as a complete
+   `tools/npx/versions/<major.minor>/` directory. Changing the catalog default
+   also updates `tools/npx/tool.conf` in the same reviewed commit. Existing
+   concrete-version metadata is never silently rewritten to represent a
+   different Node release, and prior version directories remain available so
+   profiles with pinned defaults or exact slots can validate during adoption.
+2. From a clean attached local `main` checkout at that commit, `shimmy catalog
+   publish` validates and publishes a new immutable retained generation of the
+   installation-owned `default` catalog. Publication changes registry
+   current/previous authority only; it does not rewrite any profile pin.
+3. `shimmy profile sync` is the active invoking profile's adoption operation.
+   It resolves exactly `refs/heads/main`, snapshots registry-current default
+   catalog, advances a tracking npx default to that generation's catalog
+   default, preserves a pinned npx default and exact versions, prepares every
+   selected image, validates regenerated control/shim assets and skill bundles,
+   and commits atomically. It does not add npx to a profile that does not
+   already own the shim.
+4. `shimmy shim sync [npx|npx@<version>]` never adopts a newer catalog
+   generation or control commit. It uses only the invoking profile's existing
+   pin: unqualified `npx` advances a tracking default within that pin and
+   prepares every installed npx version; an exact selector prepares only that
+   already installed version. Pinned defaults do not advance.
+5. To adopt a newer npx version while keeping explicit pinning, first run
+   `shimmy profile sync` to adopt a generation containing it, then
+   `shimmy shim add npx@<version>` to add it as an exact slot and `shimmy shim
+   set-version npx@<version>` to make it the default. The prior default becomes
+   exact and the shim policy remains pinned.
+6. `shimmy catalog rollback` swaps registry current/previous only. Existing
+   profiles remain unchanged until an explicit `profile sync`; no catalog or
+   shim command rewrites `image.conf` or adopts upstream-tag drift.
 
 ## Recorded design decisions
 
@@ -73,16 +115,18 @@ those consumers discover complete tool metadata.
    The full Bookworm image is preferred over Alpine or slim because a general
    package executor benefits from the standard buildpack dependencies and
    glibc compatibility; the larger pull size is accepted. Before committing,
-   `shimmy images verify` must confirm that the pinned digest is still
-   reachable and contains both required platforms. Upstream drift is reported,
-   not silently adopted.
+   `shimmy catalog verify --tool npx@24.18 --public-only` must confirm that the
+   pinned digest is still reachable and contains both required platforms.
+   Upstream drift is reported, not silently adopted.
 
 3. **Existing external-image lifecycle.** `tool.conf` declares default version
    `24.18`, an empty selector, and `--version` as the public smoke argument.
-   The concrete `smoke.conf` declares `npx_24_18` and `--version`.
-   `refresh.sh pull` runs the version smoke with
-   `SHIMMY_NPX_IMAGE_PULL=always`; `build` is a no-op. Do not add central case
-   lists.
+   The concrete `smoke.conf` declares only `smoke_arg=--version`; manifest v2
+   identifies the runtime directly as `npx|24.18` and stores no implementation
+   name. `refresh.sh pull` runs the version smoke with
+   `SHIMMY_NPX_IMAGE_PULL=always`; `build` is a no-op. Shim add/sync and profile
+   sync prepare the image before committing materialized state. Do not add
+   central case lists.
 
 4. **Thin POSIX runtime.** `run.sh` uses `#!/bin/sh`, `set -eu`,
    `lib/runtime/image.sh`, the version-owned `image.conf`, and
@@ -126,20 +170,30 @@ those consumers discover complete tool metadata.
    image. Do not mutate Shimmy's deterministic Podman machines or claim that
    this diagnostic validates Metal/Vulkan acceleration.
 
-10. **No new retained context.** Add canonical `tools/npx/SKILL.md` beside the
-    tool, matching current repository practice. Do not add `tools/npx/CONTEXT.md`,
-    `versions/24.18/CONTEXT.md`, an `agent/` subdirectory, or generated
-    `.agents/skills/` output; the repository context test explicitly prohibits
-    tool-local `CONTEXT.md` files and generated adapters have a separate
-    lifecycle.
+10. **Canonical skill plus profile materialization.** Add canonical
+    `tools/npx/SKILL.md` beside the tool, matching current repository practice.
+    Catalog publication fingerprints it; a profile with the npx shim
+    materializes it as `shimmy-tool-npx` in the profile's shims bundle, and
+    active-profile reconciliation owns the exact user-level direct link. Do not
+    add `tools/npx/CONTEXT.md`, `versions/24.18/CONTEXT.md`, an `agent/`
+    subdirectory, or generated repository `.agents/skills/` output.
+
+11. **Catalog publication and profile adoption are distinct.** A repository
+    update is unavailable to profiles until clean-main `catalog publish`
+    creates a retained generation. Publication does not mutate pins. Active-
+    profile `profile sync` adopts registry current plus exact main;
+    profile-local `shim sync` uses only the existing pin. Tracking and pinned
+    npx policies follow the update process above and must not be conflated with
+    mutable upstream-tag drift.
 
 ## Verified implementation inventory
 
 - `AGENTS.md`, `CONTEXT.md`, `CONTRIBUTING.md`, and
   `docs/prompt-shimmy-project.md` define the current tool, image, platform,
-  testing, documentation, and generated-skill boundaries.
+  testing, documentation, publication, profile-materialization, and canonical-
+  skill boundaries.
 - `commands/run-tool.sh` and `lib/catalog/catalog.sh` already discover a tool
-  from `tools/<kind>/tool.conf`; `shim_name` must equal its directory, one
+  from `tools/<tool>/tool.conf`; `shim_name` must equal its directory, one
   default concrete version is required, and no multi-command metadata exists.
 - `lib/runtime/image.sh` owns external image resolution, platform preflight,
   preview rendering, and Podman execution. The npx wrapper should consume it,
@@ -156,8 +210,9 @@ those consumers discover complete tool metadata.
   `tools/<tool>/tests/`; no central npx allowlist is required.
 - `README.md` contains the manually maintained tool-to-guide table and must add
   `npx`.
-- `plans/tool_grouping.md` mentions future `node`, but does not authorize or
-  define a current npx implementation and is not an implementation dependency.
+- The historical tool-grouping plan mentions future `node`, but does not
+  authorize or define a current npx implementation and is not an implementation
+  dependency.
 - The official Node image includes npm, and npm supplies the modern `npx`
   executable as an `npm exec` frontend. Node 24 is LTS as of planning, and the
   selected official image publishes both required Linux architectures.
@@ -166,8 +221,34 @@ those consumers discover complete tool metadata.
 - `node-llama-cpp` 3.19.1 provides Linux x64 and arm64 prebuilt artifacts and
   documents `inspect gpu`; its execution remains an integration diagnostic,
   not repository-owned smoke metadata.
-- The worktree was clean during planning. This inventory is a verified
-  baseline, not permission to ignore dependencies discovered during execution.
+- The worktree was clean during the original planning session. This inventory
+  is a verified baseline, not permission to ignore dependencies discovered
+  during execution.
+
+### Redesigned control-surface reconciliation
+
+- The installation owns one immutable retained-generation catalog named
+  `default`. `catalog publish` and `catalog rollback` change its registry
+  authority without rewriting profile pins.
+- Profile manifest schema 2 records either `shim=npx|tracking` or
+  `shim=npx|pinned`, plus one `shim_version=npx|<version>|default` record and
+  optional `shim_version=npx|<version>|exact` records; no `npx_24_18`
+  implementation identity or profile-local adapter layer exists.
+- `shim add`, `shim remove`, `shim set-version`, `shim sync`, and `shim test`
+  are the complete profile-local npx lifecycle. Mutation requires the invoking
+  profile to be active and commits image, manifest, wrapper, config, and shims-
+  bundle changes together.
+- `profile sync` is active-only and atomically adopts exact
+  `refs/heads/main` plus registry-current default catalog. It advances tracking
+  defaults, preserves pinned defaults/exact slots, prepares images, and
+  reconciles validated AI-skill links.
+- `catalog verify --tool npx@24.18 --public-only` owns live image-index
+  verification. `profile status --format manifest`, `shim list --format
+  manifest`, and `shim test npx@24.18` own installed-state inspection and
+  smoke acceptance.
+- Baseline bootstrap/profile creation installs jq, rg, and Skopeo only. npx
+  remains an opt-in shim and its canonical `SKILL.md` is materialized only
+  while npx is installed in that profile.
 
 ## Unresolved
 
@@ -177,8 +258,10 @@ None.
 
 - [~] Chunk 1 — Add, document, and verify the npx tool. Implementation and
       available native macOS acceptance checks passed on 2026-08-16. Native
-      Linux `amd64` and a live installed-profile smoke remain deferred as
-      detailed below; human review remains pending.
+      Linux `amd64` remains proposed for deferral. Current catalog/profile/shim
+      sync coverage and the manifest-v2 installed add/test/remove flow are
+      required, non-deferred acceptance items; the installed macOS smoke also
+      remains proposed for deferral. Human review remains pending.
 
 ## Execution protocol
 
@@ -200,7 +283,7 @@ across workstations and sessions.
 
 ### Goal
 
-Leave the repository with a complete, independently installable npx tool whose
+Leave the repository with a complete, independently addable npx tool whose
 metadata, runtime, lifecycle, documentation, tests, and native acceptance
 evidence conform to existing Shimmy contracts.
 
@@ -217,7 +300,8 @@ Primary change surface:
 - `tools/npx/versions/24.18/smoke.conf`
 - `tools/npx/versions/24.18/refresh.sh`
 - `README.md`
-- `plans/npx-shimmy-tool.md` for evidence-backed progress and lessons updates
+- `plans/wip/npx-shimmy-tool.md` for evidence-backed progress and lessons
+  updates
 
 Newly discovered required files may be added only when necessary to satisfy an
 existing generic contract. A need to change shared catalog, dispatcher,
@@ -248,16 +332,24 @@ review instead of expanding this chunk silently.
    compatibility caveat, and the observational `node-llama-cpp` diagnostic.
 7. Write canonical `SKILL.md` with installed/source workflows, current
    behavior, safety rules, validation commands, Podman escalation guidance,
-   and the explicit GPU boundary. Do not generate adapters.
+   and the explicit GPU boundary. Ensure catalog publication fingerprints it
+   and shim lifecycle can materialize it in the profile shims bundle. Do not
+   generate repository adapters.
 8. Add `npx` in alphabetical order to the `README.md` tool guide table. Do not
-   change bootstrap defaults; npx remains opt-in through
-   `shimmy install --shim npx`.
+   change bootstrap/profile-create defaults; npx remains opt-in through
+   `shimmy shim add npx` or exact `shimmy shim add npx@24.18`.
 9. If the recorded Node digest has drifted or is unreachable, stop and report
    the newly resolved top-level digest and platform evidence for review rather
-   than silently changing the recorded decision.
+   than silently changing the recorded decision. Verify through `shimmy catalog
+   verify --tool npx@24.18 --public-only` only after a retained catalog
+   generation containing npx is available.
 10. Update this plan only with verification states, durable lessons, and exact
     partial-item notes. Human acceptance remains pending until explicitly
     granted.
+11. Treat repository publication and profile adoption as explicit lifecycle
+    steps, not side effects of adding the source tree. Record the catalog
+    generation, profile pin, npx policy/default role, and exact command used for
+    installed acceptance. Do not claim `shim sync` adopted registry current.
 
 ### Verification checklist
 
@@ -270,17 +362,30 @@ review instead of expanding this chunk silently.
       `--entrypoint npx`, and stdin/TTY contract.
 - [x] Run the focused `tools/npx/tests/npx.sh` coverage through the repository
       test runner and confirm override/pull/isolation assertions pass.
-- [x] Run `./tests/test.sh` and confirm catalog discovery, metadata/image
-      validation, all platform previews, installation, lifecycle, and existing
-      regressions pass. All 145 tests passed after updating the discovered
-      canonical tool-skill count from 19 to 20.
+- [x] The implementation-time `./tests/test.sh` run confirmed catalog
+      discovery, metadata/image validation, all platform previews, installation,
+      lifecycle, and existing regressions. All then-current 145 tests passed
+      after updating the canonical tool-skill count from 19 to 20. This is
+      historical pre-redesign evidence, not proof of the current sync surface.
 - [x] Run `git diff --check` and inspect the complete diff, including mode bits
       and the absence of unintended shared-code or generated-adapter changes.
-- [x] Run `./commands/images.sh verify --shim npx --public-only` and confirm the
-      pinned reference is a reachable OCI index or Docker manifest list with
-      `linux/amd64` and `linux/arm64`. The verifier reported the pinned digest,
-      OCI index media type, verified platforms, public access, and
-      `upstream=current`.
+- [x] The historical
+      `./commands/images.sh verify --shim npx --public-only` run confirmed the
+      pinned reference is a reachable OCI index with `linux/amd64` and
+      `linux/arm64`, public access, and `upstream=current`. The redesigned
+      equivalent is `shimmy catalog verify --tool npx@24.18 --public-only` from
+      an installed profile whose pinned retained generation contains npx; do
+      not recreate the historical command or selectors.
+- [~] Run current focused catalog/profile/shim lifecycle coverage and confirm
+      the redesigned update invariants: catalog publication does not mutate
+      profile pins; active `profile sync` adopts registry current and advances
+      tracking npx while preserving pinned npx; `shim sync npx` uses only the
+      existing pin; exact sync prepares only an installed exact version; and
+      each mutation prepares the image and validates the shims bundle before
+      commit. Static inspection confirms the implementation routes and generic
+      tests exist, but this post-redesign acceptance run has not been recorded
+      in this plan. It is required before final acceptance and is not proposed
+      for deferral.
 - [~] On native Linux `amd64`, run the version-owned `npx --version` smoke and
       record host platform, concrete version, command, exit status, and output.
       No native Linux `amd64` host was available in this session. Preview and
@@ -294,10 +399,14 @@ review instead of expanding this chunk silently.
       Darwin `arm64` and printed `11.16.0`; it ran Node 24.18.0 for
       `linux/arm64` through the existing reachable engine without machine or
       activation changes. The native runtime is accepted, but the
-      installed-profile portion remains deferred because the selected default
-      profile does not own the currently active upstream connection. Run the
-      same smoke after normal profile activation; explicit deferral is
-      requested.
+      installed-profile portion was deferred under the former default/upstream
+      model and that reason is no longer current acceptance evidence. Under the
+      redesigned surface, use an active profile pinned to a generation
+      containing npx, add `npx@24.18` if needed, and run `shimmy shim test
+      npx@24.18` plus the installed `npx --version`. Use the exact supported
+      `profile activate <name> --dry-run` and separately approved activation
+      workflow when a profile switch is required. Explicit deferral remains
+      requested until that installed smoke is recorded.
 - [x] On at least one accepted native host, run
       `npx --yes node-llama-cpp@3.19.1 inspect gpu`; confirm package fetch and
       CLI execution complete, record the reported compute backend, and treat
@@ -305,17 +414,17 @@ review instead of expanding this chunk silently.
       npx failure. `./commands/run-tool.sh npx --yes node-llama-cpp@3.19.1
       inspect gpu` exited 0 on Darwin `arm64`; it reported Debian 12 `arm64`,
       Node 24.18.0, node-llama-cpp 3.19.1, CPU information, and no GPU backend.
-- [~] From a disposable install root/profile, install `npx`, inspect
-      `shimmy status --format manifest`, run the installed `npx --version`
-      smoke, and verify uninstall removes only the profile-owned npx assets.
-      A disposable upstream profile installed npx, its manifest recorded
-      `npx|24.18|npx_24_18`, its installed wrapper rendered the expected native
-      preview, and profile uninstall removed the disposable profile. A live
-      installed-wrapper smoke was deferred because the disposable profile was
-      not the active Darwin registry projection and changing activation is an
-      explicit plan exclusion. The same concrete source runtime passed the
-      native smoke; run the installed smoke in a normally activated accepted
-      profile before final acceptance. Explicit deferral is requested.
+- [~] From an active disposable profile pinned to a retained generation that
+      contains npx, run `shimmy shim add npx@24.18`, inspect `shimmy profile
+      status --format manifest` and `shimmy shim list --format manifest`, run
+      `shimmy shim test npx@24.18` and installed `npx --version`, confirm the
+      `shimmy-tool-npx` bundle/link materialization, then run `shimmy shim
+      remove npx` and prove only npx-owned wrapper/version/config/skill assets
+      are removed. The historical disposable upstream-profile run proved the
+      former install/preview/uninstall route and recorded the obsolete
+      `npx|24.18|npx_24_18` implementation identity; it is not manifest-v2
+      evidence. The redesigned end-to-end installed flow remains required and
+      is not proposed for deferral.
 - [x] Reconcile every checklist item in this plan. Any unavailable second-host
       native run must be marked `[~]` with what passed, what remains, impact,
       proposed next action, and whether explicit deferral is requested.
@@ -324,16 +433,19 @@ review instead of expanding this chunk silently.
 
 The reviewer confirms that the npx-only public surface, official Node image,
 workspace/I/O behavior, isolation choices, security documentation, metadata
-and lifecycle tests, native smoke evidence, and observational GPU result match
-the approved scope. The reviewer must explicitly accept or defer every `[~]`
-item. No future `node`/`npm` or multi-command work begins from this acceptance.
+and lifecycle tests, catalog-publication/profile-adoption/shim-sync boundaries,
+manifest-v2 installed flow, profile-materialized skill, native smoke evidence,
+and observational GPU result match the approved scope. The reviewer must
+explicitly accept or defer every `[~]` item; the two redesigned lifecycle items
+marked non-deferred block acceptance until completed. No future `node`/`npm` or
+multi-command work begins from this acceptance.
 
 ## Risk register
 
 | Risk | Impact | Handling |
 |---|---|---|
 | Arbitrary npm package code receives network and read-write workspace access. | A malicious or mistyped package can exfiltrate data visible in the workspace or modify files. | Preserve npx's prompt, do not auto-consent, mount no home/credentials, document package review and version pinning, and run only in an appropriate directory. |
-| The full Bookworm image is large and its pinned OS/npm packages age. | First pull is slower and the immutable digest does not receive security fixes automatically. | Accept the compatibility tradeoff, verify the index, expose explicit pull/rotation lifecycle, and review digest rotations as focused changes. |
+| The full Bookworm image is large and its pinned OS/npm packages age. | First pull is slower and the immutable digest does not receive security fixes automatically. | Accept the compatibility tradeoff, verify through `catalog verify`, review digest/version rotations in source, publish a new immutable catalog generation, and require explicit profile adoption. `shim sync` alone never adopts upstream drift or registry current. |
 | The npm cache is ephemeral. | Repeated invocations can redownload packages and require network access. | Document this intentional isolation default; plan persistent cache and credentials separately if experience proves the cost unacceptable. |
 | Mounted macOS `node_modules` contains host-native artifacts. | npx may select an incompatible local executable or native addon inside Linux. | Document clean-directory/container-compatible dependency workarounds; do not conceal project dependencies or alter resolution semantics. |
 | Root container processes can create files with inconvenient ownership on Linux. | Generated project files may need ownership correction depending on rootless Podman mapping. | Verify native behavior and document observed limitations; a cross-tool user-mapping policy is outside this tool addition. |
@@ -341,19 +453,24 @@ item. No future `node`/`npm` or multi-command work begins from this acceptance.
 | `node-llama-cpp inspect gpu` is mistaken for proof of Apple GPU support. | Users may expect Metal/Vulkan acceleration that the generic image and machine do not provide. | Label it observational, pin the package version, record output, and state the LibKrun, device, and patched-Mesa prerequisites explicitly. |
 | A shared-code change appears necessary during implementation. | Scope can expand into the deferred multi-command architecture. | Stop at the divergence and return to review; do not modify shared catalog or dispatch behavior in this chunk. |
 
-Rollback is additive: revert the new `tools/npx/` tree and README entry, then
-publish/adopt the prior catalog according to normal profile lifecycle. Users
-who installed npx can remove it with the existing profile uninstall flow. The
-pinned image remains recoverable in local Podman storage and git history; no
-host cache or credential state is owned by this tool.
+Rollback respects separate authorities. Revert the `tools/npx/` tree and README
+entry in source and publish the reviewed replacement generation, or use
+`catalog rollback` only when its retained previous generation is the intended
+registry authority. Neither operation rewrites existing profile pins. Each
+affected active profile explicitly runs `profile sync` to adopt registry
+current, while a profile that should only remove its installed command runs
+`shimmy shim remove npx`. The pinned image remains recoverable in local Podman
+storage and git history; no host cache or credential state is owned by this
+tool.
 
 ## Lessons learned
 
 ### Initial
 
-- Shimmy's schema currently equates one tool directory, one `shim_name`, and
-  one installed public command; npx-only fits without shared changes, whereas
-  a combined Node/npm/npx surface requires a separate architecture decision.
+- Shimmy defines one stable tool directory and one `shim_name`; a profile-local
+  shim materializes that tool's installed versions behind one public command.
+  npx-only fits without shared changes, whereas a combined Node/npm/npx surface
+  requires a separate architecture decision.
 - The official Node image already supplies npm and npx, so a local Containerfile
   would add maintenance without solving a required dependency for this scope.
 - A practical npx container has two distinct boundaries: arbitrary downloaded
@@ -382,20 +499,45 @@ host cache or credential state is owned by this tool.
   is functional and GPU availability remains outside this generic wrapper's
   acceptance boundary.
 
+### Control-surface reconciliation 2026-08-22
+
+- Catalog publication, profile adoption, and shim refresh are three different
+  operations. Only `profile sync` adopts registry-current catalog and exact
+  main; `shim sync` is intentionally bounded by the existing profile pin.
+- Tracking policy controls whether profile/shim synchronization may advance the
+  default slot to the pinned generation's catalog default. Exact version
+  selection does not itself create a second update authority; explicit pinned
+  promotion uses `shim add npx@<version>` followed by `shim set-version`.
+- The old implementation-name record and profile uninstall workflow are not
+  valid acceptance evidence after manifest v2. Current installed proof must
+  cover shim add/list/test/remove plus profile status and the npx shims bundle.
+- Canonical `tools/npx/SKILL.md` remains repository-owned, while the catalog
+  fingerprints it and active profiles materialize/link it. Repository
+  `.agents/skills/` adapters are not part of this lifecycle.
+
 ## Session bootstrap
 
 For a fresh implementation session:
 
 1. Read `AGENTS.md`, `CONTEXT.md`, `CONTRIBUTING.md`,
-   `docs/prompt-shimmy-project.md`, this entire plan, `tools/go/`, the TTY logic
-   in `tools/textual/versions/8.2/run.sh`, the external refresh pattern in
-   `tools/jq/versions/1.8/refresh.sh`, `tests/lib/catalog.sh`, and the README
-   guide table.
+   `docs/prompt-shimmy-project.md`, this entire plan,
+   `plans/wip/redesign-control-surface.md`, `commands/{catalog,profile,shim}.sh`,
+   `lib/update/profile.sh`, `lib/shim/shim.sh`, `tools/npx/`,
+   `tests/lib/catalog.sh`, current catalog/profile/shim command tests, and the
+   README guide table.
 2. Recheck worktree status and current upstream Node 24.18 image metadata.
-3. Implement only **Chunk 1 — Add, document, and verify the npx tool**.
+3. Resume only **Chunk 1 — Add, document, and verify the npx tool** at its
+   remaining verification and human review boundary; do not redo completed
+   implementation without evidence of a regression.
 4. Preserve these non-negotiable boundaries: npx is the only public command;
-   no shared catalog/dispatcher redesign; no host home, cache, or credentials;
-   no machine lifecycle or GPU-device/image work; no generated skill adapters.
-5. Run and record every verification item, mark unavailable native-host checks
-   partial with complete notes, update lessons learned, summarize the result,
+   one immutable default catalog; profile manifest v2; catalog publication,
+   profile adoption, and shim refresh remain distinct; no host home, cache, or
+   credentials; no machine lifecycle or GPU-device/image work; no generated
+   repository skill adapters.
+5. Run the current non-deferred catalog/profile/shim update coverage and
+   manifest-v2 installed npx add/list/test/remove flow. Record the catalog
+   generation, profile pin, npx tracking/pinned mode, default/exact role, image
+   preparation result, bundle/link result, commands, and exit status.
+6. Mark unavailable native-host checks partial with complete notes, update
+   lessons learned, summarize the result, surface every `[~]` item distinctly,
    and stop at the Chunk 1 human review gate.

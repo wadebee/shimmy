@@ -1,4 +1,9 @@
 # Redesign the Shimmy control surface
+**Status:** complete
+
+All eleven chunks were implemented, automatically verified, and accepted on
+2026-08-21. Native disposable-home/machine acceptance was explicitly deferred;
+its residual release risk was accepted as part of final plan closure.
 
 ## Objective
 
@@ -561,11 +566,12 @@ None.
   accepted by the user's 2026-08-21 request to implement Chunk 9.
 - [x] Chunk 9 — Complete private target commands and end-to-end tests were
   accepted by the user's 2026-08-21 request to implement Chunk 10.
-- [~] Chunk 10 — Atomic public cutover and primary documentation were accepted
-  by the user's 2026-08-21 request to implement Chunk 11; native disposable-
-  home/machine acceptance remains pending and was not reviewer-deferred.
-- [~] Chunk 11 — Repository-wide cleanup is implemented and automatically
-  verified; native acceptance and final human review remain pending.
+- [x] Chunk 10 — Atomic public cutover and primary documentation were completed
+  and accepted on 2026-08-21; native disposable-home/machine acceptance was
+  explicitly reviewer-deferred as an accepted residual release risk.
+- [x] Chunk 11 — Repository-wide cleanup was implemented, automatically
+  verified, and finally accepted on 2026-08-21 with the native acceptance
+  deferral recorded above.
 
 ## Execution protocol
 
@@ -1462,9 +1468,9 @@ primary guidance in one release boundary.
 - [x] Primary guidance records main authority, catalog exclusion, overwrite
   warning, and approval workflow.
 - [x] All target groups and complete default suite pass.
-- [ ] Native Podman acceptance uses disposable config/home and pre-existing
-  machines; capture before/after engine, workload, registry, active, profile,
-  catalog, bundle, and link state. Mark `[~]` only for reviewer-approved deferral.
+- [x] Native Podman acceptance using disposable config/home and pre-existing
+  machines was explicitly reviewer-deferred on 2026-08-21; the missing native
+  before/after evidence remains a recorded and accepted residual release risk.
 
 ### Chunk 10 evidence
 
@@ -1508,8 +1514,8 @@ Use roughly 22 minutes as the current clean parallel-suite planning baseline,
 not the former roughly nine-minute value. Focused lifecycle/catalog work can
 also take about 18 minutes. Preserve the default three-worker schedule; group
 times overlap and therefore must not be summed to estimate total wall time.
-Native disposable-home/machine acceptance remains unexecuted and has not been
-marked as reviewer-deferred.
+Native disposable-home/machine acceptance remains unexecuted and was explicitly
+reviewer-deferred on 2026-08-21 as an accepted residual release risk.
 
 ### Human review gate
 
@@ -1591,9 +1597,10 @@ plans.
 - Prerequisites available for automatic acceptance were `/bin/sh`, Git, and a
   reachable live Podman engine for non-mutating tool smokes. Native disposable-
   `HOME`/`XDG_CONFIG_HOME` acceptance against pre-existing Linux `amd64` and
-  Apple Silicon macOS `arm64` machines remains unexecuted and was not
-  reviewer-deferred. This is the remaining release risk; the default suite's
-  fake lifecycle transitions and live tool smokes do not replace that evidence.
+  Apple Silicon macOS `arm64` machines remains unexecuted and was explicitly
+  reviewer-deferred on 2026-08-21. This accepted residual release risk remains
+  documented because the default suite's fake lifecycle transitions and live
+  tool smokes do not replace that evidence.
 - The worktree was clean when Chunk 11 began. During verification the user
   committed the implementation as `266335b`; immediately before this evidence
   update the worktree was clean, so this retained-plan update is the only
@@ -1943,9 +1950,10 @@ change; the implemented activation, redirect, and create paths maintain that
 invariant. Chunk 8 was accepted by the user's 2026-08-21 request to implement
 Chunk 9. Chunk 9 was accepted by the user's 2026-08-21 request to implement
 Chunk 10. Chunk 10 was accepted by the user's 2026-08-21 request to implement
-Chunk 11. Chunk 11 cleanup is implemented and automatically verified; native
-disposable-home/machine acceptance remains unexecuted and not reviewer-deferred,
-and final human review is pending. The implemented
+Chunk 11. Chunk 11 cleanup was implemented, automatically verified, and finally
+accepted on 2026-08-21. Native disposable-home/machine acceptance remains
+unexecuted and was explicitly reviewer-deferred as an accepted residual release
+risk. The implemented
 version-2 manifest uses `shim=<tool>|<tracking|pinned>`, exactly one authoritative
 `shim_version=<tool>|<version>|default` record, and zero or more non-default
 pinned `exact` records per shim. Resolve concrete runtimes directly from the

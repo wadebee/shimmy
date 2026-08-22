@@ -21,8 +21,8 @@ The feature is complete when:
   Containerfiles;
 - local build cache identity changes when image configuration or effective
   build arguments change;
-- an opt-in, non-mutating command can verify configured remote indexes and
-  report upstream-tag drift without pulling the target images;
+- `shimmy catalog verify` can opt in to remote-index verification and
+  upstream-tag drift reporting without pulling target image layers;
 - generic tests reject incomplete metadata, tag-only defaults,
   architecture-specific child-manifest digests, and platform declarations that
   omit a required platform;
@@ -40,7 +40,8 @@ The feature does not:
   emulation for non-native execution;
 - publish locally built images or assemble them into remote manifest lists;
 - inspect configured target registries during ordinary tool execution,
-  installation, status, or the default repository test suite;
+  bootstrap, profile or shim mutation, status, smoke tests, or the default
+  repository test suite;
 - install or provision Podman, Skopeo, emulation, registry credentials, or
   registry authentication;
 - guarantee that a user-supplied `SHIMMY_*_IMAGE` or `SHIMMY_*_BASE_IMAGE`
@@ -112,7 +113,7 @@ optional `variant` fields used by this contract:
 
 ### Version-owned image configuration
 
-Every `tools/<kind>/versions/<major.minor>/` directory owns a required
+Every `tools/<tool>/versions/<major.minor>/` directory owns a required
 `image.conf`. It is metadata, not executable shell, and is read with the
 repository's exact-key metadata readers.
 
@@ -134,7 +135,7 @@ Local-build schema:
 shimmy_image_config_version=1
 image_source=local-build
 image_context=container
-image_local_repo=localhost/shimmy-<kind>-<version_with_underscores>
+image_local_repo=localhost/shimmy-<tool>-<version_with_underscores>
 image_base_count=1
 image_base_1_build_arg=SHIMMY_<TOOL_PREFIX>_BASE_IMAGE
 image_base_1_upstream_ref=registry.example/base/image:<release-tag>
@@ -195,37 +196,41 @@ inputs. It does not own tool names, version names, or publisher references.
   immutable digest; it does not advance the upstream tag. No shared
   tool/version switch is added.
 
-The old `status.conf` image-only format is removed in the same atomic schema
-transition. `commands/status.sh`, `commands/agent-preflight.sh`, catalog tests,
-and any other consumer read `image.conf`; no forwarding parser or compatibility
-alias remains.
+The old `status.conf` image-only format was removed in the same atomic schema
+transition. The redesigned control surface preserves `image.conf` as catalog-
+version-owned metadata: catalog publication validates it, profile and shim
+lifecycle code materializes and prepares selected versions from it, and
+`profile status` reports the resulting profile-local state. No forwarding
+parser, compatibility alias, top-level `status`, or top-level image lifecycle
+command remains.
 
 ### Live verification surface
 
-Add a distinct image lifecycle command:
+Image verification belongs to the installation-owned default catalog:
 
 ```text
-shimmy images verify [--all | --shim <kind[@version]> ...]
-                     [--public-only]
-                     [--require-current-upstream]
-                     [--format human|manifest]
-
-./commands/images.sh verify --all [the same verification options]
+shimmy catalog verify [--tool <tool[@version]> ...]
+                      [--public-only]
+                      [--require-current-upstream]
+                      [--format human|manifest]
 ```
 
-Installed behavior defaults to the concrete versions recorded in the invoking
-profile manifest. `--all` selects every catalog version. Repeated `--shim`
-selects kinds or concrete versions with the same kind/version rules used by
-install, update, and test. Source-checkout use requires `--all` or at least one
-`--shim`, because there is no source profile identity.
+The command always verifies against the active profile's pinned immutable
+default-catalog generation. With no selector it checks every concrete version
+in that generation. Repeated `--tool` narrows the selection to a tool or exact
+tool/version using the catalog's normal selector grammar. There is no `--all`,
+`--shim`, profile/location selector, host-tool fallback, or source-checkout
+verification mode.
 
 The command:
 
 1. validates every selected `image.conf` offline before network access;
-2. invokes the catalog-default Skopeo concrete runtime to fetch each raw remote
-   manifest without pulling target image layers;
-3. parses the raw JSON through the catalog-default jq concrete runtime, so no
-   host Skopeo or jq installation is introduced;
+2. resolves the exact default Skopeo and jq runtimes materialized in the active
+   profile, failing with exact-version `shim add` remediation if either is
+   absent;
+3. invokes that Skopeo runtime to fetch each raw remote manifest without
+   pulling target image layers and parses the JSON through that jq runtime, so
+   no host Skopeo or jq fallback is introduced;
 4. requires an accepted OCI-index or Docker-manifest-list media type and both
    required platform descriptors for every pinned default;
 5. separately resolves each tag-form upstream reference and reports whether it
@@ -243,9 +248,10 @@ The command:
    unexpected media type, a child-manifest digest, a missing required
    platform, failed authentication, or strict upstream drift.
 
-Manifest-format output emits one stable line per checked reference with the
-tool kind, version, role (`runtime` or `base-N`), configured digest, media type,
-required-platform result, registry-access result, and upstream-drift result.
+Manifest-format output emits one stable `image_verify=...` line per checked
+reference with the tool, version, role (`runtime` or `base-N`), configured
+digest, media type, required-platform result, registry-access result, and
+upstream-drift result.
 It must not print credential content or raw registry responses.
 
 Skopeo is appropriate for this opt-in verification because it can inspect a
@@ -309,43 +315,72 @@ emulation: <https://docs.podman.io/en/stable/markdown/podman-build.1.html>.
     tag moves before implementation, keep the recorded immutable digest unless
     it is unavailable or fails a required smoke. A proposed upgrade to the new
     tag is a separate reviewed change, not a silent plan substitution.
-15. **`shimmy update --pull` stops being an implicit tag upgrade for
-    repository defaults.** It ensures the configured immutable image is
-    present. Upstream drift is discovered by `images verify`; adopting the new
-    digest is a reviewed version-owned metadata change. A user-supplied runtime
-    image override retains its existing pull behavior.
+15. **Shim lifecycle image preparation is not an implicit tag upgrade.**
+    Bootstrap, `profile create`, `profile sync`, `shim add`, and `shim sync`
+    prepare the configured immutable image through the version-owned refresh
+    hook. A direct-image pull re-fetches the pinned digest; it does not adopt a
+    moved upstream tag. Upstream drift is discovered by `catalog verify`, and
+    adopting a new digest is a reviewed catalog-version metadata change. A
+    user-supplied runtime image override retains its existing pull behavior.
 
 ## Verified implementation inventory
 
 This is the verified planning baseline from 2026-08-09. It is not permission
 to ignore new dependencies discovered during implementation.
 
-### Current framework
+### Historical pre-redesign framework
 
-- `lib/runtime/podman.sh` currently inspects only `uname -s`: it maps every
-  Linux host to `linux/amd64`, every Darwin host to `linux/arm64`, and unknown
-  hosts to `linux/amd64`. Every current runtime passes that result with
-  `--platform`, so Linux/arm64 and Darwin/amd64 currently select the wrong
-  architecture and unsupported hosts silently receive an unsafe default.
-- `lib/runtime/image.sh` builds and caches local images per platform, but its
-  current hash covers only files below `container/`; effective build arguments
-  outside that context do not affect cache identity.
-- `status.conf` is currently the only common image metadata. It contains an
-  external tag or `local-build:container` but cannot express an immutable
+The following bullets describe the framework inspected when this feature was
+implemented on 2026-08-09. They are retained as execution provenance, not as
+instructions to recreate the former control surface.
+
+- `lib/runtime/podman.sh` inspected only `uname -s`: it mapped every Linux host
+  to `linux/amd64`, every Darwin host to `linux/arm64`, and unknown hosts to
+  `linux/amd64`. Every runtime passed that result with `--platform`, so
+  Linux/arm64 and Darwin/amd64 selected the wrong architecture and unsupported
+  hosts silently received an unsafe default.
+- `lib/runtime/image.sh` built and cached local images per platform, but its
+  hash covered only files below `container/`; effective build arguments
+  outside that context did not affect cache identity.
+- `status.conf` was the only common image metadata. It contained an
+  external tag or `local-build:container` but could not express an immutable
   default digest, base images, registry access, or supported platforms.
-- `commands/status.sh` and `commands/agent-preflight.sh` consume
-  `status.conf`; `tests/lib/catalog.sh` requires it.
-- Installation copies the complete `tools/` tree into each flat profile, so a
-  sibling `image.conf` and the catalog-default Skopeo/jq concrete runtimes are
-  available to installed management commands without changing the profile
-  manifest schema.
-- Refresh remains correctly delegated to each concrete version's
-  `refresh.sh`: eight direct-image versions implement `pull`; twelve local-
-  build versions implement `build`.
-- The default GitHub Actions workflow is Linux-only and removes host jq to
-  exercise Shimmy's jq. It does not provide a macOS Podman runner and must not
-  provision one as part of this feature; deterministic injected OS/architecture
-  tests cover the Darwin resolver branches in the default suite.
+- `commands/status.sh` and `commands/agent-preflight.sh` consumed
+  `status.conf`; `tests/lib/catalog.sh` required it.
+- Installation then copied the complete `tools/` tree into each flat profile,
+  so the initial verifier could reach `image.conf` and catalog-default
+  Skopeo/jq runtimes without changing the former profile manifest schema.
+- Refresh was delegated to each concrete version's `refresh.sh`: eight direct-
+  image versions implemented `pull`; twelve local-build versions implemented
+  `build`.
+- The baseline GitHub Actions workflow was Linux-only and removed host jq to
+  exercise Shimmy's jq. It did not provide a macOS Podman runner and this
+  feature did not provision one; deterministic injected OS/architecture tests
+  covered the Darwin resolver branches in the default suite.
+
+### Redesigned control-surface reconciliation
+
+- The installation owns one immutable retained-generation catalog named
+  `default`; every catalog generation contains the complete tool/version
+  definitions, including each version-owned `image.conf`.
+- A profile manifest uses schema version 2, pins exactly one default-catalog
+  generation, and materializes only installed shim versions. The manifest's
+  `<tool>|<version>` pair resolves directly to
+  `tools/<tool>/versions/<version>/run.sh`.
+- Bootstrap and `profile create` install catalog-default jq, rg, and Skopeo.
+  `catalog verify` resolves jq and Skopeo only from their exact default-version
+  materializations in the active profile; missing dependencies produce exact
+  `shimmy shim add <tool>@<version>` remediation.
+- `catalog verify` absorbed the former `images verify` behavior. No selector
+  means the complete active-profile pinned generation; repeated `--tool`
+  narrows it. The old `images` group, `--all`, `--shim`, and direct source-
+  checkout verifier are not part of the redesigned public surface.
+- Image preparation is owned by bootstrap, profile create/sync, and shim
+  add/sync before commit. Remote index and drift inspection remains exclusive
+  to explicit `catalog verify`; `shim test` remains a non-mutating smoke.
+- `profile status`, not a top-level status command, reports the invoking
+  profile's catalog and shim state. Catalog status remains local-only and does
+  not perform remote image verification.
 
 ### Audited direct images
 
@@ -428,8 +463,9 @@ Active chunk: Chunk 3 at final human review gate with one accepted deferral.
 - [x] Chunk 1 — Add native host-architecture selection, introduce the image
   configuration contract, and atomically migrate every current concrete
   version and consumer. Implementation and verification are complete.
-- [x] Chunk 2 — Add opt-in live index verification with explicit
-  authentication and deterministic parser coverage. The public live run
+- [x] Chunk 2 — Add opt-in live index verification, subsequently absorbed by
+  `catalog verify`, with explicit authentication and deterministic parser
+  coverage. The public live run
   verified every public pinned index, skipped all three authenticated OC
   entries, and reported one non-strict upstream-tag drift for Netcat. Human
   review accepted the pinned Netcat snapshot; its upstream digest rotation is
@@ -474,7 +510,7 @@ credentials, arguments, or override names.
 
 ### Files
 
-Primary change surface:
+Historical implementation surface at the time this completed chunk ran:
 
 - `lib/runtime/podman.sh`, `lib/runtime/image.sh`, and their nearest contexts;
 - `lib/catalog/catalog.sh` and `lib/catalog/CONTEXT.md`;
@@ -493,6 +529,12 @@ Primary change surface:
   `docs/testing.md`, and `docs/prompt-shimmy-project.md`; and
 - tool guides and canonical skills whose documented default changes from a tag
   or Containerfile default to image configuration plus a pinned digest.
+
+The redesign later replaced the named top-level status/update test surfaces
+and profile manifest format. Those historical paths explain the recorded 2026-
+08-09 evidence; they are not targets to recreate. The current consumers are
+catalog publication/verification, profile status and sync, and shim
+materialization/add/sync/test under manifest schema 2.
 
 ### Implementation requirements
 
@@ -528,13 +570,15 @@ Primary change surface:
 8. Ensure stale cleanup derives the same current image reference as ensure/build
    for identical configuration and effective arguments. A changed digest or
    override must not delete the newly selected image as stale.
-9. Delete every `status.conf` and update every consumer in the same chunk.
-   `shimmy status` retains its existing human semantics: direct versions show
-   their pinned default reference and local versions show the resolved local
-   build-context path. Do not change the installed manifest format.
-10. Replace `commands/agent-preflight.sh`'s local-build detection with
-    `image_source=local-build` and preserve its preview-only approval behavior
-    for local builds.
+9. Delete every `status.conf` and update every then-current consumer in the
+   same chunk. Preserve that completed migration through the control-surface
+   redesign: `profile status` reads materialized profile state derived from
+   `image.conf`, and catalog publication/verification plus shim lifecycle read
+   catalog-version metadata directly. Do not add a compatibility parser.
+10. Preserve the completed `image_source=local-build` preflight semantics when
+    the redesign moves image preparation into bootstrap, profile create/sync,
+    and shim add/sync. Preparation happens before commit and retains preview-
+    only approval behavior for local builds.
 11. Replace the OC-only default-digest test with generic catalog assertions for
     every version. Keep focused OC checks only for OC-specific version mapping,
     authentication documentation, or behavior not covered generically.
@@ -547,9 +591,10 @@ Primary change surface:
     order/value changes, and platform changes alter the cache reference while
     identical inputs remain stable.
 14. Update nearby contexts and user/contributor documentation in the same
-    change. Do not regenerate `.agents/` or plugin skills in this chunk; the
-    canonical cross-tool creation guidance is finalized and exported in Chunk
-    3 after the runtime contract has passed review.
+    change. The canonical cross-tool creation guidance is finalized in Chunk
+    3 after the runtime contract has passed review. The redesign later makes
+    `plugins/shimmy/skills/` and `tools/<tool>/SKILL.md` the only canonical
+    sources and removes the repository `.agents/skills/` adapter tree.
 
 ### Verification checklist
 
@@ -571,16 +616,18 @@ Primary change surface:
 - [x] Local default previews remain platform-separated; base/source/version
   overrides change cache identity deterministically without requiring
   `IMAGE_BUILD=always`.
-- [x] `shimmy status` and agent-preflight behavior pass for source and
-  disposable installed profiles with no installed-manifest schema change.
+- [x] The original status and agent-preflight consumers passed with the former
+  manifest unchanged; the redesign subsequently preserved the image semantics
+  in `profile status`, catalog validation, and manifest-v2 shim/profile image
+  preparation.
 - [x] Metadata failure tests reject every malformed case before mutation or
   registry access.
 - [x] `gh` and `task` retain target-aware `amd64`/`arm64` release selection;
   no local build contains an unconditional architecture-specific artifact.
 - [x] All runnable shell files pass `/bin/sh -n` and retain executable bits.
-- [x] `./tests/test.sh` passes all 86 tests after repairing the pre-existing
-  `.agents` manifest fingerprints to describe the unchanged compatibility
-  adapter directories. No adapter or plugin skill content was regenerated.
+- [x] `./tests/test.sh` passed all 86 tests after repairing the then-existing
+  `.agents` manifest fingerprints. The redesign later removed that adapter
+  tree; this is retained only as historical verification evidence.
 - [x] `git diff --check` passes and unrelated worktree changes remain
   untouched.
 
@@ -592,42 +639,44 @@ schema was removed atomically, that all audited digests and override contracts
 are accurate, and that the broader local-cache key is an acceptable behavior
 change. Do not begin Chunk 2 without explicit acceptance.
 
-## Chunk 2 — Opt-in remote index verification
+## Chunk 2 — Opt-in catalog image verification
 
 ### Goal
 
-Add a non-mutating, metadata-driven management command that proves pinned
-defaults are multi-architecture indexes, reports upstream drift, and supports
-authenticated registries without adding implicit credential access.
+Add non-mutating, metadata-driven verification that proves pinned defaults are
+multi-architecture indexes, reports upstream drift, and supports authenticated
+registries without adding implicit credential access. The redesigned public
+owner is `shimmy catalog verify`.
 
 ### Files
 
-Primary change surface:
+Historical initial implementation surface plus its redesigned owner:
 
-- `commands/images.sh`, `commands/CONTEXT.md`, and `commands/README.md`;
-- a narrow reusable parser/selection module below `lib/` with its own
-  `CONTEXT.md` and parent link;
-- `lib/install/launcher-template.sh`;
-- `tests/commands/images.sh`, `tests/commands/CONTEXT.md`, `tests/test.sh`, and
-  committed OCI/Docker raw-manifest fixtures under a context-owned test-data
-  directory;
-- installed lifecycle/management tests that assert command availability and
-  profile binding;
+- the former `commands/images.sh` entry and its parser/selection modules,
+  fixtures, installed-command tests, and documentation;
+- current `commands/catalog.sh`, `lib/images/{images,catalog}.sh`, active-
+  profile catalog/shim state readers, and catalog command tests;
+- committed OCI/Docker raw-manifest fixtures and selection/auth/drift tests;
+- installed lifecycle tests that prove active-profile dependency authority;
 - `README.md`, `docs/podman.md`, and `docs/testing.md`; and
 - this plan's progress and lessons sections.
 
+The former command path is historical evidence only. Do not recreate an
+`images` command group or a source-checkout verifier.
+
 ### Implementation requirements
 
-1. Implement the exact `shimmy images verify` and source-checkout CLI described
-   above. Reuse catalog kind/version selection functions; do not add a command-
-   local tool/version case list.
-2. Installed default selection reads only concrete versions recorded in the
-   invoking profile manifest. Source mode has no implicit profile and requires
-   explicit selection.
-3. Resolve the catalog-default Skopeo and jq concrete runtimes through catalog
-   metadata. Invoke their version runtimes directly from the enclosing source
-   or installed profile root; do not depend on host commands or PATH-selected
-   external binaries.
+1. Expose the verifier only as `shimmy catalog verify`, with no selector meaning
+   every version in the active profile's pinned default-catalog generation and
+   repeated `--tool <tool[@version]>` narrowing that selection. Reuse catalog
+   selector functions; do not add a command-local tool/version case list.
+2. Validate the active record, active profile manifest v2, exact catalog pin,
+   and retained immutable generation before selection or network access. Do
+   not accept `--all`, `--shim`, profile/location selectors, or source mode.
+3. Resolve Skopeo and jq only from exact default-version shim records and
+   regular executable runtimes materialized in the active profile. Do not use
+   host commands, PATH-selected binaries, or hidden catalog/source fallbacks;
+   fail with exact `shimmy shim add <tool>@<version>` remediation when missing.
 4. Use Skopeo `inspect --raw` for pinned refs and normal digest inspection for
    tag-form upstream refs. Treat digest-form upstream refs as drift
    `not-applicable`. Preserve `SHIMMY_SKOPEO_AUTH_SECRET`; do not add host
@@ -648,8 +697,9 @@ Primary change surface:
    registries. Exercise parsing, selection, deduplication, output, and failure
    handling with committed raw JSON fixtures and controlled command inputs.
    Run separate live checks only in the explicit verification items below.
-10. Add the `images` launcher entry atomically with help text, installed
-    command tests, profile-root validation, and docs.
+10. Add the `catalog verify` entry atomically with catalog help, active-profile
+    validation, installed-command tests, and docs. Remove the transitional
+    `images` entry during the redesigned hard cut rather than forwarding it.
 
 ### Verification checklist
 
@@ -657,16 +707,19 @@ Primary change surface:
   both required platforms, including `arm64/v8` and unrelated attestations.
 - [x] Fixture tests reject single manifests, child digests, malformed JSON,
   missing platforms, and unsupported media types with stable nonzero results.
-- [x] Selection tests cover installed defaults, `--all`, repeated `--shim`,
-  unknown kinds/versions, source mode, and duplicate remote refs.
+- [x] Selection tests cover the complete pinned catalog generation, repeated
+  `--tool`, unknown tools/versions, active-profile/catalog authority, and
+  duplicate remote refs.
 - [x] Authentication tests prove that missing credentials fail normally,
   `--public-only` reports explicit skips, and no output includes secret values.
 - [x] Drift tests cover matching, moved, unreachable, and digest-only upstream
   refs plus both strict/non-strict exit behavior.
-- [x] Disposable installed profiles expose `shimmy images verify --help` and
-  reject profile/location selectors consistently with other commands.
-- [x] An explicit live `--public-only --all` run verifies every public pinned
-  digest from Chunk 1 without pulling target image layers.
+- [x] Disposable installed profiles expose `shimmy catalog verify --help`, use
+  only active-profile jq/Skopeo, and preserve exact-version remediation when a
+  dependency is missing.
+- [x] An explicit live `--public-only` run with no `--tool` selector verifies
+  every public pinned digest in the active profile's catalog generation without
+  pulling target image layers.
 - [x] The same live run reports the three authenticated OC bases as skipped,
   not passed.
 - [x] `./tests/test.sh`, `/bin/sh -n` for new/changed shell, executable-bit
@@ -674,8 +727,9 @@ Primary change surface:
 
 ### Human review gate
 
-Confirm the public command shape, profile/source selection semantics, output
-contract, authentication boundary, and public live-verification results.
+Confirm the catalog command shape, active-profile pinned-generation selection
+semantics, output contract, authentication boundary, and public live-
+verification results.
 Explicitly decide whether any upstream drift discovered during this chunk is a
 separate upgrade or an accepted pinned snapshot. Do not begin Chunk 3 without
 explicit acceptance.
@@ -686,8 +740,8 @@ explicit acceptance.
 
 Prove every current version on both distinct native target architectures,
 complete the digest-rotation and contributor workflow, and propagate the
-reviewed host-detection and image contracts to canonical/generated
-tool-creation guidance.
+reviewed host-detection and image contracts to canonical tool-creation
+guidance and profile-materialized skill bundles.
 
 ### Files
 
@@ -701,16 +755,16 @@ Primary change surface:
   `plugins/shimmy/skills/shimmy-tool-local-build/SKILL.md`;
 - affected tool guides/canonical skills where native validation finds a
   tool-specific requirement;
-- regenerated manifest-tracked `.agents/skills/` adapters using the
-  repository's explicit skills workflow;
-- skill fingerprint and context-tree tests; and
+- historical generated-adapter evidence, subsequently superseded by the
+  redesign's canonical plugin/tool sources and profile bundle materialization;
+- canonical/profile-bundle fingerprint and context-tree tests; and
 - this plan's progress, verification notes, and lessons sections.
 
 ### Implementation requirements
 
-1. Run full authenticated `images verify --all` with an explicitly selected
-   Podman secret for Red Hat registry access. Record pass/fail evidence without
-   recording credential values or raw auth state.
+1. Run full authenticated `catalog verify` with no `--tool` selector and an
+   explicitly selected Podman secret for Red Hat registry access. Record
+   pass/fail evidence without recording credential values or raw auth state.
 2. On a native Linux `amd64` host, build each of the twelve default local
    images and run its version-owned non-mutating smoke. Run each of the eight
    direct images with its version-owned smoke and configured
@@ -741,12 +795,12 @@ Primary change surface:
    OS/architecture selection, choose `external` or `local-build`, create
    `image.conf`, use an index digest, validate bases and architecture-specific
    artifacts, and run the explicit verifier.
-9. Generate compatibility adapters only from the reviewed split canonical
-   sources: control-plane skills in `plugins/shimmy/skills/` and tool skills at
-   `tools/<kind>/SKILL.md`. Repository/home compatibility adapters contain only
-   the canonical `SKILL.md`. Update target manifests/fingerprints with the
-   normal explicit skills command and verify semantic parity, not only matching
-   checksums. Never generate into the canonical management plugin.
+9. Keep control-plane skills canonical in `plugins/shimmy/skills/` and tool
+   skills canonical at `tools/<tool>/SKILL.md`. Validate that catalog
+   publication fingerprints the canonical tool skill and active profile
+   materialization produces matching bundle content. Do not recreate a
+   repository `.agents/skills/` adapter tree, copied-home compatibility layer,
+   or generated copy inside the canonical management plugin.
 10. Do not add an always-on remote registry job to the default workflow. If a
    later scheduled workflow is desired, require a separately reviewed,
    pre-provisioned runner/authentication design.
@@ -789,9 +843,11 @@ Primary change surface:
 - [x] A digest rotation changes only the affected configured input and local
   cache identity; the prior digest remains recoverable from git history.
 - [x] Contributor docs, project prompt, generic template, canonical creation
-  skills, tool-specific guidance, and generated adapters describe the same
-  contract.
-- [x] Skill fingerprint tests and semantic source/generated comparison pass.
+  skills, tool-specific guidance, catalog fingerprints, and profile bundle
+  materialization describe the same contract. Historical generated adapters
+  were later removed by the redesigned hard cut.
+- [x] Canonical skill fingerprint and profile materialization parity tests
+  pass.
 - [x] `./tests/test.sh`, the repository context-tree test, executable-bit
   checks, `/bin/sh -n`, and `git diff --check` pass after any native-failure
   fixes and guidance generation. The suite passes all 93 tests.
@@ -812,10 +868,13 @@ Primary change surface:
   Podman preflight failures were falsely reported as passes. The output-capture
   boundary was fixed, a failing-smoke regression was added, and acceptance was
   rerun through exact approved source wrappers.
-- Public verification command:
+- Historical public verification command at the time of the run:
   `./commands/images.sh verify --all --public-only --format manifest`; result:
   seventeen public roles passed, three authenticated OC roles skipped, and the
   separately accepted Netcat upstream movement remained a non-strict warning.
+  The redesign absorbed this behavior into
+  `shimmy catalog verify --public-only --format manifest`; do not recreate the
+  historical entrypoint.
 - Repository verification: `./tests/test.sh` passed 93 tests; context-tree,
   shell syntax, executable modes, semantic generated-skill parity, fingerprint
   checks, and `git diff --check` passed.
@@ -826,11 +885,13 @@ Primary change surface:
   `netcat@7.92`, `oc@4.18`, `oc@4.20`, `oc@4.22`,
   `opnsense-mcp-admin@1.0`,
   `opnsense-mcp-read-only@0.4`, `task@3.45`, and `textual@8.2`.
-- Authenticated verification command:
+- Historical authenticated verification command:
   `SHIMMY_SKOPEO_AUTH_SECRET=registry-auth ./commands/images.sh verify --all --format manifest`;
   result: exit zero, all twenty roles verified, all three
   OC roles passed authenticated access, and valid pinned Netcat and Ripgrep
-  indexes reported non-strict upstream-tag drift warnings.
+  indexes reported non-strict upstream-tag drift warnings. The equivalent
+  redesigned operation is `SHIMMY_SKOPEO_AUTH_SECRET=registry-auth shimmy
+  catalog verify --format manifest` from the active profile.
 - Linux partial: `tessl@0.1` built for `linux/amd64`, but its smoke failed while
   the npm launcher promoted its downloaded `linux-x64` executable. Human review
   explicitly accepted this as a non-blocking deferral.
@@ -844,8 +905,8 @@ Primary change surface:
 
 Confirm the complete authenticated/public manifest evidence, both native-host
 acceptance matrices, any platform-specific fixes, rotation workflow, and
-canonical/generated guidance parity. Only this acceptance completes the
-multi-architecture image-support feature.
+canonical/profile-materialized guidance parity. Only this acceptance completes
+the multi-architecture image-support feature.
 
 ## Risk register
 
@@ -854,14 +915,14 @@ multi-architecture image-support feature.
 | A configured digest is a child manifest rather than an index. | One supported host works while the other cannot pull/run. | Require accepted index media type plus both descriptors in metadata review and live verification. |
 | Host architecture is ignored, mis-normalized, or unreadable. | Linux/arm64 or Darwin/amd64 runs the wrong image, or an unsupported host receives a misleading default. | Resolve both `uname` values centrally, normalize explicit aliases, fail closed, and preview every concrete runtime across the four supported host combinations. |
 | A publisher tag moves after planning. | The tag no longer identifies the reviewed artifact. | Runtime uses the recorded immutable digest; drift is reported and upgrades require separate review. |
-| Users expect `update --pull` to advance `latest` or another mutable tag. | Digest pinning appears to stop tool updates. | Document that pull ensures the pinned artifact, expose upstream drift explicitly, and require reviewed `image.conf` rotation for upgrades. |
+| Users expect profile or shim sync to advance `latest` or another mutable tag. | Digest pinning appears to stop image updates. | Document that lifecycle preparation ensures the pinned artifact, expose upstream drift through `catalog verify`, and require reviewed catalog-version `image.conf` rotation for upgrades. |
 | A registry requires authentication. | Public-only automation cannot prove the default and may produce false confidence. | Mark access in metadata, fail visibly without auth, support explicit Skopeo Podman secrets, and require authenticated OC acceptance. |
 | Registry rate limits or outages block verification. | Remote verification is partial despite valid code. | Keep default tests fixture-driven, deduplicate refs, mark the item `[~]`, preserve exact failure evidence, and retry only at the reviewer's direction. |
 | A multi-architecture base hides architecture-specific build steps. | Local image builds or binaries fail on one platform. | Audit Containerfiles and require native build plus smoke on both platforms. |
 | Build arguments are absent from cache identity. | A rotated base or override silently reuses stale output. | Include ordered effective build inputs and image config in the cache hash and test ensure/cleanup symmetry. |
-| Broad schema migration leaves mixed readers or writers. | Status, preflight, installed profiles, or refresh behavior diverges. | Treat `image.conf` creation, all producer/consumer updates, and `status.conf` removal as one atomic Chunk 1 review unit. |
-| Runtime verification adds latency or credential exposure. | Normal CLI use slows down or leaks external state. | Make registry verification an explicit command, retain secret-only auth, and never inspect on ordinary run/install/status/test paths. |
-| Generated skill copies overwrite richer guidance. | Canonical policy is lost or adapters drift semantically. | Update canonical sources first, compare existing adapter guidance semantically, then regenerate and verify manifests. |
+| Broad schema migration leaves mixed readers or writers. | Catalog validation, profile status, shim/profile preparation, or runtime refresh behavior diverges. | Preserve `image.conf` as the one version-owned schema, keep `status.conf` removed, and validate every catalog, materialization, status, preparation, and runtime consumer. |
+| Catalog verification adds latency or credential exposure. | Normal CLI use slows down or leaks external state. | Keep registry verification explicit under `catalog verify`, retain secret-only auth, and never inspect remotely during ordinary runtime, profile/shim lifecycle, status, or smoke paths. |
+| Profile-materialized skill bundles diverge from canonical guidance. | The active tool skill advertises a different image contract. | Update canonical plugin/tool sources first, include tool skills in catalog fingerprints, and validate profile bundle materialization against the pinned generation. |
 | Existing dirty worktree changes overlap docs/tests. | User work is overwritten or accidentally included. | Recheck status/diffs before every chunk, preserve unrelated edits, and stop for direction on an unavoidable overlap. |
 
 ## Lessons learned
@@ -875,18 +936,19 @@ multi-architecture image-support feature.
   or Docker manifest lists containing both required platforms as of the
   planning audit. The three OC defaults need Red Hat registry credentials for
   repeatable live proof.
-- Platform selection is already centralized, but it currently selects by OS
-  alone. Native host-architecture detection, version-owned image identity,
-  generic validation, immutable defaults, and cross-platform acceptance are
-  all required parts of this feature.
+- At planning time platform selection was centralized but selected by OS alone.
+  Native host-architecture detection, version-owned image identity, generic
+  validation, immutable defaults, and cross-platform acceptance therefore
+  became required parts of this feature.
 - Local-build support has two independent compatibility layers: the external
   base index and the commands/artifacts executed during the build.
-- Current local cache identity excludes effective build arguments, so digest
-  rotation must address caching rather than rely on documentation telling users
-  to force a rebuild.
-- Installation copies the complete tools tree, allowing a profile-local image
-  verifier to use catalog-default Skopeo and jq runtimes without making them
-  host dependencies or baseline user commands.
+- The planning-time local cache identity excluded effective build arguments,
+  so digest rotation had to change caching rather than rely on documentation
+  telling users to force a rebuild.
+- The initial implementation copied the complete tools tree into a profile.
+  The redesign narrowed that boundary: bootstrap/create materialize jq, rg,
+  and Skopeo as baseline shims, and `catalog verify` resolves exact jq/Skopeo
+  default-version runtimes from the active profile without host fallbacks.
 
 ### Chunk 1
 
@@ -902,10 +964,10 @@ multi-architecture image-support feature.
 - Installed status output must capture and check metadata-rendering status
   before printing; nesting a failing renderer directly inside `printf` masks
   its exit status in POSIX shell.
-- The checked-in `.agents` manifest incorrectly used two-file canonical/plugin
-  fingerprints for all twenty one-file compatibility adapters. Recomputing
-  only the target-owned manifest repaired the baseline without regenerating
-  adapter or plugin content and restored the ordinary 86-test suite.
+- The then-checked-in `.agents` manifest incorrectly used two-file
+  canonical/plugin fingerprints for one-file compatibility adapters.
+  Recomputing only the target-owned manifest repaired that historical baseline;
+  the redesign later removed the repository adapter tree entirely.
 
 ### Chunk 2
 
@@ -913,10 +975,10 @@ multi-architecture image-support feature.
   verifier itself is iterating records on standard input. Otherwise Podman can
   consume the remaining selection even when Skopeo does not logically need
   input; the controlled runtime now models that behavior as a regression test.
-- One catalog-resolved Skopeo runtime and one jq runtime are sufficient for
-  source and installed verification. Keeping raw and digest inspection caches
-  keyed by mode plus exact reference avoids duplicate registry requests while
-  retaining one result for every version-owned role.
+- One exact active-profile Skopeo default runtime and one jq default runtime are
+  sufficient for catalog verification. Keeping raw and digest inspection
+  caches keyed by mode plus exact reference avoids duplicate registry requests
+  while retaining one result for every version-owned role.
 - The public live check verified all seventeen public result roles and visibly
   skipped the three authenticated OC bases. The Netcat pinned index remains
   valid for both required platforms, but its `latest` upstream tag has moved;
@@ -934,9 +996,10 @@ multi-architecture image-support feature.
   packages to one output path. Pinning the audited commit, refreshing the exact
   declared module requirement, and building the root command made the native
   image reproducible and runnable.
-- Checked-in skill fingerprints prove integrity only. Repository/home adapters
-  must compare their sole `SKILL.md` with the split canonical source; the
-  management plugin is canonical rather than a generated target.
+- Checked-in skill fingerprints prove integrity only. Under the redesigned
+  surface, catalog publication and profile bundle validation must also prove
+  semantic identity with canonical `plugins/shimmy/skills/` and
+  `tools/<tool>/SKILL.md`; repository/home adapters are not a supported layer.
 - Exact per-wrapper approvals produced valid native Podman evidence; approval
   of an aggregate test launcher did not grant nested wrapper access in this AI
   agent environment.
@@ -964,7 +1027,7 @@ multi-architecture image-support feature.
 For a fresh implementation session:
 
 1. Read `AGENTS.md`, root `CONTEXT.md`, `CONTRIBUTING.md`, this complete plan,
-   and the `plan-review-act` skill.
+   `plans/wip/redesign-control-surface.md`, and the `plan-review-act` skill.
 2. Read every retained context on the path to active files under `commands/`,
    `lib/`, or `tests/` and inspect the current diffs before editing. Do not
    recreate the historical tool or plugin context files named by earlier
@@ -977,9 +1040,16 @@ For a fresh implementation session:
    behavior, version-owned image policy, no central tool/version cases, no
    implicit Podman/auth provisioning, no ordinary-run registry inspection, and
    unchanged tool-specific override/mount/credential behavior.
-4. Chunk 2 was accepted with the pinned Netcat snapshot retained; treat its
+4. Treat the redesigned control surface as authoritative: one immutable
+   retained-generation catalog named `default`, profile manifest schema 2,
+   profile-local installed shims, explicit `catalog verify` with repeated
+   `--tool`, exact active-profile jq/Skopeo authority, and image preparation in
+   bootstrap/profile/shim lifecycle. Do not recreate `images verify`, `--all`,
+   `--shim`, top-level install/update/status/test commands, a source-checkout
+   verifier, or repository `.agents/skills/` adapters.
+5. Chunk 2 was accepted with the pinned Netcat snapshot retained; treat its
    moved upstream tag as a separate digest-rotation follow-up.
-5. Chunk 3 is at its final human review gate. Apple Silicon acceptance,
+6. Chunk 3 is at its final human review gate. Apple Silicon acceptance,
    repository work, full authenticated index verification, all Linux direct
    smokes, and eleven Linux local-build smokes are complete. Tessl's Linux
    image builds but fails its runtime smoke while promoting the downloaded
