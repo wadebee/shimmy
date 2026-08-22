@@ -285,3 +285,64 @@ shimmy_manifest_diagnostic_encode() {
   done
   printf '%s' "$shimmy_manifest_diagnostic_encoded"
 }
+
+# TUI Style, color, and formatting helpers.
+shimmy_style_init() {
+  if [ -t 1 ]; then
+    shimmy_style_esc=$(printf '\033')
+    SHIMMY_STYLE_BOLD="${shimmy_style_esc}[1m"
+    SHIMMY_STYLE_DIM="${shimmy_style_esc}[2m"
+    SHIMMY_STYLE_GREEN="${shimmy_style_esc}[32m"
+    SHIMMY_STYLE_RED="${shimmy_style_esc}[31m"
+    SHIMMY_STYLE_YELLOW="${shimmy_style_esc}[33m"
+    SHIMMY_STYLE_CYAN="${shimmy_style_esc}[36m"
+    SHIMMY_STYLE_RESET="${shimmy_style_esc}[0m"
+  else
+    SHIMMY_STYLE_BOLD=''
+    SHIMMY_STYLE_DIM=''
+    SHIMMY_STYLE_GREEN=''
+    SHIMMY_STYLE_RED=''
+    SHIMMY_STYLE_YELLOW=''
+    SHIMMY_STYLE_CYAN=''
+    SHIMMY_STYLE_RESET=''
+  fi
+}
+
+shimmy_digest_format() {
+  shimmy_digest_val=${1:-}
+  if [ -z "$shimmy_digest_val" ] || [ "$shimmy_digest_val" = - ]; then
+    printf -- '-\n'
+    return
+  fi
+  case "$shimmy_digest_val" in
+    sha256:*|sha256-*)
+      shimmy_digest_hex=${shimmy_digest_val#sha256:}
+      shimmy_digest_hex=${shimmy_digest_hex#sha256-}
+      printf 'sha256:%.12s\n' "$shimmy_digest_hex"
+      ;;
+    *)
+      printf '%.12s\n' "$shimmy_digest_val"
+      ;;
+  esac
+}
+
+shimmy_draw_line() {
+  shimmy_line_length=$1
+  shimmy_line_char=${2:-─}
+  shimmy_line_str=""
+  while [ "${#shimmy_line_str}" -lt "$shimmy_line_length" ]; do
+    shimmy_line_str="${shimmy_line_str}${shimmy_line_char}"
+  done
+  printf '%s' "$shimmy_line_str"
+}
+
+shimmy_section_header() {
+  shimmy_sec_title=$1
+  shimmy_style_init
+  shimmy_sec_len=${#shimmy_sec_title}
+  shimmy_sec_pad=$((75 - shimmy_sec_len - 6))
+  if [ "$shimmy_sec_pad" -lt 0 ]; then
+    shimmy_sec_pad=0
+  fi
+  printf '%s─── %s %s%s\n' "$SHIMMY_STYLE_BOLD" "$shimmy_sec_title" "$(shimmy_draw_line "$shimmy_sec_pad")" "$SHIMMY_STYLE_RESET"
+}

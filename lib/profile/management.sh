@@ -469,18 +469,45 @@ EOF
     printf 'shimmy_engine_activation=%s\n' "$SHIMMY_PROFILE_ACTIVATION_STATE"
     return 0
   fi
-  printf 'PROFILE\nName: %s\nRoot: %s\nActive: %s\nControl: %s\n\n' "$shimmy_profile_status_name" \
-    "$shimmy_profile_status_root" "$shimmy_profile_status_active" "$shimmy_profile_status_source_ref"
-  printf 'ENGINE\nTYPE EXPECTED CONNECTION DEFAULT STATE REACHABLE ACTIVATION\n'
-  printf '%s %s %s %s %s %s %s\n\n' "$SHIMMY_PROFILE_ENGINE_TYPE" "$SHIMMY_PROFILE_EXPECTED_MACHINE" \
-    "$SHIMMY_PROFILE_EXPECTED_CONNECTION" "$SHIMMY_PROFILE_DEFAULT_CONNECTION" \
-    "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" "$SHIMMY_PROFILE_ENGINE_REACHABLE" "$SHIMMY_PROFILE_ACTIVATION_STATE"
-  printf 'CATALOG\nCATALOG PINNED CURRENT DRIFT HEALTH\n'
-  printf '%s %s %s %s ok\n\n' "$shimmy_profile_status_catalog_name" "$shimmy_profile_status_generation" \
-    "$shimmy_profile_status_catalog_current" "$shimmy_profile_status_catalog_drift"
-  printf 'SHIMS\nSHIM DEFAULT MODE VERSIONS\n'
+  shimmy_style_init
+  shimmy_active_accent=""
+  shimmy_acc_len=0
+  if [ "$shimmy_profile_status_active" = yes ]; then
+    shimmy_active_accent=" [${SHIMMY_STYLE_GREEN}ACTIVE${SHIMMY_STYLE_RESET}${SHIMMY_STYLE_BOLD}]"
+    shimmy_acc_len=9
+  fi
+  shimmy_pname_len=${#shimmy_profile_status_name}
+  shimmy_border_pad=$((80 - 13 - shimmy_pname_len - shimmy_acc_len - 1 - 1))
+  if [ "$shimmy_border_pad" -lt 0 ]; then
+    shimmy_border_pad=0
+  fi
+  printf '┌── PROFILE: %s%s%s%s %s┐\n' "$SHIMMY_STYLE_GREEN" "$shimmy_profile_status_name" "$shimmy_active_accent" "$SHIMMY_STYLE_BOLD" "$(shimmy_draw_line "$shimmy_border_pad")" "$SHIMMY_STYLE_RESET"
+  shimmy_control_formatted=$(shimmy_digest_format "$shimmy_profile_status_source_ref")
+  printf '│  %-12s %-62s │\n' "Path:" "$shimmy_profile_status_root"
+  printf '│  %-12s %-62s │\n' "Active:" "$shimmy_profile_status_active"
+  printf '│  %-12s %-62s │\n' "Control:" "$shimmy_control_formatted (refs/heads/main)"
+  printf '├──────────────────────────────────────────────────────────────────────────────┤\n'
+  printf '│  %s%-72s%s  │\n' "$SHIMMY_STYLE_BOLD" "ENGINE STATUS" "$SHIMMY_STYLE_RESET"
+  printf '│    %-12s %-60s │\n' "Type:" "$SHIMMY_PROFILE_ENGINE_TYPE"
+  printf '│    %-12s %-60s │\n' "Expected:" "$SHIMMY_PROFILE_EXPECTED_MACHINE ($SHIMMY_PROFILE_EXPECTED_MACHINE_STATE)"
+  printf '│    %-12s %-60s │\n' "Reachable:" "$SHIMMY_PROFILE_ENGINE_REACHABLE"
+  printf '│    %-12s %-60s │\n' "Activation:" "$SHIMMY_PROFILE_ACTIVATION_STATE"
+  printf '├──────────────────────────────────────────────────────────────────────────────┤\n'
+  printf '│  %s%-72s%s  │\n' "$SHIMMY_STYLE_BOLD" "CATALOG" "$SHIMMY_STYLE_RESET"
+  printf '│    %s%-72s%s  │\n' "$SHIMMY_STYLE_DIM" "CATALOG PINNED CURRENT DRIFT HEALTH" "$SHIMMY_STYLE_RESET"
+  shimmy_pinned_gen_formatted=$(shimmy_digest_format "$shimmy_profile_status_generation")
+  shimmy_catalog_current_formatted=$(shimmy_digest_format "$shimmy_profile_status_catalog_current")
+  printf '│    %-10s %-15s %-15s %-10s %-18s  │\n' \
+    "$shimmy_profile_status_catalog_name" \
+    "$shimmy_pinned_gen_formatted" \
+    "$shimmy_catalog_current_formatted" \
+    "$shimmy_profile_status_catalog_drift" \
+    "ok"
+  printf '├──────────────────────────────────────────────────────────────────────────────┤\n'
+  printf '│  %s%-72s%s  │\n' "$SHIMMY_STYLE_BOLD" "SHIMS" "$SHIMMY_STYLE_RESET"
+  printf '│    %s%-72s%s  │\n' "$SHIMMY_STYLE_DIM" "SHIM DEFAULT MODE VERSIONS" "$SHIMMY_STYLE_RESET"
   if [ -z "$shimmy_profile_status_shims" ]; then
-    printf '%s\n' 'none - - -'
+    printf '│    %-12s %-12s %-12s %-32s  │\n' 'none' '-' '-' '-'
   else
     while IFS='|' read -r shimmy_profile_status_shim_name shimmy_profile_status_shim_mode shimmy_profile_status_shim_extra; do
       [ -n "$shimmy_profile_status_shim_name" ] || continue
@@ -501,24 +528,30 @@ EOF
       done <<EOF
 $shimmy_profile_status_versions
 EOF
-      printf '%s %s %s %s\n' "$shimmy_profile_status_shim_name" "$shimmy_profile_status_shim_default" \
+      printf '│    %-12s %-12s %-12s %-32s  │\n' "$shimmy_profile_status_shim_name" "$shimmy_profile_status_shim_default" \
         "$shimmy_profile_status_shim_mode" "$shimmy_profile_status_shim_versions"
     done <<EOF
 $shimmy_profile_status_shims
 EOF
   fi
+  printf '├──────────────────────────────────────────────────────────────────────────────┤\n'
+  printf '│  %s%-72s%s  │\n' "$SHIMMY_STYLE_BOLD" "AI SKILLS & INTEGRATION" "$SHIMMY_STYLE_RESET"
+  printf '│    %s%-72s%s  │\n' "$SHIMMY_STYLE_DIM" "BUNDLE STATUS LINKS REASON" "$SHIMMY_STYLE_RESET"
   shimmy_profile_status_control_links=$shimmy_profile_status_control_link_current/$shimmy_profile_status_control_link_expected
   shimmy_profile_status_shims_links=$shimmy_profile_status_shims_link_current/$shimmy_profile_status_shims_link_expected
   [ "$shimmy_profile_status_control_link_current" != not-applicable ] || shimmy_profile_status_control_links=not-applicable
   [ "$shimmy_profile_status_shims_link_current" != not-applicable ] || shimmy_profile_status_shims_links=not-applicable
-  printf '\nAI SKILLS\nBUNDLE STATUS LINKS REASON\n'
-  printf 'control %s %s %s\n' "$shimmy_profile_status_control_bundle" \
+  printf '│    %-12s %-12s %-12s %-32s  │\n' 'control' "$shimmy_profile_status_control_bundle" \
     "$shimmy_profile_status_control_links" \
-    "$shimmy_profile_status_control_reason"
-  printf 'shims %s %s %s\n\n' "$shimmy_profile_status_shims_bundle" \
+    "${shimmy_profile_status_control_reason:--}"
+  printf '│    %-12s %-12s %-12s %-32s  │\n' 'shims' "$shimmy_profile_status_shims_bundle" \
     "$shimmy_profile_status_shims_links" \
-    "$shimmy_profile_status_shims_reason"
-  printf 'STARTUP\nShell: %s\nFiles: %s\n' "$shimmy_profile_status_startup_shell" "${shimmy_profile_status_startup_files:-none}"
+    "${shimmy_profile_status_shims_reason:--}"
+  printf '│                                                                              │\n'
+  printf '│    %s%-72s%s  │\n' "$SHIMMY_STYLE_DIM" "STARTUP INTEGRATION" "$SHIMMY_STYLE_RESET"
+  printf '│      %-12s %-57s  │\n' "Shell:" "$shimmy_profile_status_startup_shell"
+  printf '│      %-12s %-57s  │\n' "Files:" "${shimmy_profile_status_startup_files:-none}"
+  printf '└──────────────────────────────────────────────────────────────────────────────┘\n'
 }
 
 shimmy_profile_redirect_context_resolve() {

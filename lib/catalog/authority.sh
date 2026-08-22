@@ -193,9 +193,13 @@ shimmy_catalog_status_render() {
       "$SHIMMY_CATALOG_SOURCE_COMMIT" "$SHIMMY_CATALOG_CONTENT_FINGERPRINT"
     return
   fi
-  printf 'CATALOG CURRENT PREVIOUS SOURCE HEALTH\n'
-  printf 'default %s %s %s ok\n' "$SHIMMY_CATALOG_GENERATION_CURRENT" \
-    "${SHIMMY_CATALOG_GENERATION_PREVIOUS:--}" "$SHIMMY_CATALOG_SOURCE_COMMIT"
+  shimmy_style_init
+  shimmy_cat_curr=$(shimmy_digest_format "$SHIMMY_CATALOG_GENERATION_CURRENT")
+  shimmy_cat_prev=$(shimmy_digest_format "${SHIMMY_CATALOG_GENERATION_PREVIOUS:--}")
+  shimmy_cat_src=$(shimmy_digest_format "$SHIMMY_CATALOG_SOURCE_COMMIT")
+  printf '%s%-10s %-15s %-15s %-15s %-10s%s\n' "$SHIMMY_STYLE_DIM" "CATALOG" "CURRENT" "PREVIOUS" "SOURCE" "HEALTH" "$SHIMMY_STYLE_RESET"
+  printf '%-10s %-15s %-15s %-15s %-10s\n' "default" "$shimmy_cat_curr" "$shimmy_cat_prev" \
+    "$shimmy_cat_src" "ok"
 }
 
 shimmy_catalog_tool_versions_render() {

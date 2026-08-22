@@ -73,9 +73,14 @@ shimmy_admin_status_render() {
   if [ "$shimmy_admin_status_format" = manifest ]; then
     printf 'shimmy_admin_active_profile=%s\n' "$shimmy_admin_status_active"
   else
-    printf 'INSTALLATION\nActive profile: %s\n\nCATALOG\n' "$shimmy_admin_status_active"
+    shimmy_style_init
+    shimmy_section_header "INSTALLATION STATUS"
+    printf 'Active Profile:  %s%s%s\n' "$SHIMMY_STYLE_GREEN" "$shimmy_admin_status_active" "$SHIMMY_STYLE_RESET"
+    printf 'Config Root:     %s\n\n' "$shimmy_admin_status_config"
+    shimmy_section_header "CATALOG AUTHORITY"
     shimmy_catalog_status_render "$shimmy_admin_status_config" human || return 1
-    printf '\nPROFILES\n'
+    printf '\n'
+    shimmy_section_header "MATERIALIZED PROFILES"
   fi
   shimmy_admin_status_names=
   for shimmy_admin_status_path in "$SHIMMY_PROFILES_ROOT"/*; do
