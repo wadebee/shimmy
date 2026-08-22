@@ -1,5 +1,5 @@
 # Catalog and Profile Separation — Chosen Architecture
-**Status:** complete
+Completed: 2026-08-22
 
 ## Objective
 

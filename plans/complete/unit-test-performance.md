@@ -1,5 +1,5 @@
 # Unit-test performance improvement plan
-**Status:** complete
+Completed: 2026-08-17
 
 All three chunks were implemented, objectively verified, and accepted on
 2026-08-17.

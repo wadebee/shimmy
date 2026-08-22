@@ -1,4 +1,5 @@
-### Shared control-plane feasibility assessment
+# Shared Control-Plane Feasibility Assessment
+Completed: 2026-08-22
 
 The current installed default profile contains this control payload:
 

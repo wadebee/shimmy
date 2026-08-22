@@ -1,5 +1,5 @@
 # Redesign the Shimmy control surface
-**Status:** complete
+Completed: 2026-08-21
 
 All eleven chunks were implemented, automatically verified, and accepted on
 2026-08-21. Native disposable-home/machine acceptance was explicitly deferred;

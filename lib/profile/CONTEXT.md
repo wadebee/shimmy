@@ -15,7 +15,7 @@ engine commit, and compensates active-record and exact user-skill link changes.
 Same-profile activation lets the target activation layer validate and repair
 its own inactive engine or registry state. A cross-profile transition still
 requires the recorded active profile to be fully active before planning and
-again after locks are acquired so it remains a known-good rollback source.
+again after locks are acquired so it remains a validated rollback source.
 
 `activation.sh` owns deterministic engine discovery, read-only status, dry-run,
 Linux registry-link selection and local-rootless validation, workload-guarded

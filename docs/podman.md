@@ -60,7 +60,7 @@ separately acknowledges them with `--stop-running`.
 When the requested profile is also the recorded active profile, activation can
 repair its target-owned engine or registry state. A switch to a different
 profile still requires the recorded prior profile to be fully active so it
-remains a known-good rollback source.
+remains a validated rollback source.
 
 On Linux, activation requires a local rootless engine and manages only the
 Shimmy-owned user registry drop-in. On macOS, profile `<name>` owns the

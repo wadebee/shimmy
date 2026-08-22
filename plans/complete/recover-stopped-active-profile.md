@@ -1,4 +1,5 @@
 # Recover Stopped Active Profile Plan
+Completed: 2026-08-22
 
 ## Objective
 
@@ -25,7 +26,7 @@ Success means:
   state that is ready but not current;
 - switching to a different profile still requires the recorded prior profile
   engine and registry state to be fully active before mutation, preserving the
-  known-good rollback source;
+  validated rollback source;
 - invalid metadata, missing machines, connection or registry overrides,
   unreachable engines, workload guards, lock checks, and rollback failures
   retain their existing fail-closed behavior; and
@@ -59,8 +60,11 @@ Explicit exclusions:
 - **Same-profile recovery** means the recorded active profile and requested
   profile have the same name. The requested profile's activation layer is
   responsible for validating and repairing its current state.
+- **Validated rollback source** is the recorded active profile after management
+  confirms its engine and registry activation state before planning and again
+  after locks are acquired.
 - **Cross-profile transition** means those names differ. The recorded active
-  profile must remain a validated, active rollback source before the requested
+  profile must remain a validated rollback source before the requested
   profile may mutate global engine or registry authority.
 - **Prior-engine prerequisite** is the management-layer check currently
   performed before planning and again after activation locks are acquired.
@@ -75,7 +79,7 @@ The target decision table is:
 | `default` | `default` | Darwin `registry_restart_required` | Ordinary activation retains the exact restart diagnostic; explicit `--restart` may perform the guarded restart. |
 | `default` | `default` | Linux `ready` with absent/sibling managed link | Existing Linux activation may reconcile the exact managed registry link. |
 | `default` | `default` | invalid, overridden, missing, unsupported, or unsafe | Existing target-specific validation rejects the operation without mutation. |
-| `default` | another profile | prior state other than `active` | Management rejects the switch before target mutation because no known-good rollback source exists. |
+| `default` | another profile | prior state other than `active` | Management rejects the switch before target mutation because no validated rollback source exists. |
 
 No new files or installed-state formats are introduced. Primary repository
 changes remain within the existing profile management, tests, documentation,
@@ -192,8 +196,8 @@ None.
 
 - [x] Chunk 1 — Make same-profile activation recover target-owned inactive
       state, add regression coverage and documentation, and complete
-      verification. Implementation is complete and awaiting the human review
-      gate; the installed profile and live Podman machine remain unchanged.
+      verification. Implementation and human verification are complete; the
+      installed profile and live Podman machine remain unchanged.
 
 ## Execution protocol
 
@@ -228,7 +232,7 @@ Primary change surface:
 - `lib/profile/CONTEXT.md`
 - `tests/commands/profile.sh`
 - `docs/podman.md`
-- `plans/notional/recover-stopped-active-profile.md` for progress, verification
+- `plans/complete/recover-stopped-active-profile.md` for progress, verification
   notes, and lessons learned
 
 Inspect but do not edit unless a newly discovered required dependency is
@@ -281,10 +285,10 @@ reported for review:
    AI-skill collision, and rollback assertions as the authoritative safety
    coverage. Add no redundant absence or generic rejection test.
 10. Update `lib/profile/CONTEXT.md` with the distinction between same-profile
-    target repair and cross-profile known-good prior validation. Update
-    `docs/podman.md` so stopped-profile troubleshooting directs users through
-    the exact status/dry-run/activation control plane and never through direct
-    machine start.
+    target repair and the cross-profile validated rollback-source requirement.
+    Update `docs/podman.md` so stopped-profile troubleshooting directs users
+    through the exact status/dry-run/activation control plane and never through
+    direct machine start.
 11. Preserve all unrelated dirty-worktree changes and avoid formatting or
     mechanical rewrites outside the primary change surface.
 
@@ -354,6 +358,8 @@ reported for review:
 
 ### Human review gate
 
+**Result:** Passed 2026-08-22 19:22:58 EDT.
+
 Stop after the implementation diff and verification results are recorded. The
 reviewer must confirm that same-profile recovery—not cross-profile switching—
 is the only relaxed management prerequisite; that all target validation,
@@ -366,7 +372,7 @@ installed profile or activating its live Podman machine.
 ## Risk register
 
 - **Over-broad bypass:** Skipping prior-engine validation for different
-  profiles would remove the known-good rollback source. Mitigation: centralize
+  profiles would remove the validated rollback source. Mitigation: centralize
   an exact canonical-name equality check and retain both cross-profile
   validations.
 - **Duplicated state policy:** Special-casing `stopped` in management would
