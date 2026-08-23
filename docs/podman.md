@@ -225,6 +225,35 @@ Legacy-isolated, external, or ambiguously owned machines are preserved and the
 command reports that preservation. Machine name or engine binding alone is
 never ownership proof.
 
+## Global uninstall
+
+Inspect the complete destructive plan before applying it:
+
+```sh
+shimmy admin uninstall --dry-run
+shimmy admin uninstall
+```
+
+On macOS, ordinary global uninstall removes every shared and isolated machine
+whose current host record, guest token, exact connection, provider, and stable
+inspect identity all prove that the current installation created it. Inactive
+owned isolated machines are removed first and the active owned machine is
+removed last. Legacy, external, mismatched, ambiguous, and Linux host-local
+engines are reported with a preservation reason and are never deleted.
+
+Removing an owned machine permanently destroys its containers, images,
+volumes, build caches, and all other VM-local data. None of that data is
+preserved. Running containers block all mutation until the user explicitly
+retries with `--stop-running`.
+
+Before the first machine stop or removal, Shimmy validates the complete local
+cleanup set and writes one durable journal containing planned order, completed
+engines, pending engines, and phase. Machine deletion is irreversible and is
+not rolled back. A partial failure retains profiles, commands, engine evidence,
+and the journal, then prints the exact retry. Retry accepts an already removed
+engine only when journal and current absence agree; a machine or connection
+that reappears at that name is a collision.
+
 ## Troubleshooting
 
 If `podman info` fails, inspect the selected profile rather than starting an

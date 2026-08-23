@@ -4,6 +4,13 @@ Completed: 2026-08-22
 
 **Status:** Verified and completed
 
+**Supersession note (2026-08-23):**
+`plans/wip/hybrid-podman-engine-lifecycle.md` Chunk 4 supersedes only this
+plan's rule that global uninstall preserves every Podman machine. The completed
+projection/startup/profile transaction remains the baseline; global uninstall
+now removes completely proven Shimmy-owned machines through a separate durable
+forward-recovery journal while preserving external or ambiguous engines.
+
 ## Objective
 
 Make ordinary and global uninstall complete their own registry-projection prerequisites:

@@ -75,8 +75,13 @@ Commands:
 
 Scope:
   Admin commands are installation-wide. Network inspection uses the active
-  profile. Uninstall preserves source checkouts, Podman machines, operator
-  registry policy, the user skill root, and unrelated user skill names.
+  profile. Uninstall removes provably Shimmy-owned Podman machines, preserves
+  external or ambiguous machines, source checkouts, operator registry policy,
+  the user skill root, and unrelated user skill names.
+
+Destructive warning:
+  Uninstall permanently destroys containers, images, volumes, build caches,
+  and all other VM-local data in every provably Shimmy-owned Podman machine.
 
 Remediation:
   Run 'shimmy admin status --format manifest' before destructive administration.
@@ -239,26 +244,37 @@ shimmy_help_admin_uninstall() {
 Remove all validated Shimmy-owned installation state.
 
 Usage:
-  shimmy admin uninstall [--stop-running]
+  shimmy admin uninstall [--stop-running] [--dry-run]
 
 Scope:
   Installation-wide and destructive. Removes validated profiles, retained
   default-catalog generations, the active record, exact startup blocks,
-  recognized projections, and recognized direct Shimmy user-skill links.
+  recognized projections, recognized direct Shimmy user-skill links, and every
+  Podman machine whose complete current evidence proves Shimmy ownership.
 
 Options:
-  --stop-running  Acknowledge interruption of listed running containers when a
-                  projected macOS machine must stop.
+  --stop-running  Acknowledge permanent deletion of listed running containers
+                  when an owned macOS machine must be removed.
+  --dry-run       Validate and list exact removals, preservations, engine
+                  actions, workloads, and the complete write/delete scope.
   -h, --help      Show this help before installed-state validation.
 
 Defaults:
-  Running workloads are never interrupted without --stop-running.
+  Provably owned macOS machines are removed. External, legacy, ambiguous, and
+  Linux host-local engines are preserved. Running workloads are never deleted
+  without --stop-running.
+
+Destructive warning:
+  Containers, images, volumes, build caches, and all other VM-local data in
+  removed machines will not be preserved. Machine deletion cannot be rolled
+  back. Partial failure retains a durable journal and prints an exact retry.
 
 Remediation:
-  Run without --stop-running first. If Shimmy reports running containers, review
-  the exact list and retry only after explicitly accepting their interruption.
+  Run --dry-run first. If Shimmy reports running containers, review the exact
+  list and retry only after explicitly accepting permanent machine deletion.
 
 Examples:
+  shimmy admin uninstall --dry-run
   shimmy admin uninstall
   shimmy admin uninstall --stop-running
 EOF

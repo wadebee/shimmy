@@ -14,9 +14,10 @@
   true profile clone, activation, target-engine image preparation, exact active
   authority, startup compensation, AI-skill reconciliation, dry-run, and
   failure cleanup.
-- `uninstall.sh` owns profile deletion, including journaled exactly-owned
-  isolated-machine removal and retry, and validates ownership for global
-  uninstall while preserving external resources.
+- `uninstall.sh` owns profile deletion and global uninstall. Global removal
+  preflights the complete local/external set, journals ordered owned-machine
+  deletion before mutation, resumes irreversible partial progress, rejects
+  reused names, and preserves external or ambiguous engines.
 - `launcher-template.sh` is the byte-authoritative final installed launcher for
   `admin`, `profile`, `catalog`, `shim`, and `ai-skill`.
 

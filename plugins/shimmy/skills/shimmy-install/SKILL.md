@@ -49,10 +49,11 @@ For disposable validation, use fresh absolute `HOME` and `XDG_CONFIG_HOME`
 roots and `./bootstrap.sh --no-startup`. Do not invent an install-directory,
 profile, source, activation, or migration option.
 
-Bootstrap activation is part of one compensated lifecycle. On macOS it requires
-the user's pre-existing `shimmy-default` machine; on Linux it validates the
-current user's local rootless engine. Shimmy never provisions a machine and
-bootstrap never supplies `--stop-running`.
+Bootstrap activation is part of one compensated lifecycle. On macOS it creates
+the installation-owned shared machine and connection `shimmy` only after exact
+collision preflight; on Linux it records and validates the current user's local
+rootless engine. Shimmy does not install Podman or adopt an existing machine,
+and bootstrap never supplies `--stop-running`.
 
 Earlier schemas are unsupported. Use the version that created an old
 installation to remove it, then bootstrap fresh. Do not add forwarding or an
@@ -70,6 +71,8 @@ shimmy profile list --format manifest
 shimmy profile status --format manifest
 shimmy profile create team-one --dry-run
 shimmy profile create team-one
+shimmy profile create isolated-one --isolated --dry-run
+shimmy profile clone isolated-one isolated-two --dry-run
 shimmy profile activate default --dry-run
 shimmy profile activate default
 shimmy profile sync
@@ -83,9 +86,12 @@ launcher. Request approval only for the exact named activation. If the dry run
 lists workloads, obtain separate explicit confirmation before adding
 `--stop-running`.
 
-Never provision, delete, rename, migrate, or adopt a Podman machine. For a
-missing macOS machine, repeat Shimmy's exact `podman machine init
-shimmy-<profile>` guidance for the user to execute in a normal shell.
+Ordinary profiles use the owned shared engine. Explicit `--isolated` creation
+and isolated clone intent transactionally provision a new profile-owned
+machine through Shimmy. Never substitute direct Podman machine init, start,
+stop, remove, rename, migration, or adoption commands for these control-plane
+operations. A missing or mismatched recorded machine is a recovery failure, not
+permission to recreate or adopt it manually.
 
 After activation, source the selected profile's absolute `shell-init.sh` to
 change PATH. Sourcing never changes engine or registry state. AI-agent calls do
@@ -139,17 +145,28 @@ repaired or removed. Sibling profiles own no persistent startup block.
 
 ```sh
 shimmy admin status --format manifest
+shimmy admin uninstall --dry-run
 shimmy admin uninstall
 ```
 
 Uninstall validates and removes all installation-owned profiles, catalog state,
-active state, exact startup blocks, recognized registry projections, and
-recognized direct Shimmy user-skill links. It preserves source checkouts,
-Podman machines, unrelated registry policy, unrelated skills, and the user
-skill root.
+active state, exact startup blocks, recognized registry projections,
+recognized direct Shimmy user-skill links, and every macOS machine whose
+complete current evidence proves Shimmy ownership. It preserves source
+checkouts, legacy, external, ambiguous, and Linux host-local engines, unrelated
+registry policy, unrelated skills, and the user skill root.
 
-Run uninstall without `--stop-running` first. If macOS cleanup lists workloads,
-obtain explicit confirmation before retrying with the acknowledgement.
+Removing an owned machine permanently destroys its containers, images,
+volumes, build caches, and all other VM-local data. None is preserved. Machine
+deletion cannot be rolled back. Run `--dry-run` first and report exact removal
+and preservation targets. If removal partially completes, do not edit the
+journal or engine records; report completed and pending engines and use the
+exact retry printed by Shimmy. Treat a replacement at a completed machine name
+as a collision.
+
+If dry-run lists running containers, obtain explicit confirmation before
+retrying with `--stop-running`. That acknowledgement authorizes permanent
+deletion of those containers with their owned VM.
 
 ## Agent evidence order
 

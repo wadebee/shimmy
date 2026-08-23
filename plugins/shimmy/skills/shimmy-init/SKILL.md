@@ -14,9 +14,10 @@ missing, stale, masked, or unreachable.
 ## Goal
 
 Make Shimmy wrappers usable from an AI Agent shell through the installed
-profile activation control plane. On macOS, profile `<name>` requires the
-pre-existing `shimmy-<name>` machine. Use an exact absolute installed launcher
-for the named activation.
+profile activation control plane. On macOS, ordinary profiles use the
+installation-owned shared `shimmy` machine; explicitly isolated profiles use
+their recorded owned `shimmy-<name>` machine; migrated legacy profiles retain
+their external engine. Use an exact absolute installed launcher for activation.
 
 Do not install Podman or directly provision, start, stop, restart, delete,
 rename, or adopt a Podman machine. Do not request a broad Podman, shell, or
@@ -55,15 +56,17 @@ and workload-interruption approval gates below.
      sandbox blocks inspection.
    - Never print values of `CONTAINER_CONNECTION` or `CONTAINER_HOST`; identify
      only the masking variable name and ask the user to unset it.
-5. Handle a missing deterministic machine:
-   - Stop without attempting activation.
-   - Repeat the command emitted by Shimmy for the user to run in a normal
-     shell: `podman machine init shimmy-<profile>`.
-   - If Shimmy reports that the configuration home is outside `HOME`, also
-     repeat its exact same-path volume form:
-     `podman machine init --volume <absolute-config-home>:<absolute-config-home> shimmy-<profile>`.
-   - State that Shimmy never adopts, renames, migrates, or removes
-     `podman-machine-default`.
+5. Handle a missing recorded machine:
+   - Stop without attempting activation or a direct Podman repair.
+   - Report the binding mode, engine ID, expected name, origin, and exact
+     ownership diagnostic from Shimmy.
+   - Never recreate the name manually: a new same-name machine does not match
+     the recorded ownership token and stable identity and remains ambiguous.
+   - Use only a documented Shimmy recovery/removal command after separate user
+     authorization. Fresh shared and isolated provisioning belongs to bootstrap,
+     profile create, or profile clone; it is not an activation side effect.
+   - State that Shimmy never adopts, renames, or claims
+     `podman-machine-default` or any other pre-existing machine.
 6. Activate only after status and dry-run succeed:
    - Request approval for the exact absolute command recommended by the
      resolved state: `"$profile_root/bin/shimmy" profile activate
@@ -127,5 +130,7 @@ state, and whether the original wrapper succeeded.
 - Do not modify repository files, startup files, manifests, or installed shims
   as part of initialization.
 - Do not install Podman or run direct Podman machine lifecycle commands.
-- Do not provision, delete, rename, or adopt a machine.
+- Do not directly provision, delete, rename, or adopt a machine. Shimmy's own
+  bootstrap, profile-create/clone/delete, and global-uninstall control-plane
+  transactions are the only owned-machine lifecycle authorities.
 - Prefer status, dry-run, `podman info`, and non-mutating tool smokes.

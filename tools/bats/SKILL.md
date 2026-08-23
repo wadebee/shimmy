@@ -47,9 +47,9 @@ Before using another existing profile, resolve its absolute `profile_root` and
 run `"$profile_root/bin/shimmy" profile status`, then
 `"$profile_root/bin/shimmy" profile activate <name> --dry-run`, then request approval
 for the exact `"$profile_root/bin/shimmy" profile activate <name>` command. Require
-separate confirmation before adding `--stop-running`. The user provisions any
-missing Podman machine in a normal shell; agents do not create, replace,
-rename, adopt, start, or delete machines.
+separate confirmation before adding `--stop-running`. Shimmy's control plane
+owns shared and isolated engine lifecycle. Agents do not directly create,
+replace, rename, adopt, start, or delete machines.
 
 After activation, source `"$profile_root/shell-init.sh"` to select PATH. AI
 Agent calls do not retain earlier sourcing, so use the absolute profile

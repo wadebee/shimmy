@@ -83,8 +83,12 @@ shimmy profile redirect delete --all --detach
 Profile deletion and global uninstall perform their own guarded projection
 cleanup. Shared-profile deletion preserves the shared machine. Owned isolated
 profile deletion removes the exact fully proven machine and all VM-local data;
-legacy, external, ambiguous, foreign, or damaged machines remain preserved.
-Foreign or damaged paths are never replaced or removed.
+global uninstall removes every fully proven owned shared or isolated machine.
+That permanently destroys its containers, images, volumes, build caches, and
+all other VM-local data. Legacy, external, ambiguous, foreign, damaged, and
+Linux host-local engines remain preserved. Foreign or damaged paths are never
+replaced or removed. Use `shimmy admin uninstall --dry-run` to inspect exact
+machine and projection actions before mutation.
 
 ## Registry clients
 

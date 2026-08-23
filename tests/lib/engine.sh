@@ -379,6 +379,52 @@ test_lib_engine_lifecycle_journal() {
   pass 'journal transitions precede external lifecycle mutations and retain exact retry state across interrupted create and remove'
 }
 
+test_lib_engine_uninstall_journal() {
+  setup_scenario
+  uninstall_config=$SCENARIO_DIR/config/shimmy
+  uninstall_shared=$uninstall_config/engines/shared
+  uninstall_isolated=$uninstall_config/engines/profile-test
+  mkdir -p "$uninstall_shared" "$uninstall_isolated"
+  uninstall_token=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  uninstall_identity=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  shimmy_engine_record_render shared darwin-machine installation shimmy-test \
+    shimmy-test applehv shimmy-created "$uninstall_token" \
+    "$uninstall_identity" > "$uninstall_shared/engine.conf"
+  shimmy_engine_record_render profile-test darwin-machine profile \
+    shimmy-test-isolated shimmy-test-isolated applehv shimmy-created \
+    "$uninstall_token" "$uninstall_identity" > "$uninstall_isolated/engine.conf"
+  chmod 0644 "$uninstall_shared/engine.conf" "$uninstall_isolated/engine.conf"
+
+  shimmy_uninstall_journal_write "$uninstall_config" planned darwin shared no \
+    profile-test,shared none profile-test,shared none \
+    profile-external:external-origin
+  shimmy_uninstall_journal_read "$uninstall_config/.uninstall.conf" ||
+    fail_test 'valid global uninstall journal was rejected'
+  assert_equals "$SHIMMY_UNINSTALL_JOURNAL_PENDING" profile-test,shared
+  shimmy_uninstall_journal_transition "$uninstall_config" removing-engines
+  shimmy_uninstall_journal_pending_advance "$uninstall_config" completed
+  shimmy_uninstall_journal_read "$uninstall_config/.uninstall.conf"
+  assert_equals "$SHIMMY_UNINSTALL_JOURNAL_COMPLETED" profile-test
+  assert_equals "$SHIMMY_UNINSTALL_JOURNAL_PENDING" shared
+
+  shimmy_uninstall_engine_roots_validate "$uninstall_config" ||
+    fail_test 'safe exact engine-root allowlist was rejected'
+  printf '%s\n' unsafe > "$uninstall_shared/foreign-state"
+  if shimmy_uninstall_engine_roots_validate "$uninstall_config" >/dev/null 2>&1; then
+    fail_test 'engine uninstall allowlist accepted foreign state'
+  fi
+  rm -f "$uninstall_shared/foreign-state"
+  if shimmy_uninstall_journal_render planned darwin shared no \
+    '../outside' none '../outside' none none >/dev/null 2>&1; then
+    fail_test 'uninstall journal accepted a traversal engine target'
+  fi
+  if shimmy_uninstall_journal_render planned darwin shared no shared shared \
+    shared none none >/dev/null 2>&1; then
+    fail_test 'uninstall journal accepted duplicate completed and pending authority'
+  fi
+  pass 'global uninstall journal round-trips ordered progress and strict engine allowlists reject unsafe deletion scope'
+}
+
 test_lib_engine_projection_transaction() {
   engine_fake_setup
   printf '%s\n' running > "$FAKE_ENGINE_MACHINE_STATE"
@@ -451,6 +497,7 @@ test_lib_engine_run() {
   test_lib_engine_records
   test_lib_engine_podman_and_ownership
   test_lib_engine_lifecycle_journal
+  test_lib_engine_uninstall_journal
   test_lib_engine_projection_transaction
   test_lib_engine_service_recycle
 }

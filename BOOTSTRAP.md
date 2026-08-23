@@ -143,18 +143,22 @@ shared engine and never calls `podman machine init`.
 Use the installed launcher:
 
 ```sh
+shimmy admin uninstall --dry-run
 shimmy admin uninstall
 ```
 
-This removes validated Shimmy-owned installation state while preserving the
-source checkout, Podman machines, unrelated registry policy, unrelated user
-skills, and the user skill root. Run once without `--stop-running`; add that
-acknowledgement only after reviewing any listed macOS workloads.
+This removes validated Shimmy-owned installation state and every macOS Podman
+machine whose complete current ownership evidence matches. Removing an owned
+machine permanently destroys its containers, images, volumes, build caches,
+and all other VM-local data; none is preserved. The source checkout, Linux
+host-local engine, legacy, external, and ambiguous machines, unrelated registry
+policy, unrelated user skills, and the user skill root remain untouched.
 
-At this Chunk 2 review boundary, uninstall fails closed when the installation
-owns the macOS shared machine; owned-machine removal is deliberately deferred
-to the reviewed uninstall transaction in Chunk 4. Linux host-local uninstall
-and legacy external-machine preservation remain available.
+Run `--dry-run` first. Add `--stop-running` only after reviewing and explicitly
+accepting deletion of listed running containers. Machine removal is journaled
+before the first stop. A partial failure retains the installation and prints
+completed and pending engines plus the exact retry command; a replacement at a
+previously removed name is treated as a collision.
 
 For an existing schema-2 installation, first update its installed controls,
 then inspect and explicitly migrate the engine registry:

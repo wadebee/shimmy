@@ -22,18 +22,22 @@ profile_activation_fake_create() {
     printf '%s\n' \
       '  "machine list --format {{.Name}}|{{.Running}}")' \
       '    printf "%s\n" "${FAKE_MACHINE_LIST:-}"' \
+      '    if [ -n "${FAKE_MACHINE_STATE_DIR:-}" ] && [ -d "$FAKE_MACHINE_STATE_DIR" ]; then for state_file in "$FAKE_MACHINE_STATE_DIR"/*; do [ -f "$state_file" ] || continue; state=$(cat "$state_file"); [ "$state" = absent ] || { [ "$state" = running ] && running=true || running=false; printf "%s|%s\n" "$(basename "$state_file")" "$running"; }; done; fi' \
       '    if [ -n "${FAKE_CREATED_MACHINE_STATE_FILE:-}" ] && [ -f "$FAKE_CREATED_MACHINE_STATE_FILE" ]; then state=$(cat "$FAKE_CREATED_MACHINE_STATE_FILE"); [ "$state" = absent ] || { [ "$state" = running ] && running=true || running=false; printf "%s|%s\n" "${FAKE_CREATED_MACHINE_NAME:-shimmy}" "$running"; }; fi' \
       '    ;;' \
       '  "machine list --format {{.Name}}|{{.VMType}}|{{.Running}}")' \
       '    printf "%s\n" "${FAKE_MACHINE_LIST:-}" | awk -F "|" '\''NF == 2 { print $1 "|applehv|" $2 } NF == 3 { print }'\''' \
+      '    if [ -n "${FAKE_MACHINE_STATE_DIR:-}" ] && [ -d "$FAKE_MACHINE_STATE_DIR" ]; then for state_file in "$FAKE_MACHINE_STATE_DIR"/*; do [ -f "$state_file" ] || continue; state=$(cat "$state_file"); [ "$state" = absent ] || { [ "$state" = running ] && running=true || running=false; printf "%s|applehv|%s\n" "$(basename "$state_file")" "$running"; }; done; fi' \
       '    if [ -n "${FAKE_CREATED_MACHINE_STATE_FILE:-}" ] && [ -f "$FAKE_CREATED_MACHINE_STATE_FILE" ]; then state=$(cat "$FAKE_CREATED_MACHINE_STATE_FILE"); [ "$state" = absent ] || { [ "$state" = running ] && running=true || running=false; printf "%s|applehv|%s\n" "${FAKE_CREATED_MACHINE_NAME:-shimmy}" "$running"; }; fi' \
       '    ;;' \
       '  "system connection list --format {{.Name}}|{{.URI}}|{{.Default}}")' \
       '    printf "%s\n" "${FAKE_CONNECTION_LIST:-}"' \
+      '    if [ -n "${FAKE_MACHINE_STATE_DIR:-}" ] && [ -d "$FAKE_MACHINE_STATE_DIR" ]; then for state_file in "$FAKE_MACHINE_STATE_DIR"/*; do [ -f "$state_file" ] || continue; [ "$(cat "$state_file")" = absent ] || printf "%s|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false\n" "$(basename "$state_file")"; done; fi' \
       '    if [ -n "${FAKE_CREATED_MACHINE_STATE_FILE:-}" ] && [ -f "$FAKE_CREATED_MACHINE_STATE_FILE" ] && [ "$(cat "$FAKE_CREATED_MACHINE_STATE_FILE")" != absent ]; then printf "%s|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false\n" "${FAKE_CREATED_MACHINE_NAME:-shimmy}"; fi' \
       '    ;;' \
       '  "system connection list --format {{.Name}}|{{.URI}}|{{.Identity}}|{{.Default}}")' \
       '    printf "%s\n" "${FAKE_CONNECTION_LIST:-}" | awk -F "|" -v identity="${FAKE_ENGINE_IDENTITY_PATH:-/tmp/shimmy-fake-identity}" '\''NF == 3 { print $1 "|" $2 "|" identity "|" $3 } NF == 4 { print }'\''' \
+      '    if [ -n "${FAKE_MACHINE_STATE_DIR:-}" ] && [ -d "$FAKE_MACHINE_STATE_DIR" ]; then for state_file in "$FAKE_MACHINE_STATE_DIR"/*; do [ -f "$state_file" ] || continue; [ "$(cat "$state_file")" = absent ] || { machine_name=$(basename "$state_file"); identity=${FAKE_ENGINE_IDENTITY_PATH:-/tmp/shimmy-fake-identity}; [ -z "${FAKE_MACHINE_METADATA_DIR:-}" ] || [ ! -f "$FAKE_MACHINE_METADATA_DIR/$machine_name" ] || identity=$(sed -n "3p" "$FAKE_MACHINE_METADATA_DIR/$machine_name"); printf "%s|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|%s|false\n" "$machine_name" "$identity"; }; done; fi' \
       '    if [ -n "${FAKE_CREATED_MACHINE_STATE_FILE:-}" ] && [ -f "$FAKE_CREATED_MACHINE_STATE_FILE" ] && [ "$(cat "$FAKE_CREATED_MACHINE_STATE_FILE")" != absent ]; then printf "%s|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|%s|false\n" "${FAKE_CREATED_MACHINE_NAME:-shimmy}" "${FAKE_ENGINE_IDENTITY_PATH:-/tmp/shimmy-fake-identity}"; fi' \
       '    ;;' \
       '  "machine init --update-connection=false "*)' \
@@ -42,7 +46,9 @@ profile_activation_fake_create() {
       '    ;;' \
       '  "machine inspect --format "*)' \
       '    name=${6:-${5:-shimmy}}' \
-      '    printf "%s|2026-08-23 00:00:00 +0000 UTC|%s|%s|%s|core|false\n" "$name" "${FAKE_ENGINE_CONFIG_DIR:-/tmp/shimmy-fake-config}" "${FAKE_ENGINE_SOCKET_PATH:-/tmp/shimmy-fake-socket}" "${FAKE_ENGINE_IDENTITY_PATH:-/tmp/shimmy-fake-identity}"' \
+      '    config_dir=${FAKE_ENGINE_CONFIG_DIR:-/tmp/shimmy-fake-config}; socket_path=${FAKE_ENGINE_SOCKET_PATH:-/tmp/shimmy-fake-socket}; identity_path=${FAKE_ENGINE_IDENTITY_PATH:-/tmp/shimmy-fake-identity}' \
+      '    if [ -n "${FAKE_MACHINE_METADATA_DIR:-}" ] && [ -f "$FAKE_MACHINE_METADATA_DIR/$name" ]; then config_dir=$(sed -n "1p" "$FAKE_MACHINE_METADATA_DIR/$name"); socket_path=$(sed -n "2p" "$FAKE_MACHINE_METADATA_DIR/$name"); identity_path=$(sed -n "3p" "$FAKE_MACHINE_METADATA_DIR/$name"); fi' \
+      '    printf "%s|2026-08-23 00:00:00 +0000 UTC|%s|%s|%s|core|false\n" "$name" "$config_dir" "$socket_path" "$identity_path"' \
       '    ;;' \
       '  "--connection "*" ps --format {{.ID}}|{{.Names}}")' \
       '    [ "${FAKE_FAIL_ACTION:-}" != workload ] || exit 42' \
@@ -113,6 +119,7 @@ profile_activation_fake_create() {
       '    if [ "${FAKE_FAIL_ACTION:-}" = stop ] && [ "$machine_name" = "${FAKE_PRIOR_MACHINE:-}" ]; then exit 44; fi' \
       '    if [ "${FAKE_ROLLBACK_FAIL:-}" = test_cleanup ] && [ "$machine_name" = "${FAKE_TARGET_MACHINE:-}" ]; then exit 45; fi' \
       '    if [ -n "${FAKE_CREATED_MACHINE_STATE_FILE:-}" ] && [ "$machine_name" = "${FAKE_CREATED_MACHINE_NAME:-shimmy}" ]; then printf "%s\n" stopped > "$FAKE_CREATED_MACHINE_STATE_FILE"; fi' \
+      '    if [ -n "${FAKE_MACHINE_STATE_DIR:-}" ] && [ -f "$FAKE_MACHINE_STATE_DIR/$machine_name" ]; then printf "%s\n" stopped > "$FAKE_MACHINE_STATE_DIR/$machine_name"; fi' \
       '    ;;' \
       '  "machine start "*)' \
       '    machine_name=${3:-${2:-}}' \
@@ -120,12 +127,14 @@ profile_activation_fake_create() {
       '    if [ "${FAKE_FAIL_ACTION:-}" = test_start ] && [ "$machine_name" = "${FAKE_TARGET_MACHINE:-}" ]; then exit 46; fi' \
       '    if [ "${FAKE_ROLLBACK_FAIL:-}" = prior_restart ] && [ "$machine_name" = "${FAKE_PRIOR_MACHINE:-}" ]; then exit 47; fi' \
       '    if [ -n "${FAKE_CREATED_MACHINE_STATE_FILE:-}" ] && [ "$machine_name" = "${FAKE_CREATED_MACHINE_NAME:-shimmy}" ]; then printf "%s\n" running > "$FAKE_CREATED_MACHINE_STATE_FILE"; fi' \
+      '    if [ -n "${FAKE_MACHINE_STATE_DIR:-}" ] && [ -f "$FAKE_MACHINE_STATE_DIR/$machine_name" ]; then printf "%s\n" running > "$FAKE_MACHINE_STATE_DIR/$machine_name"; fi' \
       '    ;;' \
       '  "machine rm --force "*)' \
       '    machine_name=${4:-}' \
       '    fake_fail_requested machine_rm "$machine_name" && exit 63' \
       '    [ "${FAKE_ROLLBACK_FAIL:-}" != machine_rm ] || exit 64' \
       '    if [ -n "${FAKE_CREATED_MACHINE_STATE_FILE:-}" ] && [ "$machine_name" = "${FAKE_CREATED_MACHINE_NAME:-shimmy}" ]; then printf "%s\n" absent > "$FAKE_CREATED_MACHINE_STATE_FILE"; fi' \
+      '    if [ -n "${FAKE_MACHINE_STATE_DIR:-}" ] && [ -f "$FAKE_MACHINE_STATE_DIR/$machine_name" ]; then printf "%s\n" absent > "$FAKE_MACHINE_STATE_DIR/$machine_name"; fi' \
       '    ;;' \
       '  "system connection default "*)' \
       '    connection_name=${4:-${3:-}}' \

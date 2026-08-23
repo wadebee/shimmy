@@ -34,7 +34,7 @@ shimmy admin engine migrate [--dry-run]
 shimmy admin network [--target <host-or-ip> ...]
   [--host-name <name>] [--host-ip <ipv4>] [--host-prefix <bits>]
   [--host-lan <cidr>] [--format human|manifest]
-shimmy admin uninstall [--stop-running]
+shimmy admin uninstall [--stop-running] [--dry-run]
 ```
 
 - `status` aggregates the active record, default catalog, and every profile.
@@ -46,12 +46,16 @@ shimmy admin uninstall [--stop-running]
   machine. Existing macOS profile machines remain external and unchanged.
 - `network` reports shell, host, VM, and container perspectives through the
   active profile.
-- `uninstall` removes all validated Shimmy-owned installation state. It
-  preserves checkouts, Podman machines, unrelated registry policy, unrelated
-  skill names, and the user skill root.
+- `uninstall` removes all validated Shimmy-owned installation state and every
+  macOS machine with complete matching Shimmy ownership evidence. It preserves
+  checkouts, legacy, external, ambiguous, and Linux host-local engines,
+  unrelated registry policy, unrelated skill names, and the user skill root.
 
-Run uninstall without `--stop-running` first. The flag is only an explicit
-acknowledgement for listed macOS workloads that must be interrupted.
+Run uninstall with `--dry-run` first. Removing an owned machine permanently
+destroys its containers, images, volumes, build caches, and all other VM-local
+data; none is preserved. `--stop-running` is the explicit acknowledgement for
+listed running containers. Partial removal retains a durable ordered journal
+and prints the exact retry command; machine deletion is never rolled back.
 
 ## Profile
 

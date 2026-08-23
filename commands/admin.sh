@@ -37,7 +37,7 @@ Usage:
   shimmy admin network [--target <host-or-ip> ...]
     [--host-name <name>] [--host-ip <ipv4>] [--host-prefix <bits>]
     [--host-lan <cidr>] [--format human|manifest]
-  shimmy admin uninstall [--stop-running]
+  shimmy admin uninstall [--stop-running] [--dry-run]
 EOF
 }
 
@@ -189,14 +189,17 @@ case "$shimmy_admin_action" in
     ;;
   uninstall)
     shimmy_admin_stop_running=0
+    shimmy_admin_uninstall_dry_run=0
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --stop-running) [ "$shimmy_admin_stop_running" -eq 0 ] || fail 'duplicate option: --stop-running'; shimmy_admin_stop_running=1 ;;
+        --dry-run) [ "$shimmy_admin_uninstall_dry_run" -eq 0 ] || fail 'duplicate option: --dry-run'; shimmy_admin_uninstall_dry_run=1 ;;
         *) fail "unknown admin uninstall argument: $1" ;;
       esac
       shift
     done
-    shimmy_uninstall_run "$shimmy_admin_config" "$shimmy_admin_stop_running" ||
+    shimmy_uninstall_run "$shimmy_admin_config" "$shimmy_admin_stop_running" \
+      "$shimmy_admin_uninstall_dry_run" ||
       fail "${SHIMMY_UNINSTALL_ERROR:-administration uninstall failed}"
     ;;
   *) fail "unknown administration action: $shimmy_admin_action" ;;

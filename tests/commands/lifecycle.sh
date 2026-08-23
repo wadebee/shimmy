@@ -79,6 +79,18 @@ test_lifecycle_isolated_profile_command() {
     "$TEST_LIFECYCLE_CONFIG/profiles/$test_lifecycle_isolated_invoking/bin/shimmy" "$@"
 }
 
+test_lifecycle_global_uninstall_command() {
+  env HOME="$TEST_LIFECYCLE_HOME" XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" FAKE_MACHINE_LIST= \
+    FAKE_CONNECTION_LIST= FAKE_MACHINE_STATE_DIR="$TEST_LIFECYCLE_MACHINE_STATE_DIR" \
+    FAKE_MACHINE_METADATA_DIR="$TEST_LIFECYCLE_MACHINE_METADATA_DIR" \
+    FAKE_WORKLOADS="${TEST_LIFECYCLE_GLOBAL_WORKLOADS:-}" \
+    FAKE_DARWIN_PROJECTION_STATE=current \
+    SHIMMY_TEST_UNINSTALL_FAILURE="${TEST_LIFECYCLE_UNINSTALL_FAILURE:-}" \
+    "$TEST_LIFECYCLE_CONFIG/profiles/default/bin/shimmy" admin uninstall "$@"
+}
+
 test_lifecycle_fixture_setup() {
   setup_scenario
   TEST_LIFECYCLE_CHECKOUT=$SCENARIO_DIR/checkout
@@ -483,6 +495,107 @@ test_commands_lifecycle_explicit_migration() {
   pass 'explicit migration is dry-run safe, preserves legacy machines, rolls back failure, and retries to a complete schema'
 }
 
+test_commands_lifecycle_global_owned_uninstall() {
+  test_commands_lifecycle_darwin_bootstrap_case global-uninstall
+
+  TEST_LIFECYCLE_ISOLATED_STATE=$SCENARIO_DIR/isolated-state
+  printf '%s\n' absent > "$TEST_LIFECYCLE_ISOLATED_STATE"
+  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy|true'
+  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  TEST_LIFECYCLE_ISOLATED_CREATED_NAME=shimmy-isolated-one
+  TEST_LIFECYCLE_ISOLATED_ENGINE_ID=profile-isolated-one
+  TEST_LIFECYCLE_TARGET_MACHINE=shimmy-isolated-one
+  TEST_LIFECYCLE_PRIOR_MACHINE=shimmy
+  TEST_LIFECYCLE_PRIOR_DEFAULT=shimmy
+  TEST_LIFECYCLE_ISOLATED_WORKLOADS=
+  test_lifecycle_isolated_profile_command default profile create isolated-one \
+    --isolated >/dev/null
+
+  TEST_LIFECYCLE_MACHINE_STATE_DIR=$SCENARIO_DIR/global-machine-state
+  TEST_LIFECYCLE_MACHINE_METADATA_DIR=$SCENARIO_DIR/global-machine-metadata
+  mkdir -p "$TEST_LIFECYCLE_MACHINE_STATE_DIR" "$TEST_LIFECYCLE_MACHINE_METADATA_DIR"
+  printf '%s\n' stopped > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy"
+  printf '%s\n' running > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy-isolated-one"
+  printf '%s\n%s\n%s\n' "$SCENARIO_DIR/engine-config" \
+    "$SCENARIO_DIR/engine-socket" "$SCENARIO_DIR/engine-identity" \
+    > "$TEST_LIFECYCLE_MACHINE_METADATA_DIR/shimmy"
+  printf '%s\n%s\n%s\n' "$SCENARIO_DIR/isolated-engine-config" \
+    "$SCENARIO_DIR/isolated-engine-socket" "$SCENARIO_DIR/isolated-engine-identity" \
+    > "$TEST_LIFECYCLE_MACHINE_METADATA_DIR/shimmy-isolated-one"
+
+  test_lifecycle_external_root=$TEST_LIFECYCLE_CONFIG/engines/profile-external
+  mkdir "$test_lifecycle_external_root"
+  shimmy_engine_record_render profile-external darwin-machine profile \
+    external-machine external-machine applehv legacy-external '' '' \
+    > "$test_lifecycle_external_root/engine.conf"
+  chmod 0644 "$test_lifecycle_external_root/engine.conf"
+  printf '%s\n' stopped > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/external-machine"
+  printf '%s\n%s\n%s\n' "$SCENARIO_DIR/external-config" \
+    "$SCENARIO_DIR/external-socket" "$SCENARIO_DIR/external-identity" \
+    > "$TEST_LIFECYCLE_MACHINE_METADATA_DIR/external-machine"
+
+  TEST_LIFECYCLE_GLOBAL_WORKLOADS='abcdef012345|global-sentinel'
+  test_lifecycle_global_before=$(cksum < "$TEST_LIFECYCLE_CONFIG/active-profile.conf")
+  test_lifecycle_global_dry=$(test_lifecycle_global_uninstall_command --dry-run 2>&1)
+  assert_contains "$test_lifecycle_global_dry" \
+    'planned_engines=shared,profile-isolated-one'
+  assert_contains "$test_lifecycle_global_dry" \
+    'profile-external:external-origin'
+  assert_contains "$test_lifecycle_global_dry" \
+    'build caches, and all other VM-local data'
+  assert_contains "$test_lifecycle_global_dry" \
+    'running_container=profile-isolated-one|abcdef012345|global-sentinel'
+  assert_equals "$(cksum < "$TEST_LIFECYCLE_CONFIG/active-profile.conf")" \
+    "$test_lifecycle_global_before"
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/.uninstall.conf"
+
+  set +e
+  test_lifecycle_global_blocked=$(test_lifecycle_global_uninstall_command 2>&1)
+  test_lifecycle_global_blocked_status=$?
+  set -e
+  [ "$test_lifecycle_global_blocked_status" -ne 0 ] ||
+    fail_test 'global uninstall deleted a running workload without acknowledgement'
+  assert_contains "$test_lifecycle_global_blocked" \
+    'retry with explicit --stop-running acknowledgement'
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/.uninstall.conf"
+  TEST_LIFECYCLE_GLOBAL_WORKLOADS=
+
+  TEST_LIFECYCLE_UNINSTALL_FAILURE=after-shared-remove
+  set +e
+  test_lifecycle_global_failure=$(test_lifecycle_global_uninstall_command 2>&1)
+  test_lifecycle_global_failure_status=$?
+  set -e
+  TEST_LIFECYCLE_UNINSTALL_FAILURE=
+  [ "$test_lifecycle_global_failure_status" -ne 0 ] ||
+    fail_test 'injected global uninstall interruption unexpectedly succeeded'
+  assert_contains "$test_lifecycle_global_failure" \
+    'installation state was retained for exact retry'
+  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/.uninstall.conf"
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/.uninstall.conf" \
+    'pending_engines=shared,profile-isolated-one'
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/lifecycle.conf" \
+    'phase=removed'
+  assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy")" absent
+  assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy-isolated-one")" stopped
+
+  printf '%s\n' stopped > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy"
+  set +e
+  test_lifecycle_global_collision=$(test_lifecycle_global_uninstall_command 2>&1)
+  test_lifecycle_global_collision_status=$?
+  set -e
+  [ "$test_lifecycle_global_collision_status" -ne 0 ] ||
+    fail_test 'global uninstall targeted a replacement at a reused machine name'
+  assert_contains "$test_lifecycle_global_collision" 'engine name reappeared after recorded removal'
+  printf '%s\n' absent > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy"
+
+  test_lifecycle_global_uninstall_command >/dev/null
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG"
+  assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy")" absent
+  assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy-isolated-one")" absent
+  assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/external-machine")" stopped
+  pass 'global uninstall removes exact owned engines in order, preserves external state, and retries without targeting a reused name'
+}
+
 test_commands_lifecycle_end_to_end() {
   test_lifecycle_fixture_setup
   test_lifecycle_user_skills=$TEST_LIFECYCLE_HOME/.agents/skills
@@ -788,5 +901,6 @@ test_commands_lifecycle_run() {
   test_commands_lifecycle_darwin_bootstrap_engine_states
   test_commands_lifecycle_owned_isolated
   test_commands_lifecycle_explicit_migration
+  test_commands_lifecycle_global_owned_uninstall
   test_commands_lifecycle_end_to_end
 }

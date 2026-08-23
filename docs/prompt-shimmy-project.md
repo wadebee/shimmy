@@ -30,7 +30,8 @@ tool-specific `SHIMMY_*` settings, argument forwarding, and `--preview-shim`
 unless a documented contract requires otherwise. Use the shared Podman helper
 for platform and engine checks and the shared image helper for image metadata,
 local-build inputs, and cache identity. Shimmy does not install or provision
-Podman.
+Podman itself. On macOS, its control plane transactionally owns shared and
+explicit isolated machine lifecycle without adopting pre-existing machines.
 
 Registry redirects are an explicit client capability. Skopeo is the initial
 tool-container consumer, and `shimmy catalog verify` inherits its active-profile
@@ -68,9 +69,16 @@ profile_root=${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/<name>
 ```
 
 Running workloads require separate confirmation before `--stop-running`.
-Missing deterministic macOS machines are provisioned only by the user from
-Shimmy's exact guidance. Agents never create, rename, adopt, or delete them.
+Missing recorded macOS machines are not recreated or adopted. Fresh shared and
+isolated provisioning belongs only to Shimmy bootstrap/create/clone
+transactions. Agents never substitute direct machine lifecycle commands.
 Sourcing selects PATH; separate agent tool calls do not retain that sourcing.
+
+Global uninstall removes completely proven owned macOS machines by default and
+preserves legacy, external, ambiguous, and Linux host-local engines. Require a
+dry run and disclose permanent loss of containers, images, volumes, build
+caches, and all other VM-local data. Partial deletion uses forward recovery;
+never claim rollback of a removed VM.
 
 If a known Shimmy wrapper has an approved safe outer prefix, run the requested
 operation with escalation on the first attempt. Sandbox-only engine errors mean

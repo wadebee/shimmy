@@ -24,8 +24,8 @@ Every generated skill must keep this evidence order:
 For another profile, resolve its absolute launcher, run `profile status`, then
 `profile activate <name> --dry-run`, obtain approval for the exact activation,
 and source `shell-init.sh` only after success. Running containers require
-separate confirmation before `--stop-running`. Agents never provision or
-directly manage Podman machines.
+separate confirmation before `--stop-running`. Shimmy's control plane owns
+shared and isolated engine lifecycle; agents never directly manage machines.
 
 ## Required structure
 

@@ -46,10 +46,10 @@ run `"$profile_root/bin/shimmy" profile status`, then
 `"$profile_root/bin/shimmy" profile activate <name> --dry-run`, then request approval
 for the exact absolute
 `"$profile_root/bin/shimmy" profile activate <name>` command. Running containers
-require separate explicit confirmation before adding `--stop-running`. A missing
-machine must be provisioned by the user in a normal shell with the exact
-`podman machine init shimmy-<profile>` guidance; agents never run direct Podman
-machine lifecycle commands.
+require separate explicit confirmation before adding `--stop-running`. Shimmy's
+control plane owns shared and isolated engine lifecycle; a missing recorded
+machine is not recreated or adopted. Agents never run direct Podman machine
+lifecycle commands.
 
 After activation, source `"$profile_root/shell-init.sh"` to select PATH.
 Installed commands do not accept a profile selector. AI Agent calls do not

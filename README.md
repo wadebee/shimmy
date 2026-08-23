@@ -228,15 +228,28 @@ repository deliberately does not contain generated `.agents/skills` adapters.
 ```sh
 shimmy admin status --format manifest
 shimmy admin network --format manifest
+shimmy admin uninstall --dry-run
 shimmy admin uninstall
 ```
 
 Uninstall validates ownership before removing all profiles, retained catalog
 state, the active record, exact startup blocks, recognized registry projections,
-and recognized direct Shimmy skill links. It preserves source checkouts, Podman
-machines, unrelated registry policy, unrelated skill names, and the user skill
-root. If macOS cleanup requires interrupting listed workloads, review the output
-and retry with `--stop-running` only after explicit acceptance.
+and recognized direct Shimmy skill links. On macOS it also removes every shared
+or isolated machine whose complete current host, guest, connection, and inspect
+evidence proves Shimmy ownership. It preserves source checkouts, legacy,
+external, ambiguous, and Linux host-local engines, unrelated registry policy,
+unrelated skill names, and the user skill root.
+
+> **Destructive uninstall warning:** removing an owned machine permanently
+> destroys its containers, images, volumes, build caches, and all other VM-local
+> data. None of that data will be preserved. Run `--dry-run` first. Listed
+> running containers require explicit `--stop-running` acknowledgement.
+
+Machine deletion cannot be rolled back. Shimmy records ordered pending and
+completed engines before the first stop or removal. A partial failure retains
+the installation and journal, reports preserved/completed/pending engines, and
+prints the exact retry command. Reused names are collisions and are never
+treated as the machine that was already removed.
 
 Deleting a shared profile never removes the shared engine. Deleting a profile
 with a fully proven Shimmy-owned isolated engine permanently deletes that

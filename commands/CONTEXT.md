@@ -37,6 +37,10 @@ All mutating handlers must validate complete state before mutation, use the
 appropriate catalog/activation/profile/registry lock order, and retain cleanup
 traps through commit. Help paths must not require a valid manifest.
 
+Global uninstall supports a non-mutating dry run and removes completely proven
+owned macOS engines by default. Its help and execution output must disclose
+permanent loss of all VM-local data before mutation.
+
 Exact user skill collisions are destructive by design: activation and repair
 overwrite bundle-declared destinations without backup. Commands must preserve
 unrelated names and must never recursively delete the user skill root.

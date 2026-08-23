@@ -83,6 +83,8 @@ EOF
   done
   assert_file_contains "$SCENARIO_DIR/help-profile-redirect-bare.stdout" 'Commands:'
   assert_file_contains "$SCENARIO_DIR/help-admin-engine-bare.stdout" 'Commands:'
+  assert_file_contains "$SCENARIO_DIR/help-admin-bare.stdout" \
+    'Uninstall permanently destroys containers, images, volumes, build caches'
 
   while IFS='|' read -r test_surface_path test_surface_usage; do
     [ -n "$test_surface_path" ] || continue
@@ -99,7 +101,7 @@ admin status|shimmy admin status [--format human|manifest]
 admin engine status|shimmy admin engine status [--format human|manifest]
 admin engine migrate|shimmy admin engine migrate [--dry-run]
 admin network|shimmy admin network [--target <host-or-ip> ...]
-admin uninstall|shimmy admin uninstall [--stop-running]
+admin uninstall|shimmy admin uninstall [--stop-running] [--dry-run]
 profile list|shimmy profile list [--format human|manifest]
 profile status|shimmy profile status [--format human|manifest]
 profile create|shimmy profile create <name> [--isolated] [--restart] [--stop-running] [--dry-run]
@@ -125,6 +127,11 @@ shim test|shimmy shim test [<tool[@version]> ...]
 ai-skill list|shimmy ai-skill list [--format human|manifest]
 ai-skill repair|shimmy ai-skill repair
 EOF
+
+  test_surface_uninstall_help=$(test_surface_help_run admin uninstall --help)
+  assert_contains "$test_surface_uninstall_help" '--dry-run'
+  assert_contains "$test_surface_uninstall_help" \
+    'Machine deletion cannot be rolled'
 
   set +e
   test_surface_state_output=$(test_surface_help_run profile status 2>&1)
