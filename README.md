@@ -69,6 +69,7 @@ The installed launcher has five groups:
 Help is state-independent:
 
 ```sh
+shimmy
 shimmy --help
 shimmy profile --help
 shimmy profile activate --help
