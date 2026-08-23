@@ -22,6 +22,11 @@ Linux registry-link selection and local-rootless validation, workload-guarded
 Darwin transitions, same-path registry projection, commit-last default
 selection, and rollback. It never provisions or removes a VM.
 
+The unpublished schema-1 modules under `lib/engine/` provide machine identity,
+ownership, journal, service-recycle, and projection primitives for the reviewed
+hybrid-engine transition. They do not activate profiles; this module remains the
+sole active-engine authority.
+
 `transaction.sh` is the external compensation journal. It restores registered
 Shimmy state in reverse and reports overwritten foreign skill content as
 irrecoverable rather than claiming recovery.

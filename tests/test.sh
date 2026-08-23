@@ -49,6 +49,16 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/install/catalog.sh"
 # shellcheck source=lib/install/profile.sh
 . "$ROOT_DIR/lib/install/profile.sh"
+# shellcheck source=lib/engine/state.sh
+. "$ROOT_DIR/lib/engine/state.sh"
+# shellcheck source=lib/engine/podman.sh
+. "$ROOT_DIR/lib/engine/podman.sh"
+# shellcheck source=lib/engine/ownership.sh
+. "$ROOT_DIR/lib/engine/ownership.sh"
+# shellcheck source=lib/engine/lifecycle.sh
+. "$ROOT_DIR/lib/engine/lifecycle.sh"
+# shellcheck source=lib/engine/projection.sh
+. "$ROOT_DIR/lib/engine/projection.sh"
 # shellcheck source=lib/startup/startup.sh
 . "$ROOT_DIR/lib/startup/startup.sh"
 # shellcheck source=lib/install/lifecycle.sh
@@ -86,6 +96,8 @@ TEST_COUNT=0
 . "$SCRIPT_DIR/lib/ai-skill-link.sh"
 # shellcheck source=tests/lib/runtime.sh
 . "$SCRIPT_DIR/lib/runtime.sh"
+# shellcheck source=tests/lib/engine.sh
+. "$SCRIPT_DIR/lib/engine.sh"
 # shellcheck source=tests/lib/profile-activation.sh
 . "$SCRIPT_DIR/lib/profile-activation.sh"
 # shellcheck source=tests/lib/registries.sh

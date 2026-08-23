@@ -1,5 +1,10 @@
 # Split Profile Create and Clone Plan
 
+**Status:** Superseded by `plans/wip/hybrid-podman-engine-lifecycle.md` when
+Hybrid Lifecycle Chunk 1 began on 2026-08-22. Do not execute this plan; retain
+it only as historical design context for the clone behavior absorbed by Hybrid
+Lifecycle Chunk 3.
+
 ## Objective
 
 Split the profile creation surface into two unambiguous operations:

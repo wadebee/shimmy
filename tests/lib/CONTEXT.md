@@ -12,6 +12,9 @@
 - `ai-skill-link.sh`: exact collision planning, mutation, preservation, rollback.
 - `runtime.sh`: native platform, preview, schema-2 affinity, POSIX syntax, modes,
   and unreachable guidance.
+- `engine.sh`: strict unpublished engine records, exact Podman routing,
+  redundant ownership proof, lifecycle journals, projection transactions, and
+  rootless service recycling.
 - `profile-activation.sh`: Linux/Darwin engine and registry transition state.
 - `registries.sh`: endpoint/config/record/link/edit ownership and rollback.
 

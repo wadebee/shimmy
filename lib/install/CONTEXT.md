@@ -19,6 +19,10 @@
 - `launcher-template.sh` is the byte-authoritative final installed launcher for
   `admin`, `profile`, `catalog`, `shim`, and `ai-skill`.
 
+Materialized controls include the unpublished `lib/engine/` schema-1
+foundation, but no installation path writes engine or binding records until the
+whole compatibility unit is published in a later reviewed chunk.
+
 Initial bootstrap requires a clean committed attached `main`, creates only
 `default`, installs jq/rg/Skopeo, activates engine/registry authority, records
 the active profile, reconciles exact skill links, and applies startup policy as

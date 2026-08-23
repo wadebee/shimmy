@@ -41,6 +41,12 @@ closed on sibling, damaged, unsafe, stale, or registry-overridden state.
 Clients require the installation active record to name the invoking arbitrary
 profile. Profile orchestration may supply an already-held registry lock;
 standalone redirect mutation owns the adjacent lock directly.
+
+The unpublished engine projection primitive normalizes these canonical entries
+independently of the profile ownership header, atomically stages an engine-local
+copy, and can recycle only the rootless `podman.service` with compensated
+rollback. Chunk 1 does not route existing activation or redirect commands
+through that primitive.
 Skopeo is the only initial consumer and mounts the result read-only at the
 same fixed container drop-in path; image verification inherits that behavior
 through the active profile's Skopeo runtime.

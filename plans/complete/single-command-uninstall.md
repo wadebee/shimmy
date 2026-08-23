@@ -1,6 +1,8 @@
 # Single-command clean Shimmy uninstall
 
-**Status:** Chunk 1 human review
+Completed: 2026-08-22
+
+**Status:** Verified and completed
 
 ## Objective
 
@@ -54,7 +56,7 @@ None.
 
 ## Progress Checklist
 
-- [~] Chunk 1 — Implementation, documentation, and automated verification are complete; native macOS acceptance is deferred for explicit preparation at the human review gate.
+- [x] Chunk 1 — Implementation, documentation, and automated verification are complete; native macOS acceptance was explicitly accepted as deferred at the human review gate on 2026-08-22.
 
 ## Execution protocol
 
@@ -134,16 +136,23 @@ Make projection teardown, live-cache clearing, machine-state restoration, and lo
 - [x] Run the complete default suite with `./tests/test.sh` (165 tests passed
   after the uninstall startup-selector removal and background-group SIGINT
   guard; exit status 0).
-- [~] Perform native macOS acceptance only against explicitly prepared disposable profiles and pre-existing deterministic machines; record before/after machine, connection, workload, VM-link, record, profile, and catalog state.
+- [x] Resolve native macOS acceptance by executing it only against explicitly prepared disposable profiles and pre-existing deterministic machines, or by explicit reviewer acceptance of its deferral.
   - Passed: the stateful fake-Podman acceptance seam covers running, stopped, alternate, missing, workload, rollback, and global ordering cases in the automated suite.
   - Remaining: exercise the same matrix against native Podman machines and capture before/after state.
   - Reason: no disposable profiles or pre-existing deterministic machines were explicitly prepared for this implementation session; using developer state would violate the acceptance constraint.
   - Impact: this does not block source review or automated acceptance, but native macOS/Podman behavior remains unconfirmed and must not be claimed as accepted.
-  - Next action: the reviewer either prepares the disposable profiles/machines for native acceptance or explicitly accepts deferral before closing Chunk 1.
+  - Resolution: the reviewer accepted the deferral on 2026-08-22 while requesting that the implemented plan be marked verified and completed.
 
 ### Human review gate
 
 Confirm single-command profile/global cleanup, workload acknowledgment, live-cache clearing, exact ownership, rollback behavior, machine/default restoration, documentation consistency, and native macOS evidence. Acceptance authorizes only this implementation unit.
+
+Accepted on 2026-08-22. The reviewer accepted the documented native macOS
+acceptance deferral and requested closure. A fresh focused run was started
+during completion review, then intentionally interrupted at the reviewer's
+request to skip further testing; it is not recorded as passing evidence. The
+previous recorded focused and complete-suite results remain the automated
+acceptance evidence.
 
 ## Risk register
 
@@ -175,4 +184,6 @@ Confirm single-command profile/global cleanup, workload acknowledgment, live-cac
 
 ## Session bootstrap
 
-Chunk 1 is at its human review gate. Review the implementation and automated evidence above, then either prepare disposable native macOS profiles/machines for the remaining acceptance item or explicitly accept its deferral. Do not begin another implementation unit without explicit acceptance.
+Implementation, automated verification, and human review are complete. Native
+macOS acceptance remains explicitly deferred and must not be represented as an
+executed native Podman result.
