@@ -13,7 +13,8 @@
   and Darwin activation ordering, dry-run, bundle policy, workload guards,
   rollback, and sourced-shell retargeting.
 - `surface.sh` proves complete root/group/subgroup/action help before state
-  validation and exact rendered launcher bytes.
+  validation, independently verifies status and streams for bare launcher help
+  nodes versus `--help`, and validates exact rendered launcher bytes.
 - `lifecycle.sh` is the public end-to-end acceptance world: clean bootstrap,
   jq/rg/Skopeo inventory, catalog/shim/profile/skill/network/startup flows,
   sibling isolation, sync/rollback, admin status, deletion, global uninstall,

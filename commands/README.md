@@ -1,11 +1,18 @@
 # Shimmy command reference
 
-The installed `bin/shimmy` launcher exposes five command groups. Root, group,
-subgroup, and action help renders before installed-state validation:
+The installed `bin/shimmy` launcher exposes five command groups. Invoking the
+root, any group, or the `profile redirect` subgroup without a child command is
+exactly equivalent to adding `--help`: status `0`, byte-identical stdout, empty
+stderr, and no installed-state validation or mutation. Actions retain their
+documented defaults or require their documented inputs. Explicit action help
+also renders before installed-state validation:
 
 ```sh
+shimmy
 shimmy --help
+shimmy profile
 shimmy profile --help
+shimmy profile redirect
 shimmy profile redirect --help
 shimmy profile redirect set --help
 ```

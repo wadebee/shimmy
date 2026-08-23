@@ -68,11 +68,11 @@ variables are forwarded only where documented.
 
 ## Source map
 
-- `commands/`: checkout and installed management entrypoints
-- `lib/`: shared sourceable modules
+- [`commands/`](commands/CONTEXT.md): checkout and installed management entrypoints
+- [`lib/`](lib/CONTEXT.md): shared sourceable modules
 - `tools/<tool>/`: metadata, canonical skill, guide, tests, and versions
 - `plugins/shimmy/skills/`: canonical management skills
-- `tests/`: bounded POSIX behavioral suite
+- [`tests/`](tests/CONTEXT.md): bounded POSIX behavioral suite
 - `docs/`: contributor and subsystem documentation
 - `plans/`: retained plans and evidence
 

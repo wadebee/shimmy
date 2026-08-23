@@ -1,6 +1,6 @@
 # Default Command Help Plan
 
-**Status:** not started; rebased after the completed control-surface redesign.
+Completed: 2026-08-22
 
 ## Objective
 
@@ -125,10 +125,9 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Make the redesigned default-help contract explicit in tests
-  and guidance without changing command grammar or action behavior.
+- [x] Chunk 1 — Implemented, automatically verified, and accepted.
 
-Active chunk: Chunk 1. Implementation has not been authorized.
+Active chunk: none. Chunk 1 is complete.
 
 ## Execution protocol
 
@@ -178,7 +177,7 @@ test exposes a real contract defect:
 
 Plan state updated during execution:
 
-- `plans/wip/default-command-help.md`
+- `plans/complete/default-command-help.md`
 
 Do not expand into command grammar, individual action parsers,
 or removed compatibility surfaces.
@@ -216,24 +215,26 @@ or removed compatibility surfaces.
 
 ### Verification checklist
 
-- [ ] `sh -n tests/commands/surface.sh` passes.
-- [ ] If runtime source changes, its relevant `sh -n` checks pass.
-- [ ] `./tests/test.sh --group commands-surface` passes.
-- [ ] Tests independently prove stdout equality, empty stderr, and status `0`
+- [x] `sh -n tests/commands/surface.sh` passes.
+- [x] No runtime source changed, so additional runtime syntax checks were not
+  applicable.
+- [x] `./tests/test.sh --group commands-surface` passes: all 2 tests passed.
+- [x] Tests independently prove stdout equality, empty stderr, and status `0`
   for bare versus explicit `--help` at all seven help nodes.
-- [ ] Stdout equality is file-based and bytewise, preserving trailing-newline
+- [x] Stdout equality is file-based and bytewise, preserving trailing-newline
   differences that command substitution would discard.
-- [ ] The damaged-manifest fixture proves help remains state-independent while
+- [x] The damaged-manifest fixture proves help remains state-independent while
   a normal action still validates installed state.
-- [ ] Static review confirms no group, action, option, alias, default,
+- [x] Static review confirms no group, action, option, alias, default,
   required-input rule, or compatibility surface changed.
-- [ ] Public and context guidance consistently describe launcher-owned default
+- [x] Public and context guidance consistently describe launcher-owned default
   help and the group/action boundary.
-- [ ] `./tests/context-tree.sh` passes if context files change.
-- [ ] `git diff --check` passes, and `git diff --summary` shows no unintended
+- [x] `./tests/context-tree.sh` passes. Root child-context links were made
+  explicit so the retained tree validator recognizes them.
+- [x] `git diff --check` passes, and `git diff --summary` is empty, showing no unintended
   mode changes.
-- [ ] Progress and **Lessons learned** contain actual verification evidence.
-- [ ] Human review accepts Chunk 1 before it is marked complete.
+- [x] Progress and **Lessons learned** contain actual verification evidence.
+- [x] Human review accepted Chunk 1 on 2026-08-22.
 
 ### Human review gate
 
@@ -271,6 +272,22 @@ no removed compatibility route returns.
 - The not-started completion plan remains in `plans/wip/` but still inventories
   the removed pre-redesign command surface. It needs a separate rebase after
   this contract is accepted.
+
+### Chunk 1
+
+- One table-driven helper now exercises exactly the seven launcher help nodes,
+  captures bare and explicit-help stdout and stderr separately, records both
+  statuses immediately under controlled `set +e`, and compares stdout files
+  bytewise with `cmp -s`.
+- Focused discovery assertions, the root `help` alias, and the damaged-manifest
+  proof remain intact. The ordinary `profile status` action still reaches
+  manifest validation and fails on the damaged fixture.
+- Runtime sources and action parsers required no change; the existing launcher
+  already satisfied the strengthened contract.
+- Public and contributor guidance now distinguishes launcher help nodes from
+  actions with defaults or required inputs.
+- `sh -n tests/commands/surface.sh`, the two-test `commands-surface` group,
+  `tests/context-tree.sh`, and `git diff --check` pass. No file mode changed.
 
 ## Session bootstrap
 

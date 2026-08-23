@@ -8,7 +8,9 @@ that profile operations require.
   shell/startup policy, derives the config root from XDG/HOME, and creates and
   activates a fresh `default` installation.
 - `help.sh` renders root, group, subgroup, and action help before installed-state
-  validation.
+  validation. The launcher makes bare root, group, and `profile redirect`
+  subgroup invocations exact successful equivalents of their `--help` forms;
+  actions retain documented defaults and required inputs.
 - `admin.sh` owns installation-wide status, network inspection, and complete
   owned-state uninstall.
 - `profile.sh` owns profile list/status/create/activate/sync/startup repair/delete

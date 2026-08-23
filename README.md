@@ -66,11 +66,16 @@ The installed launcher has five groups:
 | `shimmy shim` | Add, remove, select, sync, list, or test profile-local tool versions. |
 | `shimmy ai-skill` | Inspect or repair active-profile skill links. |
 
-Help is state-independent:
+Invoking the launcher, any group, or the `profile redirect` subgroup without a
+child command is exactly equivalent to adding `--help`: it exits successfully,
+writes the same bytes to stdout, writes nothing to stderr, and does not validate
+or mutate installed state. Actions are different: they retain their documented
+defaults or require their documented inputs.
 
 ```sh
 shimmy
 shimmy --help
+shimmy profile
 shimmy profile --help
 shimmy profile activate --help
 ```
