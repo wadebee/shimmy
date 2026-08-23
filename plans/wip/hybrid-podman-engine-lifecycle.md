@@ -1,6 +1,6 @@
 # Shimmy Hybrid Podman Engine Lifecycle
 
-**Status:** Chunk 4 implemented and automated acceptance verified on 2026-08-23; native macOS acceptance is blocked by a pre-existing Podman 5.8 bootstrap incompatibility; human review pending
+**Status:** Chunk 4 implemented and automated acceptance verified on 2026-08-23; the Podman 5.8 bootstrap incompatibility is fixed and native destructive acceptance has not been rerun; human review pending
 
 ## Objective
 
@@ -199,6 +199,7 @@ None.
 - [x] Chunk 3 implemented and verified on 2026-08-23: Add owned isolated creation, true clone, cross-mode activation, and isolated profile deletion.
 - [x] Human reviewed and explicitly accepted Chunk 3 on 2026-08-23.
 - [~] Chunk 4 implemented and automated acceptance verified on 2026-08-23: global uninstall removes proven owned machines, preserves external or ambiguous engines, retains a forward-recovery journal, and ships updated documentation and canonical guidance. Native acceptance remains blocked before owned-machine creation because local Podman 5.8 rejects the existing `machine init --update-connection=false` bootstrap command.
+- [x] Podman 5.8 compatibility follow-up removes the post-5.8 `machine init --update-connection=false` option while retaining explicit prior-default restoration. The focused engine and profile-activation groups pass; four directly relevant lifecycle scenarios passed before the user requested that the remaining lower-value broad workflow rerun be skipped.
 - [ ] Human reviews and explicitly accepts Chunk 4.
 - [ ] Record final lessons, resolve superseded plan state, and move this plan to the repository's completed-plan location.
 
@@ -504,6 +505,7 @@ Suggested reasoning level: high. Global uninstall intentionally crosses an irrev
 - A targeted runner-registry acceptance for `test_commands_lifecycle_global_owned_uninstall` also passes independently after fixing active-binding resolution, fresh-process Podman initialization, and the exact reused-name collision diagnostic.
 - The default full suite's only independent baseline failure is `lib-catalog`'s whitespace-sensitive human-table header assertion; an isolated `./tests/test.sh --group lib-catalog` reproduces it.
 - Native gate evidence: disposable root `/private/tmp/shimmy-chunk4-native.X1AuWz` initially exposed no machines, `chunk4-external` was created stopped, bootstrap failed before `shimmy` creation on Podman 5.8's unknown `--update-connection` flag, only `chunk4-external` remained, and cleanup removed it and the disposable root. The final isolated machine list was empty.
+- Podman 5.8 compatibility follow-up: `machine init <name>` replaces the newer flag without changing the existing connection snapshot/restore transaction. `./tests/test.sh --jobs 3 --group lib-engine --group lib-profile-activation` passes all 14 tests. A lifecycle rerun recorded passes for Darwin bootstrap, owned isolated creation/deletion, migration, and global uninstall/retry before the user requested that the remaining lower-value broad workflow scenario be skipped; the runner was then intentionally interrupted.
 
 ### Human review gate
 
@@ -577,7 +579,7 @@ Stop. Present exact machines removed and preserved in disposable acceptance, jou
 - A fresh retry process that reads an existing Darwin uninstall journal must re-resolve the Podman binary before any machine or connection query. Initial-plan setup is not retained across commands.
 - A same-name replacement detected from a pending lifecycle journal is safely preserved only when the refusal also reaches the user as an explicit collision diagnostic. A generic retained-journal error is operationally safe but does not provide the exact recovery evidence the contract requires.
 - The global journal must distinguish planned order from completed, pending, and skipped/preserved partitions. Moving a newly ambiguous target out of pending requires an arbitrary-item transition rather than assuming only the head can change disposition.
-- Native acceptance can fail before the chunk's destructive boundary because of an older prerequisite. Local Podman 5.8 rejects the existing `machine init --update-connection=false` command, so the disposable native gate could prove isolation and compensation but not owned shared/isolated removal.
+- The original native acceptance failed before the chunk's destructive boundary because Podman 5.8 rejected `machine init --update-connection=false`. The compatibility follow-up now uses `machine init <name>` and retains explicit prior-default restoration; destructive native acceptance remains intentionally pending.
 - Full-suite evidence must distinguish chunk regressions from a reproducible baseline assertion. The catalog human-table test currently assumes single header spaces even though formatting pads columns for long tool names; Chunk 4's focused and lifecycle groups pass independently.
 
 ## Session bootstrap
