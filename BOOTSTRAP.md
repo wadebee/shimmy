@@ -36,11 +36,11 @@ place the CLI at `/opt/podman/bin/podman`.
 
 On macOS, bootstrap requires the exact Podman machine and connection name
 `shimmy` to be absent. It initializes that shared machine without provider
-overrides or `--now`, preserves the prior default connection, starts `shimmy`,
-records host and guest ownership evidence, installs its stable user registry
-drop-in, and activates the default profile policy. A same-name machine or
-connection is a pre-mutation collision; Shimmy never adopts it. Do not create a
-machine manually before fresh bootstrap.
+overrides, `--now`, or post-5.8 connection-update flags, preserves the prior
+default connection, starts `shimmy`, records host and guest ownership evidence,
+installs its stable user registry drop-in, and activates the default profile
+policy. A same-name machine or connection is a pre-mutation collision; Shimmy
+never adopts it. Do not create a machine manually before fresh bootstrap.
 
 On Linux, bootstrap validates the current local rootless Podman service and
 publishes it as a shared host-local engine. It performs no machine operation.

@@ -40,7 +40,7 @@ profile_activation_fake_create() {
       '    if [ -n "${FAKE_MACHINE_STATE_DIR:-}" ] && [ -d "$FAKE_MACHINE_STATE_DIR" ]; then for state_file in "$FAKE_MACHINE_STATE_DIR"/*; do [ -f "$state_file" ] || continue; [ "$(cat "$state_file")" = absent ] || { machine_name=$(basename "$state_file"); identity=${FAKE_ENGINE_IDENTITY_PATH:-/tmp/shimmy-fake-identity}; [ -z "${FAKE_MACHINE_METADATA_DIR:-}" ] || [ ! -f "$FAKE_MACHINE_METADATA_DIR/$machine_name" ] || identity=$(sed -n "3p" "$FAKE_MACHINE_METADATA_DIR/$machine_name"); printf "%s|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|%s|false\n" "$machine_name" "$identity"; }; done; fi' \
       '    if [ -n "${FAKE_CREATED_MACHINE_STATE_FILE:-}" ] && [ -f "$FAKE_CREATED_MACHINE_STATE_FILE" ] && [ "$(cat "$FAKE_CREATED_MACHINE_STATE_FILE")" != absent ]; then printf "%s|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|%s|false\n" "${FAKE_CREATED_MACHINE_NAME:-shimmy}" "${FAKE_ENGINE_IDENTITY_PATH:-/tmp/shimmy-fake-identity}"; fi' \
       '    ;;' \
-      '  "machine init --update-connection=false "*)' \
+      '  "machine init "*)' \
       '    [ -n "${FAKE_CREATED_MACHINE_STATE_FILE:-}" ] || exit 95' \
       '    printf "%s\n" stopped > "$FAKE_CREATED_MACHINE_STATE_FILE"' \
       '    ;;' \

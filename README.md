@@ -24,6 +24,8 @@ machine and connection name unused beforehand. Existing per-profile machines
 are recorded only by explicit migration and remain external.
 
 The official macOS package may install Podman at `/opt/podman/bin/podman`.
+Machine creation uses the Podman 5.8-compatible `machine init <name>` command
+surface and preserves any existing default connection itself.
 
 ## Bootstrap
 

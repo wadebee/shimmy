@@ -152,7 +152,7 @@ test_commands_lifecycle_darwin_bootstrap_case() {
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/projection.conf"
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf"
   assert_file_contains "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf" 'mode=shared'
-  test_lifecycle_init_line=$(sed -n '/^machine init --update-connection=false shimmy$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
+  test_lifecycle_init_line=$(sed -n '/^machine init shimmy$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
   test_lifecycle_start_line=$(sed -n '/^machine start shimmy$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
   test_lifecycle_projection_line=$(sed -n \
     '/^machine ssh shimmy systemctl --user stop podman.service$/=' \
@@ -277,7 +277,7 @@ test_commands_lifecycle_owned_isolated() {
   assert_path_not_exists "$test_lifecycle_isolated_engine/lifecycle.conf"
   assert_equals "$(cat "$TEST_LIFECYCLE_ISOLATED_STATE")" running
   test_lifecycle_isolated_init_line=$(sed -n \
-    '/^machine init --update-connection=false shimmy-isolated-one$/=' \
+    '/^machine init shimmy-isolated-one$/=' \
     "$TEST_LIFECYCLE_PODMAN_LOG")
   test_lifecycle_isolated_stop_line=$(sed -n '/^machine stop shimmy$/=' \
     "$TEST_LIFECYCLE_PODMAN_LOG")

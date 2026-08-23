@@ -290,7 +290,7 @@ test_lib_engine_podman_and_ownership() {
   shimmy_engine_podman_machine_init shimmy-test shimmy-test
   assert_equals "$(cat "$FAKE_ENGINE_MACHINE_STATE")" stopped
   assert_equals "$(cat "$FAKE_ENGINE_DEFAULT_CONNECTION")" other
-  assert_contains "$(cat "$FAKE_ENGINE_LOG")" 'machine init --update-connection=false shimmy-test'
+  assert_contains "$(cat "$FAKE_ENGINE_LOG")" 'machine init shimmy-test'
   identity=$(shimmy_engine_podman_machine_identity_fingerprint_render shimmy-test shimmy-test)
   token=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
   record_file=$FAKE_ENGINE_ROOT/engine.conf

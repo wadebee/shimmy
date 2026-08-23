@@ -212,7 +212,7 @@ shimmy_engine_podman_machine_init() {
     "$shimmy_engine_podman_init_connection" || return 1
   shimmy_engine_podman_connections_read || return 1
   SHIMMY_ENGINE_PRIOR_DEFAULT_CONNECTION=$SHIMMY_ENGINE_DEFAULT_CONNECTION
-  shimmy_engine_podman_run machine init --update-connection=false \
+  shimmy_engine_podman_run machine init \
     "$shimmy_engine_podman_init_name" </dev/null || return 1
   shimmy_engine_podman_connections_read || return 1
   if [ "$SHIMMY_ENGINE_PRIOR_DEFAULT_CONNECTION" != none ] &&
