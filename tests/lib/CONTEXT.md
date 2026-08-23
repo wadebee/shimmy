@@ -13,8 +13,9 @@
 - `runtime.sh`: native platform, preview, dual-read profile affinity, POSIX syntax, modes,
   and unreachable guidance.
 - `engine.sh`: strict published engine and uninstall-journal records, exact
-  Podman routing, redundant ownership proof, lifecycle journals, projection
-  transactions, and rootless service recycling.
+  Podman routing, redundant ownership proof, lifecycle journals, arbitrary
+  pending-to-preserved transitions, projection transactions, and rootless
+  service recycling.
 - `profile-activation.sh`: Linux, legacy-Darwin, and managed shared/isolated Darwin engine and registry transition state.
 - `registries.sh`: endpoint/config/record/link/edit ownership and rollback.
 

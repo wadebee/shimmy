@@ -406,6 +406,13 @@ test_lib_engine_uninstall_journal() {
   shimmy_uninstall_journal_read "$uninstall_config/.uninstall.conf"
   assert_equals "$SHIMMY_UNINSTALL_JOURNAL_COMPLETED" profile-test
   assert_equals "$SHIMMY_UNINSTALL_JOURNAL_PENDING" shared
+  shimmy_uninstall_journal_pending_preserve "$uninstall_config" shared \
+    inspect-mismatch
+  shimmy_uninstall_journal_read "$uninstall_config/.uninstall.conf"
+  assert_equals "$SHIMMY_UNINSTALL_JOURNAL_PENDING" none
+  assert_equals "$SHIMMY_UNINSTALL_JOURNAL_SKIPPED" shared
+  assert_equals "$SHIMMY_UNINSTALL_JOURNAL_PRESERVED" \
+    profile-external:external-origin,shared:inspect-mismatch
 
   shimmy_uninstall_engine_roots_validate "$uninstall_config" ||
     fail_test 'safe exact engine-root allowlist was rejected'

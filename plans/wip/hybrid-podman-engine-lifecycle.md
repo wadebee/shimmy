@@ -1,6 +1,6 @@
 # Shimmy Hybrid Podman Engine Lifecycle
 
-**Status:** Chunk 3 implemented, verified, and human-accepted on 2026-08-23; Chunk 4 not started
+**Status:** Chunk 4 implemented and automated acceptance verified on 2026-08-23; native macOS acceptance is blocked by a pre-existing Podman 5.8 bootstrap incompatibility; human review pending
 
 ## Objective
 
@@ -198,7 +198,7 @@ None.
 - [x] Human explicitly accepted Chunk 2 by requesting Chunk 3 implementation on 2026-08-23.
 - [x] Chunk 3 implemented and verified on 2026-08-23: Add owned isolated creation, true clone, cross-mode activation, and isolated profile deletion.
 - [x] Human reviewed and explicitly accepted Chunk 3 on 2026-08-23.
-- [ ] Chunk 4: Make global uninstall remove owned machines, complete documentation and canonical guidance, and run integration acceptance.
+- [~] Chunk 4 implemented and automated acceptance verified on 2026-08-23: global uninstall removes proven owned machines, preserves external or ambiguous engines, retains a forward-recovery journal, and ships updated documentation and canonical guidance. Native acceptance remains blocked before owned-machine creation because local Podman 5.8 rejects the existing `machine init --update-connection=false` bootstrap command.
 - [ ] Human reviews and explicitly accepts Chunk 4.
 - [ ] Record final lessons, resolve superseded plan state, and move this plan to the repository's completed-plan location.
 
@@ -483,19 +483,27 @@ Suggested reasoning level: high. Global uninstall intentionally crosses an irrev
 
 ### Verification checklist
 
-- [ ] Uninstall dry-run lists exact owned deletion targets, preserved external targets, service/stop actions, running-workload requirements, and irreversible data scope without mutation.
-- [ ] Standard uninstall removes an idle owned isolated machine and owned shared machine without an extra machine-deletion flag.
-- [ ] Running workloads cause a pre-mutation refusal unless --stop-running is explicitly supplied.
-- [ ] Complete matching ownership evidence permits removal; any missing or mismatched host record, guest token, connection, or stable inspect field preserves the machine and prevents false success.
-- [ ] Legacy-migrated and Linux host-local engines survive uninstall.
-- [ ] Partial failure after one deletion leaves a valid installation and journal; retry completes pending work without targeting a replacement machine at a reused name.
-- [ ] Strict allowlist tests cover safe engine/journal paths and prevent traversal or deletion outside Shimmy-owned configuration.
-- [ ] Full independent test coverage runs with the default bounded parallel runner or explicit --jobs 3; only diagnosed failures are rerun serially.
-- [ ] Shell syntax, formatting, executable-bit, documentation-link, canonical-skill, and generated-guidance verification passes.
-- [ ] Native macOS acceptance creates disposable shared and isolated owned machines, proves uninstall removes both, and proves a pre-existing external machine remains untouched.
-- [ ] Native acceptance records destructive test authorization and uses only disposable Shimmy-created machines; no existing user machine or workload is selected.
-- [ ] Final terminology search classifies all retained references to per-profile machines, restart, SIGHUP, preservation, ownership, and uninstall behavior.
-- [ ] git diff and status show only intended plan/implementation work plus the user's pre-existing unrelated changes.
+- [x] Uninstall dry-run lists exact owned deletion targets, preserved external targets, service/stop actions, running-workload requirements, and irreversible data scope without mutation.
+- [x] Standard uninstall removes an idle owned isolated machine and owned shared machine without an extra machine-deletion flag.
+- [x] Running workloads cause a pre-mutation refusal unless --stop-running is explicitly supplied.
+- [x] Complete matching ownership evidence permits removal; missing or mismatched stable inspect evidence is covered by the global acceptance and host, guest-token, connection, provider, and inspect mismatches remain covered by the engine ownership unit.
+- [x] Legacy-migrated and Linux host-local engines survive uninstall.
+- [x] Partial failure after one deletion leaves a valid installation and journal; retry completes pending work and refuses a replacement at the reused name.
+- [x] Strict allowlist tests cover safe engine/journal paths and reject traversal, foreign engine state, and overlapping journal authority.
+- [~] The default three-worker full suite ran. Chunk 4's complete lifecycle group and eight focused engine/journal/surface tests pass. The independent `lib-catalog` group reproducibly fails an unrelated 2026-08-21 literal `TOOL DEFAULT VERSIONS` assertion because the human table pads columns; no Chunk 4 assertion remains failing.
+- [x] POSIX shell syntax, `git diff --check`, executable modes, source/rendered surface assets, canonical-skill validation, and modified documentation paths pass. The modified documentation adds no new links.
+- [~] Native macOS acceptance created a stopped external fixture in an isolated empty `HOME`/`XDG_CONFIG_HOME`, then stopped before owned-machine creation because local Podman 5.8 rejects the pre-existing bootstrap flag `machine init --update-connection=false`. Compensation left no Shimmy installation or owned machine. The exact external fixture was removed and the isolated namespace was verified empty.
+- [~] Native destructive authorization was limited to disposable fixture state in the isolated configuration. Existing `shimmy-default` and `podman-machine-default` were outside that namespace and unchanged; the blocked gate never selected an owned fixture or workload for deletion.
+- [x] Final terminology search classified current README/help/ownership text, explicitly historical retained-plan inventory, and legacy schema-2 compatibility assertions. Canonical skills no longer direct users or agents to provision per-profile machines manually.
+- [x] `git diff --check` passes and status contains the user-authored Chunk 4 commit plus only intended follow-up implementation, test, and retained-plan evidence changes.
+
+### Chunk 4 acceptance evidence
+
+- `./tests/test.sh --group commands-lifecycle`: all five public lifecycle scenarios pass. The global scenario removes `shared` before active `profile-isolated-one`, preserves `profile-external:external-origin` and `profile-ambiguous:inspect-mismatch`, retains exact pending state after an injected removal failure, rejects a same-name replacement, and completes retry.
+- `./tests/test.sh --jobs 3 --group lib-engine --group commands-surface`: all eight tests pass, including ownership proof, uninstall-journal partitioning, strict engine allowlists, help, executable modes, and rendered-source identity.
+- A targeted runner-registry acceptance for `test_commands_lifecycle_global_owned_uninstall` also passes independently after fixing active-binding resolution, fresh-process Podman initialization, and the exact reused-name collision diagnostic.
+- The default full suite's only independent baseline failure is `lib-catalog`'s whitespace-sensitive human-table header assertion; an isolated `./tests/test.sh --group lib-catalog` reproduces it.
+- Native gate evidence: disposable root `/private/tmp/shimmy-chunk4-native.X1AuWz` initially exposed no machines, `chunk4-external` was created stopped, bootstrap failed before `shimmy` creation on Podman 5.8's unknown `--update-connection` flag, only `chunk4-external` remained, and cleanup removed it and the disposable root. The final isolated machine list was empty.
 
 ### Human review gate
 
@@ -561,6 +569,16 @@ Stop. Present exact machines removed and preserved in disposable acceptance, jou
 - An irreversible machine removal journal must outlive partial profile cleanup. Retry accepts either a partially removed or absent profile root, removes only the known allowlist, and finalizes engine evidence after the local profile is gone.
 - Registry redirects must be parsed under the source identity and re-rendered under the clone identity. Copying bytes would preserve a foreign ownership header even when the policy entries are valid.
 - Fake Podman state must model the post-transition running machine and default connection explicitly. Persisting the prior shared default in a later command correctly causes active-engine validation to fail.
+
+### Chunk 4
+
+- A complete global destructive preflight must advance every intended engine through journaled guest verification and a revalidated stopped state before the first machine removal. Per-item verification immediately before each deletion is insufficient for the installation-wide preflight contract.
+- Profile path resolution does not resolve an engine binding. Global uninstall must explicitly resolve the active profile's binding before ordering inactive engines and the active engine; otherwise stale process-global engine state can put the active engine first.
+- A fresh retry process that reads an existing Darwin uninstall journal must re-resolve the Podman binary before any machine or connection query. Initial-plan setup is not retained across commands.
+- A same-name replacement detected from a pending lifecycle journal is safely preserved only when the refusal also reaches the user as an explicit collision diagnostic. A generic retained-journal error is operationally safe but does not provide the exact recovery evidence the contract requires.
+- The global journal must distinguish planned order from completed, pending, and skipped/preserved partitions. Moving a newly ambiguous target out of pending requires an arbitrary-item transition rather than assuming only the head can change disposition.
+- Native acceptance can fail before the chunk's destructive boundary because of an older prerequisite. Local Podman 5.8 rejects the existing `machine init --update-connection=false` command, so the disposable native gate could prove isolation and compensation but not owned shared/isolated removal.
+- Full-suite evidence must distinguish chunk regressions from a reproducible baseline assertion. The catalog human-table test currently assumes single header spaces even though formatting pads columns for long tool names; Chunk 4's focused and lifecycle groups pass independently.
 
 ## Session bootstrap
 

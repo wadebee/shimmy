@@ -510,6 +510,14 @@ test_commands_lifecycle_global_owned_uninstall() {
   TEST_LIFECYCLE_ISOLATED_WORKLOADS=
   test_lifecycle_isolated_profile_command default profile create isolated-one \
     --isolated >/dev/null
+  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' \
+    "$TEST_LIFECYCLE_CONFIG/active-profile.conf")" isolated-one
+  assert_file_contains \
+    "$TEST_LIFECYCLE_CONFIG/profiles/isolated-one/engine-binding.conf" \
+    'mode=isolated'
+  assert_file_contains \
+    "$TEST_LIFECYCLE_CONFIG/profiles/isolated-one/engine-binding.conf" \
+    'engine=profile-isolated-one'
 
   TEST_LIFECYCLE_MACHINE_STATE_DIR=$SCENARIO_DIR/global-machine-state
   TEST_LIFECYCLE_MACHINE_METADATA_DIR=$SCENARIO_DIR/global-machine-metadata
@@ -534,6 +542,22 @@ test_commands_lifecycle_global_owned_uninstall() {
     "$SCENARIO_DIR/external-socket" "$SCENARIO_DIR/external-identity" \
     > "$TEST_LIFECYCLE_MACHINE_METADATA_DIR/external-machine"
 
+  test_lifecycle_ambiguous_root=$TEST_LIFECYCLE_CONFIG/engines/profile-ambiguous
+  mkdir "$test_lifecycle_ambiguous_root"
+  test_lifecycle_ambiguous_token=$(sed -n \
+    's/^ownership_token=//p' \
+    "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf")
+  test_lifecycle_ambiguous_identity=sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+  shimmy_engine_record_render profile-ambiguous darwin-machine profile \
+    ambiguous-machine ambiguous-machine applehv shimmy-created \
+    "$test_lifecycle_ambiguous_token" "$test_lifecycle_ambiguous_identity" \
+    > "$test_lifecycle_ambiguous_root/engine.conf"
+  chmod 0644 "$test_lifecycle_ambiguous_root/engine.conf"
+  printf '%s\n' stopped > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/ambiguous-machine"
+  printf '%s\n%s\n%s\n' "$SCENARIO_DIR/ambiguous-config" \
+    "$SCENARIO_DIR/ambiguous-socket" "$SCENARIO_DIR/ambiguous-identity" \
+    > "$TEST_LIFECYCLE_MACHINE_METADATA_DIR/ambiguous-machine"
+
   TEST_LIFECYCLE_GLOBAL_WORKLOADS='abcdef012345|global-sentinel'
   test_lifecycle_global_before=$(cksum < "$TEST_LIFECYCLE_CONFIG/active-profile.conf")
   test_lifecycle_global_dry=$(test_lifecycle_global_uninstall_command --dry-run 2>&1)
@@ -541,6 +565,8 @@ test_commands_lifecycle_global_owned_uninstall() {
     'planned_engines=shared,profile-isolated-one'
   assert_contains "$test_lifecycle_global_dry" \
     'profile-external:external-origin'
+  assert_contains "$test_lifecycle_global_dry" \
+    'profile-ambiguous:inspect-mismatch'
   assert_contains "$test_lifecycle_global_dry" \
     'build caches, and all other VM-local data'
   assert_contains "$test_lifecycle_global_dry" \
@@ -572,6 +598,8 @@ test_commands_lifecycle_global_owned_uninstall() {
     'installation state was retained for exact retry'
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/.uninstall.conf"
   assert_file_contains "$TEST_LIFECYCLE_CONFIG/.uninstall.conf" \
+    'completed_engines=none'
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/.uninstall.conf" \
     'pending_engines=shared,profile-isolated-one'
   assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/lifecycle.conf" \
     'phase=removed'
@@ -593,7 +621,8 @@ test_commands_lifecycle_global_owned_uninstall() {
   assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy")" absent
   assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy-isolated-one")" absent
   assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/external-machine")" stopped
-  pass 'global uninstall removes exact owned engines in order, preserves external state, and retries without targeting a reused name'
+  assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/ambiguous-machine")" stopped
+  pass 'global uninstall removes exact owned engines in order, preserves external and mismatched state, and retries without targeting a reused name'
 }
 
 test_commands_lifecycle_end_to_end() {

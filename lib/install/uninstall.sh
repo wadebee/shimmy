@@ -894,6 +894,8 @@ shimmy_uninstall_engine_plan_read() {
   shimmy_uninstall_engine_plan_stop=$2
   shimmy_profile_engine_context_resolve "$shimmy_uninstall_engine_plan_config" \
     "$SHIMMY_UNINSTALL_ACTIVE" || return 1
+  shimmy_engine_profile_binding_resolve "$shimmy_uninstall_engine_plan_config" \
+    "$SHIMMY_UNINSTALL_ACTIVE" || return 1
   SHIMMY_UNINSTALL_ACTIVE_ENGINE=$SHIMMY_PROFILE_ENGINE_ID
   shimmy_profile_activation_host_os_resolve
   SHIMMY_UNINSTALL_HOST_OS=$SHIMMY_PROFILE_HOST_OS
@@ -1321,7 +1323,10 @@ shimmy_uninstall_engine_preflight_one() {
         shimmy_engine_podman_connection_state_read \
           "$SHIMMY_ENGINE_RECORD_CONNECTION" || return 1
         [ "$SHIMMY_ENGINE_MACHINE_STATE|$SHIMMY_ENGINE_CONNECTION_STATE" = \
-          'absent|absent' ] || return 1
+          'absent|absent' ] || {
+          SHIMMY_UNINSTALL_ERROR="engine name reappeared after recorded removal: $shimmy_uninstall_preflight_id"
+          return 1
+        }
         return 0
         ;;
       *) return 1 ;;
@@ -1471,6 +1476,8 @@ shimmy_uninstall_run() {
     SHIMMY_UNINSTALL_RUNNING_REQUIRES_STOP=0
     [ "$SHIMMY_UNINSTALL_JOURNAL_WORKLOADS_ACKNOWLEDGED" != yes ] ||
       SHIMMY_UNINSTALL_RUNNING_REQUIRES_STOP=1
+    [ "$SHIMMY_UNINSTALL_HOST_OS" != darwin ] ||
+      shimmy_engine_podman_bin_require || return 1
     shimmy_uninstall_engine_roots_validate "$shimmy_uninstall_config" || return 1
   else
     shimmy_uninstall_engine_plan_read "$shimmy_uninstall_config" \

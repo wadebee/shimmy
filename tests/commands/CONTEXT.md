@@ -15,7 +15,7 @@
 - `surface.sh` proves complete root/group/subgroup/action help before state
   validation, independently verifies status and streams for bare launcher help
   nodes versus `--help`, and validates exact rendered launcher bytes.
-- `lifecycle.sh` is the public end-to-end acceptance world: shared-engine bootstrap/collision, owned isolated create/delete retry, true clone, cross-engine activation, explicit migration/rollback, journaled global owned-engine uninstall/retry and reused-name collision safety,
+- `lifecycle.sh` is the public end-to-end acceptance world: shared-engine bootstrap/collision, owned isolated create/delete retry, true clone, cross-engine activation, explicit migration/rollback, journaled global owned-engine uninstall/retry, active-engine-last ordering, reused-name collision safety, and external/mismatched preservation,
   jq/rg/Skopeo inventory, catalog/shim/profile/skill/network/startup flows,
   sibling isolation, sync/rollback, admin status, deletion, global uninstall,
   unrelated home-skill preservation, and failed-bootstrap cleanup.

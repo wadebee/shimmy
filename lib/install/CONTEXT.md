@@ -17,7 +17,8 @@
 - `uninstall.sh` owns profile deletion and global uninstall. Global removal
   preflights the complete local/external set, journals ordered owned-machine
   deletion before mutation, resumes irreversible partial progress, rejects
-  reused names, and preserves external or ambiguous engines.
+  reused names, resolves the active engine explicitly for last-place ordering,
+  and preserves external or ambiguous engines.
 - `launcher-template.sh` is the byte-authoritative final installed launcher for
   `admin`, `profile`, `catalog`, `shim`, and `ai-skill`.
 
