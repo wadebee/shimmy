@@ -1,6 +1,8 @@
 # Make startup policy profile-owned
 
-**Status:** Chunk 2 review
+Completed: 2026-08-22
+
+**Status:** Verified and completed
 
 ## Objective
 
@@ -243,8 +245,8 @@ None.
 - [x] Chunk 1 — Immutable profile startup policy, reduced public surfaces,
   version-3 schema, tests, docs, and canonical guidance are implemented,
   verified, and accepted.
-- [~] Chunk 2 — Generated guidance is refreshed through its lifecycle and
-  repo-wide and full-suite verification pass; human acceptance is pending.
+- [x] Chunk 2 — Generated guidance is refreshed through its lifecycle;
+  repo-wide and full-suite verification passed and human acceptance is recorded.
 
 The two-chunk boundary is deliberate. Chunk 1 is large, but schema identity,
 startup ownership, public parsing, exact repair/uninstall behavior, fixtures,
