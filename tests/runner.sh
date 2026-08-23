@@ -17,6 +17,7 @@ lib-lock|test_lib_lock_run
 lib-transaction|test_lib_transaction_run
 lib-ai-skill-link|test_lib_ai_skill_link_run
 lib-runtime|test_lib_runtime_run
+lib-engine|test_lib_engine_run
 lib-profile-activation|test_lib_profile_activation_run
 lib-registries|test_lib_registries_run
 commands-agent-preflight|test_commands_agent_preflight_run
@@ -67,6 +68,7 @@ lib-lock|two-b|three-a
 lib-transaction|two-a|three-c
 lib-ai-skill-link|two-b|three-c
 lib-runtime|two-b|three-a
+lib-engine|two-a|three-c
 lib-profile-activation|two-a|three-b
 lib-registries|two-b|three-c
 commands-agent-preflight|two-a|three-a

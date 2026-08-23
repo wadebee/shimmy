@@ -1,5 +1,7 @@
 # Shimmy Hybrid Podman Engine Lifecycle
 
+**Status:** Chunk 1 accepted; Chunk 2 not started
+
 ## Objective
 
 Refactor Shimmy's Podman lifecycle so a fresh macOS installation owns one shared Podman machine named shimmy, ordinary profiles use that shared engine, and explicitly isolated profiles use installation-owned machines named shimmy-<profile>. Preserve profile-scoped registry redirects in both modes while making shared-profile activation avoid Podman machine restarts.
@@ -178,7 +180,7 @@ Official evidence:
 Retained-plan relationships:
 
 - plans/wip/split-profile-create-clone.md is unstarted and overlaps this plan. It must be marked superseded when execution begins; no implementation should proceed from both plans.
-- plans/wip/single-command-uninstall.md is at its human review gate. It must be accepted or explicitly closed before this plan changes uninstall behavior.
+- plans/complete/single-command-uninstall.md is completed, with native macOS acceptance explicitly deferred. Treat its implemented uninstall behavior as the baseline before this plan changes it.
 - Older profile-name activation and registry-redirect plans are historical records. Add only narrow supersession notes if execution would otherwise leave their status ambiguous.
 - Preserve the shared-execution-only boundary from the control-plane-centralization and catalog-profile-separation plans; this plan does not introduce a shared mutable control plane.
 
@@ -188,9 +190,9 @@ None.
 
 ## Progress Checklist
 
-- [ ] Human accepts this plan and closes or accepts the single-command uninstall prerequisite.
-- [ ] Chunk 1: Prove and encapsulate safe engine and service lifecycle primitives without changing public behavior.
-- [ ] Human reviews and explicitly accepts Chunk 1.
+- [x] Human accepts this plan and closes or accepts the single-command uninstall prerequisite.
+- [x] Chunk 1: Safe engine and service lifecycle primitives are implemented and verified without public behavior or schema changes.
+- [x] Human reviewed and explicitly accepted Chunk 1 on 2026-08-23.
 - [ ] Chunk 2: Add engine state, explicit migration, shared bootstrap/create/activation, and profile-scoped registry projection.
 - [ ] Human reviews and explicitly accepts Chunk 2.
 - [ ] Chunk 3: Add owned isolated creation, true clone, cross-mode activation, and isolated profile deletion.
@@ -249,16 +251,23 @@ Suggested reasoning level: high. Treat ownership proof, journal transitions, ser
 
 ### Verification checklist
 
-- [ ] POSIX syntax checks pass for every new or changed shell file.
-- [ ] Manifest round-trip, malformed-state, unsafe-path, and unknown-field tests prove the strict state boundary.
-- [ ] Ownership tests prove exact matching permits a planned destructive action and missing/mismatched host, guest, connection, or inspect evidence preserves the machine.
-- [ ] Journal tests prove an interrupted create/remove retains enough state for idempotent retry.
-- [ ] Projection tests prove atomic staging, equal-policy no-op, changed-policy service recycle, validation, and compensated rollback.
-- [ ] Existing lib-profile-activation and lib-registries behavior remains green.
-- [ ] Selected independent test groups run with the default bounded parallel runner or explicit --jobs 3; only a diagnosed order-sensitive failure is rerun serially.
-- [ ] Live macOS acceptance proves endpoint A remains cached in one service process, service recycle loads endpoint B, VM boot ID is unchanged, and the same sentinel container remains running.
-- [ ] Live acceptance restores the original registry projection and removes all temporary state.
-- [ ] git diff confirms this chunk contains no public schema or command behavior change.
+- [x] POSIX syntax checks pass for every new or changed shell file.
+- [x] Manifest round-trip, malformed-state, unsafe-path, and unknown-field tests prove the strict state boundary.
+- [x] Ownership tests prove exact matching permits a planned destructive action and missing/mismatched host, guest, connection, or inspect evidence preserves the machine.
+- [x] Journal tests prove an interrupted create/remove retains enough state for idempotent retry.
+- [x] Projection tests prove atomic staging, equal-policy no-op, changed-policy service recycle, validation, and compensated rollback.
+- [x] Existing lib-profile-activation and lib-registries behavior remains green.
+- [x] Selected independent test groups run with the default bounded parallel runner or explicit --jobs 3; only one-group focused engine checks used `--serial`.
+- [x] Live macOS acceptance proves endpoint A remains cached in one service process, service recycle loads endpoint B, VM boot ID is unchanged, and the same sentinel container remains running.
+- [x] Live acceptance restores the original registry projection and removes all temporary state.
+- [x] git diff confirms this chunk contains no public schema or command behavior change.
+
+Verification evidence (2026-08-23):
+
+- `./tests/test.sh --jobs 3 --group lib-engine --group lib-profile-activation --group lib-registries --group lib-runtime --group commands-surface` passed all 26 tests.
+- `./tests/test.sh --jobs 3 --group commands-profile --group commands-surface --group commands-lifecycle` passed all 11 tests; the indivisible lifecycle group completed within its historical runtime envelope.
+- Live Podman 5.8.1/5.8.6 acceptance on `shimmy-default` observed service PID `51024` cache endpoint A and PID `51445` load endpoint B. VM boot ID `1a6e92be-4d1a-454e-9c01-126cd8f754fd` and sentinel ID `7fcb0598f39ed3db1ef02ad39708752ac8ad00a55d9dd447e4b5bfecefaec79d` remained unchanged while the sentinel stayed running.
+- Cleanup removed the exact labeled sentinel and unique user drop-in, recycled the service back to the original policy, verified the acceptance prefix absent, and verified the pre-existing system projection still targeted `/Users/wade/.config/shimmy/profiles/default/registries.conf`.
 
 ### Human review gate
 
@@ -433,7 +442,7 @@ Extend the reviewed single-command uninstall transaction so ordinary uninstall r
 - plugins/shimmy/skills/shimmy-install/SKILL.md.
 - plugins/shimmy/skills/shimmy-init/SKILL.md where engine recovery guidance changes.
 - Canonical tools/<tool>/SKILL.md files and docs/templates/generic-shim/ only where they currently describe user-managed per-profile machines.
-- plans/wip/single-command-uninstall.md and other overlapping historical plans for narrow completion/supersession notes only.
+- plans/complete/single-command-uninstall.md and other overlapping historical plans for narrow completion/supersession notes only.
 
 ### Implementation requirements and suggested reasoning level
 
@@ -508,6 +517,15 @@ Stop. Present exact machines removed and preserved in disposable acceptance, jou
 - Irreversible machine deletion requires a forward-recovery journal; ordinary activation and file publication still require compensated rollback.
 - Existing update ordering means a schema migration cannot be introduced by changing only the source checkout. Installed readers must become compatible before new state is published.
 - Shared execution must not collapse profile identity: active-profile affinity and profile-owned policy remain separate from engine reuse.
+
+### Chunk 1
+
+- The stable machine identity fingerprint can exclude dynamic state while still covering the destructive boundary: name, provider, creation timestamp, config directory, forwarded socket path, exact rootless connection URI, SSH identity path/user, and rootful state were stable and independently observable.
+- A fresh Podman installation may have no prior default connection. Machine creation must preserve an exact prior default when present and accept `none` without manufacturing a restoration target.
+- Lifecycle phases must record intent before start, stop, guest-marker, and remove mutations. Retaining `initial_machine_state` makes a stopped-machine verification start and an interrupted removal safely retryable.
+- Stopped owned machines require a journaled temporary start to verify guest ownership evidence before removal; host records and inspect evidence alone never authorize deletion.
+- Podman info exposed the cached registry mapping directly: changing the user drop-in did not affect PID `51024`, while recycling only `podman.service` produced PID `51445` and loaded the new mapping without changing VM boot or sentinel identity.
+- The Chunk 1 modules remain unpublished primitives. Existing schema-2 profiles, per-profile machine naming, activation, redirect mutation, help, and uninstall behavior remain unchanged until the compatibility unit in Chunk 2 is reviewed and authorized.
 
 ## Session bootstrap
 

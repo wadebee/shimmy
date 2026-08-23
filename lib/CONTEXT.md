@@ -14,6 +14,7 @@ identity.
 - [AI-skill bundles](ai-skill/CONTEXT.md)
 - [common helpers](common/CONTEXT.md)
 - [profiles](profile/CONTEXT.md)
+- [engine lifecycle](engine/CONTEXT.md)
 - [profile-local shims](shim/CONTEXT.md)
 - [registry redirects](registries/CONTEXT.md)
 - [runtime](runtime/CONTEXT.md)

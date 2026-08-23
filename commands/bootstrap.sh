@@ -15,6 +15,8 @@ for shimmy_helper in \
   lib/install/transaction.sh lib/install/catalog.sh \
   lib/profile/transaction.sh lib/ai-skill/link.sh lib/shim/shim.sh \
   lib/ai-skill/ai-skill.sh lib/install/profile.sh \
+  lib/engine/state.sh lib/engine/podman.sh lib/engine/ownership.sh \
+  lib/engine/lifecycle.sh lib/engine/projection.sh \
   lib/profile/profile.sh lib/profile/activation.sh \
   lib/registries/registries.sh lib/profile/management.sh \
   lib/startup/startup.sh lib/install/lifecycle.sh
