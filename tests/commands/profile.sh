@@ -93,19 +93,17 @@ test_commands_profile_identity_status_and_redirect() {
   assert_contains "$test_profile_status_human" 'BUNDLE STATUS LINKS REASON'
 
   team_registry_before=$(cksum < "$TEST_PROFILE_TEAM_ROOT/registries.conf")
-  set +e
-  test_profile_inactive_redirect=$(test_profile_run "$TEST_PROFILE_TEAM" redirect set \
-    --prefix docker.io --location registry.example.invalid/docker 2>&1)
-  test_profile_inactive_status=$?
-  set -e
-  [ "$test_profile_inactive_status" -ne 0 ] || fail_test 'inactive invoking profile changed redirects'
-  assert_contains "$test_profile_inactive_redirect" 'requires the active invoking profile'
-  assert_equals "$(cksum < "$TEST_PROFILE_TEAM_ROOT/registries.conf")" "$team_registry_before"
+  test_profile_active_link_before=$(readlink "$TEST_PROFILE_ACTIVE_LINK")
+  test_profile_run "$TEST_PROFILE_TEAM" redirect set \
+    --prefix docker.io --location registry.example.invalid/team >/dev/null
+  [ "$(cksum < "$TEST_PROFILE_TEAM_ROOT/registries.conf")" != "$team_registry_before" ] ||
+    fail_test 'inactive invoking profile did not update its source policy'
+  assert_equals "$(readlink "$TEST_PROFILE_ACTIVE_LINK")" "$test_profile_active_link_before"
   test_profile_run default redirect set --prefix docker.io --location registry.example.invalid/docker
   assert_file_contains "$TEST_SHIM_PROFILE_ROOT/registries.conf" 'location = "registry.example.invalid/docker"'
   assert_contains "$(test_profile_run default redirect list --format manifest)" \
     'shimmy_profile_redirect=docker.io|registry.example.invalid/docker'
-  pass 'safe arbitrary profiles list and report local state while redirect mutation remains active-only'
+  pass 'safe arbitrary profiles list and report local state while inactive redirect mutation changes only its source policy'
 }
 
 test_commands_profile_linux_activation_and_rollback() {

@@ -18,7 +18,8 @@ shimmy profile redirect delete --all
 
 `set` is an idempotent upsert keyed by exact logical prefix. Entries are
 sorted. `delete --all` leaves the required empty managed file. `--dry-run`
-validates and renders the candidate without mutation.
+validates and renders the candidate without mutation and reports
+`would_recycle_podman_service=yes|no` for shared-engine policy.
 
 Prefixes and locations must be fully qualified registries with optional ports
 and safe lowercase namespace paths. Schemes, wildcards, tags, digests,
@@ -32,8 +33,11 @@ Shimmy emits replacement `location` tables, not fallback mirrors. If the
 physical endpoint cannot serve a logical digest, the operation fails without
 contacting a public fallback. Profiles own independent policy files.
 
-Mutation requires the invoking profile to be active. On Linux, the active
-profile is selected through the exact Shimmy-owned user drop-in:
+The profile source remains authoritative. An inactive-profile mutation changes
+only that source and cannot alter the active engine projection. An
+active-profile mutation applies and validates both surfaces transactionally.
+On Linux, the active profile is selected through the exact Shimmy-owned user
+drop-in:
 
 ```text
 ${XDG_CONFIG_HOME:-$HOME/.config}/containers/registries.conf.d/shimmy-active-profile.conf
@@ -43,23 +47,29 @@ It is an absolute link to the active profile's authoritative file. Foreign,
 damaged, masked, rootful, or remote state fails closed, and failed validation
 restores the previous exact link.
 
-On macOS, activation projects an absolute link into the deterministic profile
-machine at:
+On macOS, each engine has one stable user drop-in:
 
 ```text
-/etc/containers/registries.conf.d/shimmy-profile.conf
+/var/home/core/.config/containers/registries.conf.d/shimmy-active-profile.conf
 ```
 
-The host config must be readable at the same absolute path in the VM. Shimmy
-records the exact profile, machine, path, and fingerprint. A running machine
-with stale policy requires the exact named restart command printed by status,
-for example:
+That drop-in targets the stable host-mounted engine projection at
+`<config-root>/engines/<engine-id>/registries.conf`. Activation atomically
+renders it from the selected profile and records the source and loaded
+fingerprints. If the normalized effective policy changes, Shimmy stops only the
+rootless `podman.service`; socket activation starts a new API process and Shimmy
+validates the exact mapping. The VM and running containers remain up. Equal
+policies switch without a recycle.
+
+A stale shared projection is repaired through ordinary activation, without
+`--restart`:
 
 ```sh
-"$profile_root/bin/shimmy" profile activate team-one --restart
+"$profile_root/bin/shimmy" profile activate team-one
 ```
 
-Running workloads still require separate `--stop-running` acknowledgement.
+`--restart` means VM restart recovery. `--stop-running` is not part of the
+same-engine API service recycle path.
 
 ## Detach and uninstall
 

@@ -18,14 +18,10 @@ credential boundaries.
 - Git
 - Podman CLI and a reachable local rootless engine
 
-Shimmy does not install, provision, adopt, rename, or delete Podman. On macOS,
-create the deterministic machine for each profile in a normal user shell before
-using that profile, for example:
-
-```sh
-podman machine init shimmy-default
-podman machine init shimmy-team-one
-```
+Shimmy does not install Podman or adopt existing machines. On macOS, fresh
+bootstrap provisions the installation-owned shared machine `shimmy`; leave that
+machine and connection name unused beforehand. Existing per-profile machines
+are recorded only by explicit migration and remain external.
 
 The official macOS package may install Podman at `/opt/podman/bin/podman`.
 
@@ -43,7 +39,10 @@ The bootstrap creates and activates `default`, publishes the checkout as the
 first immutable `default` catalog generation, installs jq, rg, and Skopeo, and
 sources the generated `shell-init.sh` when the bootstrap itself is sourced.
 Executing `./bootstrap.sh` performs the same installation but cannot change its
-parent shell.
+parent shell. On macOS it transactionally creates the installation-owned shared
+machine and connection named `shimmy`; an exact pre-existing name is a collision
+and is never adopted. On Linux it records the current local rootless engine as
+the shared host-local engine.
 
 Use `--shell <bash|zsh|sh|ksh|mksh>` to select the recorded startup shell or
 `--no-startup` to record manual startup policy. The installation root is
@@ -60,7 +59,7 @@ The installed launcher has five groups:
 
 | Group | Purpose |
 |---|---|
-| `shimmy admin` | Inspect network/installation state or uninstall all owned state. |
+| `shimmy admin` | Inspect engine, network, or installation state and manage installation lifecycle. |
 | `shimmy profile` | List, inspect, create, activate, sync, repair, or delete profiles and redirects. |
 | `shimmy catalog` | Inspect, verify, publish, or roll back the immutable default catalog. |
 | `shimmy shim` | Add, remove, select, sync, list, or test profile-local tool versions. |
@@ -110,12 +109,13 @@ shimmy profile activate default
 . "${XDG_CONFIG_HOME:-$HOME/.config}/shimmy/profiles/default/shell-init.sh"
 ```
 
-On Linux, activation selects the exact user registry-policy link and validates
-the current user's local rootless Podman process. On macOS, it uses the
-pre-existing same-name `shimmy-<profile>` machine and may need to stop an idle
-alternate machine or restart the selected machine after registry changes.
-Running containers block interruption unless the separately reviewed command
-includes `--stop-running`. Shimmy never provisions a missing machine.
+Ordinary profiles bind to one shared engine. On Linux, activation selects the
+exact user registry-policy link and validates the current user's local rootless
+Podman process. On macOS, shared-to-shared activation keeps the `shimmy` VM and
+running containers up. A changed effective registry policy causes only a brief
+rootless Podman API interruption while `podman.service` is recycled; equal
+policies require no recycle. `--restart` remains explicit VM recovery and is not
+part of normal profile switching.
 
 `CONTAINER_CONNECTION`, `CONTAINER_HOST`, `CONTAINERS_REGISTRIES_CONF`, and
 `CONTAINERS_REGISTRIES_CONF_OVERRIDE` can mask profile authority and therefore
@@ -129,6 +129,22 @@ shimmy profile redirect set --prefix docker.io \
   --location registry.corp.example/docker --dry-run
 shimmy profile redirect delete --prefix docker.io
 ```
+
+Active-profile edits update and validate the engine projection immediately;
+inactive-profile edits change only their source policy until later activation.
+
+Installations created before the engine registry can inspect and migrate it
+explicitly after updating their installed controls:
+
+```sh
+shimmy admin engine status --format manifest
+shimmy admin engine migrate --dry-run
+shimmy admin engine migrate
+```
+
+Migration records existing macOS profile machines as external legacy-isolated
+engines without renaming, claiming, starting, stopping, or deleting them, then
+creates `shimmy` for future shared profiles.
 
 Skopeo is the only initial tool-container consumer of this policy.
 `shimmy catalog verify` inherits it through the active profile's Skopeo shim.

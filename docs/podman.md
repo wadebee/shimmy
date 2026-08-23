@@ -1,8 +1,9 @@
 # Podman for Shimmy
 
 Every Shimmy tool wrapper runs a short-lived container through Podman. Podman
-is an explicit dependency; Shimmy does not install it, provision machines, or
-adopt existing machines.
+is an explicit dependency; Shimmy does not install Podman or adopt existing
+machines. On macOS, fresh bootstrap transactionally provisions the one
+installation-owned shared machine named `shimmy`.
 
 Official installation guidance: <https://podman.io/docs/installation>
 
@@ -15,17 +16,11 @@ podman --version
 podman info
 ```
 
-On macOS, create the deterministic machine for each intended profile in a
-normal user shell before bootstrap or profile creation:
-
-```sh
-podman machine init shimmy-default
-podman machine init shimmy-team-one
-```
-
-If the configuration home is outside the normal home share, use the exact
-same-path `--volume` form printed by Shimmy. Do not rename or substitute
-`podman-machine-default`; Shimmy does not adopt or migrate it.
+On macOS, leave the machine and connection name `shimmy` unused before fresh
+bootstrap. Bootstrap fails before configuration mutation if either name already
+exists; it never adopts, renames, or replaces a collision. If the configuration
+home is outside the normal home share, use the exact same-path `--volume` form
+printed by Shimmy.
 
 Create and activate the fresh default profile:
 
@@ -62,11 +57,18 @@ repair its target-owned engine or registry state. A switch to a different
 profile still requires the recorded prior profile to be fully active so it
 remains a validated rollback source.
 
-On Linux, activation requires a local rootless engine and manages only the
-Shimmy-owned user registry drop-in. On macOS, profile `<name>` owns the
-pre-existing `shimmy-<name>` machine. Only one Podman-managed VM can run, so a
-profile switch may stop an idle alternate VM. Shimmy never directly creates,
-deletes, renames, or adopts a VM.
+On Linux, all ordinary profiles bind to the shared local rootless engine and
+activation manages only the Shimmy-owned user registry drop-in. On macOS, they
+bind to the shared owned `shimmy` machine. A shared-to-shared switch never stops
+or starts the VM. If the normalized policy changes, Shimmy recycles only the
+rootless `podman.service`, confirms `podman.socket` remains active, starts a new
+API process through the exact connection, and validates the mapping. This is a
+bounded API interruption; the VM and running containers remain up. An equal
+policy needs no recycle.
+
+`--restart` is explicit VM recovery and is separate from normal service
+recycle. `--stop-running` applies only to a VM transition that would interrupt
+workloads, not to shared policy activation.
 
 Unset connection and registry overrides before activation:
 
@@ -136,8 +138,8 @@ podman machine list
 podman system connection list
 ```
 
-If status reports that the recorded active profile's deterministic machine is
-stopped, recover it through the ordinary named activation workflow:
+If status reports that the shared machine is stopped, recover it through the
+ordinary named activation workflow:
 
 ```sh
 "$profile_root/bin/shimmy" profile status
@@ -145,19 +147,27 @@ stopped, recover it through the ordinary named activation workflow:
 "$profile_root/bin/shimmy" profile activate team-one
 ```
 
-The dry run reports the managed machine start and registry projection without
+The dry run reports the explicit VM recovery and registry projection without
 changing either. Do not substitute a direct `podman machine start`; activation
 also validates and reconciles registry, connection, active-record, and exact
-AI-skill-link authority.
-
-If status reports a stale registry projection, use the exact named command it
-prints, normally:
+AI-skill-link authority. If only registry policy is stale, ordinary activation
+recycles the API service without a VM restart:
 
 ```sh
-"$profile_root/bin/shimmy" profile activate team-one --restart
+"$profile_root/bin/shimmy" profile activate team-one
 ```
 
-The ordinary workload acknowledgement boundary still applies.
+Inspect compatibility and migrate an updated schema-2 installation explicitly:
+
+```sh
+shimmy admin engine status --format manifest
+shimmy admin engine migrate --dry-run
+shimmy admin engine migrate
+```
+
+Migration records existing `shimmy-<profile>` machines as external
+legacy-isolated engines without changing their lifecycle, then creates the
+shared `shimmy` engine for future profiles.
 
 ## Troubleshooting
 

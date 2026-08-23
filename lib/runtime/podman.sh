@@ -208,6 +208,18 @@ shimmy_podman_profile_affinity_require() {
   . "$runtime_profile_root/lib/profile/state.sh"
   . "$runtime_profile_root/lib/profile/activation.sh"
   . "$runtime_profile_root/lib/registries/registries.sh"
+  if [ -e "$runtime_profile_root/engine-binding.conf" ] ||
+    [ -L "$runtime_profile_root/engine-binding.conf" ]; then
+    for affinity_engine_helper in state podman ownership projection registry; do
+      affinity_engine_path=$runtime_profile_root/lib/engine/$affinity_engine_helper.sh
+      [ -f "$affinity_engine_path" ] && [ ! -L "$affinity_engine_path" ] || {
+        shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" \
+          'published engine binding is missing its engine helpers'
+        return 1
+      }
+      . "$affinity_engine_path"
+    done
+  fi
   shimmy_profile_paths_resolve_name "$runtime_profile" || {
     shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'profile engine paths are invalid'
     return 1

@@ -69,6 +69,7 @@ Usage:
 
 Commands:
   status      Aggregate catalog and per-profile state.
+  engine      Inspect or explicitly migrate engine bindings.
   network     Show active-profile host, VM, and container network perspectives.
   uninstall   Remove all validated Shimmy-owned installation state.
 
@@ -86,6 +87,86 @@ Examples:
   shimmy admin uninstall
 
 Run 'shimmy admin <command> --help' for command options and defaults.
+EOF
+}
+
+shimmy_help_admin_engine() {
+  cat <<'EOF'
+Inspect or migrate the installation engine registry.
+
+Usage:
+  shimmy admin engine <command> [options]
+
+Commands:
+  status   Report binding, engine, ownership, and projection state.
+  migrate  Explicitly migrate a schema-2 per-profile-engine installation.
+
+Migration never adopts an existing machine. On macOS, every existing profile
+is recorded as legacy-external and a new owned shared machine named shimmy is
+created only after collision and identity preflight.
+
+Scope:
+  Installation-wide. Status is read-only; migration is explicit.
+
+Remediation:
+  Run engine status, then migration --dry-run before migration.
+EOF
+}
+
+shimmy_help_admin_engine_status() {
+  cat <<'EOF'
+Inspect engine registry state without mutation.
+
+Usage:
+  shimmy admin engine status [--format human|manifest]
+
+Scope:
+  Installation-wide and read-only.
+
+Options:
+  --format human|manifest  Output format. Default: human.
+  -h, --help               Show this help before installed-state validation.
+
+Defaults:
+  Output format: human.
+
+Remediation:
+  Run migration --dry-run when the schema state is unmigrated.
+
+Examples:
+  shimmy admin engine status
+  shimmy admin engine status --format manifest
+EOF
+}
+
+shimmy_help_admin_engine_migrate() {
+  cat <<'EOF'
+Explicitly publish engine and profile-binding state.
+
+Usage:
+  shimmy admin engine migrate [--dry-run]
+
+Scope:
+  Installation-wide compatibility transition. Existing profile machines remain
+  external and are not renamed, adopted, stopped, started, or removed.
+
+Options:
+  --dry-run   Validate collisions, machine identities, and the write set without
+              creating a machine or changing installation state.
+  -h, --help  Show this help before installed-state validation.
+
+Defaults:
+  Migration performs no VM restart and never claims an existing machine.
+
+On macOS, migration preserves every existing profile machine as external and
+creates the installation-owned shared machine shimmy for future profiles.
+
+Remediation:
+  Resolve every reported collision before retrying. Shimmy does not adopt it.
+
+Examples:
+  shimmy admin engine migrate --dry-run
+  shimmy admin engine migrate
 EOF
 }
 
@@ -282,10 +363,12 @@ Usage:
 
 Scope:
   Installation-wide creation from the invoking profile. The new profile receives
-  catalog-default jq, rg, and Skopeo and is automatically activated.
+  a shared-engine binding, catalog-default jq, rg, and Skopeo and is
+  automatically activated. It does not create a per-profile machine.
 
 Options:
-  --restart       Restart a stale selected-profile macOS engine projection.
+  --restart       Explicitly restart a stopped or unhealthy macOS VM; normal
+                  shared policy activation recycles only podman.service.
   --stop-running  Acknowledge interruption of listed running containers.
   --dry-run       Read and classify the complete image, engine, link, and startup
                   plan without persistent mutation.
@@ -299,8 +382,8 @@ Overwrite warning:
   backup. A dry run lists those collisions and never changes them.
 
 Remediation:
-  Run with --dry-run first. Add --restart only for reported stale policy and add
-  --stop-running only after reviewing the exact workload refusal.
+  Run with --dry-run first. Add --restart only for explicit VM recovery and add
+  --stop-running only after reviewing an exact VM-transition workload refusal.
 
 Examples:
   shimmy profile create team-one --dry-run
@@ -320,7 +403,8 @@ Scope:
   parent shell's PATH unless invoked through a sourced Shimmy shell wrapper.
 
 Options:
-  --restart       Restart a stale selected-profile macOS engine projection.
+  --restart       Explicitly restart a stopped or unhealthy macOS VM; normal
+                  shared policy activation recycles only podman.service.
   --stop-running  Acknowledge interruption of listed running containers.
   --dry-run       Inspect the complete transition and exact link collisions
                   without persistent mutation.
@@ -470,8 +554,8 @@ Defaults:
   Output format: human.
 
 Remediation:
-  A stale active macOS projection requires profile activation with --restart;
-  malformed local policy must be repaired through exact redirect commands.
+  A stale shared macOS projection is repaired by ordinary profile activation;
+  --restart is reserved for explicit VM recovery.
 
 Examples:
   shimmy profile redirect list
@@ -487,21 +571,22 @@ Usage:
   shimmy profile redirect set --prefix <logical> --location <physical> [--dry-run]
 
 Scope:
-  Invoking active profile. Uses replacement location semantics, never fallback
-  mirrors.
+  Invoking profile. Active edits apply and validate immediately; inactive edits
+  change only their source policy. Uses replacement semantics, never mirrors.
 
 Options:
   --prefix <logical>      Exact logical registry prefix. Required.
   --location <physical>  Exact replacement registry location. Required.
-  --dry-run               Render the complete candidate without mutation.
+  --dry-run               Render the candidate and report whether the active
+                          shared API service would recycle, without mutation.
   -h, --help              Show this help before installed-state validation.
 
 Defaults:
   Mutation enabled; no prefix or location default.
 
 Remediation:
-  Use --dry-run first. A stale macOS projection prints the exact profile restart
-  command instead of restarting automatically.
+  Use --dry-run first. Shared-policy changes recycle podman.service while the VM
+  and running containers remain up.
 
 Examples:
   shimmy profile redirect set --prefix registry.example --location mirror.example --dry-run
@@ -518,15 +603,17 @@ Usage:
     [--detach] [--dry-run]
 
 Scope:
-  Invoking active profile. --detach removes only the exact owned active
-  projection and is valid only with --all.
+  Invoking profile. Active edits apply immediately; inactive edits change only
+  their source. Legacy --detach removes only an exact owned active projection
+  and is valid only with --all.
 
 Options:
   --prefix <logical>  Delete one exact logical prefix.
   --all               Delete every generated redirect while retaining valid
                       empty managed policy.
   --detach            With --all, detach the exact owned active projection.
-  --dry-run           Render the candidate without mutation.
+  --dry-run           Render the candidate and shared-service action without
+                      mutation.
   -h, --help          Show this help before installed-state validation.
 
 Defaults:
@@ -1008,6 +1095,14 @@ case "$shimmy_help_group" in
     case "${2:-}" in
       ''|help|-h|--help) shimmy_help_admin ;;
       status) shimmy_help_admin_status ;;
+      engine)
+        case "${3:-}" in
+          ''|help|-h|--help) shimmy_help_admin_engine ;;
+          status) shimmy_help_admin_engine_status ;;
+          migrate) shimmy_help_admin_engine_migrate ;;
+          *) fail "unknown admin engine help topic: ${3:-}" ;;
+        esac
+        ;;
       network) shimmy_help_admin_network ;;
       uninstall) shimmy_help_admin_uninstall ;;
       *) fail "unknown admin help topic: ${2:-}" ;;

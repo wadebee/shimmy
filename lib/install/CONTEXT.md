@@ -7,9 +7,9 @@
   immutable generations, commits current/previous registry authority, rolls
   back, and never deletes retained generations.
 - `profile.sh` stages complete profile candidates: canonical commands/libs,
-  direct shim versions, launcher, shell initializer, registry policy, manifest,
-  and control/tool skill bundles. Profiles contain no tests or generated
-  repository adapters.
+  direct shim versions, launcher, shell initializer, engine binding, registry
+  policy, manifest, and control/tool skill bundles. Profiles contain no tests
+  or generated repository adapters.
 - `lifecycle.sh` integrates fresh bootstrap, profile create/activation, image
   preparation, exact active authority, startup compensation, AI-skill
   reconciliation, dry-run, deletion, and failure cleanup.
@@ -19,11 +19,13 @@
 - `launcher-template.sh` is the byte-authoritative final installed launcher for
   `admin`, `profile`, `catalog`, `shim`, and `ai-skill`.
 
-Materialized controls include the unpublished `lib/engine/` schema-1
-foundation, but no installation path writes engine or binding records until the
-whole compatibility unit is published in a later reviewed chunk.
+Materialized controls include the published `lib/engine/` schema-1 registry and
+dual-read bridge. Update installs those readers before explicit migration can
+publish engine and binding records.
 
 Initial bootstrap requires a clean committed attached `main`, creates only
-`default`, installs jq/rg/Skopeo, activates engine/registry authority, records
-the active profile, reconciles exact skill links, and applies startup policy as
-one compensated lifecycle. An existing config root is never adopted or merged.
+`default`, publishes a shared engine/binding, installs jq/rg/Skopeo, activates
+engine/registry authority, records the active profile, reconciles exact skill
+links, and applies startup policy as one compensated lifecycle. Darwin creates
+the owned `shimmy` machine; Linux records the host-local rootless engine. An
+existing config root or exact Darwin name collision is never adopted or merged.

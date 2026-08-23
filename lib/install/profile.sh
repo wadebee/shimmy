@@ -138,6 +138,8 @@ shimmy_profile_materialization_prepare() {
   shimmy_profile_materialize_startup_files=${2:-}
   shimmy_profile_materialize_registries_source=${3:-}
   shimmy_profile_materialize_control_bundle_source=${4:-}
+  shimmy_profile_materialize_binding_source=${5:-}
+  shimmy_profile_materialize_binding_mode=${6:-}
 
   shimmy_installation_paths_resolve "$shimmy_profile_materialize_config" || return 1
   shimmy_name_component_validate "$shimmy_profile_materialize_name" || return 1
@@ -194,6 +196,25 @@ shimmy_profile_materialization_prepare() {
       > "$SHIMMY_PROFILE_CANDIDATE_STAGE/registries.conf" || return 1
   fi
   chmod 0644 "$SHIMMY_PROFILE_CANDIDATE_STAGE/registries.conf" || return 1
+  if [ -n "$shimmy_profile_materialize_binding_source" ]; then
+    shimmy_engine_binding_read "$shimmy_profile_materialize_binding_source" || return 1
+    [ "$SHIMMY_ENGINE_BINDING_PROFILE" = "$shimmy_profile_materialize_name" ] || return 1
+    cp "$shimmy_profile_materialize_binding_source" \
+      "$SHIMMY_PROFILE_CANDIDATE_STAGE/engine-binding.conf" || return 1
+  elif [ -n "$shimmy_profile_materialize_binding_mode" ]; then
+    case "$shimmy_profile_materialize_binding_mode" in
+      shared) shimmy_profile_materialize_binding_id=shared ;;
+      isolated|legacy-isolated) shimmy_profile_materialize_binding_id=profile-$shimmy_profile_materialize_name ;;
+      *) return 1 ;;
+    esac
+    shimmy_engine_binding_render "$shimmy_profile_materialize_name" \
+      "$shimmy_profile_materialize_binding_mode" "$shimmy_profile_materialize_binding_id" \
+      > "$SHIMMY_PROFILE_CANDIDATE_STAGE/engine-binding.conf" || return 1
+  fi
+  if [ -e "$SHIMMY_PROFILE_CANDIDATE_STAGE/engine-binding.conf" ]; then
+    chmod 0644 "$SHIMMY_PROFILE_CANDIDATE_STAGE/engine-binding.conf" || return 1
+    shimmy_engine_binding_read "$SHIMMY_PROFILE_CANDIDATE_STAGE/engine-binding.conf" || return 1
+  fi
 
   SHIMMY_SHIM_VERSION_RECORDS=$shimmy_profile_materialize_versions
   while IFS= read -r shimmy_profile_materialize_shim_record; do

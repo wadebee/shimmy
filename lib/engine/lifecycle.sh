@@ -183,6 +183,51 @@ shimmy_engine_machine_create_commit() {
   shimmy_engine_lifecycle_clear "$shimmy_engine_machine_create_journal"
 }
 
+shimmy_engine_machine_create_rollback() {
+  shimmy_engine_machine_create_rollback_record=$1
+  shimmy_engine_machine_create_rollback_journal=$2
+  shimmy_engine_lifecycle_read "$shimmy_engine_machine_create_rollback_journal" || return 1
+  [ "$SHIMMY_ENGINE_LIFECYCLE_OPERATION" = create ] || return 1
+  case "$SHIMMY_ENGINE_LIFECYCLE_PHASE" in
+    planned)
+      shimmy_engine_podman_machine_absence_validate "$SHIMMY_ENGINE_LIFECYCLE_NAME" \
+        "$SHIMMY_ENGINE_LIFECYCLE_CONNECTION" || return 1
+      rm -f "$shimmy_engine_machine_create_rollback_journal"
+      return 0
+      ;;
+    initialized|recorded|starting|started|guest-marking|guest-marked) ;;
+    *) return 1 ;;
+  esac
+
+  shimmy_engine_podman_machine_state_read "$SHIMMY_ENGINE_LIFECYCLE_NAME" || return 1
+  case "$SHIMMY_ENGINE_MACHINE_STATE" in running|stopped) ;; *) return 1 ;; esac
+  [ "$(shimmy_engine_podman_machine_identity_fingerprint_render \
+    "$SHIMMY_ENGINE_LIFECYCLE_NAME" "$SHIMMY_ENGINE_LIFECYCLE_CONNECTION")" = \
+    "$SHIMMY_ENGINE_LIFECYCLE_CREATED_IDENTITY" ] || return 1
+  if [ -f "$shimmy_engine_machine_create_rollback_record" ] &&
+    [ ! -L "$shimmy_engine_machine_create_rollback_record" ]; then
+    shimmy_engine_record_read "$shimmy_engine_machine_create_rollback_record" || return 1
+    [ "$SHIMMY_ENGINE_RECORD_ID" = "$SHIMMY_ENGINE_LIFECYCLE_ID" ] &&
+      [ "$SHIMMY_ENGINE_RECORD_NAME" = "$SHIMMY_ENGINE_LIFECYCLE_NAME" ] &&
+      [ "$SHIMMY_ENGINE_RECORD_CONNECTION" = "$SHIMMY_ENGINE_LIFECYCLE_CONNECTION" ] &&
+      [ "$SHIMMY_ENGINE_RECORD_OWNERSHIP_TOKEN" = "$SHIMMY_ENGINE_LIFECYCLE_OWNERSHIP_TOKEN" ] &&
+      [ "$SHIMMY_ENGINE_RECORD_CREATED_IDENTITY" = "$SHIMMY_ENGINE_LIFECYCLE_CREATED_IDENTITY" ] || return 1
+  fi
+  shimmy_engine_podman_guest_marker_verify "$SHIMMY_ENGINE_LIFECYCLE_NAME" \
+    "$SHIMMY_ENGINE_LIFECYCLE_ID" "$SHIMMY_ENGINE_LIFECYCLE_OWNERSHIP_TOKEN" >/dev/null 2>&1 &&
+    shimmy_engine_podman_guest_marker_remove "$SHIMMY_ENGINE_LIFECYCLE_NAME" \
+      "$SHIMMY_ENGINE_LIFECYCLE_ID" "$SHIMMY_ENGINE_LIFECYCLE_OWNERSHIP_TOKEN" >/dev/null 2>&1 || true
+  shimmy_engine_podman_machine_state_read "$SHIMMY_ENGINE_LIFECYCLE_NAME" || return 1
+  if [ "$SHIMMY_ENGINE_MACHINE_STATE" = running ]; then
+    shimmy_engine_podman_machine_stop "$SHIMMY_ENGINE_LIFECYCLE_NAME" || return 1
+  fi
+  shimmy_engine_podman_machine_remove "$SHIMMY_ENGINE_LIFECYCLE_NAME" || return 1
+  shimmy_engine_podman_machine_state_read "$SHIMMY_ENGINE_LIFECYCLE_NAME" || return 1
+  [ "$SHIMMY_ENGINE_MACHINE_STATE" = absent ] || return 1
+  rm -f "$shimmy_engine_machine_create_rollback_record" \
+    "$shimmy_engine_machine_create_rollback_journal"
+}
+
 shimmy_engine_machine_remove_prepare() {
   shimmy_engine_machine_remove_record=$1
   shimmy_engine_machine_remove_journal=$2

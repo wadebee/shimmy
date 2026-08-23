@@ -69,6 +69,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/update/profile.sh"
 # shellcheck source=lib/registries/registries.sh
 . "$ROOT_DIR/lib/registries/registries.sh"
+# shellcheck source=lib/engine/registry.sh
+. "$ROOT_DIR/lib/engine/registry.sh"
 # shellcheck source=lib/profile/management.sh
 . "$ROOT_DIR/lib/profile/management.sh"
 # shellcheck source=lib/images/images.sh

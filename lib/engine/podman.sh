@@ -7,6 +7,11 @@ shimmy_engine_podman_bin_require() {
     [ -x "$SHIMMY_ENGINE_PODMAN_BIN" ]
     return
   fi
+  if [ -n "${SHIMMY_TEST_PROFILE_PODMAN_BIN:-}" ]; then
+    SHIMMY_ENGINE_PODMAN_BIN=$SHIMMY_TEST_PROFILE_PODMAN_BIN
+    [ -x "$SHIMMY_ENGINE_PODMAN_BIN" ]
+    return
+  fi
   if [ -n "${SHIMMY_PROFILE_PODMAN_BIN:-}" ] && [ -x "$SHIMMY_PROFILE_PODMAN_BIN" ]; then
     SHIMMY_ENGINE_PODMAN_BIN=$SHIMMY_PROFILE_PODMAN_BIN
     return 0
@@ -313,6 +318,64 @@ shimmy_engine_podman_guest_marker_verify() {
 
 shimmy_engine_podman_guest_marker_remove() {
   [ "$(shimmy_engine_podman_guest_marker_run remove "$1" "$2" "$3")" = removed ]
+}
+
+shimmy_engine_podman_projection_dropin_run() {
+  shimmy_engine_podman_dropin_action=$1
+  shimmy_engine_podman_dropin_machine=$2
+  shimmy_engine_podman_dropin_target=$3
+  shimmy_name_component_validate "$shimmy_engine_podman_dropin_machine" || return 1
+  shimmy_path_absolute_normalized_validate "$shimmy_engine_podman_dropin_target" || return 1
+  shimmy_engine_podman_run machine ssh "$shimmy_engine_podman_dropin_machine" /bin/sh -s -- \
+    "$shimmy_engine_podman_dropin_action" "$shimmy_engine_podman_dropin_target" <<'EOF'
+set -eu
+action=$1
+target=$2
+case "$target" in /*/shimmy/engines/shared/registries.conf|*/shimmy/engines/profile-*/registries.conf) ;; *) exit 20 ;; esac
+root=$HOME/.config/containers/registries.conf.d
+link=$root/shimmy-active-profile.conf
+case "$action" in
+  install)
+    [ ! -L "$HOME/.config" ] && [ ! -L "$HOME/.config/containers" ] && [ ! -L "$root" ]
+    mkdir -p "$root"
+    [ -d "$root" ] && [ ! -L "$root" ]
+    if [ -e "$link" ] || [ -L "$link" ]; then
+      [ -L "$link" ] && [ "$(readlink "$link")" = "$target" ]
+      printf '%s\n' current
+      exit 0
+    fi
+    stage=$root/.shimmy-active-profile.tmp.$$
+    [ ! -e "$stage" ] && [ ! -L "$stage" ]
+    ln -s "$target" "$stage"
+    mv "$stage" "$link"
+    printf '%s\n' installed
+    ;;
+  verify)
+    [ -L "$link" ] && [ "$(readlink "$link")" = "$target" ]
+    printf '%s\n' current
+    ;;
+  remove)
+    [ -L "$link" ] && [ "$(readlink "$link")" = "$target" ]
+    rm -f "$link"
+    printf '%s\n' removed
+    ;;
+  *) exit 21 ;;
+esac
+EOF
+}
+
+shimmy_engine_podman_projection_dropin_install() {
+  shimmy_engine_podman_dropin_result=$(shimmy_engine_podman_projection_dropin_run \
+    install "$1" "$2") || return 1
+  case "$shimmy_engine_podman_dropin_result" in installed|current) ;; *) return 1 ;; esac
+}
+
+shimmy_engine_podman_projection_dropin_verify() {
+  [ "$(shimmy_engine_podman_projection_dropin_run verify "$1" "$2" 2>/dev/null)" = current ]
+}
+
+shimmy_engine_podman_projection_dropin_remove() {
+  [ "$(shimmy_engine_podman_projection_dropin_run remove "$1" "$2")" = removed ]
 }
 
 shimmy_engine_podman_service_pid_read() {

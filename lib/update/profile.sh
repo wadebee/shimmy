@@ -213,6 +213,13 @@ shimmy_profile_sync_run() {
   shimmy_profile_sync_catalog_fingerprint=$SHIMMY_CATALOG_CONTENT_FINGERPRINT
   shimmy_profile_sync_catalog_root=$SHIMMY_CATALOG_GENERATIONS_ROOT/$shimmy_profile_sync_generation
   shimmy_profile_sync_catalog_record=default\|$shimmy_profile_sync_generation\|$shimmy_profile_sync_catalog_commit\|$shimmy_profile_sync_catalog_fingerprint
+  shimmy_profile_sync_binding_source=
+  if [ -e "$SHIMMY_PROFILE_SYNC_PROFILE_ROOT/engine-binding.conf" ] ||
+    [ -L "$SHIMMY_PROFILE_SYNC_PROFILE_ROOT/engine-binding.conf" ]; then
+    shimmy_engine_binding_read "$SHIMMY_PROFILE_SYNC_PROFILE_ROOT/engine-binding.conf" || return 1
+    [ "$SHIMMY_ENGINE_BINDING_PROFILE" = "$shimmy_profile_sync_name" ] || return 1
+    shimmy_profile_sync_binding_source=$SHIMMY_PROFILE_SYNC_PROFILE_ROOT/engine-binding.conf
+  fi
   shimmy_profile_control_fetch "$shimmy_profile_sync_config" \
     "$shimmy_profile_sync_source_url" || return 1
   shimmy_profile_sync_source_ref=$SHIMMY_PROFILE_SYNC_SOURCE_REF
@@ -225,7 +232,8 @@ shimmy_profile_sync_run() {
     "$shimmy_profile_sync_catalog_record" "$SHIMMY_PROFILE_SYNC_SHIMS" \
     "$SHIMMY_PROFILE_SYNC_VERSIONS" "$shimmy_profile_sync_startup_shell" \
     "$shimmy_profile_sync_startup_files" \
-    "$SHIMMY_PROFILE_SYNC_PROFILE_ROOT/registries.conf" || return 1
+    "$SHIMMY_PROFILE_SYNC_PROFILE_ROOT/registries.conf" '' \
+    "$shimmy_profile_sync_binding_source" || return 1
   shimmy_profile_images_prepare "$SHIMMY_PROFILE_CANDIDATE_STAGE" \
     "$SHIMMY_PROFILE_SYNC_PAIRS" || return 1
   shimmy_profile_control_ref_revalidate "$shimmy_profile_sync_source_url" \

@@ -46,6 +46,10 @@ shimmy_profile_bootstrap_cleanup() {
     SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
   fi
   shimmy_profile_candidate_stage_cleanup 2>/dev/null || true
+  if [ "${SHIMMY_ENGINE_REGISTRY_SHARED_CREATE_ACTIVE:-0}" -eq 1 ] &&
+    [ -n "${SHIMMY_CONFIG_ROOT:-}" ]; then
+    shimmy_engine_registry_shared_create_rollback "$SHIMMY_CONFIG_ROOT" 2>/dev/null || true
+  fi
   if [ -n "$SHIMMY_PROFILE_LIFECYCLE_STARTUP_BACKUP" ]; then
     case "$SHIMMY_PROFILE_LIFECYCLE_STARTUP_BACKUP" in
       "$SHIMMY_CONFIG_ROOT"/.startup-backup.*)
@@ -89,6 +93,22 @@ shimmy_profile_bootstrap_run() {
   shimmy_shell_name_normalize "$shimmy_profile_bootstrap_shell" >/dev/null || return 1
   shimmy_profile_bootstrap_shell=$(shimmy_shell_name_normalize "$shimmy_profile_bootstrap_shell") || return 1
   case "$shimmy_profile_bootstrap_startup" in 0|1) ;; *) return 1 ;; esac
+  shimmy_engine_registry_host_os_resolve
+  case "$SHIMMY_ENGINE_REGISTRY_HOST_OS" in
+    darwin)
+      shimmy_engine_podman_bin_require ||
+        shimmy_profile_lifecycle_error_set 'Podman is required for macOS bootstrap' || return 1
+      shimmy_engine_podman_machine_absence_validate shimmy shimmy ||
+        shimmy_profile_lifecycle_error_set \
+          'Podman machine or connection name collision: shimmy; Shimmy will not adopt it' || return 1
+      ;;
+    linux) shimmy_profile_linux_engine_validate || return 1 ;;
+    *)
+      shimmy_profile_lifecycle_error_set \
+        "unsupported host operating system for bootstrap: $SHIMMY_ENGINE_REGISTRY_HOST_OS"
+      return 1
+      ;;
+  esac
   shimmy_catalog_checkout_validate "$shimmy_profile_bootstrap_checkout" ||
     shimmy_profile_lifecycle_error_set "$SHIMMY_CATALOG_AUTHORITY_ERROR" || return 1
   shimmy_profile_bootstrap_source_ref=$SHIMMY_CATALOG_PUBLICATION_HEAD
@@ -121,7 +141,8 @@ shimmy_profile_bootstrap_run() {
     "$shimmy_profile_bootstrap_checkout" "$shimmy_profile_bootstrap_source_url" \
     "$shimmy_profile_bootstrap_source_ref" "$shimmy_profile_bootstrap_catalog_record" \
     "$SHIMMY_PROFILE_BASELINE_SHIMS" "$SHIMMY_PROFILE_BASELINE_VERSIONS" \
-    "$shimmy_profile_bootstrap_shell" "$shimmy_profile_bootstrap_startup_files" || return 1
+    "$shimmy_profile_bootstrap_shell" "$shimmy_profile_bootstrap_startup_files" \
+    '' '' '' shared || return 1
   shimmy_lock_acquire catalog "$shimmy_profile_bootstrap_config" || return 1
   shimmy_lock_acquire activation "$shimmy_profile_bootstrap_config" || return 1
   shimmy_catalog_tree_validate "$shimmy_profile_bootstrap_config" || return 1
@@ -129,9 +150,28 @@ shimmy_profile_bootstrap_run() {
   shimmy_profile_new_root_prepare "$shimmy_profile_bootstrap_config" default || return 1
   shimmy_lock_acquire profile "$shimmy_profile_bootstrap_config" default || return 1
   shimmy_lock_acquire registry "$shimmy_profile_bootstrap_config" default || return 1
-  shimmy_catalog_checkout_revalidate || return 1
-  shimmy_profile_new_candidate_commit default "$shimmy_profile_bootstrap_catalog_root" || return 1
-  shimmy_profile_candidate_resolve "$shimmy_profile_bootstrap_config" default || return 1
+  shimmy_catalog_checkout_revalidate ||
+    shimmy_profile_lifecycle_error_set 'bootstrap checkout changed during staging' || return 1
+  shimmy_profile_new_candidate_commit default "$shimmy_profile_bootstrap_catalog_root" ||
+    shimmy_profile_lifecycle_error_set 'unable to commit the default profile candidate' || return 1
+  case "$SHIMMY_ENGINE_REGISTRY_HOST_OS" in
+    darwin)
+      mkdir "$shimmy_profile_bootstrap_config/engines" || return 1
+      shimmy_engine_registry_shared_create_prepare "$shimmy_profile_bootstrap_config" \
+        default || shimmy_profile_lifecycle_error_set \
+          'unable to create the shared Podman engine' || return 1
+      ;;
+    linux)
+      mkdir "$shimmy_profile_bootstrap_config/engines" || return 1
+      shimmy_engine_paths_resolve "$shimmy_profile_bootstrap_config" shared || return 1
+      mkdir "$SHIMMY_ENGINE_ROOT" || return 1
+      shimmy_engine_record_write "$SHIMMY_ENGINE_RECORD_PATH" shared linux-rootless \
+        installation local local none host-local '' '' || return 1
+      ;;
+  esac
+  shimmy_profile_candidate_resolve "$shimmy_profile_bootstrap_config" default ||
+    shimmy_profile_lifecycle_error_set \
+      "unable to validate the default profile with its engine binding: ${SHIMMY_PROFILE_ERROR:-unknown}" || return 1
 
   SHIMMY_PROFILE_USER_SKILL_ROOT=$shimmy_profile_bootstrap_user_root
   shimmy_profile_ai_skill_prepare "$shimmy_profile_bootstrap_config" default \
@@ -143,7 +183,7 @@ shimmy_profile_bootstrap_run() {
   SHIMMY_PROFILE_ACTIVATION_QUIET_SUCCESS=1
   shimmy_profile_activation_host_os_resolve
   case "$SHIMMY_PROFILE_HOST_OS" in
-    darwin) shimmy_profile_bootstrap_restart=1 ;;
+    darwin) shimmy_profile_bootstrap_restart=0 ;;
     linux) shimmy_profile_bootstrap_restart=0 ;;
     *)
       shimmy_profile_lifecycle_error_set \
@@ -168,6 +208,10 @@ shimmy_profile_bootstrap_run() {
     shimmy_profile_lifecycle_activation_rollback 'unable to apply initial startup integration' || return 1
   shimmy_profile_activation_commit ||
     shimmy_profile_lifecycle_activation_rollback 'unable to finalize initial engine activation' || return 1
+  if [ "$SHIMMY_PROFILE_HOST_OS" = darwin ]; then
+    shimmy_engine_registry_shared_create_commit ||
+      shimmy_profile_lifecycle_activation_rollback 'unable to finalize shared engine creation' || return 1
+  fi
   shimmy_external_transaction_commit || return 1
   SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
   shimmy_profile_startup_backup_cleanup || return 1
@@ -186,10 +230,13 @@ shimmy_profile_create_dry_run() {
   shimmy_profile_create_dry_pairs=$5
   shimmy_profile_create_dry_restart=$6
   shimmy_profile_create_dry_stop=$7
-  shimmy_profile_engine_context_resolve "$shimmy_profile_create_dry_config" \
-    "$shimmy_profile_create_dry_name" || return 1
-  shimmy_profile_activation_expected_resolve || return 1
   shimmy_profile_activation_host_os_resolve
+  shimmy_engine_paths_resolve "$shimmy_profile_create_dry_config" shared || return 1
+  shimmy_engine_record_read "$SHIMMY_ENGINE_RECORD_PATH" || return 1
+  SHIMMY_PROFILE_EXPECTED_MACHINE=$SHIMMY_ENGINE_RECORD_NAME
+  SHIMMY_PROFILE_EXPECTED_CONNECTION=$SHIMMY_ENGINE_RECORD_CONNECTION
+  SHIMMY_PROFILE_ENGINE_ID=shared
+  SHIMMY_PROFILE_ENGINE_BINDING_MODE=shared
   case "$SHIMMY_PROFILE_HOST_OS" in
     linux)
       [ "$shimmy_profile_create_dry_restart" -eq 0 ] || {
@@ -263,6 +310,11 @@ shimmy_profile_create_run() {
   shimmy_profile_installation_context_resolve "$shimmy_profile_create_config" || return 1
   shimmy_profile_create_prior_active=$SHIMMY_PROFILE_ACTIVE_NAME
   shimmy_profile_create_user_root=$SHIMMY_PROFILE_USER_SKILL_ROOT
+  shimmy_engine_installation_schema_state_read "$shimmy_profile_create_config" ||
+    shimmy_profile_lifecycle_error_set 'invalid or partially published engine registry state' || return 1
+  [ "$SHIMMY_ENGINE_INSTALLATION_SCHEMA_STATE" = migrated ] ||
+    shimmy_profile_lifecycle_error_set \
+      'profile creation requires engine migration; run shimmy admin engine migrate --dry-run, then shimmy admin engine migrate' || return 1
   shimmy_profile_active_engine_validate "$shimmy_profile_create_config" \
     "$shimmy_profile_create_prior_active" || return 1
   shimmy_profile_state_paths_resolve "$shimmy_profile_create_config" "$shimmy_profile_create_name" || return 1
@@ -294,7 +346,7 @@ shimmy_profile_create_run() {
     "$shimmy_profile_create_source_url" "$shimmy_profile_create_source_ref" \
     "$shimmy_profile_create_catalog_record" "$SHIMMY_PROFILE_BASELINE_SHIMS" \
     "$SHIMMY_PROFILE_BASELINE_VERSIONS" '' '' '' \
-    "$shimmy_profile_create_invoking_root/ai-skills/control" || return 1
+    "$shimmy_profile_create_invoking_root/ai-skills/control" '' shared || return 1
   shimmy_profile_images_prepare "$SHIMMY_PROFILE_CANDIDATE_STAGE" \
     "$SHIMMY_PROFILE_BASELINE_PAIRS" || return 1
   shimmy_lock_acquire catalog "$shimmy_profile_create_config" || return 1
@@ -415,7 +467,8 @@ shimmy_profile_new_candidate_commit() {
   [ "$SHIMMY_PROFILE_LIFECYCLE_NEW_ROOT" = "$SHIMMY_PROFILES_ROOT/$shimmy_profile_new_candidate_name" ] || return 1
   shimmy_lock_held profile "$shimmy_profile_new_candidate_name" || return 1
   shimmy_lock_held registry "$shimmy_profile_new_candidate_name" || return 1
-  for shimmy_profile_new_candidate_entry in ai-skills bin commands config lib tools registries.conf shell-init.sh; do
+  for shimmy_profile_new_candidate_entry in ai-skills bin commands config lib tools \
+    engine-binding.conf registries.conf shell-init.sh; do
     mv "$SHIMMY_PROFILE_CANDIDATE_STAGE/$shimmy_profile_new_candidate_entry" \
       "$SHIMMY_PROFILE_LIFECYCLE_NEW_ROOT/$shimmy_profile_new_candidate_entry" || return 1
   done
@@ -445,7 +498,7 @@ shimmy_profile_new_root_remove() {
   shimmy_profile_new_root_name=$(basename -- "$SHIMMY_PROFILE_LIFECYCLE_NEW_ROOT")
   shimmy_name_component_validate "$shimmy_profile_new_root_name" || return 1
   for shimmy_profile_new_root_entry in ai-skills bin commands config lib tools \
-    install-manifest.txt machine-projection.txt registries.conf shell-init.sh; do
+    engine-binding.conf install-manifest.txt machine-projection.txt registries.conf shell-init.sh; do
     shimmy_profile_new_root_path=$SHIMMY_PROFILE_LIFECYCLE_NEW_ROOT/$shimmy_profile_new_root_entry
     if [ -d "$shimmy_profile_new_root_path" ] && [ ! -L "$shimmy_profile_new_root_path" ]; then
       rm -rf "$shimmy_profile_new_root_path"

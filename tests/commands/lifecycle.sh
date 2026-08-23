@@ -15,6 +15,41 @@ test_lifecycle_command() {
     "$TEST_LIFECYCLE_CONFIG/profiles/$test_lifecycle_profile/bin/shimmy" "$@"
 }
 
+test_lifecycle_migration_command() {
+  env HOME="$TEST_LIFECYCLE_HOME" XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
+    FAKE_MACHINE_LIST='shimmy-default|applehv|false' \
+    FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
+    FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_CREATED_STATE" \
+    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
+    FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
+    FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
+    FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
+    FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf" \
+    FAKE_WORKLOADS= FAKE_DARWIN_PROJECTION_STATE=absent \
+    FAKE_PRIOR_MACHINE=shimmy-default FAKE_TARGET_MACHINE=shimmy \
+    FAKE_PRIOR_DEFAULT=shimmy-default FAKE_FAIL_ACTION="${TEST_LIFECYCLE_FAIL_ACTION:-}" \
+    FAKE_ROLLBACK_FAIL="${TEST_LIFECYCLE_ROLLBACK_FAIL:-}" \
+    "$TEST_LIFECYCLE_CONFIG/profiles/default/bin/shimmy" admin engine "$@"
+}
+
+test_lifecycle_shared_profile_command() {
+  env HOME="$TEST_LIFECYCLE_HOME" XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" FAKE_MACHINE_LIST= \
+    FAKE_CONNECTION_LIST='other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false' \
+    FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_CREATED_STATE" \
+    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
+    FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
+    FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
+    FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
+    FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf" \
+    FAKE_WORKLOADS='sentinel|bootstrap-sentinel' FAKE_DARWIN_PROJECTION_STATE=current \
+    SHIMMY_TEST_PROFILE_FAILURE="${TEST_LIFECYCLE_PROFILE_FAILURE:-}" \
+    "$TEST_LIFECYCLE_CONFIG/profiles/default/bin/shimmy" "$@"
+}
+
 test_lifecycle_fixture_setup() {
   setup_scenario
   TEST_LIFECYCLE_CHECKOUT=$SCENARIO_DIR/checkout
@@ -43,8 +78,14 @@ test_lifecycle_fixture_setup() {
 }
 
 test_commands_lifecycle_darwin_bootstrap_case() {
-  test_lifecycle_machine_running=$1
+  test_lifecycle_case=$1
   test_lifecycle_fixture_setup
+  test_lifecycle_created_state=$SCENARIO_DIR/created-machine-state
+  test_lifecycle_service_pid=$SCENARIO_DIR/service-pid
+  TEST_LIFECYCLE_CREATED_STATE=$test_lifecycle_created_state
+  TEST_LIFECYCLE_SERVICE_PID=$test_lifecycle_service_pid
+  printf '%s\n' absent > "$test_lifecycle_created_state"
+  printf '%s\n' 800 > "$test_lifecycle_service_pid"
   test_lifecycle_bootstrap_output=$(env HOME="$TEST_LIFECYCLE_HOME" \
     XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
     SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
@@ -53,40 +94,159 @@ test_commands_lifecycle_darwin_bootstrap_case() {
     SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
     SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
     FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
-    FAKE_MACHINE_LIST="shimmy-default|$test_lifecycle_machine_running" \
-    FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
+    FAKE_MACHINE_LIST= \
+    FAKE_CONNECTION_LIST='other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
+    FAKE_CREATED_MACHINE_STATE_FILE="$test_lifecycle_created_state" \
+    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$test_lifecycle_service_pid" \
+    FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
+    FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
+    FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
+    FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf" \
     FAKE_WORKLOADS= FAKE_DARWIN_PROJECTION_STATE=absent \
-    FAKE_PRIOR_MACHINE=shimmy-default FAKE_TARGET_MACHINE=shimmy-default \
-    FAKE_PRIOR_DEFAULT=shimmy-default \
+    FAKE_PRIOR_MACHINE= FAKE_TARGET_MACHINE=shimmy FAKE_PRIOR_DEFAULT=other \
     "$TEST_LIFECYCLE_CHECKOUT/commands/bootstrap.sh" --no-startup)
 
   assert_contains "$test_lifecycle_bootstrap_output" 'Bootstrapped active Shimmy profile default'
-  assert_regular_file_not_symlink \
-    "$TEST_LIFECYCLE_CONFIG/profiles/default/machine-projection.txt"
-  test_lifecycle_stop_line=$(sed -n '/^machine stop shimmy-default$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
-  test_lifecycle_start_line=$(sed -n '/^machine start shimmy-default$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
+  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf"
+  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/projection.conf"
+  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf"
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf" 'mode=shared'
+  test_lifecycle_init_line=$(sed -n '/^machine init --update-connection=false shimmy$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
+  test_lifecycle_start_line=$(sed -n '/^machine start shimmy$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
   test_lifecycle_projection_line=$(sed -n \
-    '/^machine ssh shimmy-default \/bin\/sh -s -- projection /=' \
-    "$TEST_LIFECYCLE_PODMAN_LOG")
+    '/^machine ssh shimmy systemctl --user stop podman.service$/=' \
+    "$TEST_LIFECYCLE_PODMAN_LOG" | head -n 1)
   test_lifecycle_validation_line=$(sed -n \
-    '/^--connection shimmy-default info /=' "$TEST_LIFECYCLE_PODMAN_LOG" | tail -n 1)
+    '/^--connection shimmy info /=' "$TEST_LIFECYCLE_PODMAN_LOG" | tail -n 1)
   test_lifecycle_image_line=$(sed -n '/^image|jq|1.8|pull$/=' \
     "$TEST_LIFECYCLE_PODMAN_LOG")
-  if [ "$test_lifecycle_machine_running" = true ]; then
-    [ "$test_lifecycle_stop_line" -lt "$test_lifecycle_start_line" ] ||
-      fail_test 'running idle Darwin bootstrap did not restart its machine'
-  fi
-  [ "$test_lifecycle_start_line" -lt "$test_lifecycle_projection_line" ] &&
+  [ "$test_lifecycle_init_line" -lt "$test_lifecycle_start_line" ] &&
+    [ "$test_lifecycle_start_line" -lt "$test_lifecycle_projection_line" ] &&
     [ "$test_lifecycle_projection_line" -lt "$test_lifecycle_validation_line" ] ||
-    fail_test 'Darwin bootstrap did not start, project, and validate in order'
+    fail_test 'Darwin bootstrap did not initialize, start, project, and validate in order'
   [ "$test_lifecycle_validation_line" -lt "$test_lifecycle_image_line" ] ||
     fail_test 'Darwin bootstrap prepared images before engine activation'
+
+  : > "$TEST_LIFECYCLE_PODMAN_LOG"
+  test_lifecycle_shared_dry=$(test_lifecycle_shared_profile_command profile redirect set \
+    --prefix docker.io --location registry.example.invalid/docker --dry-run)
+  assert_contains "$test_lifecycle_shared_dry" 'would_recycle_podman_service=yes'
+  test_lifecycle_shared_profile_command profile redirect set \
+    --prefix docker.io --location registry.example.invalid/docker >/dev/null
+  assert_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" \
+    'machine ssh shimmy systemctl --user stop podman.service'
+  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine stop '
+  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine start '
+  test_lifecycle_shared_source_before=$(cksum < \
+    "$TEST_LIFECYCLE_CONFIG/profiles/default/registries.conf")
+  test_lifecycle_shared_projection_before=$(cksum < \
+    "$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf")
+  test_lifecycle_shared_active_before=$(cksum < "$TEST_LIFECYCLE_CONFIG/active-profile.conf")
+  TEST_LIFECYCLE_PROFILE_FAILURE=after-engine-projection
+  set +e
+  test_lifecycle_shared_failure=$(test_lifecycle_shared_profile_command profile redirect set \
+    --prefix docker.io --location registry.fail.invalid/docker 2>&1)
+  test_lifecycle_shared_failure_status=$?
+  set -e
+  TEST_LIFECYCLE_PROFILE_FAILURE=
+  [ "$test_lifecycle_shared_failure_status" -ne 0 ] ||
+    fail_test 'injected active shared redirect failure unexpectedly succeeded'
+  assert_contains "$test_lifecycle_shared_failure" 'source and engine projection restored'
+  assert_equals "$(cksum < "$TEST_LIFECYCLE_CONFIG/profiles/default/registries.conf")" \
+    "$test_lifecycle_shared_source_before"
+  assert_equals "$(cksum < "$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf")" \
+    "$test_lifecycle_shared_projection_before"
+  assert_equals "$(cksum < "$TEST_LIFECYCLE_CONFIG/active-profile.conf")" \
+    "$test_lifecycle_shared_active_before"
 }
 
 test_commands_lifecycle_darwin_bootstrap_engine_states() {
-  test_commands_lifecycle_darwin_bootstrap_case false
-  test_commands_lifecycle_darwin_bootstrap_case true
-  pass 'Darwin bootstrap activates the default engine and authority before preparing images'
+  test_commands_lifecycle_darwin_bootstrap_case fresh
+
+  test_lifecycle_fixture_setup
+  set +e
+  test_lifecycle_collision_output=$(env HOME="$TEST_LIFECYCLE_HOME" \
+    XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
+    FAKE_MACHINE_LIST='shimmy|applehv|false' FAKE_CONNECTION_LIST= \
+    "$TEST_LIFECYCLE_CHECKOUT/commands/bootstrap.sh" --no-startup 2>&1)
+  test_lifecycle_collision_status=$?
+  set -e
+  [ "$test_lifecycle_collision_status" -ne 0 ] ||
+    fail_test 'Darwin bootstrap unexpectedly adopted a colliding shared machine'
+  assert_contains "$test_lifecycle_collision_output" 'machine or connection name collision: shimmy'
+  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine init '
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG"
+  pass 'Darwin bootstrap creates the owned shared engine and rejects an exact pre-existing machine without mutation'
+}
+
+test_commands_lifecycle_explicit_migration() {
+  test_lifecycle_fixture_setup
+  env HOME="$TEST_LIFECYCLE_HOME" XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
+    SHIMMY_TEST_PROFILE_OS=Linux SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_IMAGE_LOG" \
+    SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
+    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
+    FAKE_ACTIVE_LINK="$TEST_LIFECYCLE_ACTIVE_LINK" FAKE_LINUX_INFO=true\|false \
+    "$TEST_LIFECYCLE_CHECKOUT/commands/bootstrap.sh" --no-startup >/dev/null
+  rm -f "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf"
+  rm -rf "$TEST_LIFECYCLE_CONFIG/engines"
+  test_lifecycle_command default profile sync >/dev/null
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf"
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/engines"
+  assert_regular_file_not_symlink \
+    "$TEST_LIFECYCLE_CONFIG/profiles/default/lib/engine/registry.sh"
+  TEST_LIFECYCLE_CREATED_STATE=$SCENARIO_DIR/migration-created-state
+  TEST_LIFECYCLE_SERVICE_PID=$SCENARIO_DIR/migration-service-pid
+  printf '%s\n' absent > "$TEST_LIFECYCLE_CREATED_STATE"
+  printf '%s\n' 900 > "$TEST_LIFECYCLE_SERVICE_PID"
+
+  test_lifecycle_migration_dry=$(test_lifecycle_migration_command migrate --dry-run)
+  assert_contains "$test_lifecycle_migration_dry" 'profile_binding=default|legacy-isolated|profile-default|shimmy-default'
+  assert_contains "$test_lifecycle_migration_dry" 'shared_engine=shared|shimmy|would-create'
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/engines"
+  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine init '
+
+  TEST_LIFECYCLE_FAIL_ACTION=machine_start
+  set +e
+  test_lifecycle_migration_failure=$(test_lifecycle_migration_command migrate 2>&1)
+  test_lifecycle_migration_failure_status=$?
+  set -e
+  TEST_LIFECYCLE_FAIL_ACTION=
+  [ "$test_lifecycle_migration_failure_status" -ne 0 ] ||
+    fail_test 'injected migration failure unexpectedly succeeded'
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/engines"
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf"
+  assert_equals "$(cat "$TEST_LIFECYCLE_CREATED_STATE")" absent
+
+  TEST_LIFECYCLE_FAIL_ACTION=machine_start
+  TEST_LIFECYCLE_ROLLBACK_FAIL=machine_rm
+  set +e
+  test_lifecycle_migration_retained=$(test_lifecycle_migration_command migrate 2>&1)
+  test_lifecycle_migration_retained_status=$?
+  set -e
+  TEST_LIFECYCLE_FAIL_ACTION=
+  TEST_LIFECYCLE_ROLLBACK_FAIL=
+  [ "$test_lifecycle_migration_retained_status" -ne 0 ] ||
+    fail_test 'migration with an injected rollback failure unexpectedly succeeded'
+  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/.engine-migration.conf"
+  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/lifecycle.conf"
+  assert_equals "$(cat "$TEST_LIFECYCLE_CREATED_STATE")" stopped
+
+  : > "$TEST_LIFECYCLE_PODMAN_LOG"
+  test_lifecycle_migration_output=$(test_lifecycle_migration_command migrate)
+  assert_contains "$test_lifecycle_migration_output" 'engine_schema_after=migrated'
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf" 'mode=legacy-isolated'
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/profile-default/engine.conf" 'origin=legacy-external'
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf" 'origin=shimmy-created'
+  test_lifecycle_migration_status_output=$(test_lifecycle_migration_command status --format manifest)
+  assert_contains "$test_lifecycle_migration_status_output" \
+    'shimmy_engine_profile=default|migrated|legacy-isolated|profile-default|shimmy-default|legacy-external|external|not-applicable'
+  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine stop shimmy-default'
+  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine start shimmy-default'
+  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine rm --force shimmy-default'
+  pass 'explicit migration is dry-run safe, preserves legacy machines, rolls back failure, and retries to a complete schema'
 }
 
 test_commands_lifecycle_end_to_end() {
@@ -115,6 +275,9 @@ test_commands_lifecycle_end_to_end() {
   assert_contains "$test_lifecycle_bootstrap_output" 'selected=shimmy'
   assert_contains "$test_lifecycle_bootstrap_output" "path=$test_lifecycle_default/bin:"
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/active-profile.conf"
+  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf"
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf" 'origin=host-local'
+  assert_file_contains "$test_lifecycle_default/engine-binding.conf" 'mode=shared'
   assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TEST_LIFECYCLE_CONFIG/active-profile.conf")" default
   assert_equals "$(readlink "$TEST_LIFECYCLE_ACTIVE_LINK")" "$test_lifecycle_default/registries.conf"
   assert_file_contains "$test_lifecycle_default/install-manifest.txt" 'shimmy_install_manifest_version=2'
@@ -151,6 +314,9 @@ test_commands_lifecycle_end_to_end() {
   assert_contains "$test_lifecycle_profile_status" 'shimmy_profile_source_tracking_ref=refs/heads/main'
   assert_contains "$test_lifecycle_profile_status" 'shimmy_profile_ai_skill_bundle=control|valid|'
   assert_contains "$test_lifecycle_profile_list" 'shimmy_profile=default|yes|'
+  test_lifecycle_engine_status=$(test_lifecycle_command default admin engine status --format manifest)
+  assert_contains "$test_lifecycle_engine_status" 'shimmy_engine_schema=migrated'
+  assert_contains "$test_lifecycle_engine_status" 'shimmy_engine_profile=default|migrated|shared|shared|local|host-local|host-local|'
 
   test_lifecycle_redirect_dry=$(test_lifecycle_command default profile redirect set \
     --prefix registry.example --location mirror.example --dry-run)
@@ -222,6 +388,8 @@ test_commands_lifecycle_end_to_end() {
   assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TEST_LIFECYCLE_CONFIG/active-profile.conf")" team-one
   assert_equals "$(readlink "$TEST_LIFECYCLE_ACTIVE_LINK")" "$test_lifecycle_team/registries.conf"
   assert_file_contains "$test_lifecycle_team/install-manifest.txt" "shim=skopeo|tracking"
+  assert_file_contains "$test_lifecycle_team/engine-binding.conf" 'mode=shared'
+  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine init '
   assert_file_not_contains "$test_lifecycle_team/install-manifest.txt" 'startup_file='
 
   test_lifecycle_default_shims=$(test_lifecycle_command default shim list --format manifest)
@@ -354,5 +522,6 @@ shim.sh'
 
 test_commands_lifecycle_run() {
   test_commands_lifecycle_darwin_bootstrap_engine_states
+  test_commands_lifecycle_explicit_migration
   test_commands_lifecycle_end_to_end
 }

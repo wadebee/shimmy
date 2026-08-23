@@ -63,7 +63,7 @@ shimmy_profile_owned_assets_remove() {
   shimmy_profile_state_paths_resolve "$shimmy_profile_owned_remove_config" \
     "$shimmy_profile_owned_remove_name" || return 1
   for shimmy_profile_owned_remove_entry in ai-skills bin commands config lib tools \
-    install-manifest.txt machine-projection.txt registries.conf shell-init.sh; do
+    engine-binding.conf install-manifest.txt machine-projection.txt registries.conf shell-init.sh; do
     shimmy_profile_owned_remove_path=$SHIMMY_PROFILE_ROOT/$shimmy_profile_owned_remove_entry
     if [ -d "$shimmy_profile_owned_remove_path" ] && [ ! -L "$shimmy_profile_owned_remove_path" ]; then
       rm -rf "$shimmy_profile_owned_remove_path" || return 1
@@ -88,7 +88,7 @@ shimmy_profile_owned_root_validate() {
       ai-skills|bin|commands|config|lib|tools)
         [ -d "$shimmy_profile_owned_entry" ] && [ ! -L "$shimmy_profile_owned_entry" ] || return 1
         ;;
-      install-manifest.txt|machine-projection.txt|registries.conf|shell-init.sh)
+      engine-binding.conf|install-manifest.txt|machine-projection.txt|registries.conf|shell-init.sh)
         [ -f "$shimmy_profile_owned_entry" ] && [ ! -L "$shimmy_profile_owned_entry" ] || return 1
         ;;
       .profile.lock|.registries.lock)
@@ -112,6 +112,13 @@ shimmy_profile_projection_cleanup() {
     "$shimmy_profile_projection_name" || return 1
   shimmy_profile_activation_expected_resolve || return 1
   shimmy_profile_activation_host_os_resolve
+  if [ "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-}" = shared ]; then
+    [ "$shimmy_profile_projection_stop" -eq 0 ] || {
+      SHIMMY_UNINSTALL_ERROR='--stop-running is not valid when deleting a profile bound to the shared engine'
+      return 1
+    }
+    return 0
+  fi
   case "$SHIMMY_PROFILE_HOST_OS" in
     linux)
       [ "$shimmy_profile_projection_stop" -eq 0 ] ||
@@ -242,7 +249,7 @@ shimmy_uninstall_config_validate() {
     shimmy_uninstall_base=$(basename -- "$shimmy_uninstall_entry")
     case "$shimmy_uninstall_base" in
       active-profile.conf) [ -f "$shimmy_uninstall_entry" ] && [ ! -L "$shimmy_uninstall_entry" ] || return 1 ;;
-      catalogs|profiles) [ -d "$shimmy_uninstall_entry" ] && [ ! -L "$shimmy_uninstall_entry" ] || return 1 ;;
+      catalogs|engines|profiles) [ -d "$shimmy_uninstall_entry" ] && [ ! -L "$shimmy_uninstall_entry" ] || return 1 ;;
       .catalog.lock|.activation.lock)
         [ "$shimmy_uninstall_locks" -eq 1 ] && [ -f "$shimmy_uninstall_entry" ] &&
           [ ! -L "$shimmy_uninstall_entry" ] || return 1
@@ -297,6 +304,14 @@ EOF
     "$shimmy_uninstall_initial_active" || return 1
   shimmy_profile_activation_host_os_resolve
   shimmy_uninstall_host_os=$SHIMMY_PROFILE_HOST_OS
+  if [ "$shimmy_uninstall_host_os" = darwin ] &&
+    [ "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-}" = shared ]; then
+    shimmy_engine_record_read "$SHIMMY_PROFILE_ENGINE_RECORD_PATH" || return 1
+    if [ "$SHIMMY_ENGINE_RECORD_ORIGIN" = shimmy-created ]; then
+      SHIMMY_UNINSTALL_ERROR='owned shared-engine uninstall is not available yet; no profile or machine state was changed'
+      return 1
+    fi
+  fi
   if [ "$shimmy_uninstall_host_os" = linux ] && [ "$shimmy_uninstall_stop" -eq 1 ]; then
     SHIMMY_UNINSTALL_ERROR='--stop-running is not supported for local Linux uninstall'
     return 1

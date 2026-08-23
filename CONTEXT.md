@@ -21,11 +21,15 @@ State lives below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy`:
 
 - `catalogs/default/` contains one registry and retained immutable generations;
 - `profiles/<name>/` contains independent control/runtime materializations;
+- `engines/<id>/` contains engine identity, ownership, projection, and lifecycle
+  state;
 - `active-profile.conf` records the installation-wide active profile and exact
   user skill root.
 
-Profile names use lowercase letters, digits, and single hyphens. Every profile
-records schema-2 identity, source `refs/heads/main` and commit, one retained
+Profile names use lowercase letters, digits, and single hyphens. Migrated
+profiles also hold a schema-1 engine binding; unbound schema-2 profiles retain
+their legacy mapping until explicit migration. Every profile records schema-2
+identity, source `refs/heads/main` and commit, one retained
 default-catalog generation, shim tracking/pinning and concrete-version roles,
 startup ownership, and validated AI-skill bundles.
 
@@ -46,15 +50,18 @@ without backup or recovery. Only recognized stale links may be removed; never
 recursively clean the user skill root or unrelated names.
 
 Uninstall removes validated Shimmy-owned installation state and preserves source
-checkouts, Podman machines, unrelated registry policy, unrelated user skills,
-and the user skill root.
+checkouts, external Podman machines, unrelated registry policy, unrelated user
+skills, and the user skill root. Owned macOS engine removal remains deferred to
+the durable uninstall transaction.
 
 ## Podman and runtimes
 
-Podman is an explicit dependency. Shimmy never installs it or provisions,
-adopts, renames, migrates, or deletes machines. On macOS, a profile uses the
-pre-existing deterministic `shimmy-<profile>` machine/connection. On Linux it
-validates the current user's local rootless engine.
+Podman is an explicit dependency. Shimmy never installs Podman or adopts a
+pre-existing machine. Fresh macOS bootstrap transactionally creates the owned
+shared `shimmy` machine; migrated legacy `shimmy-<profile>` machines remain
+external. Ordinary profiles share `shimmy`, and policy changes recycle only its
+rootless API service. On Linux profiles share the current user's local rootless
+engine and Shimmy performs no machine operation.
 
 The runtime helper normalizes supported Linux/Darwin `amd64` and `arm64` hosts
 to native `linux/amd64` or `linux/arm64`. Concrete versions own `run.sh`,

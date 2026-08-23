@@ -1,6 +1,6 @@
 # Shimmy Hybrid Podman Engine Lifecycle
 
-**Status:** Chunk 1 accepted; Chunk 2 not started
+**Status:** Chunk 2 implemented and verified on 2026-08-23; awaiting human review
 
 ## Objective
 
@@ -18,7 +18,8 @@ The implementation must:
 - Keep external, legacy, ambiguous, and host-local engines outside Shimmy's destructive authority.
 - Preserve the POSIX shell architecture and keep lib/profile/activation.sh as the sole engine-activation authority.
 
-This is a planning artifact only. Execution begins only after explicit human acceptance.
+Execution is gated after every chunk; do not begin Chunk 3 without explicit
+human acceptance of Chunk 2.
 
 ## Target layout and terminology
 
@@ -193,7 +194,7 @@ None.
 - [x] Human accepts this plan and closes or accepts the single-command uninstall prerequisite.
 - [x] Chunk 1: Safe engine and service lifecycle primitives are implemented and verified without public behavior or schema changes.
 - [x] Human reviewed and explicitly accepted Chunk 1 on 2026-08-23.
-- [ ] Chunk 2: Add engine state, explicit migration, shared bootstrap/create/activation, and profile-scoped registry projection.
+- [x] Chunk 2 implemented and verified on 2026-08-23: Add engine state, explicit migration, shared bootstrap/create/activation, and profile-scoped registry projection.
 - [ ] Human reviews and explicitly accepts Chunk 2.
 - [ ] Chunk 3: Add owned isolated creation, true clone, cross-mode activation, and isolated profile deletion.
 - [ ] Human reviews and explicitly accepts Chunk 3.
@@ -327,21 +328,29 @@ Suggested reasoning level: high. The schema publication, update bridge, fresh bo
 
 ### Verification checklist
 
-- [ ] Update-first tests prove old installed controls can transition only through the dual-read bridge and never encounter a partially published schema.
-- [ ] Fresh disposable macOS bootstrap creates exactly shimmy, records complete ownership evidence, preserves the prior default connection where applicable, and activates default on the shared engine.
-- [ ] An exact pre-existing shimmy machine or connection causes a pre-mutation collision failure and is never adopted.
-- [ ] Explicit migration records existing profiles as legacy-external without renaming, stopping, starting, deleting, or claiming their machines.
-- [ ] Migration failure and interruption restore or retain an authoritative retryable state.
-- [ ] Ordinary profile create binds shared and does not call podman machine init.
-- [ ] Shared-to-shared activation changes active profile and profile-scoped redirect policy without changing VM boot ID or sentinel container identity/state.
-- [ ] Equal normalized registry policies switch profiles without service recycle.
-- [ ] Active redirect set/delete applies immediately and rollback restores source, projection, service, and active state after injected failure.
-- [ ] Inactive redirect mutation does not change the active engine projection.
-- [ ] Runtime tests preserve active-profile affinity across two profiles sharing one engine.
-- [ ] Linux tests preserve host-local behavior and perform no machine lifecycle action.
-- [ ] Help, human status, manifest status, and dry-run outputs expose the recorded stable fields.
-- [ ] Relevant independent groups run with default bounded parallel execution or --jobs 3; commands-lifecycle remains indivisible.
-- [ ] Documentation accurately distinguishes profile policy, engine projection, API service recycle, and VM restart.
+- [x] Update-first tests prove old installed controls can transition only through the dual-read bridge and never encounter a partially published schema.
+- [x] Fresh disposable macOS bootstrap creates exactly shimmy, records complete ownership evidence, preserves the prior default connection where applicable, and activates default on the shared engine.
+- [x] An exact pre-existing shimmy machine or connection causes a pre-mutation collision failure and is never adopted.
+- [x] Explicit migration records existing profiles as legacy-external without renaming, stopping, starting, deleting, or claiming their machines.
+- [x] Migration failure and interruption restore or retain an authoritative retryable state.
+- [x] Ordinary profile create binds shared and does not call podman machine init.
+- [x] Shared-to-shared activation changes active profile and profile-scoped redirect policy without changing VM boot ID or sentinel container identity/state.
+- [x] Equal normalized registry policies switch profiles without service recycle.
+- [x] Active redirect set/delete applies immediately and rollback restores source, projection, service, and active state after injected failure.
+- [x] Inactive redirect mutation does not change the active engine projection.
+- [x] Runtime tests preserve active-profile affinity across two profiles sharing one engine.
+- [x] Linux tests preserve host-local behavior and perform no machine lifecycle action.
+- [x] Help, human status, manifest status, and dry-run outputs expose the recorded stable fields.
+- [x] Relevant independent groups run with default bounded parallel execution or --jobs 3; commands-lifecycle remains indivisible.
+- [x] Documentation accurately distinguishes profile policy, engine projection, API service recycle, and VM restart.
+
+Verification evidence (2026-08-23):
+
+- `./tests/test.sh --jobs 3 --group lib-engine --group lib-profile-state --group lib-profile-activation --group lib-registries --group lib-runtime --group commands-surface --group commands-profile` passed all 37 tests.
+- Focused reruns passed all 5 `lib-engine` tests, all 8 `lib-profile-activation` tests, and both `commands-surface` tests after the final journal, shared-activation, and help changes.
+- `./tests/test.sh --serial --group commands-lifecycle` passed all 3 indivisible lifecycle scenarios after a serial diagnostic rerun: disposable Darwin shared bootstrap/collision, explicit migration/compensation/retry, and the public Linux lifecycle covering shared create, sync binding preservation, delete, and host-local uninstall.
+- `./tests/context-tree.sh`, POSIX syntax checks for all changed shell files, and `git diff --check` passed.
+- Native Chunk 1 service-recycle evidence remains the live proof for unchanged VM boot and sentinel identity. Chunk 2 did not migrate or provision against the user's real installation because that would be an external lifecycle mutation; live shared-profile switching remains a review-gate follow-up if the human requires it.
 
 ### Human review gate
 
@@ -526,6 +535,14 @@ Stop. Present exact machines removed and preserved in disposable acceptance, jou
 - Stopped owned machines require a journaled temporary start to verify guest ownership evidence before removal; host records and inspect evidence alone never authorize deletion.
 - Podman info exposed the cached registry mapping directly: changing the user drop-in did not affect PID `51024`, while recycling only `podman.service` produced PID `51445` and loaded the new mapping without changing VM boot or sentinel identity.
 - The Chunk 1 modules remain unpublished primitives. Existing schema-2 profiles, per-profile machine naming, activation, redirect mutation, help, and uninstall behavior remain unchanged until the compatibility unit in Chunk 2 is reviewed and authorized.
+
+### Chunk 2
+
+- An unbound profile must continue resolving through the schema-2 mapping while migration prepares engine records; installation-wide schema validation remains ambiguous until every binding exists, so create and other schema-dependent mutations fail closed.
+- Migration needs its own durable installation-level journal in addition to the machine-create journal. A fresh retry process must re-resolve Podman before compensating retained external machine state.
+- POSIX shell module variables are process-global. Any operation that validates other engine records must re-resolve the intended shared engine paths before committing or clearing its lifecycle journal.
+- The stable guest drop-in belongs to the engine, while source policy belongs to the profile. Keeping those ownership boundaries separate makes inactive redirect edits source-only and lets active edits compensate source, projection, and service state together.
+- Owned shared-machine removal remains deliberately outside Chunk 2. Darwin global uninstall fails closed rather than discard ownership evidence before the durable destructive transaction in Chunk 4 exists.
 
 ## Session bootstrap
 

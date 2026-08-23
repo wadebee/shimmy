@@ -29,6 +29,8 @@ and stable line-oriented `manifest` output.
 
 ```text
 shimmy admin status [--format human|manifest]
+shimmy admin engine status [--format human|manifest]
+shimmy admin engine migrate [--dry-run]
 shimmy admin network [--target <host-or-ip> ...]
   [--host-name <name>] [--host-ip <ipv4>] [--host-prefix <bits>]
   [--host-lan <cidr>] [--format human|manifest]
@@ -36,6 +38,12 @@ shimmy admin uninstall [--stop-running]
 ```
 
 - `status` aggregates the active record, default catalog, and every profile.
+- `engine status` reports the compatibility state, binding mode, engine
+  identity/origin, ownership evidence state, and projection freshness without
+  mutation.
+- `engine migrate` explicitly publishes engine records and profile bindings.
+  Its dry run performs collision and write-set validation without creating a
+  machine. Existing macOS profile machines remain external and unchanged.
 - `network` reports shell, host, VM, and container perspectives through the
   active profile.
 - `uninstall` removes all validated Shimmy-owned installation state. It
@@ -66,22 +74,24 @@ the installation's `profiles/` directory. The launcher is bound to its
 containing profile. `list` and `create` are installation-wide; `status`, `sync`,
 `repair-startup`, and redirect operations use the invoking profile.
 
-Creation automatically activates the new profile. Activation dry-run is
-non-mutating and reports exact engine, registry, active-record, and skill-link
-effects. On Linux `--restart` and `--stop-running` are not applicable. On macOS
-they remain guarded acknowledgements and Shimmy never provisions a missing
-`shimmy-<profile>` machine.
+Creation binds an ordinary profile to the shared engine and automatically
+activates it; it does not create a per-profile machine. Activation dry-run is
+non-mutating and reports exact engine, registry service, active-record, and
+skill-link effects. On Linux `--restart` and `--stop-running` are not
+applicable. On macOS normal shared switching does not restart the VM;
+`--restart` is explicit VM recovery, while a changed policy recycles only the
+rootless `podman.service`.
 
 `sync` is active-profile only. It fetches the recorded source, requires
 `refs/heads/main`, stages a complete replacement, and retains the profile's
 explicit shim policies while adopting catalog/source changes. `delete` accepts
 only an inactive non-default profile.
 
-Redirects are strict profile-owned replacement locations. Active Linux edits
-revalidate after link selection; active macOS edits may require the exact
-printed activation restart. `delete --all --detach` is recovery/debugging for
-the recognized projection; ordinary lifecycle operations perform their own
-exact cleanup.
+Redirects are strict profile-owned replacement locations. Active edits apply
+and validate immediately. On macOS a changed effective policy briefly recycles
+`podman.service` while the VM and containers remain running; inactive edits
+change only the profile source. `delete --all --detach` remains recovery-only
+for legacy projections.
 
 ## Catalog
 

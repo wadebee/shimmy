@@ -15,7 +15,7 @@ for shimmy_helper in \
   lib/profile/transaction.sh lib/ai-skill/link.sh lib/shim/shim.sh \
   lib/ai-skill/ai-skill.sh lib/install/profile.sh \
   lib/engine/state.sh lib/engine/podman.sh lib/engine/ownership.sh \
-  lib/engine/lifecycle.sh lib/engine/projection.sh \
+  lib/engine/lifecycle.sh lib/engine/projection.sh lib/engine/registry.sh \
   lib/profile/profile.sh lib/profile/activation.sh \
   lib/registries/registries.sh lib/profile/management.sh \
   lib/startup/startup.sh lib/install/lifecycle.sh \
@@ -32,6 +32,8 @@ Manage the active Shimmy installation.
 
 Usage:
   shimmy admin status [--format human|manifest]
+  shimmy admin engine status [--format human|manifest]
+  shimmy admin engine migrate [--dry-run]
   shimmy admin network [--target <host-or-ip> ...]
     [--host-name <name>] [--host-ip <ipv4>] [--host-prefix <bits>]
     [--host-lan <cidr>] [--format human|manifest]
@@ -40,6 +42,7 @@ EOF
 }
 
 shimmy_admin_cleanup() {
+  shimmy_engine_registry_migration_rollback 2>/dev/null || true
   shimmy_profile_sync_cleanup
   shimmy_profile_bootstrap_cleanup
   shimmy_profile_cleanup
@@ -152,6 +155,37 @@ case "$shimmy_admin_action" in
       fail "${SHIMMY_PROFILE_ERROR:-unable to resolve active profile for network inspection}"
     . "$ROOT_DIR/lib/netinfo/netinfo.sh"
     shimmy_netinfo_run "$@"
+    ;;
+  engine)
+    shimmy_admin_engine_action=${1:-}
+    [ -n "$shimmy_admin_engine_action" ] || fail 'admin engine requires status or migrate'
+    shift
+    case "$shimmy_admin_engine_action" in
+      status)
+        shimmy_admin_engine_format=human
+        while [ "$#" -gt 0 ]; do
+          case "$1" in
+            --format) [ "$#" -ge 2 ] || fail 'missing value for --format'; shimmy_admin_engine_format=$2; shift 2 ;;
+            *) fail "unknown admin engine status argument: $1" ;;
+          esac
+        done
+        shimmy_engine_registry_status_render "$shimmy_admin_config" "$shimmy_admin_engine_format" ||
+          fail 'unable to inspect engine registry state'
+        ;;
+      migrate)
+        shimmy_admin_engine_dry_run=0
+        while [ "$#" -gt 0 ]; do
+          case "$1" in
+            --dry-run) [ "$shimmy_admin_engine_dry_run" -eq 0 ] || fail 'duplicate option: --dry-run'; shimmy_admin_engine_dry_run=1 ;;
+            *) fail "unknown admin engine migrate argument: $1" ;;
+          esac
+          shift
+        done
+        shimmy_engine_registry_migrate "$shimmy_admin_config" "$shimmy_admin_engine_dry_run" ||
+          fail 'engine migration failed'
+        ;;
+      *) fail "unknown admin engine action: $shimmy_admin_engine_action" ;;
+    esac
     ;;
   uninstall)
     shimmy_admin_stop_running=0

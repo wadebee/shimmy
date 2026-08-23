@@ -75,12 +75,17 @@ test_lib_runtime_profile_affinity() {
   fake_podman=$SCENARIO_DIR/podman
   fake_log=$SCENARIO_DIR/podman.log
   mkdir -p "$affinity_runtime_dir" "$affinity_profile_root/lib/common" "$affinity_profile_root/lib/profile" \
-    "$affinity_profile_root/lib/registries" "$HOME_DIR/.agents/skills"
+    "$affinity_profile_root/lib/registries" "$affinity_profile_root/lib/engine" \
+    "$HOME_DIR/.agents/skills" "$XDG_CONFIG_HOME_DIR/shimmy/engines/shared"
   cp "$ROOT_DIR/lib/common/common.sh" "$affinity_profile_root/lib/common/common.sh"
   cp "$ROOT_DIR/lib/profile/profile.sh" "$affinity_profile_root/lib/profile/profile.sh"
   cp "$ROOT_DIR/lib/profile/state.sh" "$affinity_profile_root/lib/profile/state.sh"
   cp "$ROOT_DIR/lib/profile/activation.sh" "$affinity_profile_root/lib/profile/activation.sh"
   cp "$ROOT_DIR/lib/registries/registries.sh" "$affinity_profile_root/lib/registries/registries.sh"
+  for affinity_engine_helper in state podman ownership projection registry; do
+    cp "$ROOT_DIR/lib/engine/$affinity_engine_helper.sh" \
+      "$affinity_profile_root/lib/engine/$affinity_engine_helper.sh"
+  done
   printf '%s\n' \
     'shimmy_install_manifest_version=2' \
     'shimmy_install_layout=profile-materialized-root' \
@@ -89,19 +94,35 @@ test_lib_runtime_profile_affinity() {
     > "$affinity_profile_root/install-manifest.txt"
   shimmy_registries_config_render "$affinity_profile_name" '' > "$affinity_profile_root/registries.conf"
   chmod 0644 "$affinity_profile_root/registries.conf"
-  affinity_fingerprint=$(shimmy_registries_config_fingerprint_render "$affinity_profile_root/registries.conf")
-  (
-    SHIMMY_CONFIG_ROOT=$XDG_CONFIG_HOME_DIR/shimmy
-    shimmy_registries_machine_projection_record_render "$affinity_profile_name" "$affinity_fingerprint"
-  ) > "$affinity_profile_root/machine-projection.txt"
-  chmod 0644 "$affinity_profile_root/machine-projection.txt"
+  shimmy_engine_binding_write "$affinity_profile_root/engine-binding.conf" \
+    "$affinity_profile_name" shared shared
   shimmy_active_profile_render "$affinity_profile_name" "$HOME_DIR/.agents/skills" \
     > "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
   chmod 0644 "$XDG_CONFIG_HOME_DIR/shimmy/active-profile.conf"
   profile_activation_fake_create "$fake_podman"
   : > "$fake_log"
-  affinity_machines='shimmy-team-one|true'
-  affinity_connections='shimmy-team-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  affinity_machines='shimmy|true'
+  affinity_connections='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_PODMAN_LOG=$fake_log FAKE_MACHINE_LIST=$affinity_machines \
+    FAKE_CONNECTION_LIST=$affinity_connections \
+    SHIMMY_TEST_ENGINE_PODMAN_BIN=$fake_podman
+  export FAKE_PODMAN_LOG FAKE_MACHINE_LIST FAKE_CONNECTION_LIST SHIMMY_TEST_ENGINE_PODMAN_BIN
+  shimmy_engine_podman_bin_require
+  affinity_identity=$(shimmy_engine_podman_machine_identity_fingerprint_render shimmy shimmy)
+  affinity_token=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  affinity_engine_root=$XDG_CONFIG_HOME_DIR/shimmy/engines/shared
+  shimmy_engine_record_write "$affinity_engine_root/engine.conf" shared darwin-machine \
+    installation shimmy shimmy applehv shimmy-created "$affinity_token" "$affinity_identity"
+  cp "$affinity_profile_root/registries.conf" "$affinity_engine_root/registries.conf"
+  chmod 0644 "$affinity_engine_root/registries.conf"
+  affinity_source_fingerprint=$(shimmy_sha256_fingerprint_file_render \
+    "$affinity_profile_root/registries.conf")
+  affinity_effective_fingerprint=$(shimmy_engine_projection_effective_fingerprint_render '')
+  shimmy_engine_projection_render shared "$affinity_profile_name" \
+    "$affinity_profile_root/registries.conf" "$affinity_source_fingerprint" \
+    "$affinity_effective_fingerprint" "$affinity_effective_fingerprint" > \
+    "$affinity_engine_root/projection.conf"
+  chmod 0644 "$affinity_engine_root/projection.conf"
 
   test_affinity_output=$(env XDG_CONFIG_HOME="$XDG_CONFIG_HOME_DIR" HOME="$HOME_DIR" PATH="$SCENARIO_DIR:/usr/bin:/bin" \
     SHIMMY_TEST_OS=Darwin SHIMMY_RUNTIME_DIR="$affinity_runtime_dir" FAKE_PODMAN_LOG="$fake_log" \
@@ -124,7 +145,7 @@ test_lib_runtime_profile_affinity() {
   set -e
   [ "$test_inactive_status" -ne 0 ] || fail_test 'inactive version-2 arbitrary profile passed runtime affinity'
   assert_contains "$test_inactive_output" 'active record belongs to another profile'
-  pass 'arbitrary-name runtimes require matching active-record and deterministic engine affinity'
+  pass 'two profiles sharing one engine still require invoking-profile active-record affinity'
 }
 
 test_lib_runtime_posix_syntax() {

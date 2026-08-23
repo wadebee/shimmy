@@ -67,6 +67,12 @@ shimmy_profile_candidate_resolve() {
     shimmy_profile_error_set "invalid shim materialization: $SHIMMY_PROFILE_CANDIDATE_ROOT" || return 1
   shimmy_registries_config_validate "$SHIMMY_PROFILE_CANDIDATE_ROOT/registries.conf" "$SHIMMY_PROFILE_CANDIDATE_NAME" ||
     shimmy_profile_error_set "invalid registry configuration: $SHIMMY_PROFILE_CANDIDATE_ROOT/registries.conf" || return 1
+  shimmy_engine_profile_binding_resolve "$shimmy_profile_candidate_config" \
+    "$shimmy_profile_candidate_name" ||
+    shimmy_profile_error_set "invalid or partially published engine binding: $SHIMMY_PROFILE_CANDIDATE_ROOT/engine-binding.conf" || return 1
+  SHIMMY_PROFILE_CANDIDATE_ENGINE_MIGRATION_STATE=$SHIMMY_PROFILE_ENGINE_MIGRATION_STATE
+  SHIMMY_PROFILE_CANDIDATE_ENGINE_BINDING_MODE=$SHIMMY_PROFILE_ENGINE_BINDING_MODE
+  SHIMMY_PROFILE_CANDIDATE_ENGINE_ID=$SHIMMY_PROFILE_ENGINE_ID
   shimmy_profile_launcher_validate "$SHIMMY_PROFILE_CANDIDATE_ROOT/bin/shimmy" \
     "$shimmy_profile_candidate_config" "$SHIMMY_PROFILE_CANDIDATE_NAME" ||
     shimmy_profile_error_set "invalid profile launcher: $SHIMMY_PROFILE_CANDIDATE_ROOT/bin/shimmy" || return 1
@@ -481,6 +487,10 @@ EOF
 $shimmy_profile_status_startup_files
 EOF
     printf 'shimmy_engine_profile=%s\n' "$SHIMMY_PROFILE_NAME"
+    printf 'shimmy_engine_schema_state=%s\n' "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}"
+    printf 'shimmy_engine_binding_mode=%s\n' "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-unmigrated}"
+    printf 'shimmy_engine_id=%s\n' "${SHIMMY_PROFILE_ENGINE_ID:-profile-$SHIMMY_PROFILE_NAME}"
+    printf 'shimmy_engine_origin=%s\n' "${SHIMMY_PROFILE_ENGINE_ORIGIN:-legacy-external}"
     printf 'shimmy_engine_host_os=%s\n' "$SHIMMY_PROFILE_HOST_OS"
     printf 'shimmy_engine_type=%s\n' "$SHIMMY_PROFILE_ENGINE_TYPE"
     printf 'shimmy_engine_expected=%s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE"
@@ -515,6 +525,7 @@ EOF
   printf '│  %-12s %-62s │\n' "Control:" "$shimmy_control_formatted (refs/heads/main)"
   printf '├──────────────────────────────────────────────────────────────────────────────┤\n'
   printf '│  %s%-72s%s  │\n' "$SHIMMY_STYLE_BOLD" "ENGINE STATUS" "$SHIMMY_STYLE_RESET"
+  printf '│    %-12s %-60s │\n' "Binding:" "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-unmigrated} (${SHIMMY_PROFILE_ENGINE_ID:-unknown})"
   printf '│    %-12s %-60s │\n' "Type:" "$SHIMMY_PROFILE_ENGINE_TYPE"
   printf '│    %-12s %-60s │\n' "Expected:" "$SHIMMY_PROFILE_EXPECTED_MACHINE ($SHIMMY_PROFILE_EXPECTED_MACHINE_STATE)"
   printf '│    %-12s %-60s │\n' "Reachable:" "$SHIMMY_PROFILE_ENGINE_REACHABLE"
@@ -598,8 +609,7 @@ shimmy_profile_redirect_mutate() {
   shimmy_profile_redirect_mutate_detach=${6:-0}
   shimmy_profile_redirect_mutate_dry_run=${7:-0}
   shimmy_profile_redirect_context_resolve "$shimmy_profile_redirect_mutate_config" "$shimmy_profile_redirect_mutate_name" || return 1
-  [ "$SHIMMY_PROFILE_ACTIVE_NAME" = "$shimmy_profile_redirect_mutate_name" ] ||
-    shimmy_profile_error_set "profile redirect mutation requires the active invoking profile: $shimmy_profile_redirect_mutate_name" || return 1
+  shimmy_profile_redirect_active_name=$SHIMMY_PROFILE_ACTIVE_NAME
   if [ "$shimmy_profile_redirect_mutate_dry_run" -eq 1 ]; then
     case "$shimmy_profile_redirect_mutate_action:$shimmy_profile_redirect_mutate_detach" in
       remove_all:1) shimmy_registries_mutate_remove_all_detach 1 ;;
@@ -607,7 +617,8 @@ shimmy_profile_redirect_mutate() {
     esac
     return $?
   fi
-  shimmy_profile_locks_acquire "$shimmy_profile_redirect_mutate_config" "$shimmy_profile_redirect_mutate_name" "$shimmy_profile_redirect_mutate_name" || {
+  shimmy_profile_locks_acquire "$shimmy_profile_redirect_mutate_config" \
+    "$shimmy_profile_redirect_active_name" "$shimmy_profile_redirect_mutate_name" || {
     shimmy_locks_release_all || true
     return 1
   }
@@ -615,7 +626,7 @@ shimmy_profile_redirect_mutate() {
     shimmy_locks_release_all || true
     return 1
   }
-  [ "$SHIMMY_PROFILE_ACTIVE_NAME" = "$shimmy_profile_redirect_mutate_name" ] || {
+  [ "$SHIMMY_PROFILE_ACTIVE_NAME" = "$shimmy_profile_redirect_active_name" ] || {
     shimmy_locks_release_all || true
     return 1
   }

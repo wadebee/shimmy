@@ -9,13 +9,13 @@
 - `ai-skill.sh` covers bundle list/repair, exact collision replacement,
   recognized stale-link cleanup, unrelated-name preservation, unsupported
   bundles, source mismatch, and compensation.
-- `profile.sh` covers arbitrary-name list/status, active-only redirects, Linux
+- `profile.sh` covers arbitrary-name list/status, active immediate and inactive source-only redirects, Linux
   and Darwin activation ordering, dry-run, bundle policy, workload guards,
   rollback, and sourced-shell retargeting.
 - `surface.sh` proves complete root/group/subgroup/action help before state
   validation, independently verifies status and streams for bare launcher help
   nodes versus `--help`, and validates exact rendered launcher bytes.
-- `lifecycle.sh` is the public end-to-end acceptance world: clean bootstrap,
+- `lifecycle.sh` is the public end-to-end acceptance world: shared-engine bootstrap/collision, explicit migration/rollback,
   jq/rg/Skopeo inventory, catalog/shim/profile/skill/network/startup flows,
   sibling isolation, sync/rollback, admin status, deletion, global uninstall,
   unrelated home-skill preservation, and failed-bootstrap cleanup.

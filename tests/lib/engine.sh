@@ -210,6 +210,33 @@ test_lib_engine_records() {
   shimmy_engine_record_read "$record_file" || fail_test 'valid Darwin engine record rejected'
   assert_equals "$SHIMMY_ENGINE_RECORD_ORIGIN" shimmy-created
 
+  sibling_root=$SCENARIO_DIR/config/shimmy/profiles/team-one
+  mkdir -p "$sibling_root"
+  shimmy_engine_profile_binding_resolve "$SCENARIO_DIR/config/shimmy" default ||
+    fail_test 'published shared binding did not resolve through its engine record'
+  assert_equals "$SHIMMY_PROFILE_ENGINE_MIGRATION_STATE" migrated
+  assert_equals "$SHIMMY_PROFILE_EXPECTED_MACHINE" shimmy-test
+  shimmy_engine_profile_binding_resolve "$SCENARIO_DIR/config/shimmy" team-one ||
+    fail_test 'unbound profile did not retain its schema-2 compatibility mapping during publication'
+  assert_equals "$SHIMMY_PROFILE_ENGINE_MIGRATION_STATE" unmigrated
+  assert_equals "$SHIMMY_PROFILE_EXPECTED_MACHINE" shimmy-team-one
+  if shimmy_engine_installation_schema_state_read "$SCENARIO_DIR/config/shimmy"; then
+    fail_test 'partially published installation engine schema was accepted as authoritative'
+  fi
+  shimmy_engine_binding_write "$sibling_root/engine-binding.conf" team-one shared shared
+  shimmy_engine_installation_schema_state_read "$SCENARIO_DIR/config/shimmy" ||
+    fail_test 'complete engine/binding publication was rejected'
+  assert_equals "$SHIMMY_ENGINE_INSTALLATION_SCHEMA_STATE" migrated
+  SHIMMY_ENGINE_REGISTRY_HOST_OS=darwin
+  shimmy_engine_registry_migration_journal_write "$SCENARIO_DIR/config/shimmy" \
+    'default
+team-one'
+  shimmy_engine_registry_migration_journal_read "$SCENARIO_DIR/config/shimmy" ||
+    fail_test 'valid durable migration journal was rejected'
+  assert_equals "$SHIMMY_ENGINE_REGISTRY_MIGRATION_PROFILES" 'default
+team-one'
+  rm -f "$SCENARIO_DIR/config/shimmy/.engine-migration.conf"
+
   projection_file=$engine_root/projection.conf
   shimmy_engine_projection_render shared default "$source_path" "$source_fingerprint" \
     "$effective_fingerprint" none > "$projection_file"

@@ -34,19 +34,16 @@ Shimmy treats Podman as an explicit dependency. It does not install Podman or
 provision, adopt, rename, migrate, or remove machines. The macOS package may
 place the CLI at `/opt/podman/bin/podman`.
 
-On macOS, create the deterministic default machine in a normal user shell:
+On macOS, bootstrap requires the exact Podman machine and connection name
+`shimmy` to be absent. It initializes that shared machine without provider
+overrides or `--now`, preserves the prior default connection, starts `shimmy`,
+records host and guest ownership evidence, installs its stable user registry
+drop-in, and activates the default profile policy. A same-name machine or
+connection is a pre-mutation collision; Shimmy never adopts it. Do not create a
+machine manually before fresh bootstrap.
 
-```sh
-podman machine init shimmy-default
-```
-
-Bootstrap starts a stopped `shimmy-default` machine. If the machine is already
-running and idle, bootstrap restarts it so the initial registry policy can be
-projected and validated before images are prepared. Running containers block
-that restart; stop them explicitly, then rerun bootstrap. Bootstrap never
-accepts `--stop-running`.
-
-Create `shimmy-<profile>` separately before activating any later profile.
+On Linux, bootstrap validates the current local rootless Podman service and
+publishes it as a shared host-local engine. It performs no machine operation.
 
 ## Install the default profile
 
@@ -113,6 +110,7 @@ shimmy profile repair-startup
 
 ```sh
 shimmy admin status --format manifest
+shimmy admin engine status --format manifest
 shimmy profile status --format manifest
 shimmy shim list --format manifest
 jq --version
@@ -135,10 +133,10 @@ shimmy profile create team-one --dry-run
 shimmy profile create team-one
 ```
 
-The dry run lists the exact profile root, engine transition, image preparation,
-active-record change, and skill collisions without mutation. On macOS, create
-`shimmy-team-one` before the non-dry-run command. Never use a direct Podman
-machine lifecycle command as an agent fallback.
+The dry run lists the exact profile root, shared-engine transition, registry
+service action, image preparation, active-record change, and skill collisions
+without mutation. Ordinary creation binds the new profile to the existing
+shared engine and never calls `podman machine init`.
 
 ## Remove Shimmy
 
@@ -153,6 +151,20 @@ source checkout, Podman machines, unrelated registry policy, unrelated user
 skills, and the user skill root. Run once without `--stop-running`; add that
 acknowledgement only after reviewing any listed macOS workloads.
 
-Earlier installation schemas are unsupported. Remove them with the Shimmy
-version that created them, then run this bootstrap. There is no forwarding or
-in-place migration path.
+At this Chunk 2 review boundary, uninstall fails closed when the installation
+owns the macOS shared machine; owned-machine removal is deliberately deferred
+to the reviewed uninstall transaction in Chunk 4. Linux host-local uninstall
+and legacy external-machine preservation remain available.
+
+For an existing schema-2 installation, first update its installed controls,
+then inspect and explicitly migrate the engine registry:
+
+```sh
+shimmy admin engine status
+shimmy admin engine migrate --dry-run
+shimmy admin engine migrate
+```
+
+On macOS, migration preserves each existing `shimmy-<profile>` machine as an
+external legacy-isolated engine and creates `shimmy` for future shared profiles.
+It does not rename, claim, start, stop, or remove the legacy machines.

@@ -1119,6 +1119,13 @@ shimmy_registries_mutate() {
     return 1
   }
   candidate_entries=$(shimmy_registries_candidate_entries_render "$existing_entries" "$mutation_action" "$mutation_prefix" "$mutation_location") || return 1
+  if [ "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}" = migrated ] &&
+    [ "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-unmigrated}" = shared ] &&
+    [ "${SHIMMY_PROFILE_ENGINE_KIND:-unknown}" = darwin-machine ]; then
+    shimmy_registries_shared_mutate "$candidate_entries" "$existing_entries" \
+      "$dry_run_requested"
+    return $?
+  fi
   if [ "$dry_run_requested" -eq 1 ]; then
     shimmy_registries_config_render "$SHIMMY_PROFILE_NAME" "$candidate_entries"
     return 0
@@ -1157,6 +1164,12 @@ shimmy_registries_mutate_remove_all_detach() {
     printf 'ERROR: invalid managed registry redirect configuration: %s\n' "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
     return 1
   }
+  if [ "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}" = migrated ] &&
+    [ "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-unmigrated}" = shared ] &&
+    [ "${SHIMMY_PROFILE_ENGINE_KIND:-unknown}" = darwin-machine ]; then
+    shimmy_registries_shared_mutate '' "$existing_entries" "$dry_run_requested"
+    return $?
+  fi
   shimmy_registries_host_os_resolve
   if [ "$SHIMMY_REGISTRIES_HOST_OS" = darwin ]; then
     shimmy_registries_mutate_remove_all_detach_darwin "$dry_run_requested" "$existing_entries"
@@ -1213,6 +1226,126 @@ shimmy_registries_mutate_remove_all_detach() {
   fi
   shimmy_registries_lock_release
   return "$mutation_status"
+}
+
+shimmy_registries_shared_mutate_restore() {
+  shimmy_registries_shared_restore_machine=$1
+  shimmy_registries_shared_restore_complete=1
+  if [ -n "${shimmy_registries_shared_backup:-}" ] &&
+    [ -f "$shimmy_registries_shared_backup" ] &&
+    [ ! -L "$shimmy_registries_shared_backup" ]; then
+    mv "$shimmy_registries_shared_backup" "$SHIMMY_PROFILE_REGISTRIES_PATH" ||
+      shimmy_registries_shared_restore_complete=0
+  fi
+  shimmy_engine_projection_rollback "$shimmy_registries_shared_restore_machine" ||
+    shimmy_registries_shared_restore_complete=0
+  rm -f "${shimmy_registries_shared_backup:-}" 2>/dev/null ||
+    shimmy_registries_shared_restore_complete=0
+  shimmy_registries_lock_release || shimmy_registries_shared_restore_complete=0
+  [ "$shimmy_registries_shared_restore_complete" -eq 1 ]
+}
+
+shimmy_registries_shared_mutate() {
+  shimmy_registries_shared_candidate=${1:-}
+  shimmy_registries_shared_existing=${2:-}
+  shimmy_registries_shared_dry=${3:-0}
+  shimmy_registries_shared_active=0
+  [ "${SHIMMY_PROFILE_ACTIVE_NAME:-}" != "$SHIMMY_PROFILE_NAME" ] ||
+    shimmy_registries_shared_active=1
+  shimmy_registries_config_render "$SHIMMY_PROFILE_NAME" \
+    "$shimmy_registries_shared_candidate" > "$SHIMMY_PROFILE_ROOT/.registries.shared-plan.$$" || return 1
+  shimmy_registries_shared_plan=$SHIMMY_PROFILE_ROOT/.registries.shared-plan.$$
+  chmod 0644 "$shimmy_registries_shared_plan" || {
+    rm -f "$shimmy_registries_shared_plan"
+    return 1
+  }
+  shimmy_registries_config_validate "$shimmy_registries_shared_plan" \
+    "$SHIMMY_PROFILE_NAME" || {
+      rm -f "$shimmy_registries_shared_plan"
+      return 1
+    }
+  shimmy_registries_shared_entries=$(shimmy_registries_config_entries_read \
+    "$shimmy_registries_shared_plan" "$SHIMMY_PROFILE_NAME") || {
+      rm -f "$shimmy_registries_shared_plan"
+      return 1
+    }
+  shimmy_registries_shared_effective=$(shimmy_engine_projection_effective_fingerprint_render \
+    "$shimmy_registries_shared_entries") || {
+      rm -f "$shimmy_registries_shared_plan"
+      return 1
+    }
+  shimmy_engine_paths_resolve "$SHIMMY_CONFIG_ROOT" "$SHIMMY_PROFILE_ENGINE_ID" || {
+    rm -f "$shimmy_registries_shared_plan"
+    return 1
+  }
+  shimmy_registries_shared_recycle=no
+  if [ "$shimmy_registries_shared_active" -eq 1 ]; then
+    if ! shimmy_engine_projection_read "$SHIMMY_ENGINE_PROJECTION_PATH" ||
+      [ "$SHIMMY_ENGINE_PROJECTION_LOADED_FINGERPRINT" != \
+        "$shimmy_registries_shared_effective" ]; then
+      shimmy_registries_shared_recycle=yes
+    fi
+  fi
+  if [ "$shimmy_registries_shared_dry" -eq 1 ]; then
+    cat "$shimmy_registries_shared_plan"
+    printf 'would_recycle_podman_service=%s\n' "$shimmy_registries_shared_recycle"
+    rm -f "$shimmy_registries_shared_plan"
+    return 0
+  fi
+  rm -f "$shimmy_registries_shared_plan"
+  [ "$shimmy_registries_shared_candidate" != "$shimmy_registries_shared_existing" ] || return 0
+  shimmy_registries_lock_acquire || return 1
+  shimmy_registries_shared_backup=$SHIMMY_PROFILE_ROOT/.registries.shared-rollback.$$
+  [ ! -e "$shimmy_registries_shared_backup" ] &&
+    [ ! -L "$shimmy_registries_shared_backup" ] || {
+      shimmy_registries_lock_release
+      return 1
+    }
+  cp "$SHIMMY_PROFILE_REGISTRIES_PATH" "$shimmy_registries_shared_backup" || {
+    shimmy_registries_lock_release
+    return 1
+  }
+  chmod 0644 "$shimmy_registries_shared_backup" || {
+    rm -f "$shimmy_registries_shared_backup"
+    shimmy_registries_lock_release
+    return 1
+  }
+  SHIMMY_REGISTRIES_ACTIVE_EDIT=none
+  if ! shimmy_registries_file_replace "$shimmy_registries_shared_candidate"; then
+    rm -f "$shimmy_registries_shared_backup"
+    shimmy_registries_lock_release
+    return 1
+  fi
+  if [ "$shimmy_registries_shared_active" -eq 0 ]; then
+    rm -f "$shimmy_registries_shared_backup"
+    shimmy_registries_lock_release
+    return 0
+  fi
+  shimmy_engine_podman_bin_require || {
+    shimmy_registries_shared_mutate_restore "$SHIMMY_PROFILE_EXPECTED_MACHINE" || true
+    return 1
+  }
+  shimmy_engine_record_read "$SHIMMY_PROFILE_ENGINE_RECORD_PATH" || {
+    shimmy_registries_shared_mutate_restore "$SHIMMY_PROFILE_EXPECTED_MACHINE" || true
+    return 1
+  }
+  if ! shimmy_engine_projection_prepare "$SHIMMY_PROFILE_ENGINE_ID" \
+    "$SHIMMY_ENGINE_ROOT" "$SHIMMY_PROFILE_NAME" \
+    "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ||
+    ! shimmy_engine_projection_apply "$SHIMMY_PROFILE_EXPECTED_MACHINE" ||
+    [ "${SHIMMY_TEST_PROFILE_FAILURE:-}" = after-engine-projection ]; then
+    shimmy_registries_shared_mutate_restore "$SHIMMY_PROFILE_EXPECTED_MACHINE" || true
+    printf '%s\n' 'ERROR: active shared registry mutation failed; source and engine projection restored' >&2
+    return 1
+  fi
+  shimmy_engine_projection_commit || {
+    shimmy_registries_shared_mutate_restore "$SHIMMY_PROFILE_EXPECTED_MACHINE" || true
+    return 1
+  }
+  rm -f "$shimmy_registries_shared_backup"
+  shimmy_registries_lock_release
+  printf 'Applied registry policy for active shared profile %s; podman.service recycle=%s.\n' \
+    "$SHIMMY_PROFILE_NAME" "$shimmy_registries_shared_recycle"
 }
 
 shimmy_registries_mutate_remove_all_detach_darwin() {

@@ -55,6 +55,7 @@ test_commands_surface_help_before_state() {
   done <<'EOF'
 root|
 admin|admin
+admin-engine|admin engine
 profile|profile
 catalog|catalog
 shim|shim
@@ -81,6 +82,7 @@ EOF
     assert_file_contains "$test_surface_group_stdout" 'Remediation:'
   done
   assert_file_contains "$SCENARIO_DIR/help-profile-redirect-bare.stdout" 'Commands:'
+  assert_file_contains "$SCENARIO_DIR/help-admin-engine-bare.stdout" 'Commands:'
 
   while IFS='|' read -r test_surface_path test_surface_usage; do
     [ -n "$test_surface_path" ] || continue
@@ -94,6 +96,8 @@ EOF
     assert_contains "$test_surface_action_help" 'Examples:'
   done <<'EOF'
 admin status|shimmy admin status [--format human|manifest]
+admin engine status|shimmy admin engine status [--format human|manifest]
+admin engine migrate|shimmy admin engine migrate [--dry-run]
 admin network|shimmy admin network [--target <host-or-ip> ...]
 admin uninstall|shimmy admin uninstall [--stop-running]
 profile list|shimmy profile list [--format human|manifest]
