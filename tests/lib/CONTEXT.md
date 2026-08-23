@@ -2,8 +2,9 @@
 
 - `runner.sh`: registry, option parsing, deterministic workers, signals, result
   integrity, and safe copy helpers.
-- `catalog.sh`: payload/header/fingerprint validation, immutable generation
-  create/publish/rollback, pristine baseline, recovery, and collision safety.
+- `catalog.sh`: payload/header/fingerprint validation with display-padding-neutral
+  header checks, immutable generation create/publish/rollback, pristine
+  baseline, recovery, and collision safety.
 - `codec.sh`: safe names, commits, SHA-256 vectors, manifest encoding/redaction.
 - `profile-state.sh`: active/catalog/profile schema round trips and integrity.
 - `ai-skill-state.sh`: bundle identity and cross-bundle profile validation.

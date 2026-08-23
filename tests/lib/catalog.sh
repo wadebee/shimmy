@@ -66,7 +66,9 @@ test_lib_catalog_lifecycle() {
   assert_contains "$test_catalog_status_one" "shimmy_catalog=default|$test_catalog_initial||"
   test_catalog_tools=$(shimmy_catalog_tools_render "$test_catalog_config" '' manifest)
   assert_contains "$test_catalog_tools" "shimmy_catalog_tool=default|$test_catalog_initial|jq|1.8|1.8"
-  assert_contains "$(shimmy_catalog_tools_render "$test_catalog_config" '' human)" 'TOOL DEFAULT VERSIONS'
+  test_catalog_tools_header=$(shimmy_catalog_tools_render \
+    "$test_catalog_config" '' human | sed -n '1p' | awk '{$1=$1; print}')
+  assert_equals "$test_catalog_tools_header" 'TOOL DEFAULT VERSIONS'
 
   test_catalog_source_advance "$test_catalog_checkout" 'Second catalog generation.'
   shimmy_catalog_default_publish "$test_catalog_config" "$test_catalog_checkout" || fail_test "$SHIMMY_CATALOG_AUTHORITY_ERROR"
