@@ -5,6 +5,9 @@ SHIMMY_PROFILE_LIFECYCLE_ERROR=
 SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT=
 SHIMMY_PROFILE_LIFECYCLE_NEW_ROOT=
 SHIMMY_PROFILE_LIFECYCLE_STARTUP_BACKUP=
+SHIMMY_PROFILE_LIFECYCLE_IMAGE_ROOT=
+SHIMMY_PROFILE_LIFECYCLE_IMAGE_PAIRS=
+SHIMMY_PROFILE_LIFECYCLE_PRESERVE_NEW_ROOT=0
 
 shimmy_profile_lifecycle_error_set() {
   SHIMMY_PROFILE_LIFECYCLE_ERROR=$*
@@ -50,6 +53,15 @@ shimmy_profile_bootstrap_cleanup() {
     [ -n "${SHIMMY_CONFIG_ROOT:-}" ]; then
     shimmy_engine_registry_shared_create_rollback "$SHIMMY_CONFIG_ROOT" 2>/dev/null || true
   fi
+  if [ "${SHIMMY_ENGINE_REGISTRY_ISOLATED_CREATE_ACTIVE:-0}" -eq 1 ] &&
+    [ -n "${SHIMMY_ENGINE_REGISTRY_ISOLATED_CONFIG:-}" ] &&
+    [ -n "${SHIMMY_ENGINE_REGISTRY_ISOLATED_PROFILE:-}" ]; then
+    if ! shimmy_engine_registry_isolated_create_rollback \
+      "$SHIMMY_ENGINE_REGISTRY_ISOLATED_CONFIG" \
+      "$SHIMMY_ENGINE_REGISTRY_ISOLATED_PROFILE" 2>/dev/null; then
+      SHIMMY_PROFILE_LIFECYCLE_PRESERVE_NEW_ROOT=1
+    fi
+  fi
   if [ -n "$SHIMMY_PROFILE_LIFECYCLE_STARTUP_BACKUP" ]; then
     case "$SHIMMY_PROFILE_LIFECYCLE_STARTUP_BACKUP" in
       "$SHIMMY_CONFIG_ROOT"/.startup-backup.*)
@@ -59,7 +71,9 @@ shimmy_profile_bootstrap_cleanup() {
     esac
     SHIMMY_PROFILE_LIFECYCLE_STARTUP_BACKUP=
   fi
-  shimmy_profile_new_root_remove 2>/dev/null || true
+  if [ "${SHIMMY_PROFILE_LIFECYCLE_PRESERVE_NEW_ROOT:-0}" -eq 0 ]; then
+    shimmy_profile_new_root_remove 2>/dev/null || true
+  fi
   shimmy_locks_release_all 2>/dev/null || true
   if [ -n "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT" ]; then
     case "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT" in
@@ -230,13 +244,26 @@ shimmy_profile_create_dry_run() {
   shimmy_profile_create_dry_pairs=$5
   shimmy_profile_create_dry_restart=$6
   shimmy_profile_create_dry_stop=$7
+  shimmy_profile_create_dry_mode=$8
   shimmy_profile_activation_host_os_resolve
-  shimmy_engine_paths_resolve "$shimmy_profile_create_dry_config" shared || return 1
-  shimmy_engine_record_read "$SHIMMY_ENGINE_RECORD_PATH" || return 1
-  SHIMMY_PROFILE_EXPECTED_MACHINE=$SHIMMY_ENGINE_RECORD_NAME
-  SHIMMY_PROFILE_EXPECTED_CONNECTION=$SHIMMY_ENGINE_RECORD_CONNECTION
-  SHIMMY_PROFILE_ENGINE_ID=shared
-  SHIMMY_PROFILE_ENGINE_BINDING_MODE=shared
+  case "$shimmy_profile_create_dry_mode" in
+    shared)
+      shimmy_engine_paths_resolve "$shimmy_profile_create_dry_config" shared || return 1
+      shimmy_engine_record_read "$SHIMMY_ENGINE_RECORD_PATH" || return 1
+      SHIMMY_PROFILE_EXPECTED_MACHINE=$SHIMMY_ENGINE_RECORD_NAME
+      SHIMMY_PROFILE_EXPECTED_CONNECTION=$SHIMMY_ENGINE_RECORD_CONNECTION
+      SHIMMY_PROFILE_ENGINE_ID=shared
+      ;;
+    isolated)
+      shimmy_engine_registry_isolated_preflight "$shimmy_profile_create_dry_config" \
+        "$shimmy_profile_create_dry_name" || return 1
+      SHIMMY_PROFILE_EXPECTED_MACHINE=shimmy-$shimmy_profile_create_dry_name
+      SHIMMY_PROFILE_EXPECTED_CONNECTION=$SHIMMY_PROFILE_EXPECTED_MACHINE
+      SHIMMY_PROFILE_ENGINE_ID=profile-$shimmy_profile_create_dry_name
+      ;;
+    *) return 1 ;;
+  esac
+  SHIMMY_PROFILE_ENGINE_BINDING_MODE=$shimmy_profile_create_dry_mode
   case "$SHIMMY_PROFILE_HOST_OS" in
     linux)
       [ "$shimmy_profile_create_dry_restart" -eq 0 ] || {
@@ -265,6 +292,11 @@ shimmy_profile_create_dry_run() {
       "$shimmy_profile_create_dry_stop"
   printf 'would_use_engine=%s\nwould_use_connection=%s\n' \
     "$SHIMMY_PROFILE_EXPECTED_MACHINE" "$SHIMMY_PROFILE_EXPECTED_CONNECTION"
+  printf 'would_bind_engine=%s|%s\n' "$SHIMMY_PROFILE_ENGINE_BINDING_MODE" \
+    "$SHIMMY_PROFILE_ENGINE_ID"
+  if [ "$shimmy_profile_create_dry_mode" = isolated ]; then
+    printf 'would_create_machine=%s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE"
+  fi
   printf 'would_write_active_profile=%s/active-profile.conf\n' "$shimmy_profile_create_dry_config"
   shimmy_profile_create_dry_control=$shimmy_profile_create_dry_invoking_root/ai-skills/control
   shimmy_ai_skill_bundle_read "$shimmy_profile_create_dry_control" control || return 1
@@ -301,12 +333,14 @@ shimmy_profile_create_run() {
   shimmy_profile_create_restart=$4
   shimmy_profile_create_stop=$5
   shimmy_profile_create_dry=$6
+  shimmy_profile_create_mode=${7:-shared}
   SHIMMY_PROFILE_LIFECYCLE_ERROR=
   shimmy_name_component_validate "$shimmy_profile_create_invoking" || return 1
   shimmy_name_component_validate "$shimmy_profile_create_name" || return 1
   case "$shimmy_profile_create_restart:$shimmy_profile_create_stop:$shimmy_profile_create_dry" in
     [01]:[01]:[01]) ;; *) return 1 ;;
   esac
+  case "$shimmy_profile_create_mode" in shared|isolated) ;; *) return 1 ;; esac
   shimmy_profile_installation_context_resolve "$shimmy_profile_create_config" || return 1
   shimmy_profile_create_prior_active=$SHIMMY_PROFILE_ACTIVE_NAME
   shimmy_profile_create_user_root=$SHIMMY_PROFILE_USER_SKILL_ROOT
@@ -320,6 +354,12 @@ shimmy_profile_create_run() {
   shimmy_profile_state_paths_resolve "$shimmy_profile_create_config" "$shimmy_profile_create_name" || return 1
   [ ! -e "$SHIMMY_PROFILE_ROOT" ] && [ ! -L "$SHIMMY_PROFILE_ROOT" ] ||
     shimmy_profile_lifecycle_error_set "profile already exists: $shimmy_profile_create_name" || return 1
+  if [ "$shimmy_profile_create_mode" = isolated ]; then
+    shimmy_engine_registry_isolated_preflight "$shimmy_profile_create_config" \
+      "$shimmy_profile_create_name" ||
+      shimmy_profile_lifecycle_error_set \
+        "unable to preflight isolated engine shimmy-$shimmy_profile_create_name" || return 1
+  fi
   shimmy_profile_candidate_resolve "$shimmy_profile_create_config" \
     "$shimmy_profile_create_invoking" || return 1
   shimmy_profile_create_invoking_root=$SHIMMY_PROFILE_CANDIDATE_ROOT
@@ -337,7 +377,8 @@ shimmy_profile_create_run() {
     shimmy_profile_create_dry_run "$shimmy_profile_create_config" \
       "$shimmy_profile_create_name" "$shimmy_profile_create_invoking_root" \
       "$shimmy_profile_create_catalog_root" "$SHIMMY_PROFILE_BASELINE_PAIRS" \
-      "$shimmy_profile_create_restart" "$shimmy_profile_create_stop"
+      "$shimmy_profile_create_restart" "$shimmy_profile_create_stop" \
+      "$shimmy_profile_create_mode"
     return $?
   fi
 
@@ -346,9 +387,8 @@ shimmy_profile_create_run() {
     "$shimmy_profile_create_source_url" "$shimmy_profile_create_source_ref" \
     "$shimmy_profile_create_catalog_record" "$SHIMMY_PROFILE_BASELINE_SHIMS" \
     "$SHIMMY_PROFILE_BASELINE_VERSIONS" '' '' '' \
-    "$shimmy_profile_create_invoking_root/ai-skills/control" '' shared || return 1
-  shimmy_profile_images_prepare "$SHIMMY_PROFILE_CANDIDATE_STAGE" \
-    "$SHIMMY_PROFILE_BASELINE_PAIRS" || return 1
+    "$shimmy_profile_create_invoking_root/ai-skills/control" '' \
+    "$shimmy_profile_create_mode" || return 1
   shimmy_lock_acquire catalog "$shimmy_profile_create_config" || return 1
   shimmy_lock_acquire activation "$shimmy_profile_create_config" || return 1
   shimmy_profile_new_root_prepare "$shimmy_profile_create_config" \
@@ -374,6 +414,13 @@ EOF
       "$shimmy_profile_create_invoking_fingerprint" ] || return 1
   shimmy_profile_new_candidate_commit "$shimmy_profile_create_name" \
     "$shimmy_profile_create_catalog_root" || return 1
+  SHIMMY_PROFILE_LIFECYCLE_IMAGE_ROOT=$shimmy_profile_create_config/profiles/$shimmy_profile_create_name
+  SHIMMY_PROFILE_LIFECYCLE_IMAGE_PAIRS=$SHIMMY_PROFILE_BASELINE_PAIRS
+  if [ "$shimmy_profile_create_mode" = isolated ]; then
+    shimmy_engine_registry_isolated_create_prepare "$shimmy_profile_create_config" \
+      "$shimmy_profile_create_name" || return 1
+    SHIMMY_PROFILE_ENGINE_CREATE_PENDING=1
+  fi
   shimmy_profile_candidate_resolve "$shimmy_profile_create_config" \
     "$shimmy_profile_create_name" || return 1
   shimmy_profile_lifecycle_activate_locked "$shimmy_profile_create_config" \
@@ -381,11 +428,179 @@ EOF
     "$shimmy_profile_create_user_root" "$shimmy_profile_create_restart" \
     "$shimmy_profile_create_stop" || return 1
   SHIMMY_PROFILE_LIFECYCLE_NEW_ROOT=
+  SHIMMY_PROFILE_LIFECYCLE_IMAGE_ROOT=
+  SHIMMY_PROFILE_LIFECYCLE_IMAGE_PAIRS=
+  SHIMMY_PROFILE_ENGINE_CREATE_PENDING=0
+  SHIMMY_PROFILE_LIFECYCLE_PRESERVE_NEW_ROOT=0
   shimmy_locks_release_all || return 1
   printf 'Created and activated Shimmy profile %s.\n' "$shimmy_profile_create_name"
   shimmy_profile_create_shell=$(shimmy_quote_shell_word \
     "$shimmy_profile_create_config/profiles/$shimmy_profile_create_name/shell-init.sh") || return 1
   printf 'Select it in the current shell with: . %s\n' "$shimmy_profile_create_shell"
+}
+
+shimmy_profile_image_pairs_resolve() {
+  shimmy_profile_image_pairs_versions=${1:-}
+  SHIMMY_PROFILE_IMAGE_PAIRS=
+  while IFS='|' read -r shimmy_profile_image_pairs_tool \
+    shimmy_profile_image_pairs_version shimmy_profile_image_pairs_role \
+    shimmy_profile_image_pairs_extra; do
+    [ -n "$shimmy_profile_image_pairs_tool" ] || continue
+    [ -n "$shimmy_profile_image_pairs_version" ] &&
+      [ -n "$shimmy_profile_image_pairs_role" ] &&
+      [ -z "$shimmy_profile_image_pairs_extra" ] || return 1
+    SHIMMY_PROFILE_IMAGE_PAIRS=$(shimmy_append_line_list \
+      "$SHIMMY_PROFILE_IMAGE_PAIRS" \
+      "$shimmy_profile_image_pairs_tool|$shimmy_profile_image_pairs_version")
+  done <<EOF
+$shimmy_profile_image_pairs_versions
+EOF
+  SHIMMY_PROFILE_IMAGE_PAIRS=$(printf '%s\n' "$SHIMMY_PROFILE_IMAGE_PAIRS" |
+    sed '/^$/d' | LC_ALL=C sort -u)
+}
+
+shimmy_profile_clone_run() {
+  shimmy_profile_clone_config=$1
+  shimmy_profile_clone_source=$2
+  shimmy_profile_clone_target=$3
+  shimmy_profile_clone_override=$4
+  shimmy_profile_clone_restart=$5
+  shimmy_profile_clone_stop=$6
+  shimmy_profile_clone_dry=$7
+  SHIMMY_PROFILE_LIFECYCLE_ERROR=
+  shimmy_name_component_validate "$shimmy_profile_clone_source" || return 1
+  shimmy_name_component_validate "$shimmy_profile_clone_target" || return 1
+  [ "$shimmy_profile_clone_source" != "$shimmy_profile_clone_target" ] ||
+    shimmy_profile_lifecycle_error_set 'profile clone source and target must differ' || return 1
+  case "$shimmy_profile_clone_override" in default|shared|isolated) ;; *) return 1 ;; esac
+  case "$shimmy_profile_clone_restart:$shimmy_profile_clone_stop:$shimmy_profile_clone_dry" in
+    [01]:[01]:[01]) ;; *) return 1 ;;
+  esac
+
+  shimmy_profile_installation_context_resolve "$shimmy_profile_clone_config" || return 1
+  shimmy_profile_clone_prior_active=$SHIMMY_PROFILE_ACTIVE_NAME
+  shimmy_profile_clone_user_root=$SHIMMY_PROFILE_USER_SKILL_ROOT
+  shimmy_engine_installation_schema_state_read "$shimmy_profile_clone_config" || return 1
+  [ "$SHIMMY_ENGINE_INSTALLATION_SCHEMA_STATE" = migrated ] ||
+    shimmy_profile_lifecycle_error_set \
+      'profile clone requires a completely migrated engine registry' || return 1
+  shimmy_profile_active_engine_validate "$shimmy_profile_clone_config" \
+    "$shimmy_profile_clone_prior_active" || return 1
+  shimmy_profile_candidate_resolve "$shimmy_profile_clone_config" \
+    "$shimmy_profile_clone_source" || return 1
+  shimmy_profile_clone_source_root=$SHIMMY_PROFILE_CANDIDATE_ROOT
+  shimmy_profile_clone_source_url=$SHIMMY_PROFILE_CANDIDATE_SOURCE_URL
+  shimmy_profile_clone_source_ref=$SHIMMY_PROFILE_CANDIDATE_SOURCE_REF
+  shimmy_profile_clone_catalog_record=$SHIMMY_PROFILE_CANDIDATE_CATALOG
+  shimmy_profile_clone_shims=$SHIMMY_PROFILE_CANDIDATE_SHIMS
+  shimmy_profile_clone_versions=$SHIMMY_PROFILE_CANDIDATE_VERSIONS
+  shimmy_profile_clone_source_mode=$SHIMMY_PROFILE_CANDIDATE_ENGINE_BINDING_MODE
+  shimmy_profile_clone_manifest_fingerprint=$(shimmy_sha256_fingerprint_file_render \
+    "$shimmy_profile_clone_source_root/install-manifest.txt") || return 1
+  shimmy_profile_clone_registries_fingerprint=$(shimmy_sha256_fingerprint_file_render \
+    "$shimmy_profile_clone_source_root/registries.conf") || return 1
+  shimmy_profile_clone_binding_fingerprint=$(shimmy_sha256_fingerprint_file_render \
+    "$shimmy_profile_clone_source_root/engine-binding.conf") || return 1
+  shimmy_catalog_pin_validate "$shimmy_profile_clone_catalog_record" || return 1
+  shimmy_profile_clone_catalog_root=$SHIMMY_CATALOG_GENERATIONS_ROOT/$shimmy_catalog_pin_generation
+  shimmy_profile_image_pairs_resolve "$shimmy_profile_clone_versions" || return 1
+  shimmy_profile_clone_pairs=$SHIMMY_PROFILE_IMAGE_PAIRS
+  case "$shimmy_profile_clone_override" in
+    shared|isolated) shimmy_profile_clone_mode=$shimmy_profile_clone_override ;;
+    default)
+      case "$shimmy_profile_clone_source_mode" in
+        shared) shimmy_profile_clone_mode=shared ;;
+        isolated|legacy-isolated) shimmy_profile_clone_mode=isolated ;;
+        *) return 1 ;;
+      esac
+      ;;
+  esac
+  shimmy_profile_state_paths_resolve "$shimmy_profile_clone_config" \
+    "$shimmy_profile_clone_target" || return 1
+  [ ! -e "$SHIMMY_PROFILE_ROOT" ] && [ ! -L "$SHIMMY_PROFILE_ROOT" ] ||
+    shimmy_profile_lifecycle_error_set \
+      "profile already exists: $shimmy_profile_clone_target" || return 1
+  if [ "$shimmy_profile_clone_mode" = isolated ]; then
+    shimmy_engine_registry_isolated_preflight "$shimmy_profile_clone_config" \
+      "$shimmy_profile_clone_target" ||
+      shimmy_profile_lifecycle_error_set \
+        "unable to preflight isolated engine shimmy-$shimmy_profile_clone_target" || return 1
+  fi
+  if [ "$shimmy_profile_clone_dry" -eq 1 ]; then
+    shimmy_profile_create_dry_run "$shimmy_profile_clone_config" \
+      "$shimmy_profile_clone_target" "$shimmy_profile_clone_source_root" \
+      "$shimmy_profile_clone_catalog_root" "$shimmy_profile_clone_pairs" \
+      "$shimmy_profile_clone_restart" "$shimmy_profile_clone_stop" \
+      "$shimmy_profile_clone_mode" || return 1
+    printf 'would_clone_profile=%s\nwould_clone_binding=%s|%s\n' \
+      "$shimmy_profile_clone_source" "$shimmy_profile_clone_mode" \
+      "$(if [ "$shimmy_profile_clone_mode" = shared ]; then printf shared; else printf 'profile-%s' "$shimmy_profile_clone_target"; fi)"
+    return 0
+  fi
+
+  shimmy_profile_materialization_prepare "$shimmy_profile_clone_config" \
+    "$shimmy_profile_clone_target" installed "$shimmy_profile_clone_source_root" \
+    "$shimmy_profile_clone_source_url" "$shimmy_profile_clone_source_ref" \
+    "$shimmy_profile_clone_catalog_record" "$shimmy_profile_clone_shims" \
+    "$shimmy_profile_clone_versions" '' '' \
+    "$shimmy_profile_clone_source_root/registries.conf" \
+    "$shimmy_profile_clone_source_root/ai-skills/control" '' \
+    "$shimmy_profile_clone_mode" "$shimmy_profile_clone_source" || return 1
+  shimmy_lock_acquire catalog "$shimmy_profile_clone_config" || return 1
+  shimmy_lock_acquire activation "$shimmy_profile_clone_config" || return 1
+  shimmy_profile_new_root_prepare "$shimmy_profile_clone_config" \
+    "$shimmy_profile_clone_target" || return 1
+  shimmy_profile_clone_lock_names=$(printf '%s\n%s\n' \
+    "$shimmy_profile_clone_source" "$shimmy_profile_clone_target" | LC_ALL=C sort -u)
+  while IFS= read -r shimmy_profile_clone_lock_name; do
+    shimmy_lock_acquire profile "$shimmy_profile_clone_config" \
+      "$shimmy_profile_clone_lock_name" || return 1
+  done <<EOF
+$shimmy_profile_clone_lock_names
+EOF
+  while IFS= read -r shimmy_profile_clone_lock_name; do
+    shimmy_lock_acquire registry "$shimmy_profile_clone_config" \
+      "$shimmy_profile_clone_lock_name" || return 1
+  done <<EOF
+$shimmy_profile_clone_lock_names
+EOF
+  shimmy_profile_installation_context_resolve "$shimmy_profile_clone_config" || return 1
+  [ "$SHIMMY_PROFILE_ACTIVE_NAME" = "$shimmy_profile_clone_prior_active" ] &&
+    [ "$SHIMMY_PROFILE_USER_SKILL_ROOT" = "$shimmy_profile_clone_user_root" ] || return 1
+  shimmy_profile_candidate_resolve "$shimmy_profile_clone_config" \
+    "$shimmy_profile_clone_source" || return 1
+  [ "$(shimmy_sha256_fingerprint_file_render "$SHIMMY_PROFILE_CANDIDATE_ROOT/install-manifest.txt")" = \
+      "$shimmy_profile_clone_manifest_fingerprint" ] &&
+    [ "$(shimmy_sha256_fingerprint_file_render "$SHIMMY_PROFILE_CANDIDATE_ROOT/registries.conf")" = \
+      "$shimmy_profile_clone_registries_fingerprint" ] &&
+    [ "$(shimmy_sha256_fingerprint_file_render "$SHIMMY_PROFILE_CANDIDATE_ROOT/engine-binding.conf")" = \
+      "$shimmy_profile_clone_binding_fingerprint" ] || return 1
+  shimmy_profile_new_candidate_commit "$shimmy_profile_clone_target" \
+    "$shimmy_profile_clone_catalog_root" || return 1
+  SHIMMY_PROFILE_LIFECYCLE_IMAGE_ROOT=$shimmy_profile_clone_config/profiles/$shimmy_profile_clone_target
+  SHIMMY_PROFILE_LIFECYCLE_IMAGE_PAIRS=$shimmy_profile_clone_pairs
+  if [ "$shimmy_profile_clone_mode" = isolated ]; then
+    shimmy_engine_registry_isolated_create_prepare "$shimmy_profile_clone_config" \
+      "$shimmy_profile_clone_target" || return 1
+    SHIMMY_PROFILE_ENGINE_CREATE_PENDING=1
+  fi
+  shimmy_profile_candidate_resolve "$shimmy_profile_clone_config" \
+    "$shimmy_profile_clone_target" || return 1
+  shimmy_profile_lifecycle_activate_locked "$shimmy_profile_clone_config" \
+    "$shimmy_profile_clone_prior_active" "$shimmy_profile_clone_target" \
+    "$shimmy_profile_clone_user_root" "$shimmy_profile_clone_restart" \
+    "$shimmy_profile_clone_stop" || return 1
+  SHIMMY_PROFILE_LIFECYCLE_NEW_ROOT=
+  SHIMMY_PROFILE_LIFECYCLE_IMAGE_ROOT=
+  SHIMMY_PROFILE_LIFECYCLE_IMAGE_PAIRS=
+  SHIMMY_PROFILE_ENGINE_CREATE_PENDING=0
+  SHIMMY_PROFILE_LIFECYCLE_PRESERVE_NEW_ROOT=0
+  shimmy_locks_release_all || return 1
+  printf 'Cloned Shimmy profile %s to %s and activated it.\n' \
+    "$shimmy_profile_clone_source" "$shimmy_profile_clone_target"
+  shimmy_profile_clone_shell=$(shimmy_quote_shell_word \
+    "$shimmy_profile_clone_config/profiles/$shimmy_profile_clone_target/shell-init.sh") || return 1
+  printf 'Select it in the current shell with: . %s\n' "$shimmy_profile_clone_shell"
 }
 
 shimmy_profile_initial_active_remove() {
@@ -438,6 +653,12 @@ shimmy_profile_lifecycle_activate_locked() {
   shimmy_profile_activate "$shimmy_profile_lifecycle_activate_restart" \
     "$shimmy_profile_lifecycle_activate_stop" 0 || return 1
   SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=1
+  if [ -n "${SHIMMY_PROFILE_LIFECYCLE_IMAGE_ROOT:-}" ]; then
+    shimmy_profile_images_prepare "$SHIMMY_PROFILE_LIFECYCLE_IMAGE_ROOT" \
+      "${SHIMMY_PROFILE_LIFECYCLE_IMAGE_PAIRS:-}" ||
+      shimmy_profile_lifecycle_activation_rollback \
+        'unable to prepare images on the target engine' || return 1
+  fi
   shimmy_external_transaction_begin || return 1
   shimmy_active_profile_replace "$shimmy_profile_lifecycle_activate_name" \
     "$shimmy_profile_lifecycle_activate_user_root" ||
@@ -446,6 +667,11 @@ shimmy_profile_lifecycle_activate_locked() {
     shimmy_profile_lifecycle_activation_rollback "${SHIMMY_AI_SKILL_ERROR:-unable to reconcile active AI-skill links}" || return 1
   shimmy_profile_activation_commit ||
     shimmy_profile_lifecycle_activation_rollback 'unable to finalize profile engine activation' || return 1
+  if [ "${SHIMMY_ENGINE_REGISTRY_ISOLATED_CREATE_ACTIVE:-0}" -eq 1 ]; then
+    shimmy_engine_registry_isolated_create_commit ||
+      shimmy_profile_lifecycle_activation_rollback \
+        'unable to finalize isolated engine creation' || return 1
+  fi
   shimmy_external_transaction_commit || return 1
   SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
 }

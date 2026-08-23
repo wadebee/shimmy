@@ -102,11 +102,12 @@ admin network|shimmy admin network [--target <host-or-ip> ...]
 admin uninstall|shimmy admin uninstall [--stop-running]
 profile list|shimmy profile list [--format human|manifest]
 profile status|shimmy profile status [--format human|manifest]
-profile create|shimmy profile create <name> [--restart] [--stop-running] [--dry-run]
+profile create|shimmy profile create <name> [--isolated] [--restart] [--stop-running] [--dry-run]
+profile clone|shimmy profile clone <source> <target> [--shared | --isolated]
 profile activate|shimmy profile activate <name> [--restart] [--stop-running] [--dry-run]
 profile sync|shimmy profile sync
 profile repair-startup|shimmy profile repair-startup
-profile delete|shimmy profile delete <name> [--stop-running]
+profile delete|shimmy profile delete <name> [--stop-running] [--dry-run]
 profile redirect list|shimmy profile redirect list [--format human|manifest]
 profile redirect set|shimmy profile redirect set --prefix <logical> --location <physical> [--dry-run]
 profile redirect delete|shimmy profile redirect delete (--prefix <logical> | --all)

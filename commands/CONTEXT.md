@@ -13,8 +13,9 @@ that profile operations require.
   actions retain documented defaults and required inputs.
 - `admin.sh` owns installation-wide status, read-only engine status, explicit
   engine migration, network inspection, and uninstall routing.
-- `profile.sh` owns profile list/status/create/activate/sync/startup repair/delete
-  and strict redirect CRUD.
+- `profile.sh` owns profile list/status/create/clone/activate/sync/startup
+  repair/delete and strict redirect CRUD. Isolated creation and clone mode
+  overrides route through the compensated installation lifecycle.
 - `catalog.sh` owns local default-catalog inspection, remote image verification,
   clean-main publication, and retained rollback.
 - `shim.sh` owns active invoking-profile shim and concrete-version lifecycle.

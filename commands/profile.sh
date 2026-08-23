@@ -33,11 +33,12 @@ Manage Shimmy profiles.
 Usage:
   shimmy profile list [--format human|manifest]
   shimmy profile status [--format human|manifest]
-  shimmy profile create <name> [--restart] [--stop-running] [--dry-run]
+  shimmy profile create <name> [--isolated] [--restart] [--stop-running] [--dry-run]
+  shimmy profile clone <source> <target> [--shared | --isolated] [--restart] [--stop-running] [--dry-run]
   shimmy profile activate <name> [--restart] [--stop-running] [--dry-run]
   shimmy profile sync
   shimmy profile repair-startup
-  shimmy profile delete <name> [--stop-running]
+  shimmy profile delete <name> [--stop-running] [--dry-run]
   shimmy profile redirect list [--format human|manifest]
   shimmy profile redirect set --prefix <logical> --location <physical> [--dry-run]
   shimmy profile redirect delete (--prefix <logical> | --all) [--detach] [--dry-run]
@@ -77,19 +78,50 @@ case "$shimmy_profile_action" in
     shimmy_profile_restart=0
     shimmy_profile_stop_running=0
     shimmy_profile_dry_run=0
+    shimmy_profile_mode=shared
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --restart) [ "$shimmy_profile_restart" -eq 0 ] || fail 'duplicate option: --restart'; shimmy_profile_restart=1 ;;
         --stop-running) [ "$shimmy_profile_stop_running" -eq 0 ] || fail 'duplicate option: --stop-running'; shimmy_profile_stop_running=1 ;;
         --dry-run) [ "$shimmy_profile_dry_run" -eq 0 ] || fail 'duplicate option: --dry-run'; shimmy_profile_dry_run=1 ;;
+        --isolated) [ "$shimmy_profile_mode" = shared ] || fail 'duplicate option: --isolated'; shimmy_profile_mode=isolated ;;
         *) fail "unknown profile create argument: $1" ;;
       esac
       shift
     done
     shimmy_profile_create_run "$shimmy_profile_config" "$shimmy_profile_invoking" \
       "$shimmy_profile_name" "$shimmy_profile_restart" \
-      "$shimmy_profile_stop_running" "$shimmy_profile_dry_run" ||
+      "$shimmy_profile_stop_running" "$shimmy_profile_dry_run" \
+      "$shimmy_profile_mode" ||
       fail "${SHIMMY_PROFILE_LIFECYCLE_ERROR:-profile creation failed}"
+    ;;
+  clone)
+    shimmy_name_component_validate "$shimmy_profile_invoking" || fail 'clone requires a valid invoking profile identity'
+    [ "$#" -ge 2 ] || fail 'profile clone requires source and target profile names'
+    shimmy_profile_source=$1
+    shimmy_profile_name=$2
+    shimmy_name_component_validate "$shimmy_profile_source" || fail "invalid source profile name: $shimmy_profile_source"
+    shimmy_name_component_validate "$shimmy_profile_name" || fail "invalid target profile name: $shimmy_profile_name"
+    shift 2
+    shimmy_profile_restart=0
+    shimmy_profile_stop_running=0
+    shimmy_profile_dry_run=0
+    shimmy_profile_mode=default
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --shared) [ "$shimmy_profile_mode" = default ] || fail '--shared and --isolated are mutually exclusive'; shimmy_profile_mode=shared ;;
+        --isolated) [ "$shimmy_profile_mode" = default ] || fail '--shared and --isolated are mutually exclusive'; shimmy_profile_mode=isolated ;;
+        --restart) [ "$shimmy_profile_restart" -eq 0 ] || fail 'duplicate option: --restart'; shimmy_profile_restart=1 ;;
+        --stop-running) [ "$shimmy_profile_stop_running" -eq 0 ] || fail 'duplicate option: --stop-running'; shimmy_profile_stop_running=1 ;;
+        --dry-run) [ "$shimmy_profile_dry_run" -eq 0 ] || fail 'duplicate option: --dry-run'; shimmy_profile_dry_run=1 ;;
+        *) fail "unknown profile clone argument: $1" ;;
+      esac
+      shift
+    done
+    shimmy_profile_clone_run "$shimmy_profile_config" "$shimmy_profile_source" \
+      "$shimmy_profile_name" "$shimmy_profile_mode" "$shimmy_profile_restart" \
+      "$shimmy_profile_stop_running" "$shimmy_profile_dry_run" ||
+      fail "${SHIMMY_PROFILE_LIFECYCLE_ERROR:-profile clone failed}"
     ;;
   list)
     shimmy_profile_format=human
@@ -134,15 +166,17 @@ case "$shimmy_profile_action" in
     shimmy_name_component_validate "$shimmy_profile_name" || fail "invalid profile name: $shimmy_profile_name"
     shift
     shimmy_profile_stop_running=0
+    shimmy_profile_dry_run=0
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --stop-running) [ "$shimmy_profile_stop_running" -eq 0 ] || fail 'duplicate option: --stop-running'; shimmy_profile_stop_running=1 ;;
+        --dry-run) [ "$shimmy_profile_dry_run" -eq 0 ] || fail 'duplicate option: --dry-run'; shimmy_profile_dry_run=1 ;;
         *) fail "unknown profile delete argument: $1" ;;
       esac
       shift
     done
     shimmy_profile_delete_run "$shimmy_profile_config" "$shimmy_profile_name" \
-      "$shimmy_profile_stop_running" ||
+      "$shimmy_profile_stop_running" "$shimmy_profile_dry_run" ||
       fail "${SHIMMY_UNINSTALL_ERROR:-profile deletion failed}"
     ;;
   activate)

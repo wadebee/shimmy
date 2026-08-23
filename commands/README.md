@@ -58,11 +58,13 @@ acknowledgement for listed macOS workloads that must be interrupted.
 ```text
 shimmy profile list [--format human|manifest]
 shimmy profile status [--format human|manifest]
-shimmy profile create <name> [--restart] [--stop-running] [--dry-run]
+shimmy profile create <name> [--isolated] [--restart] [--stop-running] [--dry-run]
+shimmy profile clone <source> <target> [--shared | --isolated]
+  [--restart] [--stop-running] [--dry-run]
 shimmy profile activate <name> [--restart] [--stop-running] [--dry-run]
 shimmy profile sync
 shimmy profile repair-startup
-shimmy profile delete <name> [--stop-running]
+shimmy profile delete <name> [--stop-running] [--dry-run]
 shimmy profile redirect list [--format human|manifest]
 shimmy profile redirect set --prefix <logical> --location <physical> [--dry-run]
 shimmy profile redirect delete (--prefix <logical> | --all)
@@ -75,17 +77,30 @@ containing profile. `list` and `create` are installation-wide; `status`, `sync`,
 `repair-startup`, and redirect operations use the invoking profile.
 
 Creation binds an ordinary profile to the shared engine and automatically
-activates it; it does not create a per-profile machine. Activation dry-run is
-non-mutating and reports exact engine, registry service, active-record, and
-skill-link effects. On Linux `--restart` and `--stop-running` are not
-applicable. On macOS normal shared switching does not restart the VM;
-`--restart` is explicit VM recovery, while a changed policy recycles only the
-rootless `podman.service`.
+activates it. On macOS, `--isolated` instead transactionally provisions and
+owns `shimmy-<profile>`; Linux rejects isolated-machine creation. Clone copies
+supported profile-owned configuration, shims, versions, catalog pin, source,
+and redirects, but never copies runtime state or engine ownership. Its default
+preserves isolation intent: shared sources remain shared, while isolated and
+legacy-isolated sources receive a new owned isolated machine. `--shared` and
+`--isolated` are mutually exclusive overrides.
+
+Activation dry-run is non-mutating and reports exact engine, registry service,
+VM, active-record, and skill-link effects. On Linux `--restart` and
+`--stop-running` are not applicable. On macOS normal shared switching does not
+restart the VM; `--restart` is explicit VM recovery, while a changed policy
+recycles only rootless `podman.service`. Cross-engine transitions stage target
+policy before start and require `--stop-running` when listed workloads would be
+interrupted.
 
 `sync` is active-profile only. It fetches the recorded source, requires
 `refs/heads/main`, stages a complete replacement, and retains the profile's
 explicit shim policies while adopting catalog/source changes. `delete` accepts
-only an inactive non-default profile.
+only an inactive non-default profile. Shared deletion removes profile state
+only. Deleting a fully proven owned isolated profile permanently removes its
+machine and every container, image, volume, build-cache entry, and other
+VM-local datum; dry-run reports that scope. Legacy, external, and ambiguously
+owned machines are preserved.
 
 Redirects are strict profile-owned replacement locations. Active edits apply
 and validate immediately. On macOS a changed effective policy briefly recycles

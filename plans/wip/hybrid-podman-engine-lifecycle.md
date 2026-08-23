@@ -1,6 +1,6 @@
 # Shimmy Hybrid Podman Engine Lifecycle
 
-**Status:** Chunk 2 implemented and verified on 2026-08-23; awaiting human review
+**Status:** Chunk 3 implemented, verified, and human-accepted on 2026-08-23; Chunk 4 not started
 
 ## Objective
 
@@ -195,9 +195,9 @@ None.
 - [x] Chunk 1: Safe engine and service lifecycle primitives are implemented and verified without public behavior or schema changes.
 - [x] Human reviewed and explicitly accepted Chunk 1 on 2026-08-23.
 - [x] Chunk 2 implemented and verified on 2026-08-23: Add engine state, explicit migration, shared bootstrap/create/activation, and profile-scoped registry projection.
-- [ ] Human reviews and explicitly accepts Chunk 2.
-- [ ] Chunk 3: Add owned isolated creation, true clone, cross-mode activation, and isolated profile deletion.
-- [ ] Human reviews and explicitly accepts Chunk 3.
+- [x] Human explicitly accepted Chunk 2 by requesting Chunk 3 implementation on 2026-08-23.
+- [x] Chunk 3 implemented and verified on 2026-08-23: Add owned isolated creation, true clone, cross-mode activation, and isolated profile deletion.
+- [x] Human reviewed and explicitly accepted Chunk 3 on 2026-08-23.
 - [ ] Chunk 4: Make global uninstall remove owned machines, complete documentation and canonical guidance, and run integration acceptance.
 - [ ] Human reviews and explicitly accepts Chunk 4.
 - [ ] Record final lessons, resolve superseded plan state, and move this plan to the repository's completed-plan location.
@@ -406,19 +406,28 @@ Suggested reasoning level: high. Isolated provisioning and deletion cross an irr
 
 ### Verification checklist
 
-- [ ] Isolated create provisions shimmy-<profile>, records independent ownership proof, stages policy before start, prepares images on the target, and commits last.
-- [ ] Isolated create failure compensates only an exactly matched just-created machine and preserves retry evidence when cleanup fails.
-- [ ] Clone shared-to-shared reuses the shared engine and copies only supported profile-owned configuration.
-- [ ] Clone from isolated and legacy-isolated creates a new owned isolated engine without copying source ownership.
-- [ ] --shared and --isolated overrides produce the documented binding and lifecycle behavior.
-- [ ] Cross-mode activation enforces running-workload authorization, stages target policy, and rolls every committed surface back after injected failure.
-- [ ] Shared profile deletion leaves the shared engine and other shared profiles usable.
-- [ ] Owned isolated profile deletion removes its exact machine and records destructive consent; external/legacy/ambiguous deletion preserves the machine.
-- [ ] Interrupted isolated deletion is retryable from the journal.
-- [ ] Runtime and registry affinity remain profile-scoped after clone and cross-mode transitions.
-- [ ] Relevant independent groups run with default bounded parallel execution or --jobs 3; commands-lifecycle remains indivisible.
-- [ ] Live macOS acceptance covers one shared profile, a second shared profile, and one isolated profile, including policy changes and workload preservation.
-- [ ] Documentation prominently identifies which profile operations delete VM-local data.
+- [x] Isolated create provisions shimmy-<profile>, records independent ownership proof, stages policy before start, prepares images on the target, and commits last.
+- [x] Isolated create failure compensates only an exactly matched just-created machine and preserves retry evidence when cleanup fails.
+- [x] Clone shared-to-shared reuses the shared engine and copies only supported profile-owned configuration.
+- [x] Clone from isolated and legacy-isolated creates a new owned isolated engine without copying source ownership.
+- [x] --shared and --isolated overrides produce the documented binding and lifecycle behavior.
+- [x] Cross-mode activation enforces running-workload authorization, stages target policy, and rolls every committed surface back after injected failure.
+- [x] Shared profile deletion leaves the shared engine and other shared profiles usable.
+- [x] Owned isolated profile deletion removes its exact machine and records destructive consent; external/legacy/ambiguous deletion preserves the machine.
+- [x] Interrupted isolated deletion is retryable from the journal, including partial local profile cleanup.
+- [x] Runtime and registry affinity remain profile-scoped after clone and cross-mode transitions.
+- [x] Relevant independent groups ran with `--jobs 3`; `commands-lifecycle` remained indivisible and ran serially.
+- [~] Disposable fake-Podman macOS acceptance covers shared/isolated workloads, transitions, ownership, clone, and deletion. Native machine creation/deletion was not run because it would mutate the user's external Podman installation.
+- [x] Documentation prominently identifies which profile operations delete VM-local data.
+
+Verification evidence (2026-08-23):
+
+- The seven focused `--jobs 3` groups passed all 37 tests: `lib-profile-state`, `lib-runtime`, `lib-engine`, `lib-profile-activation`, `lib-registries`, `commands-profile`, and `commands-surface`.
+- The lock-order extension passed all 3 `lib-lock` tests, including lexical acquisition and reverse release of multiple profile registry locks.
+- The indivisible serial `commands-lifecycle` group passed all 4 scenarios. Its Darwin acceptance proves compensated isolated-create workload refusal, owned isolated creation, shared/isolated transitions, default isolated clone with a fresh ownership token, shared override planning, exact isolated removal, partial-cleanup retry, and preservation of the shared engine. The retained migration and public Linux lifecycle scenarios also passed.
+- POSIX syntax checks, `git diff --check`, and `./tests/context-tree.sh` passed before the retained plan evidence update; final structural checks are repeated after it.
+- Non-mutating local inspection found Podman 5.8.1 with the AppleHV provider; `shimmy-default` was running and `podman-machine-default` was stopped. No real machine lifecycle operation was performed.
+- Native macOS machine creation and deletion remain a human review follow-up because this implementation session did not mutate the user's real Podman installation.
 
 ### Human review gate
 
@@ -543,6 +552,15 @@ Stop. Present exact machines removed and preserved in disposable acceptance, jou
 - POSIX shell module variables are process-global. Any operation that validates other engine records must re-resolve the intended shared engine paths before committing or clearing its lifecycle journal.
 - The stable guest drop-in belongs to the engine, while source policy belongs to the profile. Keeping those ownership boundaries separate makes inactive redirect edits source-only and lets active edits compensate source, projection, and service state together.
 - Owned shared-machine removal remains deliberately outside Chunk 2. Darwin global uninstall fails closed rather than discard ownership evidence before the durable destructive transaction in Chunk 4 exists.
+
+### Chunk 3
+
+- Target image preparation must follow engine activation for every create and clone mode. A shared target can still differ from the currently active isolated engine, so binding mode alone cannot decide whether early preparation is safe.
+- True clone needs lexical locks for both source and target registry policy. The common lock hierarchy therefore permits multiple rank-40 registry locks only in canonical profile-name order, matching its existing multi-profile rule.
+- A stopped owned machine cannot supply live guest evidence during deletion preflight. Host ownership may authorize a journaled verification start, but the machine is removed only after the running guest marker is revalidated.
+- An irreversible machine removal journal must outlive partial profile cleanup. Retry accepts either a partially removed or absent profile root, removes only the known allowlist, and finalizes engine evidence after the local profile is gone.
+- Registry redirects must be parsed under the source identity and re-rendered under the clone identity. Copying bytes would preserve a foreign ownership header even when the policy entries are valid.
+- Fake Podman state must model the post-transition running machine and default connection explicitly. Persisting the prior shared default in a later command correctly causes active-engine validation to fail.
 
 ## Session bootstrap
 

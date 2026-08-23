@@ -123,18 +123,21 @@ shimmy_lock_order_validate() {
     return 1
   }
   if [ "$shimmy_lock_requested_rank" -eq "$shimmy_lock_last_rank" ]; then
-    [ "$shimmy_lock_requested_rank" -eq 30 ] || {
-      shimmy_lock_error_set "duplicate or same-rank lock rejected after $shimmy_lock_last_kind"
-      return 1
-    }
+    case "$shimmy_lock_requested_rank" in
+      30|40) ;;
+      *)
+        shimmy_lock_error_set "duplicate or same-rank lock rejected after $shimmy_lock_last_kind"
+        return 1
+        ;;
+    esac
     [ "$shimmy_lock_requested_profile" != "$shimmy_lock_last_profile" ] || {
-      shimmy_lock_error_set "duplicate profile lock rejected: $shimmy_lock_requested_profile"
+      shimmy_lock_error_set "duplicate $shimmy_lock_last_kind lock rejected: $shimmy_lock_requested_profile"
       return 1
     }
     shimmy_lock_profiles_sorted=$(printf '%s\n%s\n' "$shimmy_lock_last_profile" "$shimmy_lock_requested_profile" | LC_ALL=C sort)
     [ "$shimmy_lock_profiles_sorted" = "$shimmy_lock_last_profile
 $shimmy_lock_requested_profile" ] || {
-      shimmy_lock_error_set "profile locks must be acquired in lexical order: $shimmy_lock_last_profile before $shimmy_lock_requested_profile"
+      shimmy_lock_error_set "$shimmy_lock_last_kind locks must be acquired in lexical order: $shimmy_lock_last_profile before $shimmy_lock_requested_profile"
       return 1
     }
   fi

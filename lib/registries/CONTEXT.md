@@ -21,7 +21,7 @@ active edits validate fresh local-rootless Podman processes and restore exact
 prior state on failure. Detach and uninstall remove only the exact invoking
 profile link. Foreign, dangling, unsafe, or masking state fails closed.
 
-On Darwin, migrated shared engines use a stable guest-user drop-in targeting
+On Darwin, migrated shared and newly owned isolated engines use a stable guest-user drop-in targeting
 the host-mounted `<config-root>/engines/<id>/registries.conf`. The engine
 projection records source profile/path and source/effective/loaded
 fingerprints. Changed effective policy recycles only rootless
@@ -51,8 +51,8 @@ profile. Profile orchestration may supply an already-held registry lock;
 standalone redirect mutation owns the adjacent lock directly.
 
 The engine projection primitive normalizes canonical entries independently of
-the profile ownership header and atomically stages an engine-local copy. Shared
-activation and active redirect commands route through it.
+the profile ownership header and atomically stages an engine-local copy. Managed
+shared/isolated activation and active redirect commands route through it.
 Skopeo is the only initial consumer and mounts the result read-only at the
 same fixed container drop-in path; image verification inherits that behavior
 through the active profile's Skopeo runtime.

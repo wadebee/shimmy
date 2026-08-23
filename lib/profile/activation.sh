@@ -456,7 +456,7 @@ EOF
     SHIMMY_PROFILE_ACTIVATION_STATE=active
   fi
   if [ "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}" = migrated ] &&
-    [ "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-unmigrated}" = shared ]; then
+    [ "${SHIMMY_PROFILE_ENGINE_ORIGIN:-legacy-external}" = shimmy-created ]; then
     shimmy_engine_registry_projection_state_read "$SHIMMY_CONFIG_ROOT" \
       "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_ENGINE_ID" || return 1
     SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=$SHIMMY_ENGINE_REGISTRY_PROJECTION_STATE
@@ -679,14 +679,14 @@ shimmy_profile_activation_rollback() {
   return 1
 }
 
-shimmy_profile_activate_darwin_shared() {
+shimmy_profile_activate_darwin_managed() {
   restart_requested=$1
   stop_running_requested=$2
   dry_run_requested=$3
   shimmy_profile_activation_override_reject || return 1
   shimmy_registries_override_reject || return 1
   shimmy_profile_podman_bin_require || {
-    printf '%s\n' 'ERROR: Podman is required for shared profile activation.' >&2
+    printf '%s\n' 'ERROR: Podman is required for managed profile activation.' >&2
     return 1
   }
   shimmy_engine_podman_bin_require || return 1
@@ -700,11 +700,21 @@ shimmy_profile_activate_darwin_shared() {
   shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" \
     "$SHIMMY_PROFILE_NAME" || return 1
   shimmy_engine_record_read "$SHIMMY_PROFILE_ENGINE_RECORD_PATH" || return 1
-  [ "$SHIMMY_ENGINE_RECORD_ID|$SHIMMY_ENGINE_RECORD_KIND|$SHIMMY_ENGINE_RECORD_ORIGIN" = \
-    'shared|darwin-machine|shimmy-created' ] || return 1
-  shimmy_engine_ownership_state_read "$SHIMMY_PROFILE_ENGINE_RECORD_PATH"
+  [ "$SHIMMY_ENGINE_RECORD_ID" = "$SHIMMY_PROFILE_ENGINE_ID" ] &&
+    [ "$SHIMMY_ENGINE_RECORD_KIND|$SHIMMY_ENGINE_RECORD_ORIGIN" = \
+      'darwin-machine|shimmy-created' ] || return 1
+  SHIMMY_PROFILE_MANAGED_CREATE_PENDING=0
+  if [ "${SHIMMY_PROFILE_ENGINE_CREATE_PENDING:-0}" -eq 1 ]; then
+    [ -f "$SHIMMY_ENGINE_LIFECYCLE_PATH" ] &&
+      [ ! -L "$SHIMMY_ENGINE_LIFECYCLE_PATH" ] || return 1
+    shimmy_engine_lifecycle_read "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+    [ "$SHIMMY_ENGINE_LIFECYCLE_ID|$SHIMMY_ENGINE_LIFECYCLE_OPERATION|$SHIMMY_ENGINE_LIFECYCLE_PHASE" = \
+      "$SHIMMY_PROFILE_ENGINE_ID|create|recorded" ] || return 1
+    SHIMMY_PROFILE_MANAGED_CREATE_PENDING=1
+  fi
+  shimmy_engine_ownership_host_state_read "$SHIMMY_PROFILE_ENGINE_RECORD_PATH"
   [ "$SHIMMY_ENGINE_OWNERSHIP_STATE" = owned ] || {
-    printf 'ERROR: shared engine ownership is %s: %s\n' \
+    printf 'ERROR: managed engine ownership is %s: %s\n' \
       "$SHIMMY_ENGINE_OWNERSHIP_STATE" "$SHIMMY_ENGINE_OWNERSHIP_REASON" >&2
     return 1
   }
@@ -712,23 +722,24 @@ shimmy_profile_activate_darwin_shared() {
   [ "$SHIMMY_PROFILE_MACHINE_METADATA" = valid ] &&
     [ "$SHIMMY_PROFILE_CONNECTION_METADATA" = valid ] &&
     [ "$SHIMMY_PROFILE_EXPECTED_CONNECTION_STATE" = rootless ] || return 1
-  [ "$SHIMMY_PROFILE_ALTERNATE_RUNNING_MACHINE" = none ] || {
-    printf 'ERROR: alternate Podman machine is running: %s\n' \
-      "$SHIMMY_PROFILE_ALTERNATE_RUNNING_MACHINE" >&2
-    return 1
-  }
   case "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" in running|stopped) ;; *) return 1 ;; esac
-  if [ "$stop_running_requested" -eq 1 ] && [ "$restart_requested" -eq 0 ]; then
-    printf '%s\n' 'ERROR: --stop-running is valid only with an explicit --restart VM recovery' >&2
+  shimmy_profile_managed_stop_planned=0
+  if [ "$SHIMMY_PROFILE_RUNNING_MACHINE_COUNT" -eq 1 ] &&
+    { [ "$SHIMMY_PROFILE_RUNNING_MACHINE" != "$SHIMMY_PROFILE_EXPECTED_MACHINE" ] ||
+      [ "$restart_requested" -eq 1 ]; }; then
+    shimmy_profile_managed_stop_planned=1
+  fi
+  if [ "$stop_running_requested" -eq 1 ] &&
+    [ "$shimmy_profile_managed_stop_planned" -eq 0 ]; then
+    printf '%s\n' 'ERROR: --stop-running is valid only when activation will stop a running machine' >&2
     return 1
   fi
-  if [ "$restart_requested" -eq 1 ] &&
-    [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" = running ]; then
+  if [ "$shimmy_profile_managed_stop_planned" -eq 1 ]; then
     [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" != unknown ] || return 1
     shimmy_profile_workloads_print
     if [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" -gt 0 ] &&
       [ "$stop_running_requested" -eq 0 ]; then
-      printf '%s\n' 'ERROR: running containers block the explicit VM restart; retry with --stop-running only after reviewing them' >&2
+      printf '%s\n' 'ERROR: running containers block the engine transition; retry with --stop-running only after reviewing them' >&2
       return 1
     fi
   fi
@@ -740,6 +751,13 @@ shimmy_profile_activate_darwin_shared() {
       "$SHIMMY_PROFILE_EXPECTED_MACHINE"
     printf 'would_recycle_podman_service=%s\n' \
       "$(if [ "$SHIMMY_ENGINE_REGISTRY_PLANNED_SERVICE_ACTION" = recycle-podman-service ]; then printf yes; else printf no; fi)"
+    if [ "$shimmy_profile_managed_stop_planned" -eq 1 ]; then
+      printf 'would_stop=%s\n' "$SHIMMY_PROFILE_RUNNING_MACHINE"
+    fi
+    if [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" = stopped ] ||
+      [ "$restart_requested" -eq 1 ]; then
+      printf 'would_start=%s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE"
+    fi
     printf 'would_restart_vm=%s\nwould_stop_running=%s\n' \
       "$restart_requested" "$stop_running_requested"
     return 0
@@ -751,37 +769,67 @@ shimmy_profile_activate_darwin_shared() {
   SHIMMY_PROFILE_TARGET_START_ATTEMPTED=0
   SHIMMY_PROFILE_WORKLOAD_INTERRUPTED=0
   shimmy_engine_paths_resolve "$SHIMMY_CONFIG_ROOT" "$SHIMMY_PROFILE_ENGINE_ID" || return 1
-  shimmy_engine_podman_projection_dropin_verify "$SHIMMY_PROFILE_EXPECTED_MACHINE" \
-    "$SHIMMY_ENGINE_REGISTRIES_PATH" || {
-      printf '%s\n' 'ERROR: shared engine registry drop-in is missing or foreign' >&2
-      return 1
-    }
   shimmy_engine_projection_prepare "$SHIMMY_PROFILE_ENGINE_ID" "$SHIMMY_ENGINE_ROOT" \
     "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_REGISTRIES_PATH" \
     "$SHIMMY_PROFILE_EXPECTED_CONNECTION" || return 1
-  if [ "$restart_requested" -eq 1 ] &&
-    [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" = running ]; then
-    SHIMMY_PROFILE_PRIOR_RUNNING_MACHINE=$SHIMMY_PROFILE_EXPECTED_MACHINE
+  if [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" = running ] &&
+    [ "$SHIMMY_PROFILE_MANAGED_CREATE_PENDING" -eq 0 ]; then
+    shimmy_engine_podman_projection_dropin_verify "$SHIMMY_PROFILE_EXPECTED_MACHINE" \
+      "$SHIMMY_ENGINE_REGISTRIES_PATH" || {
+        printf '%s\n' 'ERROR: managed engine registry drop-in is missing or foreign' >&2
+        return 1
+      }
+    shimmy_engine_ownership_state_read "$SHIMMY_PROFILE_ENGINE_RECORD_PATH"
+    [ "$SHIMMY_ENGINE_OWNERSHIP_STATE" = owned ] || return 1
+  fi
+  if [ "$shimmy_profile_managed_stop_planned" -eq 1 ]; then
+    SHIMMY_PROFILE_PRIOR_RUNNING_MACHINE=$SHIMMY_PROFILE_RUNNING_MACHINE
     SHIMMY_PROFILE_PRIOR_STOP_ATTEMPTED=1
     [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" -eq 0 ] || SHIMMY_PROFILE_WORKLOAD_INTERRUPTED=1
-    shimmy_profile_podman_run machine stop "$SHIMMY_PROFILE_EXPECTED_MACHINE" </dev/null || {
-      shimmy_profile_activation_rollback 'unable to stop shared engine for explicit VM recovery' || true
-      return 1
-    }
-    SHIMMY_PROFILE_TARGET_START_ATTEMPTED=1
-    shimmy_profile_podman_run machine start "$SHIMMY_PROFILE_EXPECTED_MACHINE" </dev/null || {
-      shimmy_profile_activation_rollback 'unable to restart shared engine for explicit VM recovery' || true
-      return 1
-    }
-  elif [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" = stopped ]; then
-    SHIMMY_PROFILE_TARGET_START_ATTEMPTED=1
-    shimmy_profile_podman_run machine start "$SHIMMY_PROFILE_EXPECTED_MACHINE" </dev/null || {
-      shimmy_profile_activation_rollback 'unable to start shared engine' || true
+    shimmy_profile_podman_run machine stop "$SHIMMY_PROFILE_RUNNING_MACHINE" </dev/null || {
+      shimmy_profile_activation_rollback 'unable to stop the prior managed engine' || true
       return 1
     }
   fi
+  if [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" = stopped ] ||
+    [ "$restart_requested" -eq 1 ]; then
+    SHIMMY_PROFILE_TARGET_START_ATTEMPTED=1
+    if [ "$SHIMMY_PROFILE_MANAGED_CREATE_PENDING" -eq 1 ]; then
+      shimmy_engine_machine_create_start "$SHIMMY_ENGINE_LIFECYCLE_PATH" || {
+        shimmy_profile_activation_rollback 'unable to start the new isolated engine' || true
+        return 1
+      }
+    else
+      shimmy_profile_podman_run machine start "$SHIMMY_PROFILE_EXPECTED_MACHINE" </dev/null || {
+        shimmy_profile_activation_rollback 'unable to start the managed engine' || true
+        return 1
+      }
+    fi
+  fi
+  if [ "$SHIMMY_PROFILE_MANAGED_CREATE_PENDING" -eq 1 ]; then
+    shimmy_engine_podman_projection_dropin_install "$SHIMMY_PROFILE_EXPECTED_MACHINE" \
+      "$SHIMMY_ENGINE_REGISTRIES_PATH" || {
+        shimmy_profile_activation_rollback 'unable to install isolated engine registry authority' || true
+        return 1
+      }
+    shimmy_engine_machine_create_guest_mark "$SHIMMY_ENGINE_LIFECYCLE_PATH" || {
+      shimmy_profile_activation_rollback 'unable to record isolated engine guest ownership' || true
+      return 1
+    }
+  else
+    shimmy_engine_podman_projection_dropin_verify "$SHIMMY_PROFILE_EXPECTED_MACHINE" \
+      "$SHIMMY_ENGINE_REGISTRIES_PATH" || {
+        shimmy_profile_activation_rollback 'managed engine registry drop-in is missing or foreign' || true
+        return 1
+      }
+  fi
+  shimmy_engine_ownership_state_read "$SHIMMY_PROFILE_ENGINE_RECORD_PATH"
+  [ "$SHIMMY_ENGINE_OWNERSHIP_STATE" = owned ] || {
+    shimmy_profile_activation_rollback 'managed engine ownership could not be verified after start' || true
+    return 1
+  }
   shimmy_engine_projection_apply "$SHIMMY_PROFILE_EXPECTED_MACHINE" || {
-    shimmy_profile_activation_rollback 'unable to apply shared engine registry projection' || true
+    shimmy_profile_activation_rollback 'unable to apply managed engine registry projection' || true
     return 1
   }
   if [ "$SHIMMY_PROFILE_DEFAULT_CONNECTION" != "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ]; then
@@ -795,7 +843,7 @@ shimmy_profile_activate_darwin_shared() {
     shimmy_engine_projection_commit || return 1
   fi
   if [ "${SHIMMY_PROFILE_ACTIVATION_QUIET_SUCCESS:-0}" -ne 1 ]; then
-    printf 'Activated Shimmy profile %s on shared Podman machine %s.\n' \
+    printf 'Activated Shimmy profile %s on managed Podman machine %s.\n' \
       "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_EXPECTED_MACHINE"
   fi
 }
@@ -806,8 +854,8 @@ shimmy_profile_activate_darwin() {
   dry_run_requested=$3
 
   if [ "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}" = migrated ] &&
-    [ "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-unmigrated}" = shared ]; then
-    shimmy_profile_activate_darwin_shared "$restart_requested" \
+    [ "${SHIMMY_PROFILE_ENGINE_ORIGIN:-legacy-external}" = shimmy-created ]; then
+    shimmy_profile_activate_darwin_managed "$restart_requested" \
       "$stop_running_requested" "$dry_run_requested"
     return $?
   fi
@@ -1055,7 +1103,7 @@ shimmy_profile_activation_commit() {
   case "${SHIMMY_PROFILE_HOST_OS:-unknown}" in
     darwin)
       if [ "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}" = migrated ] &&
-        [ "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-unmigrated}" = shared ]; then
+        [ "${SHIMMY_PROFILE_ENGINE_ORIGIN:-legacy-external}" = shimmy-created ]; then
         shimmy_engine_projection_commit
       else
         shimmy_registries_machine_projection_commit

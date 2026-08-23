@@ -60,7 +60,7 @@ The installed launcher has five groups:
 | Group | Purpose |
 |---|---|
 | `shimmy admin` | Inspect engine, network, or installation state and manage installation lifecycle. |
-| `shimmy profile` | List, inspect, create, activate, sync, repair, or delete profiles and redirects. |
+| `shimmy profile` | List, inspect, create, clone, activate, sync, repair, or delete profiles and redirects. |
 | `shimmy catalog` | Inspect, verify, publish, or roll back the immutable default catalog. |
 | `shimmy shim` | Add, remove, select, sync, list, or test profile-local tool versions. |
 | `shimmy ai-skill` | Inspect or repair active-profile skill links. |
@@ -100,7 +100,28 @@ shimmy profile create team-one
 shimmy profile list
 ```
 
-Creation activates the new profile. To switch back, inspect the transition
+Ordinary creation binds the profile to the shared engine. On macOS, an explicit
+isolated profile provisions a separately owned machine and warns before that
+machine is later destroyed:
+
+```sh
+shimmy profile create isolated-one --isolated --dry-run
+shimmy profile create isolated-one --isolated
+shimmy profile delete isolated-one --dry-run
+shimmy profile delete isolated-one
+```
+
+Creation activates the new profile. Clone copies supported profile-owned
+configuration and selection state, then activates the target. Shared sources
+clone to the shared engine by default; isolated and legacy-isolated sources
+create a new owned isolated machine. Use one explicit override when needed:
+
+```sh
+shimmy profile clone default team-two --dry-run
+shimmy profile clone isolated-one isolated-two --shared
+```
+
+To switch back, inspect the transition
 before applying it, then source the selected profile in the current shell:
 
 ```sh
@@ -114,8 +135,11 @@ exact user registry-policy link and validates the current user's local rootless
 Podman process. On macOS, shared-to-shared activation keeps the `shimmy` VM and
 running containers up. A changed effective registry policy causes only a brief
 rootless Podman API interruption while `podman.service` is recycled; equal
-policies require no recycle. `--restart` remains explicit VM recovery and is not
-part of normal profile switching.
+policies require no recycle. A transition between shared and isolated engines
+stages the target policy before starting it, stops the prior machine only when
+required, and requires `--stop-running` if that interruption would affect
+listed workloads. `--restart` remains explicit VM recovery and is not part of
+normal shared-profile switching.
 
 `CONTAINER_CONNECTION`, `CONTAINER_HOST`, `CONTAINERS_REGISTRIES_CONF`, and
 `CONTAINERS_REGISTRIES_CONF_OVERRIDE` can mask profile authority and therefore
@@ -213,6 +237,11 @@ and recognized direct Shimmy skill links. It preserves source checkouts, Podman
 machines, unrelated registry policy, unrelated skill names, and the user skill
 root. If macOS cleanup requires interrupting listed workloads, review the output
 and retry with `--stop-running` only after explicit acceptance.
+
+Deleting a shared profile never removes the shared engine. Deleting a profile
+with a fully proven Shimmy-owned isolated engine permanently deletes that
+machine and all VM-local containers, images, volumes, build cache, and other
+data. Legacy, external, or ambiguously owned machines are preserved.
 
 ## Tool guides
 

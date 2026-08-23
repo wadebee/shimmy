@@ -140,6 +140,7 @@ shimmy_profile_materialization_prepare() {
   shimmy_profile_materialize_control_bundle_source=${4:-}
   shimmy_profile_materialize_binding_source=${5:-}
   shimmy_profile_materialize_binding_mode=${6:-}
+  shimmy_profile_materialize_registries_profile=${7:-$shimmy_profile_materialize_name}
 
   shimmy_installation_paths_resolve "$shimmy_profile_materialize_config" || return 1
   shimmy_name_component_validate "$shimmy_profile_materialize_name" || return 1
@@ -188,9 +189,13 @@ shimmy_profile_materialization_prepare() {
   chmod 0644 "$SHIMMY_PROFILE_CANDIDATE_STAGE/shell-init.sh" || return 1
   if [ -n "$shimmy_profile_materialize_registries_source" ]; then
     shimmy_registries_config_validate "$shimmy_profile_materialize_registries_source" \
-      "$shimmy_profile_materialize_name" || return 1
-    cp "$shimmy_profile_materialize_registries_source" \
-      "$SHIMMY_PROFILE_CANDIDATE_STAGE/registries.conf" || return 1
+      "$shimmy_profile_materialize_registries_profile" || return 1
+    shimmy_profile_materialize_registry_entries=$(shimmy_registries_config_entries_read \
+      "$shimmy_profile_materialize_registries_source" \
+      "$shimmy_profile_materialize_registries_profile") || return 1
+    shimmy_registries_config_render "$shimmy_profile_materialize_name" \
+      "$shimmy_profile_materialize_registry_entries" \
+      > "$SHIMMY_PROFILE_CANDIDATE_STAGE/registries.conf" || return 1
   else
     shimmy_registries_config_render "$shimmy_profile_materialize_name" '' \
       > "$SHIMMY_PROFILE_CANDIDATE_STAGE/registries.conf" || return 1
@@ -367,6 +372,11 @@ shimmy_profile_shell_init_render() {
   printf '      %s "$@" || return $?\n' "$shimmy_profile_shell_launcher_quoted"
   printf '%s\n' '      if ( shift 3; for shimmy_shell_arg do [ "$shimmy_shell_arg" != --dry-run ] || exit 0; done; exit 1 ); then return 0; fi'
   printf '      . %s/${3}/shell-init.sh\n' "$shimmy_profile_shell_profiles_quoted"
+  printf '      ;;\n'
+  printf '    profile\\|clone\\|[abcdefghijklmnopqrstuvwxyz0123456789]*)\n'
+  printf '      %s "$@" || return $?\n' "$shimmy_profile_shell_launcher_quoted"
+  printf '%s\n' '      if ( shift 4; for shimmy_shell_arg do [ "$shimmy_shell_arg" != --dry-run ] || exit 0; done; exit 1 ); then return 0; fi'
+  printf '      . %s/${4}/shell-init.sh\n' "$shimmy_profile_shell_profiles_quoted"
   printf '      ;;\n'
   printf '    *) %s "$@" ;;\n' "$shimmy_profile_shell_launcher_quoted"
   printf '  esac\n'

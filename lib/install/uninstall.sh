@@ -20,12 +20,103 @@ shimmy_profile_active_link_restore() {
   mv "$shimmy_profile_active_link_restore_stage" "$shimmy_profile_active_link_restore_path"
 }
 
+shimmy_profile_engine_state_remove() {
+  shimmy_profile_engine_state_remove_config=$1
+  shimmy_profile_engine_state_remove_id=$2
+  shimmy_engine_paths_resolve "$shimmy_profile_engine_state_remove_config" \
+    "$shimmy_profile_engine_state_remove_id" || return 1
+  for shimmy_profile_engine_state_remove_path in \
+    "$SHIMMY_ENGINE_REGISTRIES_PATH" "$SHIMMY_ENGINE_PROJECTION_PATH" \
+    "$SHIMMY_ENGINE_RECORD_PATH"; do
+    if [ -e "$shimmy_profile_engine_state_remove_path" ] ||
+      [ -L "$shimmy_profile_engine_state_remove_path" ]; then
+      [ -f "$shimmy_profile_engine_state_remove_path" ] &&
+        [ ! -L "$shimmy_profile_engine_state_remove_path" ] || return 1
+      rm -f "$shimmy_profile_engine_state_remove_path" || return 1
+    fi
+  done
+}
+
+shimmy_profile_delete_removed_resume() {
+  shimmy_profile_delete_resume_config=$1
+  shimmy_profile_delete_resume_name=$2
+  shimmy_profile_delete_resume_dry=$3
+  shimmy_profile_state_paths_resolve "$shimmy_profile_delete_resume_config" \
+    "$shimmy_profile_delete_resume_name" || return 1
+  if [ -d "$SHIMMY_PROFILE_ROOT" ] && [ ! -L "$SHIMMY_PROFILE_ROOT" ]; then
+    shimmy_profile_delete_resume_root_state=present
+  elif [ ! -e "$SHIMMY_PROFILE_ROOT" ] && [ ! -L "$SHIMMY_PROFILE_ROOT" ]; then
+    shimmy_profile_delete_resume_root_state=absent
+  else
+    return 2
+  fi
+  shimmy_profile_delete_resume_id=profile-$shimmy_profile_delete_resume_name
+  shimmy_engine_paths_resolve "$shimmy_profile_delete_resume_config" \
+    "$shimmy_profile_delete_resume_id" || return 1
+  [ -f "$SHIMMY_ENGINE_RECORD_PATH" ] && [ ! -L "$SHIMMY_ENGINE_RECORD_PATH" ] &&
+    [ -f "$SHIMMY_ENGINE_LIFECYCLE_PATH" ] && [ ! -L "$SHIMMY_ENGINE_LIFECYCLE_PATH" ] || return 2
+  shimmy_engine_record_read "$SHIMMY_ENGINE_RECORD_PATH" || return 1
+  shimmy_engine_lifecycle_read "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+  [ "$SHIMMY_ENGINE_RECORD_ID|$SHIMMY_ENGINE_LIFECYCLE_ID|$SHIMMY_ENGINE_LIFECYCLE_OPERATION" = \
+    "$shimmy_profile_delete_resume_id|$shimmy_profile_delete_resume_id|remove" ] || return 1
+  [ "$SHIMMY_ENGINE_LIFECYCLE_PHASE" = removed ] || return 2
+  [ "$SHIMMY_ENGINE_RECORD_KIND|$SHIMMY_ENGINE_RECORD_ORIGIN" = \
+    'darwin-machine|shimmy-created' ] || return 1
+  if [ "$shimmy_profile_delete_resume_dry" -eq 1 ]; then
+    printf 'dry_run=yes\nprofile=%s\nbinding_mode=isolated\nengine_id=%s\n' \
+      "$shimmy_profile_delete_resume_name" "$shimmy_profile_delete_resume_id"
+    printf '%s\n' 'engine_origin=shimmy-created' 'ownership=owned' \
+      'deletion_action=resume-cleanup' \
+      'irreversible_vm_data=containers,images,volumes,build-cache,all-vm-local-data'
+    return 0
+  fi
+  shimmy_lock_acquire activation "$shimmy_profile_delete_resume_config" || return 1
+  if [ "$shimmy_profile_delete_resume_root_state" = present ]; then
+    shimmy_lock_acquire profile "$shimmy_profile_delete_resume_config" \
+      "$shimmy_profile_delete_resume_name" || return 1
+    shimmy_lock_acquire registry "$shimmy_profile_delete_resume_config" \
+      "$shimmy_profile_delete_resume_name" || return 1
+  fi
+  shimmy_profile_installation_context_resolve "$shimmy_profile_delete_resume_config" || return 1
+  [ "$SHIMMY_PROFILE_ACTIVE_NAME" != "$shimmy_profile_delete_resume_name" ] || return 1
+  shimmy_profile_state_paths_resolve "$shimmy_profile_delete_resume_config" \
+    "$shimmy_profile_delete_resume_name" || return 1
+  if [ "$shimmy_profile_delete_resume_root_state" = present ]; then
+    [ -d "$SHIMMY_PROFILE_ROOT" ] && [ ! -L "$SHIMMY_PROFILE_ROOT" ] || return 1
+    shimmy_profile_owned_assets_remove "$shimmy_profile_delete_resume_config" \
+      "$shimmy_profile_delete_resume_name" || return 1
+    shimmy_lock_release || return 1
+    shimmy_lock_release || return 1
+    rmdir "$SHIMMY_PROFILE_ROOT" || return 1
+  else
+    [ ! -e "$SHIMMY_PROFILE_ROOT" ] && [ ! -L "$SHIMMY_PROFILE_ROOT" ] || return 1
+  fi
+  shimmy_engine_paths_resolve "$shimmy_profile_delete_resume_config" \
+    "$shimmy_profile_delete_resume_id" || return 1
+  shimmy_engine_record_read "$SHIMMY_ENGINE_RECORD_PATH" || return 1
+  shimmy_engine_lifecycle_read "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+  [ "$SHIMMY_ENGINE_RECORD_ID|$SHIMMY_ENGINE_LIFECYCLE_ID|$SHIMMY_ENGINE_LIFECYCLE_OPERATION|$SHIMMY_ENGINE_LIFECYCLE_PHASE" = \
+    "$shimmy_profile_delete_resume_id|$shimmy_profile_delete_resume_id|remove|removed" ] || return 1
+  shimmy_profile_engine_state_remove "$shimmy_profile_delete_resume_config" \
+    "$shimmy_profile_delete_resume_id" || return 1
+  shimmy_engine_paths_resolve "$shimmy_profile_delete_resume_config" \
+    "$shimmy_profile_delete_resume_id" || return 1
+  shimmy_engine_machine_remove_commit "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+  rmdir "$SHIMMY_ENGINE_ROOT" || return 1
+  shimmy_locks_release_all || return 1
+  printf 'Completed interrupted deletion of isolated Shimmy profile %s.\n' \
+    "$shimmy_profile_delete_resume_name"
+}
+
 shimmy_profile_delete_run() {
   shimmy_profile_delete_config=$1
   shimmy_profile_delete_name=$2
   shimmy_profile_delete_stop=$3
+  shimmy_profile_delete_dry=${4:-0}
   shimmy_name_component_validate "$shimmy_profile_delete_name" || return 1
-  case "$shimmy_profile_delete_stop" in 0|1) ;; *) return 1 ;; esac
+  case "$shimmy_profile_delete_stop:$shimmy_profile_delete_dry" in
+    [01]:[01]) ;; *) return 1 ;;
+  esac
   [ "$shimmy_profile_delete_name" != default ] || {
     SHIMMY_UNINSTALL_ERROR='the default Shimmy profile cannot be deleted'
     return 1
@@ -35,8 +126,88 @@ shimmy_profile_delete_run() {
     SHIMMY_UNINSTALL_ERROR="the active Shimmy profile cannot be deleted: $shimmy_profile_delete_name"
     return 1
   }
+  if shimmy_profile_delete_removed_resume "$shimmy_profile_delete_config" \
+    "$shimmy_profile_delete_name" "$shimmy_profile_delete_dry"; then
+    return 0
+  else
+    [ "$?" -eq 2 ] || return 1
+  fi
   shimmy_profile_owned_root_validate "$shimmy_profile_delete_config" \
     "$shimmy_profile_delete_name" 0 || return 1
+  shimmy_profile_engine_context_resolve "$shimmy_profile_delete_config" \
+    "$shimmy_profile_delete_name" || return 1
+  shimmy_profile_delete_mode=$SHIMMY_PROFILE_ENGINE_BINDING_MODE
+  shimmy_profile_delete_engine_id=$SHIMMY_PROFILE_ENGINE_ID
+  shimmy_profile_delete_origin=$SHIMMY_PROFILE_ENGINE_ORIGIN
+  shimmy_profile_delete_engine_record=$SHIMMY_PROFILE_ENGINE_RECORD_PATH
+  shimmy_profile_activation_host_os_resolve
+  shimmy_profile_delete_host_os=$SHIMMY_PROFILE_HOST_OS
+  shimmy_profile_delete_engine_action=preserve
+  shimmy_profile_delete_ownership=not-applicable
+  if [ "$shimmy_profile_delete_host_os" = darwin ] &&
+    [ "$shimmy_profile_delete_mode" = isolated ] &&
+    [ "$shimmy_profile_delete_origin" = shimmy-created ]; then
+    shimmy_engine_podman_bin_require || return 1
+    shimmy_engine_paths_resolve "$shimmy_profile_delete_config" \
+      "$shimmy_profile_delete_engine_id" || return 1
+    if [ -e "$SHIMMY_ENGINE_LIFECYCLE_PATH" ] || [ -L "$SHIMMY_ENGINE_LIFECYCLE_PATH" ]; then
+      shimmy_engine_lifecycle_read "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+      [ "$SHIMMY_ENGINE_LIFECYCLE_ID|$SHIMMY_ENGINE_LIFECYCLE_OPERATION" = \
+        "$shimmy_profile_delete_engine_id|remove" ] || return 1
+      shimmy_profile_delete_ownership=owned
+      shimmy_profile_delete_engine_action=resume-remove
+      if [ "$SHIMMY_ENGINE_LIFECYCLE_INITIAL_MACHINE_STATE" = running ] &&
+        [ "$shimmy_profile_delete_stop" -eq 0 ]; then
+        SHIMMY_UNINSTALL_ERROR='interrupted isolated deletion stopped a running machine; retry with --stop-running acknowledgement'
+        return 1
+      fi
+    else
+      shimmy_engine_ownership_host_state_read "$shimmy_profile_delete_engine_record"
+      shimmy_profile_delete_ownership=$SHIMMY_ENGINE_OWNERSHIP_STATE
+      if [ "$shimmy_profile_delete_ownership" = owned ]; then
+        shimmy_profile_delete_engine_action=remove
+        if [ "$SHIMMY_ENGINE_MACHINE_STATE" = running ]; then
+          shimmy_engine_ownership_state_read "$shimmy_profile_delete_engine_record"
+          shimmy_profile_delete_ownership=$SHIMMY_ENGINE_OWNERSHIP_STATE
+          if [ "$shimmy_profile_delete_ownership" != owned ]; then
+            shimmy_profile_delete_engine_action=preserve
+          fi
+        fi
+        if [ "$shimmy_profile_delete_engine_action" = remove ] &&
+          [ "$SHIMMY_ENGINE_MACHINE_STATE" = running ]; then
+          shimmy_engine_podman_workloads_read "$SHIMMY_ENGINE_RECORD_CONNECTION" || return 1
+          if [ -n "$SHIMMY_ENGINE_RUNNING_WORKLOADS" ]; then
+            printf 'Running containers on %s:\n%s\n' "$SHIMMY_ENGINE_RECORD_NAME" \
+              "$SHIMMY_ENGINE_RUNNING_WORKLOADS"
+          fi
+          if [ "$SHIMMY_ENGINE_RUNNING_WORKLOAD_COUNT" -gt 0 ] &&
+            [ "$shimmy_profile_delete_stop" -eq 0 ]; then
+            SHIMMY_UNINSTALL_ERROR='running containers block isolated profile deletion; retry with explicit --stop-running acknowledgement'
+            return 1
+          fi
+        elif [ "$shimmy_profile_delete_stop" -eq 1 ]; then
+          SHIMMY_UNINSTALL_ERROR='--stop-running is valid only when isolated profile deletion must stop a running machine'
+          return 1
+        fi
+      elif [ "$shimmy_profile_delete_stop" -eq 1 ]; then
+        SHIMMY_UNINSTALL_ERROR='--stop-running cannot authorize deletion of an external or ambiguous machine'
+        return 1
+      fi
+    fi
+  fi
+  if [ "$shimmy_profile_delete_dry" -eq 1 ]; then
+    printf 'dry_run=yes\nprofile=%s\nbinding_mode=%s\nengine_id=%s\n' \
+      "$shimmy_profile_delete_name" "$shimmy_profile_delete_mode" \
+      "$shimmy_profile_delete_engine_id"
+    printf 'engine_origin=%s\nownership=%s\ndeletion_action=%s\n' \
+      "$shimmy_profile_delete_origin" "$shimmy_profile_delete_ownership" \
+      "$shimmy_profile_delete_engine_action"
+    if [ "$shimmy_profile_delete_engine_action" = remove ] ||
+      [ "$shimmy_profile_delete_engine_action" = resume-remove ]; then
+      printf '%s\n' 'irreversible_vm_data=containers,images,volumes,build-cache,all-vm-local-data'
+    fi
+    return 0
+  fi
   shimmy_lock_acquire activation "$shimmy_profile_delete_config" || return 1
   shimmy_lock_acquire profile "$shimmy_profile_delete_config" \
     "$shimmy_profile_delete_name" || return 1
@@ -46,14 +217,82 @@ shimmy_profile_delete_run() {
   [ "$SHIMMY_PROFILE_ACTIVE_NAME" != "$shimmy_profile_delete_name" ] || return 1
   shimmy_profile_owned_root_validate "$shimmy_profile_delete_config" \
     "$shimmy_profile_delete_name" 1 || return 1
-  shimmy_profile_projection_cleanup "$shimmy_profile_delete_config" \
-    "$shimmy_profile_delete_name" "$shimmy_profile_delete_stop" || return 1
+  shimmy_profile_engine_context_resolve "$shimmy_profile_delete_config" \
+    "$shimmy_profile_delete_name" || return 1
+  [ "$SHIMMY_PROFILE_ENGINE_BINDING_MODE|$SHIMMY_PROFILE_ENGINE_ID|$SHIMMY_PROFILE_ENGINE_ORIGIN" = \
+    "$shimmy_profile_delete_mode|$shimmy_profile_delete_engine_id|$shimmy_profile_delete_origin" ] || {
+    SHIMMY_UNINSTALL_ERROR='profile engine binding changed while deletion was waiting for locks'
+    return 1
+  }
+  if [ "$shimmy_profile_delete_engine_action" = remove ] ||
+    [ "$shimmy_profile_delete_engine_action" = resume-remove ]; then
+    shimmy_engine_paths_resolve "$shimmy_profile_delete_config" \
+      "$shimmy_profile_delete_engine_id" || return 1
+    if [ "$shimmy_profile_delete_engine_action" = remove ]; then
+      shimmy_engine_ownership_host_state_read "$SHIMMY_ENGINE_RECORD_PATH"
+      [ "$SHIMMY_ENGINE_OWNERSHIP_STATE" = owned ] || {
+        SHIMMY_UNINSTALL_ERROR='isolated engine ownership changed while deletion was waiting for locks; machine preserved'
+        return 1
+      }
+      if [ "$SHIMMY_ENGINE_MACHINE_STATE" = running ]; then
+        shimmy_engine_ownership_state_read "$SHIMMY_ENGINE_RECORD_PATH"
+        [ "$SHIMMY_ENGINE_OWNERSHIP_STATE" = owned ] || {
+          SHIMMY_UNINSTALL_ERROR='isolated engine guest ownership changed while deletion was waiting for locks; machine preserved'
+          return 1
+        }
+        shimmy_engine_podman_workloads_read "$SHIMMY_ENGINE_RECORD_CONNECTION" || return 1
+        if [ "$SHIMMY_ENGINE_RUNNING_WORKLOAD_COUNT" -gt 0 ] &&
+          [ "$shimmy_profile_delete_stop" -eq 0 ]; then
+          SHIMMY_UNINSTALL_ERROR='running containers appeared while deletion was waiting for locks; retry with explicit --stop-running acknowledgement'
+          return 1
+        fi
+      fi
+    else
+      shimmy_engine_record_read "$SHIMMY_ENGINE_RECORD_PATH" || return 1
+      shimmy_engine_lifecycle_read "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+      [ "$SHIMMY_ENGINE_LIFECYCLE_ID|$SHIMMY_ENGINE_LIFECYCLE_OPERATION" = \
+        "$shimmy_profile_delete_engine_id|remove" ] || return 1
+    fi
+    printf 'WARNING: deleting owned isolated Podman machine %s permanently destroys its containers, images, volumes, build cache, and all other VM-local data.\n' \
+      "$SHIMMY_ENGINE_RECORD_NAME" >&2
+    if [ "$shimmy_profile_delete_engine_action" = remove ]; then
+      shimmy_engine_machine_remove_prepare "$SHIMMY_ENGINE_RECORD_PATH" \
+        "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+    fi
+    shimmy_engine_machine_remove_apply "$SHIMMY_ENGINE_RECORD_PATH" \
+      "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+    if [ "${SHIMMY_TEST_PROFILE_DELETE_FAILURE:-}" = after-machine-remove ]; then
+      SHIMMY_UNINSTALL_ERROR='injected failure after isolated machine removal; retry the same profile delete command'
+      return 1
+    fi
+  else
+    shimmy_profile_projection_cleanup "$shimmy_profile_delete_config" \
+      "$shimmy_profile_delete_name" "$shimmy_profile_delete_stop" || return 1
+  fi
   shimmy_profile_owned_assets_remove "$shimmy_profile_delete_config" \
     "$shimmy_profile_delete_name" || return 1
   shimmy_locks_release_all || return 1
   shimmy_profile_state_paths_resolve "$shimmy_profile_delete_config" \
     "$shimmy_profile_delete_name" || return 1
   rmdir "$SHIMMY_PROFILE_ROOT" || return 1
+  if [ "$shimmy_profile_delete_mode" != shared ] &&
+    [ "$shimmy_profile_delete_host_os" = darwin ]; then
+    shimmy_profile_engine_state_remove "$shimmy_profile_delete_config" \
+      "$shimmy_profile_delete_engine_id" || return 1
+    shimmy_engine_paths_resolve "$shimmy_profile_delete_config" \
+      "$shimmy_profile_delete_engine_id" || return 1
+    if [ "$shimmy_profile_delete_engine_action" = remove ] ||
+      [ "$shimmy_profile_delete_engine_action" = resume-remove ]; then
+      shimmy_engine_machine_remove_commit "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+    fi
+    rmdir "$SHIMMY_ENGINE_ROOT" || return 1
+  fi
+  if [ "$shimmy_profile_delete_engine_action" = preserve ] &&
+    [ "$shimmy_profile_delete_host_os" = darwin ] &&
+    [ "$shimmy_profile_delete_mode" != shared ]; then
+    printf 'Preserved external or ambiguous Podman machine for profile %s.\n' \
+      "$shimmy_profile_delete_name"
+  fi
   printf 'Deleted inactive Shimmy profile %s.\n' "$shimmy_profile_delete_name"
 }
 

@@ -1120,7 +1120,7 @@ shimmy_registries_mutate() {
   }
   candidate_entries=$(shimmy_registries_candidate_entries_render "$existing_entries" "$mutation_action" "$mutation_prefix" "$mutation_location") || return 1
   if [ "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}" = migrated ] &&
-    [ "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-unmigrated}" = shared ] &&
+    [ "${SHIMMY_PROFILE_ENGINE_ORIGIN:-legacy-external}" = shimmy-created ] &&
     [ "${SHIMMY_PROFILE_ENGINE_KIND:-unknown}" = darwin-machine ]; then
     shimmy_registries_shared_mutate "$candidate_entries" "$existing_entries" \
       "$dry_run_requested"
@@ -1165,7 +1165,7 @@ shimmy_registries_mutate_remove_all_detach() {
     return 1
   }
   if [ "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}" = migrated ] &&
-    [ "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-unmigrated}" = shared ] &&
+    [ "${SHIMMY_PROFILE_ENGINE_ORIGIN:-legacy-external}" = shimmy-created ] &&
     [ "${SHIMMY_PROFILE_ENGINE_KIND:-unknown}" = darwin-machine ]; then
     shimmy_registries_shared_mutate '' "$existing_entries" "$dry_run_requested"
     return $?
@@ -1335,7 +1335,7 @@ shimmy_registries_shared_mutate() {
     ! shimmy_engine_projection_apply "$SHIMMY_PROFILE_EXPECTED_MACHINE" ||
     [ "${SHIMMY_TEST_PROFILE_FAILURE:-}" = after-engine-projection ]; then
     shimmy_registries_shared_mutate_restore "$SHIMMY_PROFILE_EXPECTED_MACHINE" || true
-    printf '%s\n' 'ERROR: active shared registry mutation failed; source and engine projection restored' >&2
+    printf '%s\n' 'ERROR: active managed registry mutation failed; source and engine projection restored' >&2
     return 1
   fi
   shimmy_engine_projection_commit || {
@@ -1344,7 +1344,7 @@ shimmy_registries_shared_mutate() {
   }
   rm -f "$shimmy_registries_shared_backup"
   shimmy_registries_lock_release
-  printf 'Applied registry policy for active shared profile %s; podman.service recycle=%s.\n' \
+  printf 'Applied registry policy for active managed profile %s; podman.service recycle=%s.\n' \
     "$SHIMMY_PROFILE_NAME" "$shimmy_registries_shared_recycle"
 }
 

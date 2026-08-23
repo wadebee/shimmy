@@ -275,6 +275,7 @@ Commands:
   list              List every installed profile.
   status            Inspect the profile containing this launcher.
   create            Create and automatically activate a sibling profile.
+  clone             Clone reproducible profile state under a new identity.
   activate          Activate an installed profile by name.
   sync              Sync the invoking active profile from refs/heads/main.
   repair-startup    Repair the invoking profile's exact startup ledger.
@@ -282,8 +283,8 @@ Commands:
   redirect          List or mutate invoking-profile registry redirects.
 
 Scope:
-  List and create are installation-wide. Status, sync, repair-startup, and
-  redirect use the invoking profile. Activate and delete take an installed name.
+  List, create, and clone are installation-wide. Status, sync, repair-startup,
+  and redirect use the invoking profile. Activate and delete take an installed name.
 
 Remediation:
   Run 'shimmy profile status --format manifest' and an activation --dry-run
@@ -359,16 +360,17 @@ shimmy_help_profile_create() {
 Create a sibling profile from the invoking profile's exact control and catalog pin.
 
 Usage:
-  shimmy profile create <name> [--restart] [--stop-running] [--dry-run]
+  shimmy profile create <name> [--isolated] [--restart] [--stop-running] [--dry-run]
 
 Scope:
   Installation-wide creation from the invoking profile. The new profile receives
   a shared-engine binding, catalog-default jq, rg, and Skopeo and is
-  automatically activated. It does not create a per-profile machine.
+  automatically activated. --isolated creates an owned shimmy-<name> machine.
 
 Options:
   --restart       Explicitly restart a stopped or unhealthy macOS VM; normal
                   shared policy activation recycles only podman.service.
+  --isolated      Create and bind an installation-owned isolated macOS machine.
   --stop-running  Acknowledge interruption of listed running containers.
   --dry-run       Read and classify the complete image, engine, link, and startup
                   plan without persistent mutation.
@@ -388,6 +390,40 @@ Remediation:
 Examples:
   shimmy profile create team-one --dry-run
   shimmy profile create team-one
+EOF
+}
+
+shimmy_help_profile_clone() {
+  cat <<'EOF'
+Clone one profile's reproducible state and activate the new profile.
+
+Usage:
+  shimmy profile clone <source> <target> [--shared | --isolated]
+    [--restart] [--stop-running] [--dry-run]
+
+Scope:
+  Installation-wide. Clone copies validated control/catalog pins, shim policy,
+  exact versions, and registry redirects. It regenerates profile and engine
+  identity and never copies startup, active, lock, journal, or ownership state.
+
+Options:
+  --shared        Bind the clone to the shared engine.
+  --isolated      Create a fresh owned shimmy-<target> machine.
+  --restart       Explicit VM recovery during activation.
+  --stop-running  Acknowledge listed workloads interrupted by an engine switch.
+  --dry-run       Validate and print the clone, engine, image, and link plan.
+  -h, --help      Show this help before installed-state validation.
+
+Defaults:
+  Shared sources clone to shared. Isolated and legacy-isolated sources create a
+  new owned isolated machine. Mutation is enabled.
+
+Remediation:
+  Run --dry-run first. Review exact workloads before adding --stop-running.
+
+Examples:
+  shimmy profile clone default experiment --dry-run
+  shimmy profile clone legacy-team replacement --shared
 EOF
 }
 
@@ -484,7 +520,7 @@ shimmy_help_profile_delete() {
 Delete an installed inactive non-default profile.
 
 Usage:
-  shimmy profile delete <name> [--stop-running]
+  shimmy profile delete <name> [--stop-running] [--dry-run]
 
 Scope:
   Named profile deletion. The default profile and active profile cannot be
@@ -493,11 +529,13 @@ Scope:
 
 Options:
   --stop-running  Acknowledge interruption of listed running containers during
-                  guarded macOS projection cleanup.
+                  guarded owned isolated-machine deletion.
+  --dry-run       Print the exact engine ownership and deletion action.
   -h, --help      Show this help before installed-state validation.
 
 Defaults:
-  Running workloads are never interrupted without --stop-running.
+  Shared engines and external machines are preserved. An owned isolated machine
+  is deleted by default; its VM-local data is permanently destroyed.
 
 Remediation:
   Activate a retained sibling first, then retry deletion. Review any workload
@@ -505,6 +543,7 @@ Remediation:
 
 Examples:
   shimmy profile delete team-one
+  shimmy profile delete team-one --dry-run
 EOF
 }
 
@@ -1114,6 +1153,7 @@ case "$shimmy_help_group" in
       list) shimmy_help_profile_list ;;
       status) shimmy_help_profile_status ;;
       create) shimmy_help_profile_create ;;
+      clone) shimmy_help_profile_clone ;;
       activate) shimmy_help_profile_activate ;;
       sync) shimmy_help_profile_sync ;;
       repair-startup) shimmy_help_profile_repair_startup ;;

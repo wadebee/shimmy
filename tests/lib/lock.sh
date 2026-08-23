@@ -14,9 +14,13 @@ test_lib_lock_order_and_stale() {
   shimmy_lock_acquire activation "$TEST_LOCK_CONFIG_ROOT" || fail_test "$SHIMMY_LOCK_ERROR"
   shimmy_lock_acquire profile "$TEST_LOCK_CONFIG_ROOT" alpha || fail_test "$SHIMMY_LOCK_ERROR"
   shimmy_lock_acquire profile "$TEST_LOCK_CONFIG_ROOT" beta || fail_test "$SHIMMY_LOCK_ERROR"
+  shimmy_lock_acquire registry "$TEST_LOCK_CONFIG_ROOT" alpha || fail_test "$SHIMMY_LOCK_ERROR"
   shimmy_lock_acquire registry "$TEST_LOCK_CONFIG_ROOT" beta || fail_test "$SHIMMY_LOCK_ERROR"
   shimmy_lock_release || fail_test 'registry lock release failed'
   assert_path_not_exists "$TEST_LOCK_CONFIG_ROOT/profiles/beta/.registries.lock"
+  assert_file_exists "$TEST_LOCK_CONFIG_ROOT/profiles/alpha/.registries.lock"
+  shimmy_lock_release || fail_test 'registry lock release failed'
+  assert_path_not_exists "$TEST_LOCK_CONFIG_ROOT/profiles/alpha/.registries.lock"
   assert_file_exists "$TEST_LOCK_CONFIG_ROOT/profiles/beta/.profile.lock"
   shimmy_locks_release_all || fail_test 'ordered lock release failed'
   assert_path_not_exists "$TEST_LOCK_CONFIG_ROOT/.catalog.lock"
@@ -44,7 +48,7 @@ test_lib_lock_order_and_stale() {
   shimmy_lock_acquire profile "$TEST_LOCK_CONFIG_ROOT" alpha || fail_test "$SHIMMY_LOCK_ERROR"
   assert_file_contains "$stale_lock" "shimmy_lock_pid=$$"
   shimmy_locks_release_all || fail_test 'stale replacement lock release failed'
-  pass 'locks enforce hierarchy, lexical profile order, reverse release, and classified stale-owner cleanup'
+  pass 'locks enforce hierarchy, lexical profile/registry order, reverse release, and classified stale-owner cleanup'
 }
 
 test_lib_lock_concurrency_and_ownership() {

@@ -14,8 +14,8 @@ legacy mapping until explicit installation-wide migration.
 - `projection.sh` owns atomic engine registry projection, effective-policy
   fingerprints, service recycling, validation, and compensated rollback.
 - `registry.sh` owns dual-read compatibility, status, explicit migration,
-  shared/host-local publication, fresh shared-machine creation, and projection
-  freshness planning.
+  shared/host-local publication, fresh shared- and isolated-machine creation,
+  isolated-create compensation, and projection freshness planning.
 
 Machine names and bindings are routing information, not ownership evidence.
 Missing or mismatched current evidence always preserves a machine. Only

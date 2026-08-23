@@ -15,7 +15,7 @@
 - `engine.sh`: strict published engine records, exact Podman routing,
   redundant ownership proof, lifecycle journals, projection transactions, and
   rootless service recycling.
-- `profile-activation.sh`: Linux/legacy-Darwin/shared-Darwin engine and registry transition state.
+- `profile-activation.sh`: Linux, legacy-Darwin, and managed shared/isolated Darwin engine and registry transition state.
 - `registries.sh`: endpoint/config/record/link/edit ownership and rollback.
 
 Use the lowest-cost proof for negative invariants and keep one authoritative

@@ -4,6 +4,7 @@
 SHIMMY_ENGINE_REGISTRY_MIGRATION_ACTIVE=0
 SHIMMY_ENGINE_REGISTRY_MIGRATION_LOCKS_HELD=0
 SHIMMY_ENGINE_REGISTRY_SHARED_CREATE_ACTIVE=0
+SHIMMY_ENGINE_REGISTRY_ISOLATED_CREATE_ACTIVE=0
 
 shimmy_engine_registry_migration_locks_acquire() {
   shimmy_engine_registry_migration_locks_config=$1
@@ -204,6 +205,94 @@ shimmy_engine_registry_shared_create_rollback() {
   rmdir "$SHIMMY_ENGINE_ROOT" 2>/dev/null || true
   rmdir "$SHIMMY_ENGINES_ROOT" 2>/dev/null || true
   SHIMMY_ENGINE_REGISTRY_SHARED_CREATE_ACTIVE=0
+}
+
+shimmy_engine_registry_isolated_preflight() {
+  shimmy_engine_registry_isolated_preflight_config=$1
+  shimmy_engine_registry_isolated_preflight_profile=$2
+  shimmy_name_component_validate "$shimmy_engine_registry_isolated_preflight_profile" || return 1
+  shimmy_engine_registry_host_os_resolve
+  [ "$SHIMMY_ENGINE_REGISTRY_HOST_OS" = darwin ] || {
+    printf '%s\n' 'ERROR: isolated profiles require a managed macOS Podman machine' >&2
+    return 1
+  }
+  shimmy_engine_registry_isolated_preflight_id=profile-$shimmy_engine_registry_isolated_preflight_profile
+  shimmy_engine_registry_isolated_preflight_name=shimmy-$shimmy_engine_registry_isolated_preflight_profile
+  shimmy_engine_paths_resolve "$shimmy_engine_registry_isolated_preflight_config" \
+    "$shimmy_engine_registry_isolated_preflight_id" || return 1
+  [ ! -e "$SHIMMY_ENGINE_ROOT" ] && [ ! -L "$SHIMMY_ENGINE_ROOT" ] || {
+    printf 'ERROR: isolated engine state already exists: %s\n' "$SHIMMY_ENGINE_ROOT" >&2
+    return 1
+  }
+  shimmy_engine_podman_bin_require || return 1
+  shimmy_engine_podman_machine_absence_validate \
+    "$shimmy_engine_registry_isolated_preflight_name" \
+    "$shimmy_engine_registry_isolated_preflight_name" || {
+    printf 'ERROR: Podman machine or connection name collision: %s; Shimmy will not adopt it\n' \
+      "$shimmy_engine_registry_isolated_preflight_name" >&2
+    return 1
+  }
+}
+
+shimmy_engine_registry_isolated_create_prepare() {
+  shimmy_engine_registry_isolated_config=$1
+  shimmy_engine_registry_isolated_profile=$2
+  shimmy_engine_registry_isolated_preflight \
+    "$shimmy_engine_registry_isolated_config" \
+    "$shimmy_engine_registry_isolated_profile" || return 1
+  SHIMMY_ENGINE_REGISTRY_ISOLATED_CONFIG=$shimmy_engine_registry_isolated_config
+  SHIMMY_ENGINE_REGISTRY_ISOLATED_PROFILE=$shimmy_engine_registry_isolated_profile
+  SHIMMY_ENGINE_REGISTRY_ISOLATED_ID=profile-$shimmy_engine_registry_isolated_profile
+  SHIMMY_ENGINE_REGISTRY_ISOLATED_NAME=shimmy-$shimmy_engine_registry_isolated_profile
+  shimmy_engine_paths_resolve "$SHIMMY_ENGINE_REGISTRY_ISOLATED_CONFIG" \
+    "$SHIMMY_ENGINE_REGISTRY_ISOLATED_ID" || return 1
+  mkdir -p "$SHIMMY_ENGINE_ROOT" || return 1
+  [ -d "$SHIMMY_ENGINE_ROOT" ] && [ ! -L "$SHIMMY_ENGINE_ROOT" ] || return 1
+  if ! shimmy_engine_machine_create_prepare "$SHIMMY_ENGINE_REGISTRY_ISOLATED_ID" \
+    "$SHIMMY_ENGINE_REGISTRY_ISOLATED_NAME" \
+    "$SHIMMY_ENGINE_REGISTRY_ISOLATED_NAME" \
+    "$SHIMMY_ENGINE_LIFECYCLE_PATH"; then
+    rmdir "$SHIMMY_ENGINE_ROOT" 2>/dev/null || true
+    return 1
+  fi
+  SHIMMY_ENGINE_REGISTRY_ISOLATED_CREATE_ACTIVE=1
+  shimmy_engine_machine_create_initialize "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+  shimmy_engine_machine_create_record "$SHIMMY_ENGINE_LIFECYCLE_PATH" \
+    "$SHIMMY_ENGINE_RECORD_PATH" profile || return 1
+  shimmy_engine_projection_prepare "$SHIMMY_ENGINE_REGISTRY_ISOLATED_ID" \
+    "$SHIMMY_ENGINE_ROOT" "$SHIMMY_ENGINE_REGISTRY_ISOLATED_PROFILE" \
+    "$SHIMMY_ENGINE_REGISTRY_ISOLATED_CONFIG/profiles/$SHIMMY_ENGINE_REGISTRY_ISOLATED_PROFILE/registries.conf" \
+    "$SHIMMY_ENGINE_REGISTRY_ISOLATED_NAME"
+}
+
+shimmy_engine_registry_isolated_create_commit() {
+  [ "${SHIMMY_ENGINE_REGISTRY_ISOLATED_CREATE_ACTIVE:-0}" -eq 1 ] || return 1
+  shimmy_engine_paths_resolve "$SHIMMY_ENGINE_REGISTRY_ISOLATED_CONFIG" \
+    "$SHIMMY_ENGINE_REGISTRY_ISOLATED_ID" || return 1
+  if [ "${SHIMMY_ENGINE_PROJECTION_APPLIED:-0}" -eq 1 ]; then
+    shimmy_engine_projection_commit || return 1
+  fi
+  shimmy_engine_machine_create_commit "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+  SHIMMY_ENGINE_REGISTRY_ISOLATED_CREATE_ACTIVE=0
+}
+
+shimmy_engine_registry_isolated_create_rollback() {
+  shimmy_engine_registry_isolated_rollback_config=$1
+  shimmy_engine_registry_isolated_rollback_profile=$2
+  shimmy_engine_registry_isolated_rollback_id=profile-$shimmy_engine_registry_isolated_rollback_profile
+  shimmy_engine_registry_isolated_rollback_name=shimmy-$shimmy_engine_registry_isolated_rollback_profile
+  shimmy_engine_paths_resolve "$shimmy_engine_registry_isolated_rollback_config" \
+    "$shimmy_engine_registry_isolated_rollback_id" || return 1
+  shimmy_engine_projection_rollback \
+    "$shimmy_engine_registry_isolated_rollback_name" >/dev/null 2>&1 || true
+  shimmy_engine_podman_projection_dropin_remove \
+    "$shimmy_engine_registry_isolated_rollback_name" \
+    "$SHIMMY_ENGINE_REGISTRIES_PATH" >/dev/null 2>&1 || true
+  shimmy_engine_machine_create_rollback "$SHIMMY_ENGINE_RECORD_PATH" \
+    "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+  rm -f "$SHIMMY_ENGINE_REGISTRIES_PATH" "$SHIMMY_ENGINE_PROJECTION_PATH" || return 1
+  rmdir "$SHIMMY_ENGINE_ROOT" 2>/dev/null || true
+  SHIMMY_ENGINE_REGISTRY_ISOLATED_CREATE_ACTIVE=0
 }
 
 shimmy_engine_registry_legacy_record_publish() {
@@ -462,7 +551,7 @@ shimmy_engine_registry_status_render() {
       elif [ "$SHIMMY_PROFILE_ENGINE_ORIGIN" = host-local ]; then
         shimmy_engine_registry_status_ownership=host-local
       fi
-      if [ "$SHIMMY_PROFILE_ENGINE_BINDING_MODE" = shared ]; then
+      if [ "$SHIMMY_PROFILE_ENGINE_ORIGIN" = shimmy-created ]; then
         shimmy_engine_paths_resolve "$shimmy_engine_registry_status_config" \
           "$SHIMMY_PROFILE_ENGINE_ID" || return 1
         if [ -e "$SHIMMY_ENGINE_PROJECTION_PATH" ] || [ -L "$SHIMMY_ENGINE_PROJECTION_PATH" ]; then

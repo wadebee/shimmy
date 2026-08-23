@@ -50,6 +50,35 @@ test_lifecycle_shared_profile_command() {
     "$TEST_LIFECYCLE_CONFIG/profiles/default/bin/shimmy" "$@"
 }
 
+test_lifecycle_isolated_profile_command() {
+  test_lifecycle_isolated_invoking=$1
+  shift
+  test_lifecycle_isolated_created_name=${TEST_LIFECYCLE_ISOLATED_CREATED_NAME:-shimmy-isolated-one}
+  test_lifecycle_isolated_engine_id=${TEST_LIFECYCLE_ISOLATED_ENGINE_ID:-profile-isolated-one}
+  test_lifecycle_isolated_target=${TEST_LIFECYCLE_TARGET_MACHINE:-$test_lifecycle_isolated_created_name}
+  env HOME="$TEST_LIFECYCLE_HOME" XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_IMAGE_LOG" \
+    SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
+    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
+    FAKE_MACHINE_LIST="$TEST_LIFECYCLE_BASE_MACHINE_LIST" \
+    FAKE_CONNECTION_LIST="$TEST_LIFECYCLE_BASE_CONNECTION_LIST" \
+    FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_ISOLATED_STATE" \
+    FAKE_CREATED_MACHINE_NAME="$test_lifecycle_isolated_created_name" \
+    FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
+    FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/isolated-engine-config" \
+    FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/isolated-engine-socket" \
+    FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/isolated-engine-identity" \
+    FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/$test_lifecycle_isolated_engine_id/registries.conf" \
+    FAKE_WORKLOADS="${TEST_LIFECYCLE_ISOLATED_WORKLOADS:-}" \
+    FAKE_DARWIN_PROJECTION_STATE=current \
+    FAKE_PRIOR_MACHINE="${TEST_LIFECYCLE_PRIOR_MACHINE:-shimmy}" \
+    FAKE_TARGET_MACHINE="$test_lifecycle_isolated_target" \
+    FAKE_PRIOR_DEFAULT="${TEST_LIFECYCLE_PRIOR_DEFAULT:-shimmy}" \
+    SHIMMY_TEST_PROFILE_DELETE_FAILURE="${TEST_LIFECYCLE_DELETE_FAILURE:-}" \
+    "$TEST_LIFECYCLE_CONFIG/profiles/$test_lifecycle_isolated_invoking/bin/shimmy" "$@"
+}
+
 test_lifecycle_fixture_setup() {
   setup_scenario
   TEST_LIFECYCLE_CHECKOUT=$SCENARIO_DIR/checkout
@@ -179,6 +208,211 @@ test_commands_lifecycle_darwin_bootstrap_engine_states() {
   assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine init '
   assert_path_not_exists "$TEST_LIFECYCLE_CONFIG"
   pass 'Darwin bootstrap creates the owned shared engine and rejects an exact pre-existing machine without mutation'
+}
+
+test_commands_lifecycle_owned_isolated() {
+  test_commands_lifecycle_darwin_bootstrap_case isolated
+  TEST_LIFECYCLE_ISOLATED_STATE=$SCENARIO_DIR/isolated-machine-state
+  printf '%s\n' absent > "$TEST_LIFECYCLE_ISOLATED_STATE"
+  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy|true'
+  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  TEST_LIFECYCLE_ISOLATED_WORKLOADS=
+  TEST_LIFECYCLE_PRIOR_MACHINE=shimmy
+  TEST_LIFECYCLE_PRIOR_DEFAULT=shimmy
+  TEST_LIFECYCLE_DELETE_FAILURE=
+  : > "$TEST_LIFECYCLE_PODMAN_LOG"
+
+  TEST_LIFECYCLE_ISOLATED_STATE=$SCENARIO_DIR/isolated-fail-machine-state
+  printf '%s\n' absent > "$TEST_LIFECYCLE_ISOLATED_STATE"
+  TEST_LIFECYCLE_ISOLATED_CREATED_NAME=shimmy-isolated-fail
+  TEST_LIFECYCLE_ISOLATED_ENGINE_ID=profile-isolated-fail
+  TEST_LIFECYCLE_TARGET_MACHINE=shimmy-isolated-fail
+  TEST_LIFECYCLE_ISOLATED_WORKLOADS='sentinel|shared-sentinel'
+  set +e
+  test_lifecycle_isolated_failure=$(test_lifecycle_isolated_profile_command default \
+    profile create isolated-fail --isolated 2>&1)
+  test_lifecycle_isolated_failure_status=$?
+  set -e
+  [ "$test_lifecycle_isolated_failure_status" -ne 0 ] ||
+    fail_test 'isolated create unexpectedly interrupted a running shared workload without acknowledgement'
+  assert_contains "$test_lifecycle_isolated_failure" 'running containers block the engine transition'
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/profiles/isolated-fail"
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/engines/profile-isolated-fail"
+  assert_equals "$(cat "$TEST_LIFECYCLE_ISOLATED_STATE")" absent
+  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' \
+    "$TEST_LIFECYCLE_CONFIG/active-profile.conf")" default
+
+  TEST_LIFECYCLE_ISOLATED_STATE=$SCENARIO_DIR/isolated-machine-state
+  printf '%s\n' absent > "$TEST_LIFECYCLE_ISOLATED_STATE"
+  TEST_LIFECYCLE_ISOLATED_CREATED_NAME=shimmy-isolated-one
+  TEST_LIFECYCLE_ISOLATED_ENGINE_ID=profile-isolated-one
+  TEST_LIFECYCLE_TARGET_MACHINE=shimmy-isolated-one
+  TEST_LIFECYCLE_ISOLATED_WORKLOADS=
+  : > "$TEST_LIFECYCLE_PODMAN_LOG"
+
+  test_lifecycle_isolated_dry=$(test_lifecycle_isolated_profile_command default \
+    profile create isolated-one --isolated --dry-run)
+  assert_contains "$test_lifecycle_isolated_dry" 'would_bind_engine=isolated|profile-isolated-one'
+  assert_contains "$test_lifecycle_isolated_dry" 'would_create_machine=shimmy-isolated-one'
+  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine init '
+  test_lifecycle_isolated_profile_command default profile create isolated-one \
+    --isolated >/dev/null
+  test_lifecycle_isolated_root=$TEST_LIFECYCLE_CONFIG/profiles/isolated-one
+  test_lifecycle_isolated_engine=$TEST_LIFECYCLE_CONFIG/engines/profile-isolated-one
+  assert_file_contains "$test_lifecycle_isolated_root/engine-binding.conf" 'mode=isolated'
+  assert_file_contains "$test_lifecycle_isolated_engine/engine.conf" 'scope=profile'
+  assert_file_contains "$test_lifecycle_isolated_engine/engine.conf" 'origin=shimmy-created'
+  assert_path_not_exists "$test_lifecycle_isolated_engine/lifecycle.conf"
+  assert_equals "$(cat "$TEST_LIFECYCLE_ISOLATED_STATE")" running
+  test_lifecycle_isolated_init_line=$(sed -n \
+    '/^machine init --update-connection=false shimmy-isolated-one$/=' \
+    "$TEST_LIFECYCLE_PODMAN_LOG")
+  test_lifecycle_isolated_stop_line=$(sed -n '/^machine stop shimmy$/=' \
+    "$TEST_LIFECYCLE_PODMAN_LOG")
+  test_lifecycle_isolated_start_line=$(sed -n '/^machine start shimmy-isolated-one$/=' \
+    "$TEST_LIFECYCLE_PODMAN_LOG")
+  test_lifecycle_isolated_image_line=$(sed -n '/^image|jq|1.8|pull$/=' \
+    "$TEST_LIFECYCLE_IMAGE_LOG" | tail -n 1)
+  [ "$test_lifecycle_isolated_init_line" -lt "$test_lifecycle_isolated_stop_line" ] &&
+    [ "$test_lifecycle_isolated_stop_line" -lt "$test_lifecycle_isolated_start_line" ] ||
+    fail_test 'isolated create did not init, stop the prior engine, and start the target in order'
+  [ -n "$test_lifecycle_isolated_image_line" ] ||
+    fail_test 'isolated create did not prepare target images'
+  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' \
+    "$TEST_LIFECYCLE_CONFIG/active-profile.conf")" isolated-one
+
+  TEST_LIFECYCLE_ISOLATED_STATE=
+  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy|false
+shimmy-isolated-one|true'
+  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
+shimmy-isolated-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  set +e
+  test_lifecycle_isolated_clone_dry=$(test_lifecycle_isolated_profile_command isolated-one \
+    profile clone isolated-one isolated-two --dry-run 2>&1)
+  test_lifecycle_isolated_clone_dry_status=$?
+  set -e
+  [ "$test_lifecycle_isolated_clone_dry_status" -eq 0 ] ||
+    fail_test "isolated clone default dry-run failed: $test_lifecycle_isolated_clone_dry"
+  assert_contains "$test_lifecycle_isolated_clone_dry" \
+    'would_clone_binding=isolated|profile-isolated-two'
+  set +e
+  test_lifecycle_isolated_clone_shared=$(test_lifecycle_isolated_profile_command isolated-one \
+    profile clone isolated-one shared-from-isolated --shared --dry-run 2>&1)
+  test_lifecycle_isolated_clone_shared_status=$?
+  set -e
+  [ "$test_lifecycle_isolated_clone_shared_status" -eq 0 ] ||
+    fail_test "isolated clone shared dry-run failed: $test_lifecycle_isolated_clone_shared"
+  assert_contains "$test_lifecycle_isolated_clone_shared" \
+    'would_clone_binding=shared|shared'
+
+  printf '%s\n' stopped > "$TEST_LIFECYCLE_CREATED_STATE"
+  env HOME="$TEST_LIFECYCLE_HOME" XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
+    FAKE_MACHINE_LIST='shimmy-isolated-one|true' \
+    FAKE_CONNECTION_LIST='shimmy-isolated-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
+    FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_CREATED_STATE" \
+    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
+    FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
+    FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
+    FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
+    FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf" \
+    FAKE_WORKLOADS= FAKE_DARWIN_PROJECTION_STATE=current \
+    FAKE_PRIOR_MACHINE=shimmy-isolated-one FAKE_TARGET_MACHINE=shimmy \
+    FAKE_PRIOR_DEFAULT=shimmy-isolated-one \
+    "$test_lifecycle_isolated_root/bin/shimmy" profile activate default >/dev/null
+  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' \
+    "$TEST_LIFECYCLE_CONFIG/active-profile.conf")" default
+
+  TEST_LIFECYCLE_ISOLATED_STATE=$SCENARIO_DIR/isolated-two-machine-state
+  printf '%s\n' absent > "$TEST_LIFECYCLE_ISOLATED_STATE"
+  TEST_LIFECYCLE_ISOLATED_CREATED_NAME=shimmy-isolated-two
+  TEST_LIFECYCLE_ISOLATED_ENGINE_ID=profile-isolated-two
+  TEST_LIFECYCLE_TARGET_MACHINE=shimmy-isolated-two
+  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy|true'
+  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  TEST_LIFECYCLE_PRIOR_MACHINE=shimmy
+  TEST_LIFECYCLE_PRIOR_DEFAULT=shimmy
+  set +e
+  test_lifecycle_isolated_clone_output=$(test_lifecycle_isolated_profile_command default \
+    profile clone isolated-one isolated-two 2>&1)
+  test_lifecycle_isolated_clone_status=$?
+  set -e
+  [ "$test_lifecycle_isolated_clone_status" -eq 0 ] ||
+    fail_test "isolated clone failed: $(printf '%s\n' "$test_lifecycle_isolated_clone_output" | tail -n 100)"
+  test_lifecycle_isolated_two_root=$TEST_LIFECYCLE_CONFIG/profiles/isolated-two
+  test_lifecycle_isolated_two_engine=$TEST_LIFECYCLE_CONFIG/engines/profile-isolated-two
+  assert_file_contains "$test_lifecycle_isolated_two_root/engine-binding.conf" 'mode=isolated'
+  assert_regular_file_not_symlink "$test_lifecycle_isolated_two_engine/engine.conf"
+  test_lifecycle_isolated_one_token=$(sed -n \
+    's/^ownership_token=//p' "$test_lifecycle_isolated_engine/engine.conf")
+  test_lifecycle_isolated_two_token=$(sed -n \
+    's/^ownership_token=//p' "$test_lifecycle_isolated_two_engine/engine.conf")
+  [ -n "$test_lifecycle_isolated_one_token" ] &&
+    [ -n "$test_lifecycle_isolated_two_token" ] ||
+    fail_test 'isolated clone ownership tokens were not recorded'
+  [ "$test_lifecycle_isolated_one_token" != "$test_lifecycle_isolated_two_token" ] ||
+    fail_test 'isolated clone copied source engine ownership evidence'
+  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' \
+    "$TEST_LIFECYCLE_CONFIG/active-profile.conf")" isolated-two
+
+  printf '%s\n' stopped > "$TEST_LIFECYCLE_CREATED_STATE"
+  env HOME="$TEST_LIFECYCLE_HOME" XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
+    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
+    FAKE_MACHINE_LIST='shimmy-isolated-two|true' \
+    FAKE_CONNECTION_LIST='shimmy-isolated-two|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
+    FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_CREATED_STATE" \
+    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
+    FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
+    FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
+    FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
+    FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf" \
+    FAKE_WORKLOADS= FAKE_DARWIN_PROJECTION_STATE=current \
+    FAKE_PRIOR_MACHINE=shimmy-isolated-two FAKE_TARGET_MACHINE=shimmy \
+    FAKE_PRIOR_DEFAULT=shimmy-isolated-two \
+    "$test_lifecycle_isolated_two_root/bin/shimmy" profile activate default >/dev/null
+  printf '%s\n' stopped > "$TEST_LIFECYCLE_ISOLATED_STATE"
+  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy|true'
+  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  test_lifecycle_isolated_profile_command default profile delete isolated-two >/dev/null
+  assert_path_not_exists "$test_lifecycle_isolated_two_root"
+  assert_path_not_exists "$test_lifecycle_isolated_two_engine"
+
+  TEST_LIFECYCLE_ISOLATED_STATE=$SCENARIO_DIR/isolated-machine-state
+  TEST_LIFECYCLE_ISOLATED_CREATED_NAME=shimmy-isolated-one
+  TEST_LIFECYCLE_ISOLATED_ENGINE_ID=profile-isolated-one
+  TEST_LIFECYCLE_TARGET_MACHINE=shimmy-isolated-one
+  printf '%s\n' stopped > "$TEST_LIFECYCLE_ISOLATED_STATE"
+  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy|true'
+  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  test_lifecycle_delete_dry=$(test_lifecycle_isolated_profile_command default \
+    profile delete isolated-one --dry-run)
+  assert_contains "$test_lifecycle_delete_dry" 'deletion_action=remove'
+  assert_contains "$test_lifecycle_delete_dry" \
+    'irreversible_vm_data=containers,images,volumes,build-cache,all-vm-local-data'
+  TEST_LIFECYCLE_DELETE_FAILURE=after-machine-remove
+  set +e
+  test_lifecycle_delete_interrupted=$(test_lifecycle_isolated_profile_command default \
+    profile delete isolated-one 2>&1)
+  test_lifecycle_delete_interrupted_status=$?
+  set -e
+  TEST_LIFECYCLE_DELETE_FAILURE=
+  [ "$test_lifecycle_delete_interrupted_status" -ne 0 ] ||
+    fail_test 'injected isolated deletion interruption unexpectedly succeeded'
+  assert_regular_file_not_symlink "$test_lifecycle_isolated_engine/lifecycle.conf"
+  assert_file_contains "$test_lifecycle_isolated_engine/lifecycle.conf" 'phase=removed'
+  assert_dir_exists "$test_lifecycle_isolated_root"
+  assert_equals "$(cat "$TEST_LIFECYCLE_ISOLATED_STATE")" absent
+  rm -f "$test_lifecycle_isolated_root/shell-init.sh"
+  test_lifecycle_delete_resume_dry=$(test_lifecycle_isolated_profile_command default \
+    profile delete isolated-one --dry-run)
+  assert_contains "$test_lifecycle_delete_resume_dry" 'deletion_action=resume-cleanup'
+  test_lifecycle_isolated_profile_command default profile delete isolated-one >/dev/null
+  assert_path_not_exists "$test_lifecycle_isolated_root"
+  assert_path_not_exists "$test_lifecycle_isolated_engine"
+  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf"
+  pass 'owned isolated create stages before transition, prepares images on target, and deletion resumes after machine removal'
 }
 
 test_commands_lifecycle_explicit_migration() {
@@ -412,6 +646,36 @@ test_commands_lifecycle_end_to_end() {
   assert_contains "$test_lifecycle_team_ai" 'shimmy_ai_skill_bundle=shims|valid|3|-'
   test_lifecycle_command team-one ai-skill repair >/dev/null
 
+  test_lifecycle_command default profile redirect set \
+    --prefix clone.example --location mirror.clone.example >/dev/null
+  test_lifecycle_clone_dry=$(test_lifecycle_command team-one profile clone \
+    default clone-one --dry-run)
+  assert_contains "$test_lifecycle_clone_dry" 'would_clone_profile=default'
+  assert_contains "$test_lifecycle_clone_dry" 'would_clone_binding=shared|shared'
+  test_lifecycle_command team-one profile clone default clone-one >/dev/null
+  test_lifecycle_clone=$TEST_LIFECYCLE_CONFIG/profiles/clone-one
+  assert_file_contains "$test_lifecycle_clone/engine-binding.conf" 'mode=shared'
+  assert_file_contains "$test_lifecycle_clone/install-manifest.txt" 'shim=oc|pinned'
+  assert_file_contains "$test_lifecycle_clone/install-manifest.txt" 'shim_version=oc|4.20|default'
+  assert_file_contains "$test_lifecycle_clone/registries.conf" \
+    '# Managed by Shimmy for profile "clone-one".'
+  assert_file_contains "$test_lifecycle_clone/registries.conf" 'prefix = "clone.example"'
+  assert_file_not_contains "$test_lifecycle_clone/install-manifest.txt" 'startup_file='
+  set +e
+  test_lifecycle_linux_isolated=$(test_lifecycle_command clone-one profile clone \
+    default invalid-isolated --isolated --dry-run 2>&1)
+  test_lifecycle_linux_isolated_status=$?
+  set -e
+  [ "$test_lifecycle_linux_isolated_status" -ne 0 ] ||
+    fail_test 'Linux isolated clone unexpectedly succeeded'
+  assert_contains "$test_lifecycle_linux_isolated" \
+    'isolated profiles require a managed macOS Podman machine'
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/profiles/invalid-isolated"
+  test_lifecycle_command clone-one profile activate team-one >/dev/null
+  test_lifecycle_command team-one profile delete clone-one >/dev/null
+  assert_path_not_exists "$test_lifecycle_clone"
+  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf"
+
   for test_lifecycle_asset_profile in default team-one; do
     test_lifecycle_asset_root=$TEST_LIFECYCLE_CONFIG/profiles/$test_lifecycle_asset_profile
     test_lifecycle_asset_commands=$(find "$test_lifecycle_asset_root/commands" \
@@ -522,6 +786,7 @@ shim.sh'
 
 test_commands_lifecycle_run() {
   test_commands_lifecycle_darwin_bootstrap_engine_states
+  test_commands_lifecycle_owned_isolated
   test_commands_lifecycle_explicit_migration
   test_commands_lifecycle_end_to_end
 }

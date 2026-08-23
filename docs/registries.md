@@ -47,7 +47,7 @@ It is an absolute link to the active profile's authoritative file. Foreign,
 damaged, masked, rootful, or remote state fails closed, and failed validation
 restores the previous exact link.
 
-On macOS, each engine has one stable user drop-in:
+On macOS, each shared or owned isolated engine has one stable user drop-in:
 
 ```text
 /var/home/core/.config/containers/registries.conf.d/shimmy-active-profile.conf
@@ -61,7 +61,7 @@ rootless `podman.service`; socket activation starts a new API process and Shimmy
 validates the exact mapping. The VM and running containers remain up. Equal
 policies switch without a recycle.
 
-A stale shared projection is repaired through ordinary activation, without
+A stale managed projection is repaired through ordinary activation, without
 `--restart`:
 
 ```sh
@@ -81,7 +81,9 @@ shimmy profile redirect delete --all --detach
 ```
 
 Profile deletion and global uninstall perform their own guarded projection
-cleanup. They preserve operator policy, source checkouts, and Podman machines.
+cleanup. Shared-profile deletion preserves the shared machine. Owned isolated
+profile deletion removes the exact fully proven machine and all VM-local data;
+legacy, external, ambiguous, foreign, or damaged machines remain preserved.
 Foreign or damaged paths are never replaced or removed.
 
 ## Registry clients

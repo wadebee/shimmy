@@ -49,19 +49,21 @@ AI-skill links. Exact bundle-declared user skill destinations are overwritten
 without backup or recovery. Only recognized stale links may be removed; never
 recursively clean the user skill root or unrelated names.
 
-Uninstall removes validated Shimmy-owned installation state and preserves source
-checkouts, external Podman machines, unrelated registry policy, unrelated user
-skills, and the user skill root. Owned macOS engine removal remains deferred to
-the durable uninstall transaction.
+Profile deletion removes an exactly proven owned isolated macOS engine through
+a durable removal journal and preserves shared, external, legacy, and ambiguous
+engines. Global owned-engine removal remains the durable uninstall transaction's
+responsibility.
 
 ## Podman and runtimes
 
 Podman is an explicit dependency. Shimmy never installs Podman or adopts a
 pre-existing machine. Fresh macOS bootstrap transactionally creates the owned
-shared `shimmy` machine; migrated legacy `shimmy-<profile>` machines remain
-external. Ordinary profiles share `shimmy`, and policy changes recycle only its
-rootless API service. On Linux profiles share the current user's local rootless
-engine and Shimmy performs no machine operation.
+shared `shimmy` machine; explicit isolated profiles create independently owned
+`shimmy-<profile>` machines, while migrated legacy machines remain external.
+Ordinary profiles share `shimmy`, and same-engine policy changes recycle only
+its rootless API service. Cross-engine activation is workload-guarded. On Linux
+profiles share the current user's local rootless engine and Shimmy performs no
+machine operation.
 
 The runtime helper normalizes supported Linux/Darwin `amd64` and `arm64` hosts
 to native `linux/amd64` or `linux/arm64`. Concrete versions own `run.sh`,

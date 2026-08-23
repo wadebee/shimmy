@@ -2,8 +2,9 @@
 
 Every Shimmy tool wrapper runs a short-lived container through Podman. Podman
 is an explicit dependency; Shimmy does not install Podman or adopt existing
-machines. On macOS, fresh bootstrap transactionally provisions the one
-installation-owned shared machine named `shimmy`.
+machines. On macOS, fresh bootstrap transactionally provisions the
+installation-owned shared machine named `shimmy`; explicit isolated profiles
+provision installation-owned machines named `shimmy-<profile>`.
 
 Official installation guidance: <https://podman.io/docs/installation>
 
@@ -65,6 +66,41 @@ rootless `podman.service`, confirms `podman.socket` remains active, starts a new
 API process through the exact connection, and validates the mapping. This is a
 bounded API interruption; the VM and running containers remain up. An equal
 policy needs no recycle.
+
+Create an isolated macOS profile only when it needs a separate VM-local
+container/image/volume namespace:
+
+```sh
+shimmy profile create build-lab --isolated --dry-run
+shimmy profile create build-lab --isolated
+```
+
+Shimmy preflights profile, engine, machine, connection, and lifecycle-journal
+names before mutation. It stages registry policy before starting the target,
+records independent host and guest ownership evidence, prepares images on the
+target engine, and commits profile authority last. Existing names are
+collisions and are never adopted.
+
+Clone preserves profile-owned reproducible state without transferring runtime
+state or ownership evidence:
+
+```sh
+shimmy profile clone default team-two --dry-run
+shimmy profile clone build-lab build-lab-two
+shimmy profile clone build-lab shared-copy --shared
+```
+
+A shared source clones to the shared engine. An isolated or legacy-isolated
+source clones to a newly owned isolated engine unless `--shared` overrides that
+intent; `--isolated` forces a new isolated engine. The two overrides are
+mutually exclusive.
+
+Transitions between shared and isolated engines stage target registry policy,
+inspect workloads on any machine that must stop, start and validate the target,
+then commit the default connection, active profile, and skill links. Use
+`--stop-running` only after reviewing listed workloads. A failed transition
+restores the prior engine, projection, default connection, active record, and
+skill links.
 
 `--restart` is explicit VM recovery and is separate from normal service
 recycle. `--stop-running` applies only to a VM transition that would interrupt
@@ -168,6 +204,26 @@ shimmy admin engine migrate
 Migration records existing `shimmy-<profile>` machines as external
 legacy-isolated engines without changing their lifecycle, then creates the
 shared `shimmy` engine for future profiles.
+
+## Profile deletion
+
+Inspect deletion before applying it:
+
+```sh
+shimmy profile delete build-lab --dry-run
+shimmy profile delete build-lab
+```
+
+Deleting a shared profile removes only profile-owned files; it never removes
+the shared engine. Deleting a profile whose isolated machine has complete
+current Shimmy ownership proof permanently destroys that machine and all of
+its VM-local containers, images, volumes, build cache, and other data. Running
+containers require explicit `--stop-running` acknowledgement. Removal is
+journaled so a retry can finish local cleanup after machine deletion.
+
+Legacy-isolated, external, or ambiguously owned machines are preserved and the
+command reports that preservation. Machine name or engine binding alone is
+never ownership proof.
 
 ## Troubleshooting
 

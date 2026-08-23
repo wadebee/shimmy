@@ -10,7 +10,7 @@ then validates profile, catalog generation, shim/version, startup, and AI-skill
 bundle state as one read-only authority.
 
 `management.sh` implements installation-wide list, invoking-profile status,
-create/activate/delete routing, and redirects. Activation validates candidate
+create/clone/activate/delete routing, and redirects. Activation validates candidate
 materialization, holds activation then lexical profile/registry locks, defers
 engine commit, and compensates active-record and exact user-skill link changes.
 Same-profile activation lets the target activation layer validate and repair
@@ -19,10 +19,11 @@ requires the recorded active profile to be fully active before planning and
 again after locks are acquired so it remains a validated rollback source.
 
 `activation.sh` owns deterministic engine discovery, read-only status, dry-run,
-Linux registry-link selection and local-rootless validation, shared Darwin
-policy projection/service recycle, legacy workload-guarded transitions,
-commit-last default selection, and rollback. Fresh shared provisioning remains
-an install lifecycle operation, not an activation side effect.
+Linux registry-link selection and local-rootless validation, managed Darwin
+policy projection/service recycle, workload-guarded shared/isolated/legacy
+transitions, commit-last default selection, and rollback. Fresh shared or
+isolated provisioning remains an install lifecycle operation, not an activation
+side effect.
 
 The schema-1 modules under `lib/engine/` provide machine identity, ownership,
 journal, service-recycle, projection, registry, and migration primitives. They
