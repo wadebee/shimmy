@@ -118,16 +118,8 @@ test_lifecycle_fixture_setup() {
   : > "$TEST_LIFECYCLE_VERIFY_RESPONSES"
 }
 
-test_commands_lifecycle_darwin_bootstrap_case() {
-  test_lifecycle_case=$1
-  test_lifecycle_fixture_setup
-  test_lifecycle_created_state=$SCENARIO_DIR/created-machine-state
-  test_lifecycle_service_pid=$SCENARIO_DIR/service-pid
-  TEST_LIFECYCLE_CREATED_STATE=$test_lifecycle_created_state
-  TEST_LIFECYCLE_SERVICE_PID=$test_lifecycle_service_pid
-  printf '%s\n' absent > "$test_lifecycle_created_state"
-  printf '%s\n' 800 > "$test_lifecycle_service_pid"
-  test_lifecycle_bootstrap_output=$(env HOME="$TEST_LIFECYCLE_HOME" \
+test_lifecycle_darwin_bootstrap_command() {
+  env HOME="$TEST_LIFECYCLE_HOME" \
     XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
     SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
     SHIMMY_TEST_ACTIVE_PROFILE_PATH="$TEST_LIFECYCLE_CONFIG/active-profile.conf" \
@@ -137,15 +129,29 @@ test_commands_lifecycle_darwin_bootstrap_case() {
     FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
     FAKE_MACHINE_LIST= \
     FAKE_CONNECTION_LIST='other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
-    FAKE_CREATED_MACHINE_STATE_FILE="$test_lifecycle_created_state" \
-    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$test_lifecycle_service_pid" \
+    FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_CREATED_STATE" \
+    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
     FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
     FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
     FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
     FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf" \
     FAKE_WORKLOADS= FAKE_DARWIN_PROJECTION_STATE=absent \
     FAKE_PRIOR_MACHINE= FAKE_TARGET_MACHINE=shimmy FAKE_PRIOR_DEFAULT=other \
-    "$TEST_LIFECYCLE_CHECKOUT/commands/bootstrap.sh" --no-startup)
+    FAKE_FAIL_ACTION="${TEST_LIFECYCLE_FAIL_ACTION:-}" \
+    FAKE_ROLLBACK_FAIL="${TEST_LIFECYCLE_ROLLBACK_FAIL:-}" \
+    "$TEST_LIFECYCLE_CHECKOUT/commands/bootstrap.sh" --no-startup
+}
+
+test_commands_lifecycle_darwin_bootstrap_case() {
+  test_lifecycle_case=$1
+  test_lifecycle_fixture_setup
+  test_lifecycle_created_state=$SCENARIO_DIR/created-machine-state
+  test_lifecycle_service_pid=$SCENARIO_DIR/service-pid
+  TEST_LIFECYCLE_CREATED_STATE=$test_lifecycle_created_state
+  TEST_LIFECYCLE_SERVICE_PID=$test_lifecycle_service_pid
+  printf '%s\n' absent > "$test_lifecycle_created_state"
+  printf '%s\n' 800 > "$test_lifecycle_service_pid"
+  test_lifecycle_bootstrap_output=$(test_lifecycle_darwin_bootstrap_command)
 
   assert_contains "$test_lifecycle_bootstrap_output" 'Bootstrapped active Shimmy profile default'
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf"
@@ -205,6 +211,71 @@ test_commands_lifecycle_darwin_bootstrap_engine_states() {
   test_commands_lifecycle_darwin_bootstrap_case fresh
 
   test_lifecycle_fixture_setup
+  TEST_LIFECYCLE_CREATED_STATE=$SCENARIO_DIR/created-machine-state
+  TEST_LIFECYCLE_SERVICE_PID=$SCENARIO_DIR/service-pid
+  printf '%s\n' absent > "$TEST_LIFECYCLE_CREATED_STATE"
+  printf '%s\n' 800 > "$TEST_LIFECYCLE_SERVICE_PID"
+  TEST_LIFECYCLE_FAIL_ACTION=machine_start
+  set +e
+  test_lifecycle_start_failure=$(test_lifecycle_darwin_bootstrap_command 2>&1)
+  test_lifecycle_start_failure_status=$?
+  set -e
+  TEST_LIFECYCLE_FAIL_ACTION=
+  [ "$test_lifecycle_start_failure_status" -ne 0 ] ||
+    fail_test 'injected shared machine-start bootstrap failure unexpectedly succeeded'
+  assert_equals "$(cat "$TEST_LIFECYCLE_CREATED_STATE")" absent
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG"
+  assert_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine rm --force shimmy'
+
+  TEST_LIFECYCLE_CREATED_STATE=$SCENARIO_DIR/created-machine-state
+  TEST_LIFECYCLE_SERVICE_PID=$SCENARIO_DIR/service-pid
+  printf '%s\n' absent > "$TEST_LIFECYCLE_CREATED_STATE"
+  printf '%s\n' 800 > "$TEST_LIFECYCLE_SERVICE_PID"
+  : > "$TEST_LIFECYCLE_PODMAN_LOG"
+  TEST_LIFECYCLE_FAIL_ACTION=machine_init_after_create
+  set +e
+  test_lifecycle_init_failure=$(test_lifecycle_darwin_bootstrap_command 2>&1)
+  test_lifecycle_init_failure_status=$?
+  set -e
+  TEST_LIFECYCLE_FAIL_ACTION=
+  [ "$test_lifecycle_init_failure_status" -ne 0 ] ||
+    fail_test 'injected post-create machine-init bootstrap failure unexpectedly succeeded'
+  assert_equals "$(cat "$TEST_LIFECYCLE_CREATED_STATE")" stopped
+  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/lifecycle.conf"
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/lifecycle.conf" 'phase=initializing'
+  assert_contains "$test_lifecycle_init_failure" 'Rollback result: incomplete'
+  assert_contains "$test_lifecycle_init_failure" \
+    "$TEST_LIFECYCLE_CONFIG/engines/shared/lifecycle.conf"
+  assert_not_contains "$test_lifecycle_init_failure" 'ownership_token='
+
+  TEST_LIFECYCLE_CONFIG_HOME=$SCENARIO_DIR/remove-failure-config
+  TEST_LIFECYCLE_CONFIG=$TEST_LIFECYCLE_CONFIG_HOME/shimmy
+  TEST_LIFECYCLE_ACTIVE_LINK=$TEST_LIFECYCLE_CONFIG_HOME/containers/registries.conf.d/shimmy-active-profile.conf
+  TEST_LIFECYCLE_CREATED_STATE=$SCENARIO_DIR/remove-failure-machine-state
+  TEST_LIFECYCLE_SERVICE_PID=$SCENARIO_DIR/remove-failure-service-pid
+  printf '%s\n' absent > "$TEST_LIFECYCLE_CREATED_STATE"
+  printf '%s\n' 800 > "$TEST_LIFECYCLE_SERVICE_PID"
+  : > "$TEST_LIFECYCLE_PODMAN_LOG"
+  TEST_LIFECYCLE_FAIL_ACTION=machine_start
+  TEST_LIFECYCLE_ROLLBACK_FAIL=machine_rm
+  set +e
+  test_lifecycle_remove_failure=$(test_lifecycle_darwin_bootstrap_command 2>&1)
+  test_lifecycle_remove_failure_status=$?
+  set -e
+  TEST_LIFECYCLE_FAIL_ACTION=
+  TEST_LIFECYCLE_ROLLBACK_FAIL=
+  [ "$test_lifecycle_remove_failure_status" -ne 0 ] ||
+    fail_test 'injected shared machine rollback removal failure unexpectedly succeeded'
+  assert_equals "$(cat "$TEST_LIFECYCLE_CREATED_STATE")" stopped
+  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/lifecycle.conf"
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/lifecycle.conf" 'phase=starting'
+  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf"
+  assert_contains "$test_lifecycle_remove_failure" 'Rollback result: incomplete'
+
+  TEST_LIFECYCLE_CONFIG_HOME=$SCENARIO_DIR/collision-config
+  TEST_LIFECYCLE_CONFIG=$TEST_LIFECYCLE_CONFIG_HOME/shimmy
+  TEST_LIFECYCLE_ACTIVE_LINK=$TEST_LIFECYCLE_CONFIG_HOME/containers/registries.conf.d/shimmy-active-profile.conf
+  : > "$TEST_LIFECYCLE_PODMAN_LOG"
   set +e
   test_lifecycle_collision_output=$(env HOME="$TEST_LIFECYCLE_HOME" \
     XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \

@@ -70,6 +70,7 @@ case "$1|${2:-}" in
     if [ "${FAKE_ENGINE_INIT_CHANGES_DEFAULT:-0}" -eq 1 ]; then
       printf '%s\n' "$FAKE_ENGINE_CONNECTION" > "$FAKE_ENGINE_DEFAULT_CONNECTION"
     fi
+    [ "${FAKE_ENGINE_FAIL_ACTION:-}" != machine_init_after_create ] || exit 58
     ;;
   'machine|start')
     [ "${FAKE_ENGINE_FAIL_ACTION:-}" != machine-start ] || exit 52
@@ -248,6 +249,11 @@ team-one'
     "$token" "$identity" > "$lifecycle_file"
   chmod 0644 "$lifecycle_file"
   shimmy_engine_lifecycle_read "$lifecycle_file" || fail_test 'valid engine lifecycle journal rejected'
+  shimmy_engine_lifecycle_render shared create initializing shimmy-test shimmy-test absent \
+    '' '' > "$lifecycle_file"
+  chmod 0644 "$lifecycle_file"
+  shimmy_engine_lifecycle_read "$lifecycle_file" ||
+    fail_test 'valid initializing engine lifecycle journal rejected'
 
   for engine_record_case in unknown-field wrong-version wrong-mode symlink unsafe-source; do
     case "$engine_record_case" in
@@ -340,6 +346,21 @@ test_lib_engine_lifecycle_journal() {
   record=$engine_root/engine.conf
   shimmy_engine_machine_create_prepare profile-test shimmy-test shimmy-test "$journal"
   assert_file_contains "$journal" 'phase=planned'
+  FAKE_ENGINE_FAIL_ACTION=machine-init
+  export FAKE_ENGINE_FAIL_ACTION
+  set +e
+  shimmy_engine_machine_create_initialize "$journal" >/dev/null 2>&1
+  initialize_status=$?
+  set -e
+  [ "$initialize_status" -ne 0 ] || fail_test 'injected pre-mutation init failure unexpectedly succeeded'
+  assert_file_contains "$journal" 'phase=initializing'
+  assert_equals "$(cat "$FAKE_ENGINE_MACHINE_STATE")" absent
+  FAKE_ENGINE_FAIL_ACTION=
+  export FAKE_ENGINE_FAIL_ACTION
+  shimmy_engine_machine_create_rollback "$record" "$journal"
+  assert_path_not_exists "$journal"
+
+  shimmy_engine_machine_create_prepare profile-test shimmy-test shimmy-test "$journal"
   shimmy_engine_machine_create_initialize "$journal"
   assert_file_contains "$journal" 'phase=initialized'
   shimmy_engine_machine_create_record "$journal" "$record" profile
@@ -376,7 +397,81 @@ test_lib_engine_lifecycle_journal() {
   shimmy_engine_machine_remove_commit "$journal"
   assert_path_not_exists "$journal"
   assert_equals "$(cat "$FAKE_ENGINE_MACHINE_STATE")" absent
+
+  rollback_journal=$engine_root/rollback-lifecycle.conf
+  rollback_record=$engine_root/rollback-engine.conf
+  shimmy_engine_machine_create_prepare profile-test shimmy-test shimmy-test "$rollback_journal"
+  shimmy_engine_machine_create_initialize "$rollback_journal"
+  shimmy_engine_machine_create_rollback "$rollback_record" "$rollback_journal"
+  assert_path_not_exists "$rollback_journal"
+  assert_equals "$(cat "$FAKE_ENGINE_MACHINE_STATE")" absent
+
+  shimmy_engine_machine_create_prepare profile-test shimmy-test shimmy-test "$rollback_journal"
+  FAKE_ENGINE_FAIL_ACTION=machine_init_after_create
+  export FAKE_ENGINE_FAIL_ACTION
+  set +e
+  shimmy_engine_machine_create_initialize "$rollback_journal" >/dev/null 2>&1
+  initialize_after_create_status=$?
+  set -e
+  [ "$initialize_after_create_status" -ne 0 ] ||
+    fail_test 'injected post-mutation init failure unexpectedly succeeded'
+  assert_file_contains "$rollback_journal" 'phase=initializing'
+  assert_equals "$(cat "$FAKE_ENGINE_MACHINE_STATE")" stopped
+  FAKE_ENGINE_FAIL_ACTION=
+  export FAKE_ENGINE_FAIL_ACTION
+  set +e
+  shimmy_engine_machine_create_rollback "$rollback_record" \
+    "$rollback_journal" >/dev/null 2>&1
+  ambiguous_rollback_status=$?
+  set -e
+  [ "$ambiguous_rollback_status" -ne 0 ] ||
+    fail_test 'ambiguous initializing machine rollback unexpectedly succeeded'
+  assert_file_contains "$rollback_journal" 'phase=initializing'
+  assert_equals "$(cat "$FAKE_ENGINE_MACHINE_STATE")" stopped
   pass 'journal transitions precede external lifecycle mutations and retain exact retry state across interrupted create and remove'
+}
+
+test_lib_engine_bootstrap_cleanup_retention() {
+  setup_scenario
+  bootstrap_root=$SCENARIO_DIR/config/shimmy
+  bootstrap_journal=$bootstrap_root/engines/shared/lifecycle.conf
+  rollback_calls=$SCENARIO_DIR/shared-rollback.calls
+  mkdir -p "$(dirname -- "$bootstrap_journal")"
+  printf '%s\n' retained > "$bootstrap_journal"
+  : > "$rollback_calls"
+
+  cleanup_output=$(
+    {
+      SHIMMY_EXTERNAL_TRANSACTION_ACTIVE=0
+      SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
+      SHIMMY_ENGINE_REGISTRY_SHARED_CREATE_ACTIVE=1
+      SHIMMY_ENGINE_REGISTRY_SHARED_CONFIG=$bootstrap_root
+      SHIMMY_ENGINE_REGISTRY_ISOLATED_CREATE_ACTIVE=0
+      SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT=$bootstrap_root
+      SHIMMY_PROFILE_LIFECYCLE_PRESERVE_BOOTSTRAP_ROOT=0
+      SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_PRESERVE_REPORTED=0
+      SHIMMY_PROFILE_LIFECYCLE_STARTUP_BACKUP=
+      SHIMMY_PROFILE_LIFECYCLE_PRESERVE_NEW_ROOT=0
+      SHIMMY_PROFILE_LIFECYCLE_NEW_ROOT=
+      shimmy_profile_candidate_stage_cleanup() { :; }
+      shimmy_profile_new_root_remove() { :; }
+      shimmy_locks_release_all() { :; }
+      shimmy_engine_registry_shared_create_rollback() {
+        printf '%s\n' called >> "$rollback_calls"
+        return 1
+      }
+      shimmy_profile_bootstrap_cleanup
+      shimmy_profile_bootstrap_cleanup
+    } 2>&1
+  )
+
+  assert_regular_file_not_symlink "$bootstrap_journal"
+  assert_equals "$(awk 'END { print NR + 0 }' "$rollback_calls")" 1
+  assert_equals "$(printf '%s\n' "$cleanup_output" |
+    awk '/Rollback result: incomplete/ { count++ } END { print count + 0 }')" 1
+  assert_contains "$cleanup_output" "$bootstrap_root"
+  assert_contains "$cleanup_output" "$bootstrap_journal"
+  pass 'incomplete shared bootstrap rollback retains evidence and is not retried by repeated trap cleanup'
 }
 
 test_lib_engine_uninstall_journal() {
@@ -504,6 +599,7 @@ test_lib_engine_run() {
   test_lib_engine_records
   test_lib_engine_podman_and_ownership
   test_lib_engine_lifecycle_journal
+  test_lib_engine_bootstrap_cleanup_retention
   test_lib_engine_uninstall_journal
   test_lib_engine_projection_transaction
   test_lib_engine_service_recycle

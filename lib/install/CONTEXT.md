@@ -32,3 +32,6 @@ engine/registry authority, records the active profile, reconciles exact skill
 links, and applies startup policy as one compensated lifecycle. Darwin creates
 the owned `shimmy` machine; Linux records the host-local rootless engine. An
 existing config root or exact Darwin name collision is never adopted or merged.
+Complete bootstrap compensation removes the fresh root. If shared-machine
+identity is still ambiguous or exact machine removal fails, cleanup instead
+retains the root and lifecycle journal and reports incomplete rollback.

@@ -218,7 +218,7 @@ shimmy_engine_lifecycle_phase_validate() {
   shimmy_engine_lifecycle_operation=$1
   shimmy_engine_lifecycle_phase=$2
   case "$shimmy_engine_lifecycle_operation|$shimmy_engine_lifecycle_phase" in
-    create\|planned|create\|initialized|create\|recorded|create\|starting|create\|started|create\|guest-marking|create\|guest-marked|create\|committed|remove\|planned|remove\|verification-starting|remove\|verification-started|remove\|verified|remove\|stopping|remove\|stopped|remove\|removing|remove\|removed|remove\|committed) ;;
+    create\|planned|create\|initializing|create\|initialized|create\|recorded|create\|starting|create\|started|create\|guest-marking|create\|guest-marked|create\|committed|remove\|planned|remove\|verification-starting|remove\|verification-started|remove\|verified|remove\|stopping|remove\|stopped|remove\|removing|remove\|removed|remove\|committed) ;;
     *) return 1 ;;
   esac
 }
@@ -242,7 +242,7 @@ shimmy_engine_lifecycle_render() {
     *) return 1 ;;
   esac
   case "$shimmy_engine_lifecycle_operation|$shimmy_engine_lifecycle_phase" in
-    create\|planned)
+    create\|planned|create\|initializing)
       [ -z "$shimmy_engine_lifecycle_token" ] &&
         [ -z "$shimmy_engine_lifecycle_identity" ] || return 1
       ;;

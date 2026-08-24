@@ -43,6 +43,8 @@ profile_activation_fake_create() {
       '  "machine init "*)' \
       '    [ -n "${FAKE_CREATED_MACHINE_STATE_FILE:-}" ] || exit 95' \
       '    printf "%s\n" stopped > "$FAKE_CREATED_MACHINE_STATE_FILE"' \
+      '    fake_fail_requested machine_init_after_create "${FAKE_CREATED_MACHINE_NAME:-shimmy}" && exit 65' \
+      '    :' \
       '    ;;' \
       '  "machine inspect --format "*)' \
       '    name=${6:-${5:-shimmy}}' \

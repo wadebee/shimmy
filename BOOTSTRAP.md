@@ -81,6 +81,14 @@ reconciles exact user-skill links, and applies the selected startup policy as
 one compensated lifecycle. A failure removes new installation state and
 restores every recoverable external change.
 
+Machine initialization records durable intent before invoking Podman and gains
+automatic deletion authority only after committing the exact created identity.
+If identity remains ambiguous or exact machine removal fails, bootstrap reports
+incomplete rollback and retains the configuration root and
+`engines/shared/lifecycle.conf`. That retained root deliberately blocks another
+fresh bootstrap. Do not remove or adopt a machine by name; inspect the reported
+recovery state before any separate remediation.
+
 ## Startup policy
 
 With managed startup policy, Shimmy records the conventional paths for the

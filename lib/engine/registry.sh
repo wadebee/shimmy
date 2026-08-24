@@ -167,6 +167,7 @@ shimmy_engine_registry_shared_create_prepare() {
   shimmy_engine_podman_bin_require || return 1
   shimmy_engine_machine_create_prepare shared "$shimmy_engine_registry_shared_name" \
     "$shimmy_engine_registry_shared_name" "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+  SHIMMY_ENGINE_REGISTRY_SHARED_CREATE_ACTIVE=1
   shimmy_engine_machine_create_initialize "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
   shimmy_engine_machine_create_record "$SHIMMY_ENGINE_LIFECYCLE_PATH" \
     "$SHIMMY_ENGINE_RECORD_PATH" installation || return 1
@@ -180,7 +181,6 @@ shimmy_engine_registry_shared_create_prepare() {
   shimmy_engine_machine_create_guest_mark "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
   shimmy_engine_projection_apply "$shimmy_engine_registry_shared_name" || return 1
   shimmy_engine_projection_commit || return 1
-  SHIMMY_ENGINE_REGISTRY_SHARED_CREATE_ACTIVE=1
 }
 
 shimmy_engine_registry_shared_create_commit() {

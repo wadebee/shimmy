@@ -18,7 +18,8 @@
 - `lifecycle.sh` is the public end-to-end acceptance world: shared-engine bootstrap/collision, owned isolated create/delete retry, true clone, cross-engine activation, explicit migration/rollback, journaled global owned-engine uninstall/retry, active-engine-last ordering, reused-name collision safety, and external/mismatched preservation,
   jq/rg/Skopeo inventory, catalog/shim/profile/skill/network/startup flows,
   sibling isolation, sync/rollback, admin status, deletion, global uninstall,
-  unrelated home-skill preservation, and failed-bootstrap cleanup.
+  unrelated home-skill preservation, complete failed-bootstrap cleanup, and
+  retained shared-machine recovery evidence after incomplete rollback.
 
 Command tests call public installed launchers for acceptance. Direct source
 entrypoint calls are limited to focused parser/transaction seams.

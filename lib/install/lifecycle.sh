@@ -8,6 +8,8 @@ SHIMMY_PROFILE_LIFECYCLE_STARTUP_BACKUP=
 SHIMMY_PROFILE_LIFECYCLE_IMAGE_ROOT=
 SHIMMY_PROFILE_LIFECYCLE_IMAGE_PAIRS=
 SHIMMY_PROFILE_LIFECYCLE_PRESERVE_NEW_ROOT=0
+SHIMMY_PROFILE_LIFECYCLE_PRESERVE_BOOTSTRAP_ROOT=0
+SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_PRESERVE_REPORTED=0
 
 shimmy_profile_lifecycle_error_set() {
   SHIMMY_PROFILE_LIFECYCLE_ERROR=$*
@@ -50,8 +52,14 @@ shimmy_profile_bootstrap_cleanup() {
   fi
   shimmy_profile_candidate_stage_cleanup 2>/dev/null || true
   if [ "${SHIMMY_ENGINE_REGISTRY_SHARED_CREATE_ACTIVE:-0}" -eq 1 ] &&
-    [ -n "${SHIMMY_CONFIG_ROOT:-}" ]; then
-    shimmy_engine_registry_shared_create_rollback "$SHIMMY_CONFIG_ROOT" 2>/dev/null || true
+    [ "${SHIMMY_PROFILE_LIFECYCLE_PRESERVE_BOOTSTRAP_ROOT:-0}" -eq 0 ]; then
+    if [ -n "${SHIMMY_ENGINE_REGISTRY_SHARED_CONFIG:-}" ] &&
+      shimmy_engine_registry_shared_create_rollback \
+        "$SHIMMY_ENGINE_REGISTRY_SHARED_CONFIG" 2>/dev/null; then
+      :
+    else
+      SHIMMY_PROFILE_LIFECYCLE_PRESERVE_BOOTSTRAP_ROOT=1
+    fi
   fi
   if [ "${SHIMMY_ENGINE_REGISTRY_ISOLATED_CREATE_ACTIVE:-0}" -eq 1 ] &&
     [ -n "${SHIMMY_ENGINE_REGISTRY_ISOLATED_CONFIG:-}" ] &&
@@ -76,16 +84,24 @@ shimmy_profile_bootstrap_cleanup() {
   fi
   shimmy_locks_release_all 2>/dev/null || true
   if [ -n "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT" ]; then
-    case "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT" in
-      /|"${HOME:-}"|"${HOME:-}"/|"${XDG_CONFIG_HOME:-}"|"${XDG_CONFIG_HOME:-}"/) ;;
-      *)
-        [ ! -e "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT" ] &&
-          [ ! -L "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT" ] ||
-          rm -rf "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT"
-        ;;
-    esac
+    if [ "${SHIMMY_PROFILE_LIFECYCLE_PRESERVE_BOOTSTRAP_ROOT:-0}" -eq 0 ]; then
+      case "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT" in
+        /|"${HOME:-}"|"${HOME:-}"/|"${XDG_CONFIG_HOME:-}"|"${XDG_CONFIG_HOME:-}"/) ;;
+        *)
+          [ ! -e "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT" ] &&
+            [ ! -L "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT" ] ||
+            rm -rf "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT"
+          ;;
+      esac
+    elif [ "${SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_PRESERVE_REPORTED:-0}" -eq 0 ]; then
+      printf 'Rollback result: incomplete; retained bootstrap recovery root at %s and lifecycle journal at %s.\n' \
+        "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT" \
+        "$SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT/engines/shared/lifecycle.conf" >&2
+      SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_PRESERVE_REPORTED=1
+    fi
     SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT=
   fi
+  return 0
 }
 
 shimmy_profile_bootstrap_run() {
@@ -94,6 +110,8 @@ shimmy_profile_bootstrap_run() {
   shimmy_profile_bootstrap_shell=$3
   shimmy_profile_bootstrap_startup=$4
   SHIMMY_PROFILE_LIFECYCLE_ERROR=
+  SHIMMY_PROFILE_LIFECYCLE_PRESERVE_BOOTSTRAP_ROOT=0
+  SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_PRESERVE_REPORTED=0
   shimmy_path_absolute_normalized_validate "$shimmy_profile_bootstrap_checkout" ||
     shimmy_profile_lifecycle_error_set 'bootstrap requires a normalized absolute checkout root' || return 1
   shimmy_path_absolute_normalized_validate "$shimmy_profile_bootstrap_config" ||

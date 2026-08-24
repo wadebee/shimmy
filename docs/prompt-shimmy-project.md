@@ -72,6 +72,10 @@ Running workloads require separate confirmation before `--stop-running`.
 Missing recorded macOS machines are not recreated or adopted. Fresh shared and
 isolated provisioning belongs only to Shimmy bootstrap/create/clone
 transactions. Agents never substitute direct machine lifecycle commands.
+Machine creation journals initializing intent before Podman mutation and
+removes only an exactly identified created machine. An ambiguous init or
+incomplete removal retains its journal and installation root for explicit
+recovery; agents do not treat the retained name as ownership evidence.
 Sourcing selects PATH; separate agent tool calls do not retain that sourcing.
 
 Global uninstall removes completely proven owned macOS machines by default and

@@ -31,7 +31,7 @@ shimmy_engine_lifecycle_transition_validate() {
   shimmy_engine_lifecycle_transition_next=$3
   [ "$shimmy_engine_lifecycle_transition_prior" = "$shimmy_engine_lifecycle_transition_next" ] && return 0
   case "$shimmy_engine_lifecycle_transition_operation|$shimmy_engine_lifecycle_transition_prior|$shimmy_engine_lifecycle_transition_next" in
-    create\|planned\|initialized|create\|initialized\|recorded|create\|recorded\|starting|create\|starting\|started|create\|started\|guest-marking|create\|guest-marking\|guest-marked|create\|guest-marked\|committed|remove\|planned\|verification-starting|remove\|verification-starting\|verification-started|remove\|verification-started\|verified|remove\|verified\|stopping|remove\|stopping\|stopped|remove\|stopped\|removing|remove\|removing\|removed|remove\|removed\|committed) ;;
+    create\|planned\|initializing|create\|initializing\|initialized|create\|initialized\|recorded|create\|recorded\|starting|create\|starting\|started|create\|started\|guest-marking|create\|guest-marking\|guest-marked|create\|guest-marked\|committed|remove\|planned\|verification-starting|remove\|verification-starting\|verification-started|remove\|verification-started\|verified|remove\|verified\|stopping|remove\|stopping\|stopped|remove\|stopped\|removing|remove\|removing\|removed|remove\|removed\|committed) ;;
     *) return 1 ;;
   esac
 }
@@ -77,11 +77,15 @@ shimmy_engine_machine_create_initialize() {
   shimmy_engine_machine_create_journal=$1
   shimmy_engine_lifecycle_read "$shimmy_engine_machine_create_journal" || return 1
   [ "$SHIMMY_ENGINE_LIFECYCLE_OPERATION|$SHIMMY_ENGINE_LIFECYCLE_PHASE" = create\|planned ] || return 1
+  shimmy_engine_lifecycle_transition "$shimmy_engine_machine_create_journal" initializing || return 1
+  shimmy_engine_lifecycle_read "$shimmy_engine_machine_create_journal" || return 1
   shimmy_engine_podman_machine_init "$SHIMMY_ENGINE_LIFECYCLE_NAME" \
     "$SHIMMY_ENGINE_LIFECYCLE_CONNECTION" || return 1
   shimmy_engine_machine_create_identity=$(shimmy_engine_podman_machine_identity_fingerprint_render \
     "$SHIMMY_ENGINE_LIFECYCLE_NAME" "$SHIMMY_ENGINE_LIFECYCLE_CONNECTION") || return 1
   shimmy_engine_machine_create_token=$(shimmy_engine_ownership_token_generate) || return 1
+  shimmy_engine_lifecycle_transition_validate create \
+    "$SHIMMY_ENGINE_LIFECYCLE_PHASE" initialized || return 1
   shimmy_engine_lifecycle_write "$shimmy_engine_machine_create_journal" \
     "$SHIMMY_ENGINE_LIFECYCLE_ID" create initialized "$SHIMMY_ENGINE_LIFECYCLE_NAME" \
     "$SHIMMY_ENGINE_LIFECYCLE_CONNECTION" absent \
@@ -189,7 +193,7 @@ shimmy_engine_machine_create_rollback() {
   shimmy_engine_lifecycle_read "$shimmy_engine_machine_create_rollback_journal" || return 1
   [ "$SHIMMY_ENGINE_LIFECYCLE_OPERATION" = create ] || return 1
   case "$SHIMMY_ENGINE_LIFECYCLE_PHASE" in
-    planned)
+    planned|initializing)
       shimmy_engine_podman_machine_absence_validate "$SHIMMY_ENGINE_LIFECYCLE_NAME" \
         "$SHIMMY_ENGINE_LIFECYCLE_CONNECTION" || return 1
       rm -f "$shimmy_engine_machine_create_rollback_journal"

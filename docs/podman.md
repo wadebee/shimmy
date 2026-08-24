@@ -36,6 +36,13 @@ Bootstrap always creates and activates `default` with jq, rg, and Skopeo.
 Executing `./bootstrap.sh` is suitable for automation, but only sourcing can
 select the installed `bin/` directory in the parent shell.
 
+Bootstrap writes an `initializing` lifecycle phase before `podman machine init`.
+Normal compensated failure removes an exactly identified just-created machine
+and the fresh configuration root. If initialization ends before exact identity
+is committed, or exact removal fails, Shimmy preserves the machine and reported
+configuration/journal paths. This is deliberate ownership-safe recovery state,
+not permission to retry bootstrap or delete/adopt the `shimmy` name directly.
+
 ## Profiles and engine authority
 
 Inspect and activate an existing profile through an absolute launcher:

@@ -55,6 +55,12 @@ collision preflight; on Linux it records and validates the current user's local
 rootless engine. Shimmy does not install Podman or adopt an existing machine,
 and bootstrap never supplies `--stop-running`.
 
+A failed bootstrap normally removes its fresh root. If machine initialization
+is ambiguous or exact removal cannot finish, Shimmy reports incomplete rollback
+and retains the configuration root and shared lifecycle journal. Treat those
+paths as recovery evidence: do not retry bootstrap and do not delete, recreate,
+or adopt a Podman machine by name.
+
 Earlier schemas are unsupported. Use the version that created an old
 installation to remove it, then bootstrap fresh. Do not add forwarding or an
 in-place migration.

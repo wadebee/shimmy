@@ -44,6 +44,11 @@ changes use staged validation, locks, exact commit checks, and compensating
 rollback. Preserve the last valid manifest or registry until its replacement is
 committed. Unrecognized or unsafe state blocks mutation.
 
+Machine creation writes durable initializing intent before Podman mutation.
+Compensation removes only a machine with committed exact created-identity
+evidence; an ambiguous init or incomplete removal retains its lifecycle journal
+and installation state instead of deleting by name.
+
 Activation is the authority boundary for engine, registry, active record, and
 AI-skill links. Exact bundle-declared user skill destinations are overwritten
 without backup or recovery. Only recognized stale links may be removed; never

@@ -52,6 +52,12 @@ Use `--shell <bash|zsh|sh|ksh|mksh>` to select the recorded startup shell or
 be absolute. Bootstrap refuses any pre-existing installation root instead of
 merging or migrating it.
 
+A failed bootstrap normally removes its fresh installation root. If Podman
+machine initialization is ambiguous or exact rollback cannot finish, Shimmy
+reports incomplete rollback and retains the root plus engine lifecycle journal
+as recovery evidence. Do not retry bootstrap or delete/adopt the machine by
+name; inspect the reported state first.
+
 See [BOOTSTRAP.md](BOOTSTRAP.md) for first-contact installation and engine
 preparation.
 

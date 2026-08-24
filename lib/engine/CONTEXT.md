@@ -20,6 +20,9 @@ legacy mapping until explicit installation-wide migration.
 Machine names and bindings are routing information, not ownership evidence.
 Missing or mismatched current evidence always preserves a machine. Only
 `lib/profile/activation.sh` may change active profile/engine authority.
+Creation transitions through `initializing` before `podman machine init` and
+does not gain deletion authority until exact created identity is committed in
+`initialized`; an earlier ambiguous machine is preserved with its journal.
 
 ## Parent context
 
