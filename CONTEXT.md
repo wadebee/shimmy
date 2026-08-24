@@ -63,9 +63,9 @@ responsibility.
 
 Podman is an explicit dependency. Shimmy never installs Podman or adopts a
 pre-existing machine. Fresh macOS bootstrap transactionally creates the owned
-shared `shimmy` machine; explicit isolated profiles create independently owned
+shared `shimmy-default` machine; explicit isolated profiles create independently owned
 `shimmy-<profile>` machines, while migrated legacy machines remain external.
-Ordinary profiles share `shimmy`, and same-engine policy changes recycle only
+Ordinary profiles share `shimmy-default`, and same-engine policy changes recycle only
 its rootless API service. Cross-engine activation is workload-guarded. On Linux
 profiles share the current user's local rootless engine and Shimmy performs no
 machine operation.

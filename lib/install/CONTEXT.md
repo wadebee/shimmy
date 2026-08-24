@@ -30,7 +30,7 @@ Initial bootstrap requires a clean committed attached `main`, creates only
 `default`, publishes a shared engine/binding, installs jq/rg/Skopeo, activates
 engine/registry authority, records the active profile, reconciles exact skill
 links, and applies startup policy as one compensated lifecycle. Darwin creates
-the owned `shimmy` machine; Linux records the host-local rootless engine. An
+the owned `shimmy-default` machine; Linux records the host-local rootless engine. An
 existing config root or exact Darwin name collision is never adopted or merged.
 Complete bootstrap compensation removes the fresh root. If shared-machine
 identity is still ambiguous or exact machine removal fails, cleanup instead

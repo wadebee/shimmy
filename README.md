@@ -19,7 +19,7 @@ credential boundaries.
 - Podman CLI and a reachable local rootless engine
 
 Shimmy does not install Podman or adopt existing machines. On macOS, fresh
-bootstrap provisions the installation-owned shared machine `shimmy`; leave that
+bootstrap provisions the installation-owned shared machine `shimmy-default`; leave that
 machine and connection name unused beforehand. Existing per-profile machines
 are recorded only by explicit migration and remain external.
 
@@ -42,7 +42,7 @@ first immutable `default` catalog generation, installs jq, rg, and Skopeo, and
 sources the generated `shell-init.sh` when the bootstrap itself is sourced.
 Executing `./bootstrap.sh` performs the same installation but cannot change its
 parent shell. On macOS it transactionally creates the installation-owned shared
-machine and connection named `shimmy`; an exact pre-existing name is a collision
+machine and connection named `shimmy-default`; an exact pre-existing name is a collision
 and is never adopted. On Linux it records the current local rootless engine as
 the shared host-local engine.
 
@@ -140,7 +140,7 @@ shimmy profile activate default
 
 Ordinary profiles bind to one shared engine. On Linux, activation selects the
 exact user registry-policy link and validates the current user's local rootless
-Podman process. On macOS, shared-to-shared activation keeps the `shimmy` VM and
+Podman process. On macOS, shared-to-shared activation keeps the `shimmy-default` VM and
 running containers up. A changed effective registry policy causes only a brief
 rootless Podman API interruption while `podman.service` is recycled; equal
 policies require no recycle. A transition between shared and isolated engines
@@ -176,7 +176,7 @@ shimmy admin engine migrate
 
 Migration records existing macOS profile machines as external legacy-isolated
 engines without renaming, claiming, starting, stopping, or deleting them, then
-creates `shimmy` for future shared profiles.
+creates `shimmy-default` for future shared profiles.
 
 Skopeo is the only initial tool-container consumer of this policy.
 `shimmy catalog verify` inherits it through the active profile's Skopeo shim.

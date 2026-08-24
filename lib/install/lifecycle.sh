@@ -130,9 +130,11 @@ shimmy_profile_bootstrap_run() {
     darwin)
       shimmy_engine_podman_bin_require ||
         shimmy_profile_lifecycle_error_set 'Podman is required for macOS bootstrap' || return 1
-      shimmy_engine_podman_machine_absence_validate shimmy shimmy ||
+      shimmy_profile_bootstrap_engine_name=shimmy-default
+      shimmy_engine_podman_machine_absence_validate \
+        "$shimmy_profile_bootstrap_engine_name" "$shimmy_profile_bootstrap_engine_name" ||
         shimmy_profile_lifecycle_error_set \
-          'Podman machine or connection name collision: shimmy; Shimmy will not adopt it' || return 1
+          "Podman machine or connection name collision: $shimmy_profile_bootstrap_engine_name; Shimmy will not adopt it" || return 1
       ;;
     linux) shimmy_profile_linux_engine_validate || return 1 ;;
     *)

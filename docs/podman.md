@@ -3,7 +3,7 @@
 Every Shimmy tool wrapper runs a short-lived container through Podman. Podman
 is an explicit dependency; Shimmy does not install Podman or adopt existing
 machines. On macOS, fresh bootstrap transactionally provisions the
-installation-owned shared machine named `shimmy`; explicit isolated profiles
+installation-owned shared machine named `shimmy-default`; explicit isolated profiles
 provision installation-owned machines named `shimmy-<profile>`.
 
 Official installation guidance: <https://podman.io/docs/installation>
@@ -17,7 +17,7 @@ podman --version
 podman info
 ```
 
-On macOS, leave the machine and connection name `shimmy` unused before fresh
+On macOS, leave the machine and connection name `shimmy-default` unused before fresh
 bootstrap. Bootstrap fails before configuration mutation if either name already
 exists; it never adopts, renames, or replaces a collision. If the configuration
 home is outside the normal home share, use the exact same-path `--volume` form
@@ -41,7 +41,7 @@ Normal compensated failure removes an exactly identified just-created machine
 and the fresh configuration root. If initialization ends before exact identity
 is committed, or exact removal fails, Shimmy preserves the machine and reported
 configuration/journal paths. This is deliberate ownership-safe recovery state,
-not permission to retry bootstrap or delete/adopt the `shimmy` name directly.
+not permission to retry bootstrap or delete/adopt the `shimmy-default` name directly.
 
 ## Profiles and engine authority
 
@@ -67,7 +67,7 @@ remains a validated rollback source.
 
 On Linux, all ordinary profiles bind to the shared local rootless engine and
 activation manages only the Shimmy-owned user registry drop-in. On macOS, they
-bind to the shared owned `shimmy` machine. A shared-to-shared switch never stops
+bind to the shared owned `shimmy-default` machine. A shared-to-shared switch never stops
 or starts the VM. If the normalized policy changes, Shimmy recycles only the
 rootless `podman.service`, confirms `podman.socket` remains active, starts a new
 API process through the exact connection, and validates the mapping. This is a
@@ -210,7 +210,7 @@ shimmy admin engine migrate
 
 Migration records existing `shimmy-<profile>` machines as external
 legacy-isolated engines without changing their lifecycle, then creates the
-shared `shimmy` engine for future profiles.
+shared `shimmy-default` engine for future profiles.
 
 ## Profile deletion
 

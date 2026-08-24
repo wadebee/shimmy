@@ -22,13 +22,13 @@ test_lifecycle_migration_command() {
     FAKE_MACHINE_LIST='shimmy-default|applehv|false' \
     FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
     FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_CREATED_STATE" \
-    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
+    FAKE_CREATED_MACHINE_NAME=shimmy-default FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
     FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
     FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
     FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
     FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf" \
     FAKE_WORKLOADS= FAKE_DARWIN_PROJECTION_STATE=absent \
-    FAKE_PRIOR_MACHINE=shimmy-default FAKE_TARGET_MACHINE=shimmy \
+    FAKE_PRIOR_MACHINE=shimmy-default FAKE_TARGET_MACHINE=shimmy-default \
     FAKE_PRIOR_DEFAULT=shimmy-default FAKE_FAIL_ACTION="${TEST_LIFECYCLE_FAIL_ACTION:-}" \
     FAKE_ROLLBACK_FAIL="${TEST_LIFECYCLE_ROLLBACK_FAIL:-}" \
     "$TEST_LIFECYCLE_CONFIG/profiles/default/bin/shimmy" admin engine "$@"
@@ -40,7 +40,7 @@ test_lifecycle_shared_profile_command() {
     FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" FAKE_MACHINE_LIST= \
     FAKE_CONNECTION_LIST='other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false' \
     FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_CREATED_STATE" \
-    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
+    FAKE_CREATED_MACHINE_NAME=shimmy-default FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
     FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
     FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
     FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
@@ -130,13 +130,13 @@ test_lifecycle_darwin_bootstrap_command() {
     FAKE_MACHINE_LIST= \
     FAKE_CONNECTION_LIST='other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
     FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_CREATED_STATE" \
-    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
+    FAKE_CREATED_MACHINE_NAME=shimmy-default FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
     FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
     FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
     FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
     FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf" \
     FAKE_WORKLOADS= FAKE_DARWIN_PROJECTION_STATE=absent \
-    FAKE_PRIOR_MACHINE= FAKE_TARGET_MACHINE=shimmy FAKE_PRIOR_DEFAULT=other \
+    FAKE_PRIOR_MACHINE= FAKE_TARGET_MACHINE=shimmy-default FAKE_PRIOR_DEFAULT=other \
     FAKE_FAIL_ACTION="${TEST_LIFECYCLE_FAIL_ACTION:-}" \
     FAKE_ROLLBACK_FAIL="${TEST_LIFECYCLE_ROLLBACK_FAIL:-}" \
     "$TEST_LIFECYCLE_CHECKOUT/commands/bootstrap.sh" --no-startup
@@ -158,13 +158,13 @@ test_commands_lifecycle_darwin_bootstrap_case() {
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/projection.conf"
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf"
   assert_file_contains "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf" 'mode=shared'
-  test_lifecycle_init_line=$(sed -n '/^machine init shimmy$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
-  test_lifecycle_start_line=$(sed -n '/^machine start shimmy$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
+  test_lifecycle_init_line=$(sed -n '/^machine init shimmy-default$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
+  test_lifecycle_start_line=$(sed -n '/^machine start shimmy-default$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
   test_lifecycle_projection_line=$(sed -n \
-    '/^machine ssh shimmy systemctl --user stop podman.service$/=' \
+    '/^machine ssh shimmy-default systemctl --user stop podman.service$/=' \
     "$TEST_LIFECYCLE_PODMAN_LOG" | head -n 1)
   test_lifecycle_validation_line=$(sed -n \
-    '/^--connection shimmy info /=' "$TEST_LIFECYCLE_PODMAN_LOG" | tail -n 1)
+    '/^--connection shimmy-default info /=' "$TEST_LIFECYCLE_PODMAN_LOG" | tail -n 1)
   test_lifecycle_image_line=$(sed -n '/^image|jq|1.8|pull$/=' \
     "$TEST_LIFECYCLE_PODMAN_LOG")
   [ "$test_lifecycle_init_line" -lt "$test_lifecycle_start_line" ] &&
@@ -181,7 +181,7 @@ test_commands_lifecycle_darwin_bootstrap_case() {
   test_lifecycle_shared_profile_command profile redirect set \
     --prefix docker.io --location registry.example.invalid/docker >/dev/null
   assert_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" \
-    'machine ssh shimmy systemctl --user stop podman.service'
+    'machine ssh shimmy-default systemctl --user stop podman.service'
   assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine stop '
   assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine start '
   test_lifecycle_shared_source_before=$(cksum < \
@@ -225,7 +225,7 @@ test_commands_lifecycle_darwin_bootstrap_engine_states() {
     fail_test 'injected shared machine-start bootstrap failure unexpectedly succeeded'
   assert_equals "$(cat "$TEST_LIFECYCLE_CREATED_STATE")" absent
   assert_path_not_exists "$TEST_LIFECYCLE_CONFIG"
-  assert_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine rm --force shimmy'
+  assert_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine rm --force shimmy-default'
 
   TEST_LIFECYCLE_CREATED_STATE=$SCENARIO_DIR/created-machine-state
   TEST_LIFECYCLE_SERVICE_PID=$SCENARIO_DIR/service-pid
@@ -281,13 +281,13 @@ test_commands_lifecycle_darwin_bootstrap_engine_states() {
     XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
     SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
     FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
-    FAKE_MACHINE_LIST='shimmy|applehv|false' FAKE_CONNECTION_LIST= \
+    FAKE_MACHINE_LIST='shimmy-default|applehv|false' FAKE_CONNECTION_LIST= \
     "$TEST_LIFECYCLE_CHECKOUT/commands/bootstrap.sh" --no-startup 2>&1)
   test_lifecycle_collision_status=$?
   set -e
   [ "$test_lifecycle_collision_status" -ne 0 ] ||
     fail_test 'Darwin bootstrap unexpectedly adopted a colliding shared machine'
-  assert_contains "$test_lifecycle_collision_output" 'machine or connection name collision: shimmy'
+  assert_contains "$test_lifecycle_collision_output" 'machine or connection name collision: shimmy-default'
   assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine init '
   assert_path_not_exists "$TEST_LIFECYCLE_CONFIG"
   pass 'Darwin bootstrap creates the owned shared engine and rejects an exact pre-existing machine without mutation'
@@ -297,11 +297,11 @@ test_commands_lifecycle_owned_isolated() {
   test_commands_lifecycle_darwin_bootstrap_case isolated
   TEST_LIFECYCLE_ISOLATED_STATE=$SCENARIO_DIR/isolated-machine-state
   printf '%s\n' absent > "$TEST_LIFECYCLE_ISOLATED_STATE"
-  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy|true'
-  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy-default|true'
+  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   TEST_LIFECYCLE_ISOLATED_WORKLOADS=
-  TEST_LIFECYCLE_PRIOR_MACHINE=shimmy
-  TEST_LIFECYCLE_PRIOR_DEFAULT=shimmy
+  TEST_LIFECYCLE_PRIOR_MACHINE=shimmy-default
+  TEST_LIFECYCLE_PRIOR_DEFAULT=shimmy-default
   TEST_LIFECYCLE_DELETE_FAILURE=
   : > "$TEST_LIFECYCLE_PODMAN_LOG"
 
@@ -350,7 +350,7 @@ test_commands_lifecycle_owned_isolated() {
   test_lifecycle_isolated_init_line=$(sed -n \
     '/^machine init shimmy-isolated-one$/=' \
     "$TEST_LIFECYCLE_PODMAN_LOG")
-  test_lifecycle_isolated_stop_line=$(sed -n '/^machine stop shimmy$/=' \
+  test_lifecycle_isolated_stop_line=$(sed -n '/^machine stop shimmy-default$/=' \
     "$TEST_LIFECYCLE_PODMAN_LOG")
   test_lifecycle_isolated_start_line=$(sed -n '/^machine start shimmy-isolated-one$/=' \
     "$TEST_LIFECYCLE_PODMAN_LOG")
@@ -365,9 +365,9 @@ test_commands_lifecycle_owned_isolated() {
     "$TEST_LIFECYCLE_CONFIG/active-profile.conf")" isolated-one
 
   TEST_LIFECYCLE_ISOLATED_STATE=
-  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy|false
+  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy-default|false
 shimmy-isolated-one|true'
-  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
+  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
 shimmy-isolated-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   set +e
   test_lifecycle_isolated_clone_dry=$(test_lifecycle_isolated_profile_command isolated-one \
@@ -395,13 +395,13 @@ shimmy-isolated-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
     FAKE_MACHINE_LIST='shimmy-isolated-one|true' \
     FAKE_CONNECTION_LIST='shimmy-isolated-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
     FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_CREATED_STATE" \
-    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
+    FAKE_CREATED_MACHINE_NAME=shimmy-default FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
     FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
     FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
     FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
     FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf" \
     FAKE_WORKLOADS= FAKE_DARWIN_PROJECTION_STATE=current \
-    FAKE_PRIOR_MACHINE=shimmy-isolated-one FAKE_TARGET_MACHINE=shimmy \
+    FAKE_PRIOR_MACHINE=shimmy-isolated-one FAKE_TARGET_MACHINE=shimmy-default \
     FAKE_PRIOR_DEFAULT=shimmy-isolated-one \
     "$test_lifecycle_isolated_root/bin/shimmy" profile activate default >/dev/null
   assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' \
@@ -412,10 +412,10 @@ shimmy-isolated-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   TEST_LIFECYCLE_ISOLATED_CREATED_NAME=shimmy-isolated-two
   TEST_LIFECYCLE_ISOLATED_ENGINE_ID=profile-isolated-two
   TEST_LIFECYCLE_TARGET_MACHINE=shimmy-isolated-two
-  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy|true'
-  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
-  TEST_LIFECYCLE_PRIOR_MACHINE=shimmy
-  TEST_LIFECYCLE_PRIOR_DEFAULT=shimmy
+  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy-default|true'
+  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  TEST_LIFECYCLE_PRIOR_MACHINE=shimmy-default
+  TEST_LIFECYCLE_PRIOR_DEFAULT=shimmy-default
   set +e
   test_lifecycle_isolated_clone_output=$(test_lifecycle_isolated_profile_command default \
     profile clone isolated-one isolated-two 2>&1)
@@ -446,18 +446,18 @@ shimmy-isolated-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
     FAKE_MACHINE_LIST='shimmy-isolated-two|true' \
     FAKE_CONNECTION_LIST='shimmy-isolated-two|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
     FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_CREATED_STATE" \
-    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
+    FAKE_CREATED_MACHINE_NAME=shimmy-default FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
     FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
     FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
     FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
     FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf" \
     FAKE_WORKLOADS= FAKE_DARWIN_PROJECTION_STATE=current \
-    FAKE_PRIOR_MACHINE=shimmy-isolated-two FAKE_TARGET_MACHINE=shimmy \
+    FAKE_PRIOR_MACHINE=shimmy-isolated-two FAKE_TARGET_MACHINE=shimmy-default \
     FAKE_PRIOR_DEFAULT=shimmy-isolated-two \
     "$test_lifecycle_isolated_two_root/bin/shimmy" profile activate default >/dev/null
   printf '%s\n' stopped > "$TEST_LIFECYCLE_ISOLATED_STATE"
-  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy|true'
-  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy-default|true'
+  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   test_lifecycle_isolated_profile_command default profile delete isolated-two >/dev/null
   assert_path_not_exists "$test_lifecycle_isolated_two_root"
   assert_path_not_exists "$test_lifecycle_isolated_two_engine"
@@ -467,8 +467,8 @@ shimmy-isolated-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   TEST_LIFECYCLE_ISOLATED_ENGINE_ID=profile-isolated-one
   TEST_LIFECYCLE_TARGET_MACHINE=shimmy-isolated-one
   printf '%s\n' stopped > "$TEST_LIFECYCLE_ISOLATED_STATE"
-  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy|true'
-  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy-default|true'
+  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   test_lifecycle_delete_dry=$(test_lifecycle_isolated_profile_command default \
     profile delete isolated-one --dry-run)
   assert_contains "$test_lifecycle_delete_dry" 'deletion_action=remove'
@@ -521,7 +521,7 @@ test_commands_lifecycle_explicit_migration() {
 
   test_lifecycle_migration_dry=$(test_lifecycle_migration_command migrate --dry-run)
   assert_contains "$test_lifecycle_migration_dry" 'profile_binding=default|legacy-isolated|profile-default|shimmy-default'
-  assert_contains "$test_lifecycle_migration_dry" 'shared_engine=shared|shimmy|would-create'
+  assert_contains "$test_lifecycle_migration_dry" 'shared_engine=shared|shimmy-default|would-create'
   assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/engines"
   assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine init '
 
@@ -571,13 +571,13 @@ test_commands_lifecycle_global_owned_uninstall() {
 
   TEST_LIFECYCLE_ISOLATED_STATE=$SCENARIO_DIR/isolated-state
   printf '%s\n' absent > "$TEST_LIFECYCLE_ISOLATED_STATE"
-  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy|true'
-  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy-default|true'
+  TEST_LIFECYCLE_BASE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   TEST_LIFECYCLE_ISOLATED_CREATED_NAME=shimmy-isolated-one
   TEST_LIFECYCLE_ISOLATED_ENGINE_ID=profile-isolated-one
   TEST_LIFECYCLE_TARGET_MACHINE=shimmy-isolated-one
-  TEST_LIFECYCLE_PRIOR_MACHINE=shimmy
-  TEST_LIFECYCLE_PRIOR_DEFAULT=shimmy
+  TEST_LIFECYCLE_PRIOR_MACHINE=shimmy-default
+  TEST_LIFECYCLE_PRIOR_DEFAULT=shimmy-default
   TEST_LIFECYCLE_ISOLATED_WORKLOADS=
   test_lifecycle_isolated_profile_command default profile create isolated-one \
     --isolated >/dev/null

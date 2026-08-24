@@ -712,8 +712,8 @@ test_lib_profile_activation_shared_engine() {
   setup_scenario
   FAKE_PODMAN_BIN=$SCENARIO_DIR/podman
   FAKE_PODMAN_LOG=$SCENARIO_DIR/podman.log
-  FAKE_MACHINE_LIST='shimmy|true'
-  FAKE_CONNECTION_LIST='shimmy|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
+  FAKE_MACHINE_LIST='shimmy-default|true'
+  FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   FAKE_WORKLOADS='sentinel|shared-sentinel'
   FAKE_DARWIN_INFO='true|true'
   FAKE_DARWIN_PROJECTION_STATE=current
@@ -742,10 +742,10 @@ test_lib_profile_activation_shared_engine() {
     team-one shared shared
   SHIMMY_TEST_ENGINE_PODMAN_BIN=$FAKE_PODMAN_BIN
   shimmy_engine_podman_bin_require
-  shared_identity=$(shimmy_engine_podman_machine_identity_fingerprint_render shimmy shimmy)
+  shared_identity=$(shimmy_engine_podman_machine_identity_fingerprint_render shimmy-default shimmy-default)
   shared_token=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
   shimmy_engine_record_write "$shared_engine_root/engine.conf" shared darwin-machine \
-    installation shimmy shimmy applehv shimmy-created "$shared_token" "$shared_identity"
+    installation shimmy-default shimmy-default applehv shimmy-created "$shared_token" "$shared_identity"
   cp "$shared_config/profiles/default/registries.conf" "$shared_engine_root/registries.conf"
   chmod 0644 "$shared_engine_root/registries.conf"
   shared_source_fingerprint=$(shimmy_sha256_fingerprint_file_render \
@@ -768,10 +768,10 @@ test_lib_profile_activation_shared_engine() {
   chmod 0644 "$shared_config/profiles/team-one/registries.conf"
   : > "$FAKE_PODMAN_LOG"
   profile_activation_library_run team-one Darwin activate 0 0 0 >/dev/null
-  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh shimmy systemctl --user stop podman.service'
+  assert_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine ssh shimmy-default systemctl --user stop podman.service'
   assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine stop '
   assert_not_contains "$(cat "$FAKE_PODMAN_LOG")" 'machine start '
-  assert_contains "$(cat "$FAKE_PODMAN_LOG")" '--connection shimmy info '
+  assert_contains "$(cat "$FAKE_PODMAN_LOG")" '--connection shimmy-default info '
   assert_equals "$(cat "$FAKE_SERVICE_PID_FILE")" 801
   pass 'shared activation reuses the VM, skips equal-policy recycle, and applies changed policy through podman.service only'
 }
