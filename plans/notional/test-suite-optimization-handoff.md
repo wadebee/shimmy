@@ -13,9 +13,13 @@ The planning task is to reduce test feedback time, especially the current
 weakening destructive-action or ownership coverage, introducing real Podman
 machine mutation, or creating a separate incomplete “fast” suite.
 
-The current working tree contains the unaccepted shared-machine rollback
-implementation and its tests. A future planning agent must preserve and
-inventory those changes rather than assuming a clean baseline.
+As of 2026-08-24, the working tree is clean, but the current `main` checkout
+contains the committed, human-unaccepted shared-machine rollback implementation
+and tests recorded by `plans/wip/shared-machine-rollback.md`. Commit `c118957`
+then changed shared-engine naming and lifecycle tests after the triggering runs
+below. A future planning agent must preserve and inventory the current checkout,
+freeze its exact commit and worktree state, and must not treat the triggering
+timings as a current baseline.
 
 ## Triggering run
 
@@ -31,13 +35,15 @@ nine times:
 | 5 | default full suite | interrupted with status 130 after a late cleanup issue invalidated the run | partial | approximately 11 minutes |
 | 6 | serial `lib-engine` | partial failure in a new test’s stderr capture | 3 passes, then failure | 9.36 seconds |
 | 7 | serial `lib-engine` | complete pass | 7 | 11.01 seconds |
-| 8 | parallel `lib-engine` + `commands-lifecycle` | complete pass, final code | 12 | approximately 42 minutes |
-| 9 | default full suite | complete pass, final code | 129 | approximately 44 minutes |
+| 8 | parallel `lib-engine` + `commands-lifecycle` | complete pass, then-final rollback-session code | 12 | approximately 42 minutes |
+| 9 | default full suite | complete pass, then-final rollback-session code | 129 | approximately 44 minutes |
 
 `SHIMMY_TEST_TIMING=1` was not enabled. Successful and interrupted runner
 cleanup removed the temporary group logs, so the approximate durations above
 come from observed temporary-file timestamps rather than retained stable timing
 records. Unknown values must not be reconstructed as exact measurements.
+The later `c118957` changes make these results historical evidence only even
+though the rollback plan remains unaccepted.
 
 ### Confirmed duplication
 
@@ -163,7 +169,10 @@ decisions.
 
 ### A. Immediate process changes
 
-1. Require `SHIMMY_TEST_TIMING=1` for agent-run focused and full acceptance.
+1. Require the invocation-only `SHIMMY_TEST_TIMING=1` toggle for every benchmark
+   and agent-run focused or full acceptance. This must not change the default
+   transcript when the toggle is unset. Reject a purported measurement if its
+   expected setup, selected-group, and total timing records are absent.
 2. Add a pre-acceptance gate:
    - syntax and cheap unit groups;
    - final state-machine, destructive-authority, and trap-idempotency review;
@@ -178,14 +187,19 @@ decisions.
 
 ### B. Timing and progress observability
 
-1. Add scenario-level timing around each top-level lifecycle function, using a
+1. Route scenario-level timing and any lifecycle `START` markers through the
+   existing `SHIMMY_TEST_TIMING=1` toggle. Do not introduce a second timing
+   toggle, and preserve the normal transcript when timing is disabled. If the
+   stable timing schema gains a `scenario` scope or a separate progress record,
+   update `docs/testing.md` and runner contract coverage together.
+2. Add scenario-level timing around each top-level lifecycle function, using a
    stable record shape distinct from group timing.
-2. Add deterministic `START` markers for lifecycle scenarios to the private
+3. Add deterministic `START` markers for lifecycle scenarios to the private
    group log so progress is visible before a `PASS` record.
-3. Preserve timing records in the final transcript or a deliberate retained
+4. Preserve timing records in the final transcript or a deliberate retained
    artifact when a run fails or is interrupted. Do not retain entire mutable
    fixtures by default solely for timing.
-4. Measure fixture preparation separately from scenario command execution.
+5. Measure fixture preparation separately from scenario command execution.
 
 ### C. Cheap fake-Podman contract coverage
 
@@ -252,10 +266,14 @@ preserve historical assignments when they leave one dominant critical path.
 
 A formal plan must preserve all of the following:
 
-- one canonical suite and exact selectable group registry;
+- one canonical suite and one validated registry that exactly maps each
+  selectable group to one run function; accepted scenario splitting may change
+  registry membership only with corresponding runner contract coverage;
 - default bounded parallelism with at most three workers unless separately
   approved;
 - deterministic canonical output and correct failure propagation;
+- opt-in timing through `SHIMMY_TEST_TIMING=1`, no replacement timing toggle,
+  and unchanged normal output when the toggle is unset;
 - POSIX shell and offline default source-suite behavior;
 - no real Podman machine or current Shimmy installation mutation;
 - fake-only machine lifecycle acceptance;
@@ -276,21 +294,23 @@ A formal plan must preserve all of the following:
 1. What are the current coarse setup, group, and total times from one clean
    same-host timing-enabled run?
 2. What is the scenario-level breakdown inside `commands-lifecycle`?
-3. Which code/test changes since the retained 227-second benchmark account for
+3. What stable scenario timing and progress record shape extends the current
+   contract while leaving timing-disabled output unchanged?
+4. Which code/test changes since the retained 227-second benchmark account for
    the current approximately 42-minute observation?
-4. Are the five lifecycle scenarios independently runnable in fresh child
+5. Are the five lifecycle scenarios independently runnable in fresh child
    processes, or do hidden shell globals/state couple any pair?
-5. Does scenario-level parallelism reduce wall time under three workers, or
+6. Does scenario-level parallelism reduce wall time under three workers, or
    does filesystem/Git contention erase the benefit?
-6. How much time is spent constructing lifecycle checkouts versus executing
+7. How much time is spent constructing lifecycle checkouts versus executing
    the behavior under test?
-7. Can an immutable prepared lifecycle checkout be shared safely without
+8. Can an immutable prepared lifecycle checkout be shared safely without
    weakening clean-main, publication, or mutation-independence coverage?
-8. Which fake-provider contract is authoritative for init failure semantics,
+9. Which fake-provider contract is authoritative for init failure semantics,
    and where should its single low-cost proof live?
-9. What static worker assignment minimizes the final critical path after any
+10. What static worker assignment minimizes the final critical path after any
    group or fixture changes?
-10. What improvement target is justified by the measured current baseline?
+11. What improvement target is justified by the measured current baseline?
     Do not invent a threshold before measuring.
 
 ## Suggested planning sequence
@@ -299,18 +319,24 @@ The future formal plan should consider these phases, but must verify and revise
 them rather than copying them mechanically:
 
 1. **Inventory and baseline** — reconcile historical plans, current group
-   registry, current lifecycle source, current dirty-tree changes, and one
-   timing-enabled baseline. Add observability before structural optimization if
-   current data cannot attribute cost.
+   registry, current lifecycle source, and the exact current commit and worktree
+   state. Freeze one same-host baseline with the invocation-only toggle, using
+   `SHIMMY_TEST_TIMING=1 ./tests/test.sh --group commands-lifecycle` for the
+   current single-group architecture, and verify the emitted timing records.
+   Add observability before structural optimization if current data cannot
+   attribute cost.
 2. **Low-cost safeguards** — add fake-provider contract coverage and codify the
    pre-acceptance process. Verify these without running repeated full lifecycle
    acceptance during development.
 3. **Lifecycle critical-path refactor** — choose scenario-level groups,
    progressive scenario reuse, fixture-template reuse, or a measured
    combination. Preserve an assertion mapping and isolation proof.
-4. **Scheduling and acceptance** — rebalance workers, run one focused final
-   acceptance and one complete final suite with timing enabled, then compare
-   counts and coarse timings against the frozen baseline.
+4. **Testing, scheduling, and acceptance** — rebalance workers, prefix the one
+   focused final acceptance invocation with `SHIMMY_TEST_TIMING=1`, make no
+   further edits, then run the complete default bounded suite once as
+   `SHIMMY_TEST_TIMING=1 ./tests/test.sh`. Verify that both runs emitted the
+   expected timing records before comparing counts and coarse timings against
+   the frozen baseline. Use `--serial` only to diagnose a failure.
 
 ## Source inventory for the next planning prompt
 
@@ -344,13 +370,15 @@ resolving material ambiguities with evidence.
 Produce a decision-complete, reviewable implementation plan that includes:
 
 - a frozen current baseline and explicit timing limitations;
+- the exact commit and worktree state used for that baseline;
 - an assertion and invariant mapping for every affected lifecycle scenario;
 - selected group/fixture/progress architecture with rejected alternatives and
   reasons;
 - concrete file inventory and ordered implementation chunks;
 - focused verification that avoids repeated expensive acceptance while code is
   unstable;
-- one final timing-enabled focused run and one timing-enabled full run;
+- one final focused run and one final full run explicitly invoked with
+  `SHIMMY_TEST_TIMING=1`, with required timing records present;
 - worker rebalance criteria where applicable;
 - risk register covering isolation, hidden shell state, output determinism,
   fixture mutation, destructive-action coverage, and false performance gains;

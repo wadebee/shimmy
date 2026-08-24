@@ -67,7 +67,8 @@ remains a validated rollback source.
 
 On Linux, all ordinary profiles bind to the shared local rootless engine and
 activation manages only the Shimmy-owned user registry drop-in. On macOS, they
-bind to the shared owned `shimmy-default` machine. A shared-to-shared switch never stops
+bind to the installation's owned shared machine: `shimmy-default` for fresh
+installations or `shimmy` after compatibility migration. A shared-to-shared switch never stops
 or starts the VM. If the normalized policy changes, Shimmy recycles only the
 rootless `podman.service`, confirms `podman.socket` remains active, starts a new
 API process through the exact connection, and validates the mapping. This is a
@@ -210,7 +211,7 @@ shimmy admin engine migrate
 
 Migration records existing `shimmy-<profile>` machines as external
 legacy-isolated engines without changing their lifecycle, then creates the
-shared `shimmy-default` engine for future profiles.
+reserved shared `shimmy` engine for future profiles.
 
 ## Profile deletion
 

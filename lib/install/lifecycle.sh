@@ -192,7 +192,7 @@ shimmy_profile_bootstrap_run() {
     darwin)
       mkdir "$shimmy_profile_bootstrap_config/engines" || return 1
       shimmy_engine_registry_shared_create_prepare "$shimmy_profile_bootstrap_config" \
-        default || shimmy_profile_lifecycle_error_set \
+        default shimmy-default || shimmy_profile_lifecycle_error_set \
           'unable to create the shared Podman engine' || return 1
       ;;
     linux)

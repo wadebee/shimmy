@@ -31,13 +31,13 @@ does not make a repository-local adapter tree authoritative.
 - Podman CLI and a reachable local rootless engine.
 
 Shimmy treats Podman as an explicit dependency. It does not install Podman or
-provision, adopt, rename, migrate, or remove machines. The macOS package may
+adopt or rename pre-existing machines. The macOS package may
 place the CLI at `/opt/podman/bin/podman`.
 
 On macOS, bootstrap requires the exact Podman machine and connection name
-`shimmy` to be absent. It initializes that shared machine without provider
+`shimmy-default` to be absent. It initializes that shared machine without provider
 overrides, `--now`, or post-5.8 connection-update flags, preserves the prior
-default connection, starts `shimmy`, records host and guest ownership evidence,
+default connection, starts `shimmy-default`, records host and guest ownership evidence,
 installs its stable user registry drop-in, and activates the default profile
 policy. A same-name machine or connection is a pre-mutation collision; Shimmy
 never adopts it. Do not create a machine manually before fresh bootstrap.

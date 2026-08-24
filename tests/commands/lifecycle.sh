@@ -22,13 +22,13 @@ test_lifecycle_migration_command() {
     FAKE_MACHINE_LIST='shimmy-default|applehv|false' \
     FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
     FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_CREATED_STATE" \
-    FAKE_CREATED_MACHINE_NAME=shimmy-default FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
+    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
     FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
     FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
     FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
     FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf" \
     FAKE_WORKLOADS= FAKE_DARWIN_PROJECTION_STATE=absent \
-    FAKE_PRIOR_MACHINE=shimmy-default FAKE_TARGET_MACHINE=shimmy-default \
+    FAKE_PRIOR_MACHINE=shimmy-default FAKE_TARGET_MACHINE=shimmy \
     FAKE_PRIOR_DEFAULT=shimmy-default FAKE_FAIL_ACTION="${TEST_LIFECYCLE_FAIL_ACTION:-}" \
     FAKE_ROLLBACK_FAIL="${TEST_LIFECYCLE_ROLLBACK_FAIL:-}" \
     "$TEST_LIFECYCLE_CONFIG/profiles/default/bin/shimmy" admin engine "$@"
@@ -521,7 +521,7 @@ test_commands_lifecycle_explicit_migration() {
 
   test_lifecycle_migration_dry=$(test_lifecycle_migration_command migrate --dry-run)
   assert_contains "$test_lifecycle_migration_dry" 'profile_binding=default|legacy-isolated|profile-default|shimmy-default'
-  assert_contains "$test_lifecycle_migration_dry" 'shared_engine=shared|shimmy-default|would-create'
+  assert_contains "$test_lifecycle_migration_dry" 'shared_engine=shared|shimmy|would-create'
   assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/engines"
   assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine init '
 
@@ -557,6 +557,7 @@ test_commands_lifecycle_explicit_migration() {
   assert_file_contains "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf" 'mode=legacy-isolated'
   assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/profile-default/engine.conf" 'origin=legacy-external'
   assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf" 'origin=shimmy-created'
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf" 'name=shimmy'
   test_lifecycle_migration_status_output=$(test_lifecycle_migration_command status --format manifest)
   assert_contains "$test_lifecycle_migration_status_output" \
     'shimmy_engine_profile=default|migrated|legacy-isolated|profile-default|shimmy-default|legacy-external|external|not-applicable'

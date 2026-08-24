@@ -159,8 +159,10 @@ shimmy_engine_registry_linux_shared_publish() {
 shimmy_engine_registry_shared_create_prepare() {
   shimmy_engine_registry_shared_config=$1
   shimmy_engine_registry_shared_profile=$2
-  shimmy_engine_registry_shared_name=shimmy-$shimmy_engine_registry_shared_profile
+  shimmy_engine_registry_shared_name=$3
+  shimmy_name_component_validate "$shimmy_engine_registry_shared_name" || return 1
   SHIMMY_ENGINE_REGISTRY_SHARED_CONFIG=$shimmy_engine_registry_shared_config
+  SHIMMY_ENGINE_REGISTRY_SHARED_NAME=$shimmy_engine_registry_shared_name
   shimmy_engine_paths_resolve "$shimmy_engine_registry_shared_config" shared || return 1
   mkdir -p "$SHIMMY_ENGINE_ROOT" || return 1
   [ -d "$SHIMMY_ENGINE_ROOT" ] && [ ! -L "$SHIMMY_ENGINE_ROOT" ] || return 1
@@ -196,8 +198,12 @@ shimmy_engine_registry_shared_create_commit() {
 shimmy_engine_registry_shared_create_rollback() {
   shimmy_engine_registry_shared_rollback_config=$1
   shimmy_engine_paths_resolve "$shimmy_engine_registry_shared_rollback_config" shared || return 1
-  shimmy_engine_projection_rollback shimmy >/dev/null 2>&1 || true
-  shimmy_engine_podman_projection_dropin_remove shimmy \
+  shimmy_engine_lifecycle_read "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
+  shimmy_engine_registry_shared_rollback_name=$SHIMMY_ENGINE_LIFECYCLE_NAME
+  shimmy_engine_projection_rollback \
+    "$shimmy_engine_registry_shared_rollback_name" >/dev/null 2>&1 || true
+  shimmy_engine_podman_projection_dropin_remove \
+    "$shimmy_engine_registry_shared_rollback_name" \
     "$SHIMMY_ENGINE_REGISTRIES_PATH" >/dev/null 2>&1 || true
   shimmy_engine_machine_create_rollback "$SHIMMY_ENGINE_RECORD_PATH" \
     "$SHIMMY_ENGINE_LIFECYCLE_PATH" || return 1
@@ -343,7 +349,7 @@ EOF
       ;;
     darwin)
       shimmy_engine_podman_bin_require || return 1
-      shimmy_engine_registry_shared_name=shimmy-$SHIMMY_PROFILE_ACTIVE_NAME
+      shimmy_engine_registry_shared_name=shimmy
       shimmy_engine_podman_machine_absence_validate \
         "$shimmy_engine_registry_shared_name" "$shimmy_engine_registry_shared_name" || {
         printf 'ERROR: Podman machine or connection name collision: %s\n' \
@@ -430,8 +436,7 @@ shimmy_engine_registry_migrate() {
 $SHIMMY_ENGINE_REGISTRY_MIGRATION_PROFILES
 EOF
   if [ "$SHIMMY_ENGINE_REGISTRY_HOST_OS" = darwin ]; then
-    printf 'shared_engine=shared|shimmy-%s|would-create\n' \
-      "$shimmy_engine_registry_migrate_active"
+    printf '%s\n' 'shared_engine=shared|shimmy|would-create'
   else
     printf '%s\n' 'shared_engine=shared|local|host-local'
   fi
@@ -464,7 +469,7 @@ $SHIMMY_ENGINE_REGISTRY_MIGRATION_PROFILES
 EOF
     if [ "$shimmy_engine_registry_migrate_status" -eq 0 ]; then
       shimmy_engine_registry_shared_create_prepare "$shimmy_engine_registry_migrate_config" \
-        "$SHIMMY_PROFILE_ACTIVE_NAME" || shimmy_engine_registry_migrate_status=1
+        "$SHIMMY_PROFILE_ACTIVE_NAME" shimmy || shimmy_engine_registry_migrate_status=1
     fi
   else
     shimmy_engine_paths_resolve "$shimmy_engine_registry_migrate_config" shared || return 1
