@@ -7,8 +7,10 @@ profile test mode or session-wide legacy profile fixture.
 
 The runner registry contains promoted canonical library/command groups followed
 by tool groups. The lifecycle group is indivisible. Group logs replay in registry
-order and exact count/status/worker artifacts fail closed. Default execution uses
-three workers; use serial only for one group or failure diagnosis.
+order and exact count/status/worker artifacts fail closed. Timing-enabled runs
+also retain canonical setup/group START evidence and elapsed group/total evidence
+on failure or interruption. Default execution uses three workers; use serial only
+for one group or failure diagnosis.
 
 Fixtures use absolute disposable XDG/HOME roots. Catalog-heavy groups create
 clean local-main Git copies because publication validates real Git state and

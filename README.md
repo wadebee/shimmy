@@ -142,8 +142,9 @@ Ordinary profiles bind to one shared engine. On Linux, activation selects the
 exact user registry-policy link and validates the current user's local rootless
 Podman process. On macOS, shared-to-shared activation keeps the installation's
 owned shared VM (`shimmy-default` for fresh installations or `shimmy` after
-compatibility migration) and running containers up. A changed effective registry policy causes only a brief
-rootless Podman API interruption while `podman.service` is recycled; equal
+compatibility migration) and running containers up. A changed effective
+registry policy causes only a brief rootless Podman API interruption while
+`podman.service` is recycled; equal
 policies require no recycle. A transition between shared and isolated engines
 stages the target policy before starting it, stops the prior machine only when
 required, and requires `--stop-running` if that interruption would affect

@@ -138,8 +138,9 @@ additional dependencies discovered during implementation.
 ### Frozen repository state
 
 - Repository: `/Users/wade/Repos/Github/wadebee/shimmy`
-- Commit: `c11895713311cb660b8a16fec992db68beb0b968`
-- Branch: `main`, four commits ahead of `origin/main`
+- Initial planning commit: `c11895713311cb660b8a16fec992db68beb0b968`
+- ACT baseline commit: `30b2df1` plus the user's coherent uncommitted
+  shared-engine cleanup and uninstall-fixture corrections
 - Host: Darwin 25.5.0 arm64; macOS product version 26.5.1
 - Pre-plan worktree: only
   `plans/notional/test-suite-optimization-handoff.md` modified by the user
@@ -228,6 +229,23 @@ The cause is confirmed in `c118957`:
 - those conditions are mutually exclusive for the active profile. Changing
   only the fake fixture cannot make the production migration contract valid.
 
+The user repaired that regression in `30b2df1` by retaining the reserved
+`shimmy` name for the shared engine created during compatibility migration and
+keeping legacy `shimmy-default` external. The exact timing command was then
+rerun from the repaired worktree and passed all five logical lifecycle tests:
+
+```text
+shimmy_test_timing=setup|copy-on-write-probe|0
+shimmy_test_timing=group|commands-lifecycle|2492
+shimmy_test_timing=total|suite|2492
+All 5 Shimmy tests passed.
+```
+
+The accepted optimization target is at least a 20 percent reduction from this
+2,492-second same-host critical path: the final five-group focused acceptance
+must complete in no more than 1,993 seconds. Final two- and three-worker
+assignments remain measurement-driven from the post-split serial calibration.
+
 ### Assertion and invariant mapping
 
 | Target group | Existing authoritative proof retained inside the group |
@@ -240,42 +258,21 @@ The cause is confirmed in `c118957`:
 
 ## Unresolved
 
-1. **Production migration identity after `c118957`.** The optimization plan
-   cannot freeze a passing baseline or preserve migration coverage until this
-   destructive ownership boundary is resolved. Viable choices are:
-
-   - repair engine migration in a separate authoritative plan, restore a green
-     current lifecycle group, then resume this optimization plan and freeze a
-     new baseline; or
-   - expand this plan to redesign production migration identity, documentation,
-     rollback, ownership records, and acceptance before optimizing tests.
-
-   The recommended choice is the separate prerequisite repair. Selecting a
-   collision-free owned shared identity versus reclassifying an existing
-   external engine is a production lifecycle and data-ownership decision, not
-   a test-performance implementation detail.
-
-2. **Final improvement target and worker assignments.** These are intentionally
-   unset until the prerequisite repair yields one passing current baseline.
-   Historical 227-second and 42-minute observations are not valid substitutes.
+None.
 
 ## Progress Checklist
 
-- Active phase: PLAN — blocked on the production migration-scope decision.
+- Active phase: ACT — Chunk 1 complete and awaiting human review.
 - [x] Confirm objective and `plans` lifecycle root.
 - [x] Read repository guidance, test contexts, current runner/lifecycle sources,
   and retained performance/rollback plans.
 - [x] Freeze commit, host, and pre-plan worktree evidence.
-- [~] Freeze a passing current lifecycle baseline.
-  - Passed: setup timing was present; bootstrap and isolated scenarios passed;
-    failure time and exact failure boundary were retained.
-  - Remaining: migration, uninstall, end-to-end, and total timing did not pass.
-  - Reason: production migration assigns the same `shimmy-default` identity to
-    the existing legacy engine and the proposed new shared engine.
-  - Impact: no accepted current performance baseline or justified target.
-  - Next action: user selects separate prerequisite repair or scope expansion.
-- [ ] Resolve all design decisions and set `## Unresolved` to `None`.
-- [ ] Chunk 1 — Add runner evidence retention and the fake-provider contract.
+- [x] Freeze a passing current lifecycle baseline.
+  - Result: setup `0`, monolithic lifecycle group `2492`, total `2492`, all five
+    logical tests passed.
+  - Target: final five-group focused acceptance at or below `1993` seconds.
+- [x] Resolve all design decisions and set `## Unresolved` to `None`.
+- [x] Chunk 1 — Add runner evidence retention and the fake-provider contract.
 - [ ] Chunk 2 — Split lifecycle groups, reuse the checkout template, calibrate
   assignments, and complete final acceptance.
 
@@ -295,8 +292,8 @@ For every chunk:
 Repository paths in this plan are relative to `<repo>` so it remains portable
 across workstations and sessions.
 
-The implementation chunks below are not authorized and are not yet
-decision-complete while `## Unresolved` is nonempty.
+The user authorized implementation by requesting a retry after repairing the
+baseline failure. Execute one chunk at a time and retain the human review gates.
 
 ## Chunk 1 — Preserve progress and fake-init evidence
 
@@ -338,17 +335,25 @@ mutation are failure-boundary contracts.
 
 ### Verification checklist
 
-- [ ] `/bin/sh -n tests/runner.sh tests/lib/runner.sh
+- [x] `/bin/sh -n tests/runner.sh tests/lib/runner.sh
   tests/lib/profile-activation.sh` passes.
-- [ ] `SHIMMY_TEST_TIMING=1 ./tests/test.sh --group runner --group
+- [x] `SHIMMY_TEST_TIMING=1 ./tests/test.sh --group runner --group
   lib-profile-activation --jobs 3` passes with progress and complete timing
   records.
-- [ ] The same focused command without the toggle contains no progress or
+  - Result: setup `0`, runner `1`, profile activation `9`, total `9`, all 24
+    logical tests passed.
+- [x] The same focused command without the toggle contains no progress or
   timing records and preserves its prior transcript shape apart from the one
   new fake-contract PASS record.
-- [ ] Focused runner signal coverage proves original status, partial evidence,
+  - Result: all 24 logical tests passed with no `shimmy_test_progress` or
+    `shimmy_test_timing` records.
+- [x] Focused runner signal coverage proves original status, partial evidence,
   no duplicate replay, and safe cleanup.
-- [ ] `./tests/context-tree.sh` and `git diff --check` pass.
+  - Result: the existing signal logical record now exercises timing-disabled
+    and timing-enabled TERM, retains status `143`, replays one canonical START
+    plus elapsed group/total records only when enabled, terminates the recorded
+    worker, and removes only its session root.
+- [x] `./tests/context-tree.sh` and `git diff --check` pass.
 
 ### Human review gate
 
@@ -484,6 +489,26 @@ moving this plan to `complete`; explicit acceptance is required.
   observability work must cover ordinary failure as well as signal
   interruption.
 
+### Chunk 1
+
+- Wrapping the sourced group runner in an `||` status capture suppressed the
+  nested group's `set -e` behavior and initially made the synthetic return-7
+  worker appear successful. The corrected boundary invokes the suite runner as
+  an ordinary command while the parent temporarily disables immediate exit,
+  then restores `set -e` after recording the exact status. The focused test
+  failed once with `runner ignored a failed worker`, then passed after this
+  correction.
+- Timing-gated START records can remain deterministic by writing them into each
+  private group log before launch. Ordinary replay needs no new ordering path.
+- A worker signal trap has enough state to terminate only its recorded group
+  child and append elapsed group timing before the parent replays partial logs.
+  Parent replay state prevents duplicate canonical output and total timing is
+  emitted before session cleanup.
+- The generated fake's explicit trailing `:` keeps successful `machine init`
+  status independent of the optional failure predicate. The direct contract
+  now proves success/`stopped`, pre-mutation failure/`absent`, and post-create
+  failure/`stopped` without a lifecycle fixture.
+
 ## Session bootstrap
 
 Resume in PLAN. Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`,
@@ -494,11 +519,6 @@ Resume in PLAN. Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`,
 `lib/engine/registry.sh`, `plans/wip/shared-machine-rollback.md`, and the two
 completed performance plans.
 
-Recheck commit and worktree state and preserve the user's handoff modification.
-Do not enter ACT while `## Unresolved` is nonempty. First obtain the user's
-production migration-scope decision. If repair remains separate, require its
-accepted green result, rerun the exact timing-enabled monolithic lifecycle
-baseline once, record setup/group/total/count values, derive a justified target,
-set `## Unresolved` to `None`, and present the decision-complete plan for review.
-If scope expands, investigate and plan the full engine identity/ownership/
-rollback/documentation transition before changing the optimization chunks.
+Recheck commit and worktree state and preserve the user's shared-engine and
+uninstall-fixture edits. Resume the active chunk only, run its verification,
+record evidence and lessons here, then stop at its human review gate.

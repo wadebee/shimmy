@@ -594,11 +594,11 @@ test_commands_lifecycle_global_owned_uninstall() {
   TEST_LIFECYCLE_MACHINE_STATE_DIR=$SCENARIO_DIR/global-machine-state
   TEST_LIFECYCLE_MACHINE_METADATA_DIR=$SCENARIO_DIR/global-machine-metadata
   mkdir -p "$TEST_LIFECYCLE_MACHINE_STATE_DIR" "$TEST_LIFECYCLE_MACHINE_METADATA_DIR"
-  printf '%s\n' stopped > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy"
+  printf '%s\n' stopped > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy-default"
   printf '%s\n' running > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy-isolated-one"
   printf '%s\n%s\n%s\n' "$SCENARIO_DIR/engine-config" \
     "$SCENARIO_DIR/engine-socket" "$SCENARIO_DIR/engine-identity" \
-    > "$TEST_LIFECYCLE_MACHINE_METADATA_DIR/shimmy"
+    > "$TEST_LIFECYCLE_MACHINE_METADATA_DIR/shimmy-default"
   printf '%s\n%s\n%s\n' "$SCENARIO_DIR/isolated-engine-config" \
     "$SCENARIO_DIR/isolated-engine-socket" "$SCENARIO_DIR/isolated-engine-identity" \
     > "$TEST_LIFECYCLE_MACHINE_METADATA_DIR/shimmy-isolated-one"
@@ -675,10 +675,10 @@ test_commands_lifecycle_global_owned_uninstall() {
     'pending_engines=shared,profile-isolated-one'
   assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/lifecycle.conf" \
     'phase=removed'
-  assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy")" absent
+  assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy-default")" absent
   assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy-isolated-one")" stopped
 
-  printf '%s\n' stopped > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy"
+  printf '%s\n' stopped > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy-default"
   set +e
   test_lifecycle_global_collision=$(test_lifecycle_global_uninstall_command 2>&1)
   test_lifecycle_global_collision_status=$?
@@ -686,11 +686,11 @@ test_commands_lifecycle_global_owned_uninstall() {
   [ "$test_lifecycle_global_collision_status" -ne 0 ] ||
     fail_test 'global uninstall targeted a replacement at a reused machine name'
   assert_contains "$test_lifecycle_global_collision" 'engine name reappeared after recorded removal'
-  printf '%s\n' absent > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy"
+  printf '%s\n' absent > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy-default"
 
   test_lifecycle_global_uninstall_command >/dev/null
   assert_path_not_exists "$TEST_LIFECYCLE_CONFIG"
-  assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy")" absent
+  assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy-default")" absent
   assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/shimmy-isolated-one")" absent
   assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/external-machine")" stopped
   assert_equals "$(cat "$TEST_LIFECYCLE_MACHINE_STATE_DIR/ambiguous-machine")" stopped

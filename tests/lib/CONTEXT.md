@@ -1,7 +1,7 @@
 # Library tests
 
-- `runner.sh`: registry, option parsing, deterministic workers, signals, result
-  integrity, and safe copy helpers.
+- `runner.sh`: registry, option parsing, deterministic workers, timing-gated
+  progress, failure/signal evidence, result integrity, and safe copy helpers.
 - `catalog.sh`: payload/header/fingerprint validation with display-padding-neutral
   header checks, immutable generation create/publish/rollback, pristine
   baseline, recovery, and collision safety.
@@ -18,7 +18,9 @@
   pending-to-preserved transitions, pre-init ambiguity retention, exact
   initialized rollback, projection transactions, and rootless service
   recycling.
-- `profile-activation.sh`: Linux, legacy-Darwin, and managed shared/isolated Darwin engine and registry transition state.
+- `profile-activation.sh`: generated fake-Podman init mutation boundaries plus
+  Linux, legacy-Darwin, and managed shared/isolated Darwin engine and registry
+  transition state.
 - `registries.sh`: endpoint/config/record/link/edit ownership and rollback.
 
 Use the lowest-cost proof for negative invariants and keep one authoritative

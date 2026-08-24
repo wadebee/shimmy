@@ -67,9 +67,9 @@ shared `shimmy-default` machine; explicit isolated profiles create independently
 `shimmy-<profile>` machines, while migrated legacy machines remain external.
 Ordinary profiles share the installation's owned engine: `shimmy-default` for a
 fresh installation or the reserved `shimmy` engine created by compatibility
-migration. Same-engine policy changes recycle only its rootless API service. On Linux
-profiles share the current user's local rootless engine and Shimmy performs no
-machine operation.
+migration. Same-engine policy changes recycle only its rootless API service.
+On Linux profiles share the current user's local rootless engine and Shimmy
+performs no machine operation.
 
 The runtime helper normalizes supported Linux/Darwin `amd64` and `arm64` hosts
 to native `linux/amd64` or `linux/arm64`. Concrete versions own `run.sh`,

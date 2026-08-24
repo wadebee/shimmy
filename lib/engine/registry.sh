@@ -162,7 +162,6 @@ shimmy_engine_registry_shared_create_prepare() {
   shimmy_engine_registry_shared_name=$3
   shimmy_name_component_validate "$shimmy_engine_registry_shared_name" || return 1
   SHIMMY_ENGINE_REGISTRY_SHARED_CONFIG=$shimmy_engine_registry_shared_config
-  SHIMMY_ENGINE_REGISTRY_SHARED_NAME=$shimmy_engine_registry_shared_name
   shimmy_engine_paths_resolve "$shimmy_engine_registry_shared_config" shared || return 1
   mkdir -p "$SHIMMY_ENGINE_ROOT" || return 1
   [ -d "$SHIMMY_ENGINE_ROOT" ] && [ ! -L "$SHIMMY_ENGINE_ROOT" ] || return 1

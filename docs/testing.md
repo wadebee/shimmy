@@ -85,6 +85,12 @@ SHIMMY_TEST_TIMING=1 ./tests/test.sh
 
 Each record has the stable form
 `shimmy_test_timing=<setup|group|total>|<name>|<elapsed-seconds>`.
+Timing-enabled runs also emit stable progress records before setup or group work:
+`shimmy_test_progress=<setup|group>|<name>|START`. Group progress is buffered in
+the group's private log and replayed in canonical registry order. Ordinary
+failures retain total timing, while interrupted timing-enabled runs replay any
+partial group log and retain elapsed group and total timing before cleanup.
+Timing-disabled output remains unchanged.
 
 Selected groups execute in child processes. Test sourced signal cleanup by
 invoking the installed handler and asserting its status and state. Kernel-level

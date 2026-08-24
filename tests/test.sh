@@ -171,6 +171,7 @@ main() {
   test_runner_total_started=$(test_runner_now)
   TMP_ROOT=$(mktemp -d "$TMP_PARENT/shimmy-test.XXXXXX")
   TEST_RUNNER_WORKER_PIDS=
+  TEST_RUNNER_LOGS_REPLAYED=0
   trap shimmy_test_cleanup EXIT
   trap 'test_runner_signal_handle HUP 129' HUP
   trap 'test_runner_signal_handle INT 130' INT
@@ -178,15 +179,17 @@ main() {
   TMP_ROOT=$(cd -- "$TMP_ROOT" && pwd -P)
 
   test_runner_setup_started=$(test_runner_now)
+  test_runner_progress_record setup copy-on-write-probe
   test_fixture_copy_on_write_detect
   test_runner_setup_finished=$(test_runner_now)
   test_runner_timing_record setup copy-on-write-probe \
     "$((test_runner_setup_finished - test_runner_setup_started))"
 
-  test_runner_groups_run
-  test_runner_total_finished=$(test_runner_now)
-  test_runner_timing_record total suite \
-    "$((test_runner_total_finished - test_runner_total_started))"
+  set +e
+  test_runner_suite_run
+  test_runner_suite_status=$?
+  set -e
+  [ "$test_runner_suite_status" -eq 0 ] || return "$test_runner_suite_status"
   printf 'All %s Shimmy tests passed.\n' "$TEST_COUNT"
 }
 

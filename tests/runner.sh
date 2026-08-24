@@ -299,6 +299,15 @@ test_runner_timing_record() {
     "$test_runner_timing_scope" "$test_runner_timing_name" "$test_runner_timing_elapsed"
 }
 
+test_runner_progress_record() {
+  test_runner_progress_scope=$1
+  test_runner_progress_name=$2
+
+  [ "${SHIMMY_TEST_TIMING:-0}" = 1 ] || return 0
+  printf 'shimmy_test_progress=%s|%s|START\n' \
+    "$test_runner_progress_scope" "$test_runner_progress_name"
+}
+
 test_runner_group_worker_resolve() {
   test_runner_worker_group_expected=$1
 
@@ -370,6 +379,13 @@ test_runner_worker_group_signal_handle() {
     kill -TERM "$test_runner_group_pid" 2>/dev/null || :
     wait "$test_runner_group_pid" 2>/dev/null || :
   fi
+  if [ -n "${test_runner_group_started:-}" ] &&
+    [ -n "${test_runner_group_log:-}" ] &&
+    [ -f "$test_runner_group_log" ] && [ ! -L "$test_runner_group_log" ]; then
+    test_runner_group_finished=$(test_runner_now)
+    test_runner_timing_record group "$test_runner_group_name" \
+      "$((test_runner_group_finished - test_runner_group_started))" >> "$test_runner_group_log"
+  fi
   exit "$test_runner_worker_signal_status"
 }
 
@@ -396,6 +412,8 @@ test_runner_worker_run() {
     test_runner_group_status_file=$TEST_RUNNER_OUTPUT_ROOT/groups/$test_runner_group_name.status
     test_runner_group_worker_file=$TEST_RUNNER_OUTPUT_ROOT/groups/$test_runner_group_name.worker
     test_runner_group_started=$(test_runner_now)
+    : > "$test_runner_group_log"
+    test_runner_progress_record group "$test_runner_group_name" >> "$test_runner_group_log"
 
     (
       set -e
@@ -403,7 +421,7 @@ test_runner_worker_run() {
       kill() { test_runner_group_kill "$@"; }
       "$test_runner_group_function"
       printf '%s\n' "$TEST_COUNT" > "$test_runner_group_count_file"
-    ) > "$test_runner_group_log" 2>&1 &
+    ) >> "$test_runner_group_log" 2>&1 &
     test_runner_group_pid=$!
     set +e
     wait "$test_runner_group_pid"
@@ -416,13 +434,13 @@ test_runner_worker_run() {
         "$test_runner_group_count_file" "group count") || exit 1
       test_runner_worker_count=$((test_runner_worker_count + test_runner_group_count))
     else
-      test_runner_group_status=$?
       test_runner_worker_status=1
     fi
 
     test_runner_group_finished=$(test_runner_now)
     test_runner_timing_record group "$test_runner_group_name" \
       "$((test_runner_group_finished - test_runner_group_started))" >> "$test_runner_group_log"
+    test_runner_group_started=
     printf '%s\n' "$test_runner_group_status" > "$test_runner_group_status_file"
     printf '%s\n' "$test_runner_worker_name" > "$test_runner_group_worker_file"
     [ "$test_runner_group_status" -eq 0 ] || break
@@ -519,6 +537,17 @@ test_runner_signal_handle() {
   test_runner_signal_status=$2
   trap - EXIT HUP INT TERM
   test_runner_workers_terminate
+  if [ "${SHIMMY_TEST_TIMING:-0}" = 1 ]; then
+    if [ "${TEST_RUNNER_LOGS_REPLAYED:-0}" -eq 0 ] &&
+      [ -d "${TEST_RUNNER_OUTPUT_ROOT:-}/groups" ]; then
+      test_runner_logs_replay || :
+    fi
+    if [ -n "${test_runner_total_started:-}" ]; then
+      test_runner_total_finished=$(test_runner_now)
+      test_runner_timing_record total suite \
+        "$((test_runner_total_finished - test_runner_total_started))"
+    fi
+  fi
   shimmy_test_cleanup
   printf 'FAIL: test suite interrupted by %s\n' "$test_runner_signal_name" >&2
   exit "$test_runner_signal_status"
@@ -537,6 +566,7 @@ test_runner_logs_replay() {
 $(test_runner_group_registry_read)
 EOF
 
+  TEST_RUNNER_LOGS_REPLAYED=1
   return "$test_runner_replay_status"
 }
 
@@ -662,4 +692,13 @@ test_runner_groups_run() {
   test_runner_logs_replay || test_runner_run_status=1
   test_runner_results_collect || test_runner_run_status=1
   return "$test_runner_run_status"
+}
+
+test_runner_suite_run() {
+  test_runner_groups_run
+  test_runner_suite_status=$?
+  test_runner_total_finished=$(test_runner_now)
+  test_runner_timing_record total suite \
+    "$((test_runner_total_finished - test_runner_total_started))"
+  return "$test_runner_suite_status"
 }

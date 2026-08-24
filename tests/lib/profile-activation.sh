@@ -42,6 +42,7 @@ profile_activation_fake_create() {
       '    ;;' \
       '  "machine init "*)' \
       '    [ -n "${FAKE_CREATED_MACHINE_STATE_FILE:-}" ] || exit 95' \
+      '    fake_fail_requested machine_init "${FAKE_CREATED_MACHINE_NAME:-shimmy}" && exit 65' \
       '    printf "%s\n" stopped > "$FAKE_CREATED_MACHINE_STATE_FILE"' \
       '    fake_fail_requested machine_init_after_create "${FAKE_CREATED_MACHINE_NAME:-shimmy}" && exit 65' \
       '    :' \
@@ -148,6 +149,41 @@ profile_activation_fake_create() {
       'esac'
   } > "$fake_path"
   chmod 755 "$fake_path"
+}
+
+test_lib_profile_activation_fake_machine_init_contract() {
+  setup_scenario
+  fake_podman=$SCENARIO_DIR/podman
+  fake_log=$SCENARIO_DIR/podman.log
+  fake_state=$SCENARIO_DIR/machine-state
+  profile_activation_fake_create "$fake_podman"
+  : > "$fake_log"
+
+  printf '%s\n' absent > "$fake_state"
+  env FAKE_PODMAN_LOG="$fake_log" FAKE_CREATED_MACHINE_STATE_FILE="$fake_state" \
+    FAKE_CREATED_MACHINE_NAME=shimmy-contract "$fake_podman" machine init shimmy-contract
+  assert_equals "$(cat "$fake_state")" stopped
+
+  printf '%s\n' absent > "$fake_state"
+  set +e
+  env FAKE_PODMAN_LOG="$fake_log" FAKE_CREATED_MACHINE_STATE_FILE="$fake_state" \
+    FAKE_CREATED_MACHINE_NAME=shimmy-contract FAKE_FAIL_ACTION=machine_init \
+    "$fake_podman" machine init shimmy-contract
+  fake_pre_status=$?
+  set -e
+  assert_equals "$fake_pre_status" 65
+  assert_equals "$(cat "$fake_state")" absent
+
+  set +e
+  env FAKE_PODMAN_LOG="$fake_log" FAKE_CREATED_MACHINE_STATE_FILE="$fake_state" \
+    FAKE_CREATED_MACHINE_NAME=shimmy-contract FAKE_FAIL_ACTION=machine_init_after_create \
+    "$fake_podman" machine init shimmy-contract
+  fake_post_status=$?
+  set -e
+  assert_equals "$fake_post_status" 65
+  assert_equals "$(cat "$fake_state")" stopped
+
+  pass 'generated fake Podman init distinguishes success, pre-mutation failure, and post-create failure'
 }
 
 profile_activation_library_run() {
@@ -825,6 +861,7 @@ shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
 }
 
 test_lib_profile_activation_run() {
+  test_lib_profile_activation_fake_machine_init_contract
   test_lib_profile_activation_mapping_and_status
   test_lib_profile_activation_recommendations
   test_lib_profile_activation_linux_registry_projection

@@ -17,6 +17,14 @@ test_lib_runner_stub_failure() {
   return 7
 }
 
+test_lib_runner_stub_slow() {
+  printf '%s\n' slow-started
+  : > "$TEST_RUNNER_SLOW_MARKER"
+  while :; do
+    sleep 1
+  done
+}
+
 test_lib_runner_stub_int_delivery() {
   kill -INT "$$"
 }
@@ -157,7 +165,11 @@ test_lib_runner_timing_shape() {
   assert_equals "$test_runner_timing_output" 'shimmy_test_timing=group|first|0'
   test_runner_timing_default=$(SHIMMY_TEST_TIMING=0 test_runner_timing_record group first 0)
   assert_equals "$test_runner_timing_default" ''
-  pass "runner timing records are stable and opt in"
+  test_runner_progress_output=$(SHIMMY_TEST_TIMING=1 test_runner_progress_record group first)
+  assert_equals "$test_runner_progress_output" 'shimmy_test_progress=group|first|START'
+  test_runner_progress_default=$(SHIMMY_TEST_TIMING=0 test_runner_progress_record group first)
+  assert_equals "$test_runner_progress_default" ''
+  pass "runner timing and progress records are stable and opt in"
 }
 
 test_lib_runner_lifecycle_grouping() {
@@ -207,17 +219,23 @@ second|two-b|three-a
 third|two-a|three-b'
     TEST_RUNNER_OUTPUT_ROOT=$test_runner_failure_output_root
     TEST_COUNT=0
-    SHIMMY_TEST_TIMING=0
+    SHIMMY_TEST_TIMING=1
+    TEST_RUNNER_LOGS_REPLAYED=0
+    test_runner_total_started=$(test_runner_now)
     test_runner_options_parse --jobs 3
-    test_runner_groups_run 2>&1
+    test_runner_suite_run 2>&1
   )
   test_runner_failure_status=$?
   set -e
 
   [ "$test_runner_failure_status" -ne 0 ] || fail_test "runner ignored a failed worker"
-  assert_equals "$(printf '%s\n' "$test_runner_failure_output" | sed -n '1,3p')" 'first
+  assert_equals "$(printf '%s\n' "$test_runner_failure_output" | \
+    sed -n '/^first$/p;/^second-failed$/p;/^third$/p')" 'first
 second-failed
 third'
+  assert_contains "$test_runner_failure_output" 'shimmy_test_progress=group|second|START'
+  assert_contains "$test_runner_failure_output" 'shimmy_test_timing=group|second|'
+  assert_contains "$test_runner_failure_output" 'shimmy_test_timing=total|suite|'
   assert_contains "$test_runner_failure_output" 'FAIL: test worker failed: three-a'
   assert_file_contains "$test_runner_failure_output_root/groups/first.log" first
   assert_file_contains "$test_runner_failure_output_root/groups/second.log" second-failed
@@ -259,47 +277,76 @@ test_lib_runner_count_mismatch_rejection() {
 
 test_lib_runner_signal_cleanup() {
   setup_scenario
-  test_runner_signal_session=$SCENARIO_DIR/signal-session
   test_runner_signal_retained=$SCENARIO_DIR/retained
-  test_runner_signal_pid_file=$SCENARIO_DIR/signal-worker.pid
-  test_runner_signal_output=$SCENARIO_DIR/signal-output
-  mkdir "$test_runner_signal_session" "$test_runner_signal_retained"
+  mkdir "$test_runner_signal_retained"
 
-  (
-    TMP_ROOT=$test_runner_signal_session
-    TEST_RUNNER_WORKER_PIDS=
-    trap 'test_runner_signal_handle TERM 143' TERM
+  for test_runner_signal_timing in 0 1; do
+    test_runner_signal_session=$SCENARIO_DIR/signal-session-$test_runner_signal_timing
+    test_runner_signal_pid_file=$SCENARIO_DIR/signal-worker-$test_runner_signal_timing.pid
+    test_runner_signal_output=$SCENARIO_DIR/signal-output-$test_runner_signal_timing
+    test_runner_signal_marker=$SCENARIO_DIR/signal-marker-$test_runner_signal_timing
+    mkdir "$test_runner_signal_session"
+
     (
-      while :; do
-        sleep 1
-      done
-    ) &
-    test_runner_signal_worker_pid=$!
-    TEST_RUNNER_WORKER_PIDS="$test_runner_signal_worker_pid|synthetic"
-    printf '%s\n' "$test_runner_signal_worker_pid" > "$test_runner_signal_pid_file"
-    while :; do
-      sleep 1
+      TMP_ROOT=$test_runner_signal_session
+      TEST_RUNNER_GROUP_REGISTRY_OVERRIDE='slow|test_lib_runner_stub_slow'
+      TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE='slow|two-a|three-a'
+      TEST_RUNNER_OUTPUT_ROOT=$test_runner_signal_session/runner-output
+      TEST_RUNNER_SLOW_MARKER=$test_runner_signal_marker
+      TEST_RUNNER_WORKER_PIDS=
+      TEST_RUNNER_LOGS_REPLAYED=0
+      TEST_COUNT=0
+      SHIMMY_TEST_TIMING=$test_runner_signal_timing
+      test_runner_total_started=$(test_runner_now)
+      trap 'test_runner_signal_handle TERM 143' TERM
+      test_runner_options_parse --serial
+      test_runner_worker_list_resolve
+      test_runner_output_prepare
+      test_runner_workers_start
+      printf '%s\n' "$TEST_RUNNER_WORKER_PIDS" | sed 's/|.*//' > "$test_runner_signal_pid_file"
+      test_runner_workers_wait
+    ) > "$test_runner_signal_output" 2>&1 &
+    test_runner_signal_controller_pid=$!
+
+    test_runner_signal_wait=0
+    while [ ! -f "$test_runner_signal_marker" ] && [ "$test_runner_signal_wait" -lt 50 ]; do
+      sleep 0.1
+      test_runner_signal_wait=$((test_runner_signal_wait + 1))
     done
-  ) > "$test_runner_signal_output" 2>&1 &
-  test_runner_signal_controller_pid=$!
-  sleep 1
-  assert_file_exists "$test_runner_signal_pid_file"
-  test_runner_signal_worker_pid=$(cat "$test_runner_signal_pid_file")
+    assert_file_exists "$test_runner_signal_marker"
+    assert_file_exists "$test_runner_signal_pid_file"
+    test_runner_signal_worker_pid=$(cat "$test_runner_signal_pid_file")
 
-  kill -TERM "$test_runner_signal_controller_pid"
-  set +e
-  wait "$test_runner_signal_controller_pid"
-  test_runner_signal_status=$?
-  set -e
+    kill -TERM "$test_runner_signal_controller_pid"
+    set +e
+    wait "$test_runner_signal_controller_pid"
+    test_runner_signal_status=$?
+    set -e
 
-  assert_equals "$test_runner_signal_status" 143
-  assert_path_not_exists "$test_runner_signal_session"
-  assert_dir_exists "$test_runner_signal_retained"
-  if kill -0 "$test_runner_signal_worker_pid" 2>/dev/null; then
-    fail_test "signal cleanup left its recorded worker running"
-  fi
-  assert_file_contains "$test_runner_signal_output" 'FAIL: test suite interrupted by TERM'
-  pass "runner signal cleanup terminates recorded workers and removes only its session root"
+    assert_equals "$test_runner_signal_status" 143
+    assert_path_not_exists "$test_runner_signal_session"
+    assert_dir_exists "$test_runner_signal_retained"
+    if kill -0 "$test_runner_signal_worker_pid" 2>/dev/null; then
+      fail_test "signal cleanup left its recorded worker running"
+    fi
+    assert_file_contains "$test_runner_signal_output" 'FAIL: test suite interrupted by TERM'
+
+    test_runner_signal_contents=$(cat "$test_runner_signal_output")
+    if [ "$test_runner_signal_timing" -eq 1 ]; then
+      assert_contains "$test_runner_signal_contents" 'shimmy_test_progress=group|slow|START'
+      assert_contains "$test_runner_signal_contents" 'slow-started'
+      assert_contains "$test_runner_signal_contents" 'shimmy_test_timing=group|slow|'
+      assert_contains "$test_runner_signal_contents" 'shimmy_test_timing=total|suite|'
+      assert_equals "$(printf '%s\n' "$test_runner_signal_contents" | \
+        sed -n '/^shimmy_test_progress=group|slow|START$/p' | wc -l | tr -d ' ')" 1
+    else
+      assert_not_contains "$test_runner_signal_contents" 'shimmy_test_progress='
+      assert_not_contains "$test_runner_signal_contents" 'shimmy_test_timing='
+      assert_not_contains "$test_runner_signal_contents" 'slow-started'
+    fi
+  done
+
+  pass "runner signal cleanup preserves opt-in partial evidence, terminates recorded workers, and removes only its session root"
 }
 
 test_lib_runner_fixture_copy_clone_selection() {
