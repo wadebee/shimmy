@@ -1,4 +1,8 @@
 # Lifecycle test critical-path optimization
+Completed: 2026-08-24
+
+Both chunks were implemented, objectively verified, and accepted on
+2026-08-24.
 
 ## Objective
 
@@ -262,7 +266,7 @@ None.
 
 ## Progress Checklist
 
-- Active phase: ACT — Chunk 2 complete and awaiting human review.
+- Active phase: COMPLETE — accepted by human review on 2026-08-24.
 - [x] Confirm objective and `plans` lifecycle root.
 - [x] Read repository guidance, test contexts, current runner/lifecycle sources,
   and retained performance/rollback plans.
@@ -535,11 +539,8 @@ future selection commands.
 
 ### Human review gate
 
-Stop after implementation and verification. The reviewer must confirm the
-scenario assertion mapping, template immutability, fake-only destructive
-boundary, record retention, static schedule, passing focused/full results, and
-measured improvement. Final implementation completion does not authorize
-moving this plan to `complete`; explicit acceptance is required.
+Accepted on 2026-08-24. The reviewer confirmed completion after the recorded
+implementation and verification results.
 
 ## Risk register
 
@@ -620,7 +621,8 @@ moving this plan to `complete`; explicit acceptance is required.
 
 ## Session bootstrap
 
-Resume in PLAN. Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`,
+This plan is complete and accepted. For historical review, read `AGENTS.md`,
+`CONTRIBUTING.md`, root `CONTEXT.md`,
 `tests/CONTEXT.md`, `tests/lib/CONTEXT.md`, `tests/commands/CONTEXT.md`,
 `docs/testing.md`, this plan, the handoff, `tests/test.sh`, `tests/runner.sh`,
 `tests/support.sh`, `tests/lib/runner.sh`, `tests/lib/engine.sh`,
@@ -628,6 +630,4 @@ Resume in PLAN. Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`,
 `lib/engine/registry.sh`, `plans/wip/shared-machine-rollback.md`, and the two
 completed performance plans.
 
-Recheck commit and worktree state and preserve the user's shared-engine and
-uninstall-fixture edits. Resume the active chunk only, run its verification,
-record evidence and lessons here, then stop at its human review gate.
+Retain this document as implementation, acceptance, and performance evidence.
