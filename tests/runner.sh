@@ -26,7 +26,11 @@ commands-shim|test_commands_shim_run
 commands-ai-skill|test_commands_ai_skill_run
 commands-profile|test_commands_profile_run
 commands-surface|test_commands_surface_run
-commands-lifecycle|test_commands_lifecycle_run
+commands-lifecycle-bootstrap|test_commands_lifecycle_darwin_bootstrap_engine_states
+commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
+commands-lifecycle-migration|test_commands_lifecycle_explicit_migration
+commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
+commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end
 tools-aws|test_tools_aws_run
 tools-bats|test_tools_bats_run
 tools-community-ansible-dev-tools|test_tools_community_ansible_dev_tools_run
@@ -56,48 +60,51 @@ test_runner_group_assignment_read() {
     return 0
   fi
 
-  # Preserve the last calibrated worker distribution while the final-surface
-  # suite establishes a new timing baseline.
+  # Calibrated from the 2026-08-24 complete serial timing run.
   cat <<'EOF'
-runner|two-b|three-a
-lib-catalog|two-a|three-b
-lib-codec|two-a|three-a
-lib-profile-state|two-b|three-b
-lib-ai-skill-state|two-a|three-c
+runner|two-b|three-c
+lib-catalog|two-a|three-a
+lib-codec|two-a|three-c
+lib-profile-state|two-b|three-c
+lib-ai-skill-state|two-b|three-c
 lib-lock|two-b|three-a
-lib-transaction|two-a|three-c
-lib-ai-skill-link|two-b|three-c
-lib-runtime|two-b|three-a
-lib-engine|two-a|three-c
-lib-profile-activation|two-a|three-b
+lib-transaction|two-b|three-c
+lib-ai-skill-link|two-b|three-b
+lib-runtime|two-b|three-c
+lib-engine|two-b|three-a
+lib-profile-activation|two-b|three-a
 lib-registries|two-b|three-c
-commands-agent-preflight|two-a|three-a
-commands-catalog|two-b|three-c
-commands-shim|two-a|three-b
-commands-ai-skill|two-b|three-a
-commands-profile|two-a|three-c
-commands-surface|two-b|three-b
-commands-lifecycle|two-b|three-a
-tools-aws|two-a|three-b
-tools-bats|two-a|three-b
+commands-agent-preflight|two-b|three-a
+commands-catalog|two-a|three-c
+commands-shim|two-b|three-c
+commands-ai-skill|two-a|three-b
+commands-profile|two-b|three-b
+commands-surface|two-b|three-c
+commands-lifecycle-bootstrap|two-b|three-b
+commands-lifecycle-isolated|two-a|three-c
+commands-lifecycle-migration|two-b|three-c
+commands-lifecycle-uninstall|two-b|three-b
+commands-lifecycle-end-to-end|two-a|three-a
+tools-aws|two-a|three-c
+tools-bats|two-a|three-c
 tools-community-ansible-dev-tools|two-b|three-c
-tools-gcloud|two-a|three-b
-tools-gdrive|two-b|three-c
-tools-gh|two-a|three-b
-tools-go|two-a|three-b
-tools-jq|two-a|three-b
-tools-netcat|two-a|three-b
-tools-nmap|two-b|three-c
-tools-npx|two-a|three-b
-tools-oc|two-a|three-b
-tools-opnsense-mcp-read-only|two-a|three-a
-tools-opnsense-mcp-admin|two-a|three-a
-tools-rg|two-a|three-a
-tools-skopeo|two-b|three-c
-tools-task|two-a|three-a
-tools-terraform|two-a|three-a
-tools-tessl|two-b|three-c
-tools-textual|two-b|three-c
+tools-gcloud|two-a|three-c
+tools-gdrive|two-a|three-c
+tools-gh|two-b|three-c
+tools-go|two-a|three-c
+tools-jq|two-a|three-c
+tools-netcat|two-a|three-c
+tools-nmap|two-a|three-c
+tools-npx|two-a|three-c
+tools-oc|two-a|three-c
+tools-opnsense-mcp-read-only|two-a|three-c
+tools-opnsense-mcp-admin|two-b|three-c
+tools-rg|two-a|three-c
+tools-skopeo|two-a|three-c
+tools-task|two-a|three-c
+tools-terraform|two-a|three-c
+tools-tessl|two-a|three-c
+tools-textual|two-a|three-c
 EOF
 }
 
@@ -354,6 +361,43 @@ test_runner_output_prepare() {
   mkdir -p "$TEST_RUNNER_OUTPUT_ROOT/groups" "$TEST_RUNNER_OUTPUT_ROOT/workers"
 }
 
+test_runner_setup_run() {
+  test_runner_setup_name=$1
+  test_runner_setup_function=$2
+  TEST_RUNNER_SETUP_NAME=$test_runner_setup_name
+  TEST_RUNNER_SETUP_STARTED=$(test_runner_now)
+  test_runner_progress_record setup "$TEST_RUNNER_SETUP_NAME"
+
+  (
+    set -e
+    "$test_runner_setup_function"
+  ) &
+  TEST_RUNNER_SETUP_PID=$!
+  if wait "$TEST_RUNNER_SETUP_PID"; then
+    test_runner_setup_status=0
+  else
+    test_runner_setup_status=$?
+  fi
+  TEST_RUNNER_SETUP_PID=
+
+  test_runner_setup_finished=$(test_runner_now)
+  test_runner_timing_record setup "$TEST_RUNNER_SETUP_NAME" \
+    "$((test_runner_setup_finished - TEST_RUNNER_SETUP_STARTED))"
+  TEST_RUNNER_SETUP_NAME=
+  TEST_RUNNER_SETUP_STARTED=
+  return "$test_runner_setup_status"
+}
+
+test_runner_setup_terminate() {
+  test_runner_setup_pid=${TEST_RUNNER_SETUP_PID:-}
+  [ -n "$test_runner_setup_pid" ] || return 0
+  if kill -0 "$test_runner_setup_pid" 2>/dev/null; then
+    kill -TERM "$test_runner_setup_pid" 2>/dev/null || :
+  fi
+  wait "$test_runner_setup_pid" 2>/dev/null || :
+  TEST_RUNNER_SETUP_PID=
+}
+
 test_runner_result_value_read() {
   test_runner_result_file=$1
   test_runner_result_label=$2
@@ -536,8 +580,15 @@ test_runner_signal_handle() {
   test_runner_signal_name=$1
   test_runner_signal_status=$2
   trap - EXIT HUP INT TERM
+  test_runner_setup_terminate
   test_runner_workers_terminate
   if [ "${SHIMMY_TEST_TIMING:-0}" = 1 ]; then
+    if [ -n "${TEST_RUNNER_SETUP_NAME:-}" ] &&
+      [ -n "${TEST_RUNNER_SETUP_STARTED:-}" ]; then
+      test_runner_setup_finished=$(test_runner_now)
+      test_runner_timing_record setup "$TEST_RUNNER_SETUP_NAME" \
+        "$((test_runner_setup_finished - TEST_RUNNER_SETUP_STARTED))"
+    fi
     if [ "${TEST_RUNNER_LOGS_REPLAYED:-0}" -eq 0 ] &&
       [ -d "${TEST_RUNNER_OUTPUT_ROOT:-}/groups" ]; then
       test_runner_logs_replay || :
@@ -697,6 +748,9 @@ test_runner_groups_run() {
 test_runner_suite_run() {
   test_runner_groups_run
   test_runner_suite_status=$?
+  if [ "$test_runner_suite_status" -eq 0 ]; then
+    test_runner_session_validate || test_runner_suite_status=1
+  fi
   test_runner_total_finished=$(test_runner_now)
   test_runner_timing_record total suite \
     "$((test_runner_total_finished - test_runner_total_started))"

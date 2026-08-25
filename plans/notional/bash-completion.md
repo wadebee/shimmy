@@ -791,7 +791,10 @@ Primary change surface:
   assets without embedding their original stage/profile root.
 - [ ] `./tests/test.sh --group commands-onboarding --group commands-startup --group commands-profiles --jobs 3`
   passes.
-- [ ] `./tests/test.sh --group commands-lifecycle --group commands-update --group commands-install --jobs 3`
+- [ ] `./tests/test.sh --group commands-lifecycle-bootstrap --group
+  commands-lifecycle-isolated --group commands-lifecycle-migration --group
+  commands-lifecycle-uninstall --group commands-lifecycle-end-to-end --group
+  commands-update --group commands-install --jobs 3`
   passes.
 - [ ] `./tests/context-tree.sh` and `git diff --check` pass; final inspection
   confirms no separate transaction, manifest field, public command, or
@@ -913,7 +916,10 @@ Primary change surface:
   contracts are unchanged and expose no completion command.
 - [ ] `./tests/test.sh --group commands-onboarding --group commands-startup --group commands-management --jobs 3`
   passes.
-- [ ] `./tests/test.sh --group commands-profiles --group commands-lifecycle --group commands-update --jobs 3`
+- [ ] `./tests/test.sh --group commands-profiles --group
+  commands-lifecycle-bootstrap --group commands-lifecycle-isolated --group
+  commands-lifecycle-migration --group commands-lifecycle-uninstall --group
+  commands-lifecycle-end-to-end --group commands-update --jobs 3`
   passes.
 - [ ] `./tests/test.sh --group runner --group lib-catalog --group commands-catalog --group commands-install --group commands-test --jobs 3`
   passes.

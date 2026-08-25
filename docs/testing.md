@@ -15,13 +15,20 @@ their output in that same order.
 ./tests/test.sh --group lib-runtime
 ./tests/test.sh --group commands-profile --group commands-shim
 ./tests/test.sh --jobs 3
-./tests/test.sh --serial --group commands-lifecycle
+./tests/test.sh --serial --group commands-lifecycle-migration
 ```
 
 Use the default parallel schedule for independent groups. Use `--serial` for a
 single group, an order-sensitive case, or failure diagnosis. Repeated or
 unknown groups, invalid job counts, and conflicting runner options fail before
 test execution.
+
+Lifecycle acceptance is split into five independently selectable groups:
+`commands-lifecycle-bootstrap`, `commands-lifecycle-isolated`,
+`commands-lifecycle-migration`, `commands-lifecycle-uninstall`, and
+`commands-lifecycle-end-to-end`. When any is selected, the runner prepares one
+clean immutable checkout template, prunes ignored checkout-only content, and
+copies that template into each scenario's private mutable root.
 
 ## Coverage model
 
@@ -87,10 +94,11 @@ Each record has the stable form
 `shimmy_test_timing=<setup|group|total>|<name>|<elapsed-seconds>`.
 Timing-enabled runs also emit stable progress records before setup or group work:
 `shimmy_test_progress=<setup|group>|<name>|START`. Group progress is buffered in
-the group's private log and replayed in canonical registry order. Ordinary
-failures retain total timing, while interrupted timing-enabled runs replay any
-partial group log and retain elapsed group and total timing before cleanup.
-Timing-disabled output remains unchanged.
+the group's private log and replayed in canonical registry order. Lifecycle
+selection adds a separately timed `lifecycle-checkout-template` setup record.
+Ordinary failures retain total timing, while interrupted timing-enabled runs
+replay any partial group log and retain elapsed active setup or group plus total
+timing before cleanup. Timing-disabled output remains unchanged.
 
 Selected groups execute in child processes. Test sourced signal cleanup by
 invoking the installed handler and asserting its status and state. Kernel-level

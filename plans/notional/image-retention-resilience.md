@@ -318,7 +318,9 @@ both supported native architectures.
 - [ ] Source previews for jq, rg, and Skopeo render the GHCR digest defaults
   while explicit `SHIMMY_<TOOL>_IMAGE` overrides still win.
 - [ ] `./tests/test.sh --group tools-jq --group tools-rg --group tools-skopeo
-  --group commands-lifecycle --jobs 3` passes.
+  --group commands-lifecycle-bootstrap --group commands-lifecycle-isolated
+  --group commands-lifecycle-migration --group commands-lifecycle-uninstall
+  --group commands-lifecycle-end-to-end --jobs 3` passes.
 - [ ] Fresh disposable bootstrap and baseline non-mutating smokes pass on native
   Linux `amd64`.
 - [ ] Fresh disposable bootstrap and baseline non-mutating smokes pass on native
@@ -387,7 +389,9 @@ specific failure context without changing rollback or adopting mutable content.
 - [ ] Bootstrap image-preparation failure reports the same context and removes
   all new installation state while preserving unrelated user state.
 - [ ] `./tests/test.sh --group lib-catalog --group commands-shim --group
-  commands-lifecycle --jobs 3` passes.
+  commands-lifecycle-bootstrap --group commands-lifecycle-isolated --group
+  commands-lifecycle-migration --group commands-lifecycle-uninstall --group
+  commands-lifecycle-end-to-end --jobs 3` passes.
 - [ ] Relevant shell syntax, executable modes, and `git diff --check` pass.
 
 ### Human review gate

@@ -17,6 +17,15 @@ test_lib_runner_stub_failure() {
   return 7
 }
 
+test_lib_runner_stub_setup() {
+  printf '%s\n' setup-complete
+}
+
+test_lib_runner_stub_setup_failure() {
+  printf '%s\n' setup-failed
+  return 7
+}
+
 test_lib_runner_stub_slow() {
   printf '%s\n' slow-started
   : > "$TEST_RUNNER_SLOW_MARKER"
@@ -83,9 +92,14 @@ test_lib_runner_registry_ordering() {
   test_runner_last_name=$(printf '%s\n' "$test_runner_registry" | sed -n '$s/|.*//p')
   assert_equals "$test_runner_first_name" runner
   assert_equals "$test_runner_last_name" tools-textual
-  assert_equals "$(printf '%s\n' "$test_runner_registry" | sed -n '/^commands-lifecycle|/p')" \
-    'commands-lifecycle|test_commands_lifecycle_run'
-  pass "runner registry has stable canonical ordering and one lifecycle group"
+  assert_equals "$(printf '%s\n' "$test_runner_registry" | awk 'END { print NR }')" 43
+  assert_equals "$(printf '%s\n' "$test_runner_registry" | sed -n '/^commands-lifecycle-/p')" \
+    'commands-lifecycle-bootstrap|test_commands_lifecycle_darwin_bootstrap_engine_states
+commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
+commands-lifecycle-migration|test_commands_lifecycle_explicit_migration
+commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
+commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end'
+  pass "runner registry has stable canonical ordering and exact lifecycle mappings"
 }
 
 test_lib_runner_group_selection() {
@@ -169,16 +183,76 @@ test_lib_runner_timing_shape() {
   assert_equals "$test_runner_progress_output" 'shimmy_test_progress=group|first|START'
   test_runner_progress_default=$(SHIMMY_TEST_TIMING=0 test_runner_progress_record group first)
   assert_equals "$test_runner_progress_default" ''
-  pass "runner timing and progress records are stable and opt in"
+  test_runner_setup_output=$(
+    SHIMMY_TEST_TIMING=1
+    TEST_RUNNER_SETUP_PID=
+    TEST_RUNNER_SETUP_NAME=
+    TEST_RUNNER_SETUP_STARTED=
+    test_runner_setup_run fixture-template test_lib_runner_stub_setup
+  )
+  assert_contains "$test_runner_setup_output" \
+    'shimmy_test_progress=setup|fixture-template|START'
+  assert_contains "$test_runner_setup_output" setup-complete
+  assert_contains "$test_runner_setup_output" \
+    'shimmy_test_timing=setup|fixture-template|'
+  set +e
+  test_runner_setup_failure=$(
+    SHIMMY_TEST_TIMING=1
+    TEST_RUNNER_SETUP_PID=
+    TEST_RUNNER_SETUP_NAME=
+    TEST_RUNNER_SETUP_STARTED=
+    test_runner_setup_run fixture-template test_lib_runner_stub_setup_failure
+  )
+  test_runner_setup_failure_status=$?
+  set -e
+  assert_equals "$test_runner_setup_failure_status" 7
+  assert_contains "$test_runner_setup_failure" setup-failed
+  assert_contains "$test_runner_setup_failure" \
+    'shimmy_test_timing=setup|fixture-template|'
+  pass "runner timing and progress records cover successful and failed setup"
 }
 
 test_lib_runner_lifecycle_grouping() {
+  setup_scenario
   test_runner_lifecycle_output=$(
-    test_commands_lifecycle_run() { printf '%s\n' lifecycle; }
-    test_commands_lifecycle_run
+    test_commands_lifecycle_darwin_bootstrap_engine_states() { printf '%s\n' bootstrap; }
+    test_commands_lifecycle_owned_isolated() { printf '%s\n' isolated; }
+    test_commands_lifecycle_explicit_migration() { printf '%s\n' migration; }
+    test_commands_lifecycle_global_owned_uninstall() { printf '%s\n' uninstall; }
+    test_commands_lifecycle_end_to_end() { printf '%s\n' end-to-end; }
+    TEST_RUNNER_GROUP_REGISTRY_OVERRIDE='commands-lifecycle-bootstrap|test_commands_lifecycle_darwin_bootstrap_engine_states
+commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
+commands-lifecycle-migration|test_commands_lifecycle_explicit_migration
+commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
+commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end'
+    TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE='commands-lifecycle-bootstrap|two-a|three-a
+commands-lifecycle-isolated|two-b|three-b
+commands-lifecycle-migration|two-a|three-c
+commands-lifecycle-uninstall|two-b|three-a
+commands-lifecycle-end-to-end|two-a|three-b'
+    TEST_RUNNER_OUTPUT_ROOT=$SCENARIO_DIR/lifecycle-groups
+    TEST_COUNT=0
+    SHIMMY_TEST_TIMING=0
+    test_runner_options_parse --jobs 3
+    test_runner_groups_run
   )
-  assert_equals "$test_runner_lifecycle_output" lifecycle
-  pass "runner keeps the final lifecycle acceptance scenarios indivisible"
+  assert_equals "$test_runner_lifecycle_output" 'bootstrap
+isolated
+migration
+uninstall
+end-to-end'
+
+  TEST_RUNNER_GROUPS_SELECTED=runner
+  if test_lifecycle_checkout_template_required; then
+    fail_test 'non-lifecycle selection unexpectedly required the lifecycle template'
+  fi
+  TEST_RUNNER_GROUPS_SELECTED=commands-lifecycle-migration
+  test_lifecycle_checkout_template_required ||
+    fail_test 'lifecycle selection did not require the lifecycle template'
+  TEST_RUNNER_GROUPS_SELECTED=
+  test_lifecycle_checkout_template_required ||
+    fail_test 'default selection did not require the lifecycle template'
+  pass "runner keeps each lifecycle scenario independently selectable and indivisible"
 }
 
 test_lib_runner_worker_scheduling() {
@@ -449,6 +523,9 @@ test_lib_runner_fixture_copy_preservation() {
   git -C "$fixture_copy_source" config user.name 'Shimmy Tests'
   git -C "$fixture_copy_source" add -A
   git -C "$fixture_copy_source" commit -qm fixture
+  TEST_LIFECYCLE_CHECKOUT_TEMPLATE=$fixture_copy_source
+  TEST_LIFECYCLE_CHECKOUT_TEMPLATE_HEAD=$(git -C "$fixture_copy_source" rev-parse HEAD)
+  test_lifecycle_checkout_template_validate
 
   test_fixture_tree_copy "$fixture_copy_source" "$fixture_copy_target"
 
@@ -462,6 +539,7 @@ test_lib_runner_fixture_copy_preservation() {
   printf '%s\n' changed > "$fixture_copy_target/data/value"
   assert_file_contains "$fixture_copy_source/data/value" original
   assert_file_contains "$fixture_copy_target/data/value" changed
+  test_lifecycle_checkout_template_validate
   pass "fixture tree copy preserves modes, symlinks, Git metadata, and mutation independence"
 }
 

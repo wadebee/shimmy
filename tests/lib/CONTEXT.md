@@ -1,7 +1,8 @@
 # Library tests
 
-- `runner.sh`: registry, option parsing, deterministic workers, timing-gated
-  progress, failure/signal evidence, result integrity, and safe copy helpers.
+- `runner.sh`: exact lifecycle scenario mappings, registry and option parsing,
+  deterministic workers, timing-gated setup/group progress, failure/signal
+  evidence, result integrity, and safe immutable-template copy helpers.
 - `catalog.sh`: payload/header/fingerprint validation with display-padding-neutral
   header checks, immutable generation create/publish/rollback, pristine
   baseline, recovery, and collision safety.

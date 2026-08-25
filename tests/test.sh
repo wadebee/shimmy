@@ -160,6 +160,10 @@ TEST_COUNT=0
 # shellcheck source=tools/textual/tests/textual.sh
 . "$ROOT_DIR/tools/textual/tests/textual.sh"
 
+test_runner_session_validate() {
+  test_lifecycle_checkout_template_validate
+}
+
 main() {
   test_runner_options_parse "$@"
   if [ "$TEST_RUNNER_LIST_GROUPS" -eq 1 ]; then
@@ -170,6 +174,9 @@ main() {
   shimmy_catalog_payload_validate "$ROOT_DIR" default || fail_test "$SHIMMY_CATALOG_ERROR"
   test_runner_total_started=$(test_runner_now)
   TMP_ROOT=$(mktemp -d "$TMP_PARENT/shimmy-test.XXXXXX")
+  TEST_RUNNER_SETUP_PID=
+  TEST_RUNNER_SETUP_NAME=
+  TEST_RUNNER_SETUP_STARTED=
   TEST_RUNNER_WORKER_PIDS=
   TEST_RUNNER_LOGS_REPLAYED=0
   trap shimmy_test_cleanup EXIT
@@ -184,6 +191,25 @@ main() {
   test_runner_setup_finished=$(test_runner_now)
   test_runner_timing_record setup copy-on-write-probe \
     "$((test_runner_setup_finished - test_runner_setup_started))"
+
+  TEST_LIFECYCLE_CHECKOUT_TEMPLATE=
+  TEST_LIFECYCLE_CHECKOUT_TEMPLATE_HEAD=
+  if test_lifecycle_checkout_template_required; then
+    TEST_LIFECYCLE_CHECKOUT_TEMPLATE=$TMP_ROOT/lifecycle-checkout-template
+    set +e
+    test_runner_setup_run lifecycle-checkout-template \
+      test_lifecycle_checkout_template_prepare
+    test_runner_setup_status=$?
+    set -e
+    if [ "$test_runner_setup_status" -ne 0 ]; then
+      test_runner_total_finished=$(test_runner_now)
+      test_runner_timing_record total suite \
+        "$((test_runner_total_finished - test_runner_total_started))"
+      return "$test_runner_setup_status"
+    fi
+    TEST_LIFECYCLE_CHECKOUT_TEMPLATE_HEAD=$(git -C \
+      "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" rev-parse HEAD)
+  fi
 
   set +e
   test_runner_suite_run

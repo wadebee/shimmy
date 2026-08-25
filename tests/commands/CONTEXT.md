@@ -15,11 +15,15 @@
 - `surface.sh` proves complete root/group/subgroup/action help before state
   validation, independently verifies status and streams for bare launcher help
   nodes versus `--help`, and validates exact rendered launcher bytes.
-- `lifecycle.sh` is the public end-to-end acceptance world: shared-engine bootstrap/collision, owned isolated create/delete retry, true clone, cross-engine activation, explicit migration/rollback, journaled global owned-engine uninstall/retry, active-engine-last ordering, reused-name collision safety, and external/mismatched preservation,
-  jq/rg/Skopeo inventory, catalog/shim/profile/skill/network/startup flows,
-  sibling isolation, sync/rollback, admin status, deletion, global uninstall,
-  unrelated home-skill preservation, complete failed-bootstrap cleanup, and
-  retained shared-machine recovery evidence after incomplete rollback.
+- `lifecycle.sh` owns five independently scheduled, internally indivisible
+  public acceptance scenarios: shared-engine bootstrap/collision; owned
+  isolated create/delete retry, true clone, and cross-engine activation;
+  explicit migration/rollback; journaled global owned-engine uninstall/retry;
+  and end-to-end jq/rg/Skopeo, catalog/shim/profile/skill/network/startup,
+  sibling isolation, sync/rollback, administration, deletion, uninstall,
+  unrelated-skill preservation, and failed-bootstrap cleanup. They copy one
+  immutable session template into private Git checkouts and use only generated
+  fake Podman state for engine transitions.
 
 Command tests call public installed launchers for acceptance. Direct source
 entrypoint calls are limited to focused parser/transaction seams.

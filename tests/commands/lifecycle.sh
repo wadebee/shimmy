@@ -91,6 +91,67 @@ test_lifecycle_global_uninstall_command() {
     "$TEST_LIFECYCLE_CONFIG/profiles/default/bin/shimmy" admin uninstall "$@"
 }
 
+test_lifecycle_checkout_template_required() {
+  for test_lifecycle_group in \
+    commands-lifecycle-bootstrap \
+    commands-lifecycle-isolated \
+    commands-lifecycle-migration \
+    commands-lifecycle-uninstall \
+    commands-lifecycle-end-to-end
+  do
+    test_runner_group_selected "$test_lifecycle_group" && return 0
+  done
+  return 1
+}
+
+test_lifecycle_checkout_template_prepare() {
+  [ -n "${TEST_LIFECYCLE_CHECKOUT_TEMPLATE:-}" ] ||
+    fail_test 'lifecycle checkout template path is unset'
+  test_catalog_checkout_create "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE"
+  git -C "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" clean -fdXq
+  test_shim_fake_versions_write "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE"
+  images_fixture_fake_runtimes_write "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE"
+  git -C "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" add tools/jq/versions \
+    tools/oc/versions tools/rg/versions tools/skopeo/versions
+  git -C "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" commit -qm lifecycle-fakes
+  [ -z "$(git -C "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" status --porcelain)" ] ||
+    fail_test 'prepared lifecycle checkout template is dirty'
+  [ -z "$(git -C "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" \
+    ls-files --others --ignored --exclude-standard)" ] ||
+    fail_test 'prepared lifecycle checkout template retains ignored content'
+}
+
+test_lifecycle_checkout_template_validate() {
+  [ -n "${TEST_LIFECYCLE_CHECKOUT_TEMPLATE:-}" ] || return 0
+  [ -n "${TEST_LIFECYCLE_CHECKOUT_TEMPLATE_HEAD:-}" ] || {
+    printf '%s\n' 'FAIL: lifecycle checkout template HEAD is unset' >&2
+    return 1
+  }
+  [ -d "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" ] &&
+    [ ! -L "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" ] || {
+      printf '%s\n' 'FAIL: lifecycle checkout template is missing or unsafe' >&2
+      return 1
+    }
+  test_lifecycle_template_head=$(git -C "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" \
+    rev-parse HEAD 2>/dev/null) || {
+      printf '%s\n' 'FAIL: lifecycle checkout template HEAD is unreadable' >&2
+      return 1
+    }
+  [ "$test_lifecycle_template_head" = "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE_HEAD" ] || {
+    printf '%s\n' 'FAIL: lifecycle checkout template HEAD changed' >&2
+    return 1
+  }
+  [ -z "$(git -C "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" status --porcelain)" ] || {
+    printf '%s\n' 'FAIL: lifecycle checkout template worktree changed' >&2
+    return 1
+  }
+  [ -z "$(git -C "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" \
+    ls-files --others --ignored --exclude-standard)" ] || {
+      printf '%s\n' 'FAIL: lifecycle checkout template gained ignored content' >&2
+      return 1
+    }
+}
+
 test_lifecycle_fixture_setup() {
   setup_scenario
   TEST_LIFECYCLE_CHECKOUT=$SCENARIO_DIR/checkout
@@ -104,12 +165,11 @@ test_lifecycle_fixture_setup() {
   TEST_LIFECYCLE_SMOKE_LOG=$SCENARIO_DIR/smoke.log
   TEST_LIFECYCLE_VERIFY_LOG=$SCENARIO_DIR/verify.log
   TEST_LIFECYCLE_VERIFY_RESPONSES=$SCENARIO_DIR/verify-responses
-  test_catalog_checkout_create "$TEST_LIFECYCLE_CHECKOUT"
-  test_shim_fake_versions_write "$TEST_LIFECYCLE_CHECKOUT"
-  images_fixture_fake_runtimes_write "$TEST_LIFECYCLE_CHECKOUT"
-  git -C "$TEST_LIFECYCLE_CHECKOUT" add tools/jq/versions tools/oc/versions \
-    tools/rg/versions tools/skopeo/versions
-  git -C "$TEST_LIFECYCLE_CHECKOUT" commit -qm lifecycle-fakes
+  [ -d "${TEST_LIFECYCLE_CHECKOUT_TEMPLATE:-}" ] &&
+    [ ! -L "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" ] ||
+    fail_test 'lifecycle checkout template is unavailable'
+  test_fixture_tree_copy "$TEST_LIFECYCLE_CHECKOUT_TEMPLATE" \
+    "$TEST_LIFECYCLE_CHECKOUT"
   profile_activation_fake_create "$TEST_LIFECYCLE_PODMAN"
   : > "$TEST_LIFECYCLE_PODMAN_LOG"
   : > "$TEST_LIFECYCLE_IMAGE_LOG"
@@ -996,12 +1056,4 @@ shim.sh'
   assert_path_not_exists "$test_lifecycle_failed_link"
   assert_file_contains "$test_lifecycle_unrelated/SKILL.md" user-bytes
   pass 'public bootstrap and installed launcher complete onboarding, catalog, shim, profile, AI, network, shell, administration, and uninstall flows'
-}
-
-test_commands_lifecycle_run() {
-  test_commands_lifecycle_darwin_bootstrap_engine_states
-  test_commands_lifecycle_owned_isolated
-  test_commands_lifecycle_explicit_migration
-  test_commands_lifecycle_global_owned_uninstall
-  test_commands_lifecycle_end_to_end
 }

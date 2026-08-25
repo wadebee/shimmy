@@ -336,9 +336,12 @@ consumers.
 - [ ] Bootstrap and profile sync retain their accepted source, catalog,
   redirect, startup, shim-policy, image, bundle, activation, and rollback
   behavior after shared-helper extraction.
-- [ ] Focused `commands-profile`, `commands-surface`, and
-  `commands-lifecycle` groups pass with the default bounded scheduler using
-  `./tests/test.sh --group commands-profile --group commands-surface --group commands-lifecycle --jobs 3`.
+- [ ] Focused `commands-profile`, `commands-surface`, and all five
+  `commands-lifecycle-*` groups pass with the default bounded scheduler using
+  `./tests/test.sh --group commands-profile --group commands-surface --group
+  commands-lifecycle-bootstrap --group commands-lifecycle-isolated --group
+  commands-lifecycle-migration --group commands-lifecycle-uninstall --group
+  commands-lifecycle-end-to-end --jobs 3`.
 - [ ] Changed POSIX shell files parse, executable modes remain correct, no
   generated `.agents/skills/` tree appears, and `git diff --check` passes.
 - [ ] The only user-visible behavior at this gate is none; any unavoidable
@@ -445,7 +448,10 @@ consumers.
 - [ ] Help, root/profile command summaries, `commands/README.md`, README,
   BOOTSTRAP, contexts, canonical skill, retained redesign, and future completion
   grammar agree on create/latest, clone/reproduce, and sync/advance.
-- [ ] `./tests/test.sh --group commands-profile --group commands-surface --group commands-lifecycle --jobs 3` passes, followed by one clean default
+- [ ] `./tests/test.sh --group commands-profile --group commands-surface --group
+  commands-lifecycle-bootstrap --group commands-lifecycle-isolated --group
+  commands-lifecycle-migration --group commands-lifecycle-uninstall --group
+  commands-lifecycle-end-to-end --jobs 3` passes, followed by one clean default
   `./tests/test.sh` run. Rerun only observed failures serially for diagnosis.
 - [ ] POSIX syntax, executable modes, installed command inventory, canonical
   skill/payload validation, context-tree validation, terminology searches, and

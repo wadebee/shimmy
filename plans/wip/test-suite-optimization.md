@@ -262,7 +262,7 @@ None.
 
 ## Progress Checklist
 
-- Active phase: ACT — Chunk 1 complete and awaiting human review.
+- Active phase: ACT — Chunk 2 complete and awaiting human review.
 - [x] Confirm objective and `plans` lifecycle root.
 - [x] Read repository guidance, test contexts, current runner/lifecycle sources,
   and retained performance/rollback plans.
@@ -273,7 +273,9 @@ None.
   - Target: final five-group focused acceptance at or below `1993` seconds.
 - [x] Resolve all design decisions and set `## Unresolved` to `None`.
 - [x] Chunk 1 — Add runner evidence retention and the fake-provider contract.
-- [ ] Chunk 2 — Split lifecycle groups, reuse the checkout template, calibrate
+  - Human accepted Chunk 1 by requesting Chunk 2 implementation on
+    2026-08-24.
+- [x] Chunk 2 — Split lifecycle groups, reuse the checkout template, calibrate
   assignments, and complete final acceptance.
 
 ## Execution protocol
@@ -427,20 +429,109 @@ static scheduling.
 
 ### Verification checklist
 
-- [ ] Runner registry/assignment validation proves the final group count,
+- [x] Runner registry/assignment validation proves the final group count,
   unique function mappings, scenario ordering, and one-/two-/three-worker
   scheduling.
-- [ ] Template preparation is conditional, separately timed, clean, immutable,
+- [x] Template preparation is conditional, separately timed, clean, immutable,
   and safe through both copy-on-write and portable copy contracts.
-- [ ] Serial calibration passes and final assignments minimize the measured
+- [x] Serial calibration passes and final assignments minimize the measured
   maximum worker sum.
-- [ ] The timing-enabled five-group focused run passes with all required setup,
+- [x] The timing-enabled five-group focused run passes with all required setup,
   progress, group, total, count, isolation, and performance evidence.
-- [ ] With no intervening edit, the timing-enabled default full suite passes
+- [x] With no intervening edit, the timing-enabled default full suite passes
   exact group/count coverage.
-- [ ] Syntax, generated artifact syntax, context tree, executable modes,
+- [x] Syntax, generated artifact syntax, context tree, executable modes,
   whitespace, fake-only boundary, and future-facing selection commands pass
   final review.
+
+### Chunk 2 serial calibration evidence
+
+The one required timing-enabled complete serial calibration passed on
+2026-08-24 with 43 groups, 130 logical tests, setup times of `0` seconds for
+copy-on-write detection and `1` second for the lifecycle checkout template,
+and a `4297`-second total. Every group record was:
+
+```text
+runner=1
+lib-catalog=204
+lib-codec=0
+lib-profile-state=1
+lib-ai-skill-state=1
+lib-lock=2
+lib-transaction=1
+lib-ai-skill-link=2
+lib-runtime=1
+lib-engine=5
+lib-profile-activation=9
+lib-registries=1
+commands-agent-preflight=3
+commands-catalog=106
+commands-shim=611
+commands-ai-skill=102
+commands-profile=761
+commands-surface=1
+commands-lifecycle-bootstrap=184
+commands-lifecycle-isolated=525
+commands-lifecycle-migration=178
+commands-lifecycle-uninstall=382
+commands-lifecycle-end-to-end=1209
+tools-aws=0
+tools-bats=0
+tools-community-ansible-dev-tools=1
+tools-gcloud=0
+tools-gdrive=0
+tools-gh=1
+tools-go=0
+tools-jq=0
+tools-netcat=0
+tools-nmap=0
+tools-npx=0
+tools-oc=0
+tools-opnsense-mcp-read-only=0
+tools-opnsense-mcp-admin=1
+tools-rg=0
+tools-skopeo=1
+tools-task=0
+tools-terraform=0
+tools-tessl=0
+tools-textual=0
+```
+
+The 43 group records sum to `4294` seconds. The final two-worker assignment
+achieves the exact lower bound, `2147/2147`. The final three-worker assignment
+achieves the exact ceiling lower bound, `1432/1431/1431`:
+
+- `three-a=1432`: lifecycle end-to-end, lib-catalog,
+  lib-profile-activation, lib-engine, commands-agent-preflight, and lib-lock.
+- `three-b=1431`: commands-profile, lifecycle uninstall, lifecycle bootstrap,
+  commands-ai-skill, and lib-ai-skill-link.
+- `three-c=1431`: every remaining group, including commands-shim, lifecycle
+  isolated, lifecycle migration, and commands-catalog.
+
+### Chunk 2 final acceptance evidence
+
+The final focused command selected all five lifecycle groups with `--jobs 3`.
+Template setup took `1` second; group times were `217` bootstrap, `615`
+isolated, `199` migration, `449` uninstall, and `1327` end-to-end. All five
+logical tests passed in `1329` seconds. This is `1163` seconds, or 46.7 percent,
+faster than the accepted `2492`-second lifecycle baseline and is below the
+`1993`-second acceptance limit.
+
+With no intervening edit, `SHIMMY_TEST_TIMING=1 ./tests/test.sh` passed all 43
+registered groups exactly once and all 130 logical tests. Copy-on-write setup
+took `0` seconds, lifecycle-template setup took `1` second, and total elapsed
+time was `1695` seconds. Canonical replay included five lifecycle START, PASS,
+and group-timing records; successful post-suite validation accepted the
+template's unchanged recorded HEAD, clean worktree, and empty ignored-content
+inventory.
+
+Final direct checks passed `/bin/sh -n` for changed shell files,
+`./tests/context-tree.sh`, executable-mode review, `git diff --check`, the
+generated installed-artifact syntax exercised inside both lifecycle runs, the
+fake-Podman injection inventory, and the final future-facing umbrella-group
+terminology search. Remaining `commands-lifecycle` matches describe retained
+historical baselines or accepted past invocations rather than executable
+future selection commands.
 
 ### Human review gate
 
@@ -508,6 +599,24 @@ moving this plan to `complete`; explicit acceptance is required.
   status independent of the optional failure predicate. The direct contract
   now proves success/`stopped`, pre-mutation failure/`absent`, and post-create
   failure/`stopped` without a lifecycle fixture.
+
+### Chunk 2
+
+- Preparing one clean template, pruning ignored content, adding lifecycle fake
+  runtimes, and recording its immutable HEAD took one second. Scenario copies
+  retained independent Git histories while the post-suite validator confirmed
+  that the template HEAD and worktree never changed.
+- Splitting the lifecycle group preserved all five logical pass records and
+  measured `184/525/178/382/1209` seconds. Their `2478`-second sum is within 14
+  seconds of the accepted `2492`-second monolithic baseline; the performance
+  gain therefore comes from safe scenario parallelism, not removed behavior.
+- The full serial group sum admits exact optimal partitions for both supported
+  worker counts. Two workers reach `2147/2147`; three reach
+  `1432/1431/1431`, the mathematical lower bounds for a `4294`-second sum.
+- Parallel host contention raised individual final group times above their
+  serial calibration values, but the focused lifecycle total still improved
+  46.7 percent and the full suite improved from `4297` serial seconds to
+  `1695` bounded-parallel seconds while preserving every logical pass record.
 
 ## Session bootstrap
 
