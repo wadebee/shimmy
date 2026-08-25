@@ -730,12 +730,16 @@ shimmy_registries_client_mount_resolve() {
     shimmy_registries_client_mount_fail 'active profile state helper is unavailable'
     return 1
   }
-  command -v shimmy_active_profile_read >/dev/null 2>&1 || . "$client_state_helper"
-  shimmy_active_profile_read "$SHIMMY_CONFIG_ROOT/active-profile.conf" &&
-    [ "$SHIMMY_ACTIVE_PROFILE_NAME" = "$client_profile_name" ] || {
-      shimmy_registries_client_mount_fail 'installation active record belongs to another profile or is invalid'
-      return 1
-    }
+  if [ "${SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE:-0}" -eq 1 ]; then
+    :
+  else
+    command -v shimmy_active_profile_read >/dev/null 2>&1 || . "$client_state_helper"
+    shimmy_active_profile_read "$SHIMMY_CONFIG_ROOT/active-profile.conf" &&
+      [ "$SHIMMY_ACTIVE_PROFILE_NAME" = "$client_profile_name" ] || {
+        shimmy_registries_client_mount_fail 'installation active record belongs to another profile or is invalid'
+        return 1
+      }
+  fi
   shimmy_path_parent_chain_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" || {
     shimmy_registries_client_mount_fail 'registry configuration path is unsafe'
     return 1

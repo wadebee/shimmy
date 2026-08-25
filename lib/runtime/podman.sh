@@ -224,11 +224,15 @@ shimmy_podman_profile_affinity_require() {
     shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'profile engine paths are invalid'
     return 1
   }
-  shimmy_active_profile_read "$SHIMMY_CONFIG_ROOT/active-profile.conf" &&
-    [ "$SHIMMY_ACTIVE_PROFILE_NAME" = "$runtime_profile" ] || {
-      shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'installation active record belongs to another profile or is invalid'
-      return 1
-    }
+  if [ "${SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE:-0}" -eq 1 ]; then
+    :
+  else
+    shimmy_active_profile_read "$SHIMMY_CONFIG_ROOT/active-profile.conf" &&
+      [ "$SHIMMY_ACTIVE_PROFILE_NAME" = "$runtime_profile" ] || {
+        shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'installation active record belongs to another profile or is invalid'
+        return 1
+      }
+  fi
   shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$runtime_profile" || {
     shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'registry configuration is invalid'
     return 1
