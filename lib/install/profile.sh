@@ -307,9 +307,9 @@ shimmy_profile_launcher_render() {
   shimmy_profile_launcher_name=$2
   shimmy_path_absolute_normalized_validate "$shimmy_profile_launcher_config_root" || return 1
   shimmy_name_component_validate "$shimmy_profile_launcher_name" || return 1
-  [ -f "$SHIMMY_CONTROL_ROOT/lib/install/launcher-template.sh" ] &&
-    [ ! -L "$SHIMMY_CONTROL_ROOT/lib/install/launcher-template.sh" ] || return 1
-  cat "$SHIMMY_CONTROL_ROOT/lib/install/launcher-template.sh"
+  [ -f "$SHIMMY_ROOT_DIR/lib/install/launcher-template.sh" ] &&
+    [ ! -L "$SHIMMY_ROOT_DIR/lib/install/launcher-template.sh" ] || return 1
+  cat "$SHIMMY_ROOT_DIR/lib/install/launcher-template.sh"
 }
 
 shimmy_profile_launcher_validate() {

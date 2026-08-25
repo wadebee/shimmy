@@ -4,7 +4,7 @@ set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-SHIMMY_CONTROL_ROOT=$ROOT_DIR
+SHIMMY_ROOT_DIR=$ROOT_DIR
 
 . "$ROOT_DIR/lib/common/common.sh"
 . "$ROOT_DIR/lib/common/lock.sh"

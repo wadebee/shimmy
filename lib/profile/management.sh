@@ -519,10 +519,10 @@ EOF
     shimmy_border_pad=0
   fi
   printf '┌── PROFILE: %s%s%s%s %s┐\n' "$SHIMMY_STYLE_GREEN" "$shimmy_profile_status_name" "$shimmy_active_accent" "$SHIMMY_STYLE_BOLD" "$(shimmy_draw_line "$shimmy_border_pad")" "$SHIMMY_STYLE_RESET"
-  shimmy_control_formatted=$(shimmy_digest_format "$shimmy_profile_status_source_ref")
+  shimmy_profile_digest=$(shimmy_digest_format "$shimmy_profile_status_source_ref")
   printf '│  %-12s %-62s │\n' "Path:" "$shimmy_profile_status_root"
   printf '│  %-12s %-62s │\n' "Active:" "$shimmy_profile_status_active"
-  printf '│  %-12s %-62s │\n' "Control:" "$shimmy_control_formatted (refs/heads/main)"
+  printf '│  %-12s %-62s │\n' "Digest:" "$shimmy_profile_digest (refs/heads/main)"
   printf '├──────────────────────────────────────────────────────────────────────────────┤\n'
   printf '│  %s%-72s%s  │\n' "$SHIMMY_STYLE_BOLD" "ENGINE STATUS" "$SHIMMY_STYLE_RESET"
   printf '│    %-12s %-60s │\n' "Binding:" "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-unmigrated} (${SHIMMY_PROFILE_ENGINE_ID:-unknown})"

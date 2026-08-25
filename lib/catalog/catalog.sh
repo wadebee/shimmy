@@ -376,12 +376,12 @@ shimmy-tool-local-build'
   done
 
   if ! command -v shimmy_image_config_validate >/dev/null 2>&1; then
-    [ -n "${SHIMMY_CONTROL_ROOT:-}" ] || SHIMMY_CONTROL_ROOT=${ROOT_DIR:-}
-    [ -n "$SHIMMY_CONTROL_ROOT" ] && [ -f "$SHIMMY_CONTROL_ROOT/lib/runtime/image.sh" ] || {
+    [ -n "${SHIMMY_ROOT_DIR:-}" ] || SHIMMY_ROOT_DIR=${ROOT_DIR:-}
+    [ -n "$SHIMMY_ROOT_DIR" ] && [ -f "$SHIMMY_ROOT_DIR/lib/runtime/image.sh" ] || {
       shimmy_catalog_error_set 'unable to locate control-plane image schema validator'
       return 1
     }
-    SHIMMY_RUNTIME_DIR=$SHIMMY_CONTROL_ROOT/lib/runtime
+    SHIMMY_RUNTIME_DIR=$SHIMMY_ROOT_DIR/lib/runtime
     # shellcheck source=lib/runtime/image.sh
     . "$SHIMMY_RUNTIME_DIR/image.sh"
   fi
