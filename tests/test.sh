@@ -125,6 +125,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/tools/bats/tests/bats.sh"
 # shellcheck source=tools/community-ansible-dev-tools/tests/community-ansible-dev-tools.sh
 . "$ROOT_DIR/tools/community-ansible-dev-tools/tests/community-ansible-dev-tools.sh"
+# shellcheck source=tools/flux/tests/flux.sh
+. "$ROOT_DIR/tools/flux/tests/flux.sh"
 # shellcheck source=tools/gcloud/tests/gcloud.sh
 . "$ROOT_DIR/tools/gcloud/tests/gcloud.sh"
 # shellcheck source=tools/gdrive/tests/gdrive.sh

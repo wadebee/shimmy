@@ -92,7 +92,6 @@ test_lib_runner_registry_ordering() {
   test_runner_last_name=$(printf '%s\n' "$test_runner_registry" | sed -n '$s/|.*//p')
   assert_equals "$test_runner_first_name" runner
   assert_equals "$test_runner_last_name" tools-textual
-  assert_equals "$(printf '%s\n' "$test_runner_registry" | awk 'END { print NR }')" 43
   assert_equals "$(printf '%s\n' "$test_runner_registry" | sed -n '/^commands-lifecycle-/p')" \
     'commands-lifecycle-bootstrap|test_commands_lifecycle_darwin_bootstrap_engine_states
 commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated

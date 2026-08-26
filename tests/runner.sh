@@ -34,6 +34,7 @@ commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end
 tools-aws|test_tools_aws_run
 tools-bats|test_tools_bats_run
 tools-community-ansible-dev-tools|test_tools_community_ansible_dev_tools_run
+tools-flux|test_tools_flux_run
 tools-gcloud|test_tools_gcloud_run
 tools-gdrive|test_tools_gdrive_run
 tools-gh|test_tools_gh_run
@@ -88,6 +89,7 @@ commands-lifecycle-end-to-end|two-a|three-a
 tools-aws|two-a|three-c
 tools-bats|two-a|three-c
 tools-community-ansible-dev-tools|two-b|three-c
+tools-flux|two-a|three-c
 tools-gcloud|two-a|three-c
 tools-gdrive|two-a|three-c
 tools-gh|two-b|three-c
