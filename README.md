@@ -1,16 +1,30 @@
 # Shimmy
 
-Shimmy exposes CLI tools through small POSIX shell wrappers that run containers
-with Podman. Tool runtimes mount the current directory at `/work`, select the
-native Linux platform, and retain each tool's documented configuration and
+Shimmy is a profile-aware OCI tool harness that exposes containerized tool implementations as ordinary host CLI commands, with version selection, runtime isolation, registry policy, and AI-agent tool integration. Tool runtimes mount the current directory at `/work`, select the native Linux platform, and retain each tool's documented configuration and
 credential boundaries.
 
-> **Overwrite warning:** profile activation and `shimmy ai-skill repair`
-> unconditionally replace every exact skill destination declared by the active
-> profile's bundles. Shimmy creates no backup and provides no recovery for
-> overwritten foreign content. It never recursively deletes the user's skill
-> root or unrelated skill names. Run `shimmy profile activate <name> --dry-run`
-> before activation to inspect exact collisions.
+                         SHIMMY PROFILE
+                              │
+              ┌───────────────┼────────────────┐
+              │               │                │
+        tool policy      runtime policy   registry policy
+              │               │                │
+              ▼               ▼                ▼
+          jq@1.8          shared/isolated   image redirect
+          rg@15.1             engine
+              │
+              ▼
+         host-visible
+            shims
+              │
+              ▼
+      implementation resolution
+              │
+              ▼
+           OCI image
+              │
+              ▼
+       isolated tool process
 
 ## Requirements
 
