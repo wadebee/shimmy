@@ -5,7 +5,7 @@
 Add a maintainer-only installed command:
 
 ```text
-shimmy catalog refresh <tool@version> [--dry-run]
+shimmy catalog refresh <tool@tag> [--dry-run]
 ```
 
 The command refreshes mutable tag-backed runtime or base-image references for
@@ -17,7 +17,7 @@ catalog candidate, and atomically updates only the selected version's
 
 Success means:
 
-- one exact existing `tool@version` selector is required;
+- one exact existing `tool@tag` selector is required;
 - public and explicitly authenticated image references use the active profile's
   exact Skopeo and jq runtimes, registry redirects, and secret boundary;
 - every refreshable image record in the selected `image.conf` is handled as one
@@ -113,7 +113,7 @@ digest was checked.
 
 ## Recorded design decisions
 
-1. The only accepted selector form is one positional `tool@version`. Reject an
+1. The only accepted selector form is one positional `tool@tag`. Reject an
    empty selector, unqualified tool, multiple selectors, unsafe tokens, unknown
    tools, and unknown versions before network access or mutation.
 2. `refresh` is an installed `shimmy catalog` action and must run from the
@@ -266,7 +266,7 @@ across workstations and sessions.
 
 ### Goal
 
-Deliver the complete `shimmy catalog refresh <tool@version> [--dry-run]`
+Deliver the complete `shimmy catalog refresh <tool@tag> [--dry-run]`
 workflow with offline behavioral coverage, source transaction safety, public
 documentation, and explicit live/native acceptance boundaries. Leave all
 version discovery and publication behavior unchanged.
@@ -304,7 +304,7 @@ registry and Git authority boundaries.
    mutation, clean-main requirements, `--dry-run`, authentication, immutable-
    upstream/mirror limitations, native smokes, and separate publication.
 2. Add strict parsing in `commands/catalog.sh`. Accept exactly one positional
-   `tool@version` and optional single `--dry-run` in either documented order;
+   `tool@tag` and optional single `--dry-run` in either documented order;
    reject all other arguments before calling the refresh library.
 3. Introduce `lib/catalog/refresh.sh` with narrow source-checkout preflight,
    Git-owned lock, staged-payload, rewrite, revalidation, commit, rollback, and
@@ -443,7 +443,7 @@ For a fresh implementation session:
    by Chunk 1.
 3. Recheck `git status`; preserve unrelated work, including unrelated notional
    plans, and do not edit generated `.agents/skills/` copies.
-4. Keep the target limited to `shimmy catalog refresh <tool@version>
+4. Keep the target limited to `shimmy catalog refresh <tool@tag>
    [--dry-run]`. Do not add unqualified selectors, providers, version creation,
    default promotion, mirroring, commits, or publication.
 5. Implement only Chunk 1, update its checklist and lessons with verification

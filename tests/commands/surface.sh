@@ -116,6 +116,7 @@ profile redirect delete|shimmy profile redirect delete (--prefix <logical> | --a
 catalog status|shimmy catalog status [--format human|manifest]
 catalog tools|shimmy catalog tools [--generation <id>] [--format human|manifest]
 catalog verify|shimmy catalog verify [--tool <tool[@version]> ...]
+catalog refresh|shimmy catalog refresh <tool@version> [--dry-run]
 catalog publish|shimmy catalog publish
 catalog rollback|shimmy catalog rollback
 shim list|shimmy shim list [--format human|manifest]

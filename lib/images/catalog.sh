@@ -5,6 +5,7 @@ SHIMMY_IMAGES_ERROR=
 
 shimmy_images_active_context_resolve() {
   shimmy_images_config_root=$1
+  shimmy_images_operation=${SHIMMY_IMAGES_OPERATION:-catalog verification}
   shimmy_catalog_tree_validate "$shimmy_images_config_root" || {
     shimmy_images_error_set "$SHIMMY_CATALOG_AUTHORITY_ERROR"
     return 1
@@ -17,7 +18,7 @@ shimmy_images_active_context_resolve() {
     return 1
   }
   shimmy_active_profile_read "$SHIMMY_ACTIVE_PROFILE_PATH" || {
-    shimmy_images_error_set 'catalog verification requires a valid active profile record'
+    shimmy_images_error_set "$shimmy_images_operation requires a valid active profile record"
     return 1
   }
   shimmy_images_active_profile=$SHIMMY_ACTIVE_PROFILE_NAME
@@ -65,6 +66,36 @@ shimmy_images_active_context_resolve() {
   SHIMMY_CATALOG_AUTHORITY_ROOT=$shimmy_images_catalog_root
   SHIMMY_CATALOG_TOOLS_DIR=$shimmy_images_catalog_root/tools
   SHIMMY_IMAGES_USE_PROFILE_METADATA=0
+}
+
+shimmy_images_cache_prepare() {
+  shimmy_images_cache_operation=${1:-catalog image verification}
+  shimmy_images_tmp_parent=${TMPDIR:-/tmp}
+  case "$shimmy_images_tmp_parent" in ''|/) shimmy_images_tmp_parent=/tmp ;; */) shimmy_images_tmp_parent=${shimmy_images_tmp_parent%/} ;; esac
+  SHIMMY_IMAGES_CACHE_PARENT=$(cd -- "$shimmy_images_tmp_parent" && pwd -P) || {
+    shimmy_images_error_set "invalid $shimmy_images_cache_operation temporary directory"
+    return 1
+  }
+  SHIMMY_IMAGES_CACHE_DIR=$(mktemp -d "$SHIMMY_IMAGES_CACHE_PARENT/shimmy-images.XXXXXX") || {
+    shimmy_images_error_set "unable to create $shimmy_images_cache_operation workspace"
+    return 1
+  }
+  SHIMMY_IMAGES_CACHE_DIR=$(cd -- "$SHIMMY_IMAGES_CACHE_DIR" && pwd -P)
+  SHIMMY_IMAGES_CACHE_INDEX=$SHIMMY_IMAGES_CACHE_DIR/cache
+  SHIMMY_IMAGES_CACHE_COUNT=0
+  : > "$SHIMMY_IMAGES_CACHE_INDEX"
+}
+
+shimmy_images_active_runtimes_prepare() {
+  shimmy_images_prepare_config_root=$1
+  shimmy_images_prepare_operation=${2:-catalog image verification}
+  SHIMMY_IMAGES_OPERATION=$shimmy_images_prepare_operation
+  shimmy_images_active_context_resolve "$shimmy_images_prepare_config_root" || return 1
+  shimmy_images_runtime_resolve skopeo || return 1
+  SHIMMY_IMAGES_SKOPEO_RUNTIME=$SHIMMY_IMAGES_RUNTIME_FILE
+  shimmy_images_runtime_resolve jq || return 1
+  SHIMMY_IMAGES_JQ_RUNTIME=$SHIMMY_IMAGES_RUNTIME_FILE
+  shimmy_images_cache_prepare "$shimmy_images_prepare_operation"
 }
 
 shimmy_images_cache_cleanup() {
@@ -271,33 +302,15 @@ shimmy_images_verify_run() {
   SHIMMY_IMAGES_OUTPUT_FORMAT=${5:-human}
   case "$SHIMMY_IMAGES_OUTPUT_FORMAT" in human|manifest) ;; *) return 1 ;; esac
 
-  shimmy_images_active_context_resolve "$shimmy_images_verify_config_root" || return 1
+  shimmy_images_active_runtimes_prepare "$shimmy_images_verify_config_root" \
+    'catalog image verification' || return 1
   shimmy_images_selected_versions=$(shimmy_images_selection_resolve "$shimmy_images_verify_requested_tools") || return 1
   [ -n "$shimmy_images_selected_versions" ] || {
     shimmy_images_error_set 'catalog image verification selection is empty'
     return 1
   }
 
-  shimmy_images_runtime_resolve skopeo || return 1
-  SHIMMY_IMAGES_SKOPEO_RUNTIME=$SHIMMY_IMAGES_RUNTIME_FILE
-  shimmy_images_runtime_resolve jq || return 1
-  SHIMMY_IMAGES_JQ_RUNTIME=$SHIMMY_IMAGES_RUNTIME_FILE
-
-  shimmy_images_tmp_parent=${TMPDIR:-/tmp}
-  case "$shimmy_images_tmp_parent" in ''|/) shimmy_images_tmp_parent=/tmp ;; */) shimmy_images_tmp_parent=${shimmy_images_tmp_parent%/} ;; esac
-  SHIMMY_IMAGES_CACHE_PARENT=$(cd -- "$shimmy_images_tmp_parent" && pwd -P) || {
-    shimmy_images_error_set 'invalid catalog image verification temporary directory'
-    return 1
-  }
-  SHIMMY_IMAGES_CACHE_DIR=$(mktemp -d "$SHIMMY_IMAGES_CACHE_PARENT/shimmy-images.XXXXXX") || {
-    shimmy_images_error_set 'unable to create catalog image verification workspace'
-    return 1
-  }
-  SHIMMY_IMAGES_CACHE_DIR=$(cd -- "$SHIMMY_IMAGES_CACHE_DIR" && pwd -P)
-  SHIMMY_IMAGES_CACHE_INDEX=$SHIMMY_IMAGES_CACHE_DIR/cache
-  SHIMMY_IMAGES_CACHE_COUNT=0
   shimmy_images_records_file=$SHIMMY_IMAGES_CACHE_DIR/records
-  : > "$SHIMMY_IMAGES_CACHE_INDEX"
   : > "$shimmy_images_records_file"
 
   while IFS='|' read -r shimmy_images_tool_name shimmy_images_version_name shimmy_images_extra; do

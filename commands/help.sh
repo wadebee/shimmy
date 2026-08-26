@@ -18,7 +18,7 @@ Usage:
 Groups:
   admin       Inspect or remove the complete installation.
   profile     List, inspect, create, activate, sync, repair, or delete profiles.
-  catalog     Inspect, verify, publish, or roll back the immutable default catalog.
+  catalog     Inspect, verify, refresh, publish, or roll back the default catalog.
   shim        Manage profile-local shims and their installed versions.
   ai-skill    Inspect or repair active-profile AI-skill links.
 
@@ -695,6 +695,7 @@ Commands:
   status    Show local registry-current and retained-previous authority.
   tools     List tools in current or one retained generation.
   verify    Verify configured remote image indexes and upstream drift.
+  refresh   Refresh one existing version's tag-backed source image digests.
   publish   Publish clean committed local main content.
   rollback  Swap current with the retained valid previous generation.
 
@@ -710,6 +711,7 @@ Examples:
   shimmy catalog status
   shimmy catalog tools
   shimmy catalog verify --public-only
+  shimmy catalog refresh netcat@7.92 --dry-run
 
 Run 'shimmy catalog <command> --help' for command options and defaults.
 EOF
@@ -801,6 +803,50 @@ Examples:
   shimmy catalog verify
   shimmy catalog verify --tool jq@1.8 --format manifest
   shimmy catalog verify --public-only --require-current-upstream
+EOF
+}
+
+shimmy_help_catalog_refresh() {
+  cat <<'EOF'
+Refresh tag-backed image digests for one existing concrete catalog version.
+
+Usage:
+  shimmy catalog refresh <tool@version> [--dry-run]
+
+Scope:
+  Run through an installed profile from the clean repository root on attached
+  local main. Refresh updates only the selected source image.conf; it never
+  changes the installed catalog, a profile pin, Git state, or publication.
+
+Options:
+  --dry-run   Resolve, inspect, re-resolve, rewrite, and validate the complete
+              candidate without changing the checkout.
+  -h, --help  Show this help before installed-state validation.
+
+Defaults:
+  Apply one all-record source refresh. No unqualified selector is accepted.
+
+Authentication and image boundaries:
+  jq and Skopeo come from the active profile and retain its registry redirects.
+  Authenticated records require SHIMMY_SKOPEO_AUTH_SECRET. Immutable-only
+  upstreams cannot be refreshed. A tag and configured default in different
+  repositories are treated as a mirror or retention boundary and rejected.
+
+Acceptance and publication:
+  Index inspection requires linux/amd64 and linux/arm64 descriptors but does not
+  replace native runtime acceptance. Review documentation findings and the
+  source diff, smoke the version on native Linux amd64 and Apple Silicon arm64,
+  commit it, then run the separate 'shimmy catalog publish' command.
+
+Remediation:
+  Clean and attach local main, activate a profile containing the exact jq and
+  Skopeo versions named by diagnostics, and resolve any auth or mirror boundary
+  before retrying. Never remove a refresh lock until its owner is verified gone.
+
+Examples:
+  shimmy catalog refresh netcat@7.92 --dry-run
+  shimmy catalog refresh --dry-run jq@1.8
+  shimmy catalog refresh jq@1.8
 EOF
 }
 
@@ -1192,6 +1238,7 @@ case "$shimmy_help_group" in
       status) shimmy_help_catalog_status ;;
       tools) shimmy_help_catalog_tools ;;
       verify) shimmy_help_catalog_verify ;;
+      refresh) shimmy_help_catalog_refresh ;;
       publish) shimmy_help_catalog_publish ;;
       rollback) shimmy_help_catalog_rollback ;;
       *) fail "unknown catalog help topic: ${2:-}" ;;

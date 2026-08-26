@@ -17,6 +17,7 @@ SHIMMY_ROOT_DIR=$ROOT_DIR
 . "$ROOT_DIR/lib/images/catalog.sh"
 . "$ROOT_DIR/lib/install/transaction.sh"
 . "$ROOT_DIR/lib/install/catalog.sh"
+. "$ROOT_DIR/lib/catalog/refresh.sh"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -24,6 +25,7 @@ fail() {
 }
 
 cleanup() {
+  shimmy_catalog_refresh_cleanup 2>/dev/null || true
   shimmy_images_cache_cleanup 2>/dev/null || true
   shimmy_filesystem_transaction_cleanup 2>/dev/null || true
   shimmy_catalog_lifecycle_cleanup 2>/dev/null || true
@@ -40,6 +42,7 @@ Usage:
   shimmy catalog tools [--generation <sha256-generation>] [--format human|manifest]
   shimmy catalog verify [--tool <tool[@version]> ...] [--public-only]
                            [--require-current-upstream] [--format human|manifest]
+  shimmy catalog refresh <tool@version> [--dry-run]
   shimmy catalog publish
   shimmy catalog rollback
 
@@ -53,7 +56,7 @@ config_root=${SHIMMY_CONFIG_ROOT:-}
 action=${1:-help}
 case "$action" in
   help|-h|--help) usage; exit 0 ;;
-  status|tools|verify|publish|rollback) shift ;;
+  status|tools|verify|refresh|publish|rollback) shift ;;
   *) fail "unknown catalog command: $action" ;;
 esac
 
@@ -105,6 +108,43 @@ case "$action" in
     if ! shimmy_images_verify_run "$config_root" "$requested_tools" \
       "$public_only" "$require_current_upstream" "$output_format"; then
       [ -z "$SHIMMY_IMAGES_ERROR" ] || fail "$SHIMMY_IMAGES_ERROR"
+      exit 1
+    fi
+    ;;
+  refresh)
+    refresh_selector=
+    refresh_dry_run=0
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --dry-run)
+          [ "$refresh_dry_run" -eq 0 ] || fail 'duplicate argument: --dry-run'
+          refresh_dry_run=1
+          shift
+          ;;
+        -h|--help) usage; exit 0 ;;
+        --*) fail "unknown argument: $1" ;;
+        *)
+          [ -z "$refresh_selector" ] || fail "unexpected additional selector: $1"
+          refresh_selector=$1
+          shift
+          ;;
+      esac
+    done
+    [ -n "$refresh_selector" ] || fail 'catalog refresh requires one exact tool@version selector'
+    case "$refresh_selector" in
+      *@*) ;;
+      *) fail 'catalog refresh selector must be qualified as tool@version' ;;
+    esac
+    refresh_tool=${refresh_selector%%@*}
+    refresh_version=${refresh_selector#*@}
+    shimmy_name_component_validate "$refresh_tool" &&
+      shimmy_version_token_validate "$refresh_version" &&
+      [ "$refresh_selector" = "$refresh_tool@$refresh_version" ] ||
+      fail "unsafe catalog refresh selector: $refresh_selector"
+    checkout_root=$(pwd -P)
+    if ! shimmy_catalog_refresh_run "$config_root" "$checkout_root" \
+      "$refresh_selector" "$refresh_dry_run"; then
+      [ -z "$SHIMMY_CATALOG_REFRESH_ERROR" ] || fail "$SHIMMY_CATALOG_REFRESH_ERROR"
       exit 1
     fi
     ;;

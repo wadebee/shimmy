@@ -235,7 +235,18 @@ rollback never silently change installed profile contents.
 shimmy catalog status
 shimmy catalog tools
 shimmy catalog verify --tool jq@1.8 --format manifest
+shimmy catalog refresh netcat@7.92 --dry-run
 ```
+
+Maintainers can refresh one existing version's mutable tag-backed runtime or
+base-image records from a clean attached local `main` checkout. Refresh uses
+the active profile's exact jq and Skopeo runtimes, registry redirects, and
+explicit `SHIMMY_SKOPEO_AUTH_SECRET`, validates the resolved immutable index for
+both required platforms, then re-resolves tags before changing only the
+selected `image.conf`. It refuses immutable-only inputs and cross-repository
+mirror boundaries. `--dry-run` performs the same discovery and validation.
+Review any reported guide or skill references and complete both native-host
+smokes before committing and running the separate catalog publication command.
 
 `shimmy catalog publish` must run at a clean committed checkout root on attached
 local `main`; it publishes tracked `catalog.conf`, `tools/`, and canonical

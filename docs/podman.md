@@ -136,12 +136,20 @@ Verify registry metadata explicitly through an installed profile:
 shimmy catalog verify --public-only
 shimmy catalog verify --tool jq@1.8 --public-only
 SHIMMY_SKOPEO_AUTH_SECRET=registry-auth shimmy catalog verify
+shimmy catalog refresh netcat@7.92 --dry-run
 ```
 
 Verification inspects remote manifests without pulling target layers. Skopeo
 is the initial tool-container consumer of active profile registry redirects.
 Credentials remain explicit Podman secrets; Shimmy does not mount host auth,
 private CA, or signature-policy directories implicitly.
+
+Catalog refresh inherits the same active-profile Skopeo runtime, redirects, and
+explicit secret boundary. It resolves a mutable upstream tag, inspects the
+exact immutable candidate, and resolves the tag again before source mutation.
+It never copies between repositories: a distinct configured repository is a
+mirror or retention boundary and is rejected. Refreshing source metadata does
+not publish a catalog or prove either native runtime.
 
 Local-build image identity includes the complete context, image metadata,
 ordered effective build arguments, and selected platform. Identical inputs

@@ -1,6 +1,6 @@
 ---
 name: shimmy-catalog
-description: Inspect, publish, roll back, or verify Shimmy's installation-owned immutable default catalog. Use for default-catalog status, retained-generation tool discovery, clean main publication, rollback, and catalog image verification.
+description: Inspect, refresh, publish, roll back, or verify Shimmy's installation-owned immutable default catalog and its source image metadata.
 ---
 
 > Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
@@ -37,6 +37,23 @@ generation. Neither operation updates profile pins. Stop on dirty, detached,
 non-main, moved-HEAD, malformed skill, unsafe generation, or fingerprint
 collision diagnostics; do not bypass them by editing registry or generation
 files.
+
+## Refresh source image metadata
+
+Use `shimmy catalog refresh <tool@version> --dry-run` from the normalized clean
+attached local `main` repository root before applying a source refresh. The
+command uses the active profile's exact jq and Skopeo runtimes, registry
+redirects, and explicit `SHIMMY_SKOPEO_AUTH_SECRET`. It resolves tag-backed
+runtime and base-image records, inspects each exact immutable candidate for
+`linux/amd64` and `linux/arm64`, then resolves the tags again before atomically
+changing only the selected `image.conf`.
+
+Do not use refresh for immutable-only upstreams or for a tag whose repository
+differs from the configured default; that boundary may represent mirroring or
+retention. Review every reported guide or skill path and the source diff. Index
+verification is not native acceptance: run the version-owned smoke on native
+Linux amd64 and Apple Silicon arm64, commit the reviewed source change, and run
+`shimmy catalog publish` separately.
 
 ## Verify
 

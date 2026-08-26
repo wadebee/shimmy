@@ -120,6 +120,7 @@ shimmy catalog tools [--generation <sha256-generation>]
   [--format human|manifest]
 shimmy catalog verify [--tool <tool[@version]> ...] [--public-only]
   [--require-current-upstream] [--format human|manifest]
+shimmy catalog refresh <tool@version> [--dry-run]
 shimmy catalog publish
 shimmy catalog rollback
 ```
@@ -128,6 +129,16 @@ Shimmy owns one installation-wide immutable catalog named `default`. `status`
 and `tools` are local-only. `verify` uses active-profile jq and Skopeo to inspect
 configured image indexes and optional upstream drift without changing catalog
 or profile state.
+
+`refresh` is a maintainer-only source operation. From a clean attached local
+`main` checkout, it resolves every tag-backed record for one existing concrete
+version through active-profile jq and Skopeo, validates the exact immutable
+index and both required platforms, re-resolves tags to detect movement, and
+atomically updates only that version's `image.conf`. Immutable-only records and
+repository mirror boundaries are not rewritten. `--dry-run` performs the same
+remote and complete-catalog validation without writing. Review reported
+documentation paths, run native Linux amd64 and Apple Silicon arm64 smokes, and
+commit before publishing separately.
 
 `publish` must run from the clean attached local `main` checkout root. It stages
 only tracked catalog content, validates it, creates or reuses the content-

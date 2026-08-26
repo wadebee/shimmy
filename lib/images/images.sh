@@ -61,7 +61,7 @@ shimmy_images_cache_inspect() {
         : > "$cache_file"
       fi
       ;;
-    digest)
+    digest|refresh-digest)
       if "$SHIMMY_IMAGES_SKOPEO_RUNTIME" inspect --format '{{.Digest}}' "docker://$cache_ref" < /dev/null > "$cache_file" 2>/dev/null; then
         cache_status=ok
       else
