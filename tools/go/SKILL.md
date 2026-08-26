@@ -68,7 +68,10 @@ removed repository `shims/` paths.
 - Pull override: `SHIMMY_GO_IMAGE_PULL=always`
 - Runtime mode: stdin-friendly via `podman run --rm -i`
 - Entrypoint override: `--entrypoint go`
-- Mount: `$PWD` to `/work`
+- Mounts: `$PWD` to `/work`; an explicitly configured
+  `SHIMMY_HOST_CA_BUNDLE` to `/tmp/shimmy-host-ca-bundle.pem:ro`
+- Native CA environment: `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem` only
+  when the host bundle is configured
 - Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
@@ -76,9 +79,13 @@ removed repository `shims/` paths.
 1. Keep the shim stdin-friendly so commands such as `go help test` stay clean in scripts.
 2. Preserve the `go` entrypoint override unless the image strategy changes deliberately.
 3. Avoid adding host cache or module mounts unless the task explicitly accepts the host-coupling tradeoff.
-4. Use non-mutating smoke checks such as `go version`, `go help test`, or `go env GOARCH`.
-5. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
-6. Update the runtime shim, docs, tests, installer behavior, and README together when behavior changes.
+4. Treat `SSL_CERT_FILE` as replacement-capable Go system-root file discovery.
+   Preserve the exact read-only host-file mount and advise a combined public
+   and corporate bundle when both trust sets are required. Explicit program
+   TLS configuration can still take precedence.
+5. Use non-mutating smoke checks such as `go version`, `go help test`, or `go env GOARCH`.
+6. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
+7. Update the runtime shim, docs, tests, installer behavior, and README together when behavior changes.
 
 ## Validation
 

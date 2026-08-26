@@ -32,6 +32,14 @@ digests so the shared runtime helper can select the native platform from host
 OS and CPU.
 Use `oc --help` for non-network smoke checks across supported versions.
 
+Every retained version accepts `SHIMMY_HOST_CA_BUNDLE` as one absolute,
+readable host file, mounts it read-only at
+`/tmp/shimmy-host-ca-bundle.pem`, and sets `SSL_CERT_FILE` to that path. This
+changes Go system-root file discovery and can replace the normal public roots;
+advise a combined public and corporate bundle when both are required. Do not
+claim that it overrides explicit kubeconfig CA data or CLI
+certificate-authority arguments.
+
 ## Corporate / proxy / airgapped environments
 
 - **Use a strict Shimmy redirect for `registry.redhat.io`.** Configure the
@@ -65,6 +73,10 @@ Use `oc --help` for non-network smoke checks across supported versions.
 - **Coordinate with registry administrators.** Ensure that required oc images
   and signatures are mirrored for long-term secure use in proxy or airgapped
   environments.
+
+Registry redirection does not itself supply CA trust. Use the exact-file
+`SHIMMY_HOST_CA_BUNDLE` opt-in for runtime TLS trust; it does not mount a host
+trust directory or alter signature policy.
 
 The oc skill should surface redirect and signature-policy issues when image
 pulls fail and offer actionable diagnostics (for example: suggest checking the

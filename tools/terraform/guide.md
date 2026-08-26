@@ -35,17 +35,26 @@ Environment:
 
 - `SHIMMY_TF_IMAGE` - override the container image.
 - `SHIMMY_TF_IMAGE_PULL=always` - force pulling the configured image.
+- `SHIMMY_HOST_CA_BUNDLE` - mount one absolute, readable host CA bundle
+  read-only and set `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem`.
 
 Mounts:
 
 - `$PWD` -> `/work` read-write.
 - `~/.aws` -> `/root/.aws` read-only when it exists.
 - `~/.terraform.d/plugin-cache` -> `/root/.terraform.d/plugin-cache` when it exists.
+- `SHIMMY_HOST_CA_BUNDLE` -> `/tmp/shimmy-host-ca-bundle.pem` read-only
+  when configured.
 
 Forwarded environment:
 
 - `AWS_*`
 - `TF_VAR_*`
+
+`SSL_CERT_FILE` changes the Go system-root file used by Terraform core and
+inherited provider processes. It can replace the normal public roots, so use a
+combined public and corporate bundle when both are required. Provider-specific
+CA configuration can still take precedence.
 
 Runtime platform:
 

@@ -78,10 +78,14 @@ removed repository `shims/` paths.
   - `$HOME` to `$HOME:rw` when present
   - `/tmp` to `/tmp:rw` when present
   - `CONTAINER_HOST` Unix socket when explicitly set and present
+  - An explicitly configured `SHIMMY_HOST_CA_BUNDLE` to
+    `/tmp/shimmy-host-ca-bundle.pem:ro`
 - Forwarded env:
   - `HOME` when the home mount is enabled
   - `SHIMMY_HOST_PATH=$PATH`
   - `CONTAINER_HOST` when explicitly set
+  - `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem` only when the host bundle
+    is configured
 - Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 A non-empty `CONTAINER_HOST` or `CONTAINER_CONNECTION` masks Podman's selected
@@ -98,8 +102,13 @@ nested container workflow.
 3. Keep package installation inside `tools/task/versions/3.45/container/Containerfile`, not the tool dispatcher.
 4. Use `SHIMMY_TASK_IMAGE` only as a full runtime image override; local build args apply only to Shimmy-built images.
 5. Use non-mutating smoke checks such as `task --version` or `task --list`.
-6. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
-7. Update the runtime shim, local image, docs, tests, installer behavior, and README together when behavior changes.
+6. Treat `SSL_CERT_FILE` as replacement-capable Go system-root file discovery
+   for Task 3.45. Preserve the exact read-only host-file mount, advise a
+   combined public and corporate bundle when needed, and do not inject the
+   later Task-specific `--cacert` interface or override explicit application
+   CA settings.
+7. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
+8. Update the runtime shim, local image, docs, tests, installer behavior, and README together when behavior changes.
 
 ## Validation
 

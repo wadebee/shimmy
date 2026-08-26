@@ -34,10 +34,19 @@ Environment:
 
 - `SHIMMY_GO_IMAGE` - override the container image.
 - `SHIMMY_GO_IMAGE_PULL=always` - force pulling the configured image.
+- `SHIMMY_HOST_CA_BUNDLE` - mount one absolute, readable host CA bundle
+  read-only and set `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem`.
 
 Mounts:
 
 - `$PWD` -> `/work` read-write.
+- `SHIMMY_HOST_CA_BUNDLE` -> `/tmp/shimmy-host-ca-bundle.pem` read-only
+  when configured.
+
+Go uses `SSL_CERT_FILE` for Unix system-root file discovery, including module
+and toolchain HTTPS. This can replace the normal public root file, so provide a
+combined public and corporate bundle when both are required. Programs that
+explicitly configure their own TLS roots can still override this mechanism.
 
 Container I/O:
 

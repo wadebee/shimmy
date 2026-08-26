@@ -37,6 +37,8 @@ Environment:
 - `SHIMMY_SKOPEO_IMAGE` - override the container image.
 - `SHIMMY_SKOPEO_IMAGE_PULL=always` - force pulling the configured image.
 - `SHIMMY_SKOPEO_AUTH_SECRET` - mount a Podman secret containing a registry `auth.json`.
+- `SHIMMY_HOST_CA_BUNDLE` - mount one absolute, readable host CA bundle
+  read-only and set `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem`.
 
 Mounts:
 
@@ -47,6 +49,8 @@ Mounts:
   stale, unsafe, connection-overridden, or registry-overridden installed state
   fails closed.
 - `SHIMMY_SKOPEO_AUTH_SECRET` -> `/run/secrets/skopeo-auth.json` read-only when set.
+- `SHIMMY_HOST_CA_BUNDLE` -> `/tmp/shimmy-host-ca-bundle.pem` read-only
+  when configured.
 
 Forwarded environment:
 
@@ -75,9 +79,13 @@ configured upstream fallback. `shimmy catalog verify` uses this same runtime,
 so it inherits the active profile policy automatically.
 
 The policy mount does not provide credentials, install a corporate CA, or
-change signature policy. Keep using the explicit auth secret above. Private CA
-trust must already exist in the selected Skopeo image; Shimmy does not mount
-host trust directories or weaken TLS verification.
+change signature policy. Keep using the explicit auth secret above.
+`SHIMMY_HOST_CA_BUNDLE` supplies one exact host file through Go's
+`SSL_CERT_FILE` system-root discovery; it does not mount host trust directories
+or weaken TLS verification. This setting can replace the normal public roots,
+so provide a combined public and corporate bundle when both are required.
+Registry-specific `certs.d` configuration and Skopeo's `--cert-dir` setting can
+still take precedence.
 
 Runtime platform:
 

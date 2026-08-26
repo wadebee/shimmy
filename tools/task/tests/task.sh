@@ -3,16 +3,20 @@
 
 test_tools_task_preview_contract() {
   setup_scenario
+  ca_bundle="$SCENARIO_DIR/host CA bundle.pem"
+  printf '%s\n' fixture-ca > "$ca_bundle"
 
-  output=$(HOME="$HOME_DIR" SHIMMY_TASK_IMAGE=example.invalid/shimmy/task:test SHIMMY_TASK_IMAGE_PULL=always run_in_repo ./commands/run-tool.sh task --preview-shim --version)
+  output=$(HOME="$HOME_DIR" SHIMMY_HOST_CA_BUNDLE="$ca_bundle" SHIMMY_TASK_IMAGE=example.invalid/shimmy/task:test SHIMMY_TASK_IMAGE_PULL=always run_in_repo ./commands/run-tool.sh task --preview-shim --version)
 
   assert_contains "$output" "'--pull=always'"
   assert_contains "$output" "'$ROOT_DIR:$ROOT_DIR:rw'"
   assert_contains "$output" "'$ROOT_DIR:/work:rw'"
   assert_contains "$output" "'$HOME_DIR:$HOME_DIR:rw'"
   assert_contains "$output" "'/tmp:/tmp:rw'"
+  assert_contains "$output" "'-v' '$ca_bundle:/tmp/shimmy-host-ca-bundle.pem:ro'"
+  assert_contains "$output" "'-e' 'SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem'"
   assert_contains "$output" "'example.invalid/shimmy/task:test'"
-  pass "task preview preserves documented host integration mounts"
+  pass "task preview preserves documented host integration mounts while mapping the host CA bundle"
 }
 
 test_tools_task_target_archives() {

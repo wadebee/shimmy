@@ -32,8 +32,15 @@ Each track uses a version-owned local image based on the authenticated Red Hat
 `ose-cli-rhel9` multi-platform digest in its `image.conf`. The runtime mounts
 `$PWD` at `/work`, selects the native `linux/amd64` or `linux/arm64` platform,
 adds a TTY only when stdin and stdout are terminals, and forwards `KUBECONFIG`
-when set. It does not automatically mount `$HOME/.kube`; referenced paths must
-be reachable inside the container.
+when set. When `SHIMMY_HOST_CA_BUNDLE` names an absolute, readable file, every
+retained track mounts it read-only at `/tmp/shimmy-host-ca-bundle.pem` and sets
+`SSL_CERT_FILE` to that path. It does not automatically mount `$HOME/.kube`;
+referenced paths must be reachable inside the container.
+
+`SSL_CERT_FILE` changes Go system-root file discovery and can replace the
+normal public roots, so provide a combined public and corporate bundle when
+both are required. Explicit kubeconfig CA data and CLI certificate-authority
+arguments can still take precedence.
 
 Version-specific settings are:
 
@@ -44,7 +51,9 @@ Version-specific settings are:
 
 Image and build-argument changes affect cache identity. A strict profile
 redirect may replace `registry.redhat.io`, but it is not a fallback and does
-not provide credentials, Red Hat signatures, corporate CA trust, or policy.
+not provide credentials, Red Hat signatures, or signature policy. The redirect
+itself does not provide corporate CA trust; use `SHIMMY_HOST_CA_BUNDLE` for the
+exact-file runtime opt-in described above.
 
 ## Validation
 

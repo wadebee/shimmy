@@ -54,6 +54,8 @@ fi
 # shellcheck source=lib/runtime/image.sh
 . "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
+shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+
 shimmy_podman_preview_prepare "$@"
 
 if ! shimmy_podman_is_preview; then
@@ -100,5 +102,9 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   ${SHIMMY_GH_CONFIG_DIR:+"$SHIMMY_GH_CONFIG_DIR:$SHIMMY_GH_CONTAINER_CONFIG_DIR:rw"} \
   -e GH_* \
   -e "GH_CONFIG_DIR=$SHIMMY_GH_CONTAINER_CONFIG_DIR" \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   "$SHIMMY_GH_RUN_IMAGE" \
   "$@"

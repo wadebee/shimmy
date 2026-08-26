@@ -21,6 +21,8 @@ Environment:
 - `SHIMMY_GH_IMAGE_PULL=always` forces Podman to pull `SHIMMY_GH_IMAGE` when an image override is used.
 - `SHIMMY_GH_BASE_IMAGE` overrides the configured base image. Default: `docker.io/library/alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce`.
 - `SHIMMY_GH_VERSION` overrides the GitHub CLI release used in the local image. Default: `2.94.0`.
+- `SHIMMY_HOST_CA_BUNDLE` mounts one absolute, readable host CA bundle
+  read-only and sets `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem`.
 - `GH_CONFIG_DIR` is the standard GitHub CLI configuration directory override. When unset, Shimmy uses `$HOME/.config/gh`.
 - GitHub CLI's `GH_*` environment variables, including `GH_TOKEN`, are forwarded. Prefer a persistent `gh auth login` configuration over placing long-lived tokens in the environment.
 
@@ -28,10 +30,16 @@ Mounts and runtime:
 
 - `$PWD` is mounted read-write at `/work` and becomes the working directory.
 - `GH_CONFIG_DIR` or `$HOME/.config/gh` is created during normal execution and mounted read-write at `/home/gh/.config/gh`.
+- `SHIMMY_HOST_CA_BUNDLE` is mounted read-only at
+  `/tmp/shimmy-host-ca-bundle.pem` when configured.
 - The container sets `GH_CONFIG_DIR=/home/gh/.config/gh`, so authentication and configuration persist on the host.
 - The shim uses `-it` only when stdin and stdout are terminals.
 - The shared Podman helper selects the native `linux/amd64` or `linux/arm64`
   platform from supported Linux/macOS host OS and CPU combinations.
+
+GitHub CLI's Go HTTP client uses `SSL_CERT_FILE` for system-root file
+discovery. This can replace the normal public root file, so provide a combined
+public and corporate bundle when both are required.
 
 Local image behavior:
 

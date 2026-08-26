@@ -35,6 +35,8 @@ Environment:
 - `SHIMMY_TASK_IMAGE_PULL=always` - force pulling `SHIMMY_TASK_IMAGE` when using an override.
 - `SHIMMY_TASK_BASE_IMAGE` - override the configured base image. Default: `docker.io/library/alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce`.
 - `SHIMMY_TASK_VERSION` - override the Task release version. Default: `v3.45.5`.
+- `SHIMMY_HOST_CA_BUNDLE` - mount one absolute, readable host CA bundle
+  read-only and set `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem`.
 
 Local image behavior:
 
@@ -46,12 +48,20 @@ Mounts:
 - `$PWD` -> `/work` read-write.
 - `$HOME` -> `$HOME` read-write when it exists.
 - `/tmp` -> `/tmp` read-write when it exists.
+- `SHIMMY_HOST_CA_BUNDLE` -> `/tmp/shimmy-host-ca-bundle.pem` read-only
+  when configured.
 
 Forwarded environment:
 
 - `CONTAINER_HOST` when explicitly set.
 - `SHIMMY_HOST_PATH`.
 - `HOME` when the home directory mount is enabled.
+
+Task 3.45 uses Go's standard trust-pool file discovery. `SSL_CERT_FILE` can
+replace the normal public roots, so provide a combined public and corporate
+bundle when both are required. Shimmy does not inject the version-specific
+`--cacert` option added by later Task releases; an explicit application CA
+setting can take precedence.
 
 `CONTAINER_HOST` and `CONTAINER_CONNECTION` also override Podman's selected
 connection, so any non-empty value blocks deterministic `shimmy profile

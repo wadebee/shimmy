@@ -25,6 +25,8 @@ fi
 
 SHIMMY_TF_IMAGE=${SHIMMY_TF_IMAGE:-$(shimmy_image_external_default_read "$SHIMMY_IMAGE_CONFIG_FILE")}
 
+shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+
 shimmy_podman_preflight_or_preview_require "the terraform shim" "$@"
 
 if [ -n "${HOME:-}" ] && [ -d "$HOME/.aws" ]; then
@@ -55,5 +57,9 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   ${SHIMMY_TF_PLUGIN_CACHE_DIR:+"$SHIMMY_TF_PLUGIN_CACHE_DIR:/root/.terraform.d/plugin-cache"} \
   -e AWS_* \
   -e TF_VAR_* \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   "$SHIMMY_TF_IMAGE" \
   "$@"

@@ -71,17 +71,25 @@ removed repository `shims/` paths.
   - `$PWD` to `/work`
   - `$HOME/.aws` to `/root/.aws:ro` when present
   - `$HOME/.terraform.d/plugin-cache` to `/root/.terraform.d/plugin-cache` when present
-- Forwarded env: `AWS_*`, `TF_VAR_*`
+  - An explicitly configured `SHIMMY_HOST_CA_BUNDLE` to
+    `/tmp/shimmy-host-ca-bundle.pem:ro`
+- Forwarded env: `AWS_*`, `TF_VAR_*`; plus
+  `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem` only when the host bundle is
+  configured
 - Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
 
 1. Preserve the optional AWS and Terraform plugin-cache mounts unless the task explicitly changes credential or cache behavior.
 2. Treat `TF_VAR_*` forwarding as the current contract; update docs and tests deliberately if it changes.
-3. Prefer `terraform fmt`, `terraform validate`, and `terraform plan` before any apply-style workflow.
-4. Do not run `terraform apply` or `terraform destroy` unless the user explicitly asks for that operation and the plan has been reviewed.
-5. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
-6. Update the runtime shim, docs, tests, installer behavior, and README together when behavior changes.
+3. Treat `SSL_CERT_FILE` as replacement-capable Go system-root file discovery
+   for Terraform core and inherited provider processes. Preserve the exact
+   read-only host-file mount, advise a combined public and corporate bundle
+   when needed, and do not override provider-specific CA configuration.
+4. Prefer `terraform fmt`, `terraform validate`, and `terraform plan` before any apply-style workflow.
+5. Do not run `terraform apply` or `terraform destroy` unless the user explicitly asks for that operation and the plan has been reviewed.
+6. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
+7. Update the runtime shim, docs, tests, installer behavior, and README together when behavior changes.
 
 ## Validation
 

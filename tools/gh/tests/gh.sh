@@ -3,17 +3,21 @@
 
 test_tools_gh_preview_contract() {
   setup_scenario
+  ca_bundle="$SCENARIO_DIR/host CA bundle.pem"
   config_dir=$SCENARIO_DIR/gh-config
   mkdir -p "$config_dir"
+  printf '%s\n' fixture-ca > "$ca_bundle"
 
-  output=$(GH_CONFIG_DIR="$config_dir" SHIMMY_GH_IMAGE=example.invalid/shimmy/gh:test SHIMMY_GH_IMAGE_PULL=always run_in_repo ./commands/run-tool.sh gh --preview-shim --version)
+  output=$(GH_CONFIG_DIR="$config_dir" SHIMMY_HOST_CA_BUNDLE="$ca_bundle" SHIMMY_GH_IMAGE=example.invalid/shimmy/gh:test SHIMMY_GH_IMAGE_PULL=always run_in_repo ./commands/run-tool.sh gh --preview-shim --version)
 
   assert_contains "$output" "'--pull=always'"
   assert_contains "$output" "'$config_dir:/home/gh/.config/gh:rw'"
   assert_contains "$output" "'GH_*'"
   assert_contains "$output" "'GH_CONFIG_DIR=/home/gh/.config/gh'"
+  assert_contains "$output" "'-v' '$ca_bundle:/tmp/shimmy-host-ca-bundle.pem:ro'"
+  assert_contains "$output" "'-e' 'SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem'"
   assert_contains "$output" "'example.invalid/shimmy/gh:test'"
-  pass "gh preview preserves config persistence and environment forwarding"
+  pass "gh preview preserves config persistence and environment forwarding while mapping the host CA bundle"
 }
 
 test_tools_gh_target_archives() {

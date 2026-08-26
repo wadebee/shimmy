@@ -138,8 +138,10 @@ None.
 ## Progress Checklist
 
 - [x] Chunk 1 — Add and verify the shared CA-bundle preparation contract; focused tests pass and human review is pending.
-- [x] Chunk 2 — Opt in AWS, Google Cloud CLI, and Node implementations; focused and full repository tests pass, and human review is pending.
-- [ ] Chunk 3 — Opt in verified Go trust-pool implementations.
+- [x] Chunk 2 — Opt in AWS, Google Cloud CLI, and Node implementations; focused
+  and full repository tests pass, and human review accepted the chunk.
+- [x] Chunk 3 — Opt in verified Go trust-pool implementations; focused tests
+  pass and human review is pending.
 - [ ] Chunk 4 — Opt in OPNsense read-only, finish cross-cutting documentation, and run regressions.
 
 ## Execution protocol
@@ -263,12 +265,12 @@ Suggested reasoning level: high, because the group shares a runtime hook but has
 
 ### Verification checklist
 
-- [ ] `/bin/sh -n` succeeds for all changed runtime and test scripts.
-- [ ] `./tests/test.sh --jobs 3 --group tools-go --group tools-terraform --group tools-gh --group tools-task --group tools-oc --group tools-skopeo` passes.
-- [ ] Every enabled preview contains the exact read-only mount and `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem`.
-- [ ] All three OpenShift version previews contain the CA mapping.
-- [ ] Existing config, credential, registry-policy, host-coupling, and version-dispatch assertions still pass.
-- [ ] Documentation accurately states application-specific override precedence and replacement-capable semantics.
+- [x] `/bin/sh -n` succeeds for all changed runtime and test scripts.
+- [x] `./tests/test.sh --jobs 3 --group tools-go --group tools-terraform --group tools-gh --group tools-task --group tools-oc --group tools-skopeo` passes (12 tests).
+- [x] Every enabled preview contains the exact read-only mount and `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem`.
+- [x] All three OpenShift version previews contain the CA mapping.
+- [x] Existing config, credential, registry-policy, host-coupling, and version-dispatch assertions still pass.
+- [x] Documentation accurately states application-specific override precedence and replacement-capable semantics.
 
 ### Human review gate
 
@@ -357,6 +359,24 @@ Confirm integrated behavior, full-suite results, the OPNsense verification inter
 - One AWS fake-Podman scenario provides the lowest-cost durable proof for invalid-input failure ordering, while its enabled and disabled previews cover control-variable isolation and unchanged disabled commands.
 - Node documentation is consistent across npx, gdrive, and Tessl: `NODE_EXTRA_CA_CERTS` augments built-in roots at process startup, while an application-supplied TLS `ca` option can still take precedence. AWS and gcloud remain documented as replacement-capable custom bundle mechanisms.
 
+### Chunk 3
+
+- The same scalar conditional-argument pattern works across external and local
+  images without changing wrapper-specific configuration, credential, host,
+  or registry-policy mounts. CA preparation remains before Podman preflight
+  and before local-image inspection or build work in every runtime.
+- A single OpenShift preview contract can positively prove the mapping for all
+  three retained concrete tracks while preserving their existing version
+  dispatch, authenticated image metadata, and non-network smoke contracts.
+- Skopeo's exact-file trust opt-in is independent of its active-profile
+  registry-policy mount and explicit auth secret. Its existing fail-closed
+  scenarios continue to pass, and documentation now distinguishes the shared
+  Go trust file from registry-specific `certs.d` and `--cert-dir` settings.
+- Go, Terraform, GitHub CLI, Task, OpenShift CLI, and Skopeo documentation now
+  consistently treats `SSL_CERT_FILE` as replacement-capable and records the
+  relevant application-level override caveats. The six focused groups pass all
+  12 tests.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -366,4 +386,4 @@ For a fresh implementation session:
 3. Recheck `git status --short` and the README diff. Preserve the user's modified `README.md` and untracked `docs/ARCHITECTURE.md`.
 4. The non-negotiable target is one exact host file, mounted read-only at `/tmp/shimmy-host-ca-bundle.pem`, with explicit concrete-version opt-in and no metadata/profile architecture.
 5. This plan is now in `plans/wip/`; execute only a chunk explicitly accepted by the reviewer.
-6. Current gate: Chunk 2 is implemented and verified. Stop for human review before Chunk 3.
+6. Current gate: Chunk 3 is implemented and verified. Stop for human review before Chunk 4.

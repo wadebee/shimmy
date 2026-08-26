@@ -43,6 +43,8 @@ done
 
 SHIMMY_SKOPEO_IMAGE=${SHIMMY_SKOPEO_IMAGE:-$(shimmy_image_external_default_read "$SHIMMY_IMAGE_CONFIG_FILE")}
 
+shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+
 shimmy_podman_preflight_or_preview_require "the skopeo shim" "$@"
 SHIMMY_SKOPEO_REGISTRY_MOUNT_ARG=$(shimmy_registries_client_mount_resolve) || exit 1
 
@@ -70,5 +72,9 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   ${SHIMMY_SKOPEO_SECRET_ARG:+"$SHIMMY_SKOPEO_SECRET_ARG"} \
   ${SHIMMY_SKOPEO_SECRET_ARG:+"-e"} \
   ${SHIMMY_SKOPEO_SECRET_ARG:+"REGISTRY_AUTH_FILE=$SHIMMY_SKOPEO_CONTAINER_AUTH_FILE"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   "$SHIMMY_SKOPEO_IMAGE" \
   "$@"

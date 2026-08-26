@@ -73,7 +73,11 @@ removed repository `shims/` paths.
 - Host config: `GH_CONFIG_DIR`, defaulting to `$HOME/.config/gh`
 - Container config: `/home/gh/.config/gh`, set through `GH_CONFIG_DIR`
 - Mounts: `$PWD` to `/work` and the host config directory read-write to the container config directory
-- Forwarded environment: `GH_*`; the container `GH_CONFIG_DIR` value always points at the mounted path
+- Optional CA mount: `SHIMMY_HOST_CA_BUNDLE` to
+  `/tmp/shimmy-host-ca-bundle.pem:ro`
+- Forwarded environment: `GH_*`; the container `GH_CONFIG_DIR` value always
+  points at the mounted path; `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem`
+  is added only when the host bundle is configured
 - Runtime mode: TTY only when stdin and stdout are terminals
 
 ## Change Rules
@@ -83,7 +87,10 @@ removed repository `shims/` paths.
 3. Keep archive installation inside `tools/gh/versions/2.94/container/Containerfile`; the version shim should only coordinate local image selection and runtime behavior.
 4. Keep the local image tied to an official GitHub CLI release archive. Update the tool/version name, catalog, status, update behavior, docs, and tests together when changing versions.
 5. Treat `GH_TOKEN` and other credentials as secrets; do not add them to logs, fixtures, or documentation examples.
-6. Use non-mutating validation commands such as `gh --version`, `gh auth status`, `gh pr list`, and `gh repo view` unless the user explicitly requests a write.
+6. Treat `SSL_CERT_FILE` as replacement-capable Go system-root file discovery.
+   Preserve the exact read-only host-file mount and advise a combined public
+   and corporate bundle when both trust sets are required.
+7. Use non-mutating validation commands such as `gh --version`, `gh auth status`, `gh pr list`, and `gh repo view` unless the user explicitly requests a write.
 
 ## Validation
 
