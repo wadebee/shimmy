@@ -2,7 +2,7 @@
 # Private profile identity, activation, redirect, and status behavior.
 
 SHIMMY_PROFILE_ERROR=
-SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
+export SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
 
 shimmy_profile_error_set() {
   SHIMMY_PROFILE_ERROR=$*

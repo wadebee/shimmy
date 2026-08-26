@@ -68,12 +68,14 @@ registry.redhat.io/openshift4|registry.corp.example/redhat'
 
 test_lib_registries_transaction() {
   setup_scenario
+  SHIMMY_TEST_PROFILE_OS=Darwin
   SHIMMY_CONFIG_ROOT=$XDG_CONFIG_HOME_DIR/shimmy
   SHIMMY_PROFILES_ROOT=$SHIMMY_CONFIG_ROOT/profiles
   SHIMMY_PROFILE_NAME=default
   SHIMMY_PROFILE_ROOT=$SHIMMY_PROFILES_ROOT/default
   SHIMMY_PROFILE_REGISTRIES_PATH=$SHIMMY_PROFILE_ROOT/registries.conf
   SHIMMY_PROFILE_REGISTRIES_LOCK_PATH=$SHIMMY_PROFILE_ROOT/.registries.lock
+  SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH=$SHIMMY_PROFILE_ROOT/machine-projection.txt
   mkdir -p "$SHIMMY_PROFILE_ROOT"
   shimmy_registries_config_render default '' > "$SHIMMY_PROFILE_REGISTRIES_PATH"
   chmod 644 "$SHIMMY_PROFILE_REGISTRIES_PATH"
@@ -231,6 +233,8 @@ test_lib_registries_arbitrary_profile_active_link() {
   SHIMMY_TEST_PROFILE_OS=Linux shimmy_registries_active_link_state_read
   assert_equals "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" invalid
   assert_equals "$SHIMMY_REGISTRIES_ACTIVE_PROFILE" unknown
+  rm -f "$SHIMMY_REGISTRIES_ACTIVE_LINK"
+  unset SHIMMY_REGISTRIES_CONFIG_DIR SHIMMY_REGISTRIES_DROPIN_DIR SHIMMY_REGISTRIES_ACTIVE_LINK
   pass 'arbitrary safe profile links resolve exactly while nested lookalike registry paths fail closed'
 }
 

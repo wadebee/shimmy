@@ -48,7 +48,7 @@ shimmy_profile_bootstrap_cleanup() {
   fi
   if [ "${SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE:-0}" -eq 1 ]; then
     shimmy_profile_activation_rollback 'lifecycle command interruption' 2>/dev/null || true
-    SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
+    export SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
   fi
   shimmy_profile_candidate_stage_cleanup 2>/dev/null || true
   if [ "${SHIMMY_ENGINE_REGISTRY_SHARED_CREATE_ACTIVE:-0}" -eq 1 ] &&
@@ -226,7 +226,7 @@ shimmy_profile_bootstrap_run() {
       ;;
   esac
   shimmy_profile_activate "$shimmy_profile_bootstrap_restart" 0 0 || return 1
-  SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=1
+  export SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=1
   shimmy_external_transaction_begin || return 1
   shimmy_profile_initial_active_create "$shimmy_profile_bootstrap_config/active-profile.conf" \
     default "$shimmy_profile_bootstrap_user_root" ||
@@ -247,7 +247,7 @@ shimmy_profile_bootstrap_run() {
       shimmy_profile_lifecycle_activation_rollback 'unable to finalize shared engine creation' || return 1
   fi
   shimmy_external_transaction_commit || return 1
-  SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
+  export SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
   shimmy_profile_startup_backup_cleanup || return 1
   SHIMMY_PROFILE_LIFECYCLE_NEW_ROOT=
   shimmy_locks_release_all || return 1
@@ -672,7 +672,7 @@ shimmy_profile_lifecycle_activate_locked() {
     "$shimmy_profile_lifecycle_activate_name" || return 1
   shimmy_profile_activate "$shimmy_profile_lifecycle_activate_restart" \
     "$shimmy_profile_lifecycle_activate_stop" 0 || return 1
-  SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=1
+  export SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=1
   if [ -n "${SHIMMY_PROFILE_LIFECYCLE_IMAGE_ROOT:-}" ]; then
     shimmy_profile_images_prepare "$SHIMMY_PROFILE_LIFECYCLE_IMAGE_ROOT" \
       "${SHIMMY_PROFILE_LIFECYCLE_IMAGE_PAIRS:-}" ||
@@ -693,7 +693,7 @@ shimmy_profile_lifecycle_activate_locked() {
         'unable to finalize isolated engine creation' || return 1
   fi
   shimmy_external_transaction_commit || return 1
-  SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
+  export SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
 }
 
 shimmy_profile_lifecycle_activation_rollback() {
@@ -702,7 +702,7 @@ shimmy_profile_lifecycle_activation_rollback() {
     shimmy_external_transaction_rollback "$shimmy_profile_lifecycle_rollback_reason" || true
   [ "$SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE" -eq 0 ] ||
     shimmy_profile_activation_rollback "$shimmy_profile_lifecycle_rollback_reason" || true
-  SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
+  export SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE=0
   shimmy_profile_lifecycle_error_set "$shimmy_profile_lifecycle_rollback_reason"
 }
 
