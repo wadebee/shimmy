@@ -137,12 +137,15 @@ None.
 
 ## Progress Checklist
 
-- [x] Chunk 1 — Add and verify the shared CA-bundle preparation contract; focused tests pass and human review is pending.
+- [x] Chunk 1 — Add and verify the shared CA-bundle preparation contract;
+  focused tests pass and human review accepted the chunk.
 - [x] Chunk 2 — Opt in AWS, Google Cloud CLI, and Node implementations; focused
   and full repository tests pass, and human review accepted the chunk.
 - [x] Chunk 3 — Opt in verified Go trust-pool implementations; focused tests
-  pass and human review is pending.
-- [ ] Chunk 4 — Opt in OPNsense read-only, finish cross-cutting documentation, and run regressions.
+  pass and human review accepted the chunk.
+- [x] Chunk 4 — Opt in OPNsense read-only, finish cross-cutting documentation,
+  and run regressions; focused and full repository tests pass, human review
+  accepted the chunk, and the plan is complete.
 
 ## Execution protocol
 
@@ -305,14 +308,17 @@ Suggested reasoning level: high, because host curl and container HTTPX must agre
 
 ### Verification checklist
 
-- [ ] `/bin/sh -n tools/opnsense-mcp-read-only/versions/0.4/run.sh tools/opnsense-mcp-read-only/tests/opnsense-mcp-read-only.sh` succeeds.
-- [ ] `./tests/test.sh --jobs 3 --group lib-runtime --group tools-opnsense-mcp-read-only` passes.
-- [ ] The OPNsense preview shows the exact read-only mount and container `SSL_CERT_FILE` assignment.
-- [ ] Fake curl receives one `--cacert` plus the original host path when verification is true, and existing `--insecure` behavior remains unchanged when false.
-- [ ] `./tests/test.sh` passes with its default bounded parallel execution; rerun only failures serially when diagnosing an order-sensitive failure.
-- [ ] `git diff --check` passes.
-- [ ] Review of `git diff --name-only` confirms no `tool.conf`, `image.conf`, manifest/profile schema, new metadata layer, generated `.agents/skills/`, excluded implementation, or `docs/ARCHITECTURE.md` change.
-- [ ] README, canonical guides, and canonical tool skills agree on the input, mappings, opt-in scope, and semantic limitation.
+- [x] `/bin/sh -n tools/opnsense-mcp-read-only/versions/0.4/run.sh tools/opnsense-mcp-read-only/tests/opnsense-mcp-read-only.sh` succeeds.
+- [x] `./tests/test.sh --jobs 3 --group lib-runtime --group tools-opnsense-mcp-read-only` passes (15 tests).
+- [x] The OPNsense preview shows the exact read-only mount and container `SSL_CERT_FILE` assignment.
+- [x] Fake curl receives one `--cacert` plus the original host path when verification is true, and existing `--insecure` behavior remains unchanged when false.
+- [x] `./tests/test.sh` passes with its default bounded parallel execution (139 tests); no failure rerun was required.
+- [x] `git diff --check` passes.
+- [x] Review of user-authored commit `23a87fa` plus the remaining retained-plan
+  diff confirms no `tool.conf`, `image.conf`, manifest/profile schema, new
+  metadata layer, generated `.agents/skills/`, excluded implementation, or
+  `docs/ARCHITECTURE.md` change.
+- [x] README, canonical guides, and canonical tool skills agree on the input, mappings, opt-in scope, and semantic limitation.
 
 ### Human review gate
 
@@ -377,6 +383,30 @@ Confirm integrated behavior, full-suite results, the OPNsense verification inter
   relevant application-level override caveats. The six focused groups pass all
   12 tests.
 
+### Chunk 4
+
+- Preparing `SSL_CERT_FILE` immediately after sourcing the image helper keeps
+  invalid host bundle input ahead of URL normalization, curl reachability,
+  Podman preflight, and local-image inspection or build activity.
+- The host curl preflight can reuse the prepared source scalar safely through
+  a separate `--cacert` argument pair. A fake-curl scenario proves that a path
+  containing spaces remains one argument when verification is enabled, while
+  the existing `--insecure` invocation remains unchanged when verification is
+  false.
+- The container mapping preserves the read-only API secrets, URL normalization,
+  no-write default, timeouts, and stdio behavior. The same exact file is mounted
+  read-only and exposed to HTTPX as
+  `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem`.
+- Cross-cutting documentation now records the complete opted-in inventory,
+  exact-file security boundary, Node additive semantics, and the need for a
+  combined public and corporate bundle with replacement-capable native hooks.
+  The focused gate passes 15 tests and the default full suite passes all 139
+  tests.
+- During the full-suite run, the user committed the five Chunk 4 runtime, test,
+  and documentation files as `23a87fa`. The retained plan remains the only
+  uncommitted worktree change; review of both scopes preserves the intended
+  architectural exclusions.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -385,5 +415,6 @@ For a fresh implementation session:
 2. Read this plan completely, then read the active chunk's listed runtime, tests, guides, and canonical tool skills. Tool directories have no child `CONTEXT.md` files.
 3. Recheck `git status --short` and the README diff. Preserve the user's modified `README.md` and untracked `docs/ARCHITECTURE.md`.
 4. The non-negotiable target is one exact host file, mounted read-only at `/tmp/shimmy-host-ca-bundle.pem`, with explicit concrete-version opt-in and no metadata/profile architecture.
-5. This plan is now in `plans/wip/`; execute only a chunk explicitly accepted by the reviewer.
-6. Current gate: Chunk 3 is implemented and verified. Stop for human review before Chunk 4.
+5. This completed plan is retained in `plans/complete/`; no implementation
+   chunks remain.
+6. Final status: Chunks 1 through 4 are implemented, verified, and accepted.
