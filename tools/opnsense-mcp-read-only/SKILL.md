@@ -77,6 +77,7 @@ removed repository `shims/` paths.
 - Required public env: `OPNSENSE_URL`
 - URL normalization: accepts a bare hostname, firewall root URL, or `/api` API URL; passes the API base URL ending in `/api` to upstream
 - Safe defaults: `OPNSENSE_VERIFY_SSL=false`, `OPNSENSE_ALLOW_WRITES=false`
+- Host CA mapping: an absolute, readable `SHIMMY_HOST_CA_BUNDLE` is passed to verified host curl as one `--cacert` argument, mounted read-only at `/tmp/shimmy-host-ca-bundle.pem`, and assigned to container `SSL_CERT_FILE`
 - Runtime mode: stdio-friendly via `podman run --rm -i`
 - Mount: `$PWD` to `/work`
 - Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
@@ -98,7 +99,22 @@ removed repository `shims/` paths.
 
 ## Preflight
 
-The shim should fail before Podman when `OPNSENSE_URL` is unset, contains a URL path other than empty, `/`, or `/api`, `curl` is unavailable, or the normalized API base URL does not respond to curl. Bare hostnames are accepted and normalized with `https://`. Full `http://` and `https://` URLs are accepted. When `OPNSENSE_VERIFY_SSL` is unset or `false`, curl uses `--insecure`. Keep current timeouts at `--connect-timeout 10 --max-time 20` unless there is a tested reason to change them.
+The shim should fail before Podman when `OPNSENSE_URL` is unset, contains a URL path other than empty, `/`, or `/api`, `curl` is unavailable, or the normalized API base URL does not respond to curl. Bare hostnames are accepted and normalized with `https://`. Full `http://` and `https://` URLs are accepted. When `OPNSENSE_VERIFY_SSL` is unset or `false`, curl uses `--insecure`. When verification is enabled and `SHIMMY_HOST_CA_BUNDLE` is configured, curl receives that exact path through one `--cacert` argument and the container receives `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem`. Keep current timeouts at `--connect-timeout 10 --max-time 20` unless there is a tested reason to change them.
+
+Private-CA source validation:
+
+```sh
+SHIMMY_HOST_CA_BUNDLE=/absolute/path/to/company-ca-bundle.pem \
+  OPNSENSE_VERIFY_SSL=true \
+  OPNSENSE_URL=https://firewall.home.arpa \
+  ./commands/run-tool.sh opnsense-mcp-read-only --preview-shim
+```
+
+Keep `SHIMMY_HOST_CA_BUNDLE` host-only. HTTPX `SSL_CERT_FILE` behavior is
+replacement-capable, so users may need a combined public and corporate bundle.
+Shimmy does not merge or parse the file. With `OPNSENSE_VERIFY_SSL=false`, both
+curl and upstream TLS verification remain disabled and the bundle has no TLS
+effect.
 
 ## Supported Tool Inventory
 

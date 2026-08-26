@@ -104,12 +104,17 @@ shimmy_opnsense_mcp_read_only_url_preflight_require() {
   fi
 
   curl_tls_arg=
+  curl_ca_bundle_source=
   if [ "${OPNSENSE_VERIFY_SSL:-}" = "false" ]; then
     curl_tls_arg=--insecure
+  elif [ -n "$SHIMMY_PODMAN_CA_BUNDLE_SOURCE" ]; then
+    curl_ca_bundle_source=$SHIMMY_PODMAN_CA_BUNDLE_SOURCE
   fi
 
   if ! curl --silent --show-error --output /dev/null --connect-timeout 10 --max-time 20 \
     ${curl_tls_arg:+"$curl_tls_arg"} \
+    ${curl_ca_bundle_source:+"--cacert"} \
+    ${curl_ca_bundle_source:+"$curl_ca_bundle_source"} \
     "$OPNSENSE_URL"; then
     printf 'ERROR: OPNSENSE_URL did not respond to curl: %s\n' "$OPNSENSE_URL" >&2
     printf '%s\n' 'Confirm the URL, network path, firewall reachability, and OPNSENSE_VERIFY_SSL setting.' >&2
@@ -124,6 +129,8 @@ fi
 
 # shellcheck source=lib/runtime/image.sh
 . "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
+
+shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
 
 shimmy_podman_preview_prepare "$@"
 
@@ -196,5 +203,9 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   ${OPNSENSE_ALLOW_WRITES:+"OPNSENSE_ALLOW_WRITES=$OPNSENSE_ALLOW_WRITES"} \
   --secret "$SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY,type=env,target=OPNSENSE_API_KEY" \
   --secret "$SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET,type=env,target=OPNSENSE_API_SECRET" \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   "$SHIMMY_OPNSENSE_MCP_READ_ONLY_RUN_IMAGE" \
   "$@"

@@ -41,6 +41,34 @@ The official macOS package may install Podman at `/opt/podman/bin/podman`.
 Machine creation uses the Podman 5.8-compatible `machine init <name>` command
 surface and preserves any existing default connection itself.
 
+## Host CA bundles
+
+CA-aware tool implementations can opt in to one host trust file with
+`SHIMMY_HOST_CA_BUNDLE=/absolute/path/to/bundle.pem`. Shimmy validates that the
+configured path is an absolute, readable regular file, mounts that exact file
+read-only at `/tmp/shimmy-host-ca-bundle.pem`, and explicitly assigns the
+implementation's native CA variable to the container path. The host-only
+`SHIMMY_HOST_CA_BUNDLE` variable is not forwarded. Unset or empty leaves the
+Podman command unchanged.
+
+| Opted-in implementation | Native container assignment |
+|---|---|
+| AWS CLI `2.31` | `AWS_CA_BUNDLE` |
+| Google Cloud CLI `573.0` | `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE` |
+| npx `24.18`, gdrive `0.2`, Tessl `0.1` | `NODE_EXTRA_CA_CERTS` |
+| Go `1.26`, Terraform `1.15`, GitHub CLI `2.94`, Task `3.45` | `SSL_CERT_FILE` |
+| OpenShift CLI `4.18`, `4.20`, `4.22`; Skopeo `1.22` | `SSL_CERT_FILE` |
+| OPNsense MCP read-only `0.4` | `SSL_CERT_FILE` |
+
+Node's `NODE_EXTRA_CA_CERTS` augments built-in public roots. The AWS, Google
+Cloud CLI, Go, and HTTPX mechanisms can replace normal trust-file discovery or
+have implementation-specific precedence. Supply a combined public and
+corporate bundle when the selected runtime must trust both; Shimmy does not
+discover, merge, parse, or install certificates. Application-specific CA flags
+or configuration can still take precedence. For OPNsense MCP read-only, also
+set `OPNSENSE_VERIFY_SSL=true`; Shimmy then gives the same host bundle to the
+curl reachability preflight through `--cacert`.
+
 ## Bootstrap
 
 Bootstrap from a clean, committed checkout on the attached local `main` branch:

@@ -51,6 +51,25 @@ are rejected before Podman starts.
 
 `OPNSENSE_VERIFY_SSL` defaults to `false`, so Shimmy's preflight uses `curl --insecure` unless you set `OPNSENSE_VERIFY_SSL=true`. If your OPNsense certificate is trusted by the host, set `OPNSENSE_VERIFY_SSL=true` and omit `--insecure` from the manual curl check.
 
+For an OPNsense certificate issued by a private CA, configure the same bundle
+for the host curl preflight and the container HTTPX client:
+
+```sh
+export SHIMMY_HOST_CA_BUNDLE=/absolute/path/to/company-ca-bundle.pem
+export OPNSENSE_VERIFY_SSL=true
+export OPNSENSE_URL=https://firewall.home.arpa
+
+opnsense-mcp-read-only
+```
+
+Shimmy passes the exact host path to curl through `--cacert`, mounts that file
+read-only at `/tmp/shimmy-host-ca-bundle.pem`, and sets the container's
+`SSL_CERT_FILE` to that stable path. HTTPX trust-file behavior can replace its
+normal public roots, so use a combined public and corporate bundle when both
+are required. Shimmy does not merge or parse the supplied file. When
+`OPNSENSE_VERIFY_SSL=false`, curl remains insecure and the upstream client has
+verification disabled, so the configured CA bundle does not affect TLS.
+
 Create Podman secrets for the OPNsense API key and secret:
 
 ```sh
@@ -69,6 +88,7 @@ Environment:
 - `SHIMMY_OPNSENSE_MCP_READ_ONLY_BASE_IMAGE` - override the configured Python base; default `docker.io/library/python@sha256:9662417aace5ae7b8e2609cce472b72a8958e134ba372808abe9cc1a0c0125e6`.
 - `SHIMMY_OPNSENSE_MCP_READ_ONLY_API_KEY` - Podman secret name mounted into the container as `OPNSENSE_API_KEY`. Default: `opnsense_mcp_read_only_api_key`.
 - `SHIMMY_OPNSENSE_MCP_READ_ONLY_API_SECRET` - Podman secret name mounted into the container as `OPNSENSE_API_SECRET`. Default: `opnsense_mcp_read_only_api_secret`.
+- `SHIMMY_HOST_CA_BUNDLE` - optional absolute path to one readable CA bundle file. The host wrapper uses it for verified curl preflight and maps it to the container's `SSL_CERT_FILE`; the control variable itself is not forwarded.
 - `OPNSENSE_URL` - OPNsense firewall host or root URL. Bare hostnames are normalized with `https://`; `/api` is appended before the read-only server sees it.
 - `OPNSENSE_VERIFY_SSL` - defaults to `false` for self-signed lab certificates. Set `true` only when the host trusts the OPNsense certificate.
 - `OPNSENSE_ALLOW_WRITES` - defaults to `false` for read-only use. Set `true` only for explicit change windows.
@@ -87,11 +107,13 @@ Preflight checks:
 - Any URL path other than empty, `/`, or `/api` is rejected.
 - Before starting the container, Shimmy runs a simple curl request against the normalized API base URL ending in `/api`. HTTP authentication failures still prove the endpoint is reachable; DNS, TCP, timeout, and TLS failures stop the shim with guidance.
 - When `OPNSENSE_VERIFY_SSL` is unset or `false`, Shimmy passes `--insecure` to the preflight curl check.
+- When `OPNSENSE_VERIFY_SSL=true` and `SHIMMY_HOST_CA_BUNDLE` is configured, Shimmy passes that exact host path to curl with `--cacert`.
 - The preflight uses a 10 second connect timeout and 20 second maximum request time to tolerate slower local DNS lookups.
 
 Mounts:
 
 - `$PWD` -> `/work` read-write.
+- Configured `SHIMMY_HOST_CA_BUNDLE` -> `/tmp/shimmy-host-ca-bundle.pem` read-only.
 
 Runtime platform:
 
