@@ -331,6 +331,49 @@ shimmy_podman_platform_tag_render() {
   printf '%s\n' "$platform_value" | sed 's#[/:]#-#g'
 }
 
+shimmy_podman_ca_bundle_prepare() {
+  SHIMMY_PODMAN_CA_BUNDLE_SOURCE=
+  SHIMMY_PODMAN_CA_BUNDLE_TARGET=
+  SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT=
+
+  if [ "$#" -ne 1 ]; then
+    printf '%s\n' 'ERROR: exactly one native CA environment variable name is required.' >&2
+    return 1
+  fi
+
+  ca_bundle_native_environment_name=$1
+  case "$ca_bundle_native_environment_name" in
+    ''|[!A-Za-z_]*|*[!A-Za-z0-9_]*)
+      printf 'ERROR: invalid native CA environment variable name: %s\n' \
+        "$ca_bundle_native_environment_name" >&2
+      return 1
+      ;;
+  esac
+
+  ca_bundle_source=${SHIMMY_HOST_CA_BUNDLE:-}
+  [ -n "$ca_bundle_source" ] || return 0
+
+  case "$ca_bundle_source" in
+    /*)
+      ;;
+    *)
+      printf 'ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable CA bundle file: %s\n' \
+        "$ca_bundle_source" >&2
+      return 1
+      ;;
+  esac
+
+  if [ ! -f "$ca_bundle_source" ] || [ ! -r "$ca_bundle_source" ]; then
+    printf 'ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable CA bundle file: %s\n' \
+      "$ca_bundle_source" >&2
+    return 1
+  fi
+
+  SHIMMY_PODMAN_CA_BUNDLE_SOURCE=$ca_bundle_source
+  SHIMMY_PODMAN_CA_BUNDLE_TARGET=/tmp/shimmy-host-ca-bundle.pem
+  SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT=$ca_bundle_native_environment_name=$SHIMMY_PODMAN_CA_BUNDLE_TARGET
+}
+
 shimmy_podman_preview_args_include() {
   for arg do
     if [ "$arg" = "--preview-shim" ]; then

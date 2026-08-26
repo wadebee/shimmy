@@ -137,7 +137,7 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Add and verify the shared CA-bundle preparation contract.
+- [x] Chunk 1 — Add and verify the shared CA-bundle preparation contract; focused tests pass and human review is pending.
 - [ ] Chunk 2 — Opt in AWS, Google Cloud CLI, and Node implementations.
 - [ ] Chunk 3 — Opt in verified Go trust-pool implementations.
 - [ ] Chunk 4 — Opt in OPNsense read-only, finish cross-cutting documentation, and run regressions.
@@ -184,12 +184,12 @@ Suggested reasoning level: high, because quoting, validation order, and failure-
 
 ### Verification checklist
 
-- [ ] `/bin/sh -n lib/runtime/podman.sh tests/lib/runtime.sh` succeeds.
-- [ ] `./tests/test.sh --group lib-runtime` passes.
-- [ ] A valid source path with spaces is retained byte-for-byte in `SOURCE`, and the exact target and environment assignment are produced.
-- [ ] Disabled preparation clears stale values and emits no CA state.
-- [ ] Malformed native names and invalid configured bundles fail with the intended concise errors and never print bundle contents.
-- [ ] No non-plan repository file outside this chunk is changed.
+- [x] `/bin/sh -n lib/runtime/podman.sh tests/lib/runtime.sh` succeeds.
+- [x] `./tests/test.sh --group lib-runtime` passes (11 tests).
+- [x] A valid source path with spaces is retained byte-for-byte in `SOURCE`, and the exact target and environment assignment are produced; the same test also preserves a path through a symlinked parent.
+- [x] Disabled preparation clears stale values and emits no CA state for both unset and empty control-variable states.
+- [x] Malformed native names and invalid configured bundles fail with the intended concise errors and never print bundle contents; unreadable-file coverage remains conditional on the executing account observing `-r` as false.
+- [x] No non-plan repository file outside this chunk is changed; only `lib/runtime/podman.sh` and `tests/lib/runtime.sh` changed alongside this retained plan move/update.
 
 ### Human review gate
 
@@ -341,6 +341,13 @@ Confirm integrated behavior, full-suite results, the OPNsense verification inter
 - Task `3.45` predates its application-specific `--cacert`; its qualifying mechanism is the Go runtime trust-file hook, not a backport of newer CLI behavior.
 - Ncat and Skopeo expose specialized CA interfaces, but only Skopeo also has a verified safe standard-root path suitable for the shared environment helper. Ncat's flag-only mode requires separate design.
 
+### Chunk 1
+
+- Resetting all three outputs before arity, native-name, and bundle-path validation prevents a failed or disabled preparation from leaking stale state into a caller.
+- POSIX `case` validation can enforce the native name grammar without `eval`; the prepared environment assignment remains inert scalar data.
+- Quoting is required when constructing test fixture path variables as well as when passing them. The first focused run exposed an unquoted space-containing fixture assignment; after correction, the group passed all 11 tests.
+- File predicates preserve the supplied path spelling and accept symlinked parent components without canonicalization. The unreadable fixture is asserted only when the executing account can make `-r` false.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -349,5 +356,5 @@ For a fresh implementation session:
 2. Read this plan completely, then read the active chunk's listed runtime, tests, guides, and canonical tool skills. Tool directories have no child `CONTEXT.md` files.
 3. Recheck `git status --short` and the README diff. Preserve the user's modified `README.md` and untracked `docs/ARCHITECTURE.md`.
 4. The non-negotiable target is one exact host file, mounted read-only at `/tmp/shimmy-host-ca-bundle.pem`, with explicit concrete-version opt-in and no metadata/profile architecture.
-5. Move this plan from `plans/notional/` to `plans/wip/` before changing implementation files, then execute only the currently approved chunk.
-6. Active chunk at initial review: Chunk 1. Stop at its human review gate and update this plan's checklist and lessons before reporting.
+5. This plan is now in `plans/wip/`; execute only a chunk explicitly accepted by the reviewer.
+6. Current gate: Chunk 1 is implemented and verified. Stop for human review before Chunk 2.

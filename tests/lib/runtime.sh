@@ -67,6 +67,148 @@ test_lib_runtime_preview_helpers() {
   pass "Podman preview helpers strip and quote preview commands"
 }
 
+test_lib_runtime_ca_bundle_prepare_disabled() {
+  helper_file=$ROOT_DIR/lib/runtime/podman.sh
+
+  for disabled_state in unset empty; do
+    output=$(/bin/sh -c '
+      . "$1"
+      SHIMMY_PODMAN_CA_BUNDLE_SOURCE=stale-source
+      SHIMMY_PODMAN_CA_BUNDLE_TARGET=stale-target
+      SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT=stale-assignment
+      if [ "$2" = unset ]; then
+        unset SHIMMY_HOST_CA_BUNDLE
+      else
+        SHIMMY_HOST_CA_BUNDLE=
+      fi
+      shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+      printf "source=%s\ntarget=%s\nassignment=%s\n" \
+        "$SHIMMY_PODMAN_CA_BUNDLE_SOURCE" \
+        "$SHIMMY_PODMAN_CA_BUNDLE_TARGET" \
+        "$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"
+    ' sh "$helper_file" "$disabled_state")
+    assert_equals "$output" 'source=
+target=
+assignment='
+  done
+
+  pass "CA bundle preparation treats unset and empty input as disabled and clears stale state"
+}
+
+test_lib_runtime_ca_bundle_prepare_paths() {
+  setup_scenario
+  helper_file=$ROOT_DIR/lib/runtime/podman.sh
+  bundle_with_spaces="$SCENARIO_DIR/host CA bundle.pem"
+  bundle_parent=$SCENARIO_DIR/actual-ca-parent
+  bundle_parent_link=$SCENARIO_DIR/linked-ca-parent
+  linked_bundle=$bundle_parent_link/bundle.pem
+  printf '%s\n' fixture-ca > "$bundle_with_spaces"
+  mkdir -p "$bundle_parent"
+  printf '%s\n' linked-fixture-ca > "$bundle_parent/bundle.pem"
+  ln -s "$bundle_parent" "$bundle_parent_link"
+
+  for bundle_path in "$bundle_with_spaces" "$linked_bundle"; do
+    output=$(SHIMMY_HOST_CA_BUNDLE=$bundle_path /bin/sh -c '
+      . "$1"
+      shimmy_podman_ca_bundle_prepare NODE_EXTRA_CA_CERTS
+      printf "source=%s\ntarget=%s\nassignment=%s\n" \
+        "$SHIMMY_PODMAN_CA_BUNDLE_SOURCE" \
+        "$SHIMMY_PODMAN_CA_BUNDLE_TARGET" \
+        "$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"
+    ' sh "$helper_file")
+    assert_equals "$output" "source=$bundle_path
+target=/tmp/shimmy-host-ca-bundle.pem
+assignment=NODE_EXTRA_CA_CERTS=/tmp/shimmy-host-ca-bundle.pem"
+  done
+
+  pass "CA bundle preparation preserves paths containing spaces and symlinked parent components"
+}
+
+test_lib_runtime_ca_bundle_prepare_name_failure() {
+  helper_file=$ROOT_DIR/lib/runtime/podman.sh
+
+  set +e
+  output=$(SHIMMY_HOST_CA_BUNDLE= /bin/sh -c '
+    . "$1"
+    SHIMMY_PODMAN_CA_BUNDLE_SOURCE=stale-source
+    SHIMMY_PODMAN_CA_BUNDLE_TARGET=stale-target
+    SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT=stale-assignment
+    shimmy_podman_ca_bundle_prepare "BAD-NAME"
+    status_code=$?
+    printf "source=%s\ntarget=%s\nassignment=%s\n" \
+      "$SHIMMY_PODMAN_CA_BUNDLE_SOURCE" \
+      "$SHIMMY_PODMAN_CA_BUNDLE_TARGET" \
+      "$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"
+    exit "$status_code"
+  ' sh "$helper_file" 2>&1)
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test "malformed native CA environment name unexpectedly passed"
+  assert_equals "$output" 'ERROR: invalid native CA environment variable name: BAD-NAME
+source=
+target=
+assignment='
+  pass "CA bundle preparation rejects malformed native environment names after clearing stale state"
+}
+
+test_lib_runtime_ca_bundle_prepare_path_failures() {
+  setup_scenario
+  helper_file=$ROOT_DIR/lib/runtime/podman.sh
+  bundle_contents=fixture-ca-contents-must-not-appear
+  relative_bundle=relative-ca-bundle.pem
+  missing_bundle=$SCENARIO_DIR/missing-ca-bundle.pem
+  directory_bundle=$SCENARIO_DIR/ca-bundle-directory
+  unreadable_bundle=$SCENARIO_DIR/unreadable-ca-bundle.pem
+  printf '%s\n' "$bundle_contents" > "$SCENARIO_DIR/$relative_bundle"
+  mkdir -p "$directory_bundle"
+  printf '%s\n' "$bundle_contents" > "$directory_bundle/contents.pem"
+  printf '%s\n' "$bundle_contents" > "$unreadable_bundle"
+
+  for invalid_bundle in "$relative_bundle" "$missing_bundle" "$directory_bundle"; do
+    set +e
+    output=$(cd "$SCENARIO_DIR" && SHIMMY_HOST_CA_BUNDLE=$invalid_bundle /bin/sh -c '
+      . "$1"
+      SHIMMY_PODMAN_CA_BUNDLE_SOURCE=stale-source
+      SHIMMY_PODMAN_CA_BUNDLE_TARGET=stale-target
+      SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT=stale-assignment
+      shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+      status_code=$?
+      printf "source=%s\ntarget=%s\nassignment=%s\n" \
+        "$SHIMMY_PODMAN_CA_BUNDLE_SOURCE" \
+        "$SHIMMY_PODMAN_CA_BUNDLE_TARGET" \
+        "$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"
+      exit "$status_code"
+    ' sh "$helper_file" 2>&1)
+    status_code=$?
+    set -e
+
+    [ "$status_code" -ne 0 ] || fail_test "invalid CA bundle unexpectedly passed: $invalid_bundle"
+    assert_equals "$output" "ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable CA bundle file: $invalid_bundle
+source=
+target=
+assignment="
+    assert_not_contains "$output" "$bundle_contents"
+  done
+
+  chmod 000 "$unreadable_bundle"
+  if [ ! -r "$unreadable_bundle" ]; then
+    set +e
+    output=$(SHIMMY_HOST_CA_BUNDLE=$unreadable_bundle /bin/sh -c '
+      . "$1"
+      shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+    ' sh "$helper_file" 2>&1)
+    status_code=$?
+    set -e
+    [ "$status_code" -ne 0 ] || fail_test "unreadable CA bundle unexpectedly passed"
+    assert_equals "$output" "ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable CA bundle file: $unreadable_bundle"
+    assert_not_contains "$output" "$bundle_contents"
+  fi
+  chmod 0600 "$unreadable_bundle"
+
+  pass "CA bundle preparation rejects invalid configured paths without printing file contents"
+}
+
 test_lib_runtime_profile_affinity() {
   setup_scenario
   affinity_profile_name=team-one
@@ -187,6 +329,10 @@ test_lib_runtime_run() {
   test_lib_runtime_platform
   test_lib_runtime_platform_failures
   test_lib_runtime_preview_helpers
+  test_lib_runtime_ca_bundle_prepare_disabled
+  test_lib_runtime_ca_bundle_prepare_paths
+  test_lib_runtime_ca_bundle_prepare_name_failure
+  test_lib_runtime_ca_bundle_prepare_path_failures
   test_lib_runtime_profile_affinity
   test_lib_runtime_posix_syntax
   test_lib_runtime_executable_contract
