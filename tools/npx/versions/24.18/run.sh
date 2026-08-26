@@ -23,6 +23,8 @@ fi
 
 SHIMMY_NPX_IMAGE=${SHIMMY_NPX_IMAGE:-$(shimmy_image_external_default_read "$SHIMMY_IMAGE_CONFIG_FILE")}
 
+shimmy_podman_ca_bundle_prepare NODE_EXTRA_CA_CERTS
+
 shimmy_podman_preflight_or_preview_require "the npx shim" "$@"
 
 if [ "$SHIMMY_NPX_IMAGE_PULL" = always ]; then
@@ -41,5 +43,9 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   -v "$PWD:/work:rw" \
   -w /work \
   --entrypoint npx \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   "$SHIMMY_NPX_IMAGE" \
   "$@"

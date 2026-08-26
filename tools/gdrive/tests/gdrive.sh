@@ -4,16 +4,28 @@
 test_tools_gdrive_preview_contract() {
   setup_scenario
   credentials_dir=$SCENARIO_DIR/gdrive-creds
+  ca_bundle="$SCENARIO_DIR/host CA bundle.pem"
   mkdir -p "$credentials_dir"
+  printf '%s\n' fixture-ca > "$ca_bundle"
 
-  output=$(CLIENT_ID=client-id CLIENT_SECRET=client-secret GDRIVE_CREDS_DIR="$credentials_dir" SHIMMY_GDRIVE_IMAGE=example.invalid/shimmy/gdrive:test SHIMMY_GDRIVE_IMAGE_PULL=always run_in_repo ./commands/run-tool.sh gdrive --preview-shim)
+  output=$(CLIENT_ID=client-id CLIENT_SECRET=client-secret GDRIVE_CREDS_DIR="$credentials_dir" SHIMMY_HOST_CA_BUNDLE="$ca_bundle" SHIMMY_GDRIVE_IMAGE=example.invalid/shimmy/gdrive:test SHIMMY_GDRIVE_IMAGE_PULL=always run_in_repo ./commands/run-tool.sh gdrive --preview-shim)
+  ca_mount="'-v' '$ca_bundle:/tmp/shimmy-host-ca-bundle.pem:ro'"
+  ca_environment="'-e' 'NODE_EXTRA_CA_CERTS=/tmp/shimmy-host-ca-bundle.pem'"
 
   assert_contains "$output" "'--pull=always'"
   assert_contains "$output" "'$credentials_dir:$credentials_dir:rw'"
   assert_contains "$output" "'CLIENT_ID=client-id'"
   assert_contains "$output" "'CLIENT_SECRET=client-secret'"
+  assert_contains "$output" "$ca_mount"
+  assert_contains "$output" "$ca_environment"
   assert_contains "$output" "'example.invalid/shimmy/gdrive:test'"
-  pass "gdrive preview preserves OAuth credential forwarding"
+  case "$output" in
+    *"$ca_mount"*"$ca_mount"*) fail_test "gdrive preview emitted the CA bundle mount more than once" ;;
+  esac
+  case "$output" in
+    *"$ca_environment"*"$ca_environment"*) fail_test "gdrive preview emitted the native CA environment assignment more than once" ;;
+  esac
+  pass "gdrive preview preserves OAuth behavior and maps one host CA bundle"
 }
 
 test_tools_gdrive_image_identity_inputs() {

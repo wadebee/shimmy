@@ -138,7 +138,7 @@ None.
 ## Progress Checklist
 
 - [x] Chunk 1 — Add and verify the shared CA-bundle preparation contract; focused tests pass and human review is pending.
-- [ ] Chunk 2 — Opt in AWS, Google Cloud CLI, and Node implementations.
+- [x] Chunk 2 — Opt in AWS, Google Cloud CLI, and Node implementations; focused and full repository tests pass, and human review is pending.
 - [ ] Chunk 3 — Opt in verified Go trust-pool implementations.
 - [ ] Chunk 4 — Opt in OPNsense read-only, finish cross-cutting documentation, and run regressions.
 
@@ -223,12 +223,13 @@ Suggested reasoning level: high, primarily for environment ordering and preservi
 
 ### Verification checklist
 
-- [ ] `/bin/sh -n` succeeds for all changed runtime and test scripts.
-- [ ] `./tests/test.sh --jobs 3 --group tools-aws --group tools-gcloud --group tools-npx --group tools-gdrive --group tools-tessl` passes.
-- [ ] Each enabled preview contains exactly one read-only bundle mount and its recorded native environment assignment.
-- [ ] AWS and gcloud explicit assignments render after their wildcard inheritance arguments.
-- [ ] AWS proves disabled compatibility, host-control-variable isolation, path-with-spaces safety, and failure before Podman.
-- [ ] Updated guides and canonical skills state the mapping and trust semantics without claiming automatic merging.
+- [x] `/bin/sh -n` succeeds for all changed runtime and test scripts.
+- [x] `./tests/test.sh --jobs 3 --group tools-aws --group tools-gcloud --group tools-npx --group tools-gdrive --group tools-tessl` passes (11 tests).
+- [x] Each enabled preview contains exactly one read-only bundle mount and its recorded native environment assignment.
+- [x] AWS and gcloud explicit assignments render after their wildcard inheritance arguments.
+- [x] AWS proves disabled compatibility, host-control-variable isolation, path-with-spaces safety, and failure before Podman.
+- [x] Updated guides and canonical skills state the mapping and trust semantics without claiming automatic merging.
+- [x] `./tests/test.sh` passes the full repository integration gate (137 tests).
 
 ### Human review gate
 
@@ -348,6 +349,14 @@ Confirm integrated behavior, full-suite results, the OPNsense verification inter
 - Quoting is required when constructing test fixture path variables as well as when passing them. The first focused run exposed an unquoted space-containing fixture assignment; after correction, the group passed all 11 tests.
 - File predicates preserve the supplied path spelling and accept symlinked parent components without canonicalization. The unreadable fixture is asserted only when the executing account can make `-r` false.
 
+### Chunk 2
+
+- Calling CA preparation immediately after the shared image helper is sourced keeps invalid input ahead of Podman preflight and, for gdrive and Tessl, ahead of local-image inspection or build work.
+- The existing paired conditional-argument pattern preserves a space-containing host path as one mount argument without arrays or evaluation; enabled previews for all five implementations emit exactly one mount and one native assignment.
+- Rendering AWS and gcloud native CA assignments after their broad wildcard inheritance makes Shimmy's stable container path authoritative even when the host already defines the native variable.
+- One AWS fake-Podman scenario provides the lowest-cost durable proof for invalid-input failure ordering, while its enabled and disabled previews cover control-variable isolation and unchanged disabled commands.
+- Node documentation is consistent across npx, gdrive, and Tessl: `NODE_EXTRA_CA_CERTS` augments built-in roots at process startup, while an application-supplied TLS `ca` option can still take precedence. AWS and gcloud remain documented as replacement-capable custom bundle mechanisms.
+
 ## Session bootstrap
 
 For a fresh implementation session:
@@ -357,4 +366,4 @@ For a fresh implementation session:
 3. Recheck `git status --short` and the README diff. Preserve the user's modified `README.md` and untracked `docs/ARCHITECTURE.md`.
 4. The non-negotiable target is one exact host file, mounted read-only at `/tmp/shimmy-host-ca-bundle.pem`, with explicit concrete-version opt-in and no metadata/profile architecture.
 5. This plan is now in `plans/wip/`; execute only a chunk explicitly accepted by the reviewer.
-6. Current gate: Chunk 1 is implemented and verified. Stop for human review before Chunk 2.
+6. Current gate: Chunk 2 is implemented and verified. Stop for human review before Chunk 3.

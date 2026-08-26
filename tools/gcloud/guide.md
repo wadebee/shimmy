@@ -40,6 +40,8 @@ Environment:
 - `SHIMMY_GCLOUD_IMAGE` - override the container image.
 - `SHIMMY_GCLOUD_IMAGE_PULL=always` - force pulling the configured image.
 - `CLOUDSDK_CONFIG` - standard Google Cloud CLI config directory override. When set on the host, Shimmy creates and mounts that directory instead of `$HOME/.config/gcloud`.
+- `SHIMMY_HOST_CA_BUNDLE=/absolute/path/to/bundle.pem` - mount one host CA
+  bundle read-only and map it to Google Cloud CLI's custom CA property.
 
 The image configuration records Google's `573.0.0-stable` tag for upstream
 discovery while runtime execution uses the reviewed immutable index digest.
@@ -49,6 +51,8 @@ Mounts:
 - `$PWD` -> `/work` read-write.
 - `~/.config/gcloud` or host `CLOUDSDK_CONFIG` -> `/home/cloudsdk/.config/gcloud` read-write. Shimmy creates the host directory when needed.
 - `~/.kube/config` -> `/home/cloudsdk/.kube/config` read-only when it exists.
+- `SHIMMY_HOST_CA_BUNDLE` -> `/tmp/shimmy-host-ca-bundle.pem` read-only when
+  configured.
 
 Container user and config:
 
@@ -67,6 +71,17 @@ Configuration diagnostics:
 Forwarded environment:
 
 - `CLOUDSDK_*`
+
+Host CA trust:
+
+- `SHIMMY_HOST_CA_BUNDLE` remains host-only. Shimmy explicitly sets
+  `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE=/tmp/shimmy-host-ca-bundle.pem` after
+  broad `CLOUDSDK_*` forwarding, while retaining the container's explicit
+  `CLOUDSDK_CONFIG` and `HOME` mappings.
+- Google Cloud CLI's custom CA file is replacement-capable. When both public
+  Google services and private endpoints must remain trusted, provide a
+  combined bundle containing the required public and private roots. Shimmy
+  mounts the supplied file as-is and does not parse or merge certificates.
 
 Runtime platform:
 

@@ -75,7 +75,12 @@ removed repository `shims/` paths.
   - `$PWD` to `/work`
   - host `CLOUDSDK_CONFIG`, otherwise `$HOME/.config/gcloud`, to `/home/cloudsdk/.config/gcloud:rw`; the host directory is created during normal gcloud execution
   - `$HOME/.kube/config` to `/home/cloudsdk/.kube/config:ro` when present
+  - configured `SHIMMY_HOST_CA_BUNDLE` to
+    `/tmp/shimmy-host-ca-bundle.pem:ro`
 - Forwarded env: `CLOUDSDK_*`
+- Host CA mapping: host-only `SHIMMY_HOST_CA_BUNDLE` becomes the explicit
+  `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE=/tmp/shimmy-host-ca-bundle.pem`
+  assignment after `CLOUDSDK_*`
 - Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
@@ -90,6 +95,11 @@ removed repository `shims/` paths.
 8. Do not run `gcloud apply` or `gcloud destroy` style operations unless the user explicitly asks for that operation and understands the consequences.
 9. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
 10. Update the runtime shim, docs, tests, installer behavior, and README together when behavior changes.
+11. Keep `SHIMMY_HOST_CA_BUNDLE` host-only and its explicit native assignment
+    after `CLOUDSDK_*`, without disturbing the explicit container
+    `CLOUDSDK_CONFIG` or `HOME`. Google Cloud CLI's custom CA file is
+    replacement-capable, so users who also need public roots must provide a
+    combined bundle; Shimmy does not parse or merge it.
 
 ## Validation
 

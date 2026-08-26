@@ -50,12 +50,25 @@ Environment:
 
 - `SHIMMY_NPX_IMAGE` - override the container image.
 - `SHIMMY_NPX_IMAGE_PULL=always` - force pulling the configured image.
+- `SHIMMY_HOST_CA_BUNDLE=/absolute/path/to/bundle.pem` - mount one host CA
+  bundle read-only and expose it to Node as `NODE_EXTRA_CA_CERTS`.
 
 Mounts and I/O:
 
 - `$PWD` -> `/work` read-write, with `/work` as the container working directory.
 - Stdin is always open. A TTY is allocated only when both stdin and stdout are terminals.
 - Host `HOME`, npm credentials, `~/.npm`, and other persistent npm configuration or caches are not mounted.
+- When `SHIMMY_HOST_CA_BUNDLE` is configured, that exact file is mounted
+  read-only at `/tmp/shimmy-host-ca-bundle.pem`.
+
+Host CA trust:
+
+- `SHIMMY_HOST_CA_BUNDLE` remains host-only. The container receives
+  `NODE_EXTRA_CA_CERTS=/tmp/shimmy-host-ca-bundle.pem`.
+- Node adds certificates from `NODE_EXTRA_CA_CERTS` to its built-in trusted
+  roots and reads the file when the Node process starts. Package code that
+  explicitly supplies a TLS `ca` option can override that default behavior.
+  Shimmy mounts the supplied PEM file as-is and does not parse or merge it.
 
 Packages missing from the mounted project are fetched into disposable
 container state and will generally be downloaded again on a later invocation.

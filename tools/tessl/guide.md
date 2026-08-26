@@ -40,6 +40,8 @@ Environment:
 - `SHIMMY_TESSL_IMAGE_BUILD=always` - rebuild the local image even when cached.
 - `SHIMMY_TESSL_IMAGE_PULL=always` - force pulling `SHIMMY_TESSL_IMAGE` when using an override.
 - `SHIMMY_TESSL_BASE_IMAGE` - override the configured base image. Default: `docker.io/library/node@sha256:78839ac448c23517f8eab2e8f7943d9b4f73979eb7f8bed2c73dbf72ff869e7b`.
+- `SHIMMY_HOST_CA_BUNDLE=/absolute/path/to/bundle.pem` - mount one host CA
+  bundle read-only and expose it to Node as `NODE_EXTRA_CA_CERTS`.
 
 Local image behavior:
 
@@ -50,10 +52,21 @@ Mounts:
 
 - `$PWD` -> `/work` read-write.
 - `~/.tessl` -> `/root/.tessl` when it exists.
+- `SHIMMY_HOST_CA_BUNDLE` -> `/tmp/shimmy-host-ca-bundle.pem` read-only when
+  configured.
 
 Forwarded environment:
 
 - `SHIMMY_TESSL_*`
+
+Host CA trust:
+
+- `SHIMMY_HOST_CA_BUNDLE` remains host-only. The Tessl Node process receives
+  `NODE_EXTRA_CA_CERTS=/tmp/shimmy-host-ca-bundle.pem`.
+- Node adds certificates from `NODE_EXTRA_CA_CERTS` to its built-in trusted
+  roots and reads the file at process startup. Application code that
+  explicitly supplies a TLS `ca` option can override that default behavior.
+  Shimmy mounts the supplied PEM file as-is and does not parse or merge it.
 
 Runtime platform:
 

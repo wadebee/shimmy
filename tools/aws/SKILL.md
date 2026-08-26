@@ -70,7 +70,11 @@ removed repository `shims/` paths.
 - Mounts:
   - `$PWD` to `/work`
   - `$HOME/.aws` to `/root/.aws:ro` when present
+  - configured `SHIMMY_HOST_CA_BUNDLE` to
+    `/tmp/shimmy-host-ca-bundle.pem:ro`
 - Forwarded env: `AWS_*`
+- Host CA mapping: host-only `SHIMMY_HOST_CA_BUNDLE` becomes the explicit
+  `AWS_CA_BUNDLE=/tmp/shimmy-host-ca-bundle.pem` assignment after `AWS_*`
 - Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
@@ -82,6 +86,10 @@ removed repository `shims/` paths.
 5. Use non-mutating smoke checks such as `aws --version` or read-only AWS calls such as `aws sts get-caller-identity` when credentials are intentionally available.
 6. If a Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
 7. Update the runtime shim, docs, tests, installer behavior, and README together when behavior changes.
+8. Keep `SHIMMY_HOST_CA_BUNDLE` host-only and the explicit `AWS_CA_BUNDLE`
+   assignment after `AWS_*`. AWS's custom bundle setting is replacement-capable,
+   so users who also need public roots must provide a combined bundle; Shimmy
+   does not parse or merge it.
 
 ## Validation
 

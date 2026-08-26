@@ -26,3 +26,13 @@ description: Use and maintain the Tessl Shimmy tool.
 Read `CONTEXT.md`, `CONTRIBUTING.md`, and
 `tools/tessl/guide.md`. Keep local-image behavior in the concrete
 runtime.
+
+## Host CA Bundle
+
+- Configured host-only `SHIMMY_HOST_CA_BUNDLE` is mounted read-only at
+  `/tmp/shimmy-host-ca-bundle.pem` and exposed to the Tessl Node process as
+  `NODE_EXTRA_CA_CERTS`.
+- Node adds those certificates to its built-in trusted roots and reads the
+  file at process startup. Application code that explicitly supplies a TLS
+  `ca` option can override this behavior.
+- Shimmy mounts the supplied PEM file as-is and does not parse or merge it.

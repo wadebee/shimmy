@@ -77,6 +77,8 @@ removed repository `shims/` paths.
 - Mounts:
   - `$PWD` to `/work:rw`
   - `GDRIVE_CREDS_DIR` to the same container path, read-write
+  - configured `SHIMMY_HOST_CA_BUNDLE` to
+    `/tmp/shimmy-host-ca-bundle.pem:ro`
 - Port publishing:
   - `127.0.0.1:${SHIMMY_GDRIVE_AUTH_PORT:-3000}:3000` when `.gdrive-server-credentials.json` is missing
   - no published ports after credentials exist
@@ -84,6 +86,8 @@ removed repository `shims/` paths.
   - `CLIENT_ID`
   - `CLIENT_SECRET`
   - `GDRIVE_CREDS_DIR`
+- Host CA mapping: host-only `SHIMMY_HOST_CA_BUNDLE` becomes
+  `NODE_EXTRA_CA_CERTS=/tmp/shimmy-host-ca-bundle.pem`
 - Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
 ## Change Rules
@@ -94,6 +98,11 @@ removed repository `shims/` paths.
 4. Keep `--help` wrapper-level so smoke tests do not start browser OAuth.
 5. Preserve first-time auth port publishing unless upstream stops using a localhost browser callback.
 6. Update the runtime shim, local image, docs, tests, installer behavior, and README together when behavior changes.
+7. Preserve Node's additive host CA behavior: `NODE_EXTRA_CA_CERTS` extends
+   built-in roots and is read at process startup. Application code that
+   explicitly supplies a TLS `ca` option can override it. Keep
+   `SHIMMY_HOST_CA_BUNDLE` host-only and do not parse or merge the supplied PEM
+   file.
 
 ## Validation
 

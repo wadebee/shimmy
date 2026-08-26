@@ -24,6 +24,8 @@ fi
 
 SHIMMY_AWS_IMAGE=${SHIMMY_AWS_IMAGE:-$(shimmy_image_external_default_read "$SHIMMY_IMAGE_CONFIG_FILE")}
 
+shimmy_podman_ca_bundle_prepare AWS_CA_BUNDLE
+
 shimmy_podman_preflight_or_preview_require "the aws shim" "$@"
 
 if [ -n "${HOME:-}" ] && [ -d "$HOME/.aws" ]; then
@@ -47,5 +49,9 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   ${SHIMMY_AWS_CONFIG_DIR:+"-v"} \
   ${SHIMMY_AWS_CONFIG_DIR:+"$SHIMMY_AWS_CONFIG_DIR:/root/.aws:ro"} \
   -e AWS_* \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   "$SHIMMY_AWS_IMAGE" \
   "$@"

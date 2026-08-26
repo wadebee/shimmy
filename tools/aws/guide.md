@@ -34,15 +34,30 @@ Environment:
 
 - `SHIMMY_AWS_IMAGE` - override the container image.
 - `SHIMMY_AWS_IMAGE_PULL=always` - force pulling the configured image.
+- `SHIMMY_HOST_CA_BUNDLE=/absolute/path/to/bundle.pem` - mount one host CA
+  bundle read-only and map it to the AWS CLI's `AWS_CA_BUNDLE` setting.
 
 Mounts:
 
 - `$PWD` -> `/work` read-write.
 - `~/.aws` -> `/root/.aws` read-only when it exists.
+- `SHIMMY_HOST_CA_BUNDLE` -> `/tmp/shimmy-host-ca-bundle.pem` read-only when
+  configured.
 
 Forwarded environment:
 
 - `AWS_*`
+
+Host CA trust:
+
+- `SHIMMY_HOST_CA_BUNDLE` is interpreted only by the host wrapper; it is not
+  forwarded into the container. The AWS CLI receives
+  `AWS_CA_BUNDLE=/tmp/shimmy-host-ca-bundle.pem` explicitly after broad
+  `AWS_*` forwarding.
+- `AWS_CA_BUNDLE` is a custom, replacement-capable CA mechanism. If public AWS
+  endpoints and a private corporate CA must both remain trusted, provide a
+  combined bundle containing the required public and private roots. Shimmy
+  mounts the supplied file as-is and does not parse or merge certificates.
 
 Runtime platform:
 

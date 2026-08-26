@@ -129,6 +129,8 @@ fi
 
 SHIMMY_GCLOUD_IMAGE=${SHIMMY_GCLOUD_IMAGE:-$(shimmy_image_external_default_read "$SHIMMY_IMAGE_CONFIG_FILE")}
 
+shimmy_podman_ca_bundle_prepare CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE
+
 shimmy_podman_preview_prepare "$@"
 
 if ! shimmy_podman_is_preview; then
@@ -176,6 +178,10 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   -e CLOUDSDK_* \
   -e "CLOUDSDK_CONFIG=$SHIMMY_GCLOUD_CONTAINER_CONFIG_DIR" \
   -e "HOME=$SHIMMY_GCLOUD_CONTAINER_HOME" \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   "$SHIMMY_GCLOUD_IMAGE" \
   gcloud \
   "$@"

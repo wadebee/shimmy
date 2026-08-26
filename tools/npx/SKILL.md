@@ -72,6 +72,8 @@ concrete `tools/npx/versions/24.18/run.sh` runtime.
 - Runtime mode: stdin is always open; `-t` is added only when stdin and stdout are terminals.
 - Entrypoint override: `--entrypoint npx`.
 - Mount: `$PWD` to `/work` read-write, with `/work` as the working directory.
+- Host CA mapping: configured host-only `SHIMMY_HOST_CA_BUNDLE` is mounted at
+  `/tmp/shimmy-host-ca-bundle.pem:ro` and exposed as `NODE_EXTRA_CA_CERTS`.
 - State: host home, npm credentials, npm configuration, and persistent caches are not mounted.
 - Platform: the shared Podman helper selects native `linux/amd64` or `linux/arm64`.
 
@@ -84,6 +86,10 @@ concrete `tools/npx/versions/24.18/run.sh` runtime.
 5. If host-created `node_modules` contains native macOS artifacts incompatible with Linux, use a clean directory or container-compatible dependencies; do not hide or rewrite project resolution.
 6. Keep `npx --yes node-llama-cpp@3.19.1 inspect gpu` observational. The generic image does not provide `/dev/dri`, LibKrun, or patched Mesa/Vulkan support and makes no GPU-acceleration promise.
 7. If the Shimmy wrapper fails because of Podman reachability, sandboxing, or AI Agent approval symptoms, follow the `shimmy-escalation` workflow before using a non-shim fallback.
+8. Preserve Node's additive host CA behavior: `NODE_EXTRA_CA_CERTS` extends
+   built-in roots and is read at process startup. Package code that explicitly
+   supplies a TLS `ca` option can override it. Keep `SHIMMY_HOST_CA_BUNDLE`
+   host-only and do not parse or merge the supplied PEM file.
 
 ## Validation
 

@@ -21,6 +21,8 @@ fi
 # shellcheck source=lib/runtime/image.sh
 . "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
+shimmy_podman_ca_bundle_prepare NODE_EXTRA_CA_CERTS
+
 shimmy_podman_preflight_or_preview_require "the tessl shim" "$@"
 
 if [ -n "${SHIMMY_TESSL_IMAGE:-}" ]; then
@@ -55,5 +57,9 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   ${SHIMMY_TESSL_CONFIG_DIR:+"-v"} \
   ${SHIMMY_TESSL_CONFIG_DIR:+"$SHIMMY_TESSL_CONFIG_DIR:/root/.tessl"} \
   -e SHIMMY_TESSL_* \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   "$SHIMMY_TESSL_RUN_IMAGE" \
   "$@"

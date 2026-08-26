@@ -46,11 +46,24 @@ Environment:
 - `SHIMMY_GDRIVE_BASE_IMAGE` - override the Node base image for local builds.
 - Configured base: `docker.io/library/node@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32`.
 - `SHIMMY_GDRIVE_SOURCE_REF` - override the `isaacphi/mcp-gdrive` git ref used for local builds.
+- `SHIMMY_HOST_CA_BUNDLE=/absolute/path/to/bundle.pem` - mount one host CA
+  bundle read-only and expose it to Node as `NODE_EXTRA_CA_CERTS`.
 
 Mounts:
 
 - `$PWD` -> `/work` read-write.
 - `GDRIVE_CREDS_DIR` -> same path in the container, read-write.
+- `SHIMMY_HOST_CA_BUNDLE` -> `/tmp/shimmy-host-ca-bundle.pem` read-only when
+  configured.
+
+Host CA trust:
+
+- `SHIMMY_HOST_CA_BUNDLE` remains host-only. The gdrive Node process receives
+  `NODE_EXTRA_CA_CERTS=/tmp/shimmy-host-ca-bundle.pem`.
+- Node adds certificates from `NODE_EXTRA_CA_CERTS` to its built-in trusted
+  roots and reads the file at process startup. Application code that
+  explicitly supplies a TLS `ca` option can override that default behavior.
+  Shimmy mounts the supplied PEM file as-is and does not parse or merge it.
 
 Ports:
 
