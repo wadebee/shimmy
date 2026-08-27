@@ -474,6 +474,10 @@ shimmy_catalog_refresh_run() {
     shimmy_catalog_refresh_error_set "selected image configuration is not a regular file: $SHIMMY_CATALOG_REFRESH_IMAGE_RELATIVE"
     return 1
   }
+  shimmy_catalog_image_validator_prepare || {
+    shimmy_catalog_refresh_error_set "$SHIMMY_CATALOG_ERROR"
+    return 1
+  }
   shimmy_image_config_validate "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE" || {
     shimmy_catalog_refresh_error_set "selected image configuration failed canonical validation: $SHIMMY_CATALOG_REFRESH_IMAGE_RELATIVE"
     return 1

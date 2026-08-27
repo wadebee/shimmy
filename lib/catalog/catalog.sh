@@ -46,6 +46,18 @@ shimmy__catalog_config_scalar_require() {
   }
 }
 
+shimmy_catalog_image_validator_prepare() {
+  command -v shimmy_image_config_validate >/dev/null 2>&1 && return 0
+  [ -n "${SHIMMY_ROOT_DIR:-}" ] || SHIMMY_ROOT_DIR=${ROOT_DIR:-}
+  [ -n "$SHIMMY_ROOT_DIR" ] && [ -f "$SHIMMY_ROOT_DIR/lib/runtime/image.sh" ] || {
+    shimmy_catalog_error_set 'unable to locate control-plane image schema validator'
+    return 1
+  }
+  SHIMMY_RUNTIME_DIR=$SHIMMY_ROOT_DIR/lib/runtime
+  # shellcheck source=lib/runtime/image.sh
+  . "$SHIMMY_RUNTIME_DIR/image.sh"
+}
+
 shimmy__catalog_config_value_read() {
   catalog_config_file=$1
   catalog_config_key=$2
@@ -375,16 +387,7 @@ shimmy-tool-local-build'
     shimmy__catalog_skill_file_validate "$catalog_management_skill_file" "$catalog_management_skill" || return 1
   done
 
-  if ! command -v shimmy_image_config_validate >/dev/null 2>&1; then
-    [ -n "${SHIMMY_ROOT_DIR:-}" ] || SHIMMY_ROOT_DIR=${ROOT_DIR:-}
-    [ -n "$SHIMMY_ROOT_DIR" ] && [ -f "$SHIMMY_ROOT_DIR/lib/runtime/image.sh" ] || {
-      shimmy_catalog_error_set 'unable to locate control-plane image schema validator'
-      return 1
-    }
-    SHIMMY_RUNTIME_DIR=$SHIMMY_ROOT_DIR/lib/runtime
-    # shellcheck source=lib/runtime/image.sh
-    . "$SHIMMY_RUNTIME_DIR/image.sh"
-  fi
+  shimmy_catalog_image_validator_prepare || return 1
 
   catalog_payload_tool_count=0
   for catalog_tool_entry in "$catalog_payload_root"/tools/*; do
