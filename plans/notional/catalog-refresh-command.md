@@ -11,9 +11,9 @@ shimmy catalog refresh <tool@tag> [--dry-run]
 The command refreshes mutable tag-backed runtime or base-image references for
 one existing concrete catalog version. It resolves each current upstream tag to
 an immutable top-level digest, verifies an accepted OCI index or Docker
-manifest list with `linux/amd64` and `linux/arm64`, stages a complete valid
-catalog candidate, and atomically updates only the selected version's
-`image.conf` in the clean source checkout.
+manifest list with `linux/amd64` and `linux/arm64`, validates the rewritten
+selected file, and atomically updates only that version's `image.conf` in the
+source checkout.
 
 Success means:
 
@@ -28,7 +28,7 @@ Success means:
   movement during the operation;
 - `--dry-run` performs the same discovery and validation without changing the
   checkout;
-- successful mutation leaves a schema-valid, reviewable catalog-source diff
+- successful mutation leaves a schema-valid, reviewable selected-file diff
   and prints the remaining native-smoke, commit, and publication steps; and
 - failure leaves the source checkout and installed catalog unchanged.
 
@@ -87,8 +87,8 @@ Definitions:
   discovered.
 - **Candidate digest reference**: the refreshable record's logical repository
   combined with the newly resolved top-level digest.
-- **Candidate catalog**: a temporary complete tracked catalog payload with only
-  the selected `image.conf` replaced by its staged candidate.
+- **Candidate file**: a temporary schema-valid rewrite of the selected
+  `image.conf` with only its refreshable default-reference scalars changed.
 - **Source refresh**: mutation of the checked-in worktree. It never mutates the
   installation-owned immutable catalog registry or a profile pin.
 
@@ -120,14 +120,13 @@ digest was checked.
    normalized repository root through an installed profile launcher. It uses
    that installation's active profile solely for trusted jq/Skopeo execution,
    authentication, engine affinity, and registry policy.
-3. Require an attached local `main` whose `HEAD` equals `refs/heads/main`, a
-   valid current catalog payload, and a completely clean tracked and untracked
-   worktree before acquiring refresh authority. The successful non-dry run is
-   expected to leave only the selected `image.conf` dirty.
+3. Require an attached local `main` whose `HEAD` equals `refs/heads/main`.
+   Permit existing staged, unstaged, and untracked work; refresh owns only the
+   selected `image.conf` bytes it fingerprints.
 4. Add a checkout-scoped exclusive refresh lock using a validated Git-owned
    lock path rather than installation catalog locks or an untracked worktree
-   file. Revalidate checkout identity, branch, HEAD, cleanliness, selected-file
-   fingerprint, and lock ownership immediately before mutation. A stale or
+   file. Revalidate checkout identity, branch, HEAD, selected-file fingerprint,
+   and lock ownership immediately before mutation. A stale or
    ambiguous lock fails with remediation; it is never silently stolen.
 5. Reuse the existing active-profile jq and Skopeo dependency rules from
    `catalog verify`. Do not use host-selected jq/Skopeo, mount host auth files,
@@ -159,16 +158,15 @@ digest was checked.
     `image_base_N_default_ref` scalar values in the selected `image.conf`.
     Preserve key order, unrelated bytes, file mode, upstream references,
     registry-access policy, build arguments, and platform declarations.
-12. Stage tracked `catalog.conf`, `tools/`, and `plugins/shimmy/skills/` from the
-    captured `HEAD`, replace the staged selected `image.conf`, and validate the
-    complete candidate with the canonical catalog validator before worktree
-    mutation. Do not validate only the rewritten file.
+12. Validate the selected source file before discovery and validate its rewritten
+    candidate before worktree mutation. Complete-catalog validation remains the
+    separate publication boundary.
 13. Apply one regular-file transaction with original fingerprint/mode evidence,
-    post-write full-catalog validation, and exact rollback on injected or real
-    failure. Never modify the installed immutable catalog registry as part of
-    this transaction.
+    post-write candidate fingerprint/schema validation, and exact rollback on
+    injected or real failure. Never modify the installed immutable catalog
+    registry as part of this transaction.
 14. `--dry-run` performs checkout, active-profile, auth, remote inspection,
-    second-resolution, rewrite, and complete candidate validation, but does not
+    second-resolution, rewrite, and selected-file validation, but does not
     acquire mutation authority or change the checkout. Human output uses
     `WOULD UPDATE`; no separate `--apply`, `--force`, `--publish`,
     `--public-only`, or multi-selector option is added.
@@ -302,13 +300,13 @@ registry and Git authority boundaries.
 
 1. Add exact group and action help for the new positional-selector grammar.
    Help must render before installed-state validation and explain source-only
-   mutation, clean-main requirements, `--dry-run`, authentication, immutable-
+   mutation, attached-main requirements, `--dry-run`, authentication, immutable-
    upstream/mirror limitations, native smokes, and separate publication.
 2. Add strict parsing in `commands/catalog.sh`. Accept exactly one positional
    `tool@tag` and optional single `--dry-run` in either documented order;
    reject all other arguments before calling the refresh library.
 3. Introduce `lib/catalog/refresh.sh` with narrow source-checkout preflight,
-   Git-owned lock, staged-payload, rewrite, revalidation, commit, rollback, and
+   Git-owned lock, selected-file rewrite, revalidation, commit, rollback, and
    output responsibilities. Keep tool-specific behavior out of this module.
 4. Refactor the existing image-verification helpers only enough to expose
    active-profile jq/Skopeo setup, cache setup/cleanup, tag digest resolution,
@@ -330,14 +328,13 @@ registry and Git authority boundaries.
    scalar for each changed role. Revalidate it with the canonical image schema,
    retain its mode, and prove unrelated bytes are preserved through focused
    fixture assertions.
-9. Build a complete temporary catalog candidate from captured tracked `HEAD`
-   content, replace the selected candidate file, and run canonical payload
-   validation before any worktree mutation. Ensure temporary paths and cleanup
-   are exact and safe.
+9. Validate the selected source `image.conf` before discovery and validate the
+   rewritten candidate before any worktree mutation. Do not scan or stage the
+   rest of the catalog during refresh.
 10. Re-resolve all tags, recheck source authority and original file evidence,
     and commit a single regular-file change only when every result remains
-    identical. Validate the actual checkout after the write; restore the exact
-    prior file and report rollback state on failure.
+    identical. Validate the written selected file against the candidate; restore
+    the exact prior file and report rollback state on failure.
 11. Scan only `tools/<tool>/guide.md` and `tools/<tool>/SKILL.md` for exact full
     old default references that were replaced. Report matching paths for manual
     review without editing them or treating their current absence as an error.
@@ -396,8 +393,8 @@ registry and Git authority boundaries.
 
 ### Human review gate
 
-Confirm the selector grammar, clean-main and active-profile authority, exact
-one-file source mutation, auth/redirect preservation, mirror refusal,
+Confirm the selector grammar, attached-main and active-profile authority,
+selected-file source isolation, auth/redirect preservation, mirror refusal,
 tag-race handling, rollback evidence, stable verify/publish behavior,
 documentation guidance, and disposition of both native-host smoke results.
 Acceptance authorizes no additional version-discovery or publication work.
@@ -410,8 +407,8 @@ Acceptance authorizes no additional version-discovery or publication work.
 | A configured default uses a retained mirror while discovery uses a publisher repository. | Rewriting the default could bypass retention or point at bytes absent from the mirror. | Require identical logical repositories; report a mirror/retention boundary and do not copy or rewrite repositories. |
 | Authentication or profile redirects are bypassed. | Private credentials, corporate routing, or isolation policy is violated. | Use only active-profile materialized Skopeo/jq, its mounted redirect policy, and explicit secret selection; redact secret diagnostics. |
 | Index presence is mistaken for runtime acceptance. | A candidate publishes but fails natively on one architecture. | Print and document both native-smoke gates; record partial verification explicitly. |
-| The checkout changes concurrently. | Unrelated maintainer work is overwritten or a candidate is applied to a different HEAD. | Require a clean source, hold a Git-owned refresh lock, fingerprint the file, and revalidate branch/HEAD/status immediately before one-file commit. |
-| A write or post-write validation fails. | The catalog source is left partially changed or invalid. | Use exact backup/fingerprint/mode evidence, validate the full candidate first, and restore/verify the prior file on any commit failure. |
+| The selected source changes concurrently. | Maintainer work in that file is overwritten or a candidate is applied to a different HEAD. | Hold a Git-owned refresh lock, fingerprint the selected file, and revalidate branch, HEAD, file bytes, and mode immediately before replacement. |
+| A write or post-write validation fails. | The selected source file is left partially changed or invalid. | Use exact backup/fingerprint/mode evidence, validate the selected candidate first, and restore/verify the prior file on any commit failure. |
 | Documentation contains a copied digest. | Runtime metadata is correct while human guidance becomes stale. | Report exact old-reference matches in the selected guide/skill and require maintainer review; do not heuristically rewrite prose. |
 | Skopeo refresh depends on the currently installed Skopeo runtime. | A missing uncached old Skopeo runtime can prevent refreshing its own source definition. | State the dependency explicitly; use an already operational active-profile Skopeo or repair/sync the profile through existing lifecycle authority. Do not add host fallback. |
 
@@ -429,9 +426,11 @@ Acceptance authorizes no additional version-discovery or publication work.
   ownership boundaries.
 - Catalog verification and source refresh share registry inspection mechanics
   but have different authorities: verify reads an immutable installed
-  generation, while refresh deliberately writes a clean source checkout.
-- Full catalog validation before mutation and tag/source revalidation before
-  commit are both required; either alone leaves a race or integration gap.
+  generation, while refresh deliberately writes one selected source file.
+- Complete-catalog validation created cyclic coupling and blocked independent
+  digest batching without protecting the selected-file write. Refresh now
+  validates only the selected source/candidate; publication validates the
+  complete catalog.
 - Exact digests duplicated in prose cannot be regenerated safely without a
   separate documentation contract, so refresh should report them rather than
   expand into heuristic document editing.
@@ -441,7 +440,7 @@ Acceptance authorizes no additional version-discovery or publication work.
   precommit revalidation fails. Lock cleanup must remove that exact owned
   candidate, while preserving rollback evidence unless the source already
   matches the captured original fingerprint.
-- A copied installed profile and disposable clean-main checkout can exercise
+- A copied installed profile and disposable attached-main checkout can exercise
   the public launcher and live registry without synchronizing the real profile
   or mutating the primary source/catalog authority.
 

@@ -37,7 +37,8 @@ Registry redirects are an explicit client capability. Skopeo is the initial
 tool-container consumer, and `shimmy catalog verify` inherits its active-profile
 policy. `shimmy catalog refresh <tool@version> [--dry-run]` also uses those exact
 active-profile jq/Skopeo and authentication boundaries while updating only an
-existing version's source `image.conf` from clean attached local `main`. It
+existing version's source `image.conf` from the attached local `main` checkout
+root. Existing staged, unstaged, and untracked work must remain untouched. It
 must reject immutable-only discovery and cross-repository mirror boundaries,
 re-resolve tags before mutation, and leave commit and publication explicit. Do
 not add policy mounts to unrelated runtimes without focused review.

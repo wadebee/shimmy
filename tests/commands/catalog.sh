@@ -394,14 +394,19 @@ test_commands_catalog_refresh_source_transaction() {
   test_refresh_new_digest=sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 
   test_refresh_fixture_setup jq
-  printf 'dirty\n' > "$TEST_IMAGES_CHECKOUT/dirty"
-  set +e
-  test_refresh_dirty_output=$(test_refresh_fixture_run "$TEST_REFRESH_SELECTOR" 2>&1)
-  test_refresh_dirty_status=$?
-  set -e
-  [ "$test_refresh_dirty_status" -ne 0 ] || fail_test 'catalog refresh accepted dirty source authority'
-  assert_contains "$test_refresh_dirty_output" 'requires a clean index, worktree, and untracked state'
-  rm "$TEST_IMAGES_CHECKOUT/dirty"
+  test_refresh_unrelated_file=$TEST_IMAGES_CHECKOUT/tools/rg/versions/15.1/image.conf
+  printf 'unrelated_invalid_key=preserved\n' >> "$test_refresh_unrelated_file"
+  git -C "$TEST_IMAGES_CHECKOUT" add tools/rg/versions/15.1/image.conf
+  printf 'untracked work\n' > "$TEST_IMAGES_CHECKOUT/untracked-work"
+  test_refresh_unrelated_checksum=$(cksum < "$test_refresh_unrelated_file")
+  test_refresh_staged_diff=$(git -C "$TEST_IMAGES_CHECKOUT" diff --cached)
+  test_refresh_responses_write oci-index.json "$test_refresh_new_digest"
+  test_refresh_dirty_output=$(test_refresh_fixture_run "$TEST_REFRESH_SELECTOR")
+  assert_contains "$test_refresh_dirty_output" "UPDATED tools/jq/versions/1.8/image.conf"
+  assert_equals "$(cksum < "$test_refresh_unrelated_file")" "$test_refresh_unrelated_checksum"
+  assert_equals "$(git -C "$TEST_IMAGES_CHECKOUT" diff --cached)" "$test_refresh_staged_diff"
+  assert_equals "$(cat "$TEST_IMAGES_CHECKOUT/untracked-work")" 'untracked work'
+  assert_file_contains "$TEST_REFRESH_FILE" "image_default_ref=ghcr.io/jqlang/jq@$test_refresh_new_digest"
 
   test_refresh_fixture_setup jq
   test_refresh_responses_write oci-index.json "$test_refresh_new_digest"
@@ -461,7 +466,7 @@ test_commands_catalog_refresh_source_transaction() {
   assert_equals "$(git -C "$TEST_IMAGES_CHECKOUT" status --porcelain --untracked-files=all)" ''
   assert_path_not_exists "$TEST_IMAGES_CHECKOUT/.git/shimmy-catalog-refresh.lock"
   assert_equals "$(cksum < "$TEST_REFRESH_REGISTRY")" "$TEST_REFRESH_REGISTRY_CHECKSUM"
-  pass 'catalog refresh revalidates clean-main authority and exactly rolls back post-write failure'
+  pass 'catalog refresh isolates selected-file mutation from existing work and exactly rolls back post-write failure'
 }
 
 test_commands_catalog_inspection() {

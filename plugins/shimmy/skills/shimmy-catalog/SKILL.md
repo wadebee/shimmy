@@ -40,13 +40,14 @@ files.
 
 ## Refresh source image metadata
 
-Use `shimmy catalog refresh <tool@version> --dry-run` from the normalized clean
+Use `shimmy catalog refresh <tool@version> --dry-run` from the normalized
 attached local `main` repository root before applying a source refresh. The
 command uses the active profile's exact jq and Skopeo runtimes, registry
 redirects, and explicit `SHIMMY_SKOPEO_AUTH_SECRET`. It resolves tag-backed
 runtime and base-image records, inspects each exact immutable candidate for
 `linux/amd64` and `linux/arm64`, then resolves the tags again before atomically
-changing only the selected `image.conf`.
+changing only the selected `image.conf`. Existing staged, unstaged, and
+untracked work is permitted and remains outside the refresh transaction.
 
 Do not use refresh for immutable-only upstreams or for a tag whose repository
 differs from the configured default; that boundary may represent mirroring or

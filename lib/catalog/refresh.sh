@@ -91,15 +91,6 @@ shimmy_catalog_refresh_checkout_validate() {
     shimmy_catalog_refresh_error_set 'catalog refresh HEAD does not equal refs/heads/main'
     return 1
   }
-  shimmy_catalog_refresh_dirty=$(git -C "$shimmy_catalog_refresh_checkout" status --porcelain --untracked-files=all 2>/dev/null || printf '%s\n' status-failed)
-  [ -z "$shimmy_catalog_refresh_dirty" ] || {
-    shimmy_catalog_refresh_error_set 'catalog refresh requires a clean index, worktree, and untracked state'
-    return 1
-  }
-  shimmy_catalog_authority_payload_validate "$shimmy_catalog_refresh_checkout" || {
-    shimmy_catalog_refresh_error_set "$SHIMMY_CATALOG_AUTHORITY_ERROR"
-    return 1
-  }
   shimmy_catalog_refresh_git_dir=$(git -C "$shimmy_catalog_refresh_checkout" rev-parse --absolute-git-dir 2>/dev/null || true)
   shimmy_path_absolute_normalized_validate "$shimmy_catalog_refresh_git_dir" &&
     [ -d "$shimmy_catalog_refresh_git_dir" ] && [ ! -L "$shimmy_catalog_refresh_git_dir" ] &&
@@ -120,11 +111,6 @@ shimmy_catalog_refresh_source_revalidate() {
       shimmy_catalog_refresh_error_set 'catalog refresh source authority moved during discovery'
       return 1
     }
-  shimmy_catalog_refresh_recheck_dirty=$(git -C "$SHIMMY_CATALOG_REFRESH_CHECKOUT" status --porcelain --untracked-files=all 2>/dev/null || printf '%s\n' status-failed)
-  [ -z "$shimmy_catalog_refresh_recheck_dirty" ] || {
-    shimmy_catalog_refresh_error_set 'catalog refresh source changed during discovery'
-    return 1
-  }
   [ -f "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE" ] && [ ! -L "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE" ] &&
     [ "$(shimmy_sha256_fingerprint_file_render "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE")" = "$SHIMMY_CATALOG_REFRESH_ORIGINAL_FINGERPRINT" ] &&
     [ "$(shimmy_file_mode_render "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE")" = "$SHIMMY_CATALOG_REFRESH_ORIGINAL_MODE" ] || {
@@ -305,31 +291,6 @@ shimmy_catalog_refresh_image_rewrite() {
   SHIMMY_CATALOG_REFRESH_CANDIDATE_FINGERPRINT=$(shimmy_sha256_fingerprint_file_render "$SHIMMY_CATALOG_REFRESH_CANDIDATE_IMAGE") || return 1
 }
 
-shimmy_catalog_refresh_catalog_candidate_validate() {
-  SHIMMY_CATALOG_REFRESH_PAYLOAD=$SHIMMY_CATALOG_REFRESH_WORKSPACE/payload
-  shimmy_catalog_refresh_archive=$SHIMMY_CATALOG_REFRESH_WORKSPACE/catalog.tar
-  mkdir "$SHIMMY_CATALOG_REFRESH_PAYLOAD" || return 1
-  git -C "$SHIMMY_CATALOG_REFRESH_CHECKOUT" archive --format=tar \
-    --output="$shimmy_catalog_refresh_archive" "$SHIMMY_CATALOG_REFRESH_HEAD" \
-    catalog.conf tools plugins/shimmy/skills 2>/dev/null || {
-      shimmy_catalog_refresh_error_set 'unable to stage tracked catalog content from main'
-      return 1
-    }
-  tar -xf "$shimmy_catalog_refresh_archive" -C "$SHIMMY_CATALOG_REFRESH_PAYLOAD" || {
-    shimmy_catalog_refresh_error_set 'unable to extract staged catalog content'
-    return 1
-  }
-  rm -f "$shimmy_catalog_refresh_archive"
-  cp "$SHIMMY_CATALOG_REFRESH_CANDIDATE_IMAGE" \
-    "$SHIMMY_CATALOG_REFRESH_PAYLOAD/$SHIMMY_CATALOG_REFRESH_IMAGE_RELATIVE" || return 1
-  chmod "$SHIMMY_CATALOG_REFRESH_ORIGINAL_MODE" \
-    "$SHIMMY_CATALOG_REFRESH_PAYLOAD/$SHIMMY_CATALOG_REFRESH_IMAGE_RELATIVE" || return 1
-  shimmy_catalog_authority_payload_validate "$SHIMMY_CATALOG_REFRESH_PAYLOAD" || {
-    shimmy_catalog_refresh_error_set "$SHIMMY_CATALOG_AUTHORITY_ERROR"
-    return 1
-  }
-}
-
 shimmy_catalog_refresh_tags_revalidate() {
   shimmy_catalog_refresh_tag_failed=0
   while IFS='|' read -r shimmy_catalog_refresh_tag_role shimmy_catalog_refresh_tag_key \
@@ -399,11 +360,11 @@ shimmy_catalog_refresh_source_commit() {
   if [ "${SHIMMY_TEST_MODE:-0}" -eq 1 ] &&
     [ "${SHIMMY_TEST_CATALOG_REFRESH_FAILURE:-}" = after-write ]; then
     shimmy_catalog_refresh_commit_failed=1
-  elif ! shimmy_catalog_authority_payload_validate "$SHIMMY_CATALOG_REFRESH_CHECKOUT"; then
-    shimmy_catalog_refresh_commit_failed=1
-  elif [ -n "$(git -C "$SHIMMY_CATALOG_REFRESH_CHECKOUT" diff --cached --name-only 2>/dev/null || printf failed)" ] ||
-    [ "$(git -C "$SHIMMY_CATALOG_REFRESH_CHECKOUT" diff --name-only 2>/dev/null || printf failed)" != "$SHIMMY_CATALOG_REFRESH_IMAGE_RELATIVE" ] ||
-    [ -n "$(git -C "$SHIMMY_CATALOG_REFRESH_CHECKOUT" ls-files --others --exclude-standard 2>/dev/null || printf failed)" ]; then
+  elif [ "$(shimmy_sha256_fingerprint_file_render "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE")" != \
+      "$SHIMMY_CATALOG_REFRESH_CANDIDATE_FINGERPRINT" ] ||
+    [ "$(shimmy_file_mode_render "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE")" != \
+      "$SHIMMY_CATALOG_REFRESH_ORIGINAL_MODE" ] ||
+    ! shimmy_image_config_validate "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE"; then
     shimmy_catalog_refresh_commit_failed=1
   fi
   if [ "$shimmy_catalog_refresh_commit_failed" -eq 1 ]; then
@@ -513,6 +474,10 @@ shimmy_catalog_refresh_run() {
     shimmy_catalog_refresh_error_set "selected image configuration is not a regular file: $SHIMMY_CATALOG_REFRESH_IMAGE_RELATIVE"
     return 1
   }
+  shimmy_image_config_validate "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE" || {
+    shimmy_catalog_refresh_error_set "selected image configuration failed canonical validation: $SHIMMY_CATALOG_REFRESH_IMAGE_RELATIVE"
+    return 1
+  }
   SHIMMY_CATALOG_REFRESH_ORIGINAL_FINGERPRINT=$(shimmy_sha256_fingerprint_file_render "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE") || return 1
   SHIMMY_CATALOG_REFRESH_ORIGINAL_MODE=$(shimmy_file_mode_render "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE") || return 1
 
@@ -530,7 +495,6 @@ shimmy_catalog_refresh_run() {
     }
   shimmy_catalog_refresh_candidate_records_create || return 1
   shimmy_catalog_refresh_image_rewrite || return 1
-  shimmy_catalog_refresh_catalog_candidate_validate || return 1
 
   if [ "$SHIMMY_CATALOG_REFRESH_DRY_RUN" -eq 0 ]; then
     shimmy_catalog_refresh_lock_acquire || return 1

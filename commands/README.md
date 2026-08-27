@@ -130,13 +130,14 @@ and `tools` are local-only. `verify` uses active-profile jq and Skopeo to inspec
 configured image indexes and optional upstream drift without changing catalog
 or profile state.
 
-`refresh` is a maintainer-only source operation. From a clean attached local
-`main` checkout, it resolves every tag-backed record for one existing concrete
+`refresh` is a maintainer-only source operation. From the attached local
+`main` checkout root, it resolves every tag-backed record for one existing concrete
 version through active-profile jq and Skopeo, validates the exact immutable
 index and both required platforms, re-resolves tags to detect movement, and
-atomically updates only that version's `image.conf`. Immutable-only records and
-repository mirror boundaries are not rewritten. `--dry-run` performs the same
-remote and complete-catalog validation without writing. Review reported
+atomically updates only that version's `image.conf`. Existing staged, unstaged,
+and untracked work is left untouched. Immutable-only records and repository
+mirror boundaries are not rewritten. `--dry-run` performs the same selected-file
+and remote validation without writing. Review reported
 documentation paths, run native Linux amd64 and Apple Silicon arm64 smokes, and
 commit before publishing separately.
 

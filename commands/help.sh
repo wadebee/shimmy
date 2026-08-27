@@ -819,8 +819,8 @@ Scope:
   changes the installed catalog, a profile pin, Git state, or publication.
 
 Options:
-  --dry-run   Resolve, inspect, re-resolve, rewrite, and validate the complete
-              candidate without changing the checkout.
+  --dry-run   Resolve, inspect, re-resolve, and validate the selected candidate
+              without changing the checkout.
   -h, --help  Show this help before installed-state validation.
 
 Defaults:
@@ -839,9 +839,10 @@ Acceptance and publication:
   commit it, then run the separate 'shimmy catalog publish' command.
 
 Remediation:
-  Clean and attach local main, activate a profile containing the exact jq and
-  Skopeo versions named by diagnostics, and resolve any auth or mirror boundary
-  before retrying. Never remove a refresh lock until its owner is verified gone.
+  Attach local main, activate a profile containing the exact jq and Skopeo
+  versions named by diagnostics, and resolve any auth or mirror boundary before
+  retrying. Existing staged, unstaged, and untracked work is left untouched.
+  Never remove a refresh lock until its owner is verified gone.
 
 Examples:
   shimmy catalog refresh netcat@7.92 --dry-run

@@ -75,9 +75,11 @@ shimmy catalog refresh netcat@7.92 --dry-run
 Authenticated verification requires an explicitly selected
 `SHIMMY_SKOPEO_AUTH_SECRET`; never put credential contents in output.
 Catalog refresh uses the same boundary and must be exercised from a disposable
-clean-main checkout. If it finds drift, apply there, confirm that only the
-selected `image.conf` changed and the candidate catalog validates, then run the
-version-owned smoke on both native hosts before committing or publishing.
+attached-main checkout. Existing staged, unstaged, and untracked work is
+permitted because refresh validates and mutates only the selected `image.conf`.
+If it finds drift, apply there, review the resulting source diff, then run the
+version-owned smoke on both native hosts before committing or publishing. The
+complete catalog is validated by publication.
 
 ## Native acceptance
 
