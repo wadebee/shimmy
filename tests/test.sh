@@ -77,6 +77,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/lib/images/images.sh"
 # shellcheck source=lib/images/catalog.sh
 . "$ROOT_DIR/lib/images/catalog.sh"
+# shellcheck source=lib/catalog/refresh.sh
+. "$ROOT_DIR/lib/catalog/refresh.sh"
 
 # shellcheck source=tests/runner.sh
 . "$SCRIPT_DIR/runner.sh"

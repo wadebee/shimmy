@@ -244,7 +244,8 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Implement and verify the single-version catalog refresh command.
+- [~] Chunk 1 — Implemented and verified; native Darwin arm64 acceptance passed,
+      while native Linux amd64 remains a reviewer-approved deferral candidate.
 
 ## Execution protocol
 
@@ -363,28 +364,33 @@ registry and Git authority boundaries.
 
 ### Verification checklist
 
-- [ ] `./tests/test.sh --group commands-catalog --group commands-surface --group lib-catalog --group lib-runtime --jobs 3` passes.
-- [ ] Offline fixtures prove external-runtime and local-build-base refresh,
+- [x] `./tests/test.sh --group commands-catalog --group commands-surface --group lib-catalog --group lib-runtime --jobs 3` passes (28 checks).
+- [x] Offline fixtures prove external-runtime and local-build-base refresh,
       dry-run parity, all-role atomicity, exact candidate refs, accepted media,
       both platforms, no-op behavior, and one-file source mutation.
-- [ ] Integrity/security fixtures prove no mutation for missing auth,
+- [x] Integrity/security fixtures prove no mutation for missing auth,
       repository mismatch, immutable-only input, malformed/unreachable
       candidate, single manifest, missing platform, tag race, dirty or moved
       checkout, and injected commit/rollback failure.
-- [ ] Existing `catalog verify`, `publish`, and `rollback` command scenarios
+- [x] Existing `catalog verify`, `publish`, and `rollback` command scenarios
       retain byte/exit semantics outside intentional help additions.
-- [ ] A disposable clean-main checkout dry-runs and applies
+- [x] A disposable clean-main checkout dry-runs and applies
       `shimmy catalog refresh netcat@7.92` against the live registry when the
       upstream tag is reachable; the resulting diff is limited to its
-      `image.conf` and the candidate catalog validates. Do not apply the live
-      rotation to the maintainer's primary checkout as acceptance setup.
-- [ ] If the live Netcat candidate differs, build and run the version-owned
+      `image.conf` and the candidate catalog validates. The isolated installed
+      launcher resolved `sha256:580752f96d36c4132bffd30f9c34865bf4bd87f6aa161c969d117f21732e50f7`;
+      the primary checkout and real installed catalog/profile were unchanged.
+- [~] The live Netcat candidate differed. Its version-owned `--help` smoke built
+      and passed on native Apple Silicon Darwin arm64. Native Linux amd64 was
+      unavailable in this session and requires reviewer-approved deferral or a
+      separate native-host result.
+      Build and run the version-owned
       non-mutating smoke on native Linux `amd64` and native Apple Silicon macOS
       `arm64`. Record either both results or a reviewer-approved `[~]` deferral;
       index inspection alone is not acceptance.
-- [ ] `./tests/test.sh` passes with default bounded parallel execution after
-      focused groups.
-- [ ] All changed shell files pass `/bin/sh -n`; executable modes, context-tree
+- [x] `./tests/test.sh` passes all 148 checks with default bounded parallel
+      execution after focused groups.
+- [x] All changed shell files pass `/bin/sh -n`; executable modes, context-tree
       links, installed asset inventory, canonical skill validation, and
       `git diff --check` pass.
 
@@ -429,6 +435,15 @@ Acceptance authorizes no additional version-discovery or publication work.
 - Exact digests duplicated in prose cannot be regenerated safely without a
   separate documentation contract, so refresh should report them rather than
   expand into heuristic document editing.
+- Ordered fake-Skopeo responses are necessary to prove the second tag
+  resolution is a distinct remote observation rather than a cache hit.
+- A same-filesystem candidate can remain inside the Git-owned lock when
+  precommit revalidation fails. Lock cleanup must remove that exact owned
+  candidate, while preserving rollback evidence unless the source already
+  matches the captured original fingerprint.
+- A copied installed profile and disposable clean-main checkout can exercise
+  the public launcher and live registry without synchronizing the real profile
+  or mutating the primary source/catalog authority.
 
 ## Session bootstrap
 

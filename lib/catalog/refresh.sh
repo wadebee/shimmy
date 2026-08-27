@@ -39,6 +39,16 @@ shimmy_catalog_refresh_lock_token=$SHIMMY_CATALOG_REFRESH_LOCK_TOKEN" ]
 shimmy_catalog_refresh_lock_release() {
   [ "$SHIMMY_CATALOG_REFRESH_LOCK_ACTIVE" -eq 1 ] || return 0
   shimmy_catalog_refresh_lock_owned || return 1
+  shimmy_catalog_refresh_lock_candidate=$SHIMMY_CATALOG_REFRESH_LOCK_PATH/candidate
+  shimmy_catalog_refresh_lock_rollback=$SHIMMY_CATALOG_REFRESH_LOCK_PATH/rollback
+  [ ! -e "$shimmy_catalog_refresh_lock_candidate" ] && [ ! -L "$shimmy_catalog_refresh_lock_candidate" ] ||
+    rm -f "$shimmy_catalog_refresh_lock_candidate" || return 1
+  if [ -e "$shimmy_catalog_refresh_lock_rollback" ] || [ -L "$shimmy_catalog_refresh_lock_rollback" ]; then
+    [ -f "$shimmy_catalog_refresh_lock_rollback" ] && [ ! -L "$shimmy_catalog_refresh_lock_rollback" ] &&
+      [ "$(shimmy_sha256_fingerprint_file_render "$shimmy_catalog_refresh_lock_rollback")" = "$SHIMMY_CATALOG_REFRESH_ORIGINAL_FINGERPRINT" ] &&
+      [ "$(shimmy_sha256_fingerprint_file_render "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE")" = "$SHIMMY_CATALOG_REFRESH_ORIGINAL_FINGERPRINT" ] || return 1
+    rm -f "$shimmy_catalog_refresh_lock_rollback" || return 1
+  fi
   rm -f "$SHIMMY_CATALOG_REFRESH_LOCK_OWNER" || return 1
   rmdir "$SHIMMY_CATALOG_REFRESH_LOCK_PATH" || return 1
   SHIMMY_CATALOG_REFRESH_LOCK_ACTIVE=0
@@ -183,6 +193,8 @@ shimmy_catalog_refresh_digest_cache_read() {
 
 shimmy_catalog_refresh_index_read() {
   shimmy_catalog_refresh_index_ref=$1
+  SHIMMY_CATALOG_REFRESH_PARSE_CATEGORY=candidate-reference-unreachable
+  SHIMMY_CATALOG_REFRESH_MEDIA=not-inspected
   shimmy_images_cache_inspect raw "$shimmy_catalog_refresh_index_ref"
   [ "$SHIMMY_IMAGES_CACHE_STATUS" = ok ] || return 1
   if shimmy_catalog_refresh_parsed=$(shimmy_images_index_parse < "$SHIMMY_IMAGES_CACHE_FILE" 2>/dev/null); then
@@ -371,6 +383,11 @@ shimmy_catalog_refresh_source_commit() {
       shimmy_catalog_refresh_error_set 'catalog refresh commit candidate changed before mutation'
       return 1
     }
+  if [ "${SHIMMY_TEST_MODE:-0}" -eq 1 ] &&
+    [ "${SHIMMY_TEST_CATALOG_REFRESH_FAILURE:-}" = after-candidate ]; then
+    shimmy_catalog_refresh_error_set 'injected catalog refresh failure after commit candidate staging'
+    return 1
+  fi
   shimmy_catalog_refresh_source_revalidate || return 1
   shimmy_catalog_refresh_lock_owned || return 1
   cp -p "$SHIMMY_CATALOG_REFRESH_IMAGE_FILE" "$shimmy_catalog_refresh_commit_rollback" || return 1
@@ -519,6 +536,11 @@ shimmy_catalog_refresh_run() {
     shimmy_catalog_refresh_lock_acquire || return 1
   fi
   shimmy_catalog_refresh_tags_revalidate || return 1
+  if [ "${SHIMMY_TEST_MODE:-0}" -eq 1 ] &&
+    [ -n "${SHIMMY_TEST_CATALOG_REFRESH_BEFORE_COMMIT_FUNCTION:-}" ]; then
+    shimmy_shell_function_name_validate "$SHIMMY_TEST_CATALOG_REFRESH_BEFORE_COMMIT_FUNCTION" || return 1
+    "$SHIMMY_TEST_CATALOG_REFRESH_BEFORE_COMMIT_FUNCTION" "$SHIMMY_CATALOG_REFRESH_CHECKOUT" || return 1
+  fi
   shimmy_catalog_refresh_source_revalidate || return 1
 
   if [ "$SHIMMY_CATALOG_REFRESH_CANDIDATE_FINGERPRINT" != "$SHIMMY_CATALOG_REFRESH_ORIGINAL_FINGERPRINT" ] &&
