@@ -3,17 +3,6 @@
 
 SHIMMY_AI_SKILL_MANAGED_HEADER='> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.'
 
-shimmy_ai_skill_control_names_render() {
-  cat <<'EOF'
-shimmy-catalog
-shimmy-create-tool
-shimmy-escalation
-shimmy-init
-shimmy-install
-shimmy-tool-local-build
-EOF
-}
-
 shimmy_ai_skill_source_ref_validate() {
   shimmy_ai_skill_source_kind=$1
   shimmy_ai_skill_source_ref=$2
@@ -93,6 +82,9 @@ shimmy_ai_skill_bundle_render() {
   case "$shimmy_ai_skill_bundle_kind" in control|shims) ;; *) return 1 ;; esac
   shimmy_name_component_validate "$shimmy_ai_skill_bundle_profile" || return 1
   shimmy_ai_skill_source_ref_validate "$shimmy_ai_skill_bundle_kind" "$shimmy_ai_skill_bundle_source_ref" || return 1
+  if [ "$shimmy_ai_skill_bundle_kind" = control ]; then
+    [ -n "$shimmy_ai_skill_bundle_records" ] || return 1
+  fi
   shimmy_line_list_lexical_unique_validate "$shimmy_ai_skill_bundle_records" || return 1
   while IFS= read -r shimmy_ai_skill_bundle_record; do
     [ -n "$shimmy_ai_skill_bundle_record" ] || continue

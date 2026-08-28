@@ -3,13 +3,16 @@
 - `manifest.sh` solely renders schema-2 profile manifests.
 - `transaction.sh` owns same-filesystem file candidates, authority revalidation,
   atomic replacement, exact rollback, and injected boundary tests.
-- `catalog.sh` stages tracked clean-main catalog payloads, creates/reuses
-  immutable generations, commits current/previous registry authority, rolls
-  back, and never deletes retained generations.
+- `catalog.sh` stages only tracked clean-main `catalog.conf` and `tools/`,
+  creates or reuses immutable generations, commits current/previous registry
+  authority, rolls back, and never deletes retained generations. Equivalent
+  content reuses the retained generation's original provenance; equivalent
+  current content is a registry-preserving no-op.
 - `profile.sh` stages complete profile candidates: canonical commands/libs,
   direct shim versions, launcher, shell initializer, engine binding, registry
-  policy, manifest, and control/tool skill bundles. Profiles contain no tests
-  or generated repository adapters.
+  policy, manifest, a dynamic control bundle from the profile's exact source
+  commit, and a tool-skill bundle from its independent catalog pin. Profiles
+  contain no tests or generated repository adapters.
 - `lifecycle.sh` integrates fresh bootstrap, shared/isolated profile create,
   true profile clone, activation, target-engine image preparation, exact active
   authority, startup compensation, AI-skill reconciliation, dry-run, and

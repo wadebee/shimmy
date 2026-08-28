@@ -19,7 +19,8 @@ The repository is both the source catalog and the source control plane.
 
 State lives below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy`:
 
-- `catalogs/default/` contains one registry and retained immutable generations;
+- `catalogs/default/` contains one registry and retained immutable generations,
+  each with exactly `catalog.conf`, `generation.conf`, and `tools/`;
 - `profiles/<name>/` contains independent control/runtime materializations;
 - `engines/<id>/` contains engine identity, ownership, projection, and lifecycle
   state;
@@ -29,13 +30,16 @@ State lives below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy`:
 Profile names use lowercase letters, digits, and single hyphens. Migrated
 profiles also hold a schema-1 engine binding; unbound schema-2 profiles retain
 their legacy mapping until explicit migration. Every profile records schema-2
-identity, source `refs/heads/main` and commit, one retained
-default-catalog generation, shim tracking/pinning and concrete-version roles,
-startup ownership, and validated AI-skill bundles.
+identity, source `refs/heads/main` and exact control commit, one independently
+retained default-catalog generation, shim tracking/pinning and concrete-version
+roles, startup ownership, and validated AI-skill bundles.
 
 Catalog publication accepts only a clean committed attached local `main`
-checkout. Profiles do not follow registry changes implicitly; `profile sync`
-or shim operations adopt content explicitly.
+checkout and archives and fingerprints only `catalog.conf` plus `tools/`.
+Content-equivalent publication reuses the retained generation and its original
+provenance; equivalent current content is a registry-preserving no-op. Profiles
+do not follow source or registry changes implicitly; `profile sync` or shim
+operations adopt applicable content explicitly.
 
 ## Transactions and ownership
 
@@ -85,8 +89,10 @@ variables are forwarded only where documented.
 
 - [`commands/`](commands/CONTEXT.md): checkout and installed management entrypoints
 - [`lib/`](lib/CONTEXT.md): shared sourceable modules
-- `tools/<tool>/`: metadata, canonical skill, guide, tests, and versions
-- `plugins/shimmy/skills/`: canonical management skills
+- `tools/<tool>/`: catalog-owned metadata, canonical tool skill, guide, tests,
+  and versions
+- `plugins/shimmy/skills/`: control-plane-only canonical management skills,
+  discovered dynamically at an exact profile source commit
 - [`tests/`](tests/CONTEXT.md): bounded POSIX behavioral suite
 - `docs/`: contributor and subsystem documentation
 - `plans/`: retained plans and evidence

@@ -15,6 +15,20 @@ test_lifecycle_command() {
     "$TEST_LIFECYCLE_CONFIG/profiles/$test_lifecycle_profile/bin/shimmy" "$@"
 }
 
+test_lifecycle_control_source_names_render() {
+  test_lifecycle_control_source_checkout=$1
+  test_lifecycle_control_source_ref=$2
+  test_lifecycle_control_source_names=$(LC_ALL=C git \
+    -C "$test_lifecycle_control_source_checkout" ls-tree --name-only \
+    "$test_lifecycle_control_source_ref:plugins/shimmy/skills") || return 1
+  printf '%s\n' "$test_lifecycle_control_source_names" | LC_ALL=C sort
+}
+
+test_lifecycle_control_bundle_names_render() {
+  test_lifecycle_control_bundle=$1
+  sed -n '5,$s/^skill=\([^|]*\)|.*$/\1/p' "$test_lifecycle_control_bundle"
+}
+
 test_lifecycle_migration_command() {
   env HOME="$TEST_LIFECYCLE_HOME" XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
     SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
@@ -848,7 +862,11 @@ test_commands_lifecycle_end_to_end() {
   test_lifecycle_shims=$(test_lifecycle_command default shim list --format manifest)
   assert_contains "$test_lifecycle_shims" 'shimmy_shim=oc|4.20|pinned|4.20'
   test_lifecycle_ai=$(test_lifecycle_command default ai-skill list --format manifest)
-  assert_contains "$test_lifecycle_ai" 'shimmy_ai_skill_bundle=control|valid|6|-'
+  test_lifecycle_control_count=$(sed -n '5,$s/^skill=//p' \
+    "$test_lifecycle_default/ai-skills/control/bundle.conf" | \
+    awk 'NF { count++ } END { print count + 0 }')
+  assert_contains "$test_lifecycle_ai" \
+    "shimmy_ai_skill_bundle=control|valid|$test_lifecycle_control_count|-"
   assert_contains "$test_lifecycle_ai" 'shimmy_ai_skill=shims|shimmy-tool-oc|shimmy-link-current|'
   test_lifecycle_command default ai-skill repair >/dev/null
 
@@ -978,7 +996,115 @@ shim.sh'
   test_lifecycle_command default profile repair-startup >/dev/null
   assert_file_contains "$TEST_LIFECYCLE_HOME/.profile" '# >>> shimmy default profile >>>'
 
-  test_catalog_source_advance "$TEST_LIFECYCLE_CHECKOUT" 'Lifecycle sync revision.'
+  test_lifecycle_registry=$TEST_LIFECYCLE_CONFIG/catalogs/default/registry.conf
+  test_lifecycle_catalog_generation=$(sed -n \
+    '3s/^catalog_generation_current=//p' "$test_lifecycle_registry")
+  test_lifecycle_catalog_generation_root=$TEST_LIFECYCLE_CONFIG/catalogs/default/generations/$test_lifecycle_catalog_generation
+  test_lifecycle_catalog_generation_count=$(find \
+    "$TEST_LIFECYCLE_CONFIG/catalogs/default/generations" \
+    -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+  test_lifecycle_registry_saved=$SCENARIO_DIR/registry.management-only.saved
+  test_lifecycle_generation_saved=$SCENARIO_DIR/generation.management-only.saved
+  cp "$test_lifecycle_registry" "$test_lifecycle_registry_saved"
+  cp "$test_lifecycle_catalog_generation_root/generation.conf" \
+    "$test_lifecycle_generation_saved"
+  test_lifecycle_team_catalog_pin=$(sed -n '/^catalog=/p' \
+    "$test_lifecycle_team/install-manifest.txt")
+  test_lifecycle_control_bundle=$test_lifecycle_team/ai-skills/control/bundle.conf
+  test_lifecycle_control_base_ref=$(git -C "$TEST_LIFECYCLE_CHECKOUT" rev-parse HEAD)
+  test_lifecycle_control_base_names=$(test_lifecycle_control_source_names_render \
+    "$TEST_LIFECYCLE_CHECKOUT" "$test_lifecycle_control_base_ref")
+  assert_equals "$(test_lifecycle_control_bundle_names_render \
+    "$test_lifecycle_control_bundle")" "$test_lifecycle_control_base_names"
+  test_lifecycle_unrelated_before=$(cksum < "$test_lifecycle_unrelated/SKILL.md")
+  test_lifecycle_dynamic_name=shimmy-dynamic-control
+  test_lifecycle_dynamic_dir=$TEST_LIFECYCLE_CHECKOUT/plugins/shimmy/skills/$test_lifecycle_dynamic_name
+  mkdir "$test_lifecycle_dynamic_dir"
+  printf '%s\n' \
+    '---' \
+    "name: $test_lifecycle_dynamic_name" \
+    'description: Synthetic dynamic control-skill lifecycle fixture.' \
+    '---' \
+    '' \
+    "$SHIMMY_AI_SKILL_MANAGED_HEADER" \
+    '' \
+    '# Synthetic dynamic control skill' \
+    > "$test_lifecycle_dynamic_dir/SKILL.md"
+  git -C "$TEST_LIFECYCLE_CHECKOUT" add \
+    "plugins/shimmy/skills/$test_lifecycle_dynamic_name/SKILL.md"
+  git -C "$TEST_LIFECYCLE_CHECKOUT" commit -qm lifecycle-dynamic-control-add
+  test_lifecycle_dynamic_add_ref=$(git -C "$TEST_LIFECYCLE_CHECKOUT" rev-parse HEAD)
+  test_lifecycle_control_add_names=$(test_lifecycle_control_source_names_render \
+    "$TEST_LIFECYCLE_CHECKOUT" "$test_lifecycle_dynamic_add_ref")
+
+  (cd "$TEST_LIFECYCLE_CHECKOUT" &&
+    test_lifecycle_command default catalog publish >/dev/null)
+  cmp -s "$test_lifecycle_registry" "$test_lifecycle_registry_saved" ||
+    fail_test 'management-only add rewrote catalog registry bytes'
+  cmp -s "$test_lifecycle_catalog_generation_root/generation.conf" \
+    "$test_lifecycle_generation_saved" ||
+    fail_test 'management-only add rewrote retained generation metadata'
+  assert_equals "$(find "$TEST_LIFECYCLE_CONFIG/catalogs/default/generations" \
+    -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" \
+    "$test_lifecycle_catalog_generation_count"
+  assert_file_not_contains "$test_lifecycle_team/ai-skills/control/bundle.conf" \
+    "skill=$test_lifecycle_dynamic_name|"
+  assert_equals "$(test_lifecycle_control_bundle_names_render \
+    "$test_lifecycle_control_bundle")" "$test_lifecycle_control_base_names"
+  assert_path_not_exists "$test_lifecycle_user_skills/$test_lifecycle_dynamic_name"
+
+  test_lifecycle_command team-one profile sync >/dev/null
+  assert_file_contains "$test_lifecycle_team/install-manifest.txt" \
+    "shimmy_source_ref=$test_lifecycle_dynamic_add_ref"
+  assert_equals "$(sed -n '/^catalog=/p' \
+    "$test_lifecycle_team/install-manifest.txt")" "$test_lifecycle_team_catalog_pin"
+  assert_file_contains "$test_lifecycle_team/ai-skills/control/bundle.conf" \
+    "skill=$test_lifecycle_dynamic_name|"
+  assert_equals "$(test_lifecycle_control_bundle_names_render \
+    "$test_lifecycle_control_bundle")" "$test_lifecycle_control_add_names"
+  assert_path_symlink "$test_lifecycle_user_skills/$test_lifecycle_dynamic_name"
+  assert_equals "$(readlink "$test_lifecycle_user_skills/$test_lifecycle_dynamic_name")" \
+    "$test_lifecycle_team/ai-skills/control/skills/$test_lifecycle_dynamic_name"
+  assert_equals "$(cksum < "$test_lifecycle_unrelated/SKILL.md")" \
+    "$test_lifecycle_unrelated_before"
+
+  git -C "$TEST_LIFECYCLE_CHECKOUT" rm -qr \
+    "plugins/shimmy/skills/$test_lifecycle_dynamic_name"
+  git -C "$TEST_LIFECYCLE_CHECKOUT" commit -qm lifecycle-dynamic-control-remove
+  test_lifecycle_dynamic_remove_ref=$(git -C "$TEST_LIFECYCLE_CHECKOUT" rev-parse HEAD)
+  test_lifecycle_control_remove_names=$(test_lifecycle_control_source_names_render \
+    "$TEST_LIFECYCLE_CHECKOUT" "$test_lifecycle_dynamic_remove_ref")
+  assert_equals "$test_lifecycle_control_remove_names" \
+    "$test_lifecycle_control_base_names"
+  (cd "$TEST_LIFECYCLE_CHECKOUT" &&
+    test_lifecycle_command default catalog publish >/dev/null)
+  cmp -s "$test_lifecycle_registry" "$test_lifecycle_registry_saved" ||
+    fail_test 'management-only removal rewrote catalog registry bytes'
+  cmp -s "$test_lifecycle_catalog_generation_root/generation.conf" \
+    "$test_lifecycle_generation_saved" ||
+    fail_test 'management-only removal rewrote retained generation metadata'
+  assert_equals "$(find "$TEST_LIFECYCLE_CONFIG/catalogs/default/generations" \
+    -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" \
+    "$test_lifecycle_catalog_generation_count"
+  assert_equals "$(test_lifecycle_control_bundle_names_render \
+    "$test_lifecycle_control_bundle")" "$test_lifecycle_control_add_names"
+  assert_path_symlink "$test_lifecycle_user_skills/$test_lifecycle_dynamic_name"
+
+  test_lifecycle_command team-one profile sync >/dev/null
+  assert_file_contains "$test_lifecycle_team/install-manifest.txt" \
+    "shimmy_source_ref=$test_lifecycle_dynamic_remove_ref"
+  assert_equals "$(sed -n '/^catalog=/p' \
+    "$test_lifecycle_team/install-manifest.txt")" "$test_lifecycle_team_catalog_pin"
+  assert_file_not_contains "$test_lifecycle_team/ai-skills/control/bundle.conf" \
+    "skill=$test_lifecycle_dynamic_name|"
+  assert_equals "$(test_lifecycle_control_bundle_names_render \
+    "$test_lifecycle_control_bundle")" "$test_lifecycle_control_remove_names"
+  assert_path_not_exists "$test_lifecycle_user_skills/$test_lifecycle_dynamic_name"
+  assert_equals "$(cksum < "$test_lifecycle_unrelated/SKILL.md")" \
+    "$test_lifecycle_unrelated_before"
+
+  test_catalog_tool_source_advance "$TEST_LIFECYCLE_CHECKOUT" \
+    'Lifecycle catalog sync revision.'
   test_lifecycle_publish=$(cd "$TEST_LIFECYCLE_CHECKOUT" &&
     test_lifecycle_command default catalog publish)
   assert_contains "$test_lifecycle_publish" 'shimmy_catalog=default|sha256-'

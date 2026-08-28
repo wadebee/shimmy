@@ -50,10 +50,14 @@ test_profile_state_reset_default() {
   if [ -L "$TEST_PROFILE_ACTIVE_LINK" ]; then rm -f "$TEST_PROFILE_ACTIVE_LINK"; fi
   [ ! -e "$TEST_PROFILE_ACTIVE_LINK" ] || fail_test 'foreign active-link state reached profile reset'
   test_profile_linux_active_prepare
-  for test_profile_reset_name in $(shimmy_ai_skill_control_names_render) shimmy-tool-stale; do
+  while IFS= read -r test_profile_reset_name; do
+    [ -n "$test_profile_reset_name" ] || continue
     test_profile_reset_path=$SCENARIO_DIR/home/.agents/skills/$test_profile_reset_name
     [ ! -L "$test_profile_reset_path" ] || rm -f "$test_profile_reset_path"
-  done
+  done <<EOF
+$TEST_SHIM_CONTROL_NAMES
+shimmy-tool-stale
+EOF
   rm -f "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt" "$TEST_PROFILE_TEAM_ROOT/machine-projection.txt"
   : > "$TEST_PROFILE_PODMAN_LOG"
 }
@@ -120,8 +124,8 @@ test_commands_profile_linux_activation_and_rollback() {
     "Select it in the current shell with: . '$TEST_PROFILE_TEAM_ROOT/shell-init.sh'"
   assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TEST_SHIM_CONFIG/active-profile.conf")" team-one
   assert_equals "$(readlink "$TEST_PROFILE_ACTIVE_LINK")" "$TEST_PROFILE_TEAM_ROOT/registries.conf"
-  assert_equals "$(readlink "$SCENARIO_DIR/home/.agents/skills/shimmy-catalog")" \
-    "$TEST_PROFILE_TEAM_ROOT/ai-skills/control/skills/shimmy-catalog"
+  assert_equals "$(readlink "$SCENARIO_DIR/home/.agents/skills/$TEST_SHIM_CONTROL_NAME")" \
+    "$TEST_PROFILE_TEAM_ROOT/ai-skills/control/skills/$TEST_SHIM_CONTROL_NAME"
 
   set +e
   test_profile_rollback=$(env HOME="$SCENARIO_DIR/home" XDG_CONFIG_HOME="$TEST_PROFILE_CONFIG_HOME" \
@@ -138,8 +142,8 @@ test_commands_profile_linux_activation_and_rollback() {
   assert_contains "$test_profile_rollback" 'Linux active registry link restored'
   assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TEST_SHIM_CONFIG/active-profile.conf")" team-one
   assert_equals "$(readlink "$TEST_PROFILE_ACTIVE_LINK")" "$TEST_PROFILE_TEAM_ROOT/registries.conf"
-  assert_equals "$(readlink "$SCENARIO_DIR/home/.agents/skills/shimmy-catalog")" \
-    "$TEST_PROFILE_TEAM_ROOT/ai-skills/control/skills/shimmy-catalog"
+  assert_equals "$(readlink "$SCENARIO_DIR/home/.agents/skills/$TEST_SHIM_CONTROL_NAME")" \
+    "$TEST_PROFILE_TEAM_ROOT/ai-skills/control/skills/$TEST_SHIM_CONTROL_NAME"
   pass 'Linux profile activation commits engine authority before active record and links and restores all three on failure'
 }
 
@@ -154,8 +158,8 @@ test_commands_profile_linux_recorded_active_recovery() {
   assert_path_symlink "$TEST_PROFILE_ACTIVE_LINK"
   assert_equals "$(readlink "$TEST_PROFILE_ACTIVE_LINK")" "$TEST_SHIM_PROFILE_ROOT/registries.conf"
   assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TEST_SHIM_CONFIG/active-profile.conf")" default
-  assert_equals "$(readlink "$SCENARIO_DIR/home/.agents/skills/shimmy-catalog")" \
-    "$TEST_SHIM_PROFILE_ROOT/ai-skills/control/skills/shimmy-catalog"
+  assert_equals "$(readlink "$SCENARIO_DIR/home/.agents/skills/$TEST_SHIM_CONTROL_NAME")" \
+    "$TEST_SHIM_PROFILE_ROOT/ai-skills/control/skills/$TEST_SHIM_CONTROL_NAME"
   pass 'Linux recorded-active recovery restores its exact managed registry link through ordinary activation'
 }
 
@@ -187,7 +191,7 @@ other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   assert_not_contains "$test_profile_dry_run_log" ' /bin/sh -s -- apply '
   assert_equals "$(cksum < "$TEST_SHIM_CONFIG/active-profile.conf")" "$test_profile_active_before"
   assert_path_not_exists "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt"
-  assert_path_not_exists "$SCENARIO_DIR/home/.agents/skills/shimmy-catalog"
+  assert_path_not_exists "$SCENARIO_DIR/home/.agents/skills/$TEST_SHIM_CONTROL_NAME"
 
   : > "$TEST_PROFILE_PODMAN_LOG"
   test_profile_recovery=$(test_profile_run default activate default)
@@ -208,8 +212,8 @@ other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   shimmy_registries_machine_projection_record_validate \
     "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt" default ||
     fail_test 'same-profile stopped recovery did not record registry projection ownership'
-  assert_equals "$(readlink "$SCENARIO_DIR/home/.agents/skills/shimmy-catalog")" \
-    "$TEST_SHIM_PROFILE_ROOT/ai-skills/control/skills/shimmy-catalog"
+  assert_equals "$(readlink "$SCENARIO_DIR/home/.agents/skills/$TEST_SHIM_CONTROL_NAME")" \
+    "$TEST_SHIM_PROFILE_ROOT/ai-skills/control/skills/$TEST_SHIM_CONTROL_NAME"
 
   test_profile_state_reset_default
   TEST_PROFILE_FAIL_ACTION=test_validation
@@ -225,7 +229,7 @@ other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   assert_contains "$(cat "$TEST_PROFILE_PODMAN_LOG")" 'machine stop shimmy-default'
   assert_equals "$(cksum < "$TEST_SHIM_CONFIG/active-profile.conf")" "$test_profile_active_before"
   assert_path_not_exists "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt"
-  assert_path_not_exists "$SCENARIO_DIR/home/.agents/skills/shimmy-catalog"
+  assert_path_not_exists "$SCENARIO_DIR/home/.agents/skills/$TEST_SHIM_CONTROL_NAME"
 
   test_profile_state_reset_default
   TEST_PROFILE_MACHINE_LIST='shimmy-default|true'
@@ -283,7 +287,7 @@ test_commands_profile_bundle_policy() {
   test_profile_unsupported=$(test_profile_run default activate "$TEST_PROFILE_TEAM" 2>&1)
   assert_contains "$test_profile_unsupported" 'skipping unsupported shims AI-skill bundle'
   assert_path_not_exists "$SCENARIO_DIR/home/.agents/skills/shimmy-tool-stale"
-  assert_path_symlink "$SCENARIO_DIR/home/.agents/skills/shimmy-catalog"
+  assert_path_symlink "$SCENARIO_DIR/home/.agents/skills/$TEST_SHIM_CONTROL_NAME"
   pass 'malformed supported bundles block before engine mutation while unsupported bundles warn, skip, and clean prior-kind links'
 }
 

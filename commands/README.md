@@ -142,10 +142,13 @@ documentation paths, run native Linux amd64 and Apple Silicon arm64 smokes, and
 commit before publishing separately.
 
 `publish` must run from the clean attached local `main` checkout root. It stages
-only tracked catalog content, validates it, creates or reuses the content-
-addressed generation, then atomically advances current/previous. `rollback`
-selects the retained previous valid generation. Neither command updates profile
-pins or deletes retained generations.
+only tracked `catalog.conf` and `tools/`, validates them, and creates or reuses
+the content-addressed generation. A reused generation retains its original
+provenance commit; publishing equivalent current content does not rewrite the
+registry or advance current/previous. `rollback` selects the retained previous
+valid generation. Neither command updates profile source commits or catalog
+pins, and neither deletes retained generations. Use explicit `profile sync` to
+adopt newer control-source or catalog authority.
 
 ## Shim
 

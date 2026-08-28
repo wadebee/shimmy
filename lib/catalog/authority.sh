@@ -1,7 +1,7 @@
 #!/bin/sh
 # Immutable default-catalog validation and local inspection.
 
-SHIMMY_CATALOG_SKILL_HEADER='> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.'
+SHIMMY_CATALOG_TOOL_SKILL_HEADER='> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.'
 SHIMMY_CATALOG_AUTHORITY_ERROR=
 
 shimmy_catalog_authority_error_set() {
@@ -9,10 +9,10 @@ shimmy_catalog_authority_error_set() {
   return 1
 }
 
-shimmy_catalog_skill_header_validate() {
-  shimmy_catalog_skill_file=$1
-  [ -f "$shimmy_catalog_skill_file" ] && [ ! -L "$shimmy_catalog_skill_file" ] || return 1
-  [ "$(sed -n '6p' "$shimmy_catalog_skill_file")" = "$SHIMMY_CATALOG_SKILL_HEADER" ] || return 1
+shimmy_catalog_tool_skill_header_validate() {
+  shimmy_catalog_tool_skill_file=$1
+  [ -f "$shimmy_catalog_tool_skill_file" ] && [ ! -L "$shimmy_catalog_tool_skill_file" ] || return 1
+  [ "$(sed -n '6p' "$shimmy_catalog_tool_skill_file")" = "$SHIMMY_CATALOG_TOOL_SKILL_HEADER" ] || return 1
 }
 
 shimmy_catalog_authority_payload_validate() {
@@ -22,35 +22,35 @@ shimmy_catalog_authority_payload_validate() {
     return 1
   }
 
-  shimmy_catalog_control_skills='shimmy-catalog
-shimmy-create-tool
-shimmy-escalation
-shimmy-init
-shimmy-install
-shimmy-tool-local-build'
-  shimmy_catalog_actual_control_skills=
-  for shimmy_catalog_skill_dir in "$shimmy_catalog_payload_root"/plugins/shimmy/skills/*; do
-    [ -e "$shimmy_catalog_skill_dir" ] || continue
-    shimmy_catalog_skill_name=$(basename -- "$shimmy_catalog_skill_dir")
-    shimmy_catalog_actual_control_skills=$(shimmy_append_line_list "$shimmy_catalog_actual_control_skills" "$shimmy_catalog_skill_name")
-    shimmy_catalog_skill_header_validate "$shimmy_catalog_skill_dir/SKILL.md" || {
-      shimmy_catalog_authority_error_set "catalog control skill has an invalid canonical header: $shimmy_catalog_skill_name"
-      return 1
-    }
-  done
-  shimmy_catalog_actual_control_skills=$(printf '%s\n' "$shimmy_catalog_actual_control_skills" | LC_ALL=C sort)
-  [ "$shimmy_catalog_actual_control_skills" = "$shimmy_catalog_control_skills" ] || {
-    shimmy_catalog_authority_error_set 'catalog control skills do not match the canonical set'
-    return 1
-  }
-
   for shimmy_catalog_tool_dir in "$shimmy_catalog_payload_root"/tools/*; do
     [ -d "$shimmy_catalog_tool_dir" ] && [ ! -L "$shimmy_catalog_tool_dir" ] || continue
     shimmy_catalog_tool_name=$(basename -- "$shimmy_catalog_tool_dir")
-    shimmy_catalog_skill_header_validate "$shimmy_catalog_tool_dir/SKILL.md" || {
+    shimmy_catalog_tool_skill_header_validate "$shimmy_catalog_tool_dir/SKILL.md" || {
       shimmy_catalog_authority_error_set "catalog tool skill has an invalid canonical header: shimmy-tool-$shimmy_catalog_tool_name"
       return 1
     }
+  done
+}
+
+shimmy_catalog_generation_root_validate() {
+  shimmy_catalog_generation_layout_root=$1
+  for shimmy_catalog_generation_layout_entry in \
+    "$shimmy_catalog_generation_layout_root"/* \
+    "$shimmy_catalog_generation_layout_root"/.[!.]* \
+    "$shimmy_catalog_generation_layout_root"/..?*
+  do
+    [ -e "$shimmy_catalog_generation_layout_entry" ] ||
+      [ -L "$shimmy_catalog_generation_layout_entry" ] || continue
+    case "$shimmy_catalog_generation_layout_entry" in
+      "$shimmy_catalog_generation_layout_root/catalog.conf"|\
+      "$shimmy_catalog_generation_layout_root/generation.conf"|\
+      "$shimmy_catalog_generation_layout_root/tools") ;;
+      *)
+        shimmy_catalog_authority_error_set \
+          "unrecognized catalog generation content: $shimmy_catalog_generation_layout_entry"
+        return 1
+        ;;
+    esac
   done
 }
 
@@ -69,6 +69,7 @@ shimmy_catalog_generation_record_validate() {
     shimmy_catalog_authority_error_set "catalog generation has a symbolic-link path component: $shimmy_catalog_generation_name"
     return 1
   }
+  shimmy_catalog_generation_root_validate "$shimmy_catalog_generation_root" || return 1
   shimmy_catalog_authority_payload_validate "$shimmy_catalog_generation_root" || return 1
   shimmy_catalog_generation_metadata_read "$shimmy_catalog_generation_root/generation.conf" || {
     shimmy_catalog_authority_error_set "invalid catalog generation metadata: $shimmy_catalog_generation_name"
@@ -159,6 +160,7 @@ shimmy_catalog_tree_validate() {
       shimmy_catalog_authority_error_set "unsafe catalog generation directory: $shimmy_catalog_generation_name"
       return 1
     }
+    shimmy_catalog_generation_root_validate "$shimmy_catalog_generation_dir" || return 1
     shimmy_catalog_generation_count=$((shimmy_catalog_generation_count + 1))
   done
   [ "$shimmy_catalog_generation_count" -gt 0 ] || {

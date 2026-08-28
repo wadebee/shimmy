@@ -491,7 +491,7 @@ test_commands_catalog_mutation() {
   test_catalog_config=$SCENARIO_DIR/config/shimmy
   test_catalog_fixture_create "$test_catalog_checkout" "$test_catalog_config"
   test_catalog_initial=$(sed -n '3s/^catalog_generation_current=//p' "$test_catalog_config/catalogs/default/registry.conf")
-  test_catalog_source_advance "$test_catalog_checkout" 'Command publication.'
+  test_catalog_tool_source_advance "$test_catalog_checkout" 'Command publication.'
   test_catalog_publish_output=$(cd "$test_catalog_checkout" && env SHIMMY_CONFIG_ROOT="$test_catalog_config" ./commands/catalog.sh publish)
   test_catalog_published=$(sed -n '3s/^catalog_generation_current=//p' "$test_catalog_config/catalogs/default/registry.conf")
   assert_contains "$test_catalog_publish_output" "shimmy_catalog=default|$test_catalog_published|$test_catalog_initial|"

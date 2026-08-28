@@ -75,7 +75,7 @@ shimmy_catalog_generation_stage() {
   mkdir "$shimmy_catalog_stage_payload" || return 1
   git -C "$SHIMMY_CATALOG_PUBLICATION_CHECKOUT" archive --format=tar \
     --output="$shimmy_catalog_stage_archive" "$SHIMMY_CATALOG_PUBLICATION_HEAD" \
-    catalog.conf tools plugins/shimmy/skills 2>/dev/null || {
+    catalog.conf tools 2>/dev/null || {
       shimmy_catalog_authority_error_set 'unable to stage tracked catalog content from main'
       return 1
     }
@@ -143,6 +143,7 @@ shimmy_catalog_publication_state_read() {
         shimmy_catalog_authority_error_set "unsafe retained catalog generation: $shimmy_catalog_publication_generation_dir"
         return 1
       }
+    shimmy_catalog_generation_root_validate "$shimmy_catalog_publication_generation_dir" || return 1
   done
 }
 
@@ -234,16 +235,17 @@ shimmy_catalog_default_publish() {
   shimmy_catalog_checkout_revalidate || return 1
 
   shimmy_catalog_publish_generation_root=$SHIMMY_CATALOG_GENERATIONS_ROOT/$SHIMMY_CATALOG_STAGED_GENERATION
+  shimmy_catalog_publish_source_commit=$SHIMMY_CATALOG_PUBLICATION_HEAD
   if [ -e "$shimmy_catalog_publish_generation_root" ] || [ -L "$shimmy_catalog_publish_generation_root" ]; then
     shimmy_catalog_generation_record_validate "$shimmy_catalog_publish_generation_root" "$SHIMMY_CATALOG_STAGED_GENERATION" || {
       shimmy_catalog_authority_error_set "catalog generation fingerprint collision: $SHIMMY_CATALOG_STAGED_GENERATION"
       return 1
     }
-    [ "$SHIMMY_CATALOG_VALIDATED_GENERATION_COMMIT" = "$SHIMMY_CATALOG_PUBLICATION_HEAD" ] &&
-      [ "$SHIMMY_CATALOG_VALIDATED_GENERATION_FINGERPRINT" = "$SHIMMY_CATALOG_STAGED_FINGERPRINT" ] || {
-        shimmy_catalog_authority_error_set "catalog generation identity collision: $SHIMMY_CATALOG_STAGED_GENERATION"
-        return 1
-      }
+    [ "$SHIMMY_CATALOG_VALIDATED_GENERATION_FINGERPRINT" = "$SHIMMY_CATALOG_STAGED_FINGERPRINT" ] || {
+      shimmy_catalog_authority_error_set "catalog generation identity collision: $SHIMMY_CATALOG_STAGED_GENERATION"
+      return 1
+    }
+    shimmy_catalog_publish_source_commit=$SHIMMY_CATALOG_VALIDATED_GENERATION_COMMIT
     rm -rf "$SHIMMY_CATALOG_LIFECYCLE_STAGE/payload"
   else
     mv "$SHIMMY_CATALOG_LIFECYCLE_STAGE/payload" "$shimmy_catalog_publish_generation_root" || return 1
@@ -251,8 +253,8 @@ shimmy_catalog_default_publish() {
 
   if [ "$SHIMMY_CATALOG_PUBLICATION_CURRENT_VALID" -eq 1 ] &&
     [ "$SHIMMY_CATALOG_PUBLICATION_CURRENT" = "$SHIMMY_CATALOG_STAGED_GENERATION" ]; then
-    shimmy_catalog_lifecycle_cleanup
-    shimmy_locks_release_all
+    shimmy_catalog_lifecycle_cleanup || return 1
+    shimmy_locks_release_all || return 1
     shimmy_catalog_tree_validate "$shimmy_catalog_publish_config_root"
     return
   fi
@@ -268,7 +270,7 @@ shimmy_catalog_default_publish() {
     "$SHIMMY_TEST_CATALOG_BEFORE_COMMIT_FUNCTION" "$SHIMMY_CATALOG_PUBLICATION_CHECKOUT" || return 1
   fi
   shimmy_catalog_registry_commit "$SHIMMY_CATALOG_STAGED_GENERATION" "$shimmy_catalog_publish_previous" \
-    "$SHIMMY_CATALOG_PUBLICATION_HEAD" "$SHIMMY_CATALOG_STAGED_FINGERPRINT" 1 || return 1
+    "$shimmy_catalog_publish_source_commit" "$SHIMMY_CATALOG_STAGED_FINGERPRINT" 1 || return 1
   shimmy_catalog_lifecycle_cleanup
   shimmy_locks_release_all || return 1
   shimmy_catalog_tree_validate "$shimmy_catalog_publish_config_root"

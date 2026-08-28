@@ -102,21 +102,17 @@ shimmy__catalog_path_entries_validate() {
     shimmy_catalog_error_set "invalid catalog payload $catalog_payload_root: tools must be a regular directory"
     return 1
   }
-  [ -d "$catalog_payload_root/plugins/shimmy/skills" ] && [ ! -L "$catalog_payload_root/plugins/shimmy/skills" ] || {
-    shimmy_catalog_error_set "invalid catalog payload $catalog_payload_root: plugins/shimmy/skills must be a regular directory"
-    return 1
-  }
 
-  if find "$catalog_payload_root/tools" "$catalog_payload_root/plugins/shimmy/skills" -type l -print -quit | grep . >/dev/null 2>&1; then
+  if find "$catalog_payload_root/tools" -type l -print -quit | grep . >/dev/null 2>&1; then
     shimmy_catalog_error_set "invalid catalog payload $catalog_payload_root: symbolic links are not allowed"
     return 1
   fi
-  if find "$catalog_payload_root/tools" "$catalog_payload_root/plugins/shimmy/skills" ! -type d ! -type f -print -quit | grep . >/dev/null 2>&1; then
+  if find "$catalog_payload_root/tools" ! -type d ! -type f -print -quit | grep . >/dev/null 2>&1; then
     shimmy_catalog_error_set "invalid catalog payload $catalog_payload_root: only regular files and directories are allowed"
     return 1
   fi
 
-  find "$catalog_payload_root/tools" "$catalog_payload_root/plugins/shimmy/skills" -exec /bin/sh -c '
+  find "$catalog_payload_root/tools" -exec /bin/sh -c '
     root=$1
     shift
     for entry_path do
@@ -135,15 +131,15 @@ shimmy__catalog_path_entries_validate() {
   }
 }
 
-shimmy__catalog_skill_file_validate() {
-  catalog_skill_file=$1
-  catalog_skill_name=$2
+shimmy__catalog_tool_skill_file_validate() {
+  catalog_tool_skill_file=$1
+  catalog_tool_skill_name=$2
 
-  [ -f "$catalog_skill_file" ] && [ ! -L "$catalog_skill_file" ] || {
-    shimmy_catalog_error_set "invalid catalog skill $catalog_skill_name: missing regular SKILL.md"
+  [ -f "$catalog_tool_skill_file" ] && [ ! -L "$catalog_tool_skill_file" ] || {
+    shimmy_catalog_error_set "invalid catalog tool skill $catalog_tool_skill_name: missing regular SKILL.md"
     return 1
   }
-  awk -v expected_name="$catalog_skill_name" '
+  awk -v expected_name="$catalog_tool_skill_name" '
     NR == 1 {
       if ($0 != "---") exit 1
       in_frontmatter=1
@@ -167,8 +163,8 @@ shimmy__catalog_skill_file_validate() {
     END {
       if (!frontmatter_closed || name_count != 1 || description_count != 1) exit 1
     }
-  ' "$catalog_skill_file" || {
-    shimmy_catalog_error_set "invalid catalog skill $catalog_skill_name: SKILL.md must declare matching name and non-empty description frontmatter"
+  ' "$catalog_tool_skill_file" || {
+    shimmy_catalog_error_set "invalid catalog tool skill $catalog_tool_skill_name: SKILL.md must declare matching name and non-empty description frontmatter"
     return 1
   }
 }
@@ -193,7 +189,7 @@ smoke_arg'
     shimmy_catalog_error_set "invalid catalog tool $catalog_tool_name: missing regular tool.conf"
     return 1
   }
-  shimmy__catalog_skill_file_validate "$catalog_tool_dir/SKILL.md" "shimmy-tool-$catalog_tool_name" || return 1
+  shimmy__catalog_tool_skill_file_validate "$catalog_tool_dir/SKILL.md" "shimmy-tool-$catalog_tool_name" || return 1
   [ -d "$catalog_tool_dir/versions" ] && [ ! -L "$catalog_tool_dir/versions" ] || {
     shimmy_catalog_error_set "invalid catalog tool $catalog_tool_name: missing regular versions directory"
     return 1
@@ -310,7 +306,7 @@ shimmy_catalog_fingerprint_render() {
 
   (
     cd -- "$catalog_fingerprint_root" || exit 1
-    find catalog.conf tools plugins/shimmy/skills -type f -print | LC_ALL=C sort | while IFS= read -r catalog_fingerprint_file; do
+    find catalog.conf tools -type f -print | LC_ALL=C sort | while IFS= read -r catalog_fingerprint_file; do
       [ -n "$catalog_fingerprint_file" ] || continue
       if [ -x "$catalog_fingerprint_file" ]; then catalog_fingerprint_mode=x; else catalog_fingerprint_mode=f; fi
       catalog_fingerprint_file_hash=$(shimmy__catalog_hash_file "$catalog_fingerprint_file") || exit 1
@@ -364,29 +360,6 @@ catalog_schema'
   }
 
   shimmy__catalog_path_entries_validate "$catalog_payload_root" || return 1
-  catalog_management_skills='shimmy-catalog
-shimmy-create-tool
-shimmy-escalation
-shimmy-init
-shimmy-install
-shimmy-tool-discover
-shimmy-tool-local-build'
-  for catalog_management_entry in "$catalog_payload_root"/plugins/shimmy/skills/*; do
-    [ -e "$catalog_management_entry" ] || continue
-    [ -d "$catalog_management_entry" ] && [ ! -L "$catalog_management_entry" ] || {
-      shimmy_catalog_error_set "invalid catalog payload $catalog_payload_root: every management skill entry must be a regular directory"
-      return 1
-    }
-    catalog_management_entry_name=$(basename -- "$catalog_management_entry")
-    shimmy_contains_line_list "$catalog_management_skills" "$catalog_management_entry_name" || {
-      shimmy_catalog_error_set "invalid catalog payload $catalog_payload_root: unexpected management skill $catalog_management_entry_name"
-      return 1
-    }
-  done
-  for catalog_management_skill in shimmy-catalog shimmy-create-tool shimmy-escalation shimmy-init shimmy-install shimmy-tool-discover shimmy-tool-local-build; do
-    catalog_management_skill_file=$catalog_payload_root/plugins/shimmy/skills/$catalog_management_skill/SKILL.md
-    shimmy__catalog_skill_file_validate "$catalog_management_skill_file" "$catalog_management_skill" || return 1
-  done
 
   shimmy_catalog_image_validator_prepare || return 1
 

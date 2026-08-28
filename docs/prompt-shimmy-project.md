@@ -12,16 +12,30 @@ directories do not own context files.
   `--no-startup`.
 - Installed management uses only the `admin`, `profile`, `catalog`, `shim`, and
   `ai-skill` groups.
-- The installation owns one immutable catalog named `default`; profiles pin a
-  validated generation and fingerprint.
+- The installation owns one immutable catalog named `default`. Its schema-1
+  payload is exactly `catalog.conf` plus `tools/`; retained generations add only
+  `generation.conf`, and profiles pin a validated generation and fingerprint.
 - Profiles live at `profiles/<name>`, use arbitrary safe names, and carry only
   schema-2 manifests.
 - `tools/<tool>/tool.conf` declares the default version and optional selector.
   Concrete versions own `run.sh`, `refresh.sh`, `smoke.conf`, `image.conf`, and
   a `container/` context when locally built.
-- Canonical management and tool skills remain in the source/catalog payload.
-  Active profiles materialize bundles and reconcile exact user skill links.
-  The repository has no generated `.agents/skills` adapter tree.
+- Canonical management skills are control-plane-only direct directories under
+  `plugins/shimmy/skills/` and are discovered dynamically at each profile's
+  exact source commit. Canonical tool skills remain catalog-owned at
+  `tools/<tool>/SKILL.md`.
+- A profile's control-source commit and catalog pin are independent. Explicit
+  `profile sync` adopts a newer source; profile sync or shim lifecycle work may
+  adopt current catalog authority before active-profile bundle reconciliation.
+  Publication never updates a profile implicitly.
+- Catalog archive and fingerprint inputs exclude control-plane paths. Reuse a
+  valid equivalent retained generation with its original provenance, and treat
+  equivalent current content as a publication no-op.
+- The repository has no generated `.agents/skills` adapter tree.
+
+The catalog schema-1 ownership contract is replaced in place. Do not add legacy
+readers or migrations; remove an installation created by the prior contract
+with its creating version and bootstrap fresh.
 
 ## Runtime rules
 

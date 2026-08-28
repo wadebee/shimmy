@@ -59,6 +59,12 @@ test_shim_fixture_setup() {
     > "$TEST_SHIM_PROFILE_ROOT/config/shim-bundle-input.conf"
   shimmy_ai_skill_control_bundle_materialize "$TEST_SHIM_CHECKOUT" "$TEST_SHIM_PINNED_COMMIT" \
     default "$TEST_SHIM_PROFILE_ROOT/ai-skills/control" || fail_test 'unable to create control bundle fixture'
+  TEST_SHIM_CONTROL_NAMES=$(sed -n '5,$s/^skill=\([^|]*\)|.*$/\1/p' \
+    "$TEST_SHIM_PROFILE_ROOT/ai-skills/control/bundle.conf")
+  [ -n "$TEST_SHIM_CONTROL_NAMES" ] || fail_test 'control bundle fixture contains no skills'
+  TEST_SHIM_CONTROL_NAME=$(printf '%s\n' "$TEST_SHIM_CONTROL_NAMES" | sed -n '1p')
+  TEST_SHIM_CONTROL_COUNT=$(printf '%s\n' "$TEST_SHIM_CONTROL_NAMES" | \
+    awk 'NF { count++ } END { print count + 0 }')
   shimmy_ai_skill_shims_bundle_materialize "$TEST_SHIM_PROFILE_ROOT/config/shim-bundle-input.conf" \
     "$TEST_SHIM_PINNED_ROOT" "$TEST_SHIM_PROFILE_ROOT/ai-skills/shims" || fail_test 'unable to create empty shims bundle fixture'
   shimmy_registries_config_render default '' > "$TEST_SHIM_PROFILE_ROOT/registries.conf"
@@ -203,7 +209,7 @@ test_commands_shim_failure_atomicity() {
   assert_equals "$(cksum < "$TEST_SHIM_PROFILE_ROOT/config/shim-bundle-input.conf")" "$test_shim_input_before"
   assert_path_not_exists "$TEST_SHIM_PROFILE_ROOT/tools/jq"
   assert_path_not_exists "$TEST_SHIM_PROFILE_ROOT/bin/jq"
-  assert_path_not_exists "$SCENARIO_DIR/home/.agents/skills/shimmy-catalog"
+  assert_path_not_exists "$SCENARIO_DIR/home/.agents/skills/$TEST_SHIM_CONTROL_NAME"
   assert_file_not_contains "$TEST_SHIM_PROFILE_ROOT/ai-skills/shims/bundle.conf" 'shimmy-tool-jq'
   pass 'image and post-asset failures restore the complete prior shim materialization'
 }

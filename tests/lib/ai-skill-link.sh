@@ -9,11 +9,14 @@ test_lib_ai_skill_link_fixture_create() {
   test_lib_ai_skill_bundle_fixture_create "$TEST_LINK_BUNDLES_ROOT"
   TEST_LINK_CONTROL_BUNDLE=$TEST_LINK_BUNDLES_ROOT/control
   TEST_LINK_SHIMS_BUNDLE=$TEST_LINK_BUNDLES_ROOT/shims
+  TEST_LINK_CONTROL_NAME=$(sed -n '5s/^skill=\([^|]*\)|.*$/\1/p' \
+    "$TEST_LINK_CONTROL_BUNDLE/bundle.conf")
+  [ -n "$TEST_LINK_CONTROL_NAME" ] || fail_test 'control link fixture contains no skills'
 }
 
 test_lib_ai_skill_link_classification() {
   test_lib_ai_skill_link_fixture_create
-  link_name=shimmy-install
+  link_name=$TEST_LINK_CONTROL_NAME
   link_destination=$TEST_LINK_USER_ROOT/$link_name
   shimmy_ai_skill_link_plan "$TEST_LINK_USER_ROOT" "$TEST_LINK_PROFILES_ROOT" "$TEST_LINK_CONTROL_BUNDLE" "$link_name" || fail_test 'empty link plan failed'
   assert_equals "$SHIMMY_AI_SKILL_LINK_CLASSIFICATION" empty
@@ -61,10 +64,10 @@ test_lib_ai_skill_link_exact_mutation() {
   root_before=$(cksum < "$root_marker")
   sibling_before=$(cksum < "$sibling_root/SKILL.md")
 
-  install_destination=$TEST_LINK_USER_ROOT/shimmy-install
+  control_destination=$TEST_LINK_USER_ROOT/$TEST_LINK_CONTROL_NAME
   alpha_destination=$TEST_LINK_USER_ROOT/shimmy-tool-alpha
   beta_destination=$TEST_LINK_USER_ROOT/shimmy-tool-beta
-  printf 'foreign-file\n' > "$install_destination"
+  printf 'foreign-file\n' > "$control_destination"
   mkdir "$alpha_destination"
   printf 'foreign-directory\n' > "$alpha_destination/payload"
   foreign_link_target=$SCENARIO_DIR/foreign-link-target
@@ -72,10 +75,11 @@ test_lib_ai_skill_link_exact_mutation() {
   ln -s "$foreign_link_target" "$beta_destination"
 
   shimmy_external_transaction_begin || fail_test 'link external transaction begin failed'
-  shimmy_ai_skill_link_replace "$TEST_LINK_USER_ROOT" "$TEST_LINK_PROFILES_ROOT" "$TEST_LINK_CONTROL_BUNDLE" shimmy-install || fail_test 'file collision replacement failed'
+  shimmy_ai_skill_link_replace "$TEST_LINK_USER_ROOT" "$TEST_LINK_PROFILES_ROOT" \
+    "$TEST_LINK_CONTROL_BUNDLE" "$TEST_LINK_CONTROL_NAME" || fail_test 'file collision replacement failed'
   shimmy_ai_skill_link_replace "$TEST_LINK_USER_ROOT" "$TEST_LINK_PROFILES_ROOT" "$TEST_LINK_SHIMS_BUNDLE" shimmy-tool-alpha || fail_test 'directory collision replacement failed'
   shimmy_ai_skill_link_replace "$TEST_LINK_USER_ROOT" "$TEST_LINK_PROFILES_ROOT" "$TEST_LINK_SHIMS_BUNDLE" shimmy-tool-beta || fail_test 'foreign-link collision replacement failed'
-  assert_path_symlink "$install_destination"
+  assert_path_symlink "$control_destination"
   assert_path_symlink "$alpha_destination"
   assert_path_symlink "$beta_destination"
   assert_equals "$(cksum < "$root_marker")" "$root_before"
@@ -85,7 +89,7 @@ test_lib_ai_skill_link_exact_mutation() {
     fail_test 'foreign collision rollback unexpectedly reported complete'
   fi
   assert_equals "$SHIMMY_EXTERNAL_ROLLBACK_RESULT" incomplete
-  [ ! -L "$install_destination" ] && [ ! -e "$install_destination" ] || fail_test 'created install link survived rollback'
+  [ ! -L "$control_destination" ] && [ ! -e "$control_destination" ] || fail_test 'created control link survived rollback'
   [ ! -L "$alpha_destination" ] && [ ! -e "$alpha_destination" ] || fail_test 'created alpha link survived rollback'
   [ ! -L "$beta_destination" ] && [ ! -e "$beta_destination" ] || fail_test 'created beta link survived rollback'
   assert_equals "$(cksum < "$root_marker")" "$root_before"
@@ -105,7 +109,7 @@ test_lib_ai_skill_link_exact_mutation() {
 
 test_lib_ai_skill_link_recognized_rollback() {
   test_lib_ai_skill_link_fixture_create
-  link_name=shimmy-install
+  link_name=$TEST_LINK_CONTROL_NAME
   link_destination=$TEST_LINK_USER_ROOT/$link_name
   wrong_profile_target=$TEST_LINK_PROFILES_ROOT/team-two/ai-skills/control/skills/$link_name
   mkdir -p "$wrong_profile_target"

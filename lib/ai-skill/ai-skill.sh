@@ -39,6 +39,44 @@ shimmy_ai_skill_file_materialize() {
   chmod 0644 "$shimmy_ai_skill_materialize_destination"
 }
 
+shimmy_ai_skill_control_names_discover() {
+  shimmy_ai_skill_control_discover_root=$1
+  shimmy_ai_skill_control_discover_ref=$2
+  shimmy_ai_skill_control_discover_entries=$(LC_ALL=C git \
+    -c core.quotePath=true -C "$shimmy_ai_skill_control_discover_root" \
+    ls-tree --no-abbrev \
+    "$shimmy_ai_skill_control_discover_ref:plugins/shimmy/skills" \
+    2>/dev/null) || return 1
+  [ -n "$shimmy_ai_skill_control_discover_entries" ] || return 1
+
+  shimmy_ai_skill_control_discover_names=
+  shimmy_ai_skill_control_discover_tab=$(printf '\t')
+  while IFS="$shimmy_ai_skill_control_discover_tab" read -r \
+    shimmy_ai_skill_control_discover_metadata \
+    shimmy_ai_skill_control_discover_name \
+    shimmy_ai_skill_control_discover_extra
+  do
+    [ -n "$shimmy_ai_skill_control_discover_metadata" ] || continue
+    [ -n "$shimmy_ai_skill_control_discover_name" ] &&
+      [ -z "$shimmy_ai_skill_control_discover_extra" ] || return 1
+    case "$shimmy_ai_skill_control_discover_metadata" in
+      '040000 tree '?*) ;;
+      *) return 1 ;;
+    esac
+    shimmy_name_component_validate "$shimmy_ai_skill_control_discover_name" || return 1
+    shimmy_ai_skill_control_discover_names=$(shimmy_append_line_list \
+      "$shimmy_ai_skill_control_discover_names" "$shimmy_ai_skill_control_discover_name")
+  done <<EOF
+$shimmy_ai_skill_control_discover_entries
+EOF
+
+  [ -n "$shimmy_ai_skill_control_discover_names" ] || return 1
+  shimmy_ai_skill_control_discover_names=$(printf '%s\n' \
+    "$shimmy_ai_skill_control_discover_names" | LC_ALL=C sort) || return 1
+  shimmy_line_list_lexical_unique_validate "$shimmy_ai_skill_control_discover_names" || return 1
+  printf '%s\n' "$shimmy_ai_skill_control_discover_names"
+}
+
 shimmy_ai_skill_control_bundle_materialize() {
   shimmy_ai_skill_control_source_root=$1
   shimmy_ai_skill_control_source_ref=$2
@@ -51,15 +89,22 @@ shimmy_ai_skill_control_bundle_materialize() {
   shimmy_name_component_validate "$shimmy_ai_skill_control_profile" || return 1
   shimmy_ai_skill_control_resolved=$(git -C "$shimmy_ai_skill_control_source_root" rev-parse "$shimmy_ai_skill_control_source_ref^{commit}" 2>/dev/null) || return 1
   [ "$shimmy_ai_skill_control_resolved" = "$shimmy_ai_skill_control_source_ref" ] || return 1
-  shimmy_ai_skill_control_actual=$(git -C "$shimmy_ai_skill_control_source_root" \
-    ls-tree --name-only "$shimmy_ai_skill_control_source_ref:plugins/shimmy/skills" 2>/dev/null | LC_ALL=C sort) || return 1
-  shimmy_ai_skill_control_expected=$(shimmy_ai_skill_control_names_render) || return 1
-  [ "$shimmy_ai_skill_control_actual" = "$shimmy_ai_skill_control_expected" ] || return 1
+  shimmy_ai_skill_control_names=$(shimmy_ai_skill_control_names_discover \
+    "$shimmy_ai_skill_control_source_root" "$shimmy_ai_skill_control_source_ref") || return 1
   shimmy_ai_skill_bundle_output_prepare "$shimmy_ai_skill_control_output" || return 1
 
   shimmy_ai_skill_control_records=
+  shimmy_ai_skill_control_tab=$(printf '\t')
   while IFS= read -r shimmy_ai_skill_control_name; do
     [ -n "$shimmy_ai_skill_control_name" ] || continue
+    shimmy_ai_skill_control_skill_entry=$(git -C "$shimmy_ai_skill_control_source_root" \
+      ls-tree "$shimmy_ai_skill_control_source_ref:plugins/shimmy/skills/$shimmy_ai_skill_control_name" \
+      -- SKILL.md 2>/dev/null) || return 1
+    case "$shimmy_ai_skill_control_skill_entry" in
+      '100644 blob '*"$shimmy_ai_skill_control_tab"'SKILL.md'|\
+      '100755 blob '*"$shimmy_ai_skill_control_tab"'SKILL.md') ;;
+      *) return 1 ;;
+    esac
     shimmy_ai_skill_control_source=$shimmy_ai_skill_control_output/.source.$shimmy_ai_skill_control_name.$$
     shimmy_ai_skill_control_file=$shimmy_ai_skill_control_output/skills/$shimmy_ai_skill_control_name/SKILL.md
     if ! git -C "$shimmy_ai_skill_control_source_root" show \
@@ -78,7 +123,7 @@ shimmy_ai_skill_control_bundle_materialize() {
     shimmy_ai_skill_control_record="$shimmy_ai_skill_control_name|$shimmy_ai_skill_control_fingerprint|control|$shimmy_ai_skill_control_name|$shimmy_ai_skill_control_source_ref"
     shimmy_ai_skill_control_records=$(shimmy_append_line_list "$shimmy_ai_skill_control_records" "$shimmy_ai_skill_control_record")
   done <<EOF
-$shimmy_ai_skill_control_expected
+$shimmy_ai_skill_control_names
 EOF
   shimmy_ai_skill_bundle_render control "$shimmy_ai_skill_control_profile" \
     "$shimmy_ai_skill_control_source_ref" "$shimmy_ai_skill_control_records" \
@@ -225,9 +270,7 @@ shimmy_ai_skill_supported_bundles_validate() {
     case "$shimmy_ai_skill_supported_kind" in
       control)
         [ "$SHIMMY_AI_SKILL_SOURCE_REF" = "$shimmy_ai_skill_supported_source" ] || return 1
-        shimmy_ai_skill_supported_expected_control=$(shimmy_ai_skill_control_names_render)
-        shimmy_ai_skill_supported_actual_control=$(printf '%s\n' "$shimmy_ai_skill_supported_records" | sed -n 's/|.*//p')
-        [ "$shimmy_ai_skill_supported_actual_control" = "$shimmy_ai_skill_supported_expected_control" ] || return 1
+        [ -n "$shimmy_ai_skill_supported_records" ] || return 1
         ;;
       shims)
         [ "$SHIMMY_AI_SKILL_SOURCE_REF" = "$shimmy_ai_skill_supported_generation/$shimmy_ai_skill_supported_fingerprint" ] || return 1

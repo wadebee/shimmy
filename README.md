@@ -131,8 +131,10 @@ shimmy profile activate --help
 
 There are no compatibility aliases for the previous `install`, `update`,
 `images`, `skills`, `status`, `test`, `netinfo`, or `uninstall` top-level
-commands. Remove an older layout with the Shimmy version that created it before
-bootstrapping this one.
+commands. The catalog schema-1 ownership contract is replaced in place by this
+layout, so installations created by an earlier contract are unsupported. Remove
+an older installation with the Shimmy version that created it, then bootstrap a
+fresh installation.
 
 ## Profiles and activation
 
@@ -231,6 +233,12 @@ The installation owns exactly one catalog named `default`. It contains retained
 immutable generations. Each profile pins one generation, so publication and
 rollback never silently change installed profile contents.
 
+The catalog payload is exactly `catalog.conf` plus `tools/`, including each
+tool's canonical `SKILL.md`. A retained generation contains only
+`catalog.conf`, `generation.conf`, and `tools/`. Its content fingerprint covers
+`catalog.conf` and every regular file below `tools/`, including executable-mode
+identity; it excludes generation metadata and control-plane sources.
+
 ```sh
 shimmy catalog status
 shimmy catalog tools
@@ -250,11 +258,18 @@ Review any reported guide or skill references and complete both native-host
 smokes before committing and running the separate catalog publication command.
 
 `shimmy catalog publish` must run at a clean committed checkout root on attached
-local `main`; it publishes tracked `catalog.conf`, `tools/`, and canonical
-`plugins/shimmy/skills/` content. `shimmy catalog rollback` selects the retained
-previous valid generation without deleting generations. `shimmy profile sync`
-updates the invoking active profile from `refs/heads/main` and reconciles its
-materialized assets explicitly.
+local `main`; it stages and validates only tracked `catalog.conf` and `tools/`.
+If that content already has a valid retained generation, publication reuses the
+generation and its original provenance commit. Publishing equivalent current
+content is a no-op: it does not rewrite the registry, advance current/previous,
+or create another generation. `shimmy catalog rollback` selects the retained
+previous valid generation without deleting generations.
+
+A profile's exact control-source commit and catalog pin are independent.
+`shimmy profile sync` explicitly advances the invoking active profile from
+`refs/heads/main`, adopts the applicable retained catalog generation, and
+reconciles its materialized assets. Catalog publication and rollback never
+silently advance either part of an existing profile.
 
 Shim selectors are `tool` or `tool@version` without catalog prefixes:
 
@@ -273,10 +288,13 @@ name routing layer exists.
 
 ## AI skills
 
-Canonical management skills live under `plugins/shimmy/skills/`; tool skills
-live beside each tool under `tools/<tool>/SKILL.md`. Installed profiles hold
-validated bundles and reconcile direct links in the active user's
-`$HOME/.agents/skills` directory.
+Canonical management skills are control-plane-only direct directories under
+`plugins/shimmy/skills/`; they are not catalog content. Each profile
+materializes its complete non-empty control bundle dynamically from that tree
+at the profile's exact `shimmy_source_ref`. Tool skills remain catalog-owned at
+`tools/<tool>/SKILL.md` and are materialized from the profile's pinned catalog
+generation. Installed profiles reconcile both validated bundles as direct links
+in the active user's `$HOME/.agents/skills` directory.
 
 ```sh
 shimmy ai-skill list --format manifest
@@ -286,6 +304,9 @@ shimmy ai-skill repair
 Only exact bundle-declared names are replaced. Recognized stale Shimmy links may
 be removed; unrelated names and the skill root itself are preserved. This
 repository deliberately does not contain generated `.agents/skills` adapters.
+Adding or removing a canonical management-skill directory requires a committed
+source change and explicit `shimmy profile sync` for adoption; it requires
+catalog publication only when catalog-owned content also changed.
 
 ## Administration and removal
 

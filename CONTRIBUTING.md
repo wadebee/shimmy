@@ -51,6 +51,22 @@ Publishing or rolling back changes registry authority but does not rewrite
 existing profile pins. Profile adoption requires explicit `profile sync` or
 shim lifecycle work.
 
+The schema-1 catalog payload is exactly `catalog.conf` plus `tools/`. Retained
+generations contain only that payload and `generation.conf`; their content
+fingerprints exclude generation metadata and every control-plane path. Reuse a
+valid content-equivalent retained generation with its original provenance
+commit. Equivalent current content is a publication no-op.
+
+A profile's exact source commit and retained catalog pin are independent.
+Management skills come dynamically from the direct
+`plugins/shimmy/skills/<name>/SKILL.md` trees at that exact source commit, while
+tool skills come from the pinned catalog generation. Only explicit profile sync
+adopts a newer control source; profile sync or shim lifecycle work may adopt
+current catalog authority. The schema-1 ownership contract is replaced in
+place: do not add a compatibility reader or migration. An installation created
+by the prior contract must be removed with the version that created it and
+bootstrapped fresh.
+
 ## Profiles, Podman, and startup
 
 Profile names use lowercase letters, digits, and single hyphens. On macOS the
@@ -77,9 +93,11 @@ recorded ledger. Preserve sourced-script failure behavior under callers using
 
 ## AI-skill ownership
 
-Canonical management skills live in `plugins/shimmy/skills/`; tool skills live
-at `tools/<tool>/SKILL.md`. Do not create or edit generated repository adapters
-under `.agents/skills`; this repository intentionally has no such tree.
+Canonical management skills are control-plane-only direct directories in
+`plugins/shimmy/skills/`; no production or test allowlist defines their
+inventory. Tool skills are catalog-owned at `tools/<tool>/SKILL.md`. Do not
+create or edit generated repository adapters under `.agents/skills`; this
+repository intentionally has no such tree.
 
 Every canonical skill must place this warning immediately after frontmatter:
 
@@ -87,10 +105,11 @@ Every canonical skill must place this warning immediately after frontmatter:
 > bundle-declared skill destination without backup, never deletes unrelated
 > skill names, and profile copies must not be edited.
 
-Profiles materialize validated bundles and reconcile direct links in the active
-user's `$HOME/.agents/skills`. Exact declared collisions are overwritten with
-no backup or recovery. Never recursively clean that root. Preserve unrelated
-names and reject unsafe parent/path state.
+Profiles materialize a non-empty management bundle from their exact control
+source and a tool bundle from their pinned catalog generation, then reconcile
+direct links in the active user's `$HOME/.agents/skills`. Exact declared
+collisions are overwritten with no backup or recovery. Never recursively clean
+that root. Preserve unrelated names and reject unsafe parent/path state.
 
 ## Tool workflow
 
