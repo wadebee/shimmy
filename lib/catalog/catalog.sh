@@ -369,6 +369,7 @@ shimmy-create-tool
 shimmy-escalation
 shimmy-init
 shimmy-install
+shimmy-tool-discover
 shimmy-tool-local-build'
   for catalog_management_entry in "$catalog_payload_root"/plugins/shimmy/skills/*; do
     [ -e "$catalog_management_entry" ] || continue
@@ -382,7 +383,7 @@ shimmy-tool-local-build'
       return 1
     }
   done
-  for catalog_management_skill in shimmy-catalog shimmy-create-tool shimmy-escalation shimmy-init shimmy-install shimmy-tool-local-build; do
+  for catalog_management_skill in shimmy-catalog shimmy-create-tool shimmy-escalation shimmy-init shimmy-install shimmy-tool-discover shimmy-tool-local-build; do
     catalog_management_skill_file=$catalog_payload_root/plugins/shimmy/skills/$catalog_management_skill/SKILL.md
     shimmy__catalog_skill_file_validate "$catalog_management_skill_file" "$catalog_management_skill" || return 1
   done
