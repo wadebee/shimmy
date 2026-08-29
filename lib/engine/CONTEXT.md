@@ -1,8 +1,16 @@
 # Engine lifecycle
 
-Engine modules define the published schema registry for shared and
+Engine modules define the versioned engine-state contract for shared and
 profile-isolated Podman engines. Every supported profile requires one strict
 binding to one valid engine record.
+
+The **schema version** identifies the aggregate contract for Shimmy's persisted
+engine state: engine identity and origin, profile binding, registry projection,
+and lifecycle ownership evidence. It is not a Podman version, virtual-machine
+format, or CPU capability level. Shimmy requires a recognized schema version so
+all readers agree on routing and destructive authority before they inspect or
+mutate an engine.
+_Avoid_: Engine schema
 
 - `state.sh` owns strict engine, binding, projection, and lifecycle records plus
   canonical engine paths.

@@ -379,23 +379,23 @@ shimmy_engine_profile_binding_resolve() {
 }
 
 shimmy_engine_installation_validate() {
-  shimmy_engine_schema_config=$1
-  shimmy_path_absolute_normalized_validate "$shimmy_engine_schema_config" || return 1
+  shimmy_engine_installation_config=$1
+  shimmy_path_absolute_normalized_validate "$shimmy_engine_installation_config" || return 1
   SHIMMY_ENGINE_INSTALLATION_PROFILE_COUNT=0
-  [ -d "$shimmy_engine_schema_config/profiles" ] &&
-    [ ! -L "$shimmy_engine_schema_config/profiles" ] || return 1
-  for shimmy_engine_schema_profile_root in "$shimmy_engine_schema_config"/profiles/*; do
-    [ -e "$shimmy_engine_schema_profile_root" ] ||
-      [ -L "$shimmy_engine_schema_profile_root" ] || continue
-    shimmy_engine_schema_profile=$(basename -- "$shimmy_engine_schema_profile_root")
-    shimmy_name_component_validate "$shimmy_engine_schema_profile" &&
-      [ -d "$shimmy_engine_schema_profile_root" ] &&
-      [ ! -L "$shimmy_engine_schema_profile_root" ] || return 1
+  [ -d "$shimmy_engine_installation_config/profiles" ] &&
+    [ ! -L "$shimmy_engine_installation_config/profiles" ] || return 1
+  for shimmy_engine_installation_profile_root in "$shimmy_engine_installation_config"/profiles/*; do
+    [ -e "$shimmy_engine_installation_profile_root" ] ||
+      [ -L "$shimmy_engine_installation_profile_root" ] || continue
+    shimmy_engine_installation_profile=$(basename -- "$shimmy_engine_installation_profile_root")
+    shimmy_name_component_validate "$shimmy_engine_installation_profile" &&
+      [ -d "$shimmy_engine_installation_profile_root" ] &&
+      [ ! -L "$shimmy_engine_installation_profile_root" ] || return 1
     SHIMMY_ENGINE_INSTALLATION_PROFILE_COUNT=$((SHIMMY_ENGINE_INSTALLATION_PROFILE_COUNT + 1))
-    shimmy_engine_profile_binding_resolve "$shimmy_engine_schema_config" \
-      "$shimmy_engine_schema_profile" || return 1
+    shimmy_engine_profile_binding_resolve "$shimmy_engine_installation_config" \
+      "$shimmy_engine_installation_profile" || return 1
   done
   [ "$SHIMMY_ENGINE_INSTALLATION_PROFILE_COUNT" -gt 0 ] || return 1
-  [ -d "$shimmy_engine_schema_config/engines" ] &&
-    [ ! -L "$shimmy_engine_schema_config/engines" ]
+  [ -d "$shimmy_engine_installation_config/engines" ] &&
+    [ ! -L "$shimmy_engine_installation_config/engines" ]
 }

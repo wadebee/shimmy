@@ -25,7 +25,7 @@
 - `launcher-template.sh` is the byte-authoritative final installed launcher for
   `admin`, `profile`, `catalog`, `shim`, and `ai-skill`.
 
-Materialized controls include the published `lib/engine/` schema registry and
+Materialized controls include the published versioned `lib/engine/` state contract and
 strict profile-binding readers.
 
 Initial bootstrap requires a clean committed attached `main`, creates only

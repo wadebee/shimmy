@@ -202,10 +202,10 @@ shimmy_engine_registry_status_render() {
   shimmy_profile_installation_context_resolve "$shimmy_engine_registry_status_config" || return 1
   shimmy_engine_registry_host_os_resolve
   if [ "$shimmy_engine_registry_status_format" = manifest ]; then
-    printf 'shimmy_engine_schema=1\nshimmy_engine_host_os=%s\n' \
+    printf 'shimmy_engine_schema_version=1\nshimmy_engine_host_os=%s\n' \
       "$SHIMMY_ENGINE_REGISTRY_HOST_OS"
   else
-    printf 'Engine schema: 1\nHost OS: %s\n' "$SHIMMY_ENGINE_REGISTRY_HOST_OS"
+    printf 'Schema Version: 1\nHost OS: %s\n' "$SHIMMY_ENGINE_REGISTRY_HOST_OS"
   fi
   shimmy_engine_registry_status_profiles=$(shimmy_engine_registry_profile_names_render \
     "$shimmy_engine_registry_status_config/profiles") || return 1

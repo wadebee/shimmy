@@ -21,6 +21,10 @@ shimmy_engine_ownership_host_state_read() {
     SHIMMY_ENGINE_OWNERSHIP_REASON=external-origin
     return 0
   }
+  shimmy_engine_podman_bin_require || {
+    SHIMMY_ENGINE_OWNERSHIP_REASON=podman-unavailable
+    return 0
+  }
   shimmy_engine_podman_machine_state_read "$SHIMMY_ENGINE_RECORD_NAME" || {
     SHIMMY_ENGINE_OWNERSHIP_REASON=machine-metadata-unavailable
     return 0

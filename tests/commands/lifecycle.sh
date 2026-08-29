@@ -213,6 +213,14 @@ test_commands_lifecycle_darwin_bootstrap_case() {
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/projection.conf"
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf"
   assert_file_contains "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf" 'mode=shared'
+  test_lifecycle_engine_status_human=$(test_lifecycle_shared_profile_command \
+    admin engine status)
+  assert_contains "$test_lifecycle_engine_status_human" 'Schema Version: 1'
+  test_lifecycle_engine_status=$(test_lifecycle_shared_profile_command \
+    admin engine status --format manifest)
+  assert_contains "$test_lifecycle_engine_status" 'shimmy_engine_schema_version=1'
+  assert_contains "$test_lifecycle_engine_status" \
+    'shimmy_engine_profile=default|shared|shared|shimmy-default|shimmy-created|owned|current'
   test_lifecycle_init_line=$(sed -n '/^machine init shimmy-default$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
   test_lifecycle_start_line=$(sed -n '/^machine start shimmy-default$/=' "$TEST_LIFECYCLE_PODMAN_LOG")
   test_lifecycle_projection_line=$(sed -n \
@@ -768,7 +776,7 @@ test_commands_lifecycle_end_to_end() {
   assert_contains "$test_lifecycle_profile_status" 'shimmy_profile_ai_skill_bundle=control|valid|'
   assert_contains "$test_lifecycle_profile_list" 'shimmy_profile=default|yes|'
   test_lifecycle_engine_status=$(test_lifecycle_command default admin engine status --format manifest)
-  assert_contains "$test_lifecycle_engine_status" 'shimmy_engine_schema=1'
+  assert_contains "$test_lifecycle_engine_status" 'shimmy_engine_schema_version=1'
   assert_contains "$test_lifecycle_engine_status" 'shimmy_engine_profile=default|shared|shared|local|host-local|host-local|'
 
   test_lifecycle_redirect_dry=$(test_lifecycle_command default profile redirect set \

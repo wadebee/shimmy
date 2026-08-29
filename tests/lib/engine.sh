@@ -1,5 +1,5 @@
 #!/bin/sh
-# Engine schema, ownership, lifecycle, projection, and Podman seam tests.
+# Versioned engine state, ownership, lifecycle, projection, and Podman seam tests.
 
 engine_fake_create() {
   engine_fake_path=$1
@@ -298,8 +298,10 @@ test_lib_engine_podman_and_ownership() {
   printf '%s\n' 'abcdef012345|sentinel' > "$FAKE_ENGINE_WORKLOADS"
   shimmy_engine_podman_workloads_read shimmy-test
   assert_equals "$SHIMMY_ENGINE_RUNNING_WORKLOAD_COUNT" 1
+  unset SHIMMY_ENGINE_PODMAN_BIN
   shimmy_engine_ownership_state_read "$record_file"
   assert_equals "$SHIMMY_ENGINE_OWNERSHIP_STATE" owned
+  assert_equals "$SHIMMY_ENGINE_PODMAN_BIN" "$SHIMMY_TEST_ENGINE_PODMAN_BIN"
 
   printf '%s\n' mismatched > "$FAKE_ENGINE_GUEST_MARKER"
   shimmy_engine_ownership_state_read "$record_file"
