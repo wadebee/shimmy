@@ -15,9 +15,9 @@ missing, stale, masked, or unreachable.
 
 Make Shimmy wrappers usable from an AI Agent shell through the installed
 profile activation control plane. On macOS, ordinary profiles use the
-installation-owned shared `shimmy` machine; explicitly isolated profiles use
-their recorded owned `shimmy-<name>` machine; migrated legacy profiles retain
-their external engine. Use an exact absolute installed launcher for activation.
+installation-owned shared `shimmy-default` machine; explicitly isolated profiles use
+their recorded owned `shimmy-<name>` machine. Use an exact absolute installed
+launcher for activation.
 
 Do not install Podman or directly provision, start, stop, restart, delete,
 rename, or adopt a Podman machine. Do not request a broad Podman, shell, or

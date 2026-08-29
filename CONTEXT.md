@@ -27,9 +27,8 @@ State lives below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy`:
 - `active-profile.conf` records the installation-wide active profile and exact
   user skill root.
 
-Profile names use lowercase letters, digits, and single hyphens. Migrated
-profiles also hold a schema-1 engine binding; unbound schema-2 profiles retain
-their legacy mapping until explicit migration. Every profile records schema-2
+Profile names use lowercase letters, digits, and single hyphens. Every profile
+holds a schema-1 engine binding to a strict engine record and records schema
 identity, source `refs/heads/main` and exact control commit, one independently
 retained default-catalog generation, shim tracking/pinning and concrete-version
 roles, startup ownership, and validated AI-skill bundles.
@@ -59,7 +58,7 @@ without backup or recovery. Only recognized stale links may be removed; never
 recursively clean the user skill root or unrelated names.
 
 Profile deletion removes an exactly proven owned isolated macOS engine through
-a durable removal journal and preserves shared, external, legacy, and ambiguous
+a durable removal journal and preserves shared, external, and ambiguous
 engines. Global owned-engine removal remains the durable uninstall transaction's
 responsibility.
 
@@ -68,10 +67,8 @@ responsibility.
 Podman is an explicit dependency. Shimmy never installs Podman or adopts a
 pre-existing machine. Fresh macOS bootstrap transactionally creates the owned
 shared `shimmy-default` machine; explicit isolated profiles create independently owned
-`shimmy-<profile>` machines, while migrated legacy machines remain external.
-Ordinary profiles share the installation's owned engine: `shimmy-default` for a
-fresh installation or the reserved `shimmy` engine created by compatibility
-migration. Same-engine policy changes recycle only its rootless API service.
+`shimmy-<profile>` machines. Ordinary profiles share the installation-owned
+`shimmy-default` engine. Same-engine policy changes recycle only its rootless API service.
 On Linux profiles share the current user's local rootless engine and Shimmy
 performs no machine operation.
 

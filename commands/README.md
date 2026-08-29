@@ -30,7 +30,6 @@ and stable line-oriented `manifest` output.
 ```text
 shimmy admin status [--format human|manifest]
 shimmy admin engine status [--format human|manifest]
-shimmy admin engine migrate [--dry-run]
 shimmy admin network [--target <host-or-ip> ...]
   [--host-name <name>] [--host-ip <ipv4>] [--host-prefix <bits>]
   [--host-lan <cidr>] [--format human|manifest]
@@ -38,17 +37,14 @@ shimmy admin uninstall [--stop-running] [--dry-run]
 ```
 
 - `status` aggregates the active record, default catalog, and every profile.
-- `engine status` reports the compatibility state, binding mode, engine
+- `engine status` reports the strict binding mode, engine
   identity/origin, ownership evidence state, and projection freshness without
   mutation.
-- `engine migrate` explicitly publishes engine records and profile bindings.
-  Its dry run performs collision and write-set validation without creating a
-  machine. Existing macOS profile machines remain external and unchanged.
 - `network` reports shell, host, VM, and container perspectives through the
   active profile.
 - `uninstall` removes all validated Shimmy-owned installation state and every
   macOS machine with complete matching Shimmy ownership evidence. It preserves
-  checkouts, legacy, external, ambiguous, and Linux host-local engines,
+  checkouts, external, ambiguous, and Linux host-local engines,
   unrelated registry policy, unrelated skill names, and the user skill root.
 
 Run uninstall with `--dry-run` first. Removing an owned machine permanently
@@ -79,14 +75,17 @@ Profiles use arbitrary safe lowercase names and materialize independently below
 the installation's `profiles/` directory. The launcher is bound to its
 containing profile. `list` and `create` are installation-wide; `status`, `sync`,
 `repair-startup`, and redirect operations use the invoking profile.
+On Linux, redirect `delete --all --detach` is an explicit recovery operation
+that removes only the exact active registry link. Darwin engine projections
+remain attached.
 
 Creation binds an ordinary profile to the shared engine and automatically
 activates it. On macOS, `--isolated` instead transactionally provisions and
 owns `shimmy-<profile>`; Linux rejects isolated-machine creation. Clone copies
 supported profile-owned configuration, shims, versions, catalog pin, source,
 and redirects, but never copies runtime state or engine ownership. Its default
-preserves isolation intent: shared sources remain shared, while isolated and
-legacy-isolated sources receive a new owned isolated machine. `--shared` and
+preserves isolation intent: shared sources remain shared, while isolated
+sources receive a new owned isolated machine. `--shared` and
 `--isolated` are mutually exclusive overrides.
 
 Activation dry-run is non-mutating and reports exact engine, registry service,
@@ -103,14 +102,13 @@ explicit shim policies while adopting catalog/source changes. `delete` accepts
 only an inactive non-default profile. Shared deletion removes profile state
 only. Deleting a fully proven owned isolated profile permanently removes its
 machine and every container, image, volume, build-cache entry, and other
-VM-local datum; dry-run reports that scope. Legacy, external, and ambiguously
+VM-local datum; dry-run reports that scope. External and ambiguously
 owned machines are preserved.
 
 Redirects are strict profile-owned replacement locations. Active edits apply
 and validate immediately. On macOS a changed effective policy briefly recycles
 `podman.service` while the VM and containers remain running; inactive edits
-change only the profile source. `delete --all --detach` remains recovery-only
-for legacy projections.
+change only the profile source.
 
 ## Catalog
 

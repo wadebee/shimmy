@@ -15,7 +15,7 @@ their output in that same order.
 ./tests/test.sh --group lib-runtime
 ./tests/test.sh --group commands-profile --group commands-shim
 ./tests/test.sh --jobs 3
-./tests/test.sh --serial --group commands-lifecycle-migration
+./tests/test.sh --serial --group commands-lifecycle-isolated
 ```
 
 Use the default parallel schedule for independent groups. Use `--serial` for a
@@ -23,9 +23,9 @@ single group, an order-sensitive case, or failure diagnosis. Repeated or
 unknown groups, invalid job counts, and conflicting runner options fail before
 test execution.
 
-Lifecycle acceptance is split into five independently selectable groups:
+Lifecycle acceptance is split into four independently selectable groups:
 `commands-lifecycle-bootstrap`, `commands-lifecycle-isolated`,
-`commands-lifecycle-migration`, `commands-lifecycle-uninstall`, and
+`commands-lifecycle-uninstall`, and
 `commands-lifecycle-end-to-end`. When any is selected, the runner prepares one
 clean immutable checkout template, prunes ignored checkout-only content, and
 copies that template into each scenario's private mutable root.

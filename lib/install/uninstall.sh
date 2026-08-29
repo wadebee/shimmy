@@ -2,7 +2,6 @@
 # Canonical inactive-profile deletion and installation-wide uninstall.
 
 SHIMMY_UNINSTALL_ERROR=
-SHIMMY_UNINSTALL_PROJECTION_BACKUP=
 SHIMMY_UNINSTALL_JOURNAL_PATH=
 
 shimmy_uninstall_csv_validate() {
@@ -547,7 +546,7 @@ shimmy_profile_owned_assets_remove() {
   shimmy_profile_state_paths_resolve "$shimmy_profile_owned_remove_config" \
     "$shimmy_profile_owned_remove_name" || return 1
   for shimmy_profile_owned_remove_entry in ai-skills bin commands config lib tools \
-    engine-binding.conf install-manifest.txt machine-projection.txt registries.conf shell-init.sh; do
+    engine-binding.conf install-manifest.txt registries.conf shell-init.sh; do
     shimmy_profile_owned_remove_path=$SHIMMY_PROFILE_ROOT/$shimmy_profile_owned_remove_entry
     if [ -d "$shimmy_profile_owned_remove_path" ] && [ ! -L "$shimmy_profile_owned_remove_path" ]; then
       rm -rf "$shimmy_profile_owned_remove_path" || return 1
@@ -572,7 +571,7 @@ shimmy_profile_owned_root_validate() {
       ai-skills|bin|commands|config|lib|tools)
         [ -d "$shimmy_profile_owned_entry" ] && [ ! -L "$shimmy_profile_owned_entry" ] || return 1
         ;;
-      engine-binding.conf|install-manifest.txt|machine-projection.txt|registries.conf|shell-init.sh)
+      engine-binding.conf|install-manifest.txt|registries.conf|shell-init.sh)
         [ -f "$shimmy_profile_owned_entry" ] && [ ! -L "$shimmy_profile_owned_entry" ] || return 1
         ;;
       .profile.lock|.registries.lock)
@@ -593,111 +592,21 @@ shimmy_profile_projection_cleanup() {
   shimmy_profile_projection_stop=$3
   shimmy_profile_projection_strict_stop=${4:-1}
   shimmy_profile_projection_dry=${5:-0}
-  case "$shimmy_profile_projection_dry" in 0|1) ;; *) return 1 ;; esac
+  case "$shimmy_profile_projection_stop:$shimmy_profile_projection_strict_stop:$shimmy_profile_projection_dry" in
+    [01]:[01]:[01]) ;;
+    *) return 1 ;;
+  esac
   shimmy_profile_engine_context_resolve "$shimmy_profile_projection_config" \
     "$shimmy_profile_projection_name" || return 1
   shimmy_profile_activation_expected_resolve || return 1
-  shimmy_profile_activation_host_os_resolve
-  if [ "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-}" = shared ]; then
-    [ "$shimmy_profile_projection_stop" -eq 0 ] || {
-      SHIMMY_UNINSTALL_ERROR='--stop-running is not valid when deleting a profile bound to the shared engine'
+  [ "$shimmy_profile_projection_stop" -eq 0 ] ||
+    [ "$shimmy_profile_projection_strict_stop" -eq 0 ] || {
+      SHIMMY_UNINSTALL_ERROR='--stop-running cannot authorize changes to a preserved engine'
       return 1
     }
-    return 0
-  fi
-  case "$SHIMMY_PROFILE_HOST_OS" in
-    linux)
-      [ "$shimmy_profile_projection_stop" -eq 0 ] ||
-        [ "$shimmy_profile_projection_strict_stop" -eq 0 ] || {
-        SHIMMY_UNINSTALL_ERROR='--stop-running is not supported for local Linux profile deletion'
-        return 1
-      }
-      shimmy_registries_active_link_state_read
-      case "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" in absent|sibling) return 0 ;; *) return 1 ;; esac
-      ;;
-    darwin) ;;
-    *) SHIMMY_UNINSTALL_ERROR="unsupported host operating system for profile deletion: $SHIMMY_PROFILE_HOST_OS"; return 1 ;;
-  esac
-  shimmy_registries_machine_projection_record_read
-  case "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" in
-    absent)
-      [ "$shimmy_profile_projection_stop" -eq 0 ] ||
-        [ "$shimmy_profile_projection_strict_stop" -eq 0 ] || return 1
-      [ "$shimmy_profile_projection_dry" -eq 0 ] ||
-        printf 'projection_cleanup=%s|none|machine-projection-absent\n' \
-          "$shimmy_profile_projection_name"
-      return 0
-      ;;
-    valid) ;;
-    *) return 1 ;;
-  esac
-  shimmy_profile_state_darwin_read
-  case "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" in
-    missing)
-      [ "$shimmy_profile_projection_stop" -eq 0 ] ||
-        [ "$shimmy_profile_projection_strict_stop" -eq 0 ] || return 1
-      if [ "$shimmy_profile_projection_dry" -eq 1 ]; then
-        printf 'projection_cleanup=%s|record-only|machine-missing\n' \
-          "$shimmy_profile_projection_name"
-        return 0
-      fi
-      shimmy_registries_machine_projection_detach_prepare || return 1
-      SHIMMY_UNINSTALL_PROJECTION_BACKUP=$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$
-      shimmy_registries_machine_projection_detach_record_remove \
-        "$SHIMMY_UNINSTALL_PROJECTION_BACKUP" || return 1
-      shimmy_registries_machine_projection_detach_finalize \
-        "$SHIMMY_UNINSTALL_PROJECTION_BACKUP" || return 1
-      SHIMMY_UNINSTALL_PROJECTION_BACKUP=
-      return 0
-      ;;
-    running|stopped) ;;
-    *) return 1 ;;
-  esac
-  [ "$SHIMMY_PROFILE_CONNECTION_METADATA" = valid ] &&
-    [ "$SHIMMY_PROFILE_EXPECTED_CONNECTION_STATE" = rootless ] || return 1
-  shimmy_profile_projection_stop_planned=0
-  [ "$SHIMMY_PROFILE_RUNNING_MACHINE" = none ] ||
-    shimmy_profile_projection_stop_planned=1
-  if [ "$shimmy_profile_projection_stop_planned" -eq 1 ]; then
-    [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" != unknown ] || return 1
-    shimmy_profile_workloads_print
-    if [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" -gt 0 ] &&
-      [ "$shimmy_profile_projection_stop" -eq 0 ]; then
-      SHIMMY_UNINSTALL_ERROR='running containers block profile deletion; retry with explicit --stop-running acknowledgement'
-      return 1
-    fi
-  elif [ "$shimmy_profile_projection_stop" -eq 1 ] &&
-    [ "$shimmy_profile_projection_strict_stop" -eq 1 ]; then
-    SHIMMY_UNINSTALL_ERROR='--stop-running is valid only when profile deletion must stop a running machine'
-    return 1
-  fi
   if [ "$shimmy_profile_projection_dry" -eq 1 ]; then
-    printf 'projection_cleanup=%s|detach|machine-%s\n' \
-      "$shimmy_profile_projection_name" "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE"
-    return 0
-  fi
-  shimmy_registries_machine_projection_detach_prepare || return 1
-  shimmy_profile_cleanup_transaction_begin "$SHIMMY_PROFILE_RUNNING_MACHINE" \
-    "$SHIMMY_PROFILE_DEFAULT_CONNECTION" || return 1
-  shimmy_profile_projection_was_running=0
-  [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" != running ] ||
-    shimmy_profile_projection_was_running=1
-  shimmy_profile_cleanup_machine_switch "$SHIMMY_PROFILE_EXPECTED_MACHINE" || return 1
-  shimmy_profile_cleanup_engine_validate "$SHIMMY_PROFILE_EXPECTED_CONNECTION" || return 1
-  shimmy_registries_machine_projection_detach_remote || return 1
-  if [ "$shimmy_profile_projection_was_running" -eq 1 ]; then
-    shimmy_profile_cleanup_machine_restart "$SHIMMY_PROFILE_EXPECTED_MACHINE" || return 1
-  fi
-  shimmy_profile_cleanup_restore || return 1
-  SHIMMY_UNINSTALL_PROJECTION_BACKUP=$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$
-  shimmy_registries_machine_projection_detach_record_remove \
-    "$SHIMMY_UNINSTALL_PROJECTION_BACKUP" || return 1
-  shimmy_registries_machine_projection_detach_finalize \
-    "$SHIMMY_UNINSTALL_PROJECTION_BACKUP" || return 1
-  SHIMMY_UNINSTALL_PROJECTION_BACKUP=
-  if [ "$shimmy_profile_projection_stop" -eq 1 ] &&
-    [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" -gt 0 ]; then
-    printf '%s\n' 'WARNING: acknowledged workloads were interrupted; verify that they resumed as intended.' >&2
+    printf 'projection_cleanup=%s|none|engine-state-preserved\n' \
+      "$shimmy_profile_projection_name"
   fi
 }
 

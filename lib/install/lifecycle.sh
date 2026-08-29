@@ -365,11 +365,8 @@ shimmy_profile_create_run() {
   shimmy_profile_installation_context_resolve "$shimmy_profile_create_config" || return 1
   shimmy_profile_create_prior_active=$SHIMMY_PROFILE_ACTIVE_NAME
   shimmy_profile_create_user_root=$SHIMMY_PROFILE_USER_SKILL_ROOT
-  shimmy_engine_installation_schema_state_read "$shimmy_profile_create_config" ||
+  shimmy_engine_installation_validate "$shimmy_profile_create_config" ||
     shimmy_profile_lifecycle_error_set 'invalid or partially published engine registry state' || return 1
-  [ "$SHIMMY_ENGINE_INSTALLATION_SCHEMA_STATE" = migrated ] ||
-    shimmy_profile_lifecycle_error_set \
-      'profile creation requires engine migration; run shimmy admin engine migrate --dry-run, then shimmy admin engine migrate' || return 1
   shimmy_profile_active_engine_validate "$shimmy_profile_create_config" \
     "$shimmy_profile_create_prior_active" || return 1
   shimmy_profile_state_paths_resolve "$shimmy_profile_create_config" "$shimmy_profile_create_name" || return 1
@@ -501,10 +498,9 @@ shimmy_profile_clone_run() {
   shimmy_profile_installation_context_resolve "$shimmy_profile_clone_config" || return 1
   shimmy_profile_clone_prior_active=$SHIMMY_PROFILE_ACTIVE_NAME
   shimmy_profile_clone_user_root=$SHIMMY_PROFILE_USER_SKILL_ROOT
-  shimmy_engine_installation_schema_state_read "$shimmy_profile_clone_config" || return 1
-  [ "$SHIMMY_ENGINE_INSTALLATION_SCHEMA_STATE" = migrated ] ||
+  shimmy_engine_installation_validate "$shimmy_profile_clone_config" ||
     shimmy_profile_lifecycle_error_set \
-      'profile clone requires a completely migrated engine registry' || return 1
+      'profile clone requires a complete engine registry' || return 1
   shimmy_profile_active_engine_validate "$shimmy_profile_clone_config" \
     "$shimmy_profile_clone_prior_active" || return 1
   shimmy_profile_candidate_resolve "$shimmy_profile_clone_config" \
@@ -531,7 +527,7 @@ shimmy_profile_clone_run() {
     default)
       case "$shimmy_profile_clone_source_mode" in
         shared) shimmy_profile_clone_mode=shared ;;
-        isolated|legacy-isolated) shimmy_profile_clone_mode=isolated ;;
+        isolated) shimmy_profile_clone_mode=isolated ;;
         *) return 1 ;;
       esac
       ;;
@@ -745,7 +741,7 @@ shimmy_profile_new_root_remove() {
   shimmy_profile_new_root_name=$(basename -- "$SHIMMY_PROFILE_LIFECYCLE_NEW_ROOT")
   shimmy_name_component_validate "$shimmy_profile_new_root_name" || return 1
   for shimmy_profile_new_root_entry in ai-skills bin commands config lib tools \
-    engine-binding.conf install-manifest.txt machine-projection.txt registries.conf shell-init.sh; do
+    engine-binding.conf install-manifest.txt registries.conf shell-init.sh; do
     shimmy_profile_new_root_path=$SHIMMY_PROFILE_LIFECYCLE_NEW_ROOT/$shimmy_profile_new_root_entry
     if [ -d "$shimmy_profile_new_root_path" ] && [ ! -L "$shimmy_profile_new_root_path" ]; then
       rm -rf "$shimmy_profile_new_root_path"

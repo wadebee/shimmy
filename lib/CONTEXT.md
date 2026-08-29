@@ -5,8 +5,8 @@ do not add tool-specific behavior here.
 
 `profile/profile.sh` is the canonical XDG path resolver. It maps an absolute
 `XDG_CONFIG_HOME`, or the `$HOME/.config` fallback, to independent arbitrary-
-name profiles below `shimmy/profiles/<profile>`, validates schema-2 runtime
-identity, and supplies the legacy mapping used by the engine dual-read bridge.
+name profiles below `shimmy/profiles/<profile>` and validates schema runtime
+identity.
 
 ## Child contexts
 

@@ -99,7 +99,7 @@ recovery; agents do not treat the retained name as ownership evidence.
 Sourcing selects PATH; separate agent tool calls do not retain that sourcing.
 
 Global uninstall removes completely proven owned macOS machines by default and
-preserves legacy, external, ambiguous, and Linux host-local engines. Require a
+preserves external, ambiguous, and Linux host-local engines. Require a
 dry run and disclose permanent loss of containers, images, volumes, build
 caches, and all other VM-local data. Partial deletion uses forward recovery;
 never claim rollback of a removed VM.

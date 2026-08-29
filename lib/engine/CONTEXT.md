@@ -1,8 +1,8 @@
 # Engine lifecycle
 
-Engine modules define the published schema-1 registry for shared and
-profile-isolated Podman engines. Schema-2 profiles without bindings retain their
-legacy mapping until explicit installation-wide migration.
+Engine modules define the published schema registry for shared and
+profile-isolated Podman engines. Every supported profile requires one strict
+binding to one valid engine record.
 
 - `state.sh` owns strict engine, binding, projection, and lifecycle records plus
   canonical engine paths.
@@ -13,9 +13,9 @@ legacy mapping until explicit installation-wide migration.
 - `lifecycle.sh` owns journal-first machine creation and removal primitives.
 - `projection.sh` owns atomic engine registry projection, effective-policy
   fingerprints, service recycling, validation, and compensated rollback.
-- `registry.sh` owns dual-read compatibility, status, explicit migration,
-  shared/host-local publication, fresh shared- and isolated-machine creation,
-  isolated-create compensation, and projection freshness planning.
+- `registry.sh` owns status, shared/host-local publication, fresh shared- and
+  isolated-machine creation, isolated-create compensation, and projection
+  freshness planning.
 
 Machine names and bindings are routing information, not ownership evidence.
 Missing or mismatched current evidence always preserves a machine. Only

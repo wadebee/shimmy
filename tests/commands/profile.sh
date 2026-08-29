@@ -16,6 +16,8 @@ test_profile_named_create() {
   shimmy_ai_skill_shims_bundle_materialize "$test_profile_create_root/config/shim-bundle-input.conf" \
     "$TEST_SHIM_PINNED_ROOT" "$test_profile_create_root/ai-skills/shims" || fail_test 'unable to create named shims bundle fixture'
   shimmy_registries_config_render "$test_profile_create_name" '' > "$test_profile_create_root/registries.conf"
+  shimmy_engine_binding_render "$test_profile_create_name" shared shared \
+    > "$test_profile_create_root/engine-binding.conf"
   shimmy_profile_launcher_render "$TEST_SHIM_CONFIG" "$test_profile_create_name" > "$test_profile_create_root/bin/shimmy"
   shimmy_profile_shell_init_render "$TEST_SHIM_CONFIG" "$test_profile_create_name" > "$test_profile_create_root/shell-init.sh"
   chmod 0755 "$test_profile_create_root/bin/shimmy"
@@ -58,7 +60,6 @@ test_profile_state_reset_default() {
 $TEST_SHIM_CONTROL_NAMES
 shimmy-tool-stale
 EOF
-  rm -f "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt" "$TEST_PROFILE_TEAM_ROOT/machine-projection.txt"
   : > "$TEST_PROFILE_PODMAN_LOG"
 }
 
@@ -163,105 +164,6 @@ test_commands_profile_linux_recorded_active_recovery() {
   pass 'Linux recorded-active recovery restores its exact managed registry link through ordinary activation'
 }
 
-test_commands_profile_darwin_recorded_active_recovery() {
-  test_profile_state_reset_default
-  TEST_PROFILE_OS=Darwin
-  TEST_PROFILE_MACHINE_LIST='shimmy-default|false'
-  TEST_PROFILE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
-other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
-  TEST_PROFILE_PRIOR_MACHINE=
-  TEST_PROFILE_TARGET_MACHINE=shimmy-default
-  TEST_PROFILE_PRIOR_DEFAULT=other
-  TEST_PROFILE_WORKLOADS=
-  TEST_PROFILE_PROJECTION_STATE=absent
-  TEST_PROFILE_FAIL_ACTION=
-  TEST_PROFILE_ROLLBACK_FAIL=
-
-  test_profile_active_before=$(cksum < "$TEST_SHIM_CONFIG/active-profile.conf")
-  test_profile_dry_run=$(test_profile_run default activate default --dry-run)
-  assert_contains "$test_profile_dry_run" 'would_start=shimmy-default'
-  assert_contains "$test_profile_dry_run" 'would_project=/etc/containers/registries.conf.d/shimmy-profile.conf'
-  assert_contains "$test_profile_dry_run" "would_record=$TEST_SHIM_PROFILE_ROOT/machine-projection.txt"
-  assert_contains "$test_profile_dry_run" 'would_set_default_connection=shimmy-default'
-  assert_contains "$test_profile_dry_run" 'would_activate_profile=default'
-  test_profile_dry_run_log=$(cat "$TEST_PROFILE_PODMAN_LOG")
-  assert_not_contains "$test_profile_dry_run_log" 'machine stop '
-  assert_not_contains "$test_profile_dry_run_log" 'machine start '
-  assert_not_contains "$test_profile_dry_run_log" 'system connection default '
-  assert_not_contains "$test_profile_dry_run_log" ' /bin/sh -s -- apply '
-  assert_equals "$(cksum < "$TEST_SHIM_CONFIG/active-profile.conf")" "$test_profile_active_before"
-  assert_path_not_exists "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt"
-  assert_path_not_exists "$SCENARIO_DIR/home/.agents/skills/$TEST_SHIM_CONTROL_NAME"
-
-  : > "$TEST_PROFILE_PODMAN_LOG"
-  test_profile_recovery=$(test_profile_run default activate default)
-  assert_contains "$test_profile_recovery" 'Activated Shimmy profile default.'
-  test_profile_recovery_log=$(cat "$TEST_PROFILE_PODMAN_LOG")
-  assert_contains "$test_profile_recovery_log" 'machine start shimmy-default'
-  assert_contains "$test_profile_recovery_log" 'system connection default shimmy-default'
-  test_profile_start_line=$(sed -n '/^machine start shimmy-default$/=' "$TEST_PROFILE_PODMAN_LOG")
-  test_profile_projection_line=$(sed -n '/^machine ssh shimmy-default \/bin\/sh -s -- projection /=' "$TEST_PROFILE_PODMAN_LOG" | tail -n 1)
-  test_profile_validate_line=$(sed -n '/^--connection shimmy-default info /=' "$TEST_PROFILE_PODMAN_LOG" | tail -n 1)
-  test_profile_default_line=$(sed -n '/^system connection default shimmy-default$/=' "$TEST_PROFILE_PODMAN_LOG")
-  [ "$test_profile_start_line" -lt "$test_profile_projection_line" ] &&
-    [ "$test_profile_projection_line" -lt "$test_profile_validate_line" ] &&
-    [ "$test_profile_validate_line" -lt "$test_profile_default_line" ] ||
-    fail_test 'same-profile stopped recovery ordering is invalid'
-  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TEST_SHIM_CONFIG/active-profile.conf")" default
-  assert_regular_file_not_symlink "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt"
-  shimmy_registries_machine_projection_record_validate \
-    "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt" default ||
-    fail_test 'same-profile stopped recovery did not record registry projection ownership'
-  assert_equals "$(readlink "$SCENARIO_DIR/home/.agents/skills/$TEST_SHIM_CONTROL_NAME")" \
-    "$TEST_SHIM_PROFILE_ROOT/ai-skills/control/skills/$TEST_SHIM_CONTROL_NAME"
-
-  test_profile_state_reset_default
-  TEST_PROFILE_FAIL_ACTION=test_validation
-  test_profile_active_before=$(cksum < "$TEST_SHIM_CONFIG/active-profile.conf")
-  set +e
-  test_profile_validation_failure=$(test_profile_run default activate default 2>&1)
-  test_profile_validation_failure_status=$?
-  set -e
-  [ "$test_profile_validation_failure_status" -ne 0 ] ||
-    fail_test 'same-profile post-start validation failure unexpectedly succeeded'
-  assert_contains "$test_profile_validation_failure" 'Rollback: target cleanup succeeded for shimmy-default'
-  assert_contains "$(cat "$TEST_PROFILE_PODMAN_LOG")" 'machine start shimmy-default'
-  assert_contains "$(cat "$TEST_PROFILE_PODMAN_LOG")" 'machine stop shimmy-default'
-  assert_equals "$(cksum < "$TEST_SHIM_CONFIG/active-profile.conf")" "$test_profile_active_before"
-  assert_path_not_exists "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt"
-  assert_path_not_exists "$SCENARIO_DIR/home/.agents/skills/$TEST_SHIM_CONTROL_NAME"
-
-  test_profile_state_reset_default
-  TEST_PROFILE_MACHINE_LIST='shimmy-default|true'
-  TEST_PROFILE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
-  TEST_PROFILE_PRIOR_MACHINE=shimmy-default
-  TEST_PROFILE_PRIOR_DEFAULT=shimmy-default
-  TEST_PROFILE_PROJECTION_STATE=current
-  TEST_PROFILE_FAIL_ACTION=
-  SHIMMY_CONFIG_ROOT=$TEST_SHIM_CONFIG \
-    shimmy_registries_machine_projection_record_render default 0-0 \
-      > "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt"
-  chmod 0644 "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt"
-  set +e
-  test_profile_restart_required=$(test_profile_run default activate default 2>&1)
-  test_profile_restart_required_status=$?
-  set -e
-  [ "$test_profile_restart_required_status" -ne 0 ] ||
-    fail_test 'stale same-profile registry projection unexpectedly passed ordinary activation'
-  assert_contains "$test_profile_restart_required" \
-    "'$TEST_SHIM_PROFILE_ROOT/bin/shimmy' profile activate default --restart"
-  assert_not_contains "$(cat "$TEST_PROFILE_PODMAN_LOG")" 'machine stop shimmy-default'
-
-  : > "$TEST_PROFILE_PODMAN_LOG"
-  test_profile_run default activate default --restart >/dev/null
-  assert_contains "$(cat "$TEST_PROFILE_PODMAN_LOG")" 'machine stop shimmy-default'
-  assert_contains "$(cat "$TEST_PROFILE_PODMAN_LOG")" 'machine start shimmy-default'
-  shimmy_registries_machine_projection_record_validate \
-    "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt" default ||
-    fail_test 'same-profile restart did not refresh registry projection ownership'
-  pass 'Darwin recorded-active recovery plans without mutation, starts and validates in order, rolls back failed starts, and retains explicit stale-projection restart'
-}
-
 test_commands_profile_bundle_policy() {
   test_profile_state_reset_default
   test_profile_control_bundle=$TEST_PROFILE_TEAM_ROOT/ai-skills/control/bundle.conf
@@ -289,62 +191,6 @@ test_commands_profile_bundle_policy() {
   assert_path_not_exists "$SCENARIO_DIR/home/.agents/skills/shimmy-tool-stale"
   assert_path_symlink "$SCENARIO_DIR/home/.agents/skills/$TEST_SHIM_CONTROL_NAME"
   pass 'malformed supported bundles block before engine mutation while unsupported bundles warn, skip, and clean prior-kind links'
-}
-
-test_commands_profile_darwin_activation() {
-  test_profile_state_reset_default
-  TEST_PROFILE_OS=Darwin
-  TEST_PROFILE_MACHINE_LIST='shimmy-default|true
-shimmy-team-one|false'
-  TEST_PROFILE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true
-shimmy-team-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false'
-  TEST_PROFILE_PRIOR_MACHINE=shimmy-default
-  TEST_PROFILE_TARGET_MACHINE=shimmy-team-one
-  TEST_PROFILE_PRIOR_DEFAULT=shimmy-default
-  test_profile_default_fingerprint=$(shimmy_registries_config_fingerprint_render "$TEST_SHIM_PROFILE_ROOT/registries.conf")
-  SHIMMY_CONFIG_ROOT=$TEST_SHIM_CONFIG \
-  shimmy_registries_machine_projection_record_render default "$test_profile_default_fingerprint" \
-      > "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt"
-  chmod 0644 "$TEST_SHIM_PROFILE_ROOT/machine-projection.txt"
-
-  TEST_PROFILE_WORKLOADS='abc123|important'
-  set +e
-  test_profile_guard=$(test_profile_run default activate team-one 2>&1)
-  test_profile_guard_status=$?
-  set -e
-  [ "$test_profile_guard_status" -ne 0 ] || fail_test 'unacknowledged profile workload switch succeeded'
-  assert_contains "$test_profile_guard" 'abc123|important'
-  assert_not_contains "$(cat "$TEST_PROFILE_PODMAN_LOG")" 'machine stop shimmy-default'
-  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TEST_SHIM_CONFIG/active-profile.conf")" default
-
-  : > "$TEST_PROFILE_PODMAN_LOG"
-  test_profile_run default activate team-one --stop-running >/dev/null
-  test_profile_darwin_log=$(cat "$TEST_PROFILE_PODMAN_LOG")
-  assert_contains "$test_profile_darwin_log" 'machine stop shimmy-default'
-  assert_contains "$test_profile_darwin_log" 'machine start shimmy-team-one'
-  assert_contains "$test_profile_darwin_log" 'system connection default shimmy-team-one'
-  test_profile_darwin_projection_line=$(sed -n '/^machine ssh shimmy-team-one \/bin\/sh -s -- projection /=' "$TEST_PROFILE_PODMAN_LOG" | tail -n 1)
-  test_profile_darwin_validate_line=$(sed -n '/^--connection shimmy-team-one info /=' "$TEST_PROFILE_PODMAN_LOG" | tail -n 1)
-  test_profile_darwin_default_line=$(sed -n '/^system connection default shimmy-team-one$/=' "$TEST_PROFILE_PODMAN_LOG")
-  [ "$test_profile_darwin_projection_line" -lt "$test_profile_darwin_validate_line" ] &&
-    [ "$test_profile_darwin_validate_line" -lt "$test_profile_darwin_default_line" ] ||
-    fail_test 'Darwin profile activation ordering is invalid'
-  assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TEST_SHIM_CONFIG/active-profile.conf")" team-one
-  assert_regular_file_not_symlink "$TEST_PROFILE_TEAM_ROOT/machine-projection.txt"
-
-  : > "$TEST_PROFILE_PODMAN_LOG"
-  TEST_PROFILE_MACHINE_LIST='shimmy-default|false
-shimmy-team-one|true'
-  TEST_PROFILE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|false
-shimmy-team-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
-  TEST_PROFILE_PRIOR_MACHINE=shimmy-team-one
-  TEST_PROFILE_TARGET_MACHINE=shimmy-team-one
-  TEST_PROFILE_PRIOR_DEFAULT=shimmy-team-one
-  TEST_PROFILE_WORKLOADS=
-  test_profile_run team-one activate team-one --restart >/dev/null
-  assert_contains "$(cat "$TEST_PROFILE_PODMAN_LOG")" 'machine stop shimmy-team-one'
-  assert_contains "$(cat "$TEST_PROFILE_PODMAN_LOG")" 'machine start shimmy-team-one'
-  pass 'Darwin arbitrary-profile activation guards workloads and preserves ordinary, restart, projection, validation, and connection ordering'
 }
 
 test_commands_profile_shell_selection() {
@@ -404,7 +250,5 @@ test_commands_profile_run() {
   test_commands_profile_linux_activation_and_rollback
   test_commands_profile_linux_recorded_active_recovery
   test_commands_profile_bundle_policy
-  test_commands_profile_darwin_recorded_active_recovery
-  test_commands_profile_darwin_activation
   test_commands_profile_shell_selection
 }

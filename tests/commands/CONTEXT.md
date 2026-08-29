@@ -15,11 +15,11 @@
 - `surface.sh` proves complete root/group/subgroup/action help before state
   validation, independently verifies status and streams for bare launcher help
   nodes versus `--help`, and validates exact rendered launcher bytes.
-- `lifecycle.sh` owns five independently scheduled, internally indivisible
+- `lifecycle.sh` owns four independently scheduled, internally indivisible
   public acceptance scenarios: shared-engine bootstrap/collision; owned
   isolated create/delete retry, true clone, and cross-engine activation;
-  explicit migration/rollback; journaled global owned-engine uninstall/retry;
-  and end-to-end jq/rg/Skopeo, catalog/shim/profile/skill/network/startup,
+  journaled global owned-engine uninstall/retry; and end-to-end default toolset,
+  catalog/shim/profile/skill/network/startup,
   sibling isolation, sync/rollback, administration, deletion, uninstall,
   unrelated-skill preservation, and failed-bootstrap cleanup. They copy one
   immutable session template into private Git checkouts and use only generated

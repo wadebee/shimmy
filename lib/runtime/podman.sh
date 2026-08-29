@@ -79,9 +79,6 @@ shimmy_podman_profile_affinity_fail() {
 
   printf 'ERROR: installed Shimmy profile %s cannot run against the current Darwin Podman engine: %s.\n' "$affinity_profile" "$affinity_reason" >&2
   case "${SHIMMY_PROFILE_RECOMMENDED_ACTION:-investigate}" in
-    podman_machine_init)
-      printf 'Create the required engine with: %s\n' "$SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND" >&2
-      ;;
     profile_activate)
       printf 'Activate it with: %s\n' "$SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND" >&2
       ;;
@@ -112,7 +109,7 @@ shimmy_podman_profile_affinity_reason_resolve() {
       SHIMMY_PODMAN_PROFILE_AFFINITY_REASON='expected same-name rootless connection or machine metadata is invalid'
       ;;
     invalid_registry)
-      SHIMMY_PODMAN_PROFILE_AFFINITY_REASON="registry projection is ${SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE:-invalid}"
+      SHIMMY_PODMAN_PROFILE_AFFINITY_REASON='registry activation state is invalid'
       ;;
     mismatched_default)
       SHIMMY_PODMAN_PROFILE_AFFINITY_REASON="global default connection is not $SHIMMY_PROFILE_EXPECTED_CONNECTION"
@@ -124,8 +121,8 @@ shimmy_podman_profile_affinity_reason_resolve() {
         SHIMMY_PODMAN_PROFILE_AFFINITY_REASON="$SHIMMY_REGISTRIES_OVERRIDE masks the active registry projection (value hidden)"
       fi
       ;;
-    registry_restart_required)
-      SHIMMY_PODMAN_PROFILE_AFFINITY_REASON="registry projection is ${SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE:-restart-required}"
+    registry_policy_stale)
+      SHIMMY_PODMAN_PROFILE_AFFINITY_REASON='engine registry projection is stale'
       ;;
     stopped)
       SHIMMY_PODMAN_PROFILE_AFFINITY_REASON="Podman machine is stopped: $SHIMMY_PROFILE_EXPECTED_MACHINE"
@@ -208,18 +205,15 @@ shimmy_podman_profile_affinity_require() {
   . "$runtime_profile_root/lib/profile/state.sh"
   . "$runtime_profile_root/lib/profile/activation.sh"
   . "$runtime_profile_root/lib/registries/registries.sh"
-  if [ -e "$runtime_profile_root/engine-binding.conf" ] ||
-    [ -L "$runtime_profile_root/engine-binding.conf" ]; then
-    for affinity_engine_helper in state podman ownership projection registry; do
-      affinity_engine_path=$runtime_profile_root/lib/engine/$affinity_engine_helper.sh
-      [ -f "$affinity_engine_path" ] && [ ! -L "$affinity_engine_path" ] || {
-        shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" \
-          'published engine binding is missing its engine helpers'
-        return 1
-      }
-      . "$affinity_engine_path"
-    done
-  fi
+  for affinity_engine_helper in state podman ownership projection registry; do
+    affinity_engine_path=$runtime_profile_root/lib/engine/$affinity_engine_helper.sh
+    [ -f "$affinity_engine_path" ] && [ ! -L "$affinity_engine_path" ] || {
+      shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" \
+        'profile engine binding is missing its engine helpers'
+      return 1
+    }
+    . "$affinity_engine_path"
+  done
   shimmy_profile_paths_resolve_name "$runtime_profile" || {
     shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'profile engine paths are invalid'
     return 1

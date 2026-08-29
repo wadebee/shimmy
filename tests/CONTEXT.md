@@ -3,10 +3,10 @@
 `tests/test.sh` is a source-checkout-only runner. It validates the current
 catalog before creating one private session root, detects copy-on-write support,
 then runs named groups with one to three bounded workers. There is no installed-
-profile test mode or session-wide legacy profile fixture.
+profile test mode or session-wide compatibility profile fixture.
 
 The runner registry contains promoted canonical library/command groups followed
-by tool groups. Five independently scheduled lifecycle scenario groups preserve
+by tool groups. Independently scheduled lifecycle scenario groups preserve
 their internal transitions as indivisible units. Group logs replay in registry
 order and exact count/status/worker artifacts fail closed. Timing-enabled runs
 also retain canonical setup/group START evidence and elapsed setup/group/total

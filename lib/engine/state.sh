@@ -1,5 +1,5 @@
 #!/bin/sh
-# Strict schema-1 engine state and schema-2 compatibility resolution.
+# Strict schema-1 engine and profile-binding state.
 
 shimmy_engine_id_validate() {
   shimmy_engine_id_value=${1:-}
@@ -60,7 +60,7 @@ shimmy_engine_binding_render() {
   shimmy_engine_id_validate "$shimmy_engine_binding_id" || return 1
   case "$shimmy_engine_binding_mode|$shimmy_engine_binding_id" in
     shared\|shared) ;;
-    isolated\|profile-"$shimmy_engine_binding_profile"|legacy-isolated\|profile-"$shimmy_engine_binding_profile") ;;
+    isolated\|profile-"$shimmy_engine_binding_profile") ;;
     *) return 1 ;;
   esac
   printf '%s\n' 'shimmy_engine_binding_version=1'
@@ -106,7 +106,7 @@ shimmy_engine_record_render() {
     darwin-machine\|installation\|shimmy-created)
       [ "$shimmy_engine_record_id" = shared ] || return 1
       ;;
-    darwin-machine\|profile\|shimmy-created|darwin-machine\|profile\|legacy-external)
+    darwin-machine\|profile\|shimmy-created|darwin-machine\|profile\|external)
       case "$shimmy_engine_record_id" in profile-*) ;; *) return 1 ;; esac
       ;;
     linux-rootless\|installation\|host-local)
@@ -129,11 +129,10 @@ shimmy_engine_record_render() {
           shimmy_engine_token_validate "$shimmy_engine_record_token" || return 1
           shimmy_sha256_fingerprint_validate "$shimmy_engine_record_identity" || return 1
           ;;
-        legacy-external)
+        external)
           [ -z "$shimmy_engine_record_token" ] || return 1
-          if [ -n "$shimmy_engine_record_identity" ]; then
+          [ -z "$shimmy_engine_record_identity" ] ||
             shimmy_sha256_fingerprint_validate "$shimmy_engine_record_identity" || return 1
-          fi
           ;;
       esac
       ;;
@@ -359,30 +358,17 @@ shimmy_engine_profile_binding_resolve() {
   shimmy_name_component_validate "$shimmy_engine_binding_profile" || return 1
   shimmy_engine_binding_profile_root=$shimmy_engine_binding_config/profiles/$shimmy_engine_binding_profile
   SHIMMY_PROFILE_ENGINE_BINDING_PATH=$shimmy_engine_binding_profile_root/engine-binding.conf
-  SHIMMY_PROFILE_ENGINE_MIGRATION_STATE=unmigrated
-  SHIMMY_PROFILE_ENGINE_BINDING_MODE=unmigrated
-  SHIMMY_PROFILE_ENGINE_ID=profile-$shimmy_engine_binding_profile
-  SHIMMY_PROFILE_ENGINE_KIND=darwin-machine
-  SHIMMY_PROFILE_ENGINE_ORIGIN=legacy-external
-  SHIMMY_PROFILE_EXPECTED_MACHINE=shimmy-$shimmy_engine_binding_profile
-  SHIMMY_PROFILE_EXPECTED_CONNECTION=$SHIMMY_PROFILE_EXPECTED_MACHINE
-  SHIMMY_PROFILE_ENGINE_RECORD_PATH=
-
-  if [ ! -e "$SHIMMY_PROFILE_ENGINE_BINDING_PATH" ] &&
-    [ ! -L "$SHIMMY_PROFILE_ENGINE_BINDING_PATH" ]; then
-    # During migration, engine records are prepared before profile bindings.
-    # An unbound profile therefore remains on the schema-2 mapping until its
-    # binding is committed.
-    return 0
-  fi
-
   shimmy_engine_binding_read "$SHIMMY_PROFILE_ENGINE_BINDING_PATH" || return 1
   [ "$SHIMMY_ENGINE_BINDING_PROFILE" = "$shimmy_engine_binding_profile" ] || return 1
   shimmy_engine_paths_resolve "$shimmy_engine_binding_config" \
     "$SHIMMY_ENGINE_BINDING_ID" || return 1
   shimmy_engine_record_read "$SHIMMY_ENGINE_RECORD_PATH" || return 1
   [ "$SHIMMY_ENGINE_RECORD_ID" = "$SHIMMY_ENGINE_BINDING_ID" ] || return 1
-  SHIMMY_PROFILE_ENGINE_MIGRATION_STATE=migrated
+  case "$SHIMMY_ENGINE_BINDING_MODE|$SHIMMY_ENGINE_RECORD_KIND|$SHIMMY_ENGINE_RECORD_SCOPE|$SHIMMY_ENGINE_RECORD_ORIGIN" in
+    shared\|darwin-machine\|installation\|shimmy-created|shared\|linux-rootless\|installation\|host-local) ;;
+    isolated\|darwin-machine\|profile\|shimmy-created) ;;
+    *) return 1 ;;
+  esac
   SHIMMY_PROFILE_ENGINE_BINDING_MODE=$SHIMMY_ENGINE_BINDING_MODE
   SHIMMY_PROFILE_ENGINE_ID=$SHIMMY_ENGINE_BINDING_ID
   SHIMMY_PROFILE_ENGINE_KIND=$SHIMMY_ENGINE_RECORD_KIND
@@ -392,12 +378,10 @@ shimmy_engine_profile_binding_resolve() {
   SHIMMY_PROFILE_ENGINE_RECORD_PATH=$SHIMMY_ENGINE_RECORD_PATH
 }
 
-shimmy_engine_installation_schema_state_read() {
+shimmy_engine_installation_validate() {
   shimmy_engine_schema_config=$1
   shimmy_path_absolute_normalized_validate "$shimmy_engine_schema_config" || return 1
-  SHIMMY_ENGINE_INSTALLATION_SCHEMA_STATE=unmigrated
   SHIMMY_ENGINE_INSTALLATION_PROFILE_COUNT=0
-  SHIMMY_ENGINE_INSTALLATION_BOUND_PROFILE_COUNT=0
   [ -d "$shimmy_engine_schema_config/profiles" ] &&
     [ ! -L "$shimmy_engine_schema_config/profiles" ] || return 1
   for shimmy_engine_schema_profile_root in "$shimmy_engine_schema_config"/profiles/*; do
@@ -408,28 +392,10 @@ shimmy_engine_installation_schema_state_read() {
       [ -d "$shimmy_engine_schema_profile_root" ] &&
       [ ! -L "$shimmy_engine_schema_profile_root" ] || return 1
     SHIMMY_ENGINE_INSTALLATION_PROFILE_COUNT=$((SHIMMY_ENGINE_INSTALLATION_PROFILE_COUNT + 1))
-    if [ -e "$shimmy_engine_schema_profile_root/engine-binding.conf" ] ||
-      [ -L "$shimmy_engine_schema_profile_root/engine-binding.conf" ]; then
-      shimmy_engine_binding_read "$shimmy_engine_schema_profile_root/engine-binding.conf" || return 1
-      [ "$SHIMMY_ENGINE_BINDING_PROFILE" = "$shimmy_engine_schema_profile" ] || return 1
-      shimmy_engine_paths_resolve "$shimmy_engine_schema_config" \
-        "$SHIMMY_ENGINE_BINDING_ID" || return 1
-      shimmy_engine_record_read "$SHIMMY_ENGINE_RECORD_PATH" || return 1
-      [ "$SHIMMY_ENGINE_RECORD_ID" = "$SHIMMY_ENGINE_BINDING_ID" ] || return 1
-      SHIMMY_ENGINE_INSTALLATION_BOUND_PROFILE_COUNT=$((SHIMMY_ENGINE_INSTALLATION_BOUND_PROFILE_COUNT + 1))
-    fi
+    shimmy_engine_profile_binding_resolve "$shimmy_engine_schema_config" \
+      "$shimmy_engine_schema_profile" || return 1
   done
   [ "$SHIMMY_ENGINE_INSTALLATION_PROFILE_COUNT" -gt 0 ] || return 1
-  case "$SHIMMY_ENGINE_INSTALLATION_BOUND_PROFILE_COUNT" in
-    0)
-      [ ! -e "$shimmy_engine_schema_config/engines" ] &&
-        [ ! -L "$shimmy_engine_schema_config/engines" ] || return 1
-      ;;
-    "$SHIMMY_ENGINE_INSTALLATION_PROFILE_COUNT")
-      [ -d "$shimmy_engine_schema_config/engines" ] &&
-        [ ! -L "$shimmy_engine_schema_config/engines" ] || return 1
-      SHIMMY_ENGINE_INSTALLATION_SCHEMA_STATE=migrated
-      ;;
-    *) return 1 ;;
-  esac
+  [ -d "$shimmy_engine_schema_config/engines" ] &&
+    [ ! -L "$shimmy_engine_schema_config/engines" ]
 }

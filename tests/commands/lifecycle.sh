@@ -29,25 +29,6 @@ test_lifecycle_control_bundle_names_render() {
   sed -n '5,$s/^skill=\([^|]*\)|.*$/\1/p' "$test_lifecycle_control_bundle"
 }
 
-test_lifecycle_migration_command() {
-  env HOME="$TEST_LIFECYCLE_HOME" XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
-    SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
-    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
-    FAKE_MACHINE_LIST='shimmy-default|applehv|false' \
-    FAKE_CONNECTION_LIST='shimmy-default|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
-    FAKE_CREATED_MACHINE_STATE_FILE="$TEST_LIFECYCLE_CREATED_STATE" \
-    FAKE_CREATED_MACHINE_NAME=shimmy FAKE_SERVICE_PID_FILE="$TEST_LIFECYCLE_SERVICE_PID" \
-    FAKE_ENGINE_CONFIG_DIR="$SCENARIO_DIR/engine-config" \
-    FAKE_ENGINE_SOCKET_PATH="$SCENARIO_DIR/engine-socket" \
-    FAKE_ENGINE_IDENTITY_PATH="$SCENARIO_DIR/engine-identity" \
-    FAKE_ENGINE_PROJECTION_CONFIG="$TEST_LIFECYCLE_CONFIG/engines/shared/registries.conf" \
-    FAKE_WORKLOADS= FAKE_DARWIN_PROJECTION_STATE=absent \
-    FAKE_PRIOR_MACHINE=shimmy-default FAKE_TARGET_MACHINE=shimmy \
-    FAKE_PRIOR_DEFAULT=shimmy-default FAKE_FAIL_ACTION="${TEST_LIFECYCLE_FAIL_ACTION:-}" \
-    FAKE_ROLLBACK_FAIL="${TEST_LIFECYCLE_ROLLBACK_FAIL:-}" \
-    "$TEST_LIFECYCLE_CONFIG/profiles/default/bin/shimmy" admin engine "$@"
-}
-
 test_lifecycle_shared_profile_command() {
   env HOME="$TEST_LIFECYCLE_HOME" XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
     SHIMMY_TEST_PROFILE_OS=Darwin SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
@@ -109,7 +90,6 @@ test_lifecycle_checkout_template_required() {
   for test_lifecycle_group in \
     commands-lifecycle-bootstrap \
     commands-lifecycle-isolated \
-    commands-lifecycle-migration \
     commands-lifecycle-uninstall \
     commands-lifecycle-end-to-end
   do
@@ -592,75 +572,6 @@ shimmy-isolated-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
   pass 'owned isolated create stages before transition, prepares images on target, and deletion resumes after machine removal'
 }
 
-test_commands_lifecycle_explicit_migration() {
-  test_lifecycle_fixture_setup
-  env HOME="$TEST_LIFECYCLE_HOME" XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
-    SHIMMY_TEST_PROFILE_OS=Linux SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
-    SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_IMAGE_LOG" \
-    SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
-    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
-    FAKE_ACTIVE_LINK="$TEST_LIFECYCLE_ACTIVE_LINK" FAKE_LINUX_INFO=true\|false \
-    "$TEST_LIFECYCLE_CHECKOUT/commands/bootstrap.sh" --no-startup >/dev/null
-  rm -f "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf"
-  rm -rf "$TEST_LIFECYCLE_CONFIG/engines"
-  test_lifecycle_command default profile sync >/dev/null
-  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf"
-  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/engines"
-  assert_regular_file_not_symlink \
-    "$TEST_LIFECYCLE_CONFIG/profiles/default/lib/engine/registry.sh"
-  TEST_LIFECYCLE_CREATED_STATE=$SCENARIO_DIR/migration-created-state
-  TEST_LIFECYCLE_SERVICE_PID=$SCENARIO_DIR/migration-service-pid
-  printf '%s\n' absent > "$TEST_LIFECYCLE_CREATED_STATE"
-  printf '%s\n' 900 > "$TEST_LIFECYCLE_SERVICE_PID"
-
-  test_lifecycle_migration_dry=$(test_lifecycle_migration_command migrate --dry-run)
-  assert_contains "$test_lifecycle_migration_dry" 'profile_binding=default|legacy-isolated|profile-default|shimmy-default'
-  assert_contains "$test_lifecycle_migration_dry" 'shared_engine=shared|shimmy|would-create'
-  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/engines"
-  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine init '
-
-  TEST_LIFECYCLE_FAIL_ACTION=machine_start
-  set +e
-  test_lifecycle_migration_failure=$(test_lifecycle_migration_command migrate 2>&1)
-  test_lifecycle_migration_failure_status=$?
-  set -e
-  TEST_LIFECYCLE_FAIL_ACTION=
-  [ "$test_lifecycle_migration_failure_status" -ne 0 ] ||
-    fail_test 'injected migration failure unexpectedly succeeded'
-  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/engines"
-  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf"
-  assert_equals "$(cat "$TEST_LIFECYCLE_CREATED_STATE")" absent
-
-  TEST_LIFECYCLE_FAIL_ACTION=machine_start
-  TEST_LIFECYCLE_ROLLBACK_FAIL=machine_rm
-  set +e
-  test_lifecycle_migration_retained=$(test_lifecycle_migration_command migrate 2>&1)
-  test_lifecycle_migration_retained_status=$?
-  set -e
-  TEST_LIFECYCLE_FAIL_ACTION=
-  TEST_LIFECYCLE_ROLLBACK_FAIL=
-  [ "$test_lifecycle_migration_retained_status" -ne 0 ] ||
-    fail_test 'migration with an injected rollback failure unexpectedly succeeded'
-  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/.engine-migration.conf"
-  assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/lifecycle.conf"
-  assert_equals "$(cat "$TEST_LIFECYCLE_CREATED_STATE")" stopped
-
-  : > "$TEST_LIFECYCLE_PODMAN_LOG"
-  test_lifecycle_migration_output=$(test_lifecycle_migration_command migrate)
-  assert_contains "$test_lifecycle_migration_output" 'engine_schema_after=migrated'
-  assert_file_contains "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf" 'mode=legacy-isolated'
-  assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/profile-default/engine.conf" 'origin=legacy-external'
-  assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf" 'origin=shimmy-created'
-  assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf" 'name=shimmy'
-  test_lifecycle_migration_status_output=$(test_lifecycle_migration_command status --format manifest)
-  assert_contains "$test_lifecycle_migration_status_output" \
-    'shimmy_engine_profile=default|migrated|legacy-isolated|profile-default|shimmy-default|legacy-external|external|not-applicable'
-  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine stop shimmy-default'
-  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine start shimmy-default'
-  assert_not_contains "$(cat "$TEST_LIFECYCLE_PODMAN_LOG")" 'machine rm --force shimmy-default'
-  pass 'explicit migration is dry-run safe, preserves legacy machines, rolls back failure, and retries to a complete schema'
-}
-
 test_commands_lifecycle_global_owned_uninstall() {
   test_commands_lifecycle_darwin_bootstrap_case global-uninstall
 
@@ -700,7 +611,7 @@ test_commands_lifecycle_global_owned_uninstall() {
   test_lifecycle_external_root=$TEST_LIFECYCLE_CONFIG/engines/profile-external
   mkdir "$test_lifecycle_external_root"
   shimmy_engine_record_render profile-external darwin-machine profile \
-    external-machine external-machine applehv legacy-external '' '' \
+    external-machine external-machine applehv external '' '' \
     > "$test_lifecycle_external_root/engine.conf"
   chmod 0644 "$test_lifecycle_external_root/engine.conf"
   printf '%s\n' stopped > "$TEST_LIFECYCLE_MACHINE_STATE_DIR/external-machine"
@@ -857,8 +768,8 @@ test_commands_lifecycle_end_to_end() {
   assert_contains "$test_lifecycle_profile_status" 'shimmy_profile_ai_skill_bundle=control|valid|'
   assert_contains "$test_lifecycle_profile_list" 'shimmy_profile=default|yes|'
   test_lifecycle_engine_status=$(test_lifecycle_command default admin engine status --format manifest)
-  assert_contains "$test_lifecycle_engine_status" 'shimmy_engine_schema=migrated'
-  assert_contains "$test_lifecycle_engine_status" 'shimmy_engine_profile=default|migrated|shared|shared|local|host-local|host-local|'
+  assert_contains "$test_lifecycle_engine_status" 'shimmy_engine_schema=1'
+  assert_contains "$test_lifecycle_engine_status" 'shimmy_engine_profile=default|shared|shared|local|host-local|host-local|'
 
   test_lifecycle_redirect_dry=$(test_lifecycle_command default profile redirect set \
     --prefix registry.example --location mirror.example --dry-run)

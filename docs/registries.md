@@ -73,19 +73,20 @@ same-engine API service recycle path.
 
 ## Detach and uninstall
 
-Explicit recovery can detach the exact active projection while clearing all
-redirects:
+On Linux, explicit recovery can detach the exact active registry link while
+clearing all redirects:
 
 ```sh
 shimmy profile redirect delete --all --detach
 ```
 
-Profile deletion and global uninstall perform their own guarded projection
+Darwin engine projections remain attached; ordinary `--all` publishes valid
+empty policy. Profile deletion and global uninstall perform their own guarded projection
 cleanup. Shared-profile deletion preserves the shared machine. Owned isolated
 profile deletion removes the exact fully proven machine and all VM-local data;
 global uninstall removes every fully proven owned shared or isolated machine.
 That permanently destroys its containers, images, volumes, build caches, and
-all other VM-local data. Legacy, external, ambiguous, foreign, damaged, and
+all other VM-local data. External, ambiguous, foreign, damaged, and
 Linux host-local engines remain preserved. Foreign or damaged paths are never
 replaced or removed. Use `shimmy admin uninstall --dry-run` to inspect exact
 machine and projection actions before mutation.

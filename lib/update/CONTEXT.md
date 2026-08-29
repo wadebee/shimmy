@@ -11,5 +11,4 @@ exact rollback and is a no-op for manual policy. There is no separate update
 command, management self-update route, or compatibility selection layer.
 
 Sync preserves an existing engine binding byte-for-byte while installing the
-complete dual-read control tree. It never publishes migration state; explicit
-`admin engine migrate` may run only after those installed readers are current.
+complete strict control tree. It never creates or converts engine state.

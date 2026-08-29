@@ -2,13 +2,10 @@
 # Profile-bound Podman engine discovery and activation.
 
 shimmy_profile_activation_expected_resolve() {
-  if command -v shimmy_engine_profile_binding_resolve >/dev/null 2>&1 &&
-    [ -n "${SHIMMY_CONFIG_ROOT:-}" ]; then
-    shimmy_engine_profile_binding_resolve "$SHIMMY_CONFIG_ROOT" \
-      "${SHIMMY_PROFILE_NAME:-}"
-  else
-    shimmy_profile_engine_identity_resolve "${SHIMMY_PROFILE_NAME:-}"
-  fi
+  command -v shimmy_engine_profile_binding_resolve >/dev/null 2>&1 || return 1
+  [ -n "${SHIMMY_CONFIG_ROOT:-}" ] || return 1
+  shimmy_engine_profile_binding_resolve "$SHIMMY_CONFIG_ROOT" \
+    "${SHIMMY_PROFILE_NAME:-}"
 }
 
 shimmy_profile_activation_host_os_resolve() {
@@ -79,19 +76,6 @@ shimmy_profile_activation_lock_release() {
   SHIMMY_PROFILE_ACTIVATION_LOCK_HELD=0
 }
 
-shimmy_profile_activation_missing_machine_print() {
-  printf 'ERROR: required Podman machine is missing for profile %s: %s\n' "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-  printf 'Create it in a normal user shell: podman machine init %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-  case "$SHIMMY_CONFIG_ROOT" in
-    "${HOME:-}"/*) ;;
-    *)
-      config_home=$(dirname -- "$SHIMMY_CONFIG_ROOT")
-      printf 'Because the configuration home is outside HOME, expose the same absolute path when creating the machine, for example: podman machine init --volume %s:%s %s\n' "$config_home" "$config_home" "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-      ;;
-  esac
-  printf '%s\n' 'Shimmy does not adopt, rename, migrate, or remove podman-machine-default.' >&2
-}
-
 shimmy_profile_activation_override_read() {
   SHIMMY_PROFILE_CONNECTION_OVERRIDE=none
   if [ -n "${CONTAINER_CONNECTION:-}" ] && [ -n "${CONTAINER_HOST:-}" ]; then
@@ -139,13 +123,6 @@ shimmy_profile_activation_recommendation_resolve() {
     return 0
   fi
 
-  if [ "$expected_machine_state" = missing ]; then
-    SHIMMY_PROFILE_RECOMMENDED_ACTION=podman_machine_init
-    SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL='initialize Podman machine'
-    SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="podman machine init ${SHIMMY_PROFILE_EXPECTED_MACHINE:-unknown}"
-    return 0
-  fi
-
   case "$activation_state" in
     active)
       SHIMMY_PROFILE_RECOMMENDED_ACTION=none
@@ -156,7 +133,7 @@ shimmy_profile_activation_recommendation_resolve() {
       SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL='activate profile'
       SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate ${SHIMMY_PROFILE_NAME:-unknown}"
       ;;
-    registry_restart_required)
+    registry_policy_stale)
       SHIMMY_PROFILE_RECOMMENDED_ACTION=profile_activate_restart
       SHIMMY_PROFILE_RECOMMENDED_ACTION_LABEL='restart profile engine'
       SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'${SHIMMY_PROFILE_ROOT:-unknown}/bin/shimmy' profile activate ${SHIMMY_PROFILE_NAME:-unknown} --restart"
@@ -190,80 +167,6 @@ $connection_lines
 EOF
 
   [ "$connection_matches" -eq 1 ] && [ "$connection_rootless" -eq 1 ]
-}
-
-shimmy_profile_cleanup_engine_validate() {
-  cleanup_connection=$1
-  cleanup_info=$(shimmy_profile_podman_run --connection "$cleanup_connection" info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}' 2>/dev/null) || {
-    printf 'ERROR: unable to validate rootless Podman machine connection %s during uninstall\n' "$cleanup_connection" >&2
-    return 1
-  }
-  [ "$cleanup_info" = 'true|true' ] || {
-    printf 'ERROR: connection %s is not a rootless Podman machine engine\n' "$cleanup_connection" >&2
-    return 1
-  }
-}
-
-shimmy_profile_cleanup_machine_restart() {
-  cleanup_machine=$1
-  [ "${SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE:-none}" = "$cleanup_machine" ] || return 1
-  printf 'Restarting Podman machine to clear detached registry policy: %s\n' "$cleanup_machine"
-  shimmy_profile_podman_run machine stop "$cleanup_machine" </dev/null || return 1
-  SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=none
-  shimmy_profile_podman_run machine start "$cleanup_machine" </dev/null || return 1
-  SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=$cleanup_machine
-}
-
-shimmy_profile_cleanup_machine_switch() {
-  cleanup_machine=$1
-  [ "${SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE:-none}" != "$cleanup_machine" ] || return 0
-  if [ "${SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE:-none}" != none ]; then
-    printf 'Stopping Podman machine for registry cleanup: %s\n' "$SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE"
-    shimmy_profile_podman_run machine stop "$SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE" </dev/null || return 1
-    SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=none
-  fi
-  printf 'Starting Podman machine for registry cleanup: %s\n' "$cleanup_machine"
-  shimmy_profile_podman_run machine start "$cleanup_machine" </dev/null || return 1
-  SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=$cleanup_machine
-}
-
-shimmy_profile_cleanup_restore() {
-  cleanup_restore_complete=1
-  if [ "${SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE:-none}" != "${SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE:-none}" ]; then
-    if [ "${SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE:-none}" != none ]; then
-      printf 'Restoring initial machine state by stopping: %s\n' "$SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE"
-      if shimmy_profile_podman_run machine stop "$SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE" </dev/null; then
-        SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=none
-      else
-        printf 'ERROR: unable to stop cleanup machine %s while restoring initial state\n' "$SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE" >&2
-        cleanup_restore_complete=0
-      fi
-    fi
-    if [ "${SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE:-none}" != none ] &&
-      [ "${SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE:-none}" = none ]; then
-      printf 'Restoring initially running Podman machine: %s\n' "$SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE"
-      if shimmy_profile_podman_run machine start "$SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE" </dev/null; then
-        SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=$SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE
-      else
-        printf 'ERROR: unable to restore initially running machine %s\n' "$SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE" >&2
-        cleanup_restore_complete=0
-      fi
-    fi
-  fi
-  if [ "${SHIMMY_PROFILE_CLEANUP_INITIAL_DEFAULT_CONNECTION:-unknown}" != unknown ]; then
-    printf 'Restoring initial Podman default connection: %s\n' "$SHIMMY_PROFILE_CLEANUP_INITIAL_DEFAULT_CONNECTION"
-    if ! shimmy_profile_podman_run system connection default "$SHIMMY_PROFILE_CLEANUP_INITIAL_DEFAULT_CONNECTION"; then
-      printf 'ERROR: unable to restore initial Podman default connection %s\n' "$SHIMMY_PROFILE_CLEANUP_INITIAL_DEFAULT_CONNECTION" >&2
-      cleanup_restore_complete=0
-    fi
-  fi
-  [ "$cleanup_restore_complete" -eq 1 ]
-}
-
-shimmy_profile_cleanup_transaction_begin() {
-  SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE=$1
-  SHIMMY_PROFILE_CLEANUP_INITIAL_DEFAULT_CONNECTION=$2
-  SHIMMY_PROFILE_CLEANUP_RUNNING_MACHINE=$SHIMMY_PROFILE_CLEANUP_INITIAL_RUNNING_MACHINE
 }
 
 shimmy_profile_podman_bin_require() {
@@ -455,23 +358,12 @@ EOF
   else
     SHIMMY_PROFILE_ACTIVATION_STATE=active
   fi
-  if [ "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}" = migrated ] &&
-    [ "${SHIMMY_PROFILE_ENGINE_ORIGIN:-legacy-external}" = shimmy-created ]; then
+  if [ "${SHIMMY_PROFILE_ENGINE_ORIGIN:-unknown}" = shimmy-created ]; then
     shimmy_engine_registry_projection_state_read "$SHIMMY_CONFIG_ROOT" \
       "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_ENGINE_ID" || return 1
-    SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=$SHIMMY_ENGINE_REGISTRY_PROJECTION_STATE
     if [ "$SHIMMY_PROFILE_ACTIVATION_STATE" = active ] &&
       [ "$SHIMMY_ENGINE_REGISTRY_PROJECTION_STATE" != current ]; then
       SHIMMY_PROFILE_ACTIVATION_STATE=registry_policy_stale
-    fi
-  elif command -v shimmy_registries_machine_projection_state_read >/dev/null 2>&1; then
-    shimmy_registries_machine_projection_state_read
-    if [ "$SHIMMY_PROFILE_ACTIVATION_STATE" = active ]; then
-      case "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE" in
-        current) ;;
-        restart-required|unverified) SHIMMY_PROFILE_ACTIVATION_STATE=registry_restart_required ;;
-        *) SHIMMY_PROFILE_ACTIVATION_STATE=invalid_registry ;;
-      esac
     fi
   fi
 }
@@ -632,13 +524,6 @@ shimmy_profile_activation_rollback() {
     if shimmy_registries_active_link_rollback; then
       printf 'Rollback: Linux active registry link restored for %s\n' "$SHIMMY_PROFILE_NAME" >&2
     else
-      rollback_complete=0
-    fi
-  fi
-
-  if [ "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_CHANGED:-0}" -eq 1 ] ||
-    [ "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_CHANGED:-0}" -eq 1 ]; then
-    if ! shimmy_registries_machine_projection_rollback; then
       rollback_complete=0
     fi
   fi
@@ -853,184 +738,8 @@ shimmy_profile_activate_darwin() {
   stop_running_requested=$2
   dry_run_requested=$3
 
-  if [ "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}" = migrated ] &&
-    [ "${SHIMMY_PROFILE_ENGINE_ORIGIN:-legacy-external}" = shimmy-created ]; then
-    shimmy_profile_activate_darwin_managed "$restart_requested" \
-      "$stop_running_requested" "$dry_run_requested"
-    return $?
-  fi
-
-  shimmy_profile_activation_override_reject || return 1
-  shimmy_registries_override_reject || return 1
-  shimmy_profile_podman_bin_require || {
-    printf '%s\n' 'ERROR: Podman is required for profile activation.' >&2
-    return 1
-  }
-  if [ "$dry_run_requested" -eq 1 ]; then
-    shimmy_profile_activation_lock_check || return 1
-    shimmy_registries_lock_check || return 1
-  else
-    shimmy_profile_activation_lock_acquire || return 1
-    shimmy_registries_lock_acquire || return 1
-  fi
-  shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_NAME" || {
-    printf 'ERROR: invalid managed registry redirect configuration: %s\n' "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
-    return 1
-  }
-  shimmy_registries_machine_projection_record_read
-  [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" != invalid ] || {
-    printf 'ERROR: invalid Darwin machine projection record: %s\n' "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" >&2
-    return 1
-  }
-  shimmy_profile_state_darwin_read
-
-  [ "$SHIMMY_PROFILE_MACHINE_METADATA" = valid ] || {
-    printf 'ERROR: Podman machine metadata is %s; no machine was stopped or started\n' "$SHIMMY_PROFILE_MACHINE_METADATA" >&2
-    return 1
-  }
-  [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" != missing ] || {
-    shimmy_profile_activation_missing_machine_print
-    return 1
-  }
-  [ "$SHIMMY_PROFILE_CONNECTION_METADATA" = valid ] &&
-    [ "$SHIMMY_PROFILE_EXPECTED_CONNECTION_STATE" = rootless ] || {
-      printf 'ERROR: required same-name rootless Podman connection is missing or invalid: %s\n' "$SHIMMY_PROFILE_EXPECTED_CONNECTION" >&2
-      return 1
-    }
-  if [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" = running ] &&
-    [ "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE:-unverified}" = invalid ]; then
-    printf 'ERROR: refusing activation with invalid or foreign Darwin registry projection in %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-    return 1
-  fi
-
-  stop_planned=0
-  if [ "$SHIMMY_PROFILE_RUNNING_MACHINE_COUNT" -eq 1 ]; then
-    if [ "$SHIMMY_PROFILE_RUNNING_MACHINE" != "$SHIMMY_PROFILE_EXPECTED_MACHINE" ] || [ "$restart_requested" -eq 1 ]; then
-      stop_planned=1
-    fi
-  fi
-  if [ "$stop_running_requested" -eq 1 ] && [ "$stop_planned" -eq 0 ]; then
-    printf '%s\n' 'ERROR: --stop-running is valid only when activation will stop a running machine' >&2
-    return 1
-  fi
-
-  if [ "$stop_planned" -eq 1 ]; then
-    [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" != unknown ] || {
-      printf 'ERROR: unable to inspect running workloads on %s; no machine was stopped\n' "$SHIMMY_PROFILE_RUNNING_MACHINE" >&2
-      return 1
-    }
-    shimmy_profile_workloads_print
-    if [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" -gt 0 ] && [ "$stop_running_requested" -eq 0 ]; then
-      printf '%s\n' 'ERROR: running containers block activation; stop them explicitly before retrying, or use --stop-running when the invoking command supports it' >&2
-      return 1
-    fi
-  fi
-
-  target_start_planned=0
-  if [ "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" = stopped ] || [ "$restart_requested" -eq 1 ]; then
-    target_start_planned=1
-  fi
-  if [ "$target_start_planned" -eq 0 ] && [ "$SHIMMY_PROFILE_ENGINE_REACHABLE" != true ]; then
-    printf 'ERROR: expected rootless engine is unreachable through %s; retry with --restart if a restart is intended\n' "$SHIMMY_PROFILE_EXPECTED_CONNECTION" >&2
-    return 1
-  fi
-  if [ "$target_start_planned" -eq 0 ]; then
-    case "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE:-unverified}" in
-      current) ;;
-      invalid)
-        printf 'ERROR: refusing activation with invalid or foreign Darwin registry projection in %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-        return 1
-        ;;
-      *)
-        printf "ERROR: Darwin registry projection for profile %s is missing, stale, or unverified; restart it with: '%s/bin/shimmy' profile activate %s --restart\n" "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" >&2
-        return 1
-        ;;
-    esac
-  fi
-
-  if [ "$dry_run_requested" -eq 1 ]; then
-    printf 'dry_run=yes\nprofile=%s\n' "$SHIMMY_PROFILE_NAME"
-    if [ "$stop_planned" -eq 1 ]; then printf 'would_stop=%s\n' "$SHIMMY_PROFILE_RUNNING_MACHINE"; fi
-    if [ "$target_start_planned" -eq 1 ]; then printf 'would_start=%s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE"; fi
-    if [ "$target_start_planned" -eq 1 ]; then
-      printf 'would_project=%s\nwould_record=%s\n' "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-    fi
-    if [ "$SHIMMY_PROFILE_DEFAULT_CONNECTION" != "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ]; then
-      printf 'would_set_default_connection=%s\n' "$SHIMMY_PROFILE_EXPECTED_CONNECTION"
-    fi
-    if [ "$stop_planned" -eq 0 ] && [ "$target_start_planned" -eq 0 ] &&
-      [ "$SHIMMY_PROFILE_DEFAULT_CONNECTION" = "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ]; then
-      printf '%s\n' 'would_change=nothing'
-    fi
-    return 0
-  fi
-
-  SHIMMY_PROFILE_PRIOR_DEFAULT_CONNECTION=$SHIMMY_PROFILE_DEFAULT_CONNECTION
-  SHIMMY_PROFILE_PRIOR_RUNNING_MACHINE=
-  SHIMMY_PROFILE_PRIOR_STOP_ATTEMPTED=0
-  SHIMMY_PROFILE_TARGET_START_ATTEMPTED=0
-  SHIMMY_PROFILE_WORKLOAD_INTERRUPTED=0
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_CHANGED=0
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_CHANGED=0
-  if [ "$stop_planned" -eq 1 ]; then
-    SHIMMY_PROFILE_PRIOR_RUNNING_MACHINE=$SHIMMY_PROFILE_RUNNING_MACHINE
-    SHIMMY_PROFILE_PRIOR_STOP_ATTEMPTED=1
-    if [ "$SHIMMY_PROFILE_RUNNING_CONTAINER_COUNT" -gt 0 ] && [ "$stop_running_requested" -eq 1 ]; then
-      SHIMMY_PROFILE_WORKLOAD_INTERRUPTED=1
-    fi
-    printf 'Stopping Podman machine: %s\n' "$SHIMMY_PROFILE_RUNNING_MACHINE"
-    if ! shimmy_profile_podman_run machine stop "$SHIMMY_PROFILE_RUNNING_MACHINE" </dev/null; then
-      shimmy_profile_activation_rollback "unable to stop $SHIMMY_PROFILE_RUNNING_MACHINE" || true
-      return 1
-    fi
-  fi
-  if [ "$target_start_planned" -eq 1 ]; then
-    SHIMMY_PROFILE_TARGET_START_ATTEMPTED=1
-    printf 'Starting Podman machine: %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE"
-    if ! shimmy_profile_podman_run machine start "$SHIMMY_PROFILE_EXPECTED_MACHINE" </dev/null; then
-      shimmy_profile_activation_rollback "unable to start $SHIMMY_PROFILE_EXPECTED_MACHINE" || true
-      return 1
-    fi
-  fi
-  if [ "$target_start_planned" -eq 1 ]; then
-    if ! shimmy_registries_machine_projection_reconcile; then
-      shimmy_profile_activation_rollback "unable to project registry policy into $SHIMMY_PROFILE_EXPECTED_MACHINE" || true
-      return 1
-    fi
-  fi
-  if ! target_info=$(shimmy_profile_podman_run --connection "$SHIMMY_PROFILE_EXPECTED_CONNECTION" info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}' 2>/dev/null); then
-    shimmy_profile_activation_rollback "unable to validate $SHIMMY_PROFILE_EXPECTED_CONNECTION" || true
-    return 1
-  fi
-  if [ "$target_info" != 'true|true' ]; then
-    shimmy_profile_activation_rollback "connection $SHIMMY_PROFILE_EXPECTED_CONNECTION is not a rootless Podman machine engine" || true
-    return 1
-  fi
-
-  if [ "$target_start_planned" -eq 1 ]; then
-    if ! shimmy_registries_machine_projection_record_apply "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT"; then
-      shimmy_profile_activation_rollback "unable to record registry projection ownership for $SHIMMY_PROFILE_EXPECTED_MACHINE" || true
-      return 1
-    fi
-  fi
-
-  if [ "$SHIMMY_PROFILE_DEFAULT_CONNECTION" != "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ]; then
-    printf 'Selecting Podman default connection: %s\n' "$SHIMMY_PROFILE_EXPECTED_CONNECTION"
-    if ! shimmy_profile_podman_run system connection default "$SHIMMY_PROFILE_EXPECTED_CONNECTION"; then
-      shimmy_profile_activation_rollback "unable to select default connection $SHIMMY_PROFILE_EXPECTED_CONNECTION" || true
-      return 1
-    fi
-  fi
-  if [ "${SHIMMY_PROFILE_ACTIVATION_DEFER_COMMIT:-0}" -ne 1 ]; then
-    shimmy_registries_machine_projection_commit
-  fi
-  if [ "$SHIMMY_PROFILE_WORKLOAD_INTERRUPTED" -eq 1 ]; then
-    printf '%s\n' 'WARNING: acknowledged workloads were interrupted; verify that they resumed as intended.' >&2
-  fi
-  if [ "${SHIMMY_PROFILE_ACTIVATION_QUIET_SUCCESS:-0}" -ne 1 ]; then
-    printf 'Activated Shimmy profile %s with Podman machine %s.\n' "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_EXPECTED_MACHINE"
-    printf "Select this profile in the current shell with: . '%s/shell-init.sh'\n" "$SHIMMY_PROFILE_ROOT"
-  fi
+  shimmy_profile_activate_darwin_managed "$restart_requested" \
+    "$stop_running_requested" "$dry_run_requested"
 }
 
 shimmy_profile_activate_linux() {
@@ -1102,12 +811,7 @@ shimmy_profile_activate_linux() {
 shimmy_profile_activation_commit() {
   case "${SHIMMY_PROFILE_HOST_OS:-unknown}" in
     darwin)
-      if [ "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}" = migrated ] &&
-        [ "${SHIMMY_PROFILE_ENGINE_ORIGIN:-legacy-external}" = shimmy-created ]; then
-        shimmy_engine_projection_commit
-      else
-        shimmy_registries_machine_projection_commit
-      fi
+      shimmy_engine_projection_commit
       ;;
     linux) shimmy_registries_active_link_commit ;;
     *) return 1 ;;

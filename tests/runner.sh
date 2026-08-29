@@ -28,7 +28,6 @@ commands-profile|test_commands_profile_run
 commands-surface|test_commands_surface_run
 commands-lifecycle-bootstrap|test_commands_lifecycle_darwin_bootstrap_engine_states
 commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
-commands-lifecycle-migration|test_commands_lifecycle_explicit_migration
 commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
 commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end
 tools-aws|test_tools_aws_run
@@ -83,7 +82,6 @@ commands-profile|two-b|three-b
 commands-surface|two-b|three-c
 commands-lifecycle-bootstrap|two-b|three-b
 commands-lifecycle-isolated|two-a|three-c
-commands-lifecycle-migration|two-b|three-c
 commands-lifecycle-uninstall|two-b|three-b
 commands-lifecycle-end-to-end|two-a|three-a
 tools-aws|two-a|three-c

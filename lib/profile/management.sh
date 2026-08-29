@@ -20,13 +20,12 @@ shimmy_profile_engine_context_resolve() {
   SHIMMY_PROFILE_NAME=$SHIMMY_PROFILE_NAME
   SHIMMY_PROFILE_ROOT=$SHIMMY_PROFILE_ROOT
   SHIMMY_PROFILE_MANIFEST_PATH=$SHIMMY_PROFILE_MANIFEST_PATH
-  SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH=$SHIMMY_PROFILE_MACHINE_PROJECTION_PATH
   SHIMMY_PROFILE_REGISTRIES_PATH=$SHIMMY_PROFILE_REGISTRIES_PATH
   SHIMMY_PROFILE_REGISTRIES_LOCK_PATH=$SHIMMY_PROFILE_ROOT/.registries.lock
   SHIMMY_REGISTRIES_CONFIG_DIR=$SHIMMY_CONFIG_HOME/containers
   SHIMMY_REGISTRIES_DROPIN_DIR=$SHIMMY_REGISTRIES_CONFIG_DIR/registries.conf.d
   SHIMMY_REGISTRIES_ACTIVE_LINK=$SHIMMY_REGISTRIES_DROPIN_DIR/shimmy-active-profile.conf
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK=/etc/containers/registries.conf.d/shimmy-profile.conf
+  SHIMMY_REGISTRIES_CLIENT_MOUNT_PATH=/etc/containers/registries.conf.d/shimmy-profile.conf
   SHIMMY_PROFILE_BIN_DIR=$SHIMMY_PROFILE_ROOT/bin
   SHIMMY_PROFILE_CONFIG_DIR=$SHIMMY_PROFILE_ROOT/config
   SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=$SHIMMY_PROFILE_ROOT/tools
@@ -70,7 +69,6 @@ shimmy_profile_candidate_resolve() {
   shimmy_engine_profile_binding_resolve "$shimmy_profile_candidate_config" \
     "$shimmy_profile_candidate_name" ||
     shimmy_profile_error_set "invalid or partially published engine binding: $SHIMMY_PROFILE_CANDIDATE_ROOT/engine-binding.conf" || return 1
-  SHIMMY_PROFILE_CANDIDATE_ENGINE_MIGRATION_STATE=$SHIMMY_PROFILE_ENGINE_MIGRATION_STATE
   SHIMMY_PROFILE_CANDIDATE_ENGINE_BINDING_MODE=$SHIMMY_PROFILE_ENGINE_BINDING_MODE
   SHIMMY_PROFILE_CANDIDATE_ENGINE_ID=$SHIMMY_PROFILE_ENGINE_ID
   shimmy_profile_launcher_validate "$SHIMMY_PROFILE_CANDIDATE_ROOT/bin/shimmy" \
@@ -487,10 +485,9 @@ EOF
 $shimmy_profile_status_startup_files
 EOF
     printf 'shimmy_engine_profile=%s\n' "$SHIMMY_PROFILE_NAME"
-    printf 'shimmy_engine_schema_state=%s\n' "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}"
-    printf 'shimmy_engine_binding_mode=%s\n' "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-unmigrated}"
-    printf 'shimmy_engine_id=%s\n' "${SHIMMY_PROFILE_ENGINE_ID:-profile-$SHIMMY_PROFILE_NAME}"
-    printf 'shimmy_engine_origin=%s\n' "${SHIMMY_PROFILE_ENGINE_ORIGIN:-legacy-external}"
+    printf 'shimmy_engine_binding_mode=%s\n' "$SHIMMY_PROFILE_ENGINE_BINDING_MODE"
+    printf 'shimmy_engine_id=%s\n' "$SHIMMY_PROFILE_ENGINE_ID"
+    printf 'shimmy_engine_origin=%s\n' "$SHIMMY_PROFILE_ENGINE_ORIGIN"
     printf 'shimmy_engine_host_os=%s\n' "$SHIMMY_PROFILE_HOST_OS"
     printf 'shimmy_engine_type=%s\n' "$SHIMMY_PROFILE_ENGINE_TYPE"
     printf 'shimmy_engine_expected=%s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE"
@@ -525,7 +522,7 @@ EOF
   printf '│  %-12s %-62s │\n' "Digest:" "$shimmy_profile_digest (refs/heads/main)"
   printf '├──────────────────────────────────────────────────────────────────────────────┤\n'
   printf '│  %s%-72s%s  │\n' "$SHIMMY_STYLE_BOLD" "ENGINE STATUS" "$SHIMMY_STYLE_RESET"
-  printf '│    %-12s %-60s │\n' "Binding:" "${SHIMMY_PROFILE_ENGINE_BINDING_MODE:-unmigrated} (${SHIMMY_PROFILE_ENGINE_ID:-unknown})"
+  printf '│    %-12s %-60s │\n' "Binding:" "$SHIMMY_PROFILE_ENGINE_BINDING_MODE ($SHIMMY_PROFILE_ENGINE_ID)"
   printf '│    %-12s %-60s │\n' "Type:" "$SHIMMY_PROFILE_ENGINE_TYPE"
   printf '│    %-12s %-60s │\n' "Expected:" "$SHIMMY_PROFILE_EXPECTED_MACHINE ($SHIMMY_PROFILE_EXPECTED_MACHINE_STATE)"
   printf '│    %-12s %-60s │\n' "Reachable:" "$SHIMMY_PROFILE_ENGINE_REACHABLE"

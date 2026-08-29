@@ -11,8 +11,8 @@ that profile operations require.
   validation. The launcher makes bare root, group, and `profile redirect`
   subgroup invocations exact successful equivalents of their `--help` forms;
   actions retain documented defaults and required inputs.
-- `admin.sh` owns installation-wide status, read-only engine status, explicit
-  engine migration, network inspection, and uninstall routing.
+- `admin.sh` owns installation-wide status, read-only engine status, network
+  inspection, and uninstall routing.
 - `profile.sh` owns profile list/status/create/clone/activate/sync/startup
   repair/delete and strict redirect CRUD. Isolated creation and clone mode
   overrides route through the compensated installation lifecycle.
@@ -24,10 +24,9 @@ that profile operations require.
 - `agent-preflight.sh` discovers schema-2 active/installed or source metadata and
   prints safe non-mutating approval smoke commands.
 
-Engine migration installs no compatibility aliases: unbound schema-2 profiles
-remain legacy until the explicit command validates the whole installation and
-publishes all engine/binding state. Fresh bootstrap publishes the shared engine
-as part of its compensated lifecycle.
+Every supported profile has one strict binding to one valid engine record.
+Fresh bootstrap publishes the shared engine as part of its compensated
+lifecycle.
 
 Installed command handlers receive config-root and invoking-profile identity
 only from their rendered launcher. They accept no public environment selector

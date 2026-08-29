@@ -34,8 +34,7 @@ credential boundaries.
 
 Shimmy does not install Podman or adopt existing machines. On macOS, fresh
 bootstrap provisions the installation-owned shared machine `shimmy-default`; leave that
-machine and connection name unused beforehand. Existing per-profile machines
-are recorded only by explicit migration and remain external.
+machine and connection name unused beforehand.
 
 The official macOS package may install Podman at `/opt/podman/bin/podman`.
 Machine creation uses the Podman 5.8-compatible `machine init <name>` command
@@ -167,8 +166,8 @@ shimmy profile delete isolated-one
 
 Creation activates the new profile. Clone copies supported profile-owned
 configuration and selection state, then activates the target. Shared sources
-clone to the shared engine by default; isolated and legacy-isolated sources
-create a new owned isolated machine. Use one explicit override when needed:
+clone to the shared engine by default; isolated sources create a new owned
+isolated machine. Use one explicit override when needed:
 
 ```sh
 shimmy profile clone default team-two --dry-run
@@ -187,8 +186,7 @@ shimmy profile activate default
 Ordinary profiles bind to one shared engine. On Linux, activation selects the
 exact user registry-policy link and validates the current user's local rootless
 Podman process. On macOS, shared-to-shared activation keeps the installation's
-owned shared VM (`shimmy-default` for fresh installations or `shimmy` after
-compatibility migration) and running containers up. A changed effective
+owned shared VM `shimmy-default` and running containers up. A changed effective
 registry policy causes only a brief rootless Podman API interruption while
 `podman.service` is recycled; equal
 policies require no recycle. A transition between shared and isolated engines
@@ -213,18 +211,11 @@ shimmy profile redirect delete --prefix docker.io
 Active-profile edits update and validate the engine projection immediately;
 inactive-profile edits change only their source policy until later activation.
 
-Installations created before the engine registry can inspect and migrate it
-explicitly after updating their installed controls:
+Inspect the strict profile bindings and engine registry without mutation:
 
 ```sh
 shimmy admin engine status --format manifest
-shimmy admin engine migrate --dry-run
-shimmy admin engine migrate
 ```
-
-Migration records existing macOS profile machines as external legacy-isolated
-engines without renaming, claiming, starting, stopping, or deleting them, then
-creates the reserved `shimmy` engine for future shared profiles.
 
 Skopeo is the only initial tool-container consumer of this policy.
 `shimmy catalog verify` inherits it through the active profile's Skopeo shim.
@@ -323,8 +314,8 @@ Uninstall validates ownership before removing all profiles, retained catalog
 state, the active record, exact startup blocks, recognized registry projections,
 and recognized direct Shimmy skill links. On macOS it also removes every shared
 or isolated machine whose complete current host, guest, connection, and inspect
-evidence proves Shimmy ownership. It preserves source checkouts, legacy,
-external, ambiguous, and Linux host-local engines, unrelated registry policy,
+evidence proves Shimmy ownership. It preserves source checkouts, external,
+ambiguous, and Linux host-local engines, unrelated registry policy,
 unrelated skill names, and the user skill root.
 
 > **Destructive uninstall warning:** removing an owned machine permanently

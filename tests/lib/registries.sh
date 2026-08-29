@@ -75,7 +75,6 @@ test_lib_registries_transaction() {
   SHIMMY_PROFILE_ROOT=$SHIMMY_PROFILES_ROOT/default
   SHIMMY_PROFILE_REGISTRIES_PATH=$SHIMMY_PROFILE_ROOT/registries.conf
   SHIMMY_PROFILE_REGISTRIES_LOCK_PATH=$SHIMMY_PROFILE_ROOT/.registries.lock
-  SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH=$SHIMMY_PROFILE_ROOT/machine-projection.txt
   mkdir -p "$SHIMMY_PROFILE_ROOT"
   shimmy_registries_config_render default '' > "$SHIMMY_PROFILE_REGISTRIES_PATH"
   chmod 644 "$SHIMMY_PROFILE_REGISTRIES_PATH"
@@ -150,64 +149,6 @@ test_lib_registries_transaction() {
   pass "registry edits are deterministic, dry-run is side-effect free, locking is fail-closed, and post-commit failure restores exact bytes"
 }
 
-test_lib_registries_machine_projection_record() {
-  setup_scenario
-  SHIMMY_CONFIG_ROOT=$XDG_CONFIG_HOME_DIR/shimmy
-  SHIMMY_PROFILE_NAME=default
-  SHIMMY_PROFILE_ROOT=$SHIMMY_CONFIG_ROOT/profiles/default
-  SHIMMY_PROFILE_REGISTRIES_PATH=$SHIMMY_PROFILE_ROOT/registries.conf
-  SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH=$SHIMMY_PROFILE_ROOT/machine-projection.txt
-  mkdir -p "$SHIMMY_PROFILE_ROOT"
-  shimmy_registries_config_render default '' > "$SHIMMY_PROFILE_REGISTRIES_PATH"
-  chmod 0644 "$SHIMMY_PROFILE_REGISTRIES_PATH"
-  projection_fingerprint=$(shimmy_registries_config_fingerprint_render "$SHIMMY_PROFILE_REGISTRIES_PATH")
-  shimmy_registries_machine_projection_record_render default "$projection_fingerprint" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-  chmod 0644 "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-  shimmy_registries_machine_projection_record_validate "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" default ||
-    fail_test 'valid machine projection record was rejected'
-
-  valid_record=$SCENARIO_DIR/valid-machine-projection
-  cp "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" "$valid_record"
-  for mutation_name in wrong_version wrong_profile wrong_machine wrong_target wrong_fingerprint extra_line wrong_mode symlink; do
-    cp "$valid_record" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-    chmod 0644 "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-    case "$mutation_name" in
-      wrong_version) sed 's/projection_version=1/projection_version=2/' "$valid_record" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
-      wrong_profile) sed 's/profile=default/profile=sibling/' "$valid_record" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
-      wrong_machine) sed 's/machine=shimmy-default/machine=other/' "$valid_record" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
-      wrong_target) sed 's#target=.*#target=/tmp/other#' "$valid_record" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
-      wrong_fingerprint) sed 's/config_fingerprint=.*/config_fingerprint=sha256:bad/' "$valid_record" > "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
-      extra_line) printf '%s\n' extra >> "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
-      wrong_mode) chmod 0600 "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ;;
-      symlink)
-        cp "$valid_record" "$SCENARIO_DIR/projection-target"
-        rm -f "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-        ln -s "$SCENARIO_DIR/projection-target" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-        ;;
-    esac
-    if shimmy_registries_machine_projection_record_validate "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" default; then
-      fail_test "invalid machine projection record accepted: $mutation_name"
-    fi
-  done
-
-  rm -f "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-  shimmy_registries_machine_projection_record_apply "$projection_fingerprint"
-  assert_regular_file_not_symlink "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-  shimmy_registries_machine_projection_record_commit
-  previous_record=$SCENARIO_DIR/previous-machine-projection
-  cp "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" "$previous_record"
-  shimmy_registries_config_render default 'docker.io|registry.corp.example/docker' > "$SHIMMY_PROFILE_REGISTRIES_PATH"
-  chmod 0644 "$SHIMMY_PROFILE_REGISTRIES_PATH"
-  changed_fingerprint=$(shimmy_registries_config_fingerprint_render "$SHIMMY_PROFILE_REGISTRIES_PATH")
-  shimmy_registries_machine_projection_record_apply "$changed_fingerprint"
-  assert_file_contains "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" "config_fingerprint=$changed_fingerprint"
-  shimmy_registries_machine_projection_record_rollback
-  cmp -s "$previous_record" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ||
-    fail_test 'machine projection record rollback did not restore exact prior bytes'
-  assert_path_not_exists "$SHIMMY_PROFILE_ROOT/.machine-projection.rollback.$$"
-  pass 'machine projection records enforce exact identity, target, fingerprint, mode, atomic replacement, and rollback'
-}
-
 test_lib_registries_arbitrary_profile_active_link() {
   setup_scenario
   SHIMMY_CONFIG_ROOT=$XDG_CONFIG_HOME_DIR/shimmy
@@ -241,7 +182,6 @@ test_lib_registries_arbitrary_profile_active_link() {
 test_lib_registries_run() {
   test_lib_registries_endpoint_validation
   test_lib_registries_managed_format
-  test_lib_registries_machine_projection_record
   test_lib_registries_arbitrary_profile_active_link
   test_lib_registries_transaction
 }

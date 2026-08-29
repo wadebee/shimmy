@@ -21,18 +21,6 @@ shimmy_config_root_resolve() {
   shimmy_join_path "$config_home" shimmy
 }
 
-shimmy_profile_engine_identity_resolve() {
-  profile_name=${1:-}
-  shimmy_name_component_validate "$profile_name" || return 1
-
-  SHIMMY_PROFILE_EXPECTED_MACHINE=shimmy-$profile_name
-  SHIMMY_PROFILE_EXPECTED_CONNECTION=$SHIMMY_PROFILE_EXPECTED_MACHINE
-  SHIMMY_PROFILE_ENGINE_BINDING_MODE=unmigrated
-  SHIMMY_PROFILE_ENGINE_ID=profile-$profile_name
-  SHIMMY_PROFILE_ENGINE_KIND=darwin-machine
-  SHIMMY_PROFILE_ENGINE_ORIGIN=legacy-external
-}
-
 shimmy_profile_paths_resolve_name() {
   profile_name=$1
   shimmy_name_component_validate "$profile_name" || return 1
@@ -44,13 +32,12 @@ shimmy_profile_paths_resolve_name() {
   SHIMMY_PROFILE_ROOT=$SHIMMY_PROFILES_ROOT/$profile_name
   SHIMMY_PROFILE_MANIFEST_PATH=$SHIMMY_PROFILE_ROOT/install-manifest.txt
   SHIMMY_PROFILE_ENGINE_BINDING_PATH=$SHIMMY_PROFILE_ROOT/engine-binding.conf
-  SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH=$SHIMMY_PROFILE_ROOT/machine-projection.txt
   SHIMMY_PROFILE_REGISTRIES_PATH=$SHIMMY_PROFILE_ROOT/registries.conf
   SHIMMY_PROFILE_REGISTRIES_LOCK_PATH=$SHIMMY_PROFILE_ROOT/.registries.lock
   SHIMMY_REGISTRIES_CONFIG_DIR=$SHIMMY_CONFIG_HOME/containers
   SHIMMY_REGISTRIES_DROPIN_DIR=$SHIMMY_REGISTRIES_CONFIG_DIR/registries.conf.d
   SHIMMY_REGISTRIES_ACTIVE_LINK=$SHIMMY_REGISTRIES_DROPIN_DIR/shimmy-active-profile.conf
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK=/etc/containers/registries.conf.d/shimmy-profile.conf
+  SHIMMY_REGISTRIES_CLIENT_MOUNT_PATH=/etc/containers/registries.conf.d/shimmy-profile.conf
   SHIMMY_PROFILE_BIN_DIR=$SHIMMY_PROFILE_ROOT/bin
   SHIMMY_PROFILE_CONFIG_DIR=$SHIMMY_PROFILE_ROOT/config
   SHIMMY_PROFILE_MATERIALIZATION_TOOLS_DIR=$SHIMMY_PROFILE_ROOT/tools

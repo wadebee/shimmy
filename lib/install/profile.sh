@@ -221,7 +221,7 @@ shimmy_profile_materialization_prepare() {
   elif [ -n "$shimmy_profile_materialize_binding_mode" ]; then
     case "$shimmy_profile_materialize_binding_mode" in
       shared) shimmy_profile_materialize_binding_id=shared ;;
-      isolated|legacy-isolated) shimmy_profile_materialize_binding_id=profile-$shimmy_profile_materialize_name ;;
+      isolated) shimmy_profile_materialize_binding_id=profile-$shimmy_profile_materialize_name ;;
       *) return 1 ;;
     esac
     shimmy_engine_binding_render "$shimmy_profile_materialize_name" \

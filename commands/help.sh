@@ -69,7 +69,7 @@ Usage:
 
 Commands:
   status      Aggregate catalog and per-profile state.
-  engine      Inspect or explicitly migrate engine bindings.
+  engine      Inspect engine bindings.
   network     Show active-profile host, VM, and container network perspectives.
   uninstall   Remove all validated Shimmy-owned installation state.
 
@@ -97,24 +97,19 @@ EOF
 
 shimmy_help_admin_engine() {
   cat <<'EOF'
-Inspect or migrate the installation engine registry.
+Inspect the installation engine registry.
 
 Usage:
   shimmy admin engine <command> [options]
 
 Commands:
   status   Report binding, engine, ownership, and projection state.
-  migrate  Explicitly migrate a schema-2 per-profile-engine installation.
-
-Migration never adopts an existing machine. On macOS, every existing profile
-is recorded as legacy-external and a new owned shared machine named shimmy is
-created only after collision and identity preflight.
 
 Scope:
-  Installation-wide. Status is read-only; migration is explicit.
+  Installation-wide and read-only.
 
 Remediation:
-  Run engine status, then migration --dry-run before migration.
+  Remove invalid prior-contract state with its creating version, then bootstrap fresh.
 EOF
 }
 
@@ -136,42 +131,11 @@ Defaults:
   Output format: human.
 
 Remediation:
-  Run migration --dry-run when the schema state is unmigrated.
+  Remove invalid prior-contract state with its creating version, then bootstrap fresh.
 
 Examples:
   shimmy admin engine status
   shimmy admin engine status --format manifest
-EOF
-}
-
-shimmy_help_admin_engine_migrate() {
-  cat <<'EOF'
-Explicitly publish engine and profile-binding state.
-
-Usage:
-  shimmy admin engine migrate [--dry-run]
-
-Scope:
-  Installation-wide compatibility transition. Existing profile machines remain
-  external and are not renamed, adopted, stopped, started, or removed.
-
-Options:
-  --dry-run   Validate collisions, machine identities, and the write set without
-              creating a machine or changing installation state.
-  -h, --help  Show this help before installed-state validation.
-
-Defaults:
-  Migration performs no VM restart and never claims an existing machine.
-
-On macOS, migration preserves every existing profile machine as external and
-creates the installation-owned shared machine shimmy for future profiles.
-
-Remediation:
-  Resolve every reported collision before retrying. Shimmy does not adopt it.
-
-Examples:
-  shimmy admin engine migrate --dry-run
-  shimmy admin engine migrate
 EOF
 }
 
@@ -260,7 +224,7 @@ Options:
   -h, --help      Show this help before installed-state validation.
 
 Defaults:
-  Provably owned macOS machines are removed. External, legacy, ambiguous, and
+  Provably owned macOS machines are removed. External, ambiguous, and
   Linux host-local engines are preserved. Running workloads are never deleted
   without --stop-running.
 
@@ -431,15 +395,15 @@ Options:
   -h, --help      Show this help before installed-state validation.
 
 Defaults:
-  Shared sources clone to shared. Isolated and legacy-isolated sources create a
-  new owned isolated machine. Mutation is enabled.
+  Shared sources clone to shared. Isolated sources create a new owned isolated
+  machine. Mutation is enabled.
 
 Remediation:
   Run --dry-run first. Review exact workloads before adding --stop-running.
 
 Examples:
   shimmy profile clone default experiment --dry-run
-  shimmy profile clone legacy-team replacement --shared
+  shimmy profile clone default replacement --shared
 EOF
 }
 
@@ -659,14 +623,14 @@ Usage:
 
 Scope:
   Invoking profile. Active edits apply immediately; inactive edits change only
-  their source. Legacy --detach removes only an exact owned active projection
-  and is valid only with --all.
+  their source. On Linux, --detach removes only the exact active registry link
+  and is valid only with --all. Darwin engine projections remain attached.
 
 Options:
   --prefix <logical>  Delete one exact logical prefix.
   --all               Delete every generated redirect while retaining valid
                       empty managed policy.
-  --detach            With --all, detach the exact owned active projection.
+  --detach            With --all on Linux, detach the exact active registry link.
   --dry-run           Render the candidate and shared-service action without
                       mutation.
   -h, --help          Show this help before installed-state validation.
@@ -1201,7 +1165,6 @@ case "$shimmy_help_group" in
         case "${3:-}" in
           ''|help|-h|--help) shimmy_help_admin_engine ;;
           status) shimmy_help_admin_engine_status ;;
-          migrate) shimmy_help_admin_engine_migrate ;;
           *) fail "unknown admin engine help topic: ${3:-}" ;;
         esac
         ;;

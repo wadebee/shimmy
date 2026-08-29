@@ -95,7 +95,6 @@ test_lib_runner_registry_ordering() {
   assert_equals "$(printf '%s\n' "$test_runner_registry" | sed -n '/^commands-lifecycle-/p')" \
     'commands-lifecycle-bootstrap|test_commands_lifecycle_darwin_bootstrap_engine_states
 commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
-commands-lifecycle-migration|test_commands_lifecycle_explicit_migration
 commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
 commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end'
   pass "runner registry has stable canonical ordering and exact lifecycle mappings"
@@ -216,17 +215,14 @@ test_lib_runner_lifecycle_grouping() {
   test_runner_lifecycle_output=$(
     test_commands_lifecycle_darwin_bootstrap_engine_states() { printf '%s\n' bootstrap; }
     test_commands_lifecycle_owned_isolated() { printf '%s\n' isolated; }
-    test_commands_lifecycle_explicit_migration() { printf '%s\n' migration; }
     test_commands_lifecycle_global_owned_uninstall() { printf '%s\n' uninstall; }
     test_commands_lifecycle_end_to_end() { printf '%s\n' end-to-end; }
     TEST_RUNNER_GROUP_REGISTRY_OVERRIDE='commands-lifecycle-bootstrap|test_commands_lifecycle_darwin_bootstrap_engine_states
 commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
-commands-lifecycle-migration|test_commands_lifecycle_explicit_migration
 commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
 commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end'
     TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE='commands-lifecycle-bootstrap|two-a|three-a
 commands-lifecycle-isolated|two-b|three-b
-commands-lifecycle-migration|two-a|three-c
 commands-lifecycle-uninstall|two-b|three-a
 commands-lifecycle-end-to-end|two-a|three-b'
     TEST_RUNNER_OUTPUT_ROOT=$SCENARIO_DIR/lifecycle-groups
@@ -237,7 +233,6 @@ commands-lifecycle-end-to-end|two-a|three-b'
   )
   assert_equals "$test_runner_lifecycle_output" 'bootstrap
 isolated
-migration
 uninstall
 end-to-end'
 
@@ -245,7 +240,7 @@ end-to-end'
   if test_lifecycle_checkout_template_required; then
     fail_test 'non-lifecycle selection unexpectedly required the lifecycle template'
   fi
-  TEST_RUNNER_GROUPS_SELECTED=commands-lifecycle-migration
+  TEST_RUNNER_GROUPS_SELECTED=commands-lifecycle-isolated
   test_lifecycle_checkout_template_required ||
     fail_test 'lifecycle selection did not require the lifecycle template'
   TEST_RUNNER_GROUPS_SELECTED=

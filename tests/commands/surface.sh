@@ -99,7 +99,6 @@ EOF
   done <<'EOF'
 admin status|shimmy admin status [--format human|manifest]
 admin engine status|shimmy admin engine status [--format human|manifest]
-admin engine migrate|shimmy admin engine migrate [--dry-run]
 admin network|shimmy admin network [--target <host-or-ip> ...]
 admin uninstall|shimmy admin uninstall [--stop-running] [--dry-run]
 profile list|shimmy profile list [--format human|manifest]

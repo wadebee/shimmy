@@ -162,7 +162,7 @@ This removes validated Shimmy-owned installation state and every macOS Podman
 machine whose complete current ownership evidence matches. Removing an owned
 machine permanently destroys its containers, images, volumes, build caches,
 and all other VM-local data; none is preserved. The source checkout, Linux
-host-local engine, legacy, external, and ambiguous machines, unrelated registry
+host-local engine, external and ambiguous Podman machines, unrelated registry
 policy, unrelated user skills, and the user skill root remain untouched.
 
 Run `--dry-run` first. Add `--stop-running` only after reviewing and explicitly
@@ -170,16 +170,3 @@ accepting deletion of listed running containers. Machine removal is journaled
 before the first stop. A partial failure retains the installation and prints
 completed and pending engines plus the exact retry command; a replacement at a
 previously removed name is treated as a collision.
-
-For an existing schema-2 installation, first update its installed controls,
-then inspect and explicitly migrate the engine registry:
-
-```sh
-shimmy admin engine status
-shimmy admin engine migrate --dry-run
-shimmy admin engine migrate
-```
-
-On macOS, migration preserves each existing `shimmy-<profile>` machine as an
-external legacy-isolated engine and creates `shimmy` for future shared profiles.
-It does not rename, claim, start, stop, or remove the legacy machines.

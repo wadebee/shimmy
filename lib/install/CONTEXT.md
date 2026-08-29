@@ -25,9 +25,8 @@
 - `launcher-template.sh` is the byte-authoritative final installed launcher for
   `admin`, `profile`, `catalog`, `shim`, and `ai-skill`.
 
-Materialized controls include the published `lib/engine/` schema-1 registry and
-dual-read bridge. Update installs those readers before explicit migration can
-publish engine and binding records.
+Materialized controls include the published `lib/engine/` schema registry and
+strict profile-binding readers.
 
 Initial bootstrap requires a clean committed attached `main`, creates only
 `default`, publishes a shared engine/binding, installs jq/rg/Skopeo, activates

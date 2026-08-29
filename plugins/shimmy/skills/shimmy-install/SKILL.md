@@ -30,7 +30,7 @@ from:
 https://github.com/wadebee/shimmy/tree/main/plugins/shimmy/skills/shimmy-install
 ```
 
-Restart Codex, create or use a checkout, read `BOOTSTRAP.md`, and continue from
+Refresh agent harness to pickup new Shimmy skills, create or use a checkout, read `BOOTSTRAP.md`, and continue from
 the checkout. Do not treat the installed skill copy as a source tree.
 
 ## Bootstrap
@@ -39,8 +39,8 @@ the checkout. Do not treat the installed skill copy as a source tree.
 . ./bootstrap.sh
 ```
 
-Bootstrap creates and activates only `default`, publishes the first immutable
-default-catalog generation, installs jq/rg/Skopeo, reconciles direct user skill
+Bootstrap creates and activates only a `default` profile, publishes the first immutable
+default-catalog generation, installs default toolset, reconciles direct user skill
 links, applies startup policy, and sources the generated shell initializer when
 itself sourced. It accepts only `--shell <name>` and `--no-startup` lifecycle
 options. The config root must not already exist.
@@ -50,7 +50,7 @@ roots and `./bootstrap.sh --no-startup`. Do not invent an install-directory,
 profile, source, activation, or migration option.
 
 Bootstrap activation is part of one compensated lifecycle. On macOS it creates
-the installation-owned shared machine and connection `shimmy` only after exact
+the installation-owned shared machine and connection `shimmy-default` only after exact
 collision preflight; on Linux it records and validates the current user's local
 rootless engine. Shimmy does not install Podman or adopt an existing machine,
 and bootstrap never supplies `--stop-running`.
@@ -159,7 +159,7 @@ Uninstall validates and removes all installation-owned profiles, catalog state,
 active state, exact startup blocks, recognized registry projections,
 recognized direct Shimmy user-skill links, and every macOS machine whose
 complete current evidence proves Shimmy ownership. It preserves source
-checkouts, legacy, external, ambiguous, and Linux host-local engines, unrelated
+checkouts, external, ambiguous, and Linux host-local engines, unrelated
 registry policy, unrelated skills, and the user skill root.
 
 Removing an owned machine permanently destroys its containers, images,

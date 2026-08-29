@@ -21,26 +21,13 @@ active edits validate fresh local-rootless Podman processes and restore exact
 prior state on failure. Detach and uninstall remove only the exact invoking
 profile link. Foreign, dangling, unsafe, or masking state fails closed.
 
-On Darwin, migrated shared and newly owned isolated engines use a stable guest-user drop-in targeting
-the host-mounted `<config-root>/engines/<id>/registries.conf`. The engine
-projection records source profile/path and source/effective/loaded
+On Darwin, shared and isolated engines use a stable guest-user drop-in
+targeting the host-mounted `<config-root>/engines/<id>/registries.conf`. The
+engine projection records source profile/path and source/effective/loaded
 fingerprints. Changed effective policy recycles only rootless
-`podman.service`; equal policy is a no-op, and rollback restores both source and
-loaded projection. Legacy-unmigrated and legacy-isolated activation retains the
-exact root-managed VM symlink
-`/etc/containers/registries.conf.d/shimmy-profile.conf` and strict local
-`<profile-root>/machine-projection.txt` record. A fixed
-root SSH script accepts only a normalized safe-name profile path with regular,
-non-symlink parent/profile/config state, while a separate
-rootless SSH process validates same-path source visibility, exact link target,
-readability, and fingerprint. Projection precedes engine validation; record
-creation and global default selection follow it. Rollback covers link and
-record state. Stale running policy requires explicit restart. Standalone
-detach accepts only exact owned state or a valid record with a machine proven
-absent; stopped, unreachable, foreign, and damaged state fails without
-mutation. Internal prepare/remove/rollback/finalize primitives let uninstall
-retain records through external cleanup, handle stopped machines through the
-activation transaction, and reproject exact links after a later failure.
+`podman.service`; equal policy is a no-op, and rollback restores both source
+and loaded projection. No profile-local VM projection record or root-managed
+compatibility link exists.
 
 The registry-client resolver recognizes only canonical materialized profiles.
 It omits a mount when no Shimmy activation exists, returns the invoking

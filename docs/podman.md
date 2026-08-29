@@ -67,8 +67,7 @@ remains a validated rollback source.
 
 On Linux, all ordinary profiles bind to the shared local rootless engine and
 activation manages only the Shimmy-owned user registry drop-in. On macOS, they
-bind to the installation's owned shared machine: `shimmy-default` for fresh
-installations or `shimmy` after compatibility migration. A shared-to-shared
+bind to the installation's owned shared machine `shimmy-default`. A shared-to-shared
 switch never stops or starts the VM. If the normalized policy changes, Shimmy recycles only the
 rootless `podman.service`, confirms `podman.socket` remains active, starts a new
 API process through the exact connection, and validates the mapping. This is a
@@ -98,8 +97,8 @@ shimmy profile clone build-lab build-lab-two
 shimmy profile clone build-lab shared-copy --shared
 ```
 
-A shared source clones to the shared engine. An isolated or legacy-isolated
-source clones to a newly owned isolated engine unless `--shared` overrides that
+A shared source clones to the shared engine. An isolated source clones to a
+newly owned isolated engine unless `--shared` overrides that
 intent; `--isolated` forces a new isolated engine. The two overrides are
 mutually exclusive.
 
@@ -209,17 +208,14 @@ recycles the API service without a VM restart:
 "$profile_root/bin/shimmy" profile activate team-one
 ```
 
-Inspect compatibility and migrate an updated schema-2 installation explicitly:
+Inspect the strict engine registry without mutation:
 
 ```sh
 shimmy admin engine status --format manifest
-shimmy admin engine migrate --dry-run
-shimmy admin engine migrate
 ```
 
-Migration records existing `shimmy-<profile>` machines as external
-legacy-isolated engines without changing their lifecycle, then creates the
-reserved shared `shimmy` engine for future profiles.
+Installations created by an earlier contract must be removed with the version
+that created them and bootstrapped fresh.
 
 ## Profile deletion
 

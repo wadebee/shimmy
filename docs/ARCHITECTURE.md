@@ -117,7 +117,7 @@ A normal tool invocation should not need to understand:
 
 - engine topology,
 - engine ownership,
-- profile migration,
+- profile lifecycle state,
 - policy projection,
 - runtime initialization,
 - or lifecycle journals.
@@ -293,15 +293,18 @@ Isolation mode is expected to cost more in:
 
 The stronger boundary is intentional and should remain an explicit user choice.
 
-### Legacy or external engines
+### External or ambiguous engines
 
-Shimmy may route to an existing engine without claiming ownership of it.
+Unsupported or damaged state may still identify an engine that Shimmy cannot
+prove it owns.
 
 ```text
 Known to Shimmy != Owned by Shimmy
 ```
 
-Destructive operations require explicit, current ownership proof. Names, bindings, or historical association are never sufficient proof by themselves.
+Profiles never route through that state. Destructive operations require
+explicit, current ownership proof; names, bindings, or historical association
+are never sufficient proof by themselves.
 
 ---
 
@@ -610,7 +613,6 @@ shimmy
  +-- admin
  |    +-- status
  |    +-- engine status
- |    +-- engine migrate
  |    +-- network
  |    +-- uninstall
  |
@@ -791,7 +793,7 @@ Installation status
     +-- active profile
     +-- catalog state
     +-- integration state
-    +-- migration/recovery state
+    +-- lifecycle recovery state
 
 Profile status
     |

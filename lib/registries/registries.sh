@@ -221,440 +221,6 @@ shimmy_registries_config_fingerprint_validate() {
   esac
 }
 
-shimmy_registries_machine_projection_commit() {
-  shimmy_registries_machine_projection_record_commit
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_CHANGED=0
-}
-
-shimmy_registries_machine_projection_detach_finalize() {
-  detach_backup_path=$1
-  case "$detach_backup_path" in
-    "$SHIMMY_PROFILE_ROOT"/.machine-projection.detach.*) rm -f "$detach_backup_path" ;;
-    *) return 1 ;;
-  esac
-}
-
-shimmy_registries_machine_projection_detach_prepare() {
-  detach_record_path=$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH
-  detach_backup_path=$SHIMMY_PROFILE_ROOT/.machine-projection.detach.$$
-  shimmy_registries_machine_projection_record_validate "$detach_record_path" "$SHIMMY_PROFILE_NAME" || return 1
-  [ ! -e "$detach_backup_path" ] && [ ! -L "$detach_backup_path" ] || {
-    printf 'ERROR: Darwin projection detach backup collision: %s\n' "$detach_backup_path" >&2
-    return 1
-  }
-  cp "$detach_record_path" "$detach_backup_path" || return 1
-  chmod 0644 "$detach_backup_path" || {
-    rm -f "$detach_backup_path"
-    return 1
-  }
-  shimmy_registries_machine_projection_record_validate "$detach_backup_path" "$SHIMMY_PROFILE_NAME" || {
-    rm -f "$detach_backup_path"
-    return 1
-  }
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_DETACH_BACKUP_PATH=$detach_backup_path
-}
-
-shimmy_registries_machine_projection_detach_record_remove() {
-  detach_backup_path=$1
-  case "$detach_backup_path" in "$SHIMMY_PROFILE_ROOT"/.machine-projection.detach.*) ;; *) return 1 ;; esac
-  shimmy_registries_machine_projection_record_validate "$detach_backup_path" "$SHIMMY_PROFILE_NAME" || return 1
-  shimmy_registries_machine_projection_record_validate \
-    "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" "$SHIMMY_PROFILE_NAME" || return 1
-  cmp -s "$detach_backup_path" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" || return 1
-  rm -f "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-}
-
-shimmy_registries_machine_projection_detach_record_rollback() {
-  detach_backup_path=$1
-  case "$detach_backup_path" in "$SHIMMY_PROFILE_ROOT"/.machine-projection.detach.*) ;; *) return 1 ;; esac
-  shimmy_registries_machine_projection_record_validate "$detach_backup_path" "$SHIMMY_PROFILE_NAME" || return 1
-  if [ -f "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] &&
-    [ ! -L "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] &&
-    cmp -s "$detach_backup_path" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"; then
-    return 0
-  fi
-  [ ! -e "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] &&
-    [ ! -L "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" ] || return 1
-  cp "$detach_backup_path" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" &&
-    chmod 0644 "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-}
-
-shimmy_registries_machine_projection_detach_remote() {
-  shimmy_registries_machine_projection_link_state_read
-  [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE" = current ] || {
-    printf 'ERROR: refusing Darwin detach with foreign, absent, or invalid machine projection: %s\n' \
-      "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK" >&2
-    return 1
-  }
-  detach_output=$(shimmy_registries_machine_projection_root_run detach) || detach_output=
-  [ "$detach_output" = detached ] || {
-    printf 'ERROR: unable to detach Darwin registry projection from %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-    return 1
-  }
-}
-
-shimmy_registries_machine_projection_detach_remote_rollback() {
-  rollback_output=$(shimmy_registries_machine_projection_root_run apply 2>/dev/null) || rollback_output=
-  [ "$rollback_output" = changed ]
-}
-
-shimmy_registries_machine_projection_link_apply() {
-  projection_output=$(shimmy_registries_machine_projection_root_run apply) || {
-    printf 'ERROR: unable to install Darwin registry projection in %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-    return 1
-  }
-  case "$projection_output" in
-    changed) SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_CHANGED=1 ;;
-    unchanged) SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_CHANGED=0 ;;
-    *)
-      printf 'ERROR: invalid Darwin registry projection response from %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-      return 1
-      ;;
-  esac
-}
-
-shimmy_registries_machine_projection_link_state_read() {
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE=unreachable
-  projection_output=$(shimmy_registries_machine_projection_root_run inspect 2>/dev/null) || return 0
-  case "$projection_output" in
-    absent|current|foreign) SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE=$projection_output ;;
-    *) SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE=invalid ;;
-  esac
-}
-
-shimmy_registries_machine_projection_record_apply() {
-  projection_fingerprint_requested=$1
-  shimmy_registries_config_fingerprint_validate "$projection_fingerprint_requested" || return 1
-  record_path=$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH
-  stage_path=$SHIMMY_PROFILE_ROOT/.machine-projection.tmp.$$
-  rollback_path=$SHIMMY_PROFILE_ROOT/.machine-projection.rollback.$$
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_CHANGED=0
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_PRIOR_EXISTS=0
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_ROLLBACK_PATH=
-
-  if [ -e "$record_path" ] || [ -L "$record_path" ]; then
-    shimmy_registries_machine_projection_record_validate "$record_path" "$SHIMMY_PROFILE_NAME" || return 1
-    existing_record=$(cat "$record_path")
-    candidate_record=$(shimmy_registries_machine_projection_record_render "$SHIMMY_PROFILE_NAME" "$projection_fingerprint_requested") || return 1
-    [ "$existing_record" != "$candidate_record" ] || return 0
-    [ ! -e "$rollback_path" ] && [ ! -L "$rollback_path" ] || {
-      printf 'ERROR: machine projection rollback path collision: %s\n' "$rollback_path" >&2
-      return 1
-    }
-    cp "$record_path" "$rollback_path" || return 1
-    chmod 0644 "$rollback_path" || { rm -f "$rollback_path"; return 1; }
-    SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_PRIOR_EXISTS=1
-    SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_ROLLBACK_PATH=$rollback_path
-  fi
-
-  [ ! -e "$stage_path" ] && [ ! -L "$stage_path" ] || {
-    rm -f "$rollback_path"
-    printf 'ERROR: machine projection staging path collision: %s\n' "$stage_path" >&2
-    return 1
-  }
-  shimmy_registries_machine_projection_record_render "$SHIMMY_PROFILE_NAME" "$projection_fingerprint_requested" > "$stage_path" || {
-    rm -f "$stage_path" "$rollback_path"
-    return 1
-  }
-  chmod 0644 "$stage_path" || { rm -f "$stage_path" "$rollback_path"; return 1; }
-  shimmy_registries_machine_projection_record_validate "$stage_path" "$SHIMMY_PROFILE_NAME" || {
-    rm -f "$stage_path" "$rollback_path"
-    return 1
-  }
-  record_path=$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH
-  mv "$stage_path" "$record_path" || { rm -f "$stage_path" "$rollback_path"; return 1; }
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_APPLIED_FINGERPRINT=$projection_fingerprint_requested
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_CHANGED=1
-}
-
-shimmy_registries_machine_projection_record_commit() {
-  rollback_path=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_ROLLBACK_PATH:-}
-  case "$rollback_path" in
-    "$SHIMMY_PROFILE_ROOT"/.machine-projection.rollback.*) rm -f "$rollback_path" ;;
-  esac
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_CHANGED=0
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_PRIOR_EXISTS=0
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_ROLLBACK_PATH=
-}
-
-shimmy_registries_machine_projection_record_read() {
-  record_path=$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE=absent
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORDED_FINGERPRINT=none
-  if [ -e "$record_path" ] || [ -L "$record_path" ]; then
-    if shimmy_registries_machine_projection_record_validate "$record_path" "$SHIMMY_PROFILE_NAME"; then
-      SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE=valid
-      SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORDED_FINGERPRINT=$(sed -n 's/^config_fingerprint=//p' "$record_path")
-    else
-      SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE=invalid
-      SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORDED_FINGERPRINT=unknown
-    fi
-  fi
-}
-
-shimmy_registries_machine_projection_record_render() {
-  profile_name=$1
-  projection_fingerprint=$2
-  shimmy_name_component_validate "$profile_name" || return 1
-  [ -n "${SHIMMY_CONFIG_ROOT:-}" ] || return 1
-  shimmy_registries_config_fingerprint_validate "$projection_fingerprint" || return 1
-  printf '%s\n' 'shimmy_machine_projection_version=1'
-  printf 'profile=%s\n' "$profile_name"
-  printf 'machine=shimmy-%s\n' "$profile_name"
-  printf 'target=%s\n' "$SHIMMY_CONFIG_ROOT/profiles/$profile_name/registries.conf"
-  printf 'config_fingerprint=%s\n' "$projection_fingerprint"
-}
-
-shimmy_registries_machine_projection_record_rollback() {
-  [ "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_CHANGED:-0}" -eq 1 ] || return 0
-  record_path=$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH
-  applied_fingerprint=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_APPLIED_FINGERPRINT:-}
-  shimmy_registries_machine_projection_record_validate "$record_path" "$SHIMMY_PROFILE_NAME" || return 1
-  current_fingerprint=$(sed -n 's/^config_fingerprint=//p' "$record_path")
-  [ "$current_fingerprint" = "$applied_fingerprint" ] || return 1
-  if [ "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_PRIOR_EXISTS:-0}" -eq 1 ]; then
-    rollback_path=$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_ROLLBACK_PATH
-    shimmy_registries_machine_projection_record_validate "$rollback_path" "$SHIMMY_PROFILE_NAME" || return 1
-    mv "$rollback_path" "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" || return 1
-  else
-    rm -f "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" || return 1
-  fi
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_CHANGED=0
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_ROLLBACK_PATH=
-}
-
-shimmy_registries_machine_projection_record_validate() {
-  record_path=$1
-  profile_name=$2
-  expected_target=${3:-$(dirname -- "$record_path")/registries.conf}
-  shimmy_name_component_validate "$profile_name" || return 1
-  [ -f "$record_path" ] && [ ! -L "$record_path" ] || return 1
-  if record_mode=$(stat -c '%a' "$record_path" 2>/dev/null); then
-    :
-  else
-    record_mode=$(stat -f '%Lp' "$record_path" 2>/dev/null) || return 1
-  fi
-  [ "$record_mode" = 644 ] || return 1
-  expected_machine=shimmy-$profile_name
-  awk -v profile="$profile_name" -v machine="$expected_machine" -v target="$expected_target" '
-    NR == 1 { if ($0 != "shimmy_machine_projection_version=1") exit 1; next }
-    NR == 2 { if ($0 != "profile=" profile) exit 1; next }
-    NR == 3 { if ($0 != "machine=" machine) exit 1; next }
-    NR == 4 { if ($0 != "target=" target) exit 1; next }
-    NR == 5 { if ($0 !~ /^config_fingerprint=[0-9]+-[0-9]+$/) exit 1; next }
-    { exit 1 }
-    END { if (NR != 5) exit 1 }
-  ' "$record_path" || return 1
-  projection_fingerprint=$(sed -n 's/^config_fingerprint=//p' "$record_path")
-  shimmy_registries_config_fingerprint_validate "$projection_fingerprint"
-}
-
-shimmy_registries_machine_projection_reconcile() {
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_CHANGED=0
-  host_fingerprint=$(shimmy_registries_config_fingerprint_render "$SHIMMY_PROFILE_REGISTRIES_PATH") || return 1
-  source_fingerprint=$(shimmy_registries_machine_projection_user_run source) || {
-    printf 'ERROR: profile registry configuration is not readable at the same path inside %s: %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
-    return 1
-  }
-  [ "$source_fingerprint" = "$host_fingerprint" ] || {
-    printf 'ERROR: profile registry configuration differs at the same path inside %s: %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
-    return 1
-  }
-  shimmy_registries_machine_projection_link_state_read
-  case "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE" in
-    absent|current) ;;
-    *)
-      printf 'ERROR: refusing foreign or invalid Darwin registry projection in %s: %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK" >&2
-      return 1
-      ;;
-  esac
-  shimmy_registries_machine_projection_link_apply || return 1
-  projected_fingerprint=$(shimmy_registries_machine_projection_user_run projection) || {
-    printf 'ERROR: rootless validation of Darwin registry projection failed in %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-    return 1
-  }
-  [ "$projected_fingerprint" = "$host_fingerprint" ] || {
-    printf 'ERROR: Darwin registry projection fingerprint mismatch in %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-    return 1
-  }
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT=$host_fingerprint
-}
-
-shimmy_registries_machine_projection_rollback() {
-  rollback_complete=1
-  record_changed=${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_CHANGED:-0}
-  if [ "$record_changed" -eq 1 ]; then
-    if shimmy_registries_machine_projection_record_rollback; then
-      printf 'Rollback: machine projection record restored for %s\n' "$SHIMMY_PROFILE_NAME" >&2
-    else
-      printf 'Rollback: machine projection record restoration failed for %s\n' "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" >&2
-      rollback_complete=0
-    fi
-  fi
-  if [ "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_CHANGED:-0}" -eq 1 ]; then
-    projection_output=$(shimmy_registries_machine_projection_root_run rollback 2>/dev/null) || projection_output=
-    if [ "$projection_output" = detached ]; then
-      printf 'Rollback: machine registry projection removed from %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-      SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_CHANGED=0
-    else
-      printf 'Rollback: machine registry projection removal failed for %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-      rollback_complete=0
-    fi
-  fi
-  [ "$rollback_complete" -eq 1 ]
-}
-
-shimmy_registries_machine_projection_root_run() {
-  projection_action=$1
-  [ "$SHIMMY_PROFILE_EXPECTED_MACHINE" = "shimmy-$SHIMMY_PROFILE_NAME" ] || return 1
-  [ "$SHIMMY_PROFILE_REGISTRIES_PATH" = "$SHIMMY_PROFILE_ROOT/registries.conf" ] || return 1
-  [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK" = /etc/containers/registries.conf.d/shimmy-profile.conf ] || return 1
-  "$SHIMMY_PROFILE_PODMAN_BIN" machine ssh --username root "$SHIMMY_PROFILE_EXPECTED_MACHINE" /bin/sh -s -- \
-    "$projection_action" "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK" <<'EOF'
-set -eu
-action=$1
-target=$2
-link=$3
-[ "$(id -u)" -eq 0 ]
-[ "$link" = /etc/containers/registries.conf.d/shimmy-profile.conf ]
-case "$target" in /*) ;; *) exit 20 ;; esac
-case "$target" in *//*|*/./*|*/../*|*/.|*/..) exit 20 ;; esac
-profile_dir=${target%/registries.conf}
-[ "$profile_dir" != "$target" ]
-profile=${profile_dir##*/}
-profiles_dir=${profile_dir%/*}
-[ "$profile_dir" = "$profiles_dir/$profile" ]
-case "$profiles_dir" in /shimmy/profiles|*/shimmy/profiles) ;; *) exit 20 ;; esac
-case "$profile" in ''|-*|*-|*--*|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) exit 20 ;; esac
-parent_dir=$profiles_dir
-while [ "$parent_dir" != / ]; do
-  [ -d "$parent_dir" ] && [ ! -L "$parent_dir" ]
-  parent_dir=${parent_dir%/*}
-  [ -n "$parent_dir" ] || parent_dir=/
-done
-[ -d "$profiles_dir" ] && [ ! -L "$profiles_dir" ]
-[ -d "$profile_dir" ] && [ ! -L "$profile_dir" ]
-[ -f "$target" ] && [ ! -L "$target" ]
-[ -d /etc/containers ] && [ ! -L /etc/containers ]
-[ -d /etc/containers/registries.conf.d ] && [ ! -L /etc/containers/registries.conf.d ]
-state=absent
-if [ -L "$link" ]; then
-  actual_target=$(readlink "$link")
-  if [ "$actual_target" = "$target" ]; then state=current; else state=foreign; fi
-elif [ -e "$link" ]; then
-  state=foreign
-fi
-case "$action" in
-  inspect) printf '%s\n' "$state" ;;
-  apply)
-    case "$state" in
-      current) printf '%s\n' unchanged ;;
-      absent) ln -s "$target" "$link"; printf '%s\n' changed ;;
-      *) exit 21 ;;
-    esac
-    ;;
-  detach|rollback)
-    [ "$state" = current ]
-    rm -f "$link"
-    printf '%s\n' detached
-    ;;
-  *) exit 22 ;;
-esac
-EOF
-}
-
-shimmy_registries_machine_projection_state_read() {
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=unverified
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE=unverified
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT=unknown
-  shimmy_registries_machine_projection_record_read
-  current_fingerprint=$(shimmy_registries_config_fingerprint_render "$SHIMMY_PROFILE_REGISTRIES_PATH" 2>/dev/null) || {
-    SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=invalid
-    return 0
-  }
-  SHIMMY_REGISTRIES_MACHINE_PROJECTION_CURRENT_FINGERPRINT=$current_fingerprint
-  [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" != invalid ] || {
-    SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=invalid
-    return 0
-  }
-  case "${SHIMMY_PROFILE_EXPECTED_MACHINE_STATE:-unknown}" in
-    missing) SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE=machine_missing; return 0 ;;
-    stopped) SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE=unverified; return 0 ;;
-    running) ;;
-    *) return 0 ;;
-  esac
-  [ "${SHIMMY_PROFILE_ENGINE_REACHABLE:-unknown}" = true ] || return 0
-  shimmy_registries_machine_projection_link_state_read
-  case "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE" in
-    absent)
-      SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=restart-required
-      return 0
-      ;;
-    current) ;;
-    *)
-      SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=invalid
-      return 0
-      ;;
-  esac
-  projected_fingerprint=$(shimmy_registries_machine_projection_user_run projection 2>/dev/null) || {
-    SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=invalid
-    return 0
-  }
-  [ "$projected_fingerprint" = "$current_fingerprint" ] || {
-    SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=restart-required
-    return 0
-  }
-  if [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" = valid ] &&
-    [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORDED_FINGERPRINT" = "$current_fingerprint" ]; then
-    SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=current
-  else
-    SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE=restart-required
-  fi
-}
-
-shimmy_registries_machine_projection_user_run() {
-  projection_action=$1
-  [ "$SHIMMY_PROFILE_EXPECTED_MACHINE" = "shimmy-$SHIMMY_PROFILE_NAME" ] || return 1
-  "$SHIMMY_PROFILE_PODMAN_BIN" machine ssh "$SHIMMY_PROFILE_EXPECTED_MACHINE" /bin/sh -s -- \
-    "$projection_action" "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK" <<'EOF'
-set -eu
-action=$1
-target=$2
-link=$3
-[ "$(id -u)" -ne 0 ]
-[ "$link" = /etc/containers/registries.conf.d/shimmy-profile.conf ]
-case "$target" in /*) ;; *) exit 30 ;; esac
-case "$target" in *//*|*/./*|*/../*|*/.|*/..) exit 30 ;; esac
-profile_dir=${target%/registries.conf}
-[ "$profile_dir" != "$target" ]
-profile=${profile_dir##*/}
-profiles_dir=${profile_dir%/*}
-[ "$profile_dir" = "$profiles_dir/$profile" ]
-case "$profiles_dir" in /shimmy/profiles|*/shimmy/profiles) ;; *) exit 30 ;; esac
-case "$profile" in ''|-*|*-|*--*|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) exit 30 ;; esac
-parent_dir=$profiles_dir
-while [ "$parent_dir" != / ]; do
-  [ -d "$parent_dir" ] && [ ! -L "$parent_dir" ]
-  parent_dir=${parent_dir%/*}
-  [ -n "$parent_dir" ] || parent_dir=/
-done
-[ -d "$profiles_dir" ] && [ ! -L "$profiles_dir" ]
-[ -d "$profile_dir" ] && [ ! -L "$profile_dir" ]
-[ -f "$target" ] && [ ! -L "$target" ] && [ -r "$target" ]
-case "$action" in
-  source) fingerprint_path=$target ;;
-  projection)
-    [ -L "$link" ] && [ "$(readlink "$link")" = "$target" ] && [ -r "$link" ]
-    fingerprint_path=$link
-    ;;
-  *) exit 31 ;;
-esac
-set -- $(cksum < "$fingerprint_path")
-[ "$#" -eq 2 ]
-printf '%s-%s\n' "$1" "$2"
-EOF
-}
-
 shimmy_registries_override_read() {
   SHIMMY_REGISTRIES_OVERRIDE=none
   if [ -n "${CONTAINERS_REGISTRIES_CONF:-}" ] && [ -n "${CONTAINERS_REGISTRIES_CONF_OVERRIDE:-}" ]; then
@@ -786,24 +352,15 @@ shimmy_registries_client_mount_resolve() {
       esac
       ;;
     darwin)
-      shimmy_registries_machine_projection_record_read
-      case "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" in
-        absent) return 0 ;;
-        valid) ;;
-        *)
-          shimmy_registries_client_mount_fail 'machine projection record is invalid'
-          return 1
-          ;;
-      esac
       if [ "${SHIMMY_PODMAN_PROFILE_REGISTRY_AFFINITY:-}" != "$client_profile_name:current" ]; then
         command -v shimmy_podman_profile_affinity_require >/dev/null 2>&1 || {
-          shimmy_registries_client_mount_fail 'active machine projection cannot be verified'
+          shimmy_registries_client_mount_fail 'active engine registry projection cannot be verified'
           return 1
         }
         shimmy_podman_profile_affinity_require || return 1
       fi
       [ "${SHIMMY_PODMAN_PROFILE_REGISTRY_AFFINITY:-}" = "$client_profile_name:current" ] || {
-        shimmy_registries_client_mount_fail 'machine projection is not current'
+        shimmy_registries_client_mount_fail 'engine registry projection is not current'
         return 1
       }
       ;;
@@ -813,7 +370,7 @@ shimmy_registries_client_mount_resolve() {
       ;;
   esac
 
-  printf '%s:%s:ro\n' "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK"
+  printf '%s:%s:ro\n' "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_REGISTRIES_CLIENT_MOUNT_PATH"
 }
 
 shimmy_registries_config_entries_read() {
@@ -1023,32 +580,7 @@ shimmy_registries_active_edit_prepare() {
   shimmy_registries_host_os_resolve
   case "$SHIMMY_REGISTRIES_HOST_OS" in
     linux) shimmy_registries_linux_active_edit_prepare ;;
-    darwin)
-      shimmy_registries_machine_projection_record_read
-      case "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" in
-        absent) return 0 ;;
-        invalid)
-          printf 'ERROR: refusing registry mutation with invalid Darwin machine projection record: %s\n' "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH" >&2
-          return 1
-          ;;
-      esac
-      command -v shimmy_profile_state_read >/dev/null 2>&1 || return 0
-      shimmy_profile_state_read
-      case "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" in
-        running)
-          case "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE:-unverified}" in
-            current|restart-required)
-              shimmy_registries_override_reject || return 1
-              SHIMMY_REGISTRIES_ACTIVE_EDIT=darwin
-              ;;
-            invalid)
-              printf 'ERROR: refusing registry mutation with invalid Darwin machine projection for profile %s\n' "$SHIMMY_PROFILE_NAME" >&2
-              return 1
-              ;;
-          esac
-          ;;
-      esac
-      ;;
+    darwin) return 0 ;;
   esac
 }
 
@@ -1123,9 +655,7 @@ shimmy_registries_mutate() {
     return 1
   }
   candidate_entries=$(shimmy_registries_candidate_entries_render "$existing_entries" "$mutation_action" "$mutation_prefix" "$mutation_location") || return 1
-  if [ "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}" = migrated ] &&
-    [ "${SHIMMY_PROFILE_ENGINE_ORIGIN:-legacy-external}" = shimmy-created ] &&
-    [ "${SHIMMY_PROFILE_ENGINE_KIND:-unknown}" = darwin-machine ]; then
+  if [ "${SHIMMY_PROFILE_ENGINE_KIND:-unknown}" = darwin-machine ]; then
     shimmy_registries_shared_mutate "$candidate_entries" "$existing_entries" \
       "$dry_run_requested"
     return $?
@@ -1168,17 +698,11 @@ shimmy_registries_mutate_remove_all_detach() {
     printf 'ERROR: invalid managed registry redirect configuration: %s\n' "$SHIMMY_PROFILE_REGISTRIES_PATH" >&2
     return 1
   }
-  if [ "${SHIMMY_PROFILE_ENGINE_MIGRATION_STATE:-unmigrated}" = migrated ] &&
-    [ "${SHIMMY_PROFILE_ENGINE_ORIGIN:-legacy-external}" = shimmy-created ] &&
-    [ "${SHIMMY_PROFILE_ENGINE_KIND:-unknown}" = darwin-machine ]; then
+  if [ "${SHIMMY_PROFILE_ENGINE_KIND:-unknown}" = darwin-machine ]; then
     shimmy_registries_shared_mutate '' "$existing_entries" "$dry_run_requested"
     return $?
   fi
   shimmy_registries_host_os_resolve
-  if [ "$SHIMMY_REGISTRIES_HOST_OS" = darwin ]; then
-    shimmy_registries_mutate_remove_all_detach_darwin "$dry_run_requested" "$existing_entries"
-    return $?
-  fi
   if [ "$SHIMMY_REGISTRIES_HOST_OS" != linux ]; then
     shimmy_registries_mutate remove_all '' '' "$dry_run_requested"
     return $?
@@ -1352,122 +876,6 @@ shimmy_registries_shared_mutate() {
     "$SHIMMY_PROFILE_NAME" "$shimmy_registries_shared_recycle"
 }
 
-shimmy_registries_mutate_remove_all_detach_darwin() {
-  dry_run_requested=$1
-  existing_entries=$2
-  command -v shimmy_profile_state_read >/dev/null 2>&1 || {
-    printf '%s\n' 'ERROR: Darwin profile state inspection is unavailable' >&2
-    return 1
-  }
-  shimmy_profile_state_read
-  [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" = valid ] || {
-    printf 'ERROR: no valid Darwin projection record is attached to profile %s\n' "$SHIMMY_PROFILE_NAME" >&2
-    return 1
-  }
-  detach_mode=
-  case "$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" in
-    missing) detach_mode=missing_machine ;;
-    stopped)
-      printf "ERROR: expected machine %s is stopped; activate it before detach with: '%s/bin/shimmy' profile activate %s\n" "$SHIMMY_PROFILE_EXPECTED_MACHINE" "$SHIMMY_PROFILE_ROOT" "$SHIMMY_PROFILE_NAME" >&2
-      return 1
-      ;;
-    running)
-      [ "$SHIMMY_PROFILE_ENGINE_REACHABLE" = true ] || {
-        printf 'ERROR: expected machine %s is unreachable; refusing Darwin projection detach\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-        return 1
-      }
-      [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE" = current ] || {
-        printf 'ERROR: refusing Darwin detach with foreign, absent, or invalid machine projection: %s\n' "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK" >&2
-        return 1
-      }
-      shimmy_profile_activation_override_reject || return 1
-      shimmy_registries_override_reject || return 1
-      detach_mode=running_machine
-      ;;
-    *)
-      printf 'ERROR: unable to prove Darwin machine state for projection detach: %s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" >&2
-      return 1
-      ;;
-  esac
-
-  if [ "$dry_run_requested" -eq 1 ]; then
-    shimmy_registries_config_render "$SHIMMY_PROFILE_NAME" ''
-    if [ "$detach_mode" = running_machine ]; then
-      printf 'would_detach=%s:%s\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE" "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK"
-    else
-      printf 'would_detach=record-only:%s-missing\n' "$SHIMMY_PROFILE_EXPECTED_MACHINE"
-    fi
-    printf 'would_remove_record=%s\n' "$SHIMMY_PROFILE_MACHINE_PROJECTION_RECORD_PATH"
-    return 0
-  fi
-
-  shimmy_registries_lock_acquire || return 1
-  existing_entries=$(shimmy_registries_config_entries_read "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_NAME") || {
-    shimmy_registries_lock_release
-    return 1
-  }
-  shimmy_profile_state_read
-  [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE" = valid ] || {
-    shimmy_registries_lock_release
-    printf 'ERROR: Darwin projection record changed before detach for profile %s\n' "$SHIMMY_PROFILE_NAME" >&2
-    return 1
-  }
-  case "$detach_mode:$SHIMMY_PROFILE_EXPECTED_MACHINE_STATE" in
-    missing_machine:missing) ;;
-    running_machine:running)
-      [ "$SHIMMY_PROFILE_ENGINE_REACHABLE" = true ] &&
-        [ "$SHIMMY_REGISTRIES_MACHINE_PROJECTION_LINK_STATE" = current ] || {
-          shimmy_registries_lock_release
-          printf 'ERROR: Darwin machine projection changed before detach for profile %s\n' "$SHIMMY_PROFILE_NAME" >&2
-          return 1
-        }
-      ;;
-    *)
-      shimmy_registries_lock_release
-      printf 'ERROR: Darwin machine state changed before detach for profile %s\n' "$SHIMMY_PROFILE_NAME" >&2
-      return 1
-      ;;
-  esac
-
-  shimmy_registries_machine_projection_detach_prepare || {
-    shimmy_registries_lock_release
-    return 1
-  }
-  record_backup=$SHIMMY_REGISTRIES_MACHINE_PROJECTION_DETACH_BACKUP_PATH
-  remote_detached=0
-  if [ "$detach_mode" = running_machine ]; then
-    if ! shimmy_registries_machine_projection_detach_remote; then
-      shimmy_registries_machine_projection_detach_finalize "$record_backup"
-      shimmy_registries_lock_release
-      return 1
-    fi
-    remote_detached=1
-  fi
-  mutation_status=0
-  if ! shimmy_registries_machine_projection_detach_record_remove "$record_backup"; then
-    mutation_status=1
-  elif [ -n "$existing_entries" ] && ! shimmy_registries_file_replace ''; then
-    mutation_status=1
-  fi
-  if [ "$mutation_status" -ne 0 ]; then
-    rollback_complete=1
-    shimmy_registries_machine_projection_detach_record_rollback "$record_backup" || rollback_complete=0
-    if [ "$remote_detached" -eq 1 ]; then
-      shimmy_registries_machine_projection_detach_remote_rollback || rollback_complete=0
-    fi
-    if [ "$rollback_complete" -eq 1 ]; then
-      printf '%s\n' 'ERROR: Darwin projection detach failed; prior projection and record restored' >&2
-    else
-      printf '%s\n' 'ERROR: Darwin projection detach failed and rollback was incomplete' >&2
-    fi
-    shimmy_registries_machine_projection_detach_finalize "$record_backup" || true
-    shimmy_registries_lock_release
-    return 1
-  fi
-  shimmy_registries_machine_projection_detach_finalize "$record_backup"
-  shimmy_registries_lock_release
-}
-
 shimmy_registries_policy_state_read() {
   registry_entries=$(shimmy_registries_config_entries_read "$SHIMMY_PROFILE_REGISTRIES_PATH" "$SHIMMY_PROFILE_NAME") || {
     printf '%s\n' invalid
@@ -1490,19 +898,12 @@ shimmy_registries_policy_state_read() {
       *) printf '%s\n' invalid ;;
     esac
   elif [ "$SHIMMY_REGISTRIES_HOST_OS" = darwin ]; then
-    case "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_STATE:-unverified}" in
+    case "${SHIMMY_ENGINE_REGISTRY_PROJECTION_STATE:-stale}" in
       current)
         if [ "$SHIMMY_REGISTRIES_OVERRIDE" = none ]; then printf '%s\n' current; else printf '%s\n' invalid; fi
         ;;
-      restart-required) printf '%s\n' restart-required ;;
-      invalid) printf '%s\n' invalid ;;
-      *)
-        if [ -z "$registry_entries" ] && [ "${SHIMMY_REGISTRIES_MACHINE_PROJECTION_RECORD_STATE:-absent}" = absent ]; then
-          printf '%s\n' inactive
-        else
-          printf '%s\n' unverified
-        fi
-        ;;
+      stale) printf '%s\n' restart-required ;;
+      *) printf '%s\n' invalid ;;
     esac
   elif [ -n "$registry_entries" ]; then
     printf '%s\n' prepared

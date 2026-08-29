@@ -68,6 +68,11 @@ test_shim_fixture_setup() {
   shimmy_ai_skill_shims_bundle_materialize "$TEST_SHIM_PROFILE_ROOT/config/shim-bundle-input.conf" \
     "$TEST_SHIM_PINNED_ROOT" "$TEST_SHIM_PROFILE_ROOT/ai-skills/shims" || fail_test 'unable to create empty shims bundle fixture'
   shimmy_registries_config_render default '' > "$TEST_SHIM_PROFILE_ROOT/registries.conf"
+  mkdir -p "$TEST_SHIM_CONFIG/engines/shared"
+  shimmy_engine_record_write "$TEST_SHIM_CONFIG/engines/shared/engine.conf" \
+    shared linux-rootless installation local local none host-local '' ''
+  shimmy_engine_binding_write "$TEST_SHIM_PROFILE_ROOT/engine-binding.conf" \
+    default shared shared
   shimmy_profile_launcher_render "$TEST_SHIM_CONFIG" default > "$TEST_SHIM_PROFILE_ROOT/bin/shimmy"
   shimmy_profile_shell_init_render "$TEST_SHIM_CONFIG" default > "$TEST_SHIM_PROFILE_ROOT/shell-init.sh"
   chmod 0755 "$TEST_SHIM_PROFILE_ROOT/bin/shimmy"
