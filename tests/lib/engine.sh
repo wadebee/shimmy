@@ -210,6 +210,16 @@ test_lib_engine_records() {
   chmod 0644 "$record_file"
   shimmy_engine_record_read "$record_file" || fail_test 'valid Darwin engine record rejected'
   assert_equals "$SHIMMY_ENGINE_RECORD_ORIGIN" shimmy-created
+  assert_file_contains "$record_file" '# Engine record format version. Supported value: 1.'
+  assert_file_contains "$record_file" '# Logical engine identifier. Values: shared or profile-<profile-name>.'
+  assert_file_contains "$record_file" '# Runtime form used to host containers. Values: linux-rootless or darwin-machine.'
+  assert_file_contains "$record_file" '# Lifecycle scope for this engine. Values: installation or profile.'
+  assert_file_contains "$record_file" '# Engine endpoint name. Value: local for linux-rootless; otherwise a Podman machine name such as shimmy-default.'
+  assert_file_contains "$record_file" '# Podman connection selector. Value: local for linux-rootless; otherwise a connection name such as shimmy-default.'
+  assert_file_contains "$record_file" '# VM provider reported by Podman. Value: none for linux-rootless; example for darwin-machine: applehv.'
+  assert_file_contains "$record_file" '# Engine provenance. Values: host-local, shimmy-created, or external.'
+  assert_file_contains "$record_file" '# Ownership marker. Value: 64 lowercase hexadecimal characters for shimmy-created; empty otherwise.'
+  assert_file_contains "$record_file" '# Recorded machine identity. Value: sha256:<64 lowercase hexadecimal characters>, or empty when not recorded.'
 
   sibling_root=$SCENARIO_DIR/config/shimmy/profiles/team-one
   mkdir -p "$sibling_root"

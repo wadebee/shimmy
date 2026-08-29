@@ -138,30 +138,40 @@ shimmy_engine_record_render() {
       ;;
   esac
 
+  printf '%s\n' '# Engine record format version. Supported value: 1.'
   printf '%s\n' 'shimmy_engine_version=1'
+  printf '%s\n' '# Logical engine identifier. Values: shared or profile-<profile-name>.'
   printf 'engine=%s\n' "$shimmy_engine_record_id"
+  printf '%s\n' '# Runtime form used to host containers. Values: linux-rootless or darwin-machine.'
   printf 'kind=%s\n' "$shimmy_engine_record_kind"
+  printf '%s\n' '# Lifecycle scope for this engine. Values: installation or profile.'
   printf 'scope=%s\n' "$shimmy_engine_record_scope"
+  printf '%s\n' '# Engine endpoint name. Value: local for linux-rootless; otherwise a Podman machine name such as shimmy-default.'
   printf 'name=%s\n' "$shimmy_engine_record_name"
+  printf '%s\n' '# Podman connection selector. Value: local for linux-rootless; otherwise a connection name such as shimmy-default.'
   printf 'connection=%s\n' "$shimmy_engine_record_connection"
+  printf '%s\n' '# VM provider reported by Podman. Value: none for linux-rootless; example for darwin-machine: applehv.'
   printf 'provider=%s\n' "$shimmy_engine_record_provider"
+  printf '%s\n' '# Engine provenance. Values: host-local, shimmy-created, or external.'
   printf 'origin=%s\n' "$shimmy_engine_record_origin"
+  printf '%s\n' '# Ownership marker. Value: 64 lowercase hexadecimal characters for shimmy-created; empty otherwise.'
   printf 'ownership_token=%s\n' "$shimmy_engine_record_token"
+  printf '%s\n' '# Recorded machine identity. Value: sha256:<64 lowercase hexadecimal characters>, or empty when not recorded.'
   printf 'created_identity=%s\n' "$shimmy_engine_record_identity"
 }
 
 shimmy_engine_record_read() {
   shimmy_engine_record_file=$1
   shimmy_engine_state_file_validate "$shimmy_engine_record_file" || return 1
-  SHIMMY_ENGINE_RECORD_ID=$(sed -n '2s/^engine=//p' "$shimmy_engine_record_file")
-  SHIMMY_ENGINE_RECORD_KIND=$(sed -n '3s/^kind=//p' "$shimmy_engine_record_file")
-  SHIMMY_ENGINE_RECORD_SCOPE=$(sed -n '4s/^scope=//p' "$shimmy_engine_record_file")
-  SHIMMY_ENGINE_RECORD_NAME=$(sed -n '5s/^name=//p' "$shimmy_engine_record_file")
-  SHIMMY_ENGINE_RECORD_CONNECTION=$(sed -n '6s/^connection=//p' "$shimmy_engine_record_file")
-  SHIMMY_ENGINE_RECORD_PROVIDER=$(sed -n '7s/^provider=//p' "$shimmy_engine_record_file")
-  SHIMMY_ENGINE_RECORD_ORIGIN=$(sed -n '8s/^origin=//p' "$shimmy_engine_record_file")
-  SHIMMY_ENGINE_RECORD_OWNERSHIP_TOKEN=$(sed -n '9s/^ownership_token=//p' "$shimmy_engine_record_file")
-  SHIMMY_ENGINE_RECORD_CREATED_IDENTITY=$(sed -n '10s/^created_identity=//p' "$shimmy_engine_record_file")
+  SHIMMY_ENGINE_RECORD_ID=$(sed -n 's/^engine=//p' "$shimmy_engine_record_file")
+  SHIMMY_ENGINE_RECORD_KIND=$(sed -n 's/^kind=//p' "$shimmy_engine_record_file")
+  SHIMMY_ENGINE_RECORD_SCOPE=$(sed -n 's/^scope=//p' "$shimmy_engine_record_file")
+  SHIMMY_ENGINE_RECORD_NAME=$(sed -n 's/^name=//p' "$shimmy_engine_record_file")
+  SHIMMY_ENGINE_RECORD_CONNECTION=$(sed -n 's/^connection=//p' "$shimmy_engine_record_file")
+  SHIMMY_ENGINE_RECORD_PROVIDER=$(sed -n 's/^provider=//p' "$shimmy_engine_record_file")
+  SHIMMY_ENGINE_RECORD_ORIGIN=$(sed -n 's/^origin=//p' "$shimmy_engine_record_file")
+  SHIMMY_ENGINE_RECORD_OWNERSHIP_TOKEN=$(sed -n 's/^ownership_token=//p' "$shimmy_engine_record_file")
+  SHIMMY_ENGINE_RECORD_CREATED_IDENTITY=$(sed -n 's/^created_identity=//p' "$shimmy_engine_record_file")
   [ "$(shimmy_engine_record_render "$SHIMMY_ENGINE_RECORD_ID" \
     "$SHIMMY_ENGINE_RECORD_KIND" "$SHIMMY_ENGINE_RECORD_SCOPE" \
     "$SHIMMY_ENGINE_RECORD_NAME" "$SHIMMY_ENGINE_RECORD_CONNECTION" \

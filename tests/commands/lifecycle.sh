@@ -210,6 +210,8 @@ test_commands_lifecycle_darwin_bootstrap_case() {
 
   assert_contains "$test_lifecycle_bootstrap_output" 'Bootstrapped active Shimmy profile default'
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf"
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf" \
+    '# Engine record format version. Supported value: 1.'
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/projection.conf"
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf"
   assert_file_contains "$TEST_LIFECYCLE_CONFIG/profiles/default/engine-binding.conf" 'mode=shared'
@@ -737,6 +739,8 @@ test_commands_lifecycle_end_to_end() {
   assert_contains "$test_lifecycle_bootstrap_output" "path=$test_lifecycle_default/bin:"
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/active-profile.conf"
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf"
+  assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf" \
+    '# Engine record format version. Supported value: 1.'
   assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf" 'origin=host-local'
   assert_file_contains "$test_lifecycle_default/engine-binding.conf" 'mode=shared'
   assert_equals "$(sed -n '2s/^shimmy_active_profile_name=//p' "$TEST_LIFECYCLE_CONFIG/active-profile.conf")" default

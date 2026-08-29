@@ -87,6 +87,12 @@ machine and connection named `shimmy-default`; an exact pre-existing name is a c
 and is never adopted. On Linux it records the current local rootless engine as
 the shared host-local engine.
 
+The generated `engines/shared/engine.conf` is a strict, read-only state record.
+Each attribute has a canonical explanatory comment describing its meaning and
+accepted values or representative examples. The values remain platform-specific;
+use `shimmy admin engine status` for supported operational inspection instead of
+editing the record.
+
 Use `--shell <bash|zsh|sh|ksh|mksh>` to select the recorded startup shell or
 `--no-startup` to record manual startup policy. The installation root is
 `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy`; a non-empty `XDG_CONFIG_HOME` must
