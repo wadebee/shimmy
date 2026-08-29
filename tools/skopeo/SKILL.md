@@ -25,14 +25,16 @@ description: Use and maintain the Skopeo Shimmy tool.
 
 Read `CONTEXT.md`, `CONTRIBUTING.md`, and
 `tools/skopeo/guide.md`. The concrete runtime is
-`tools/skopeo/versions/1.22/run.sh`; preserve explicit registry auth
-secret mounting and avoid default host credential mounts. A valid active
-installed profile mounts its authoritative strict redirect policy read-only;
-profiles with no activation omit it, while mismatched, damaged, stale, unsafe,
-connection-overridden, or registry-overridden state fails closed. Policy
-mounting does not provide credentials, corporate CA trust, or signature
-policy. An explicitly configured `SHIMMY_HOST_CA_BUNDLE` is mounted read-only
-at `/tmp/shimmy-host-ca-bundle.pem` and exposed only as `SSL_CERT_FILE`.
+`tools/skopeo/versions/1.22/run.sh`. Its Red Hat UBI 10 image has no native
+entrypoint, so preserve the explicit `/usr/bin/skopeo` entrypoint override.
+Preserve explicit registry auth secret mounting and avoid default host
+credential mounts. A valid active installed profile mounts its authoritative
+strict redirect policy read-only; profiles with no activation omit it, while
+mismatched, damaged, stale, unsafe, connection-overridden, or
+registry-overridden state fails closed. Policy mounting does not provide
+credentials, corporate CA trust, or signature policy. An explicitly configured
+`SHIMMY_HOST_CA_BUNDLE` is mounted read-only at
+`/tmp/shimmy-host-ca-bundle.pem` and exposed only as `SSL_CERT_FILE`.
 Treat this Go system-root mechanism as replacement-capable: advise a combined
 public and corporate bundle when both are required, and preserve the precedence
 of registry-specific `certs.d` configuration and `--cert-dir`.

@@ -15,6 +15,7 @@ test_tools_skopeo_preview_contract() {
   assert_contains "$output" "'REGISTRY_AUTH_FILE=/run/secrets/skopeo-auth.json'"
   assert_contains "$output" "'-v' '$ca_bundle:/tmp/shimmy-host-ca-bundle.pem:ro'"
   assert_contains "$output" "'-e' 'SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem'"
+  assert_contains "$output" "'--entrypoint' '/usr/bin/skopeo'"
   assert_contains "$output" "'example.invalid/shimmy/skopeo:test'"
   assert_not_contains "$output" 'shimmy-profile.conf'
   pass "Skopeo preview preserves image overrides, auth secret handling, and the host CA bundle mapping"

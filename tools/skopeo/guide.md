@@ -2,11 +2,12 @@
 
 ## Upstream
 
-- Source repo README: <https://github.com/containers/skopeo>
-- Latest release: <https://github.com/containers/skopeo/releases/latest>
-- Installation docs: <https://github.com/containers/skopeo/blob/main/install.md>
-- Container image docs: <https://github.com/containers/image_build/tree/main/skopeo>
-- Shim image: `quay.io/skopeo/stable@sha256:64ac45c5a1c01230896fbae960b2213e32a5040e4009b83b5f5cbf31a35f61c3` from `versions/1.22/image.conf` (currently reports Skopeo 1.22.2)
+- Source repo README: <https://github.com/podman-container-tools/skopeo>
+- Latest release: <https://github.com/podman-container-tools/skopeo/releases/latest>
+- Selected release: <https://github.com/podman-container-tools/skopeo/releases/tag/v1.22.2>
+- Installation docs: <https://github.com/podman-container-tools/skopeo/blob/main/install.md>
+- Selected image catalog: <https://catalog.redhat.com/en/software/containers/ubi10/skopeo/673c737a12b9add51a2c29ec>
+- Shim image: `registry.access.redhat.com/ubi10/skopeo@sha256:59aca4646e8594c191323e9b795e266fbb6ace55cbfd2fb62fd2ce800b5a5701` from `versions/1.22/image.conf` (contains Skopeo 1.22.2)
 
 ## Upstream README Summary
 
@@ -39,6 +40,16 @@ Environment:
 - `SHIMMY_SKOPEO_AUTH_SECRET` - mount a Podman secret containing a registry `auth.json`.
 - `SHIMMY_HOST_CA_BUNDLE` - mount one absolute, readable host CA bundle
   read-only and set `SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem`.
+
+Image runtime:
+
+- The selected Red Hat UBI 10 image has no configured entrypoint and defaults
+  to `/bin/bash`. The shim explicitly sets `/usr/bin/skopeo` as the container
+  entrypoint before forwarding command arguments.
+- The image runs with its effective root container user through the invoking
+  user's rootless Podman engine. The shim adds no capabilities or privileged
+  mode.
+- `SHIMMY_SKOPEO_IMAGE` overrides must also provide `/usr/bin/skopeo`.
 
 Mounts:
 
