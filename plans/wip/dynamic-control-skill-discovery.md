@@ -250,9 +250,10 @@ None.
 
 ## Progress Checklist
 
-- [ ] Active — Chunk 1: atomically replace catalog schema-1 ownership, make
+- [x] Chunk 1: atomically replace catalog schema-1 ownership, make
   control-skill discovery directory-driven, update tests/guidance, and verify
-  clean-install behavior.
+  clean-install behavior. Implemented in `64617e5`; all focused and full-suite
+  acceptance checks passed on 2026-08-28. Awaiting final human acceptance.
 
 ## Execution protocol
 
@@ -380,47 +381,47 @@ profile source separation, and destructive link reconciliation.
 
 ### Verification checklist
 
-- [ ] A live-tree search shows no catalog archive, validator, authority,
+- [x] A live-tree search shows no catalog archive, validator, authority,
   fingerprint, fixture, or current guidance that classifies
   `plugins/shimmy/skills/` as catalog content; control-plane materialization and
   canonical source guidance remain the only intentional references.
-- [ ] Source catalog validation succeeds against the repository root using only
+- [x] Source catalog validation succeeds against the repository root using only
   `catalog.conf` and `tools/`; tool-skill frontmatter/header, version metadata,
   safe paths, executable modes, and image contracts remain enforced.
-- [ ] A fresh staged/installed catalog generation has the exact replacement
+- [x] A fresh staged/installed catalog generation has the exact replacement
   root layout, contains no management-skill tree, and its deterministic
   fingerprint changes for tool-owned bytes or modes but not management-skill
   bytes.
-- [ ] Publishing a management-only commit validates the checkout but leaves the
+- [x] Publishing a management-only commit validates the checkout but leaves the
   current/previous registry entries, registry provenance/fingerprint, retained
   generation metadata, and generation count unchanged; publishing a tool change
   still creates and selects a new immutable generation, and rollback still
   selects the prior valid generation.
-- [ ] Reusing an older retained generation for content-equivalent catalog bytes
+- [x] Reusing an older retained generation for content-equivalent catalog bytes
   uses that generation's stored provenance and does not weaken tamper/collision
   rejection or rewrite immutable state.
-- [ ] Exact-source control materialization includes all current management
+- [x] Exact-source control materialization includes all current management
   skills and a synthetic added skill without a compiled list; a later committed
   removal produces the reduced non-empty bundle deterministically.
-- [ ] Profile sync across the synthetic add/remove commits advances only the
+- [x] Profile sync across the synthetic add/remove commits advances only the
   control source when catalog content is unchanged, adds/removes the exact
   recognized management-skill link, and preserves unrelated user content and
   rollback behavior.
-- [ ] Malformed control bundles/source mismatches, empty control sets,
+- [x] Malformed control bundles/source mismatches, empty control sets,
   cross-bundle collisions, malformed tool skills, unsafe catalog state, and
   modified generation fingerprints retain their existing fail-closed ownership
   and integrity behavior at the correct subsystem boundary.
-- [ ] Run focused independent groups with bounded parallelism:
+- [x] Run focused independent groups with bounded parallelism:
   `./tests/test.sh --group lib-catalog --group lib-codec --group
   lib-ai-skill-state --group commands-agent-preflight --group commands-catalog
   --group commands-ai-skill --group commands-profile --group commands-shim
   --group commands-lifecycle-bootstrap --group commands-lifecycle-end-to-end
   --jobs 3`.
-- [ ] Run the complete default suite with its default bounded parallel runner:
+- [x] Run the complete default suite with its default bounded parallel runner:
   `./tests/test.sh`.
-- [ ] Parse every changed shell source and shell test with `/bin/sh -n`; verify
+- [x] Parse every changed shell source and shell test with `/bin/sh -n`; verify
   runnable modes remain correct and no generated `.agents/skills/` tree exists.
-- [ ] `git diff --check` passes and `git status --short` shows only the approved
+- [x] `git diff --check` passes and `git status --short` shows only the approved
   implementation, tests, current guidance, and this plan.
 
 ### Human review gate
@@ -490,6 +491,20 @@ the plan to `complete`.
   on bundle records, so dynamic membership does not require a broader
   destructive boundary.
 
+### Chunk 1
+
+- Catalog ownership, immutable identity, exact-source control discovery, and
+  reconciliation had to land as one commit; the focused catalog, profile,
+  AI-skill, shim, and lifecycle groups passed together as 41 tests.
+- The complete default bounded-parallel suite passed all 151 tests, including
+  all five lifecycle scenarios and the runner's signal/interruption coverage.
+- The final shell parse, diff hygiene, executable-mode suite evidence, generated
+  adapter absence, and live-tree ownership-reference audit all passed. Remaining
+  `plugins/shimmy/skills/` references are confined to exact-source control
+  materialization, its fixtures, and current control-plane guidance.
+- The earlier lifecycle verification was interrupted and was not credited; the
+  final focused run completed with exit status 0 before the full-suite run.
+
 ## Session bootstrap
 
 Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, this plan, and
@@ -497,12 +512,11 @@ Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, this plan, and
 `lib/{catalog,install,ai-skill,profile}/CONTEXT.md`, `tests/CONTEXT.md` plus
 `tests/{lib,commands}/CONTEXT.md`, and every Chunk 1 target file.
 
-Reconfirm the worktree and preserve unrelated changes. The active scope is the
-single atomic Chunk 1: replace catalog schema-1 ownership with catalog-only
-archive/validation/fingerprint semantics, implement content-equivalent
-generation reuse, make management-skill bundles dynamically follow the exact
-control source, update existing tests/current guidance, run the checklist,
-record progress and lessons here, and stop at the human review gate.
+Reconfirm the worktree and preserve unrelated changes. Chunk 1 is implemented
+in `64617e5` and fully verified. The authoritative plan is in `plans/wip`; its
+lifecycle move and review evidence are the only expected uncommitted changes.
+Stop at the human review gate. After explicit final acceptance, add the required
+completion date below the title and move this plan to `plans/complete`.
 
 Do not add any legacy catalog reader, fingerprint compatibility branch,
 migration command, automatic uninstall/reinstall behavior, public command,
