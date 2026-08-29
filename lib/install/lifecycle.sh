@@ -233,7 +233,8 @@ shimmy_profile_bootstrap_run() {
     shimmy_profile_lifecycle_activation_rollback 'unable to create initial active profile authority' || return 1
   shimmy_profile_images_prepare "$SHIMMY_PROFILE_CANDIDATE_ROOT" \
     "$SHIMMY_PROFILE_BASELINE_PAIRS" ||
-    shimmy_profile_lifecycle_activation_rollback 'unable to prepare initial profile images' || return 1
+    shimmy_profile_lifecycle_activation_rollback \
+      "${SHIMMY_PROFILE_IMAGES_ERROR:-unable to prepare initial profile images}" || return 1
   shimmy_ai_skill_reconcile_apply ||
     shimmy_profile_lifecycle_activation_rollback "${SHIMMY_AI_SKILL_ERROR:-unable to reconcile initial AI-skill links}" || return 1
   shimmy_startup_apply "$shimmy_profile_bootstrap_config" \
@@ -677,7 +678,7 @@ shimmy_profile_lifecycle_activate_locked() {
     shimmy_profile_images_prepare "$SHIMMY_PROFILE_LIFECYCLE_IMAGE_ROOT" \
       "${SHIMMY_PROFILE_LIFECYCLE_IMAGE_PAIRS:-}" ||
       shimmy_profile_lifecycle_activation_rollback \
-        'unable to prepare images on the target engine' || return 1
+        "${SHIMMY_PROFILE_IMAGES_ERROR:-unable to prepare images on the target engine}" || return 1
   fi
   shimmy_external_transaction_begin || return 1
   shimmy_active_profile_replace "$shimmy_profile_lifecycle_activate_name" \
