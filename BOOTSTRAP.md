@@ -79,7 +79,10 @@ first `default` catalog generation, materializes the control and tool skill
 bundles, activates engine/registry authority, writes the active-profile record,
 reconciles exact user-skill links, and applies the selected startup policy as
 one compensated lifecycle. A failure removes new installation state and
-restores every recoverable external change.
+restores every recoverable external change. If image preparation fails, the
+final error identifies the tool, version, pull/build action, and configured
+reference without inferring whether the underlying cause is registry access,
+authentication, or network availability.
 
 Machine initialization records durable intent before invoking Podman and gains
 automatic deletion authority only after committing the exact created identity.

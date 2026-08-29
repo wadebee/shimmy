@@ -98,7 +98,9 @@ A failed bootstrap normally removes its fresh installation root. If Podman
 machine initialization is ambiguous or exact rollback cannot finish, Shimmy
 reports incomplete rollback and retains the root plus engine lifecycle journal
 as recovery evidence. Do not retry bootstrap or delete/adopt the machine by
-name; inspect the reported state first.
+name; inspect the reported state first. Image preparation failures identify the
+tool, version, pull/build action, and configured reference so the failing
+catalog entry can be inspected directly.
 
 See [BOOTSTRAP.md](BOOTSTRAP.md) for first-contact installation and engine
 preparation.

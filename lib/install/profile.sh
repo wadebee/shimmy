@@ -2,6 +2,7 @@
 # Profile materialization and the exact jq/rg/Skopeo baseline.
 
 SHIMMY_PROFILE_CANDIDATE_STAGE=
+SHIMMY_PROFILE_IMAGES_ERROR=
 
 shimmy_profile_candidate_stage_cleanup() {
   [ -n "$SHIMMY_PROFILE_CANDIDATE_STAGE" ] || return 0
@@ -104,6 +105,7 @@ EOF
 shimmy_profile_images_prepare() {
   shimmy_profile_images_stage=$1
   shimmy_profile_images_pairs=${2:-}
+  SHIMMY_PROFILE_IMAGES_ERROR=
   while IFS='|' read -r shimmy_profile_images_tool shimmy_profile_images_version shimmy_profile_images_extra; do
     [ -n "$shimmy_profile_images_tool" ] || continue
     [ -z "$shimmy_profile_images_extra" ] || return 1
@@ -111,13 +113,23 @@ shimmy_profile_images_prepare() {
     shimmy_profile_images_source=$(shimmy__catalog_config_value_read \
       "$shimmy_profile_images_root/image.conf" image_source) || return 1
     case "$shimmy_profile_images_source" in
-      external) shimmy_profile_images_action=pull ;;
-      local-build) shimmy_profile_images_action=build ;;
+      external)
+        shimmy_profile_images_action=pull
+        shimmy_profile_images_reference=$(shimmy__catalog_config_value_read \
+          "$shimmy_profile_images_root/image.conf" image_default_ref) || return 1
+        ;;
+      local-build)
+        shimmy_profile_images_action=build
+        shimmy_profile_images_reference=local-build
+        ;;
       *) return 1 ;;
     esac
     [ -x "$shimmy_profile_images_root/refresh.sh" ] &&
       [ ! -L "$shimmy_profile_images_root/refresh.sh" ] || return 1
-    "$shimmy_profile_images_root/refresh.sh" "$shimmy_profile_images_action" || return 1
+    "$shimmy_profile_images_root/refresh.sh" "$shimmy_profile_images_action" || {
+      SHIMMY_PROFILE_IMAGES_ERROR="image-preparation-failed: tool=$shimmy_profile_images_tool version=$shimmy_profile_images_version action=$shimmy_profile_images_action reference=$shimmy_profile_images_reference"
+      return 1
+    }
   done <<EOF
 $shimmy_profile_images_pairs
 EOF

@@ -200,6 +200,7 @@ test_lifecycle_darwin_bootstrap_command() {
     SHIMMY_TEST_REQUIRED_ACTIVE_PROFILE=default \
     SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
     SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
+    SHIMMY_TEST_IMAGE_FAILURE="${TEST_LIFECYCLE_IMAGE_FAILURE:-}" \
     FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
     FAKE_MACHINE_LIST= \
     FAKE_CONNECTION_LIST='other|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true' \
@@ -283,6 +284,25 @@ test_commands_lifecycle_darwin_bootstrap_case() {
 
 test_commands_lifecycle_darwin_bootstrap_engine_states() {
   test_commands_lifecycle_darwin_bootstrap_case fresh
+
+  test_lifecycle_fixture_setup
+  TEST_LIFECYCLE_CREATED_STATE=$SCENARIO_DIR/created-machine-state
+  TEST_LIFECYCLE_SERVICE_PID=$SCENARIO_DIR/service-pid
+  printf '%s\n' absent > "$TEST_LIFECYCLE_CREATED_STATE"
+  printf '%s\n' 800 > "$TEST_LIFECYCLE_SERVICE_PID"
+  TEST_LIFECYCLE_IMAGE_FAILURE=skopeo@1.22
+  set +e
+  test_lifecycle_image_failure=$(test_lifecycle_darwin_bootstrap_command 2>&1)
+  test_lifecycle_image_failure_status=$?
+  set -e
+  TEST_LIFECYCLE_IMAGE_FAILURE=
+  [ "$test_lifecycle_image_failure_status" -ne 0 ] ||
+    fail_test 'injected bootstrap image-preparation failure unexpectedly succeeded'
+  test_lifecycle_image_reference=$(sed -n 's/^image_default_ref=//p' \
+    "$TEST_LIFECYCLE_CHECKOUT/tools/skopeo/versions/1.22/image.conf")
+  assert_contains "$test_lifecycle_image_failure" \
+    "image-preparation-failed: tool=skopeo version=1.22 action=pull reference=$test_lifecycle_image_reference"
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG"
 
   test_lifecycle_fixture_setup
   TEST_LIFECYCLE_CREATED_STATE=$SCENARIO_DIR/created-machine-state

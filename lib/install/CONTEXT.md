@@ -38,3 +38,5 @@ existing config root or exact Darwin name collision is never adopted or merged.
 Complete bootstrap compensation removes the fresh root. If shared-machine
 identity is still ambiguous or exact machine removal fails, cleanup instead
 retains the root and lifecycle journal and reports incomplete rollback.
+Image-preparation failures preserve refresh stderr and add a stable summary
+with the tool, version, action, and configured reference before compensation.
