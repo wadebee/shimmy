@@ -2,23 +2,24 @@
 
 ## Objective
 
-Implement an engine-aware CPU compatibility foundation that prevents Shimmy
-from adopting an image whose instruction-set requirements exceed the selected
+Without any backwards-compatibility guarantees, implement an engine-aware CPU compatibility foundation that prevents Shimmy
+profile from adopting an image whose instruction-set requirements exceed the selected
 Podman execution engine's observed capabilities.
 
 Success means:
 
-- discovery records evidence-backed CPU requirements for every credible image
-  option without filtering the catalog by the discovery workstation;
+- agent skill discovery records evidence-backed CPU requirements for every credible image
+  option without filtering the catalog by the discovery host;
 - the catalog remains a host-independent superset of selectable image options;
 - an engine owns a normalized observation of its effective execution
   capabilities;
 - profile adoption resolves and persists a compatible image option before any
   image pull or local build;
-- bootstrap applies the same resolution atomically to its inherent `jq`, `rg`,
-  and Skopeo adoption; and
-- existing profile, shim, catalog, engine, and bootstrap transaction guarantees
-  remain intact.
+- bootstrap applies the same resolution atomically to its default profile / default toolset pairing; and
+- pre-existing profile, shim, catalog, engine, and bootstrap transaction guarantees
+  remain intact unless no longer deemed necessary or beneficial by plan changes. 
+- During the implementation the agent may encounter sections of logic and/or testing that is no longer relevant. 
+The agent is authorized to remove this when certainty exists that doing so no longer protects invariants. When high-probability of dead-code exists but you are not certain, stop and interview user.   
 
 This foundation does not implement per-tool routing across local, remote, GPU,
 or emulated engines. It must leave an explicit extension boundary for that
@@ -26,8 +27,8 @@ future work without adding speculative GPU or remote-engine behavior now.
 
 ## Target layout and terminology
 
-- **Image option**: one immutable runtime or base-image choice for a concrete
-  Shimmy tool version, with platform descriptors, CPU requirements, provenance,
+- **Image option**: one immutable Shimmy catalog tool version base-image choice for a concrete
+  Adoption Selection, with platform descriptors, CPU requirements, provenance,
   registry access, and selection metadata.
 - **CPU requirement**: the normalized minimum instruction-set contract for one
   image option on one OCI platform, plus evidence and confidence. Missing OCI
@@ -104,7 +105,7 @@ demonstrates a concrete tool requirement.
 10. This is a clean schema transition. Backward compatibility, compatibility
    readers, and in-place migration of profiles created by the prior contract
    are not required; those installations must be removed with the version that
-   created them and bootstrapped fresh.
+   created them and bootstrapped fresh. Stale code may be removed.
 11. Apply YAGNI to capability scope: implement the minimum CPU contract needed
    for correct image adoption, while preserving a clear schema-version
    extension point for future routing capabilities. Do not add speculative
@@ -136,8 +137,8 @@ demonstrates a concrete tool requirement.
     or replaces an engine boundary. Ordinary activation, tool adoption, sync,
     and runtime invocation do not re-probe it. This responsiveness boundary is
     intentional.
-18. Bootstrap's baseline `jq`, `rg`, and Skopeo set is one atomic compatibility
-    plan. All three selections must resolve before any baseline image is
+18. Bootstrap's baseline default toolset (currently `jq`, `rg`, and Skopeo but subject to change) is set is one atomic compatibility
+    plan. All default selections must resolve before any baseline image is
     prepared, using the engine record established earlier in the same outer
     compensated bootstrap transaction.
 19. Only the canonical management skills under `plugins/shimmy/skills/` may be
@@ -177,7 +178,9 @@ demonstrates a concrete tool requirement.
     parsing, normalization, or record-validation failure aborts creation and
     enters the existing compensated rollback path. This is a permanent Shimmy
     integrity invariant, and one authoritative negative test is explicitly
-    approved to protect it.
+    approved to protect it. 
+27. Reuse existing fingerprint-style sha capabilities when available instead of creating new ones.
+28. Stop and interview user when a significant implementation path is unclear and cannot be reasonably inferred without additional design intent.
 
 ## Verified implementation inventory
 
