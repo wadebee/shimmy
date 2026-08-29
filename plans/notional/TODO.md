@@ -95,3 +95,20 @@ configured=/bin/zsh running=/bin/bash
 it forces a user prompt to proceed and guidance for how to call install to align running with configured
 
 How complicated of a code refactoring would it be to add install support for multiple shells simultaneously?
+
+# Future per-tool engine routing
+
+After the engine CPU-capability foundation, plan capability-aware per-tool
+routing across a local naStive engine, remote architecture-specific or GPU
+engines, and an explicitly approved emulation fallback. Match catalog tool/image
+requirements to engine capability observations while preserving profile-owned
+selection, engine authority, credential boundaries, and native execution as the
+default. This future work is intentionally excluded from
+[the foundation plan](engine-cpu-capability-foundation.md).
+
+| Level | Required capabilities | Names visible in your list |
+|---|---|---|
+| `x86-64-v1` | CMOV, CX8, FPU, FXSR, MMX, OSFXSR, syscall, SSE, SSE2 | `cmov cx8 fpu fxsr mmx syscall sse sse2` |
+| `x86-64-v2` | v1 plus CX16, LAHF/SAHF, POPCNT, SSE3, SSE4.1, SSE4.2, SSSE3 | `cx16 lahf_lm popcnt pni sse4_1 sse4_2 ssse3` |
+| `x86-64-v3` | v2 plus AVX, AVX2, BMI1, BMI2, F16C, FMA, LZCNT, MOVBE, OSXSAVE | Only `movbe` is present; the others are missing |
+| `x86-64-v4` | v3 plus AVX-512 F/BW/CD/DQ/VL | Missing |
