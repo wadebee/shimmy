@@ -6,8 +6,8 @@
 - Latest release: <https://github.com/podman-container-tools/skopeo/releases/latest>
 - Selected release: <https://github.com/podman-container-tools/skopeo/releases/tag/v1.22.2>
 - Installation docs: <https://github.com/podman-container-tools/skopeo/blob/main/install.md>
-- Selected image catalog: <https://catalog.redhat.com/en/software/containers/ubi10/skopeo/673c737a12b9add51a2c29ec>
-- Shim image: `registry.access.redhat.com/ubi10/skopeo@sha256:59aca4646e8594c191323e9b795e266fbb6ace55cbfd2fb62fd2ce800b5a5701` from `versions/1.22/image.conf` (contains Skopeo 1.22.2)
+- Selected image catalog: <https://catalog.redhat.com/en/software/containers/ubi9/skopeo/61959869ce09ff98ccc36338>
+- Shim image: `registry.access.redhat.com/ubi9/skopeo@sha256:577a988b42ae430f0f9d99bae5232b517ceaea6a7b884ec443fe8e636528e291` from `versions/1.22/image.conf` (contains Skopeo 1.22.2)
 
 ## Upstream README Summary
 
@@ -43,7 +43,7 @@ Environment:
 
 Image runtime:
 
-- The selected Red Hat UBI 10 image has no configured entrypoint and defaults
+- The selected Red Hat UBI 9 image has no configured entrypoint and defaults
   to `/bin/bash`. The shim explicitly sets `/usr/bin/skopeo` as the container
   entrypoint before forwarding command arguments.
 - The image runs with its effective root container user through the invoking

@@ -82,7 +82,11 @@ EOF
     assert_file_contains "$test_surface_group_stdout" 'Remediation:'
   done
   assert_file_contains "$SCENARIO_DIR/help-profile-redirect-bare.stdout" 'Commands:'
+  assert_file_contains "$SCENARIO_DIR/help-profile-redirect-bare.stdout" \
+    'shimmy profile redirect <command> [options]'
   assert_file_contains "$SCENARIO_DIR/help-admin-engine-bare.stdout" 'Commands:'
+  assert_file_contains "$SCENARIO_DIR/help-admin-engine-bare.stdout" \
+    'shimmy admin engine <command> [options]'
   assert_file_contains "$SCENARIO_DIR/help-admin-bare.stdout" \
     'Uninstall permanently destroys containers, images, volumes, build caches'
 

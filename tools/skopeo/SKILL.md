@@ -25,7 +25,7 @@ description: Use and maintain the Skopeo Shimmy tool.
 
 Read `CONTEXT.md`, `CONTRIBUTING.md`, and
 `tools/skopeo/guide.md`. The concrete runtime is
-`tools/skopeo/versions/1.22/run.sh`. Its Red Hat UBI 10 image has no native
+`tools/skopeo/versions/1.22/run.sh`. Its Red Hat UBI 9 image has no native
 entrypoint, so preserve the explicit `/usr/bin/skopeo` entrypoint override.
 Preserve explicit registry auth secret mounting and avoid default host
 credential mounts. A valid active installed profile mounts its authoritative

@@ -32,8 +32,10 @@ esac
 case "${2:-}" in help|-h|--help) exec "$shimmy_launcher_help" "$shimmy_launcher_command" ;; esac
 if { [ "$shimmy_launcher_command" = profile ] && [ "${2:-}" = redirect ]; } ||
   { [ "$shimmy_launcher_command" = admin ] && [ "${2:-}" = engine ]; }; then
-  [ "$#" -gt 2 ] || exec "$shimmy_launcher_help" profile redirect
-  case "${3:-}" in help|-h|--help) exec "$shimmy_launcher_help" profile redirect ;; esac
+  [ "$#" -gt 2 ] || exec "$shimmy_launcher_help" "$shimmy_launcher_command" "${2:-}"
+  case "${3:-}" in
+    help|-h|--help) exec "$shimmy_launcher_help" "$shimmy_launcher_command" "${2:-}" ;;
+  esac
 fi
 for shimmy_launcher_arg in "$@"; do
   case "$shimmy_launcher_arg" in

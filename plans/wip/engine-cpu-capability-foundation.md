@@ -411,7 +411,7 @@ Authoritative technical references:
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Remove obsolete migration/dual-read compatibility as one clean cut.
+- [x] Chunk 1 — Remove obsolete migration/dual-read compatibility as one clean cut.
 - [ ] Chunk 2 — Publish schema-2 engine capability observations at engine-creation boundaries.
 - [ ] Chunk 3 — Atomically cut over image options, profile selections, runtime consumption, and every adoption lifecycle.
 - [ ] Chunk 4 — Exercise the production Skopeo case and close documentation and acceptance.
@@ -475,16 +475,16 @@ High reasoning: treat compatibility removal as one public-contract unit.
 
 ### Verification checklist
 
-- [ ] Fresh bootstrap, strict bound-profile status/activation, shared and
+- [x] Fresh bootstrap, strict bound-profile status/activation, shared and
   isolated create/clone, sync, runtime affinity, and uninstall remain
   operational without any migration state.
-- [ ] Engine/profile state tests positively prove the strict binding and record
+- [x] Engine/profile state tests positively prove the strict binding and record
   contract; retained ownership, path-safety, collision, rollback, and external-
   preservation invariants still have one authoritative proof each.
-- [ ] Public help, README/Bootstrap/Podman/architecture guidance, contexts, and
+- [x] Public help, README/Bootstrap/Podman/architecture guidance, contexts, and
   canonical management guidance contain no current instruction to migrate or
   dual-read an old installation; historical retained plans remain untouched.
-- [ ] Relevant independent test groups pass with default bounded parallelism,
+- [x] Relevant independent test groups pass with default bounded parallelism,
   followed by syntax, executable-mode, context-tree, and `git diff --check`
   validation.
 
@@ -493,6 +493,8 @@ High reasoning: treat compatibility removal as one public-contract unit.
 Confirm that only obsolete compatibility behavior was removed and that current
 engine ownership, routing, activation, and destructive safeguards remain
 observable before changing the engine-record schema.
+
+Accepted and verified by the user on 2026-08-29. Chunk 2 remains unauthorized.
 
 ## Chunk 2 — Engine capability observation boundary
 
@@ -860,6 +862,20 @@ marking the plan complete.
   canonical path preserves a private candidate and keeps capability/image state
   on the target engine that will actually run the profile.
 
+### Chunk 1
+
+- Commit `d7ca62f` removed the obsolete engine migration command, unbound and
+  legacy binding paths, migration-only registry and activation behavior, and
+  their obsolete fixtures and tests as one coordinated compatibility cut.
+- Strict engine binding, ownership, collision, rollback, external-engine
+  preservation, lifecycle, runtime-affinity, and uninstall behavior remain
+  represented by the retained implementation and positive test coverage.
+- Current help, contributor context, architecture, bootstrap, Podman,
+  registry, installation, and canonical management-skill guidance now describe
+  only the strict fresh-install contract.
+- The user accepted Chunk 1 after verification on 2026-08-29. No partial
+  verification items remain, and Chunk 2 was not started.
+
 ## Session bootstrap
 
 Resume in PLAN. Read `AGENTS.md`, root `CONTEXT.md`, `CONTRIBUTING.md`, this
@@ -873,7 +889,7 @@ runtime only. On macOS, never use `podman-machine-default` or another pre-
 existing machine as a temporary bootstrap engine; stage registry bytes from
 the private candidate and perform all engine-local work on the newly owned
 target. Continue the user interview until `## Unresolved` says `None`,
-then replace the provisional label, complete the plan self-check, and stop for
-initial review. When implementation is explicitly approved, move this file to
-`plans/wip/` before changing implementation files, execute only Chunk 1, and
-stop at every chunk's human review gate.
+then replace the provisional label and complete the plan self-check. Chunk 1 is
+accepted and verified. Do not execute Chunk 2 until the unresolved decisions
+are closed and the user explicitly authorizes that chunk; stop at every chunk's
+human review gate.
