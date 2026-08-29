@@ -26,7 +26,8 @@ commands-shim|test_commands_shim_run
 commands-ai-skill|test_commands_ai_skill_run
 commands-profile|test_commands_profile_run
 commands-surface|test_commands_surface_run
-commands-lifecycle-bootstrap|test_commands_lifecycle_darwin_bootstrap_engine_states
+commands-lifecycle-darwin-bootstrap|test_commands_lifecycle_darwin_bootstrap
+commands-lifecycle-linux-bootstrap|test_commands_lifecycle_linux_bootstrap
 commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
 commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
 commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end
@@ -80,7 +81,8 @@ commands-shim|two-b|three-c
 commands-ai-skill|two-a|three-b
 commands-profile|two-b|three-b
 commands-surface|two-b|three-c
-commands-lifecycle-bootstrap|two-b|three-b
+commands-lifecycle-darwin-bootstrap|two-b|three-b
+commands-lifecycle-linux-bootstrap|two-b|three-c
 commands-lifecycle-isolated|two-a|three-c
 commands-lifecycle-uninstall|two-b|three-b
 commands-lifecycle-end-to-end|two-a|three-a

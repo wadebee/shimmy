@@ -88,7 +88,8 @@ test_lifecycle_global_uninstall_command() {
 
 test_lifecycle_checkout_template_required() {
   for test_lifecycle_group in \
-    commands-lifecycle-bootstrap \
+    commands-lifecycle-darwin-bootstrap \
+    commands-lifecycle-linux-bootstrap \
     commands-lifecycle-isolated \
     commands-lifecycle-uninstall \
     commands-lifecycle-end-to-end
@@ -170,6 +171,40 @@ test_lifecycle_fixture_setup() {
   : > "$TEST_LIFECYCLE_SMOKE_LOG"
   : > "$TEST_LIFECYCLE_VERIFY_LOG"
   : > "$TEST_LIFECYCLE_VERIFY_RESPONSES"
+}
+
+test_lifecycle_linux_bootstrap_prepare() {
+  test_lifecycle_fixture_setup
+  test_lifecycle_user_skills=$TEST_LIFECYCLE_HOME/.agents/skills
+  test_lifecycle_remote_install=$test_lifecycle_user_skills/shimmy-install
+  test_lifecycle_unrelated=$test_lifecycle_user_skills/unrelated-skill
+  mkdir -p "$test_lifecycle_remote_install" "$test_lifecycle_unrelated"
+  cp "$TEST_LIFECYCLE_CHECKOUT/plugins/shimmy/skills/shimmy-install/SKILL.md" \
+    "$test_lifecycle_remote_install/SKILL.md"
+  printf '%s\n' 'remote-skill-installer-destination' > \
+    "$test_lifecycle_remote_install/.remote-source"
+  printf '%s\n' 'user-bytes' > "$test_lifecycle_unrelated/SKILL.md"
+  test_lifecycle_bootstrap_output=$(env HOME="$TEST_LIFECYCLE_HOME" \
+    XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
+    SHIMMY_TEST_PROFILE_OS=Linux SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_IMAGE_LOG" \
+    SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
+    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
+    FAKE_ACTIVE_LINK="$TEST_LIFECYCLE_ACTIVE_LINK" FAKE_LINUX_INFO=true\|false \
+    TEST_LIFECYCLE_CHECKOUT_COMMAND="$TEST_LIFECYCLE_CHECKOUT" /bin/sh -c '
+      cd "$TEST_LIFECYCLE_CHECKOUT_COMMAND"
+      . ./bootstrap.sh --shell sh
+      printf "selected=%s\npath=%s\n" "$(command -v shimmy)" "$PATH"
+    ')
+  test_lifecycle_default=$TEST_LIFECYCLE_CONFIG/profiles/default
+
+  TEST_IMAGES_GENERATION_ROOT=$TEST_LIFECYCLE_CONFIG/catalogs/default/generations/$(
+    sed -n '3s/^catalog_generation_current=//p' \
+      "$TEST_LIFECYCLE_CONFIG/catalogs/default/registry.conf"
+  )
+  TEST_IMAGES_RESPONSES=$TEST_LIFECYCLE_VERIFY_RESPONSES
+  test_images_responses_write oci-index.json \
+    sha256:4f34c6d23f4b1372ac789752cc955dc67c2ae177eb1b5860b75cdc5091ce6f91
 }
 
 test_lifecycle_darwin_bootstrap_command() {
@@ -272,7 +307,7 @@ test_commands_lifecycle_darwin_bootstrap_case() {
     "$test_lifecycle_shared_active_before"
 }
 
-test_commands_lifecycle_darwin_bootstrap_engine_states() {
+test_commands_lifecycle_darwin_bootstrap() {
   test_commands_lifecycle_darwin_bootstrap_case fresh
 
   test_lifecycle_fixture_setup
@@ -712,29 +747,8 @@ test_commands_lifecycle_global_owned_uninstall() {
   pass 'global uninstall removes exact owned engines in order, preserves external and mismatched state, and retries without targeting a reused name'
 }
 
-test_commands_lifecycle_end_to_end() {
-  test_lifecycle_fixture_setup
-  test_lifecycle_user_skills=$TEST_LIFECYCLE_HOME/.agents/skills
-  test_lifecycle_remote_install=$test_lifecycle_user_skills/shimmy-install
-  test_lifecycle_unrelated=$test_lifecycle_user_skills/unrelated-skill
-  mkdir -p "$test_lifecycle_remote_install" "$test_lifecycle_unrelated"
-  cp "$TEST_LIFECYCLE_CHECKOUT/plugins/shimmy/skills/shimmy-install/SKILL.md" \
-    "$test_lifecycle_remote_install/SKILL.md"
-  printf '%s\n' 'remote-skill-installer-destination' > "$test_lifecycle_remote_install/.remote-source"
-  printf '%s\n' 'user-bytes' > "$test_lifecycle_unrelated/SKILL.md"
-  test_lifecycle_bootstrap_output=$(env HOME="$TEST_LIFECYCLE_HOME" XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
-    SHIMMY_TEST_PROFILE_OS=Linux SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
-    SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_IMAGE_LOG" \
-    SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
-    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
-    FAKE_ACTIVE_LINK="$TEST_LIFECYCLE_ACTIVE_LINK" FAKE_LINUX_INFO=true\|false \
-    TEST_LIFECYCLE_CHECKOUT_COMMAND="$TEST_LIFECYCLE_CHECKOUT" /bin/sh -c '
-      cd "$TEST_LIFECYCLE_CHECKOUT_COMMAND"
-      . ./bootstrap.sh --shell sh
-      printf "selected=%s\npath=%s\n" "$(command -v shimmy)" "$PATH"
-    ')
-
-  test_lifecycle_default=$TEST_LIFECYCLE_CONFIG/profiles/default
+test_commands_lifecycle_linux_bootstrap() {
+  test_lifecycle_linux_bootstrap_prepare
   assert_contains "$test_lifecycle_bootstrap_output" 'selected=shimmy'
   assert_contains "$test_lifecycle_bootstrap_output" "path=$test_lifecycle_default/bin:"
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/active-profile.conf"
@@ -757,14 +771,6 @@ test_commands_lifecycle_end_to_end() {
     "$test_lifecycle_default/ai-skills/control/skills/shimmy-install"
   assert_file_contains "$test_lifecycle_unrelated/SKILL.md" user-bytes
 
-  TEST_IMAGES_GENERATION_ROOT=$TEST_LIFECYCLE_CONFIG/catalogs/default/generations/$(
-    sed -n '3s/^catalog_generation_current=//p' \
-      "$TEST_LIFECYCLE_CONFIG/catalogs/default/registry.conf"
-  )
-  TEST_IMAGES_RESPONSES=$TEST_LIFECYCLE_VERIFY_RESPONSES
-  test_images_responses_write oci-index.json \
-    sha256:4f34c6d23f4b1372ac789752cc955dc67c2ae177eb1b5860b75cdc5091ce6f91
-
   test_lifecycle_catalog_status=$(test_lifecycle_command default catalog status --format manifest)
   test_lifecycle_catalog_tools=$(test_lifecycle_command default catalog tools --format manifest)
   test_lifecycle_catalog_verify=$(test_lifecycle_command default catalog verify --tool jq@1.8 --format manifest)
@@ -782,6 +788,31 @@ test_commands_lifecycle_end_to_end() {
   test_lifecycle_engine_status=$(test_lifecycle_command default admin engine status --format manifest)
   assert_contains "$test_lifecycle_engine_status" 'shimmy_engine_schema_version=1'
   assert_contains "$test_lifecycle_engine_status" 'shimmy_engine_profile=default|shared|shared|local|host-local|host-local|'
+
+  test_lifecycle_failed_config=$SCENARIO_DIR/failed-config/shimmy
+  test_lifecycle_failed_link=$SCENARIO_DIR/failed-config/containers/registries.conf.d/shimmy-active-profile.conf
+  set +e
+  test_lifecycle_failed_output=$(env HOME="$TEST_LIFECYCLE_HOME" \
+    XDG_CONFIG_HOME="$SCENARIO_DIR/failed-config" \
+    SHIMMY_TEST_PROFILE_OS=Linux SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_IMAGE_LOG" \
+    SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
+    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
+    FAKE_ACTIVE_LINK="$test_lifecycle_failed_link" FAKE_LINUX_INFO=true\|false \
+    FAKE_FAIL_LINUX_TARGET="$test_lifecycle_failed_config/profiles/default/registries.conf" \
+    "$TEST_LIFECYCLE_CHECKOUT/commands/bootstrap.sh" --no-startup 2>&1)
+  test_lifecycle_failed_status=$?
+  set -e
+  [ "$test_lifecycle_failed_status" -ne 0 ] || fail_test 'failed initial engine activation unexpectedly bootstrapped a valid installation'
+  assert_contains "$test_lifecycle_failed_output" 'prior active profile restored'
+  assert_path_not_exists "$test_lifecycle_failed_config"
+  assert_path_not_exists "$test_lifecycle_failed_link"
+  assert_file_contains "$test_lifecycle_unrelated/SKILL.md" user-bytes
+  pass 'Linux bootstrap installs and inspects the default profile and compensates failed initial activation'
+}
+
+test_commands_lifecycle_end_to_end() {
+  test_lifecycle_linux_bootstrap_prepare
 
   test_lifecycle_redirect_dry=$(test_lifecycle_command default profile redirect set \
     --prefix registry.example --location mirror.example --dry-run)
@@ -1105,24 +1136,5 @@ shim.sh'
   assert_file_contains "$test_lifecycle_unrelated/SKILL.md" user-bytes
   assert_file_not_contains "$TEST_LIFECYCLE_HOME/.profile" '# >>> shimmy default profile >>>'
 
-  test_lifecycle_failed_config=$SCENARIO_DIR/failed-config/shimmy
-  test_lifecycle_failed_link=$SCENARIO_DIR/failed-config/containers/registries.conf.d/shimmy-active-profile.conf
-  set +e
-  test_lifecycle_failed_output=$(env HOME="$TEST_LIFECYCLE_HOME" \
-    XDG_CONFIG_HOME="$SCENARIO_DIR/failed-config" \
-    SHIMMY_TEST_PROFILE_OS=Linux SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
-    SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_IMAGE_LOG" \
-    SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
-    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
-    FAKE_ACTIVE_LINK="$test_lifecycle_failed_link" FAKE_LINUX_INFO=true\|false \
-    FAKE_FAIL_LINUX_TARGET="$test_lifecycle_failed_config/profiles/default/registries.conf" \
-    "$TEST_LIFECYCLE_CHECKOUT/commands/bootstrap.sh" --no-startup 2>&1)
-  test_lifecycle_failed_status=$?
-  set -e
-  [ "$test_lifecycle_failed_status" -ne 0 ] || fail_test 'failed initial engine activation unexpectedly bootstrapped a valid installation'
-  assert_contains "$test_lifecycle_failed_output" 'prior active profile restored'
-  assert_path_not_exists "$test_lifecycle_failed_config"
-  assert_path_not_exists "$test_lifecycle_failed_link"
-  assert_file_contains "$test_lifecycle_unrelated/SKILL.md" user-bytes
   pass 'public bootstrap and installed launcher complete onboarding, catalog, shim, profile, AI, network, shell, administration, and uninstall flows'
 }

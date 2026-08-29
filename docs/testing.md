@@ -23,8 +23,9 @@ single group, an order-sensitive case, or failure diagnosis. Repeated or
 unknown groups, invalid job counts, and conflicting runner options fail before
 test execution.
 
-Lifecycle acceptance is split into four independently selectable groups:
-`commands-lifecycle-bootstrap`, `commands-lifecycle-isolated`,
+Lifecycle acceptance is split into five independently selectable groups:
+`commands-lifecycle-darwin-bootstrap`,
+`commands-lifecycle-linux-bootstrap`, `commands-lifecycle-isolated`,
 `commands-lifecycle-uninstall`, and
 `commands-lifecycle-end-to-end`. When any is selected, the runner prepares one
 clean immutable checkout template, prunes ignored checkout-only content, and

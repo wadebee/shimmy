@@ -791,8 +791,9 @@ Primary change surface:
   assets without embedding their original stage/profile root.
 - [ ] `./tests/test.sh --group commands-onboarding --group commands-startup --group commands-profiles --jobs 3`
   passes.
-- [ ] `./tests/test.sh --group commands-lifecycle-bootstrap --group
-  commands-lifecycle-isolated --group commands-lifecycle-migration --group
+- [ ] `./tests/test.sh --group commands-lifecycle-darwin-bootstrap --group
+  commands-lifecycle-linux-bootstrap --group commands-lifecycle-isolated --group
+  commands-lifecycle-migration --group
   commands-lifecycle-uninstall --group commands-lifecycle-end-to-end --group
   commands-update --group commands-install --jobs 3`
   passes.
@@ -917,7 +918,8 @@ Primary change surface:
 - [ ] `./tests/test.sh --group commands-onboarding --group commands-startup --group commands-management --jobs 3`
   passes.
 - [ ] `./tests/test.sh --group commands-profiles --group
-  commands-lifecycle-bootstrap --group commands-lifecycle-isolated --group
+  commands-lifecycle-darwin-bootstrap --group
+  commands-lifecycle-linux-bootstrap --group commands-lifecycle-isolated --group
   commands-lifecycle-migration --group commands-lifecycle-uninstall --group
   commands-lifecycle-end-to-end --group commands-update --jobs 3`
   passes.

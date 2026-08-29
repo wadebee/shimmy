@@ -114,10 +114,11 @@ new dependencies discovered during implementation.
 
 - Repository baseline: commit
   `2dca31997b38ab5344949414c4f2b58e984fc8a9`, Darwin arm64.
-- The worktree already contains the user's engine-record comment changes in
+- The planning baseline recorded user engine-record comment changes in
   `README.md`, `lib/engine/state.sh`, `tests/lib/engine.sh`, and
-  `tests/commands/lifecycle.sh`. They passed `lib-engine`, Darwin bootstrap, and
-  Linux end-to-end acceptance and must not be overwritten.
+  `tests/commands/lifecycle.sh`. The Chunk 1 ACT recheck found no remaining
+  diffs in those files before implementation; future unrelated changes must
+  still be preserved.
 - The runner currently registers 43 groups and four lifecycle groups:
   bootstrap, isolated, uninstall, and end-to-end.
 - `tests/commands/lifecycle.sh` is 1,128 lines. The current end-to-end function
@@ -175,11 +176,19 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Separate and explicitly name Darwin and Linux bootstrap
-  acceptance. **Active chunk after approval.**
+- [x] Chunk 1 — Separate and explicitly name Darwin and Linux bootstrap
+  acceptance. **Completed and verified; awaiting human acceptance.**
+  - Pre-edit timing baseline passed on 2026-08-29 with
+    `commands-lifecycle-end-to-end=1401` seconds, `total=1402` seconds,
+    `real=1404.85` seconds, `user=519.87` seconds, `system=828.93` seconds,
+    and one logical test. An immediately preceding runner-only measurement also
+    passed at group 1393 seconds and total 1395 seconds.
+  - Post-edit three-worker acceptance passed with Darwin bootstrap at 281
+    seconds, Linux bootstrap at 151 seconds, retained end-to-end at 1349
+    seconds, total 1351 seconds, and three logical tests.
 - [ ] Chunk 2 — Replace the remaining catch-all end-to-end group with the
   installed Linux workflow and control-source sync groups, recalibrate, and
-  complete acceptance.
+  complete acceptance. **Blocked pending explicit Chunk 1 acceptance.**
 
 ## Execution protocol
 
@@ -240,20 +249,24 @@ and exact skill-ownership assertions across child-process boundaries.
 
 ### Verification checklist
 
-- [ ] `/bin/sh -n tests/commands/lifecycle.sh tests/runner.sh
+- [x] `/bin/sh -n tests/commands/lifecycle.sh tests/runner.sh
   tests/lib/runner.sh` passes.
-- [ ] `./tests/test.sh --group runner` passes exact registry, mapping,
-  selection, template, and scheduling coverage.
-- [ ] `SHIMMY_TEST_TIMING=1 ./tests/test.sh --group
+- [x] `./tests/test.sh --group runner` passes all 15 registry, mapping,
+  selection, template, and scheduling tests.
+- [x] `SHIMMY_TEST_TIMING=1 ./tests/test.sh --group
   commands-lifecycle-darwin-bootstrap --group
   commands-lifecycle-linux-bootstrap --group commands-lifecycle-end-to-end
   --jobs 3` passes and preserves every pre-split bootstrap/end-to-end assertion
-  exactly once.
-- [ ] Generated command paths use only `SHIMMY_TEST_PROFILE_PODMAN_BIN` and the
-  scenario fake; no installed profile or real Podman machine is touched.
-- [ ] Context/documentation and current future-plan commands use the new Darwin
-  and Linux bootstrap names; completed and superseded history is unchanged.
-- [ ] Executable modes are unchanged and `git diff --check` passes.
+  exactly once. Static accounting found 139 pre-split check/PASS statements and
+  140 post-split statements: the same 139 plus the new Linux group PASS.
+- [x] Generated command paths use only `SHIMMY_TEST_PROFILE_PODMAN_BIN` and the
+  scenario fake; command-path inventory and the passing lifecycle run confirm
+  no installed profile or real Podman machine was touched.
+- [x] Context/documentation and current future-plan commands use the new Darwin
+  and Linux bootstrap names; a scoped terminology search found no obsolete
+  names, while completed and explicitly superseded history remains unchanged.
+- [x] Executable modes are unchanged, `./tests/context-tree.sh` passes, and
+  `git diff --check` passes.
 
 ### Human review gate
 
@@ -346,7 +359,7 @@ complete this plan until the reviewer explicitly accepts the final results.
 | A reduced workflow becomes another catch-all | Future features accumulate under a vague integration label | Define its bootstrap-to-uninstall user journey and route control-source/catalog authority to its dedicated group |
 | Cross-group mutable state is introduced | Parallel runs become order-dependent or contaminate source authority | Require a private scenario checkout/HOME/config/fake/log set per registered group and validate the immutable template after execution |
 | Static assignments use obsolete weights | The new critical path remains unbalanced | Recalibrate after the final split and compute assignments from complete serial group timings |
-| Current engine-comment changes are overwritten | The user's completed work is lost during structural edits | Treat the four dirty files as preserved baseline; edit overlapping lifecycle assertions narrowly |
+| Unrelated engine-comment changes are overwritten | The user's completed work is lost during structural edits | ACT began with those paths clean; continue checking and preserving any unrelated changes that appear |
 | Real Podman is reached | User VM or container state could be mutated | Verify fake injection on every lifecycle command path and reject any unscoped Podman call |
 | Historical plans become misleading | Accepted evidence is rewritten as if it used future group names | Update only current future-facing commands; preserve completed and explicitly superseded plans |
 
@@ -369,16 +382,33 @@ complete this plan until the reviewer explicitly accepts the final results.
   not depend on the successful installation; it belongs with Linux bootstrap,
   not at the tail of the installed workflow.
 
+### Chunk 1
+
+- A source-only Linux bootstrap preparation helper can serve independently
+  scheduled scenarios without sharing mutable state because every caller first
+  creates its own checkout, HOME, configuration root, fake Podman state, and
+  logs.
+- The initial Linux installation boundary is 151 seconds in the focused
+  parallel run, while the retained end-to-end scenario remains 1349 seconds;
+  Chunk 2 must therefore isolate the workflow and control-sync phases to shorten
+  the actual critical path.
+- Statement accounting is a low-cost guard for this structural move: the split
+  retained all 139 prior check/PASS statements and added only the new scenario's
+  logical PASS.
+- The implementation-start worktree no longer contained the engine-comment
+  diffs described by the planning snapshot, so no overlapping user edit had to
+  be merged during Chunk 1.
+
 ## Session bootstrap
 
 Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, `tests/CONTEXT.md`,
 `tests/lib/CONTEXT.md`, `tests/commands/CONTEXT.md`, `docs/testing.md`, this
 plan, `tests/test.sh`, `tests/runner.sh`, `tests/lib/runner.sh`, and
-`tests/commands/lifecycle.sh`. Review the current worktree and preserve the
-engine-record comment changes in `README.md`, `lib/engine/state.sh`,
-`tests/lib/engine.sh`, and `tests/commands/lifecycle.sh`.
+`tests/commands/lifecycle.sh`. Review the current worktree and preserve all
+unrelated changes; the engine-comment paths recorded during planning were clean
+when Chunk 1 implementation began.
 
 The target is six explicit lifecycle groups, no generic end-to-end group, no
 assertion loss, private fake-only scenarios, and calibrated bounded scheduling.
-The active implementation unit after approval is Chunk 1. Stop at its human
-review gate; do not begin Chunk 2 without explicit acceptance.
+Chunk 1 is complete and verified at its human review gate. Do not begin Chunk 2
+without explicit acceptance of the Chunk 1 results.

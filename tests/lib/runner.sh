@@ -93,7 +93,8 @@ test_lib_runner_registry_ordering() {
   assert_equals "$test_runner_first_name" runner
   assert_equals "$test_runner_last_name" tools-textual
   assert_equals "$(printf '%s\n' "$test_runner_registry" | sed -n '/^commands-lifecycle-/p')" \
-    'commands-lifecycle-bootstrap|test_commands_lifecycle_darwin_bootstrap_engine_states
+    'commands-lifecycle-darwin-bootstrap|test_commands_lifecycle_darwin_bootstrap
+commands-lifecycle-linux-bootstrap|test_commands_lifecycle_linux_bootstrap
 commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
 commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
 commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end'
@@ -213,15 +214,18 @@ test_lib_runner_timing_shape() {
 test_lib_runner_lifecycle_grouping() {
   setup_scenario
   test_runner_lifecycle_output=$(
-    test_commands_lifecycle_darwin_bootstrap_engine_states() { printf '%s\n' bootstrap; }
+    test_commands_lifecycle_darwin_bootstrap() { printf '%s\n' darwin-bootstrap; }
+    test_commands_lifecycle_linux_bootstrap() { printf '%s\n' linux-bootstrap; }
     test_commands_lifecycle_owned_isolated() { printf '%s\n' isolated; }
     test_commands_lifecycle_global_owned_uninstall() { printf '%s\n' uninstall; }
     test_commands_lifecycle_end_to_end() { printf '%s\n' end-to-end; }
-    TEST_RUNNER_GROUP_REGISTRY_OVERRIDE='commands-lifecycle-bootstrap|test_commands_lifecycle_darwin_bootstrap_engine_states
+    TEST_RUNNER_GROUP_REGISTRY_OVERRIDE='commands-lifecycle-darwin-bootstrap|test_commands_lifecycle_darwin_bootstrap
+commands-lifecycle-linux-bootstrap|test_commands_lifecycle_linux_bootstrap
 commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
 commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
 commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end'
-    TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE='commands-lifecycle-bootstrap|two-a|three-a
+    TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE='commands-lifecycle-darwin-bootstrap|two-a|three-a
+commands-lifecycle-linux-bootstrap|two-b|three-c
 commands-lifecycle-isolated|two-b|three-b
 commands-lifecycle-uninstall|two-b|three-a
 commands-lifecycle-end-to-end|two-a|three-b'
@@ -231,7 +235,8 @@ commands-lifecycle-end-to-end|two-a|three-b'
     test_runner_options_parse --jobs 3
     test_runner_groups_run
   )
-  assert_equals "$test_runner_lifecycle_output" 'bootstrap
+  assert_equals "$test_runner_lifecycle_output" 'darwin-bootstrap
+linux-bootstrap
 isolated
 uninstall
 end-to-end'
@@ -240,9 +245,17 @@ end-to-end'
   if test_lifecycle_checkout_template_required; then
     fail_test 'non-lifecycle selection unexpectedly required the lifecycle template'
   fi
-  TEST_RUNNER_GROUPS_SELECTED=commands-lifecycle-isolated
-  test_lifecycle_checkout_template_required ||
-    fail_test 'lifecycle selection did not require the lifecycle template'
+  for test_runner_lifecycle_group in \
+    commands-lifecycle-darwin-bootstrap \
+    commands-lifecycle-linux-bootstrap \
+    commands-lifecycle-isolated \
+    commands-lifecycle-uninstall \
+    commands-lifecycle-end-to-end
+  do
+    TEST_RUNNER_GROUPS_SELECTED=$test_runner_lifecycle_group
+    test_lifecycle_checkout_template_required ||
+      fail_test "lifecycle selection did not require the template: $test_runner_lifecycle_group"
+  done
   TEST_RUNNER_GROUPS_SELECTED=
   test_lifecycle_checkout_template_required ||
     fail_test 'default selection did not require the lifecycle template'

@@ -15,13 +15,14 @@
 - `surface.sh` proves complete root/group/subgroup/action help before state
   validation, independently verifies status and streams for bare launcher help
   nodes versus `--help`, and validates exact rendered launcher bytes.
-- `lifecycle.sh` owns four independently scheduled, internally indivisible
-  public acceptance scenarios: shared-engine bootstrap/collision; owned
-  isolated create/delete retry, true clone, and cross-engine activation;
+- `lifecycle.sh` owns five independently scheduled, internally indivisible
+  public acceptance scenarios: Darwin shared-engine bootstrap/collision; Linux
+  bootstrap, initial default-profile inspection, and failed-bootstrap cleanup;
+  owned isolated create/delete retry, true clone, and cross-engine activation;
   journaled global owned-engine uninstall/retry; and end-to-end default toolset,
   catalog/shim/profile/skill/network/startup,
-  sibling isolation, sync/rollback, administration, deletion, uninstall,
-  unrelated-skill preservation, and failed-bootstrap cleanup. They copy one
+  sibling isolation, sync/rollback, administration, deletion, uninstall, and
+  unrelated-skill preservation. They copy one
   immutable session template into private Git checkouts and use only generated
   fake Podman state for engine transitions.
 
