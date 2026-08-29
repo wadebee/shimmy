@@ -1,5 +1,7 @@
 # Decouple Management Skills from Catalog
 
+Completed: 2026-08-29
+
 ## Objective
 
 Make canonical management skills exclusively control-plane-owned. The direct
