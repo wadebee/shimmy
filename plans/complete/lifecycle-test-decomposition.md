@@ -1,5 +1,7 @@
 # Lifecycle test decomposition plan
 
+Completed: 2026-08-30
+
 ## Objective
 
 Replace the ambiguous and oversized lifecycle test boundaries with explicit,
@@ -106,6 +108,10 @@ assertions move to the three explicit Linux scenarios.
 12. Do not create an ADR. Test grouping is reversible, the runner already
     establishes the governing pattern, and no production architecture decision
     is introduced.
+13. The reviewer accepted the completed structural work and explicitly relaxed
+    performance acceptance to the measured results on 2026-08-30: a 919-second
+    serial workflow ceiling and a 960-second focused three-Linux-group wall
+    ceiling. No assertion or scenario boundary changed to obtain those values.
 
 ## Verified implementation inventory
 
@@ -157,10 +163,14 @@ logical-test evidence in this plan.
 
 After the final split:
 
-- the slowest new Linux lifecycle group must be at least 40 percent faster than
-  the baseline end-to-end group;
+- the slowest new Linux lifecycle group must be at least 34.4 percent faster
+  than the baseline end-to-end group and complete in no more than the measured
+  919 seconds; this threshold was explicitly relaxed to the completed
+  calibration result on 2026-08-30;
 - the three new Linux groups selected together with `--jobs 3` must complete in
-  no more than 65 percent of the baseline end-to-end wall time;
+  no more than the measured 960-second focused wall time, 68.3 percent of the
+  recorded 1404.85-second baseline wall time; this threshold was explicitly
+  relaxed to the final measured critical-path result on 2026-08-30;
 - their summed serial group time must not exceed 135 percent of the baseline,
   bounding repeated bootstrap cost; and
 - final static assignments must be recalculated from a complete timing-enabled
@@ -177,7 +187,7 @@ None.
 ## Progress Checklist
 
 - [x] Chunk 1 — Separate and explicitly name Darwin and Linux bootstrap
-  acceptance. **Completed and verified; awaiting human acceptance.**
+  acceptance. **Completed, verified, and accepted on 2026-08-29.**
   - Pre-edit timing baseline passed on 2026-08-29 with
     `commands-lifecycle-end-to-end=1401` seconds, `total=1402` seconds,
     `real=1404.85` seconds, `user=519.87` seconds, `system=828.93` seconds,
@@ -186,9 +196,63 @@ None.
   - Post-edit three-worker acceptance passed with Darwin bootstrap at 281
     seconds, Linux bootstrap at 151 seconds, retained end-to-end at 1349
     seconds, total 1351 seconds, and three logical tests.
-- [ ] Chunk 2 — Replace the remaining catch-all end-to-end group with the
+- [x] Chunk 2 — Replace the remaining catch-all end-to-end group with the
   installed Linux workflow and control-source sync groups, recalibrate, and
-  complete acceptance. **Blocked pending explicit Chunk 1 acceptance.**
+  complete acceptance. **Completed, verified, and accepted on 2026-08-30 after
+  the reviewer relaxed performance acceptance to measured output.**
+  - Passed shell syntax and `git diff --check` before execution.
+  - `./tests/test.sh --group runner` passed all 15 registry, exact mapping,
+    independent selection, template-gating, and scheduling tests.
+  - Mechanical accounting retained all 101 former end-to-end check/PASS
+    statements across 71 workflow and 30 moved control-sync statements, then
+    added exactly one new control-sync logical PASS statement.
+  - A timing-enabled two-worker run passed both new scenarios with workflow at
+    949 seconds, control sync at 431 seconds, total 950 seconds, and two logical
+    tests.
+  - The required complete timing-enabled serial calibration passed all 45
+    registered groups and 143 logical tests in 4558 seconds. Group weights were:
+
+    ```text
+    runner=1
+    lib-catalog=293 lib-codec=0 lib-profile-state=0
+    lib-ai-skill-state=1 lib-lock=3 lib-transaction=1
+    lib-ai-skill-link=1 lib-runtime=1 lib-engine=6
+    lib-profile-activation=6 lib-registries=0
+    commands-agent-preflight=4 commands-catalog=170 commands-shim=649
+    commands-ai-skill=220 commands-profile=507 commands-surface=1
+    commands-lifecycle-darwin-bootstrap=248
+    commands-lifecycle-linux-bootstrap=129
+    commands-lifecycle-isolated=567 commands-lifecycle-uninstall=419
+    commands-lifecycle-linux-workflow=919
+    commands-lifecycle-control-sync=403
+    tools-aws=1 tools-bats=0 tools-community-ansible-dev-tools=0
+    tools-flux=0 tools-gcloud=1 tools-gdrive=0 tools-gh=0 tools-go=1
+    tools-jq=0 tools-netcat=0 tools-nmap=0 tools-npx=0 tools-oc=0
+    tools-opnsense-mcp-read-only=1 tools-opnsense-mcp-admin=0
+    tools-rg=0 tools-skopeo=2 tools-task=0 tools-terraform=0
+    tools-tessl=0 tools-textual=0
+    ```
+
+  - The new Linux serial sum is `129 + 919 + 403 = 1451` seconds, or
+    103.6 percent of baseline, passing the 135-percent aggregate ceiling of
+    1891.35 seconds. The slowest new Linux group is 919 seconds, the accepted
+    34.4-percent reduction and revised critical-path ceiling.
+  - Final static assignments computed from the complete serial weights are
+    optimal at `2278/2277` seconds for two workers and
+    `1519/1519/1517` seconds for three workers.
+  - The focused three-Linux-group run passed exactly three logical tests with
+    Linux bootstrap at 139 seconds, installed workflow at 959 seconds, control
+    sync at 433 seconds, and total wall time at the accepted 960-second ceiling.
+  - The exact six-group run passed exactly six logical tests with Darwin
+    bootstrap at 288 seconds, Linux bootstrap at 149 seconds, isolated at 546
+    seconds, uninstall at 375 seconds, installed workflow at 971 seconds,
+    control sync at 442 seconds, and total wall time at 1348 seconds.
+  - With no intervening implementation edit, the timing-enabled default suite
+    passed all 45 registered groups and 143 logical tests in 1762 seconds using
+    the recalibrated three-worker assignments.
+  - Final shell syntax, context-tree, executable-mode, generated-artifact,
+    fake-Podman injection, obsolete-name, and `git diff --check` inventories all
+    passed.
 
 ## Execution protocol
 
@@ -325,20 +389,20 @@ and recalibrating the bounded scheduler.
 
 ### Verification checklist
 
-- [ ] `/bin/sh -n tests/commands/lifecycle.sh tests/runner.sh
+- [x] `/bin/sh -n tests/commands/lifecycle.sh tests/runner.sh
   tests/lib/runner.sh` passes.
-- [ ] `./tests/test.sh --group runner` passes with six exact lifecycle mappings,
+- [x] `./tests/test.sh --group runner` passes with six exact lifecycle mappings,
   independent selection, template gating, and bounded scheduling.
-- [ ] A mechanical before/after assertion inventory accounts for every
+- [x] A mechanical before/after assertion inventory accounts for every
   pre-split assertion and all six logical lifecycle PASS outcomes.
-- [ ] One timing-enabled serial calibration passes every registered group and
+- [x] One timing-enabled serial calibration passes every registered group and
   supplies the final assignment weights.
-- [ ] The timing-enabled six-group lifecycle selection passes with `--jobs 3`,
+- [x] The timing-enabled six-group lifecycle selection passes with `--jobs 3`,
   fake-only execution, exact group/count coverage, and every performance
   threshold above.
-- [ ] With no intervening implementation edit, one timing-enabled default suite
+- [x] With no intervening implementation edit, one timing-enabled default suite
   passes every registered group exactly once using the recalibrated assignments.
-- [ ] `./tests/context-tree.sh`, executable-mode review, generated installed
+- [x] `./tests/context-tree.sh`, executable-mode review, generated installed
   artifact syntax, fake-Podman injection inventory, `git diff --check`, and a
   terminology search for obsolete future-facing group names pass.
 
@@ -349,6 +413,9 @@ one coherent scenario, the installed Linux workflow retains meaningful
 cross-command value, timing and CPU costs satisfy the recorded bounds, and no
 real Podman state was touched. Acceptance completes implementation but does not
 complete this plan until the reviewer explicitly accepts the final results.
+
+**Accepted on 2026-08-30 after the reviewer approved the measured performance
+ceilings and requested finalization.**
 
 ## Risk register
 
@@ -399,6 +466,32 @@ complete this plan until the reviewer explicitly accepts the final results.
   diffs described by the planning snapshot, so no overlapping user edit had to
   be merged during Chunk 1.
 
+### Chunk 2
+
+- The control-source/catalog block is independently executable after only a
+  private Linux bootstrap and a non-asserting `team-one` preparation step; it
+  passed in 431 seconds under focused contention and 403 seconds serially.
+- The installed workflow retained all of its assigned assertions and passed,
+  but its 919-second serial time improves the 1401-second baseline by only 34.4
+  percent. The workflow boundary, not control sync or repeated aggregate setup,
+  is responsible for the failed critical-path threshold.
+- Repeated bootstrap remains within budget: the three final Linux groups total
+  1451 serial seconds, 103.6 percent of baseline and well below the
+  135-percent ceiling.
+- The plan's performance stop occurred before final assignment edits or the
+  final lifecycle/default acceptance runs, so the assignment rows at that
+  review gate were provisional and were replaced after acceptance resumed.
+- Recalibration produced exact balanced loads of `2278/2277` seconds for two
+  workers and `1519/1519/1517` seconds for three workers; static assignment
+  updates should use the complete group inventory rather than lifecycle-only
+  weights.
+- The final focused result was 960 seconds under three-worker scheduling. The
+  reviewer accepted that measured wall time and the 919-second serial workflow
+  calibration without weakening coverage or moving work into shared state.
+- The final six-group and default-suite runs passed with private fake-only
+  worlds. Contention increased individual lifecycle durations, but the
+  calibrated scheduler completed the complete 143-test suite in 1762 seconds.
+
 ## Session bootstrap
 
 Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, `tests/CONTEXT.md`,
@@ -410,5 +503,7 @@ when Chunk 1 implementation began.
 
 The target is six explicit lifecycle groups, no generic end-to-end group, no
 assertion loss, private fake-only scenarios, and calibrated bounded scheduling.
-Chunk 1 is complete and verified at its human review gate. Do not begin Chunk 2
-without explicit acceptance of the Chunk 1 results.
+Chunk 1 was accepted on 2026-08-29. Chunk 2 was completed, verified, and
+accepted on 2026-08-30 after the reviewer approved measured performance
+ceilings. All progress and verification items are complete; the plan is ready
+for its completion datestamp and lifecycle move.

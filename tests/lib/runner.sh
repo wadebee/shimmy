@@ -97,7 +97,8 @@ test_lib_runner_registry_ordering() {
 commands-lifecycle-linux-bootstrap|test_commands_lifecycle_linux_bootstrap
 commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
 commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
-commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end'
+commands-lifecycle-linux-workflow|test_commands_lifecycle_linux_workflow
+commands-lifecycle-control-sync|test_commands_lifecycle_control_sync'
   pass "runner registry has stable canonical ordering and exact lifecycle mappings"
 }
 
@@ -218,17 +219,20 @@ test_lib_runner_lifecycle_grouping() {
     test_commands_lifecycle_linux_bootstrap() { printf '%s\n' linux-bootstrap; }
     test_commands_lifecycle_owned_isolated() { printf '%s\n' isolated; }
     test_commands_lifecycle_global_owned_uninstall() { printf '%s\n' uninstall; }
-    test_commands_lifecycle_end_to_end() { printf '%s\n' end-to-end; }
+    test_commands_lifecycle_linux_workflow() { printf '%s\n' linux-workflow; }
+    test_commands_lifecycle_control_sync() { printf '%s\n' control-sync; }
     TEST_RUNNER_GROUP_REGISTRY_OVERRIDE='commands-lifecycle-darwin-bootstrap|test_commands_lifecycle_darwin_bootstrap
 commands-lifecycle-linux-bootstrap|test_commands_lifecycle_linux_bootstrap
 commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
 commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
-commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end'
+commands-lifecycle-linux-workflow|test_commands_lifecycle_linux_workflow
+commands-lifecycle-control-sync|test_commands_lifecycle_control_sync'
     TEST_RUNNER_GROUP_ASSIGNMENT_OVERRIDE='commands-lifecycle-darwin-bootstrap|two-a|three-a
 commands-lifecycle-linux-bootstrap|two-b|three-c
 commands-lifecycle-isolated|two-b|three-b
 commands-lifecycle-uninstall|two-b|three-a
-commands-lifecycle-end-to-end|two-a|three-b'
+commands-lifecycle-linux-workflow|two-a|three-b
+commands-lifecycle-control-sync|two-b|three-c'
     TEST_RUNNER_OUTPUT_ROOT=$SCENARIO_DIR/lifecycle-groups
     TEST_COUNT=0
     SHIMMY_TEST_TIMING=0
@@ -239,7 +243,8 @@ commands-lifecycle-end-to-end|two-a|three-b'
 linux-bootstrap
 isolated
 uninstall
-end-to-end'
+linux-workflow
+control-sync'
 
   TEST_RUNNER_GROUPS_SELECTED=runner
   if test_lifecycle_checkout_template_required; then
@@ -250,7 +255,8 @@ end-to-end'
     commands-lifecycle-linux-bootstrap \
     commands-lifecycle-isolated \
     commands-lifecycle-uninstall \
-    commands-lifecycle-end-to-end
+    commands-lifecycle-linux-workflow \
+    commands-lifecycle-control-sync
   do
     TEST_RUNNER_GROUPS_SELECTED=$test_runner_lifecycle_group
     test_lifecycle_checkout_template_required ||

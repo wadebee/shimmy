@@ -794,7 +794,8 @@ Primary change surface:
 - [ ] `./tests/test.sh --group commands-lifecycle-darwin-bootstrap --group
   commands-lifecycle-linux-bootstrap --group commands-lifecycle-isolated --group
   commands-lifecycle-migration --group
-  commands-lifecycle-uninstall --group commands-lifecycle-end-to-end --group
+  commands-lifecycle-uninstall --group commands-lifecycle-linux-workflow --group
+  commands-lifecycle-control-sync --group
   commands-update --group commands-install --jobs 3`
   passes.
 - [ ] `./tests/context-tree.sh` and `git diff --check` pass; final inspection
@@ -921,7 +922,8 @@ Primary change surface:
   commands-lifecycle-darwin-bootstrap --group
   commands-lifecycle-linux-bootstrap --group commands-lifecycle-isolated --group
   commands-lifecycle-migration --group commands-lifecycle-uninstall --group
-  commands-lifecycle-end-to-end --group commands-update --jobs 3`
+  commands-lifecycle-linux-workflow --group commands-lifecycle-control-sync
+  --group commands-update --jobs 3`
   passes.
 - [ ] `./tests/test.sh --group runner --group lib-catalog --group commands-catalog --group commands-install --group commands-test --jobs 3`
   passes.

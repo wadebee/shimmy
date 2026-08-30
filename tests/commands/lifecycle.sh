@@ -92,7 +92,8 @@ test_lifecycle_checkout_template_required() {
     commands-lifecycle-linux-bootstrap \
     commands-lifecycle-isolated \
     commands-lifecycle-uninstall \
-    commands-lifecycle-end-to-end
+    commands-lifecycle-linux-workflow \
+    commands-lifecycle-control-sync
   do
     test_runner_group_selected "$test_lifecycle_group" && return 0
   done
@@ -232,17 +233,20 @@ test_lifecycle_darwin_bootstrap_command() {
     "$TEST_LIFECYCLE_CHECKOUT/commands/bootstrap.sh" --no-startup
 }
 
-test_commands_lifecycle_darwin_bootstrap_case() {
-  test_lifecycle_case=$1
+test_lifecycle_darwin_fixture_prepare() {
   test_lifecycle_fixture_setup
-  test_lifecycle_created_state=$SCENARIO_DIR/created-machine-state
-  test_lifecycle_service_pid=$SCENARIO_DIR/service-pid
-  TEST_LIFECYCLE_CREATED_STATE=$test_lifecycle_created_state
-  TEST_LIFECYCLE_SERVICE_PID=$test_lifecycle_service_pid
-  printf '%s\n' absent > "$test_lifecycle_created_state"
-  printf '%s\n' 800 > "$test_lifecycle_service_pid"
-  test_lifecycle_bootstrap_output=$(test_lifecycle_darwin_bootstrap_command)
+  TEST_LIFECYCLE_CREATED_STATE=$SCENARIO_DIR/created-machine-state
+  TEST_LIFECYCLE_SERVICE_PID=$SCENARIO_DIR/service-pid
+  printf '%s\n' absent > "$TEST_LIFECYCLE_CREATED_STATE"
+  printf '%s\n' 800 > "$TEST_LIFECYCLE_SERVICE_PID"
+}
 
+test_lifecycle_darwin_bootstrap_prepare() {
+  test_lifecycle_darwin_fixture_prepare
+  test_lifecycle_bootstrap_output=$(test_lifecycle_darwin_bootstrap_command)
+}
+
+test_lifecycle_darwin_bootstrap_validate() {
   assert_contains "$test_lifecycle_bootstrap_output" 'Bootstrapped active Shimmy profile default'
   assert_regular_file_not_symlink "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf"
   assert_file_contains "$TEST_LIFECYCLE_CONFIG/engines/shared/engine.conf" \
@@ -273,7 +277,9 @@ test_commands_lifecycle_darwin_bootstrap_case() {
     fail_test 'Darwin bootstrap did not initialize, start, project, and validate in order'
   [ "$test_lifecycle_validation_line" -lt "$test_lifecycle_image_line" ] ||
     fail_test 'Darwin bootstrap prepared images before engine activation'
+}
 
+test_lifecycle_darwin_shared_redirect_validate() {
   : > "$TEST_LIFECYCLE_PODMAN_LOG"
   test_lifecycle_shared_dry=$(test_lifecycle_shared_profile_command profile redirect set \
     --prefix docker.io --location registry.example.invalid/docker --dry-run)
@@ -308,13 +314,11 @@ test_commands_lifecycle_darwin_bootstrap_case() {
 }
 
 test_commands_lifecycle_darwin_bootstrap() {
-  test_commands_lifecycle_darwin_bootstrap_case fresh
+  test_lifecycle_darwin_bootstrap_prepare
+  test_lifecycle_darwin_bootstrap_validate
+  test_lifecycle_darwin_shared_redirect_validate
 
-  test_lifecycle_fixture_setup
-  TEST_LIFECYCLE_CREATED_STATE=$SCENARIO_DIR/created-machine-state
-  TEST_LIFECYCLE_SERVICE_PID=$SCENARIO_DIR/service-pid
-  printf '%s\n' absent > "$TEST_LIFECYCLE_CREATED_STATE"
-  printf '%s\n' 800 > "$TEST_LIFECYCLE_SERVICE_PID"
+  test_lifecycle_darwin_fixture_prepare
   TEST_LIFECYCLE_IMAGE_FAILURE=skopeo@1.22
   set +e
   test_lifecycle_image_failure=$(test_lifecycle_darwin_bootstrap_command 2>&1)
@@ -329,11 +333,7 @@ test_commands_lifecycle_darwin_bootstrap() {
     "image-preparation-failed: tool=skopeo version=1.22 action=pull reference=$test_lifecycle_image_reference"
   assert_path_not_exists "$TEST_LIFECYCLE_CONFIG"
 
-  test_lifecycle_fixture_setup
-  TEST_LIFECYCLE_CREATED_STATE=$SCENARIO_DIR/created-machine-state
-  TEST_LIFECYCLE_SERVICE_PID=$SCENARIO_DIR/service-pid
-  printf '%s\n' absent > "$TEST_LIFECYCLE_CREATED_STATE"
-  printf '%s\n' 800 > "$TEST_LIFECYCLE_SERVICE_PID"
+  test_lifecycle_darwin_fixture_prepare
   TEST_LIFECYCLE_FAIL_ACTION=machine_start
   set +e
   test_lifecycle_start_failure=$(test_lifecycle_darwin_bootstrap_command 2>&1)
@@ -413,7 +413,7 @@ test_commands_lifecycle_darwin_bootstrap() {
 }
 
 test_commands_lifecycle_owned_isolated() {
-  test_commands_lifecycle_darwin_bootstrap_case isolated
+  test_lifecycle_darwin_bootstrap_prepare
   TEST_LIFECYCLE_ISOLATED_STATE=$SCENARIO_DIR/isolated-machine-state
   printf '%s\n' absent > "$TEST_LIFECYCLE_ISOLATED_STATE"
   TEST_LIFECYCLE_BASE_MACHINE_LIST='shimmy-default|true'
@@ -618,7 +618,7 @@ shimmy-isolated-one|ssh://core@127.0.0.1/run/user/1000/podman/podman.sock|true'
 }
 
 test_commands_lifecycle_global_owned_uninstall() {
-  test_commands_lifecycle_darwin_bootstrap_case global-uninstall
+  test_lifecycle_darwin_bootstrap_prepare
 
   TEST_LIFECYCLE_ISOLATED_STATE=$SCENARIO_DIR/isolated-state
   printf '%s\n' absent > "$TEST_LIFECYCLE_ISOLATED_STATE"
@@ -811,7 +811,7 @@ test_commands_lifecycle_linux_bootstrap() {
   pass 'Linux bootstrap installs and inspects the default profile and compensates failed initial activation'
 }
 
-test_commands_lifecycle_end_to_end() {
+test_commands_lifecycle_linux_workflow() {
   test_lifecycle_linux_bootstrap_prepare
 
   test_lifecycle_redirect_dry=$(test_lifecycle_command default profile redirect set \
@@ -970,6 +970,58 @@ shim.sh'
   test_lifecycle_command default profile repair-startup >/dev/null
   assert_file_contains "$TEST_LIFECYCLE_HOME/.profile" '# >>> shimmy default profile >>>'
 
+  mkdir "$TEST_LIFECYCLE_CONFIG/profiles/broken"
+  test_lifecycle_admin=$(test_lifecycle_command team-one admin status --format manifest)
+  assert_contains "$test_lifecycle_admin" 'shimmy_admin_active_profile=team-one'
+  assert_contains "$test_lifecycle_admin" 'shimmy_admin_profile=default|ok|-'
+  assert_contains "$test_lifecycle_admin" 'shimmy_admin_profile=team-one|ok|-'
+  assert_contains "$test_lifecycle_admin" 'shimmy_admin_profile=broken|error|'
+  assert_contains "$test_lifecycle_admin" \
+    'shimmy_admin_profile_record=default|shimmy_profile_catalog|default%7C'
+  assert_contains "$test_lifecycle_admin" \
+    'shimmy_admin_profile_record=team-one|shimmy_profile_name|team-one'
+  rmdir "$TEST_LIFECYCLE_CONFIG/profiles/broken"
+
+  test_lifecycle_network=$(test_lifecycle_command team-one admin network \
+    --target 198.51.100.1 --host-ip 198.51.100.20 --host-lan 198.51.100.0/24 \
+    --format manifest)
+  assert_contains "$test_lifecycle_network" 'perspective=shell'
+  assert_contains "$test_lifecycle_network" 'host_ipv4=198.51.100.20'
+  assert_contains "$test_lifecycle_network" 'host_lan=198.51.100.0/24'
+
+  test_lifecycle_activate_shell=$(env HOME="$TEST_LIFECYCLE_HOME" \
+    XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
+    SHIMMY_TEST_PROFILE_OS=Linux SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
+    SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_IMAGE_LOG" \
+    SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
+    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
+    FAKE_ACTIVE_LINK="$TEST_LIFECYCLE_ACTIVE_LINK" FAKE_LINUX_INFO=true\|false \
+    TEST_LIFECYCLE_SHELL_INIT="$test_lifecycle_team/shell-init.sh" /bin/sh -c '
+      . "$TEST_LIFECYCLE_SHELL_INIT"
+      shimmy profile activate default
+      printf "selected_bin=%s\n" "${PATH%%:*}"
+      shimmy profile status --format manifest
+    ')
+  assert_contains "$test_lifecycle_activate_shell" "selected_bin=$test_lifecycle_default/bin"
+  assert_contains "$test_lifecycle_activate_shell" 'shimmy_profile_name=default'
+  test_lifecycle_command default profile delete team-one >/dev/null
+  assert_path_not_exists "$test_lifecycle_team"
+
+  test_lifecycle_command default admin uninstall >/dev/null
+  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG"
+  assert_path_not_exists "$TEST_LIFECYCLE_ACTIVE_LINK"
+  assert_path_not_exists "$TEST_LIFECYCLE_HOME/.agents/skills/shimmy-catalog"
+  assert_file_contains "$test_lifecycle_unrelated/SKILL.md" user-bytes
+  assert_file_not_contains "$TEST_LIFECYCLE_HOME/.profile" '# >>> shimmy default profile >>>'
+
+  pass 'public bootstrap and installed launcher complete onboarding, catalog, shim, profile, AI, network, shell, administration, and uninstall flows'
+}
+
+test_commands_lifecycle_control_sync() {
+  test_lifecycle_linux_bootstrap_prepare
+  test_lifecycle_command default profile create team-one >/dev/null
+  test_lifecycle_team=$TEST_LIFECYCLE_CONFIG/profiles/team-one
+
   test_lifecycle_registry=$TEST_LIFECYCLE_CONFIG/catalogs/default/registry.conf
   test_lifecycle_catalog_generation=$(sed -n \
     '3s/^catalog_generation_current=//p' "$test_lifecycle_registry")
@@ -1092,49 +1144,5 @@ shim.sh'
   test_lifecycle_command team-one catalog rollback >/dev/null
   test_lifecycle_command team-one catalog rollback >/dev/null
 
-  mkdir "$TEST_LIFECYCLE_CONFIG/profiles/broken"
-  test_lifecycle_admin=$(test_lifecycle_command team-one admin status --format manifest)
-  assert_contains "$test_lifecycle_admin" 'shimmy_admin_active_profile=team-one'
-  assert_contains "$test_lifecycle_admin" 'shimmy_admin_profile=default|ok|-'
-  assert_contains "$test_lifecycle_admin" 'shimmy_admin_profile=team-one|ok|-'
-  assert_contains "$test_lifecycle_admin" 'shimmy_admin_profile=broken|error|'
-  assert_contains "$test_lifecycle_admin" \
-    'shimmy_admin_profile_record=default|shimmy_profile_catalog|default%7C'
-  assert_contains "$test_lifecycle_admin" \
-    'shimmy_admin_profile_record=team-one|shimmy_profile_name|team-one'
-  rmdir "$TEST_LIFECYCLE_CONFIG/profiles/broken"
-
-  test_lifecycle_network=$(test_lifecycle_command team-one admin network \
-    --target 198.51.100.1 --host-ip 198.51.100.20 --host-lan 198.51.100.0/24 \
-    --format manifest)
-  assert_contains "$test_lifecycle_network" 'perspective=shell'
-  assert_contains "$test_lifecycle_network" 'host_ipv4=198.51.100.20'
-  assert_contains "$test_lifecycle_network" 'host_lan=198.51.100.0/24'
-
-  test_lifecycle_activate_shell=$(env HOME="$TEST_LIFECYCLE_HOME" \
-    XDG_CONFIG_HOME="$TEST_LIFECYCLE_CONFIG_HOME" \
-    SHIMMY_TEST_PROFILE_OS=Linux SHIMMY_TEST_PROFILE_PODMAN_BIN="$TEST_LIFECYCLE_PODMAN" \
-    SHIMMY_TEST_IMAGE_LOG="$TEST_LIFECYCLE_IMAGE_LOG" \
-    SHIMMY_TEST_SMOKE_LOG="$TEST_LIFECYCLE_SMOKE_LOG" \
-    FAKE_PODMAN_LOG="$TEST_LIFECYCLE_PODMAN_LOG" \
-    FAKE_ACTIVE_LINK="$TEST_LIFECYCLE_ACTIVE_LINK" FAKE_LINUX_INFO=true\|false \
-    TEST_LIFECYCLE_SHELL_INIT="$test_lifecycle_team/shell-init.sh" /bin/sh -c '
-      . "$TEST_LIFECYCLE_SHELL_INIT"
-      shimmy profile activate default
-      printf "selected_bin=%s\n" "${PATH%%:*}"
-      shimmy profile status --format manifest
-    ')
-  assert_contains "$test_lifecycle_activate_shell" "selected_bin=$test_lifecycle_default/bin"
-  assert_contains "$test_lifecycle_activate_shell" 'shimmy_profile_name=default'
-  test_lifecycle_command default profile delete team-one >/dev/null
-  assert_path_not_exists "$test_lifecycle_team"
-
-  test_lifecycle_command default admin uninstall >/dev/null
-  assert_path_not_exists "$TEST_LIFECYCLE_CONFIG"
-  assert_path_not_exists "$TEST_LIFECYCLE_ACTIVE_LINK"
-  assert_path_not_exists "$TEST_LIFECYCLE_HOME/.agents/skills/shimmy-catalog"
-  assert_file_contains "$test_lifecycle_unrelated/SKILL.md" user-bytes
-  assert_file_not_contains "$TEST_LIFECYCLE_HOME/.profile" '# >>> shimmy default profile >>>'
-
-  pass 'public bootstrap and installed launcher complete onboarding, catalog, shim, profile, AI, network, shell, administration, and uninstall flows'
+  pass 'control-source and catalog synchronization preserve independent authority, links, verification, and rollback'
 }

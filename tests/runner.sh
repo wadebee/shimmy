@@ -30,7 +30,8 @@ commands-lifecycle-darwin-bootstrap|test_commands_lifecycle_darwin_bootstrap
 commands-lifecycle-linux-bootstrap|test_commands_lifecycle_linux_bootstrap
 commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
 commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
-commands-lifecycle-end-to-end|test_commands_lifecycle_end_to_end
+commands-lifecycle-linux-workflow|test_commands_lifecycle_linux_workflow
+commands-lifecycle-control-sync|test_commands_lifecycle_control_sync
 tools-aws|test_tools_aws_run
 tools-bats|test_tools_bats_run
 tools-community-ansible-dev-tools|test_tools_community_ansible_dev_tools_run
@@ -61,45 +62,46 @@ test_runner_group_assignment_read() {
     return 0
   fi
 
-  # Calibrated from the 2026-08-24 complete serial timing run.
+  # Calibrated from the 2026-08-29 complete serial timing run.
   cat <<'EOF'
-runner|two-b|three-c
-lib-catalog|two-a|three-a
+runner|two-b|three-a
+lib-catalog|two-b|three-b
 lib-codec|two-a|three-c
 lib-profile-state|two-b|three-c
-lib-ai-skill-state|two-b|three-c
-lib-lock|two-b|three-a
+lib-ai-skill-state|two-b|three-b
+lib-lock|two-b|three-b
 lib-transaction|two-b|three-c
-lib-ai-skill-link|two-b|three-b
+lib-ai-skill-link|two-b|three-c
 lib-runtime|two-b|three-c
-lib-engine|two-b|three-a
-lib-profile-activation|two-b|three-a
+lib-engine|two-a|three-a
+lib-profile-activation|two-a|three-b
 lib-registries|two-b|three-c
 commands-agent-preflight|two-b|three-a
-commands-catalog|two-a|three-c
-commands-shim|two-b|three-c
-commands-ai-skill|two-a|three-b
-commands-profile|two-b|three-b
+commands-catalog|two-b|three-a
+commands-shim|two-a|three-b
+commands-ai-skill|two-b|three-c
+commands-profile|two-b|three-c
 commands-surface|two-b|three-c
-commands-lifecycle-darwin-bootstrap|two-b|three-b
-commands-lifecycle-linux-bootstrap|two-b|three-c
-commands-lifecycle-isolated|two-a|three-c
-commands-lifecycle-uninstall|two-b|three-b
-commands-lifecycle-end-to-end|two-a|three-a
-tools-aws|two-a|three-c
+commands-lifecycle-darwin-bootstrap|two-b|three-c
+commands-lifecycle-linux-bootstrap|two-a|three-c
+commands-lifecycle-isolated|two-a|three-b
+commands-lifecycle-uninstall|two-b|three-a
+commands-lifecycle-linux-workflow|two-a|three-a
+commands-lifecycle-control-sync|two-b|three-c
+tools-aws|two-b|three-c
 tools-bats|two-a|three-c
 tools-community-ansible-dev-tools|two-b|three-c
 tools-flux|two-a|three-c
-tools-gcloud|two-a|three-c
+tools-gcloud|two-b|three-c
 tools-gdrive|two-a|three-c
 tools-gh|two-b|three-c
-tools-go|two-a|three-c
+tools-go|two-b|three-c
 tools-jq|two-a|three-c
 tools-netcat|two-a|three-c
 tools-nmap|two-a|three-c
 tools-npx|two-a|three-c
 tools-oc|two-a|three-c
-tools-opnsense-mcp-read-only|two-a|three-c
+tools-opnsense-mcp-read-only|two-b|three-c
 tools-opnsense-mcp-admin|two-b|three-c
 tools-rg|two-a|three-c
 tools-skopeo|two-a|three-c
