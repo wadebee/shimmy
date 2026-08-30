@@ -290,6 +290,7 @@ case "$action" in
     printf '%s\n' "$expected" > "$stage"
     chmod 0600 "$stage"
     mv "$stage" "$marker"
+    sync
     printf '%s\n' written
     ;;
   verify)

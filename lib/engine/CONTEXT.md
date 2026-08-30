@@ -31,6 +31,8 @@ Missing or mismatched current evidence always preserves a machine. Only
 Creation transitions through `initializing` before `podman machine init` and
 does not gain deletion authority until exact created identity is committed in
 `initialized`; an earlier ambiguous machine is preserved with its journal.
+Guest ownership publication flushes the guest filesystem before reporting
+success so a following VM transition cannot commit an empty marker.
 
 ## Parent context
 
