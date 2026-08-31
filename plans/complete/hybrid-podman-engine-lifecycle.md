@@ -1,6 +1,8 @@
 # Shimmy Hybrid Podman Engine Lifecycle
 
-**Status:** Chunk 4 implemented and automated acceptance verified; Podman 5.8 bootstrap now succeeds, but native destructive acceptance rerun on 2026-08-30 found a zero-byte guest ownership marker after restart, so fail-closed uninstall preserved the disposable owned machine; human review and native remediation pending
+Completed: 2026-08-30
+
+**Status:** Complete; Chunk 4 implementation, focused automated acceptance, native destructive acceptance, and external-fixture cleanup accepted on 2026-08-30
 
 ## Objective
 
@@ -198,12 +200,12 @@ None.
 - [x] Human explicitly accepted Chunk 2 by requesting Chunk 3 implementation on 2026-08-23.
 - [x] Chunk 3 implemented and verified on 2026-08-23: Add owned isolated creation, true clone, cross-mode activation, and isolated profile deletion.
 - [x] Human reviewed and explicitly accepted Chunk 3 on 2026-08-23.
-- [~] Chunk 4 implemented and automated acceptance verified on 2026-08-23: global uninstall removes proven owned machines, preserves external or ambiguous engines, retains a forward-recovery journal, and ships updated documentation and canonical guidance. The 2026-08-30 native rerun passed owned-machine creation but found the fresh shared engine's guest ownership marker was zero bytes after restart; activation failed closed and uninstall preserved the now-ambiguous machine.
+- [x] Chunk 4 implemented and verified: global uninstall removes proven owned machines, preserves external or ambiguous engines, retains a forward-recovery journal, and ships updated documentation and canonical guidance. The 2026-08-30 native rerun confirmed that the durability fix preserves exact guest ownership evidence across restart and authorizes removal of the owned shared and isolated machines.
 - [x] Podman 5.8 compatibility follow-up removes the post-5.8 `machine init --update-connection=false` option while retaining explicit prior-default restoration. The focused engine and profile-activation groups pass; four directly relevant lifecycle scenarios passed before the user requested that the remaining lower-value broad workflow rerun be skipped.
 - [x] The unrelated padding-sensitive `lib-catalog` assertion was already normalized in commit `dc7a85b`; `./tests/test.sh --group lib-catalog` passed all six tests on 2026-08-30.
-- [~] Guest-marker durability follow-up flushes the guest filesystem before marker publication reports success. Shell syntax, `git diff --check`, and the focused engine, profile-activation, and global-uninstall groups pass all 11 tests; native confirmation awaits cleanup of the preserved disposable fixtures and a fresh rerun.
-- [ ] Human reviews and explicitly accepts Chunk 4.
-- [ ] Record final lessons, resolve superseded plan state, and move this plan to the repository's completed-plan location.
+- [x] Guest-marker durability follow-up flushes the guest filesystem before marker publication reports success. Shell syntax, `git diff --check`, and the focused engine, profile-activation, and global-uninstall groups pass all 11 tests; native confirmation passed across managed restart and destructive uninstall.
+- [x] Human reviewed and explicitly accepted Chunk 4 on 2026-08-30, including the disposition of the interrupted full-suite rerun.
+- [x] Final lessons recorded, superseded plan state resolved, disposable external fixture cleanup verified, and plan finalized for the repository's completed-plan location.
 
 ## Execution protocol
 
@@ -420,7 +422,7 @@ Suggested reasoning level: high. Isolated provisioning and deletion cross an irr
 - [x] Interrupted isolated deletion is retryable from the journal, including partial local profile cleanup.
 - [x] Runtime and registry affinity remain profile-scoped after clone and cross-mode transitions.
 - [x] Relevant independent groups ran with `--jobs 3`; `commands-lifecycle` remained indivisible and ran serially.
-- [~] Disposable fake-Podman macOS acceptance covers shared/isolated workloads, transitions, ownership, clone, and deletion. Native machine creation/deletion was not run because it would mutate the user's external Podman installation.
+- [x] Disposable fake-Podman macOS acceptance covers shared/isolated workloads, transitions, ownership, clone, and deletion. The later isolated native acceptance additionally verified actual owned shared and isolated machine creation and deletion without mutating the user's normal Podman namespace.
 - [x] Documentation prominently identifies which profile operations delete VM-local data.
 
 Verification evidence (2026-08-23):
@@ -493,10 +495,10 @@ Suggested reasoning level: high. Global uninstall intentionally crosses an irrev
 - [x] Legacy-migrated and Linux host-local engines survive uninstall.
 - [x] Partial failure after one deletion leaves a valid installation and journal; retry completes pending work and refuses a replacement at the reused name.
 - [x] Strict allowlist tests cover safe engine/journal paths and reject traversal, foreign engine state, and overlapping journal authority.
-- [~] The earlier default three-worker full suite ran. Chunk 4's complete lifecycle group and eight focused engine/journal/surface tests pass. The formerly failing padding-sensitive `lib-catalog` assertion was normalized in commit `dc7a85b`, and its isolated six-test group passes on 2026-08-30; the full suite was not rerun.
+- [x] Chunk 4's complete lifecycle group and focused engine/journal/surface tests pass. The formerly failing padding-sensitive `lib-catalog` assertion was normalized in commit `dc7a85b`, and its isolated six-test group passes on 2026-08-30. A final `./tests/test.sh --jobs 3` run produced no output for approximately 16 minutes and was interrupted; final human review explicitly accepted the focused acceptance evidence without requiring another full-suite rerun.
 - [x] POSIX shell syntax, `git diff --check`, executable modes, source/rendered surface assets, canonical-skill validation, and modified documentation paths pass. The modified documentation adds no new links.
-- [~] Native macOS acceptance rerun in isolated disposable `HOME`/`XDG_CONFIG_HOME` created stopped external fixture `chunk4-external` and successfully bootstrapped owned `shimmy-default` on Podman 5.8. After restart, the guest ownership marker was a zero-byte regular file, so activation could not prove ownership and isolated creation did not proceed. Guarded uninstall preserved `shared:guest-marker-mismatch`, removed the disposable Shimmy installation, and left both exact fixtures stopped for manual cleanup.
-- [~] Native destructive authorization remained limited to the isolated disposable namespace. No pre-existing machine was visible there. The destructive gate correctly refused the ambiguous owned fixture, so exact owned-machine deletion is still unverified and the two stopped fixtures require explicit manual cleanup.
+- [x] Native macOS acceptance in isolated disposable `HOME`/`XDG_CONFIG_HOME` created stopped external fixture `chunk4-external`, bootstrapped owned `shimmy-default` on Podman 5.8, verified ownership after restart, and created owned isolated machine `shimmy-isolated-one`. Uninstall dry-run listed both owned engines and no preserved engines; actual uninstall removed both owned machines and the disposable Shimmy configuration root.
+- [x] Native destructive authorization remained limited to the isolated disposable namespace. Its final inventory contains only stopped external fixture `chunk4-external`; the normal namespace still contains only the pre-existing stopped `podman-machine-default`.
 - [x] Final terminology search classified current README/help/ownership text, explicitly historical retained-plan inventory, and legacy schema-2 compatibility assertions. Canonical skills no longer direct users or agents to provision per-profile machines manually.
 - [x] `git diff --check` passes and status contains the user-authored Chunk 4 commit plus only intended follow-up implementation, test, and retained-plan evidence changes.
 
@@ -510,7 +512,9 @@ Suggested reasoning level: high. Global uninstall intentionally crosses an irrev
 - Podman 5.8 compatibility follow-up: `machine init <name>` replaces the newer flag without changing the existing connection snapshot/restore transaction. `./tests/test.sh --jobs 3 --group lib-engine --group lib-profile-activation` passes all 14 tests. A lifecycle rerun recorded passes for Darwin bootstrap, owned isolated creation/deletion, migration, and global uninstall/retry before the user requested that the remaining lower-value broad workflow scenario be skipped; the runner was then intentionally interrupted.
 - 2026-08-30 native rerun: the isolated namespace began empty; `chunk4-external` initialized stopped; checkout bootstrap created and started `shimmy-default`, prepared all three baseline images, and completed. A subsequent managed start could not verify the guest ownership marker because `shared.conf` was a zero-byte regular file. Global uninstall then reported `Preserved engine shared during complete preflight: guest-marker-mismatch`, removed the disposable configuration root, and left `shimmy-default` and `chunk4-external` stopped. This proves the Podman 5.8 init fix and the fail-closed preservation boundary, but not destructive removal of a proven owned machine.
 - `./tests/test.sh --group lib-catalog` passed all six tests on 2026-08-30. During diagnosis, `./tests/test.sh --jobs 3 --group lib-engine --group lib-profile-activation` passed all ten currently registered tests; exploratory diagnostic changes were reverted so only the marker-durability remediation remains in implementation files.
-- Guest-marker durability remediation adds a guest `sync` after the atomic marker rename and before the write reports success. `./tests/test.sh --jobs 3 --group lib-engine --group lib-profile-activation --group commands-lifecycle-uninstall` passes all 11 tests; `sh -n lib/engine/podman.sh` and `git diff --check` pass. This change remains native-unverified until the preserved fixtures are manually removed and the isolated scenario is rerun from an empty namespace.
+- Guest-marker durability remediation adds a guest `sync` after the atomic marker rename and before the write reports success. `./tests/test.sh --jobs 3 --group lib-engine --group lib-profile-activation --group commands-lifecycle-uninstall` passes all 11 tests; `sh -n lib/engine/podman.sh` and `git diff --check` pass.
+- Final native acceptance used isolated root `/private/tmp/shimmy-chunk4-native-20260830-codex`. Bootstrap from committed revision `b5c8b5e` created owned shared machine `shimmy-default`; its exact guest ownership marker survived a managed restart; isolated profile creation created `shimmy-isolated-one`; global uninstall dry-run identified owned engines `shared,profile-isolated-one` with `preserved_engines=none`; actual uninstall removed both owned machines and the configuration root. The stopped external fixture `chunk4-external` was preserved, and the normal namespace's stopped `podman-machine-default` was unchanged.
+- Final closure rechecked the same isolated Podman context on 2026-08-30. `podman machine list --format json` returned `[]`, confirming that the intentionally preserved external fixture had subsequently been removed.
 
 ### Human review gate
 
@@ -584,10 +588,11 @@ Stop. Present exact machines removed and preserved in disposable acceptance, jou
 - A fresh retry process that reads an existing Darwin uninstall journal must re-resolve the Podman binary before any machine or connection query. Initial-plan setup is not retained across commands.
 - A same-name replacement detected from a pending lifecycle journal is safely preserved only when the refusal also reaches the user as an explicit collision diagnostic. A generic retained-journal error is operationally safe but does not provide the exact recovery evidence the contract requires.
 - The global journal must distinguish planned order from completed, pending, and skipped/preserved partitions. Moving a newly ambiguous target out of pending requires an arbitrary-item transition rather than assuming only the head can change disposition.
-- The original native acceptance failed before the chunk's destructive boundary because Podman 5.8 rejected `machine init --update-connection=false`. The compatibility follow-up now uses `machine init <name>` and retains explicit prior-default restoration; destructive native acceptance remains intentionally pending.
+- The original native acceptance failed before the chunk's destructive boundary because Podman 5.8 rejected `machine init --update-connection=false`. The compatibility follow-up now uses `machine init <name>` and retains explicit prior-default restoration; the final native acceptance verified this path through destructive uninstall.
 - Full-suite evidence must distinguish chunk regressions from a reproducible baseline assertion. The catalog human-table test formerly assumed single header spaces even though formatting pads columns for long tool names; commit `dc7a85b` normalized the display header before comparison.
-- The 2026-08-30 rerun proved the Podman 5.8 initialization fix, then exposed a separate native-only ownership defect: the freshly written shared guest marker was zero bytes after restart. Test doubles currently prove marker comparisons but not marker byte persistence across a native stop/start boundary. Fail-closed uninstall preserved the machine and removed only disposable installation state, so destructive native acceptance remains blocked until marker creation/persistence is corrected and rerun.
-- Atomic rename alone did not make the guest ownership marker durable across the observed VM transition. Publication must flush the guest filesystem before reporting success; the native acceptance gate, rather than test doubles, remains the proof that the marker survives stop/start with its exact bytes.
+- The first 2026-08-30 rerun exposed a native-only ownership defect: the freshly written shared guest marker was zero bytes after restart. Test doubles proved comparisons but not byte persistence across a native stop/start boundary, while fail-closed uninstall correctly preserved the ambiguous machine.
+- Atomic rename alone did not make the guest ownership marker durable across the observed VM transition. Flushing the guest filesystem before reporting publication success fixed the defect; the final native gate proved the marker survived restart with its exact bytes and authorized deletion of both owned machines while preserving the external fixture.
+- Preserving `chunk4-external` during acceptance was intentional proof that global uninstall excludes external machines from Shimmy's destructive authority. Final closure separately verified that the fixture had been removed from its isolated Podman context.
 
 ## Session bootstrap
 
