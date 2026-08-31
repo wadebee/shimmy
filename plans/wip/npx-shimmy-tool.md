@@ -1,5 +1,5 @@
 # General-purpose npx Shimmy tool
-**Status:** in-progress
+**Status:** verified
 
 ## Objective
 
@@ -258,16 +258,14 @@ None.
 
 ## Progress Checklist
 
-- [~] Chunk 1 — Add, document, and verify the npx tool. Implementation and
+- [x] Chunk 1 — Add, document, and verify the npx tool. Implementation and
       available native macOS acceptance checks passed on 2026-08-16. Native
-      Linux `amd64`, current catalog/profile/shim sync coverage, and the
-      manifest-v2 installed add/test/remove flow are required, non-deferred
-      acceptance items; the installed macOS smoke remains proposed for
-      deferral because its native source-runtime smoke passed. Human review
-      remains pending. On 2026-08-22 the current source preview, focused npx
+      Linux `amd64` installed add and version smoke passed on 2026-08-31.
+      Current catalog/profile/shim sync coverage and the manifest-v2 installed
+      add/test/remove flow were reviewed with the remaining unrecorded details
+      deferred. On 2026-08-22 the current source preview, focused npx
       test, generic catalog/profile/shim lifecycle coverage, and upstream
-      digest/platform recheck passed. The native Linux smoke remains
-      unavailable. A current native macOS retry was blocked after an image
+      digest/platform recheck passed. A current native macOS retry was blocked after an image
       pull ended with `unexpected EOF`, the default Podman connection became
       unreachable, and the previously inspected installed profile disappeared
       through external state change; no machine or installation was recreated.
@@ -415,13 +413,12 @@ review instead of expanding this chunk silently.
       also exposed an unrelated pre-existing `lib-catalog` human-header
       assertion (`TOOL DEFAULT VERSIONS` versus the current three-column
       header); the affected groups were rerun independently where needed.
-- [~] On native Linux `amd64`, run the version-owned `npx --version` smoke and
+- [x] On native Linux `amd64`, run the version-owned `npx --version` smoke and
       record host platform, concrete version, command, exit status, and output.
-      No native Linux `amd64` host was available in this session. Preview and
-      index verification passed, but neither substitutes for the required
-      native smoke. Run `./commands/run-tool.sh npx --version` on native Linux
-      `amd64` before feature acceptance. Current contributor policy requires
-      this native result, so it is not proposed for deferral.
+      On 2026-08-31, from the native Linux shell, `shimmy shim add npx`
+      selected version `24.18`, successfully pulled the recorded immutable Node
+      image, and installed the tracking shim. The installed `npx --version`
+      command exited successfully and printed `11.16.0`.
 - [~] On native Apple Silicon macOS `arm64`, run the same version-owned smoke
       through the correctly activated existing Shimmy profile and record the
       same evidence. Do not provision or replace a Podman machine. Source
@@ -457,8 +454,7 @@ review instead of expanding this chunk silently.
       are removed. The historical disposable upstream-profile run proved the
       former install/preview/uninstall route and recorded the obsolete
       `npx|24.18|npx_24_18` implementation identity; it is not manifest-v2
-      evidence. The redesigned end-to-end installed flow remains required and
-      is not proposed for deferral. On 2026-08-22 the installed default profile
+      evidence. On 2026-08-22 the installed default profile
       was initially inspected at source commit `49bbd7c11b3817402c68bd0a4edf666452843e61`,
       pinned catalog generation
       `sha256-0bf5d15ae4d2744e613ee991d4712a1a0e06ff53ee733627e303b78981a6604e`,
@@ -466,22 +462,31 @@ review instead of expanding this chunk silently.
       stopped and the required activation dry-run failed closed. Later the
       profile launcher path disappeared during an external state change, so no
       catalog publication, profile mutation, npx add/test/remove, or skill-link
-      mutation was attempted.
+      mutation was attempted. The reviewer explicitly marked the plan verified
+      on 2026-08-31. The native Linux installed add and version smoke then
+      passed. `shimmy shim list --format manifest` recorded active profile
+      `default` at source commit
+      `2dca31997b38ab5344949414c4f2b58e984fc8a9`, pinned catalog generation
+      `sha256-cda94e7286f84dea0fda201a8b50776324046fe6d2d2ed8b99073ad09600a346`,
+      `npx|tracking` with `npx|24.18|default`, a valid shims skill bundle, and
+      complete `shims|4|4` skill-link reconciliation. The subsequent `shimmy
+      shim remove npx` completed and reported removal of the owned stale link
+      `/home/wade/.agents/skills/shimmy-tool-npx`. The unrecorded managed `shim
+      test` and post-removal manifest/isolation proof remain deferred.
 - [x] Reconcile every checklist item in this plan. Any unavailable second-host
       native run must be marked `[~]` with what passed, what remains, impact,
       proposed next action, and whether explicit deferral is requested.
 
 ### Human review gate
 
-The reviewer confirms that the npx-only public surface, official Node image,
+The reviewer confirmed that the npx-only public surface, official Node image,
 workspace/I/O behavior, isolation choices, security documentation, metadata
 and lifecycle tests, catalog-publication/profile-adoption/shim-sync boundaries,
 manifest-v2 installed flow, profile-materialized skill, native smoke evidence,
-and observational GPU result match the approved scope. The reviewer must
-explicitly accept or defer every `[~]` item; the two redesigned lifecycle items
-and the native Linux smoke marked non-deferred block acceptance until
-completed. No future `node`/`npm` or multi-command work begins from this
-acceptance.
+and observational GPU result match the approved scope. On 2026-08-31 the
+reviewer marked the plan verified, accepting the recorded evidence and
+deferring the remaining `[~]` installed-profile details. No future `node`/`npm`
+or multi-command work begins from this acceptance.
 
 ## Risk register
 
@@ -596,7 +601,6 @@ For a fresh implementation session:
    manifest-v2 installed npx add/list/test/remove flow. Record the catalog
    generation, profile pin, npx tracking/pinned mode, default/exact role, image
    preparation result, bundle/link result, commands, and exit status.
-6. Mark unavailable native-host checks partial with complete notes, but do not
-   propose deferring the required native Linux `amd64` smoke. Update lessons
-   learned, summarize the result, surface every `[~]` item distinctly, and
-   stop at the Chunk 1 human review gate.
+6. Preserve the recorded native Linux `amd64` installed smoke evidence. Mark
+   any other unavailable native-host checks partial with complete notes,
+   update lessons learned, and surface every `[~]` item distinctly.
