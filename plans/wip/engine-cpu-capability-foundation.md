@@ -17,9 +17,10 @@ Success means:
   for `linux/amd64`, one normalized effective x86-64 level;
 - every installed tool version has exactly one profile-owned adoption selection
   that refers to an option in the profile's pinned catalog generation;
-- bootstrap, profile create/clone/sync, and shim add/sync resolve the complete
+- bootstrap, profile create/clone/sync, and shim add/sync validate a complete
   candidate selection set against the trusted bound-engine record before the
-  first image pull or local build and commit the selections transactionally;
+  first image pull or local build, preserve or rescore it under the recorded
+  lifecycle policy, and commit the selections transactionally;
 - installed runtimes consume the persisted selection without mutating or
   narrowing the retained catalog generation; and
 - ownership, path-safety, locking, manifest-last, exact-machine proof,
@@ -50,9 +51,12 @@ preparation occur only on the newly created Shimmy-owned `shimmy-default`.
 - **Image option**: one stable, version-local choice for the complete runtime
   image strategy: either an immutable external runtime image or a local-build
   recipe with its selected immutable bases. It owns a safe option ID, platform
-  descriptors, CPU requirement evidence, provenance, registry access, and
-  deterministic catalog preference. An option is not merely one base record
-  inside a multi-base build.
+  descriptors, CPU requirement evidence, provenance, registry access, immutable
+  discovery scoring components/evidence, and deterministic tie preference. An
+  option is not merely one base record inside a multi-base build.
+- **Refresh source**: the user-facing catalog-refresh term for one complete
+  image option. `--source <id>` receives the option's safe stable ID; it never
+  targets an individual base record inside a local-build option.
 - **CPU requirement**: the normalized minimum instruction-set contract for one
   image option on one OCI platform, plus whether the value is an exact
   requirement, a lower bound, or unknown, and its evidence state/source.
@@ -61,12 +65,20 @@ preparation occur only on the newly created Shimmy-owned `shimmy-default`.
   to workloads by one exact Podman execution engine, including the execution
   architecture. This is distinct from the workstation CPU when the engine is a
   VM or remote backend.
+- **CPU capability record**: one normalized `<model>|<value>` fact within an
+  engine observation. An engine owns a lexically ordered set of zero or more
+  `cpu_capability=<model>|<value>` records; capability models are unique within
+  the set and remain distinct from the mandatory execution architecture.
 - **Compatibility resolution**: the deterministic comparison of an image
   option's platform requirement with one engine observation. Its result is
   `compatible`, `incompatible`, or `indeterminate`; selection eligibility for
   an indeterminate result remains an explicit policy decision.
 - **Adoption selection**: the profile-owned, persisted image option chosen for
   a tool version after compatibility resolution.
+- **CPU risk acceptance**: profile-owned consent to use one exact indeterminate
+  image option on one exact bound-engine observation after a successful
+  version-owned smoke. It is audit state, not evidence that the option is
+  compatible.
 - **Future engine route**: a later profile-owned tool-to-engine selection that
   may choose local native, remote architecture/GPU, or explicit emulation
   targets. It is not part of this plan.
@@ -76,7 +88,8 @@ Target ownership is:
 ```text
 discovery/catalog  -> available image options and declared requirements
 engine             -> observed effective execution capabilities
-profile adoption   -> compatible option selection for the bound engine
+profile adoption   -> compatible or explicitly accepted indeterminate option selection
+                      for the bound engine
 runtime            -> selected immutable option on the current bound engine
 future routing     -> tool-to-engine selection (deferred)
 ```
@@ -94,9 +107,11 @@ profiles/<name>/engine-binding.conf  shimmy_engine_binding_version=1 (unchanged)
 The profile manifest contains exactly one lexically ordered
 `image_selection=<tool>|<version>|<option-id>` record for every
 `shim_version` record and no selection for an unmaterialized version. Installed
-version directories remain byte-identical to their pinned catalog sources; the
-selection record, not a rewritten `image.conf`, supplies the profile-specific
-choice.
+version directories remain byte-identical to their pinned catalog sources. An
+indeterminate selection additionally owns one matching persisted
+`cpu_risk_acceptance` record bound to the exact selected option and engine-
+record fingerprint. Selection and acceptance records, not a rewritten
+`image.conf`, supply the profile-specific choice and consent.
 
 ### Normalized x86-64 levels
 
@@ -138,12 +153,17 @@ demonstrates a concrete tool requirement.
    for correct image adoption while preserving explicit schema-version
    extension points. Do not add speculative GPU, remote-engine, emulation, or
    arbitrary raw-feature fields.
-7. The initial CPU contract is the cumulative x86-64 psABI level only.
-   `linux/amd64` image requirements and engine observations use normalized
-   `x86-64-v1` through `x86-64-v4`; raw feature flags are transient probe input
-   and are never persisted. `linux/arm64` remains platform-compatible without
-   introducing an ARM feature-level comparison; its exact record encoding is
-   unresolved below.
+7. Engine CPU capabilities are a canonical repeated-record set, not one scalar
+   level. Schema-2 engine records contain a mandatory execution architecture
+   followed by zero or more lexically ordered
+   `cpu_capability=<model>|<value>` records. Model names are unique; duplicate
+   or unknown models are rejected under the current schema. The initial and
+   only recognized model is `x86-64-psabi-level`, whose normalized values are
+   `x86-64-v1` through `x86-64-v4`. `linux/amd64` requires exactly one such
+   record. `linux/arm64` permits an empty capability set until an ARM model is
+   implemented; its mandatory successful architecture observation proves that
+   the empty set is deliberate rather than a probe failure. Raw feature flags
+   are transient probe input and are never persisted.
 8. On amd64 macOS, the side-effect-free creation preflight uses
    `sysctl -a | grep machdep.cpu` and normalizes the result only as a transient
    provisioning ceiling. It neither creates/starts a machine nor persists that
@@ -165,12 +185,14 @@ demonstrates a concrete tool requirement.
     a permanent integrity invariant, and one authoritative negative test is
     explicitly approved to protect it.
 12. CPU observation occurs only when a Shimmy-owned lifecycle creates a fresh
-    engine boundary. Activation, profile/shim adoption, sync, runtime
-    invocation, status, and dry-run do not refresh it. Adoption trusts the
-    persisted record and does not add a connection check or engine smoke solely
-    for CPU compatibility. This plan adds no engine-replacement command; any
-    future replacement lifecycle must re-observe the engine and re-resolve every
-    bound profile atomically before it publishes the replacement boundary.
+   engine boundary. Activation, profile/shim adoption, sync, runtime
+   invocation, status, and dry-run do not refresh it. Adoption trusts the
+   persisted record and does not add a connection check or engine probe solely
+   for CPU compatibility. The version-owned tool smoke required for an
+   accepted indeterminate option is not a capability probe and does not mutate
+   the engine observation. This plan adds no engine-replacement command; any
+   future replacement lifecycle must re-observe the engine and re-resolve every
+   bound profile atomically before it publishes the replacement boundary.
 13. Discovery remains host-independent and metadata-only. It retains all
     credible candidates, never pulls or runs them, and records CPU evidence
     from OCI declarations and authoritative publisher, source, build, or base-
@@ -182,10 +204,13 @@ demonstrates a concrete tool requirement.
     remains independent from the chosen option; no central implementation
     router or CPU-specific concrete-version label is introduced.
 16. CPU requirements live inline with each image option. Profile state persists
-    only `tool|version|option-id`; it does not duplicate digests, sources,
-    requirements, evidence, or registry metadata. No new digest or fingerprint
-    is computed solely for a CPU requirement or engine observation; existing
-    whole-file and catalog fingerprints continue to cover those bytes.
+   `tool|version|option-id` and, only for an accepted indeterminate selection,
+   one matching CPU-risk-acceptance record bound to that option and the
+   existing whole-file engine-record fingerprint. It does not duplicate image
+   digests, sources, requirements, evidence, or registry metadata. No new
+   digest format is computed solely for a CPU requirement or engine
+   observation; existing whole-file and catalog fingerprints continue to cover
+   those bytes.
 17. Image evidence has three states. `confirmed` means an exact OCI declaration
     or authoritative publisher requirement applies to the option or image
     family. `inferred` means authoritative lineage, a documented base
@@ -197,8 +222,9 @@ demonstrates a concrete tool requirement.
     above the engine proves `incompatible`; a lower bound at or below the
     engine remains `indeterminate` because the final image may add a stricter
     requirement. An exact normalized requirement can yield `compatible` or
-    `incompatible`. The policy for selecting any remaining indeterminate option
-    is unresolved below.
+    `incompatible`. Every indeterminate result uses the exact persisted risk-
+    acceptance and pre-commit smoke workflow in decision 33; evidence source or
+    relation does not create a silent eligibility exception.
 19. The discovery skill owns inference. It presents every inferable option with
     its normalized exact value or lower bound, evidence source, remaining
     uncertainty, and consequences, then interviews the user. It never silently
@@ -209,29 +235,34 @@ demonstrates a concrete tool requirement.
     value/lower bound, evidence source, `evidence=inferred`, and explicit
     acceptance. Generic acceptance of all inferred candidates is insufficient,
     and acceptance does not relabel the evidence.
-21. Profile adoption performs no research or interview. It reads only the
-    pinned catalog's approved options and the trusted bound-engine record, then
-    applies the recorded deterministic selection policy. Evidence labels remain
-    audit metadata; requirement relation affects the comparison result.
+21. Profile adoption performs no research. It reads only the pinned catalog's
+   approved options and the trusted bound-engine record, then applies the
+   recorded deterministic selection policy. Evidence labels remain audit
+   metadata; requirement relation affects the comparison result. An
+   indeterminate candidate requires the exact warning and consent workflow in
+   decision 33 rather than new research or silent selection.
 22. Profile adoption owns image-option matching. Host-specific selections do
     not rewrite or narrow retained catalog generations, and materialized
     version directories remain byte-identical to the catalog.
 23. The profile manifest contains exactly one selection for every materialized
     `shim_version`. Pure profile-state validation proves cardinality and
     referential integrity against the pinned catalog. The adoption transaction
-    separately proves compatibility against the trusted bound-engine record
-    before preparation and commit. Runtime helpers require and resolve the
-    persisted selection without re-probing or reselecting; missing, duplicate,
-    cross-version, or nonexistent option identities invalidate the profile
-    before execution.
+    separately proves compatibility against the trusted bound-engine record or
+    completes the authorized indeterminate smoke workflow before commit.
+    Runtime helpers require and resolve the persisted selection without re-
+    probing or reselecting; missing, duplicate, cross-version, nonexistent, or
+    improperly accepted option identities invalidate the profile before
+    execution.
 24. Bootstrap's current baseline (`jq`, `rg`, and Skopeo, subject to future
     catalog change) is one atomic compatibility plan. Every baseline selection
     resolves from the engine record before the first pull/build, and all are
     persisted in the same outer compensated bootstrap transaction.
 25. Profile create/clone, profile sync, and shim add/sync stage a complete
-    selection set and resolve every changed or retained version before the
-    first image preparation and before manifest-last commit. No lifecycle may
-    leave an installed version with a stale or absent selection.
+    selection set and validate every changed or retained version before the
+    first image preparation and before manifest-last commit. They preserve or
+    rescore existing selections under decisions 35 and 36; a version with no
+    prior selection must be scored. No lifecycle may leave an installed version
+    with a stale or absent selection.
 26. Explicit `SHIMMY_<TOOL>_IMAGE` and local-build base overrides remain
     user-owned runtime escape hatches and are documented as bypassing catalog
     adoption compatibility. Source checkout preview/execution has no profile
@@ -259,15 +290,103 @@ demonstrates a concrete tool requirement.
     only then commits the outer bootstrap transaction.
 31. Stop and interview the user when a significant implementation path remains
     unclear and cannot be safely inferred from these decisions.
+32. Every `shimmy catalog` response that identifies current, retained, or
+    targeted tool content surfaces each applicable tool version, option ID,
+    CPU-requirement model/value, relation, evidence state, discovery scoring
+    components, confidence, and tie preference in both human and manifest
+    output. Catalog reporting remains host-independent and does not hide or
+    rescore an option because its requirement is unknown or incompatible with
+    the requesting profile.
+33. An indeterminate option may enter profile adoption only after Shimmy warns
+    that compatibility is unproven and the user explicitly accepts that exact
+    tool/version/option for the exact bound-engine record. A TTY may prompt;
+    non-interactive use must provide the equivalent explicit option-scoped
+    authorization or fail without mutation. After image preparation and before
+    manifest-last commit, adoption runs the selected version's non-mutating
+    `smoke.conf` smoke through a candidate-aware runtime on the exact target
+    engine. Failure reports the observed smoke failure and rolls back the whole
+    transaction without claiming a CPU cause unless the evidence establishes
+    one. Success permits commit of the persisted CPU-risk acceptance but does
+    not relabel catalog evidence or compatibility. Later activation surfaces
+    the warning but trusts the persisted acceptance and adoption transaction;
+    it neither prompts nor reruns the smoke. Dry-run reports the planned warning,
+    authorization requirement, and smoke without pulling or executing it.
+34. Known-incompatible options and indeterminate options lacking exact persisted
+    acceptance form one permanent adoption-integrity boundary. Protect that
+    boundary with exactly one new lowest-cost authoritative negative test that
+    proves neither class can reach image preparation or profile commit. Reuse
+    existing repository fixtures, setup, and transaction seams to minimize
+    duplicated coverage and test-suite runtime; do not add command-specific
+    copies or another expensive lifecycle solely for this rejection proof.
+35. Profile adoption uses an event-scoped filter-then-rank algorithm only when a
+    lifecycle has no prior selection to preserve or the user explicitly requests
+    rescoring. It snapshots the pinned catalog options, exact bound-engine
+    observation, and target profile's effective registry policy. Engine
+    compatibility is an eligibility boundary,
+    never score: incompatible options are excluded, proven-compatible options
+    form the first tier, and indeterminate options may be considered only when
+    that tier is empty and decision 33's exact consent/smoke workflow completes.
+    Within the active tier, the immutable catalog contributes the discovery
+    rubric's candidate hardening (30), registry posture (15), provenance (15),
+    maintenance (15), and disclosed user-reviewed agent judgment (5) points;
+    adoption replaces discovery-host preference with up to 20 points from the
+    target profile's effective registry affinity. The highest total wins, with
+    a unique positive catalog preference used only as the deterministic final
+    tie-breaker. Dry-run and the adoption result explain the score components.
+    Commit persists only the exact `tool|version|option-id` selection and any
+    required CPU-risk acceptance, not a live scoring relationship. Activation,
+    deactivation, reactivation, status, runtime, and registry-policy edits never
+    rescore or change the selection. Algorithm, catalog, engine, or registry
+    changes can choose a different option for an existing profile only through
+    an explicit rescore; transaction-time inputs are revalidated before
+    manifest-last commit.
+36. Profile clone and profile sync preserve every prior `tool|version|option-id`
+    selection by default and never silently fall back to another option. Clone
+    validates the exact source selections against the target catalog, engine,
+    and profile policy; sync validates them against the new pinned catalog and
+    the profile's existing engine/policy. A missing option, known incompatibility,
+    inaccessible selected strategy, or failed required consent/smoke aborts the
+    complete lifecycle without mutation even when another eligible option exists.
+    An indeterminate acceptance may be retained only when the exact option
+    definition and engine-record fingerprint remain unchanged; otherwise the
+    preserved option requires decision 33's fresh consent and smoke. Add
+    `--rescore` to `profile clone` and `profile sync`; it applies decision 35 to
+    the complete candidate set and may select different options. Dry-run and the
+    mutation result state whether selections were preserved or rescored. New
+    tools or versions with no prior selection necessarily use decision 35.
+37. Shimmy's amd64 bootstrap baseline begins at x86-64-v2. Skopeo 1.22 supplies
+    two production external options: a UBI 9 option whose verified requirement
+    is v2 and a UBI 10 option whose verified requirement is v3. Discovery must
+    establish each exact immutable identity, contained Skopeo release, platform
+    set, requirement/evidence, scoring evidence, entrypoint, registry behavior,
+    and native acceptance before catalog inclusion; family lineage alone is not
+    exact-image proof. Decision 35 chooses among the compatible options without
+    treating a higher CPU requirement as a scoring advantage. An x86-64-v1
+    engine fails the complete bootstrap compatibility plan before the first
+    image preparation. Do not add or imply an unverified v1 fallback.
+38. `shimmy catalog refresh <tool@version>` refreshes every image source in the
+    selected version as one atomic default transaction. It discovers and stages
+    all tag-backed external references and local-build bases, validates the
+    complete resulting schema-2 manifest, and changes no source bytes if any
+    source fails. A source-specific failure identifies the safe source ID and
+    presents `shimmy catalog refresh <tool@version> --source <id>` as the
+    targeted fallback. The explicit `--source` form may also be invoked directly;
+    it refreshes only that complete option, preserves all others, and still
+    validates the whole manifest before atomic commit. No `--all-options` flag is
+    added because all sources are already the default. Both forms support
+    `--dry-run`, accept at most one safe exact source ID, and never infer a
+    target from an active profile or its persisted adoption selection.
 
 ## Verified implementation inventory
 
 This inventory is a verified planning baseline, not permission to ignore new
 dependencies discovered during implementation.
 
-- `plugins/shimmy/skills/shimmy-tool-discover/SKILL.md` currently proves OCI
-  platform presence only, forbids runtime claims from metadata alone, and has
-  no structured per-platform CPU fields in either handoff.
+- `plugins/shimmy/skills/shimmy-tool-discover/SKILL.md` currently ranks
+  candidates with an advisory weighted security-posture rubric and explicit
+  user selection, but its factual handoff discards the score components. It
+  proves OCI platform presence only, forbids runtime claims from metadata alone,
+  and has no structured per-platform CPU fields in either handoff.
 - `plugins/shimmy/skills/shimmy-create-tool/SKILL.md` treats a dual-architecture
   index plus native architecture smokes as its portability contract; it does
   not consume a CPU requirement.
@@ -336,9 +455,11 @@ dependencies discovered during implementation.
   ownership, workload-interruption, connection-restoration, CPU-authority, and
   VM-local image-storage scope without solving the host-file staging
   dependency.
-- The Skopeo 1.22 external runtime image currently uses UBI 10. Red Hat
-  documents that RHEL/UBI 10 x86_64 images require x86-64-v3, while the current
-  metadata and guide claim only `linux/amd64`/`linux/arm64` compatibility.
+- The Skopeo 1.22 external runtime currently pins
+  `registry.access.redhat.com/ubi9/skopeo:9.8-1787688678`, not UBI 10. Red Hat
+  documents x86-64-v2 as the RHEL 9 minimum and x86-64-v3 for RHEL/UBI 10;
+  exact option requirements and the second UBI 10 identity still require the
+  plan's image-specific discovery evidence.
 - OCI image-index platform metadata can declare an amd64 `variant`, but the
   platform descriptor and variant are optional and the general `features`
   field is reserved. Absent metadata cannot be treated as proof of x86-64-v1.
@@ -363,51 +484,7 @@ Authoritative technical references:
 
 ## Unresolved
 
-1. **ARM64 record encoding.** A capability record is mandatory for every engine,
-   but the normalized feature contract is x86-only. Choose whether
-   `linux/arm64` records use an explicit `cpu_level=not-applicable` sentinel or
-   omit the level field under an architecture-specific schema branch.
-   Recommended: require `architecture=linux/arm64` plus the explicit sentinel;
-   this preserves canonical record shape and proves that omission is not probe
-   failure.
-2. **Indeterminate image policy.** Decide whether an `unknown` requirement, or
-   an inferred lower bound that does not exceed the engine, remains reportable
-   and catalog-valid but unselectable, or may become adoption-eligible through
-   an explicit per-option risk acceptance. Recommended: keep both catalog-valid
-   but unselectable; allow accepted inferred *exact* requirements to compare
-   normally. This is fail-closed but may make some existing tools unavailable
-   until stronger evidence or an alternative option is added. Also decide
-   whether incompatible/indeterminate unselectability is a permanent adoption-
-   integrity invariant that approves one lowest-cost authoritative negative
-   proof. Recommended: yes, with no command-specific duplicates.
-3. **Deterministic selection policy and UX.** Decide how adoption chooses among
-   multiple eligible compatible options. Recommended: schema 2 requires a
-   unique positive catalog preference per option and rejects ties; adoption
-   chooses the eligible option with the smallest preference value and reports
-   the chosen option in dry-run/status output. This preserves discovery's
-   explicit user-reviewed ordering instead of inventing host-time security
-   ranking.
-4. **Clone and sync semantics.** Decide whether clone preserves or re-resolves
-   selections and how sync handles an option that disappears, changes identity,
-   or gains a stricter requirement. Recommended: clone always re-resolves the
-   complete selection set against the target engine record; sync re-resolves
-   against the new pinned catalog and aborts before pull/commit when no eligible
-   option exists, leaving the prior profile byte-valid. Neither lifecycle
-   performs a live CPU probe.
-5. **Current Skopeo correction.** Decide whether this plan must add a Skopeo
-   option compatible with x86-64-v1/v2 as the first production multi-option
-   acceptance case, or may retain only the current UBI 10 v3 option and fail
-   bootstrap cleanly on older engines. Recommended: add and natively verify a
-   compatible option so the baseline demonstrates both selection branches;
-   discovery must identify the exact image rather than assuming a UBI 9 family
-   is functionally equivalent.
-6. **Refresh option targeting.** A multi-option manifest makes “refresh this
-   version” ambiguous. Decide how a refresh invocation selects the owned option
-   whose external digest or local-build inputs may change. Recommended: require
-   an explicit safe option ID whenever a version has multiple options, permit
-   omission only for a single-option manifest, and reject a target that does not
-   belong to the concrete version. Refresh must not infer from the active
-   profile because canonical catalog maintenance is host-independent.
+None.
 
 ## Progress Checklist
 
@@ -520,18 +597,19 @@ High reasoning: the engine record is an atomic schema/transaction transition.
   and v4. Reject malformed, contradictory, or insufficient probe output rather
   than guessing a level.
 - Render/read/validate only schema-2 engine records. Record the normalized
-  execution platform and the resolved architecture-specific CPU value selected
-  in Unresolved item 1; never persist the raw flag set or host preflight.
+  execution platform and canonical repeated CPU-capability set from recorded
+  design decision 7; never persist the raw flag set or host preflight.
 - On amd64 macOS, run the side-effect-free `sysctl` ceiling before machine
   mutation. On actual shared/isolated creation, keep journal-first exact
   identity proof, start the machine, observe the guest architecture through
   `podman machine ssh <exact-name>`, collect `lscpu` flags there only for amd64,
   then publish the final engine record before engine commit. On Apple Silicon,
-  record the observed guest architecture using the resolved ARM64 encoding
-  without inventing an x86 level.
+  record the observed `linux/arm64` guest architecture with an empty CPU-
+  capability set and without inventing an x86 or ARM level.
 - On Linux fresh bootstrap, validate the local rootless engine, run local
-  `lscpu` on amd64 (or use the resolved ARM64 encoding), and publish the shared
-  record before profile/image adoption.
+  `lscpu` on amd64, or record the successfully observed `linux/arm64`
+  architecture with an empty CPU-capability set, and publish the shared record
+  before profile/image adoption.
 - Preserve lifecycle journals as the rollback authority while the final engine
   record is not yet published. Capability failure after machine start must
   remove only an exactly proven newly created machine or retain the existing
@@ -545,8 +623,9 @@ High reasoning: the engine record is an atomic schema/transaction transition.
 
 ### Verification checklist
 
-- [ ] Normalization fixtures cover the cumulative v1-v4 success cases and
-  architecture-specific record form without persisting raw flags.
+- [ ] Normalization fixtures cover the cumulative v1-v4 success cases, the
+  canonical repeated-record set, and the empty ARM64 set without persisting raw
+  flags.
 - [ ] Schema-2 engine records round-trip canonically and every fresh
   Darwin/Linux engine producer and consumer uses only the new schema.
 - [ ] macOS shared and isolated creation publish no final engine record before
@@ -573,8 +652,9 @@ gate profile adoption.
 ### Goal
 
 Cut over every image-schema producer/consumer and every profile-adoption
-lifecycle in one review unit so all installed versions have valid, compatible,
-transactionally persisted selections before image preparation.
+lifecycle in one review unit so all installed versions have valid,
+transactionally persisted compatible or explicitly accepted indeterminate
+selections before commit.
 
 ### Files
 
@@ -600,27 +680,37 @@ gates.
   local-build strategies. Require safe stable option IDs, both current
   platforms, immutable runtime/base defaults, registry access, evidence state
   and source, exact/lower-bound/unknown relation, normalized amd64 requirement
-  where known, and the resolved unique catalog preference. Keep the top-level
-  catalog schema at 1.
+  where known, the catalog-owned discovery score components/evidence and
+  confidence, and the unique positive tie preference required by decision 35.
+  Keep the top-level catalog schema at 1.
 - Convert all 24 production manifests in the same cutover; schema 1 is no longer
   readable. Preserve local-build context hashing, override argument behavior,
   stale cleanup, platform tagging, and remote verification for every selected
   option.
-- Implement a pure deterministic compatibility/selection resolver using only a
-  validated schema-2 engine record and pinned schema-2 image manifests. Apply
-  the resolved policies for indeterminate options and ordering without
-  tool-name cases or host-time security scoring.
+- Implement a pure deterministic compatibility/selection resolver using a
+  validated schema-2 engine record, pinned schema-2 image manifests, and the
+  target profile's validated effective registry policy. Apply decision 35's
+  eligibility tiers, event-scoped score, and tie preference without tool-name
+  cases, adoption-time research, or undisclosed subjective rescoring.
 - Bump only the profile manifest to schema 3 and add exactly one lexically
-  ordered `image_selection` for every `shim_version`. Keep pure profile-state
-  validation responsible for selection cardinality, tool/version ownership,
-  option existence, and catalog pin; make the adoption resolver validate engine
-  compatibility before preparation/commit. Keep materialized version trees
-  byte-identical to their catalog sources.
+  ordered `image_selection` for every `shim_version`, plus exactly one matching
+  CPU-risk-acceptance record for every accepted indeterminate selection and no
+  acceptance for another selection or engine fingerprint. Keep pure profile-
+  state validation responsible for selection/acceptance cardinality,
+  tool/version ownership, option existence, engine binding, and catalog pin;
+  make the adoption resolver validate compatibility or the authorized
+  indeterminate workflow before preparation/commit. Keep materialized version
+  trees byte-identical to their catalog sources.
 - Make installed runtime helpers require the profile's persisted option and
   resolve its external reference or local-build inputs from the copied
   `image.conf`. Source checkout preview/execution uses the catalog-preferred
   option. Preserve explicit image/base overrides and document that they bypass
   adoption compatibility.
+- Make every catalog status/tools/verify and mutation-result renderer surface
+  the applicable tool/version/option CPU requirement, relation, evidence,
+  discovery scoring components/confidence, and tie preference in stable human
+  and manifest forms. Reporting never filters or rescores by the invoking
+  profile's engine.
 - Update every profile manifest producer/consumer, direct runtime affinity
   version check, status/dry-run output, fixture, and generated artifact. Inspect
   and exercise rendered wrapper/manifest output rather than relying only on
@@ -640,23 +730,33 @@ gates.
   projection's recorded authority and fingerprint, and only then commit the
   outer transaction. Never use a pre-existing Podman machine for this sequence.
 - For shared create/clone, profile sync, shim add, and shim sync, snapshot the
-  bound schema-2 engine record and catalog/profile authority, resolve and render
-  the complete resulting selection set in the private candidate before the
-  first pull/build, and revalidate those exact authorities under existing locks
-  before manifest-last commit. Apply the resolved clone/sync semantics from
-  Unresolved item 4.
+  bound schema-2 engine record and catalog/profile authority, preserve and
+  validate or explicitly rescore the complete resulting selection set in the
+  private candidate before the first pull/build, and revalidate those exact
+  authorities under existing locks before manifest-last commit. Apply recorded
+  design decisions 35 and 36.
+- For each authorized indeterminate selection, prepare its selected image and
+  run its version-owned non-mutating smoke through the private candidate on the
+  exact snapshotted target engine before commit. Persist acceptance only after
+  every required smoke passes. Any smoke failure reports the observed command
+  failure, enters the lifecycle's existing compensation, and leaves no new or
+  changed profile state. Activation warns for a persisted acceptance but does
+  not prompt, pull, or rerun its smoke.
 - Bootstrap must resolve `jq`, `rg`, and Skopeo as one set before preparing any
   baseline image. A single ineligible baseline option aborts before the first
   pull/build and enters existing outer compensation.
 - Preserve discovery's no-pull/no-run boundary; distinguish confirmed,
   inferred exact, inferred lower-bound, and unknown evidence; keep credible
-  options visible; obtain exact per-option acceptance for inference; and update
-  discovery handoff plus create-tool consumer together.
+  options visible; obtain exact per-option acceptance for inference; carry the
+  user-reviewed discovery scoring components/evidence and confidence without
+  the discovery host's registry-preference result; and update discovery handoff
+  plus create-tool consumer together.
 - Make catalog verify enumerate every option and report declared platform/CPU
   metadata alongside remotely observable OCI descriptor evidence without
-  treating omitted variant metadata as v1 proof. Refresh must update only the
-  explicitly targeted option's owned references, using the interface resolved
-  in Unresolved item 6, and preserve other option records.
+  treating omitted variant metadata as v1 proof. Implement decision 38's atomic
+  all-source default and exact `--source` fallback without consulting profile
+  selections; each path preserves option ownership and validates the complete
+  manifest.
 - Update contributor docs, project prompt, generic templates, canonical skills,
   tool guides/skills, and contexts in the same schema cutover. Never edit
   active-profile or generated skill copies.
@@ -664,21 +764,27 @@ gates.
 ### Verification checklist
 
 - [ ] All 24 schema-2 image manifests validate; catalog generations remain
-  host-independent, content-addressed, and free of host-specific selections.
+  host-independent, content-addressed, and free of host-specific selections or
+  discovery-host registry-preference results.
 - [ ] External and local-build options round-trip deterministically, selected
   local image cache identity changes with effective option/build inputs, and
   source previews render the catalog-preferred option.
 - [ ] Compatibility fixtures cover exact compatible/incompatible, lower-bound
   incompatible/indeterminate, unknown, ARM64, and deterministic option-ordering
-  outcomes required by the resolved policies. If Unresolved item 2 approves a
-  negative invariant proof, keep one authoritative lowest-cost proof rather than
-  duplicating rejection scenarios across commands.
+  and event-scoped scoring outcomes required by the resolved policies. Prove
+  profile registry affinity affects only a new adoption event and that an
+  exact-compatible tier outranks an indeterminate tier. Keep the one
+  authoritative lowest-cost adoption-integrity proof required by recorded
+  design decision 34 rather than duplicating rejection scenarios across
+  commands.
 - [ ] Schema-3 profile manifests have exactly one valid selection per installed
-  version; materialized versions remain byte-identical to their catalog sources
-  and installed runtime consumes the persisted option.
+  version and exact acceptance records only for authorized indeterminate
+  selections on the bound engine; materialized versions remain byte-identical
+  to their catalog sources and installed runtime consumes the persisted option.
 - [ ] Bootstrap resolves its complete baseline before the first preparation;
-  create/clone/sync and shim add/sync resolve against the correct snapshotted
-  engine without a live CPU probe and preserve manifest-last rollback.
+  create/clone/sync and shim add/sync validate preserved selections or rescore
+  against the correct snapshotted engine without a live CPU probe and preserve
+  manifest-last rollback.
 - [ ] macOS bootstrap/new-isolated staging exposes no partial profile root;
   provisional projection reads the private candidate policy but records the
   future canonical path, final publication proves the same fingerprint, and no
@@ -692,9 +798,15 @@ gates.
 - [ ] Discovery reports and hands off requirement relation/evidence without
   filtering by its host; creation consumes the handoff without inventing or
   relabeling facts.
+- [ ] TTY and non-interactive adoption both require exact option-scoped consent
+  for indeterminate selections; dry-run executes nothing; candidate smokes run
+  on the target engine before commit; failure compensates completely; and a
+  later activation warns without prompting or rerunning the smoke.
 - [ ] Catalog verify reports each option and preserves remote-inspection,
-  authentication, registry-policy, and no-mutation boundaries; refresh changes
-  only its exact explicitly targeted option.
+  authentication, registry-policy, and no-mutation boundaries; default refresh
+  updates every source atomically, one source failure changes nothing and
+  presents the exact targeted fallback, and `--source` changes only its exact
+  complete option.
 - [ ] Canonical skills/templates/guides validate, rendered shell artifacts are
   parsed and exercised, generated/active-profile copies remain untouched, and
   focused independent groups pass with bounded parallelism.
@@ -723,37 +835,39 @@ this plan.
 
 ### Implementation requirements and suggested reasoning level
 
-High reasoning: treat the current UBI 10 v3 requirement as a production fact
-and apply the resolved Skopeo decision without claiming equivalence for an
-unverified fallback.
+High reasoning: establish the exact UBI 9 v2 and UBI 10 v3 option evidence and
+apply recorded design decision 37 without claiming family lineage as exact-
+image proof.
 
-- If an older-level Skopeo option is approved, use discovery evidence to add its
-  exact immutable identity, explicit preference, requirement/evidence, entrypoint
-  contract, registry behavior, and native acceptance. If no fallback is
-  approved, document and exercise clean baseline refusal below v3 only if the
-  adoption-integrity proof in Unresolved item 2 was approved; do not weaken the
-  comparison.
-- Demonstrate the selected Skopeo branch through ordinary bootstrap/adoption
-  and its non-mutating version-owned smoke. Do not use cross-emulation as native
-  acceptance.
+- Use discovery evidence to verify both options' exact immutable identities,
+  contained Skopeo release, scoring components/evidence and confidence, tie
+  preferences, CPU requirements/evidence, entrypoint contracts, registry
+  behavior, and native acceptance. Do not manipulate scores merely to force a
+  preferred production branch.
+- Demonstrate v2-only and v3-capable selection outcomes through ordinary
+  bootstrap/adoption and each selected option's non-mutating version-owned
+  smoke. Exercise clean v1 baseline refusal before preparation. Do not use
+  cross-emulation as native acceptance.
 - Align user/operator docs with strict fresh bootstrap, engine observation
   authority, provisional isolated dry-run, profile-owned selections, catalog
   evidence, source/override bypasses, and deferred multi-engine routing.
 - Prefer positive observable acceptance. Add no negative coverage beyond the
   user-approved engine-capability commit invariant, the single adoption-
-  integrity proof if approved in Unresolved item 2, and already authoritative
-  security/ownership boundaries.
+  integrity proof required by recorded design decision 34, and already
+  authoritative security/ownership boundaries.
 - Keep remote registry checks outside the default offline suite. Run focused
   groups while closing issues, then the default full suite with its bounded
   parallel runner; rerun only failures serially when diagnosis requires it.
 
 ### Verification checklist
 
-- [ ] The current Skopeo UBI 10 option is recorded as x86-64-v3 and is selected
-  only on a compatible amd64 engine.
-- [ ] The resolved v1/v2 policy is demonstrated: either an exact compatible
-  Skopeo option is selected and smoked, or bootstrap refuses before any image
-  preparation with the incompatible baseline reported.
+- [ ] The exact UBI 9 and UBI 10 Skopeo options are recorded respectively as
+  x86-64-v2 and x86-64-v3 with their immutable identities, complete scoring
+  evidence, and verified Skopeo 1.22 runtime contract.
+- [ ] A v2 engine selects and smokes UBI 9; a v3-capable engine applies the
+  evidence-derived score across both compatible options and records its
+  deterministic result; a v1 engine refuses before any image preparation with
+  the incompatible baseline reported.
 - [ ] Focused schema, runtime, engine, profile, shim, catalog, and lifecycle
   groups plus the default full suite pass with bounded parallelism.
 - [ ] Shell syntax, executable modes, context tree, catalog inventory, canonical
@@ -761,8 +875,9 @@ unverified fallback.
 - [ ] Native Linux amd64 and Apple Silicon arm64 acceptance outcomes are
   recorded; an unavailable native lane is marked `[~]` with impact and next
   action rather than replaced by emulation.
-- [ ] Bootstrap demonstrates engine observation, complete baseline resolution,
-  and selection persistence before the first image preparation.
+- [ ] Bootstrap demonstrates engine observation and a complete baseline
+  selection/acceptance plan before the first image preparation, then persists
+  the validated selections and acceptances before outer commit.
 - [ ] Documentation distinguishes profile adoption from explicit overrides and
   direct source execution, and current bound-engine selection from deferred
   multi-engine routing.
@@ -792,13 +907,19 @@ marking the plan complete.
   never equate absent metadata with baseline support; separate exact, lower-
   bound, and unknown relations, retain evidence, and apply the approved
   indeterminate policy.
+- **False assurance from smoke:** a version-owned non-mutating smoke may prove
+  process startup and its exercised path but not every instruction path in the
+  tool. Mitigation: preserve the indeterminate classification and evidence,
+  persist explicit risk acceptance rather than compatibility, and report the
+  smoke as transactional acceptance evidence only.
 - **Probe correctness:** raw CPU flags can be incomplete, hypervisor-masked, or
   OS-disabled. Mitigation: prefer a normalized execution-environment result,
   retain its source, and test cumulative x86-level rules rather than checking
   only AVX/AVX2/FMA.
-- **ARM64 ambiguity:** a mandatory record with an x86-only level can conflate
-  unsupported architecture probing with failure. Mitigation: resolve and test
-  an explicit architecture-specific record form before Chunk 2.
+- **ARM64 ambiguity:** an empty CPU-capability set could be mistaken for a
+  failed observation. Mitigation: require the successful `linux/arm64`
+  architecture observation, permit the empty set only in that strict schema
+  branch, and test its canonical round trip.
 - **Bootstrap/new-profile partial state:** macOS needs a running new VM and
   projected registry policy before final capability and selection can be
   known, while the profile must remain unpublished. Mitigation: keep all

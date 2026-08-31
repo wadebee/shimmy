@@ -1,4 +1,6 @@
 # General-purpose npx Shimmy tool
+
+Completed: 2026-08-31
 **Status:** verified
 
 ## Objective
