@@ -30,6 +30,16 @@ Question requests that materially differ from your training of best practices by
 - ripgrep tool: `tools/rg/`
 - Terraform tool: `tools/terraform/`
 
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+This repository uses a single-context domain documentation layout. See `docs/agents/domain.md`.
+
 ## First-time installation
 
 If Shimmy is not installed on this system:
