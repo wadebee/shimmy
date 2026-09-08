@@ -78,6 +78,10 @@ jq --version
 rg --version
 ```
 
+The entire tracked catalog must validate, including tools outside the initial
+toolset. Commit executable permission fixes before bootstrapping; catalog
+validation failures are reported in the bootstrap error.
+
 The bootstrap creates and activates `default`, publishes the checkout as the
 first immutable `default` catalog generation, installs jq, rg, and Skopeo, and
 sources the generated `shell-init.sh` when the bootstrap itself is sourced.

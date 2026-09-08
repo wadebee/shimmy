@@ -162,8 +162,10 @@ shimmy_profile_bootstrap_run() {
   mkdir -p "$shimmy_profile_bootstrap_config" "$shimmy_profile_bootstrap_user_root" || return 1
   SHIMMY_PROFILE_LIFECYCLE_BOOTSTRAP_ROOT=$shimmy_profile_bootstrap_config
   shimmy_catalog_default_create "$shimmy_profile_bootstrap_config" \
-    "$shimmy_profile_bootstrap_checkout" || return 1
-  shimmy_catalog_tree_validate "$shimmy_profile_bootstrap_config" || return 1
+    "$shimmy_profile_bootstrap_checkout" ||
+    shimmy_profile_lifecycle_error_set "${SHIMMY_CATALOG_AUTHORITY_ERROR:-unable to create the initial catalog}" || return 1
+  shimmy_catalog_tree_validate "$shimmy_profile_bootstrap_config" ||
+    shimmy_profile_lifecycle_error_set "${SHIMMY_CATALOG_AUTHORITY_ERROR:-unable to validate the initial catalog}" || return 1
   shimmy_profile_bootstrap_generation=$SHIMMY_CATALOG_GENERATION_CURRENT
   shimmy_profile_bootstrap_commit=$SHIMMY_CATALOG_SOURCE_COMMIT
   shimmy_profile_bootstrap_fingerprint=$SHIMMY_CATALOG_CONTENT_FINGERPRINT

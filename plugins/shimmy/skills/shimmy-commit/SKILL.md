@@ -1,11 +1,9 @@
 ---
 name: shimmy-commit
-description: >
-  Create focused, reviewable Git commits for Shimmy by inspecting changes,
-  splitting them at resource and domain seams, staging deliberately, and using
-  Conventional Commits. Use when the user asks to commit, stage, split, or
-  write commit messages for work in this repository.
+description: Create focused, reviewable Git commits for Shimmy by inspecting changes, splitting them at resource and domain seams, staging deliberately, and using Conventional Commits. Use when the user asks to commit, stage, split, or write commit messages for work in this repository.
 ---
+
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
 
 # Commit work in Shimmy
 

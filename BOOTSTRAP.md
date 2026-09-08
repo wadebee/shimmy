@@ -50,6 +50,10 @@ publishes it as a shared host-local engine. It performs no machine operation.
 The checkout must be clean, committed, on attached local branch `main`, and
 have `HEAD` equal to `refs/heads/main`.
 
+Bootstrap validates the entire tracked catalog, including tools outside the
+initial toolset, and reports catalog validation failures. Executable permission
+fixes must be committed because bootstrap stages files from Git.
+
 Source the bootstrap to install, activate, and select the default profile in
 the current shell:
 

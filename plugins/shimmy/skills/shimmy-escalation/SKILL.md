@@ -3,6 +3,8 @@ name: shimmy-escalation
 description: Request narrow AI Agent escalation approvals for activated Shimmy wrappers. Use when asked to approve installed shims for Codex, make wrappers usable from an agent shell, or resolve wrapper sandbox permission prompts. Does not install Podman or Shimmy.
 ---
 
+> Shimmy active-profile reconciliation unconditionally overwrites this exact bundle-declared skill destination without backup, never deletes unrelated skill names, and profile copies must not be edited.
+
 # Shimmy Escalation
 
 ## Goal and scope
