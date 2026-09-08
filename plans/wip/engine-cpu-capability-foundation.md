@@ -94,14 +94,18 @@ runtime            -> selected immutable option on the current bound engine
 future routing     -> tool-to-engine selection (deferred)
 ```
 
-Target schema identities are independent:
+Target schema identities are independent. The aggregate engine-state status
+identity is distinct from each persisted file identity:
 
 ```text
-catalog.conf                         catalog_schema=1 (layout unchanged)
-tools/<tool>/versions/<v>/image.conf shimmy_image_config_version=2
-engines/<id>/engine.conf             shimmy_engine_version=2
-profiles/<name>/install-manifest.txt shimmy_profile_manifest_version=3
-profiles/<name>/engine-binding.conf  shimmy_engine_binding_version=1 (unchanged)
+admin engine status --format manifest shimmy_engine_schema_version=2
+catalog.conf                          catalog_schema=1 (layout unchanged)
+tools/<tool>/versions/<v>/image.conf  shimmy_image_config_version=2
+engines/<id>/engine.conf              shimmy_engine_version=2
+engines/<id>/projection.conf          shimmy_engine_projection_version=1 (unchanged)
+engines/<id>/lifecycle.conf           shimmy_engine_lifecycle_version=1 (unchanged)
+profiles/<name>/install-manifest.txt  shimmy_profile_manifest_version=3
+profiles/<name>/engine-binding.conf   shimmy_engine_binding_version=1 (unchanged)
 ```
 
 The profile manifest contains exactly one lexically ordered
@@ -140,10 +144,11 @@ demonstrates a concrete tool requirement.
    emulated tools to different engines.
 3. This plan is foundation-only. It does not add remote-engine lifecycle,
    per-tool multi-engine dispatch, GPU discovery, or emulation policy.
-4. This is a clean transition. `image.conf` becomes schema 2, the engine record
-   becomes schema 2, and the profile manifest becomes schema 3. The top-level
-   catalog layout and engine-binding schemas remain at 1 because their owned
-   structure does not change. No reader accepts both old and new forms.
+4. This is a clean transition. `image.conf` becomes schema 2, the aggregate
+   engine-state status contract and individual engine record become schema 2,
+   and the profile manifest becomes schema 3. The top-level catalog layout and
+   engine binding, projection, and lifecycle record schemas remain at 1 because
+   their owned bytes do not change. No reader accepts both old and new forms.
 5. Installations created by the prior contract must be removed with the version
    that created them and bootstrapped fresh. The `admin engine migrate`
    compatibility command, unbound-profile fallback, `legacy-isolated` binding
@@ -170,12 +175,13 @@ demonstrates a concrete tool requirement.
    host observation as the engine capability.
 9. The compensated macOS engine-creation lifecycle writes durable intent and
    exact created-identity evidence before destructive authority, creates and
-   starts the exact machine, then runs `lscpu` through
-   `podman machine ssh <exact-machine>` to observe the guest architecture and,
-   on amd64, its CPU flags. Only after parsing and normalizing that execution-
-   environment result may it publish the final schema-2 engine record and commit
-   the engine boundary. The lifecycle phase order must change rather than
-   publishing a capability-less final engine record before start.
+   starts the exact machine, then runs `lscpu` through the canonical engine
+   Podman helper against that exact machine and the accepted installation
+   machine context to observe the guest architecture and, on amd64, its CPU
+   flags. Only after parsing and normalizing that execution-environment result
+   may it publish the final schema-2 engine record and commit the engine
+   boundary. The lifecycle phase order must change rather than publishing a
+   capability-less final engine record before start.
 10. On Linux, fresh bootstrap validates the supported host-local rootless
     engine, runs local `lscpu`, and publishes the normalized observation in the
     shared engine record. Linux creates no machine.
@@ -376,6 +382,26 @@ demonstrates a concrete tool requirement.
     added because all sources are already the default. Both forms support
     `--dry-run`, accept at most one safe exact source ID, and never infer a
     target from an active profile or its persisted adoption selection.
+39. The accepted versioned-engine-state work is the CPU cutover baseline.
+    `shimmy_engine_schema_version` is the aggregate status contract, while
+    `shimmy_engine_version` is the canonical commented `engine.conf` record
+    identity. Chunk 2 advances both to 2 and updates human/manifest status,
+    strict readers/renderers, explanatory comments, fixtures, and installed
+    copies together. Binding, projection, and lifecycle versions remain 1.
+40. The lifecycle-test decomposition is the verification baseline. The six
+    current scenario groups are `commands-lifecycle-darwin-bootstrap`,
+    `commands-lifecycle-linux-bootstrap`, `commands-lifecycle-isolated`,
+    `commands-lifecycle-uninstall`, `commands-lifecycle-linux-workflow`, and
+    `commands-lifecycle-control-sync`. Intermediate chunks run only the
+    affected focused groups with `--jobs 3`; Chunk 4 owns the final default
+    bounded-parallel suite unless an earlier change to the runner or shared
+    lifecycle fixture independently requires a full run.
+41. Chunk 3 converts the existing Skopeo UBI 9 strategy as its single initial
+    schema-2 option so the atomic catalog/profile cutover has a complete
+    x86-64-v2 bootstrap baseline without speculative metadata. Chunk 4 adds the
+    UBI 10 option only after its exact identity and image-specific evidence are
+    resolved and recorded. The Chunk 3 review gate is therefore operational but
+    intentionally precedes the two-option production-selection acceptance.
 
 ## Verified implementation inventory
 
@@ -421,15 +447,18 @@ dependencies discovered during implementation.
   defaults. `commands/run-tool.sh` executes source versions without a profile
   manifest, so source selection and explicit overrides require a documented
   boundary rather than an implicit profile lookup.
-- Engine records are strict schema 1 and are currently published before a new
-  macOS machine is started. The creation journal already retains exact created-
-  identity and ownership evidence, allowing the final engine record to move
-  after start/probe without weakening rollback proof.
-- The current compatibility surface includes `admin engine migrate`, unbound
-  schema-2 profile fallback, `legacy-isolated` binding mode, dual-read runtime,
-  activation, registry, status, help, documentation, and tests. The clean-
-  transition decision requires removing this whole surface together rather
-  than retaining an unobservable migration path.
+- Engine records are strict, canonically commented
+  `shimmy_engine_version=1` files and are currently published before a new
+  macOS machine is started. `admin engine status` independently reports the
+  aggregate `shimmy_engine_schema_version=1` contract. The creation journal
+  already retains exact created-identity and ownership evidence, allowing the
+  final engine record to move after start/probe without weakening rollback
+  proof.
+- Commit `d7ca62f` removed `admin engine migrate`, unbound-profile fallback,
+  `legacy-isolated`, dual-read runtime/activation/registry behavior, obsolete
+  fixtures, and current guidance as accepted Chunk 1 work. The current
+  baseline is strict bound-profile state; retained historical plans are not
+  current compatibility readers.
 - `shim add`, `shim sync`, and profile sync already stage complete profile
   candidates and prepare images before manifest-last commit.
 - Shim add/sync and profile sync currently prepare candidate images before
@@ -466,12 +495,26 @@ dependencies discovered during implementation.
 - Podman on macOS and Windows executes through a Linux VM, and hypervisors can
   mask x86 capabilities. Arbitrary remote Podman backends can also differ from
   the client workstation, but Shimmy does not currently support their routing.
-- `plans/wip/hybrid-podman-engine-lifecycle.md` has all implementation chunks
-  applied but still awaits final human acceptance, and
-  `plans/wip/shared-machine-rollback.md` is implemented and awaiting review.
-  Both overlap the engine creation/rollback files in this plan. ACT must not
-  begin until those review gates are resolved or the user explicitly
-  supersedes them; this plan does not rewrite their historical evidence.
+- `plans/complete/hybrid-podman-engine-lifecycle.md` was fully accepted on
+  2026-08-30 and is now the historical baseline, not an open prerequisite.
+  `plans/wip/shared-machine-rollback.md` is implemented and verified but still
+  awaits final human acceptance; that gate remains a prerequisite because the
+  retained journal and compensation behavior is Chunk 2's rollback authority.
+- `plans/wip/podman-machine-context-handoff.md` records a newly discovered
+  installation-identity gap: Podman machine lookup and data roots are selected
+  by the effective HOME/XDG context, while current engine helpers inherit that
+  context on every invocation. Its schema placement and accepted helper
+  contract are unresolved and can change Chunk 2's schema identities, probe
+  authority, and engine-record fingerprints.
+- `plans/notional/bootstrap-stop-podman-default.md` proposes moving shared
+  machine start from registry preparation into compensated activation. It does
+  not adopt or execute on the prior machine, so it is compatible with this
+  plan's ownership boundary, but its accepted or deferred disposition decides
+  which lifecycle component must own the post-start capability probe.
+- Commit `359eaed` replaced the former aggregate lifecycle group with six
+  independently scheduled scenario groups. Current verification must use those
+  names and the default three-worker runner rather than stale
+  `commands-lifecycle` invocations.
 
 Authoritative technical references:
 
@@ -484,11 +527,45 @@ Authoritative technical references:
 
 ## Unresolved
 
-None.
+1. **Podman machine-context schema and probe authority.** The committed
+   machine-context handoff has not decided whether installation context extends
+   the aggregate engine-state schema, an individual engine record, or a new
+   installation-owned record. That choice changes the schema-2 cutover,
+   fingerprint binding, and the helper through which `machine ssh` must run.
+   Viable choices are to finish that separate PLAN -> REVIEW -> ACT cycle first
+   or explicitly defer it and accept a second engine-state transition later.
+   Recommended: finish it first, then revalidate this plan against its accepted
+   schema and helper contract before authorizing Chunk 2.
+2. **Shared-machine start ownership.** The committed notional bootstrap plan
+   would move shared target start into compensated activation, while the current
+   CPU plan was written against registry-owned start. Viable choices are to
+   complete that plan before Chunk 2 and attach observation to its accepted
+   post-start boundary, or explicitly defer it and retain the current
+   registry-owned sequence for Chunk 2. Recommended: resolve it first to avoid
+   moving the capability probe and record-publication boundary in a later
+   refactor.
+3. **Exact UBI 10 Skopeo option.** No committed source records the immutable UBI
+   10 identity, contained Skopeo 1.22 contract, per-platform descriptors,
+   entrypoint, registry behavior, or exact-image CPU evidence required by
+   decision 37. Recommended: complete the repository's discovery workflow and
+   record the exact accepted option before this plan returns to a
+   decision-complete state; family-level RHEL/UBI evidence alone remains
+   insufficient.
 
 ## Progress Checklist
 
+- Active chunk: None — baseline reconciliation remains in PLAN and Chunk 2 is
+  unauthorized.
+
 - [x] Chunk 1 — Remove obsolete migration/dual-read compatibility as one clean cut.
+- [ ] Prerequisite — Obtain final human acceptance for
+  `plans/wip/shared-machine-rollback.md` or explicit supersession.
+- [ ] Prerequisite — Resolve the Podman machine-context schema/helper boundary
+  and revalidate this plan against the accepted result.
+- [ ] Prerequisite — Complete or explicitly defer the notional compensated
+  bootstrap machine-switch plan and revalidate Chunk 2's probe placement.
+- [ ] Planning — Resolve and record the exact UBI 10 Skopeo option before
+  returning `## Unresolved` to `None`.
 - [ ] Chunk 2 — Publish schema-2 engine capability observations at engine-creation boundaries.
 - [ ] Chunk 3 — Atomically cut over image options, profile selections, runtime consumption, and every adoption lifecycle.
 - [ ] Chunk 4 — Exercise the production Skopeo case and close documentation and acceptance.
@@ -509,10 +586,11 @@ For every chunk:
 Repository paths in this plan are relative to `<repo>` so it remains portable
 across workstations and sessions.
 
-## Provisional implementation chunks
+## Remaining implementation chunks
 
-These chunks will become decision-complete only after every unresolved item is
-resolved through the interview.
+The retained chunk boundaries remain coherent, but Chunk 2 is not
+authorization-ready until the prerequisites above are resolved, the verified
+inventory is refreshed, and `## Unresolved` returns to `None`.
 
 ## Chunk 1 — Clean-transition compatibility removal
 
@@ -585,8 +663,9 @@ effective execution-environment observation only at fresh engine creation.
 Primary areas: a narrow `lib/engine/capability.sh` module (or an equivalently
 narrow engine-owned module), `lib/engine/state.sh`, `lib/engine/podman.sh`,
 `lib/engine/lifecycle.sh`, `lib/engine/registry.sh`, `lib/install/lifecycle.sh`,
-`lib/profile/` status/preflight consumers, installed asset inventories,
-engine/profile-activation/lifecycle tests, and applicable contexts/docs.
+`lib/profile/` status/preflight consumers, `commands/admin.sh`, installed asset
+inventories, engine/profile-activation/current lifecycle-scenario tests,
+`README.md`, and applicable contexts/docs.
 
 ### Implementation requirements and suggested reasoning level
 
@@ -596,16 +675,22 @@ High reasoning: the engine record is an atomic schema/transaction transition.
   cumulative x86-64 v1-v4, including required OS-enabled extended state for v3
   and v4. Reject malformed, contradictory, or insufficient probe output rather
   than guessing a level.
-- Render/read/validate only schema-2 engine records. Record the normalized
+- Advance the aggregate engine-state status contract and canonical engine
+  record to 2 together. Render/read/validate only schema-2 engine records,
+  update their byte-authoritative explanatory comments, and make human and
+  manifest engine status report aggregate schema 2. Record the normalized
   execution platform and canonical repeated CPU-capability set from recorded
-  design decision 7; never persist the raw flag set or host preflight.
+  design decision 7; never persist the raw flag set or host preflight. Keep
+  binding, projection, and lifecycle records at version 1.
 - On amd64 macOS, run the side-effect-free `sysctl` ceiling before machine
   mutation. On actual shared/isolated creation, keep journal-first exact
-  identity proof, start the machine, observe the guest architecture through
-  `podman machine ssh <exact-name>`, collect `lscpu` flags there only for amd64,
-  then publish the final engine record before engine commit. On Apple Silicon,
-  record the observed `linux/arm64` guest architecture with an empty CPU-
-  capability set and without inventing an x86 or ARM level.
+  identity proof, start the machine through the lifecycle component selected by
+  the resolved shared-start prerequisite, observe the guest architecture
+  through the accepted context-validating engine Podman helper, collect
+  `lscpu` flags there only for amd64, then publish the final engine record
+  before engine commit. On Apple Silicon, record the observed `linux/arm64`
+  guest architecture with an empty CPU-capability set and without inventing an
+  x86 or ARM level.
 - On Linux fresh bootstrap, validate the local rootless engine, run local
   `lscpu` on amd64, or record the successfully observed `linux/arm64`
   architecture with an empty CPU-capability set, and publish the shared record
@@ -626,8 +711,10 @@ High reasoning: the engine record is an atomic schema/transaction transition.
 - [ ] Normalization fixtures cover the cumulative v1-v4 success cases, the
   canonical repeated-record set, and the empty ARM64 set without persisting raw
   flags.
-- [ ] Schema-2 engine records round-trip canonically and every fresh
-  Darwin/Linux engine producer and consumer uses only the new schema.
+- [ ] Aggregate schema-2 status and schema-2 engine records round-trip
+  canonically, explanatory comments describe every new field, every fresh
+  Darwin/Linux producer and consumer uses only the new record, and binding,
+  projection, and lifecycle version identities remain unchanged.
 - [ ] macOS shared and isolated creation publish no final engine record before
   start/probe; successful creation records the exact machine observation before
   engine commit.
@@ -638,8 +725,12 @@ High reasoning: the engine record is an atomic schema/transaction transition.
   solely to refresh CPU state.
 - [ ] Isolated dry-run remains non-mutating and clearly labels its ceiling as
   provisional.
-- [ ] Focused engine, activation, bootstrap, lifecycle, syntax, modes, context,
-  and diff checks pass with bounded parallelism where independent.
+- [ ] The focused engine/activation/lifecycle acceptance passes with
+  `./tests/test.sh --jobs 3 --group lib-engine --group
+  lib-profile-activation --group commands-lifecycle-darwin-bootstrap --group
+  commands-lifecycle-linux-bootstrap --group commands-lifecycle-isolated`,
+  followed by shell syntax, executable-mode, context-tree, and
+  `git diff --check` validation.
 
 ### Human review gate
 
@@ -686,7 +777,9 @@ gates.
 - Convert all 24 production manifests in the same cutover; schema 1 is no longer
   readable. Preserve local-build context hashing, override argument behavior,
   stale cleanup, platform tagging, and remote verification for every selected
-  option.
+  option. Per decision 41, convert Skopeo's existing UBI 9 strategy as its
+  single initial option; do not invent the UBI 10 option before its exact
+  evidence is resolved.
 - Implement a pure deterministic compatibility/selection resolver using a
   validated schema-2 engine record, pinned schema-2 image manifests, and the
   target profile's validated effective registry policy. Apply decision 35's
@@ -809,7 +902,13 @@ gates.
   complete option.
 - [ ] Canonical skills/templates/guides validate, rendered shell artifacts are
   parsed and exercised, generated/active-profile copies remain untouched, and
-  focused independent groups pass with bounded parallelism.
+  the focused schema/adoption set passes with `./tests/test.sh --jobs 3
+  --group lib-catalog --group lib-profile-state --group lib-runtime --group
+  commands-agent-preflight --group commands-catalog --group commands-shim
+  --group commands-profile --group commands-lifecycle-darwin-bootstrap --group
+  commands-lifecycle-linux-bootstrap --group commands-lifecycle-isolated
+  --group commands-lifecycle-linux-workflow --group
+  commands-lifecycle-control-sync`.
 
 ### Human review gate
 
@@ -868,8 +967,12 @@ image proof.
   evidence-derived score across both compatible options and records its
   deterministic result; a v1 engine refuses before any image preparation with
   the incompatible baseline reported.
-- [ ] Focused schema, runtime, engine, profile, shim, catalog, and lifecycle
-  groups plus the default full suite pass with bounded parallelism.
+- [ ] `./tests/test.sh --jobs 3 --group lib-catalog --group lib-profile-state
+  --group lib-runtime --group lib-engine --group commands-agent-preflight
+  --group commands-catalog --group commands-shim --group commands-profile
+  --group tools-skopeo` passes, followed by the complete default
+  bounded-parallel `./tests/test.sh` suite. Only diagnosed failures are rerun
+  serially.
 - [ ] Shell syntax, executable modes, context tree, catalog inventory, canonical
   skills/templates, generated artifact identity, and `git diff --check` pass.
 - [ ] Native Linux amd64 and Apple Silicon arm64 acceptance outcomes are
@@ -889,10 +992,18 @@ marking the plan complete.
 
 ## Risk register
 
-- **Overlapping WIP lifecycle plans:** engine creation, migration, and rollback
-  state are still awaiting human acceptance in retained WIP plans. Mitigation:
-  treat their acceptance or explicit supersession as an ACT prerequisite and
-  do not rewrite their historical evidence from this plan.
+- **Unsettled engine baseline:** shared rollback awaits final acceptance, the
+  machine-context handoff has unresolved schema ownership, and the notional
+  bootstrap switch can move the exact target-start boundary. Mitigation: keep
+  Chunk 2 unauthorized, resolve or explicitly defer each item in its own plan,
+  then refresh this inventory and probe placement before returning
+  `## Unresolved` to `None`. The completed hybrid lifecycle plan is baseline
+  evidence and must not be reopened or rewritten here.
+- **Split schema identity:** advancing `engine.conf` while leaving aggregate
+  engine status at schema 1 would publish contradictory engine contracts.
+  Mitigation: advance aggregate status and record identity together, retain
+  binding/projection/lifecycle version 1, and verify human status, manifest
+  status, canonical comments, every reader, and installed copies in Chunk 2.
 - **Clean-transition scope:** removing only the public migration command while
   retaining dual-read branches or `legacy-isolated` state would create
   unreachable compatibility code. Mitigation: inventory and remove the entire
@@ -948,6 +1059,12 @@ marking the plan complete.
   can turn a CPU fix into a dispatcher redesign. Mitigation: define an
   extensible capability boundary but implement only CPU matching against the
   currently bound engine.
+- **Expensive regression selection:** the lifecycle suite now has six
+  independent scenario groups and the default run has historically been
+  costly. Mitigation: use the exact affected groups with `--jobs 3` at Chunks 2
+  and 3, preserve each scenario's internal ordering, and reserve the default
+  full suite for Chunk 4 unless shared runner/fixture changes justify it
+  earlier.
 
 ## Lessons learned
 
@@ -982,6 +1099,22 @@ marking the plan complete.
   external Podman machine. Separating provisional bytes from their eventual
   canonical path preserves a private candidate and keeps capability/image state
   on the target engine that will actually run the profile.
+- Recent versioned-engine-state work created two identities that the original
+  plan conflated: aggregate `shimmy_engine_schema_version=1` status and the
+  canonically commented `shimmy_engine_version=1` record. A mandatory
+  capability field changes both contracts even though binding, projection, and
+  lifecycle record bytes remain unchanged.
+- The accepted hybrid engine lifecycle is no longer an open prerequisite. Its
+  separate machine-context handoff is material because effective HOME/XDG roots
+  select the Podman machine inventory and can alter the schema/helper boundary
+  used by capability observation.
+- The lifecycle suite now exposes six exact scenario groups. Targeting those
+  groups keeps intermediate verification bounded without weakening the final
+  default-suite acceptance owned by Chunk 4.
+- Keeping current UBI 9 as the single Skopeo option in Chunk 3 leaves the atomic
+  schema cutover operational at its review gate and avoids fabricating UBI 10
+  metadata; Chunk 4 owns the evidence-backed second option and production
+  ranking case.
 
 ### Chunk 1
 
@@ -1000,17 +1133,27 @@ marking the plan complete.
 ## Session bootstrap
 
 Resume in PLAN. Read `AGENTS.md`, root `CONTEXT.md`, `CONTRIBUTING.md`, this
-plan, and the contexts for every candidate change path. Read the status and
-remaining review gates in `plans/wip/hybrid-podman-engine-lifecycle.md` and
-`plans/wip/shared-machine-rollback.md`; do not enter ACT while either overlapping
-plan remains unaccepted unless the user explicitly supersedes it. Preserve the
-foundation-only boundary: clean strict engine state, catalog CPU requirements,
-engine observations, profile adoption selections, and current bound-engine
-runtime only. On macOS, never use `podman-machine-default` or another pre-
-existing machine as a temporary bootstrap engine; stage registry bytes from
-the private candidate and perform all engine-local work on the newly owned
-target. Continue the user interview until `## Unresolved` says `None`,
-then replace the provisional label and complete the plan self-check. Chunk 1 is
-accepted and verified. Do not execute Chunk 2 until the unresolved decisions
-are closed and the user explicitly authorizes that chunk; stop at every chunk's
-human review gate.
+plan, and the contexts for every candidate change path. Treat
+`plans/complete/hybrid-podman-engine-lifecycle.md` as accepted historical
+baseline. Inspect the final review status of
+`plans/wip/shared-machine-rollback.md`, resolve the schema/helper decisions in
+`plans/wip/podman-machine-context-handoff.md` through its own decision-complete
+workflow, and complete or explicitly defer
+`plans/notional/bootstrap-stop-podman-default.md`. Do not execute overlapping
+engine work concurrently or rewrite another plan's evidence.
+
+After those dispositions, refresh the verified inventory and exact lifecycle
+sequence in this plan, resolve the accepted machine-context helper and
+post-start probe location, and record the exact UBI 10 option. Return
+`## Unresolved` to `None` only when every remaining requirement is executable
+without inference. Preserve the foundation-only boundary: clean strict engine
+state, catalog CPU requirements, engine observations, profile adoption
+selections, and current bound-engine runtime only. On macOS, never use a
+pre-existing machine as a temporary bootstrap execution engine; all
+capability/image work occurs on the exactly created target under the accepted
+Podman context.
+
+Chunk 1 is accepted and verified. Chunk 2 is currently unauthorized. When it
+is later authorized, use the exact decomposed lifecycle group names and
+bounded-parallel verification recorded above, update progress and lessons, and
+stop at its human review gate.

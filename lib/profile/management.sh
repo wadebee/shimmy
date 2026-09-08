@@ -14,13 +14,7 @@ shimmy_profile_engine_context_resolve() {
   shimmy_profile_engine_name=$2
   shimmy_profile_state_paths_resolve "$shimmy_profile_engine_config" "$shimmy_profile_engine_name" ||
     shimmy_profile_error_set "invalid profile identity: $shimmy_profile_engine_name" || return 1
-  SHIMMY_CONFIG_ROOT=$SHIMMY_CONFIG_ROOT
   SHIMMY_CONFIG_HOME=$(dirname -- "$SHIMMY_CONFIG_ROOT")
-  SHIMMY_PROFILES_ROOT=$SHIMMY_PROFILES_ROOT
-  SHIMMY_PROFILE_NAME=$SHIMMY_PROFILE_NAME
-  SHIMMY_PROFILE_ROOT=$SHIMMY_PROFILE_ROOT
-  SHIMMY_PROFILE_MANIFEST_PATH=$SHIMMY_PROFILE_MANIFEST_PATH
-  SHIMMY_PROFILE_REGISTRIES_PATH=$SHIMMY_PROFILE_REGISTRIES_PATH
   SHIMMY_PROFILE_REGISTRIES_LOCK_PATH=$SHIMMY_PROFILE_ROOT/.registries.lock
   SHIMMY_REGISTRIES_CONFIG_DIR=$SHIMMY_CONFIG_HOME/containers
   SHIMMY_REGISTRIES_DROPIN_DIR=$SHIMMY_REGISTRIES_CONFIG_DIR/registries.conf.d

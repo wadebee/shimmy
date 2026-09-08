@@ -1,0 +1,19 @@
+{
+  "name": "shimmy-skills",
+  "owner": {
+    "name": "My Team",
+    "email": "team@example.com"
+  },
+  "metadata": {
+    "description": "Internal team plugin registry",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "dev-toolkit",
+      "description": "Full-stack development tools",
+      "version": "1.0.0",
+      "source": "./plugins/dev-toolkit"
+    }
+  ]
+}
