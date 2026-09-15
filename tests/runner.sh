@@ -41,6 +41,7 @@ tools-gdrive|test_tools_gdrive_run
 tools-gh|test_tools_gh_run
 tools-go|test_tools_go_run
 tools-jq|test_tools_jq_run
+tools-jv|test_tools_jv_run
 tools-netcat|test_tools_netcat_run
 tools-nmap|test_tools_nmap_run
 tools-npx|test_tools_npx_run
@@ -98,6 +99,7 @@ tools-gdrive|two-a|three-c
 tools-gh|two-b|three-c
 tools-go|two-b|three-c
 tools-jq|two-a|three-c
+tools-jv|two-b|three-c
 tools-netcat|two-a|three-c
 tools-nmap|two-a|three-c
 tools-npx|two-a|three-c

@@ -357,6 +357,7 @@ data. Legacy, external, or ambiguously owned machines are preserved.
 | gh | [tools/gh/guide.md](tools/gh/guide.md) |
 | go | [tools/go/guide.md](tools/go/guide.md) |
 | jq | [tools/jq/guide.md](tools/jq/guide.md) |
+| jv | [tools/jv/guide.md](tools/jv/guide.md) |
 | logmine | [tools/logmine/guide.md](tools/logmine/guide.md) |
 | netcat | [tools/netcat/guide.md](tools/netcat/guide.md) |
 | nmap | [tools/nmap/guide.md](tools/nmap/guide.md) |

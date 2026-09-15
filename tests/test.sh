@@ -139,6 +139,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/tools/go/tests/go.sh"
 # shellcheck source=tools/jq/tests/jq.sh
 . "$ROOT_DIR/tools/jq/tests/jq.sh"
+# shellcheck source=tools/jv/tests/jv.sh
+. "$ROOT_DIR/tools/jv/tests/jv.sh"
 # shellcheck source=tools/netcat/tests/netcat.sh
 . "$ROOT_DIR/tools/netcat/tests/netcat.sh"
 # shellcheck source=tools/nmap/tests/nmap.sh
