@@ -1,6 +1,6 @@
 # Mike Farah yq tool
 
-Status: source implementation and native acceptance validated; installed acceptance pending.
+Status: complete.
 Approved image choice: official external image, 2026-09-15.
 
 ## Scope and decisions
@@ -103,8 +103,12 @@ supports mapping the rootless caller to an image-specific UID/GID for bind mount
   `./commands/run-tool.sh yq --version` exited 0 and reported
   `yq (https://github.com/mikefarah/yq/) version v4.53.6` after pulling the exact
   pinned image.
-- [ ] Installed catalog verification and disposable-profile adoption. The
-  current published catalog does not contain yq; commit/publication and real
-  profile changes are not authorized by the source-addition request.
+- [x] Installed catalog verification and active-profile adoption. On native
+  Linux amd64, `shimmy shim add yq` selected catalog version `4.53`, pulled the
+  exact pinned image, and installed the tracking shim. Installed
+  `yq --version` reported v4.53.6. Then
+  `shimmy catalog verify --tool yq@4.53 --format manifest` reported the expected
+  digest and OCI index media type with `verified`, `public`, `current`, `pass`,
+  and `none` status fields.
 
-Keep this plan in `wip` until outstanding native/installed acceptance is resolved.
+All source, native-platform, and installed-catalog acceptance is resolved.
