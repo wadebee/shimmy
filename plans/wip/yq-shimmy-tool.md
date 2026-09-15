@@ -1,6 +1,6 @@
 # Mike Farah yq tool
 
-Status: source implementation validated; native Linux and installed acceptance pending.
+Status: source implementation and native acceptance validated; installed acceptance pending.
 Approved image choice: official external image, 2026-09-15.
 
 ## Scope and decisions
@@ -98,10 +98,11 @@ supports mapping the rootless caller to an image-specific UID/GID for bind mount
   `-o=json '.service' < 'config file.yaml'` returned the expected JSON object
   with `name: shimmy` and `enabled: true`. Both exited 0 and the input SHA-256
   remained `4daeee6b2e9c5965942b2af24afc1c15d8018ce637f728fe03610c09063df6d1`.
-- [ ] Native Linux amd64 version-owned smoke. No native Linux host has been
-  established in this session; cross-emulation is not a substitute. Run
-  `./commands/run-tool.sh yq --version` there and record its host architecture,
-  exit status, and v4.53.6 output. No reviewer-approved deferral is recorded.
+- [x] Native Linux amd64 version-owned smoke: host `uname -s`/`uname -m`
+  reported `Linux`/`x86_64`; approved outer wrapper
+  `./commands/run-tool.sh yq --version` exited 0 and reported
+  `yq (https://github.com/mikefarah/yq/) version v4.53.6` after pulling the exact
+  pinned image.
 - [ ] Installed catalog verification and disposable-profile adoption. The
   current published catalog does not contain yq; commit/publication and real
   profile changes are not authorized by the source-addition request.
