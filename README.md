@@ -370,6 +370,7 @@ data. Legacy, external, or ambiguously owned machines are preserved.
 | terraform | [tools/terraform/guide.md](tools/terraform/guide.md) |
 | tessl | [tools/tessl/guide.md](tools/tessl/guide.md) |
 | textual | [tools/textual/guide.md](tools/textual/guide.md) |
+| yq | [tools/yq/guide.md](tools/yq/guide.md) |
 
 ## Development
 

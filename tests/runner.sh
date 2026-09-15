@@ -53,6 +53,7 @@ tools-task|test_tools_task_run
 tools-terraform|test_tools_terraform_run
 tools-tessl|test_tools_tessl_run
 tools-textual|test_tools_textual_run
+tools-yq|test_tools_yq_run
 EOF
 }
 
@@ -109,6 +110,7 @@ tools-task|two-a|three-c
 tools-terraform|two-a|three-c
 tools-tessl|two-a|three-c
 tools-textual|two-a|three-c
+tools-yq|two-a|three-c
 EOF
 }
 

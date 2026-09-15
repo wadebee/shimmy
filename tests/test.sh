@@ -163,6 +163,8 @@ TEST_COUNT=0
 . "$ROOT_DIR/tools/tessl/tests/tessl.sh"
 # shellcheck source=tools/textual/tests/textual.sh
 . "$ROOT_DIR/tools/textual/tests/textual.sh"
+# shellcheck source=tools/yq/tests/yq.sh
+. "$ROOT_DIR/tools/yq/tests/yq.sh"
 
 test_runner_session_validate() {
   test_lifecycle_checkout_template_validate
