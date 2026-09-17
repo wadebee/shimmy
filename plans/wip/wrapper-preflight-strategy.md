@@ -10,6 +10,9 @@ changing the production execution policy.
 Make the minimum useful runtime check an explicit target: activation establishes
 which profile owns the intended engine; an invocation verifies that its shell's
 selected profile still matches the active profile and effective Podman target.
+Assess a cross-platform explicit-routing candidate: an installed wrapper derives
+its Podman connection from the validated profile binding and passes it to every
+runtime Podman request, rather than relying on Podman's mutable default.
 Measure the one-time activation cost separately from the cost of checking that
 association on every invocation, so later choices can be judged by their effect
 on a real workflow.
@@ -33,16 +36,26 @@ Success means:
   common sessions such as 40 `rg` and 40 `jq` calls in a sequential loop.
 - The assessment compares execution-first variants, narrower validation,
   connection selection, reuse, batching, and shell overhead improvements.
-- A reviewer can choose the next optimization with its authority, retry,
-  compatibility, and performance consequences stated.
+- A current-system benchmark captures reproducible baseline timings before any
+  selected runtime change.
+- Discovery produces one or more concrete alternate designs, including at
+  least one that applies Decision 2's retained-authority/minimum-association
+  model, and records a reviewer-selected implementation choice.
+- A separate implementation handoff names the exact follow-up plan, acceptance
+  tests, rollback, and unresolved prerequisites.
+- After that implementation is accepted, the same benchmark captures a
+  future-system dataset and reports comparable deltas rather than a modeled
+  speedup alone.
 
 This plan authorizes no implementation yet. Its proposed implementation scope
 is diagnostic guidance plus measurement and assessment tooling. Changing the
 default preflight or escalation policy, adding automatic replay, introducing a
-public session/cache interface, and deploying or synchronizing installed
-profiles require a subsequent concrete design and review. POSIX shell remains
-the implementation architecture. Podman lifecycle and registry ownership stay
-with the existing control plane.
+public session/cache interface, enforcing explicit runtime connections,
+provisioning or enabling a Linux Podman API service, creating or adopting a
+Podman connection, and deploying or synchronizing installed profiles require a
+subsequent concrete design and review. POSIX shell remains the implementation
+architecture. Podman lifecycle and registry ownership stay with the existing
+control plane.
 
 ## Target layout and terminology
 
@@ -78,58 +91,73 @@ assessment document. Raw logs belong in a private temporary output directory.
    and investigate moving redundant health checks and status-only work off
    the successful invocation path. In particular, target a minimum useful
    runtime check that verifies the invoking installed profile still owns the
-   active record, its strict binding names the effective Podman machine and
-   connection, no override diverts execution, and relevant registry routing
-   still belongs to that profile. Whether the engine is reachable belongs to
-   execution or failure diagnosis. A successful command can use the wrong
-   profile or policy, so success alone cannot replace authority validation.
-   On Linux, use the equivalent active profile, local rootless engine, and
-   registry-link association; there is no Shimmy-managed machine.
-3. Measure association checks independently of status collection. The
+   active record, its strict binding names the effective Podman connection,
+   no override diverts execution, and relevant registry routing still belongs
+   to that profile. Whether the engine is reachable belongs to execution or
+   failure diagnosis. A successful command can use the wrong profile or policy,
+   so success alone cannot replace authority validation.
+3. Treat explicit connection selection as a cross-platform candidate invariant:
+   an installed wrapper derives the connection from its validated binding and
+   applies `--connection` to runtime Podman calls. It is not a user-supplied
+   wrapper argument. On Darwin the binding already names the owned machine
+   connection. On Linux, the candidate requires a named connection to the
+   current user's local rootless API socket; remote or rootful endpoints remain
+   unsupported. Current Linux operation uses the local rootless engine without
+   a named connection, so this is a contract change, not a description of
+   existing behavior.
+4. Do not add `systemctl --user enable --now podman.socket`, `podman system
+   connection add`, connection adoption, or a default-connection mutation to
+   bootstrap under this plan. Those actions provision or mutate user Podman
+   state, contrary to the current explicit-dependency boundary. A later design
+   must choose and review a user-precondition, opt-in setup, or an amended
+   lifecycle contract before it can make the Linux branch enforceable. Treat
+   that choice as a non-blocking post-plan unresolved issue.
+5. Measure association checks independently of status collection. The
    candidate may need connection/machine metadata but need not collect running
    workloads or make a health request if execution itself can report a stopped
    or unreachable engine. Explicitly evaluate running against the validated
    connection instead of relying on a global default that can change between
    check and execution. A name match without validated binding and routing is
    insufficient.
-4. Preflight and escalation are independent policy dimensions. An unknown
+6. Preflight and escalation are independent policy dimensions. An unknown
    environment may benefit from one sandbox-first attempt. A known denial
    makes repeated sandbox attempts predictably wasteful. Current approved
    wrapper-first escalation instructions remain operative during this work;
    theoretical exploration is not permission to alter them or evade approval.
-5. No automatic replay is implemented. Diagnose infrastructure failures
+7. No automatic replay is implemented. Diagnose infrastructure failures
    separately from tool results. Even a safe read may have consumed stdin or
    partially emitted output; a write or remote request may already have taken
    effect. Shell redirection can modify files before Podman starts.
-6. Do not classify every nonzero result as an infrastructure failure. Search
+8. Do not classify every nonzero result as an infrastructure failure. Search
    no-match, validation failure, user cancellation, and tool errors retain
    their semantics. Podman status 125 and stderr text alone are insufficient
    proof that no user work occurred. Missing container records are also not
    conclusive after automatic removal or lost connectivity.
-7. Runtime guidance must not assert that a process is sandboxed when the
+9. Runtime guidance must not assert that a process is sandboxed when the
    runtime lacks that evidence. Use conditional agent guidance and report an
    undetermined cause when stderr was discarded. Permission denial is an
    observation; the same operation succeeding outside the sandbox strengthens
    attribution to the execution boundary.
-8. For the first diagnostic change, improve existing renderers using facts
-   already available. Do not add raw stderr capture, a regex-based cause
-   classifier, new public diagnostic schemas, or argument logging. Detailed
-   error transport and optional runtime instrumentation are assessed in
-   Chunk 2, where their stream, confidentiality, and overhead costs are visible.
-9. Preserve profile/engine schemas, activation and rollback behavior, source
-   previews, native platform selection, privileged-connection validation,
-   image acquisition/build policy, Skopeo registry capability, and final
-   `exec` behavior. Existing local-build preflights remain in scope for the
-   inventory, not implicit removal.
-10. Activation is a one-time state transition, not part of every command. A
+10. For the first diagnostic change, improve existing renderers using facts
+    already available. Do not add raw stderr capture, a regex-based cause
+    classifier, new public diagnostic schemas, or argument logging. Detailed
+    error transport and optional runtime instrumentation are assessed through
+    the baseline and discovery chunks, where their stream, confidentiality, and
+    overhead costs are visible.
+11. Preserve profile/engine schemas, activation and rollback behavior, source
+    previews, native platform selection, privileged-connection validation,
+    image acquisition/build policy, Skopeo registry capability, and final
+    `exec` behavior. Existing local-build preflights remain in scope for the
+    inventory, not implicit removal.
+12. Activation is a one-time state transition, not part of every command. A
     newly opened shell selects a PATH with `shell-init.sh`; it does not perform
     activation. Report both session models: already activated before the shell
     opens (`A = 0` inside the session) and one measured activation followed by
     many invocations (`A` charged once). Never count the same activation 80
     times or treat a dry run as actual activation time.
-11. The plan ends with a recommendation, not an automatically selected
-   optimization. A production experiment or rollout must name its exact
-   behavior, affected callers, acceptance tests, and rollback in a later review.
+13. The plan ends with a recommendation, not an automatically selected
+    optimization. A production experiment or rollout must name its exact
+    behavior, affected callers, acceptance tests, and rollback in a later review.
 
 ## Verified implementation inventory
 
@@ -144,9 +172,9 @@ discovered dependencies.
 | `lib/profile/activation.sh` | Runtime Darwin affinity calls the general state reader. Its successful path normally includes machine list, connection list, workload `ps`, and explicit-connection `info`. Recommendation logic also serves management commands. |
 | Profile activation and `shell-init.sh` | Activation owns the engine, default connection, projection, active record, and link transition. The shell initializer selects the profile's PATH only; opening a new shell does not re-activate the machine. |
 | `lib/engine/state.sh`, `lib/engine/registry.sh` | Binding resolution reads strict local records. The current projection state reader validates local source, effective, and loaded fingerprints; it does not itself perform guest SSH inspection. Historical plans describing older live projection checks are not the current call graph. |
-| `lib/runtime/podman.sh` platform branch | Installed manifest checks precede a Darwin-only affinity branch. Ordinary Linux/source execution does not traverse the full Darwin state reader. Management Linux status has its own rootless/registry checks. Do not claim identical runtime enforcement across platforms. |
+| `lib/runtime/podman.sh` platform branch | Installed manifest checks precede a Darwin-only affinity branch. Ordinary Linux/source execution does not traverse the full Darwin state reader and uses the local rootless engine with no named connection. Management Linux status has its own rootless/registry checks. A cross-platform explicit-routing change must replace these distinct mechanisms deliberately rather than claim they are already identical. |
 | `lib/runtime/image.sh` | Local-image resolution and stale-image cleanup can invoke preflight separately. A per-wrapper count depends on image strategy and execution path. |
-| `tools/*/versions/*/run.sh` | Ordinary external-image versions share preflight; gh, gcloud, and OPNsense runtimes have additional conditional behavior. jq and rg provide small filter/search baselines. |
+| `tools/*/versions/*/run.sh` | Ordinary external-image versions share preflight and invoke unqualified `podman run`; gh, gcloud, and OPNsense runtimes have additional conditional behavior. jq and rg provide small filter/search baselines. A future explicit-routing change belongs in the shared runtime command assembly, not per-tool copies. |
 | `tools/skopeo/versions/1.22/run.sh`, `lib/registries/registries.sh` | Skopeo consumes profile registry policy and may reuse same-process affinity evidence. This reuse is narrower than a general persistent preflight cache. |
 | `commands/agent-preflight.sh` | Both normal discovery and `--smoke` currently execute a direct `podman info`; failures print generic smoke-prefix guidance. The script cannot grant outer-command approvals. |
 | `tests/lib/runtime.sh` | Existing tests cover successful affinity, another active profile sharing the engine, source preview, modes, syntax, and unreachable guidance. Extend the existing guidance assertions rather than creating duplicate rejection scenarios. |
@@ -212,7 +240,7 @@ claim that the current code already implements the cheaper path.
 | Minimum useful association check | Run only the checks needed to connect this shell's profile to the active effective engine and policy | Specify whether machine-running and remote rootless probes prove authority or only liveness. A stopped engine may be left for execution to report; a mismatched target must fail before execution. |
 | Execute first, retain authority checks, diagnose health failures | Avoid health-only queries on success | Requires careful failure transport and possibly a shell supervisor; measure its cost and preserve signal/TTY/stdin behavior. |
 | Fully optimistic execution with all checks deferred | Upper bound on removable preflight cost | Wrong-profile or stale-policy execution can succeed silently. Requires a redesigned authority boundary or explicit contract change before production use. |
-| Explicitly bind the run to a validated connection | Reduce dependence on mutable global default | An explicit connection selects transport; it does not authorize an inactive profile. Keep override and privileged-rootful behavior explicit. |
+| Explicitly bind every runtime request to a validated profile connection on all hosts | Remove default-connection reversion as a check/use race and make the explicit probe describe execution | Darwin already records a named connection. Linux requires a named rootless local-service connection instead of today's direct local engine path. The connection must be derived from the strict binding, never accepted from the caller. Do not enable a user service, create/adopt a connection, or change its default without a separately reviewed lifecycle contract. Explicit routing still does not authorize an inactive profile; keep override and privileged-rootful behavior explicit. |
 | Consolidate POSIX parsing and reuse evidence within one invocation | Fewer subprocesses and duplicate same-process checks | Measure shell/file/hash overhead separately. Evidence inside command substitutions may not propagate to the parent. |
 | Activation-generation or time-limited evidence cache | Amortize checks across invocations | Local epochs alone miss external Podman changes. Define engine/service restart, binding, projection, overrides, expiry, and failure invalidation; a timeout bounds staleness, not correctness. |
 | Native CLI batching or parallel independent work | Amortize wrapper and container startup | Preserve per-input attribution, ordering requirements, and error semantics; parallelism may increase contention. |
@@ -281,6 +309,17 @@ External evidence checked against current primary documentation:
 - Connection selection is a transport control. Its suitability for enforcing
   Shimmy authority is an inference requiring repository-specific proof.
   [Podman global options](https://docs.podman.io/en/latest/markdown/podman.1.html).
+- Podman system connections are named destinations for Podman services and are
+  persisted in Podman-managed connection/configuration state. A Shimmy-created
+  Linux connection is therefore a new ownership and lifecycle responsibility,
+  not an ambient wrapper option.
+  [Podman system connection](https://docs.podman.io/en/latest/markdown/podman-system-connection.1.html).
+- On Linux, the rootless API socket is normally
+  `unix://$XDG_RUNTIME_DIR/podman/podman.sock`; the user `podman.socket` unit
+  can activate the service on demand. Enabling or starting that unit is a
+  Podman service-management action that must be separately authorized by a
+  future lifecycle design.
+  [Podman system service](https://docs.podman.io/en/latest/markdown/podman-system-service.1.html).
 - Lost responses can leave callers uncertain whether work happened. Safe
   replay requires idempotency or reconciliation; a failure does not establish
   that nothing happened.
@@ -288,18 +327,30 @@ External evidence checked against current primary documentation:
 
 ## Unresolved
 
-None.
+### Post-plan Linux connection lifecycle
 
-Selecting a production execution strategy is the output of this plan, not an
-undecided implementation branch within the diagnostic and assessment scope.
-Native host availability and event support are verification prerequisites to
-record during execution; unavailable evidence must be surfaced for explicit
+A cross-platform explicit-routing implementation needs a separately approved
+Linux lifecycle contract for the rootless API service and named connection.
+The unresolved choices are whether Shimmy documents a user-managed
+precondition, offers an explicit opt-in setup transaction, or changes its
+Podman-dependency/ownership boundary to manage `podman.socket`, connection
+creation, and any default-connection transition. This does not block this
+plan: baseline measurement and alternate-design discovery can record the
+current direct-local Linux path and any already-configured connection without
+mutating either. The implementation handoff must carry this issue forward if
+its selected design requires Linux explicit routing.
+
+Selecting a production execution strategy is the output of the discovery
+chunk, not an undecided implementation branch within diagnostic or baseline
+work. Native host availability and event support are verification prerequisites
+to record during execution; unavailable evidence must be surfaced for explicit
 deferral and must not be presented as a pass.
 
 ## Progress Checklist
 
-Active state: Chunk 1 implemented on 2026-09-17; awaiting human review. Chunk 2
-is not started.
+Active state: Chunk 1 implemented on 2026-09-17; awaiting human review. The
+current-system baseline, discovery, implementation handoff, and future-system
+delta report are not started.
 
 - [x] Confirm objective and planning root; discover related plans.
 - [x] Trace runtime, status, installation, test, and guidance boundaries.
@@ -319,10 +370,14 @@ is not started.
   the user explicitly syncs or rematerializes the installed profile control
   assets. `./tests/context-tree.sh` and `git diff --check` passed.
 - [ ] Human acceptance of Chunk 1.
-- [ ] Chunk 2 — Measure activation and invocation costs; compare execution
-  strategies and common session extrapolations.
-- [ ] Chunk 2 — Verify measurement integrity and record native evidence.
-- [ ] Human acceptance of Chunk 2 and disposition of the recommendation.
+- [ ] Chunk 2 — Build the benchmark and capture the current-system baseline.
+- [ ] Human acceptance of Chunk 2 baseline evidence.
+- [ ] Chunk 3 — Produce alternate designs and select a discovery outcome.
+- [ ] Human acceptance of Chunk 3 design choice.
+- [ ] Chunk 4 — Produce and accept the implementation handoff.
+- [ ] Complete the separately approved implementation handoff.
+- [ ] Chunk 5 — Capture future-system timings and report the measured delta.
+- [ ] Human acceptance of Chunk 5 and completion disposition.
 
 ## Execution protocol
 
@@ -410,20 +465,20 @@ remaining diagnostic limitations, and any partial verification. Explicitly
 accept Chunk 1 before Chunk 2. Acceptance does not authorize a lazy runtime,
 automatic replay, profile synchronization, or activation.
 
-## Chunk 2 — Measurement and strategy assessment
+## Chunk 2 — Current-system benchmark and baseline
 
 ### Goal
 
-Produce reproducible, distinct baselines for establishing activation state and
-checking it during each invocation. Quantify the candidate minimum association
-check and common agent sessions, then rank the alternatives, including the
-fully optimistic model, without installing an experimental runtime policy.
+Build the source-only benchmark and capture reproducible current-system timing
+and call-count baselines before selecting or implementing a runtime strategy.
+This chunk measures current behavior; it does not rank alternatives, select a
+design, or modify the runtime policy.
 
 ### Files
 
-Primary changes: new `tests/runtime-benchmark.sh`, new
-`docs/runtime-preflight.md`, `docs/testing.md`, and this plan. The existing
-`tests/CONTEXT.md` remains the context for the source-only benchmark.
+Primary changes: new `tests/runtime-benchmark.sh`, `docs/testing.md`, and this
+plan. Chunk 3 owns the design report in `docs/runtime-preflight.md`. The
+existing `tests/CONTEXT.md` remains the context for the source-only benchmark.
 
 Read runtime/image/profile/engine helpers, jq and rg version-owned runtimes and
 guides, `tests/support.sh`, and the existing timing documentation. Keep the
@@ -441,10 +496,14 @@ Suggested reasoning level: high for measurement validity and failure semantics.
    arbitrary user commands or execute credentialed/cloud/network
    administration tools as benchmarks.
 2. Discover the selected installed profile and record OS/architecture, Podman
-   version, control commit, tool version/image digest, engine mode, and image
-   availability. Read exact manifests as data. Verify the selected launchers
-   belong to the active profile; invoke installed wrappers by normal names.
-   Treat source and installed versions as distinct datasets when they differ.
+   version, control commit, tool version/image digest, engine mode, image
+   availability, effective default connection, and whether the profile has a
+   valid named connection usable for explicit runtime routing. On Linux, also
+   record whether the user rootless API socket and a compatible named
+   connection already exist; do not create, enable, adopt, or alter either.
+   Read exact manifests as data. Verify the selected launchers belong to the
+   active profile; invoke installed wrappers by normal names. Treat source and
+   installed versions as distinct datasets when they differ.
 3. Establish one named activation baseline separately. Time PATH-only shell
    selection; time `profile activate <active-name> --dry-run` as a dry-run
    baseline. Inspect its exact effects, then time same-profile
@@ -462,11 +521,14 @@ Suggested reasoning level: high for measurement validity and failure semantics.
    invocations, the installed helper's full preflight alone, the Darwin
    affinity check alone where applicable, individual Podman probes and local
    metadata/hash work, and an equivalent direct container smoke after one
-   explicit setup validation. Record the exact current Podman call graph per
-   tool and platform. The direct-container sample is an experimental lower
-   bound, not a replacement wrapper or fallback approval. Keep the same
-   image, platform, mount, working directory, and stdin behavior. Never
-   evaluate preview text with `eval` to construct commands.
+   explicit setup validation. Where an already-configured valid named profile
+   connection exists, compare unqualified and explicit-connection forms using
+   an identical `info --format` payload, then record the selector's incremental
+   cost and whether it targets the same engine. Record the exact current Podman
+   call graph per tool and platform. The direct-container sample is an
+   experimental lower bound, not a replacement wrapper or fallback approval.
+   Keep the same image, platform, mount, working directory, and stdin behavior.
+   Never evaluate preview text with `eval` to construct commands.
 5. Use a benchmark-owned transparent Podman forwarding script in a private
    temporary directory when counting/timing actual child calls. It must call
    the resolved real Podman binary, preserve argv, status and streams, and
@@ -489,59 +551,44 @@ Suggested reasoning level: high for measurement validity and failure semantics.
 8. Define the minimum association predicate and keep its two evidence products
    separate. The predicate must cover invoking profile identity and active
    record, strict binding, absence of routing overrides, expected effective
-   target, local rootless status on Linux, and the applicable current registry
-   policy. A benchmark-only probe may read state and make safe Podman
-   inspection calls but may not alter installed profiles or bypass checks in
-   ordinary wrappers; only that probe can verify whether the predicate is
-   satisfied. Separately, use a component-cost model built from current
-   validated helpers when a probe is unavailable or incomplete; the model may
-   estimate timing and removable work but must not be reported as proof of
-   authority. Mark each required Podman request and explain whether it proves
-   routing, identity, or only reachability. If a complete authority proof
+   target, an explicit derived connection on each host under the candidate
+   invariant, rootless local-service identity on Linux, and the applicable
+   current registry policy. Record the current Linux no-named-connection path
+   as a baseline, not as proof of the candidate. A benchmark-only probe may
+   read state and make safe Podman inspection calls but may not alter installed
+   profiles, enable services, create or adopt connections, change a default,
+   or bypass checks in ordinary wrappers; only that probe can verify whether
+   the predicate is satisfied. Separately, use a component-cost model built
+   from current validated helpers when a probe is unavailable or incomplete;
+   the model may estimate timing and removable work but must not be reported as
+   proof of authority. Mark each required Podman request and explain whether it
+   proves routing, identity, or only reachability. If a complete authority proof
    cannot be demonstrated without the live `info` request, retain that request
    in the candidate cost and label any proposed reduction unverified.
-9. Analyze each alternative in the table using observed removable costs,
-   authority preserved/lost, complexity, cross-platform behavior, and required
-   evidence. Include shell parsing/hash/subprocess cost as the residual, with
-   its measurement uncertainty. Distinguish measured comparisons from modeled
-   speedups: this chunk does not silently suppress checks in production code.
+9. Record the measured inputs needed for later design comparison: observed
+   removable costs, call graph, shell parsing/hash/subprocess residual, and
+   measurement uncertainty. Do not rank alternatives or claim modeled speedups
+   in this chunk; Chunk 3 owns that analysis.
 10. Produce a common use-case summary with measured baselines and clearly
     labeled extrapolations: (a) one new shell using an already-active profile
     for one `rg` and one `jq`; (b) one shell running 40 `rg` plus 40 `jq`
     invocations sequentially in a tight loop; and (c) that same 80-command
     workload after one measured activation. Show `A`, shell-selection time,
-    current per-command check, candidate minimum check, container/tool time,
-    total wall time, percent spent in checks, projected saving, and the
-    per-invocation amortized share of `A`. Report at least one longer-run
-    sensitivity example (for example 400 invocations). Time one actual
-    sequential 80-command run where the selected host and approvals permit;
-    compare it with the formula's result and explain contention or drift.
-    Include success, one known sandbox denial followed by authorized retry,
-    and repeated denial on every command as separate modeled cases; never
-    assume a failed first attempt is free or that approval persists.
-11. Produce a concrete proposed failure decision table for an execution-first
-   follow-up: success; ordinary tool nonzero; observed transport denial before
-   dispatch; refused connection; uncertain/lost response; image acquisition;
-   container setup; signal/cancellation. Identify original status, diagnostic
-   action, retry eligibility, and evidence limits for each. Cover stdin pipes,
-   partial output, outer redirection, interactive TTYs, and commands with side
-   effects. A diagnostic failure must not overwrite the original result.
-12. Compare retaining `exec` with agent-owned diagnosis against a shell
-   supervisor that can inspect failures. Specify the supervisor's signal,
-   process-group, stdout/stderr, buffering, cleanup, and `set -e` obligations
-   before recommending it. Do not implement a supervisor in ordinary wrappers.
-13. Evaluate sandbox-first behavior using genuinely unknown environments only
-    where current permissions allow that experiment. Do not deliberately repeat
-    a known denied installed-wrapper operation contrary to current guidance.
-    If the host cannot reproduce the incident boundary, retain the handoff as
-    reported evidence and mark live paired verification unrun. Synthetic
-    classifier inputs cannot be labeled proof of real sandbox enforcement.
-14. Rank at least the final-`info` removal, runtime/status split, and guarded
-    execution-first variants against full optimism, batching, and reuse.
-    Recommend the smallest change with demonstrated benefit and a stated
-    authority proof. If none qualifies, recommend retaining current behavior.
-    Give the preferred follow-up exact files, acceptance outcomes, compatibility
-    implications, and rollback; bring it back for review before implementation.
+    current per-command check, container/tool time, total wall time, percent
+    spent in checks, and the per-invocation amortized share of `A`. Reserve
+    candidate checks, projected savings, and sandbox-policy comparison for
+    Chunk 3. Report at least one longer-run sensitivity example (for example
+    400 invocations). Time one actual sequential 80-command run where the
+    selected host and approvals permit; compare it with the formula's result
+    and explain contention or drift.
+11. Record baseline evidence needed for later discovery without selecting a
+    strategy: original statuses and observed failure boundaries, current `exec`
+    behavior, stdin/TTY/redirection conditions, and any unavailable sandbox or
+    native-host lane. Do not deliberately repeat known denied operations.
+12. Preserve all raw timing records privately and summarize reproducible
+    aggregate baseline results, environment provenance, call counts, and stated
+    limitations in this plan. The subsequent discovery chunk consumes this
+    evidence.
 
 ### Verification checklist
 
@@ -554,9 +601,11 @@ Suggested reasoning level: high for measurement validity and failure semantics.
   baselines with exact transition state. If a first/start or switch transition
   is unmeasured, state that limitation and its effect on session estimates.
 - [ ] Verify the minimum association candidate against active profile,
-  binding, effective connection/local engine, overrides, and registry policy
-  using existing authority fixtures when a benchmark-only probe is available;
-  report which predicate fields and outcomes were actually verified.
+  binding, effective derived connection on every available host, overrides,
+  rootless Linux service identity, and registry policy using existing authority
+  fixtures when a benchmark-only probe is available; report which predicate
+  fields and outcomes were actually verified. Do not create a Linux service or
+  connection merely to satisfy this benchmark.
 - [ ] Report the candidate's measured cost only for verified probe executions.
   If the probe is unavailable or incomplete, report a separately labeled
   component-cost model for timing and removable-work estimates, and state that
@@ -568,8 +617,8 @@ Suggested reasoning level: high for measurement validity and failure semantics.
   unavailable lane partial with impact and an explicit deferral request.
 - [ ] Record sandbox-versus-escalated evidence or its absence truthfully, with
   exact operation, approval outcome, status, and source provenance.
-- [ ] Assessment distinguishes measured intervals, modeled estimates, and
-  unverified hypotheses; every alternative has an authority and replay analysis.
+- [ ] Baseline report distinguishes measured intervals from modeled session
+  extrapolations and records every unavailable or unverified lane for Chunk 3.
 - [ ] Run affected focused groups, then the full `./tests/test.sh` at the final
   integration gate with default bounded parallelism. Separately parse the new
   executable with `dash -n`, verify its mode, and run context/inventory and
@@ -577,12 +626,107 @@ Suggested reasoning level: high for measurement validity and failure semantics.
 
 ### Human review gate
 
-Review measurements, observer overhead, native coverage, all partial items,
-and the recommended follow-up. Accept or revise the completed assessment.
-Implementation of the recommended optimization requires a separately reviewed
-concrete plan; it is not triggered by finishing these measurements. After final
-acceptance, add the completion date below the title and move this plan to
-`plans/complete/wrapper-preflight-strategy.md` without overwriting a collision.
+Review the current-system measurements, observer overhead, native coverage, and
+all unavailable lanes. Accept the baseline dataset only if its provenance,
+workload, and limitations are sufficient for a later comparison. Do not select
+or implement an optimization at this gate.
+
+## Chunk 3 — Alternate-design discovery and selection
+
+### Goal
+
+Use the accepted baseline to produce comparable alternate runtime designs and
+select the smallest design with an explicit authority proof. At least one design
+must implement Decision 2: retain authority validation while moving status-only
+work and redundant health probes off the successful path.
+
+### Requirements
+
+1. Produce a design matrix for the current eager path, Decision 2's minimum
+   association check, explicit derived-connection routing, guarded
+   execution-first supervision, and any batching/reuse proposal that remains
+   viable after baseline evidence. State authority preserved/lost, changed
+   failure behavior, approval boundary, compatibility, implementation surface,
+   rollback, and predicted cost using only accepted baseline data.
+2. For every candidate, name each retained Podman request and whether it proves
+   profile authority, routing, policy, reachability, or status. Do not call a
+   request redundant solely because another command succeeded.
+3. Produce the execution-first failure decision table, including tool nonzero,
+   denial before dispatch, connection failure, uncertain response, image/setup
+   failure, signals, stdin, TTY, partial output, and redirection. Preserve the
+   original result and prohibit automatic replay.
+4. For any supervisor candidate, specify process groups, signals, stream
+   forwarding, buffering, cleanup, and `set -e` behavior. For an explicit
+   connection candidate, show how the binding supplies the selector without
+   accepting user input or relying on a mutable default.
+5. Select one primary design and, if justified, one fallback. Record why the
+   rejected designs lack authority proof, benefit, or acceptable complexity.
+   The Linux service/connection lifecycle issue remains post-plan unless the
+   selected design requires it.
+
+### Deliverables and review gate
+
+Update `docs/runtime-preflight.md` with the accepted baseline, design matrix,
+selected design, and explicit assumptions. Human review accepts the selection
+only; it does not authorize code changes.
+
+## Chunk 4 — Implementation handoff
+
+### Goal
+
+Translate the accepted discovery choice into an independently reviewable
+implementation plan without implementing it in this assessment plan.
+
+### Requirements
+
+1. Create a follow-up plan under `plans/wip/` that names the selected behavior,
+   exact source/install/test/documentation files, positive acceptance outcomes,
+   rollback, and installed-profile adoption boundary.
+2. Preserve the approved authority, approval, replay, secret-redaction,
+   POSIX-shell, `exec`, and platform contracts, or make each deliberate change
+   explicit for review.
+3. Carry forward every prerequisite. In particular, if the selected design
+   requires Linux named explicit routing, include the unresolved Linux
+   `podman.socket`/connection lifecycle decision as a separate post-plan work
+   item; this assessment does not enable a service, add/adopt a connection, or
+   mutate a default connection.
+4. Define the future-system benchmark protocol: same benchmark revision,
+   workload, warmup/sample count, host/profile/image provenance, and reporting
+   method as the accepted baseline, with deviations reported rather than hidden.
+
+### Human review gate
+
+Review and accept the implementation handoff separately. Its implementation is
+owned by that follow-up plan. Completing this handoff does not complete the
+present plan or authorize Linux Podman provisioning.
+
+## Chunk 5 — Future-system timing and delta report
+
+### Entry condition
+
+Start only after the accepted implementation handoff has been implemented and
+its own acceptance tests have passed. Record its commit, installed-profile
+provenance, and any configuration transition before benchmarking.
+
+### Goal and requirements
+
+1. Re-run the accepted benchmark protocol against the future system without
+   forcing pulls, builds, service changes, or connection provisioning.
+2. Report per-lane current-versus-future median, p95, sample count, call count,
+   absolute delta, percent delta, and changed authority properties. Compare one
+   actual 80-command sequence with its session model.
+3. Treat a changed host, image state, Podman version, connection topology, or
+   unavailable lane as a comparison limitation; do not present it as an
+   improvement. Keep raw records private and publish aggregate evidence only.
+4. Confirm that the implemented behavior matches the selected design and its
+   handoff acceptance criteria. If it does not, return to the implementation
+   plan rather than relabeling the result.
+
+### Final review gate
+
+Review the delta report, authority behavior, cross-platform coverage, and all
+limitations. Only this gate may complete and move this plan to
+`plans/complete/wrapper-preflight-strategy.md`.
 
 ## Risk register
 
@@ -593,6 +737,7 @@ acceptance, add the completion date below the title and move this plan to
 | Changing `exec` to a supervisor | Signal, TTY, stdin, and exit-status regressions | Assess explicitly; implement only through a later reviewed contract. |
 | Blanket sandbox-first rule | Known-denied attempts add latency every time | Separate first discovery from reuse of active-session evidence. |
 | Stale cache or connection race | Validation no longer describes execution | Prefer minimal same-invocation work; model explicit routing and invalidation, with remaining races stated. |
+| Linux explicit-routing prerequisite is absent | A universal invariant either breaks current supported hosts or causes Shimmy to provision user Podman state implicitly | Treat named local-service connection availability as measured evidence. Do not enable `podman.socket`, create/adopt a connection, or change a default until a later lifecycle contract explicitly authorizes and owns those transitions. |
 | Benchmark changes the system under test | Misleading apparent speedup | Transparent real-Podman forwarding and instrumented/uninstrumented comparison. Any activation timing is a separately reported, dry-run-cleared, exact authorized action. |
 | Activation baseline conflates unlike transitions | A cheap already-active run understates first activation or machine startup | Name each transition, keep dry-run and shell selection separate, and mark unmeasured native transitions unavailable. |
 | Session extrapolation hides startup or tail cost | Wrong usability prediction for repeated agent calls | Show cold/warm data, one-time `A`, per-call `R/M`, 80-command measured comparison, and distinct sandbox cases. |
@@ -618,6 +763,13 @@ acceptance, add the completion date below the title and move this plan to
   establishes installation and engine authority. An agent opening a new shell
   does not imply another activation, so usability estimates need both an
   already-active and a newly activated session.
+- Podman supports named system connections for service destinations, including
+  a Linux rootless API socket. That capability does not make a named connection
+  part of the current Shimmy Linux contract or transfer ownership of user
+  service and connection state to Shimmy.
+- Explicit runtime routing should be derived from the strict profile binding,
+  not accepted as user-selected wrapper input; otherwise it weakens the
+  authority boundary it is intended to enforce.
 
 ### Chunk 1
 
@@ -640,10 +792,12 @@ skills. Recheck worktree and source/installed provenance.
 
 The next executable unit is human acceptance of Chunk 1. Preserve POSIX shell,
 authority checks, approval scope, installed profile ownership, stdin/stdout/
-stderr and `exec` behavior. Chunk 2 must time activation as a one-time
-operation, the current runtime check per invocation, and the minimum
-association candidate separately. Do not start Chunk 2 until Chunk 1 review
-accepts the partial verification state and any follow-up debugging disposition.
+stderr and `exec` behavior. Chunk 2 captures the current-system baseline;
+Chunk 3 selects a design; Chunk 4 hands it to a separate implementation plan;
+and Chunk 5 reports the future-system delta after that plan is accepted and
+implemented. Do not start Chunk 2 until Chunk 1 review accepts the partial
+verification state and any follow-up debugging disposition.
 
-This plan is complete for diagnostic improvements and evaluation, not a blanket
-authorization to implement any execution strategy in the alternatives table.
+This plan does not authorize implementation of any execution strategy. It
+completes only after the separate implementation handoff is accepted and the
+post-implementation delta report is reviewed.
