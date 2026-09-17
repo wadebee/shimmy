@@ -270,15 +270,29 @@ that reappears at that name is a collision.
 
 If `podman info` fails, inspect the selected profile rather than starting an
 arbitrary machine. If direct Podman works but a wrapper fails in an AI Agent
-sandbox, retry the same wrapper through the outer-command approval boundary.
-Approval for `podman info` does not approve Podman nested through a wrapper.
+sandbox, retry that same outer wrapper command with escalation only when the
+operation is safe to replay. Approval for `podman info` does not approve or
+verify Podman nested through a wrapper.
 
-Source validation can avoid the engine entirely:
+Source preview avoids the engine entirely and still shows the wrapper's
+`$PWD:/work` mount and selected runtime arguments:
 
 ```sh
 ./commands/run-tool.sh jq --preview-shim --version
-./commands/agent-preflight.sh
 ```
+
+`commands/agent-preflight.sh` is different: it discovers harmless approval
+smokes from repository or installed metadata, but it still probes
+`podman info` even without `--smoke`.
+
+```sh
+./commands/agent-preflight.sh
+./commands/agent-preflight.sh --smoke
+```
+
+A wrapper failure can come from the outer sandbox approval boundary, image
+acquisition, container setup, or the wrapped tool itself. Keep those layers
+separate when reporting or diagnosing a failure.
 
 Use `shimmy admin network` when the host, VM, and container network
 perspectives differ. See [Networking tools](network-tools.md).

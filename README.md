@@ -383,5 +383,13 @@ Source previews remain available without contacting Podman:
 ./tests/test.sh
 ```
 
+`commands/agent-preflight.sh` is also source-only, but it still probes
+`podman info` even without `--smoke` so it can report approval readiness.
+Direct `podman info` success does not approve or verify nested Podman access
+through a Shimmy wrapper. If an AI Agent sandbox blocks a wrapper, retry that
+same outer wrapper command with escalation only when the operation is safe to
+replay. Wrapper failures can still come from the outer sandbox, image
+acquisition, container setup, or the wrapped tool itself.
+
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing the repository. Registry
 ownership details are in [docs/registries.md](docs/registries.md).

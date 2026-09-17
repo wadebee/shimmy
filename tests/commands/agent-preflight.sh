@@ -21,7 +21,9 @@ test_commands_agent_preflight_metadata() {
   assert_contains "$output" 'agent_prefix_rule=["./commands/run-tool.sh","netcat","--preview-shim","--help"]'
   assert_contains "$output" 'repo_shim=oc'
   assert_contains "$output" 'agent_prefix_rule=["./commands/run-tool.sh","oc","--preview-shim","--help"]'
-  pass "agent preflight derives approval smokes from version metadata"
+  assert_contains "$output" 'Direct `podman info` success does not approve or verify nested Podman access through a Shimmy wrapper.'
+  assert_contains "$output" 'If a sandbox-only wrapper run reports a Podman denial or unreachable state'
+  pass "agent preflight derives approval smokes from version metadata and explains the wrapper approval boundary"
 }
 
 test_commands_agent_preflight_run() {

@@ -319,10 +319,27 @@ test_lib_runtime_unreachable_guidance() {
   helper_file=$ROOT_DIR/lib/runtime/podman.sh
   output=$(/bin/sh -c '. "$1"; shimmy_podman_failure_print_unreachable "the rg shim" "/opt/podman/bin/podman"' sh "$helper_file" 2>&1)
 
-  assert_contains "$output" 'AI Agent note: if `podman info` succeeds but this shim still fails'
+  assert_contains "$output" 'AI Agent note: if this result came from a sandbox-only wrapper run'
+  assert_contains "$output" 'retry the same outer wrapper command with escalation'
   assert_contains "$output" '["rg","--version"] or ["./commands/run-tool.sh","rg","--version"]'
-  assert_contains "$output" 'Approving `podman info` alone does not approve Podman access through a Shimmy wrapper.'
-  pass "Podman unreachable guidance includes exact wrapper approval hints"
+  assert_contains "$output" 'Approving `podman info` alone does not approve or verify Podman access through a Shimmy wrapper.'
+  pass "Podman unreachable guidance includes the outer-wrapper approval boundary"
+}
+
+test_lib_runtime_affinity_unreachable_guidance() {
+  helper_file=$ROOT_DIR/lib/runtime/podman.sh
+
+  set +e
+  output=$(/bin/sh -c '. "$1"; SHIMMY_PROFILE_EXPECTED_CONNECTION=shimmy; SHIMMY_PROFILE_ACTIVATION_STATE=unreachable; SHIMMY_PROFILE_RECOMMENDED_ACTION=profile_activate; SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND="'"'"'/tmp/team-one/bin/shimmy'"'"' profile activate team-one"; shimmy_podman_profile_affinity_fail team-one /tmp/team-one "connection shimmy is unreachable"' sh "$helper_file" 2>&1)
+  status_code=$?
+  set -e
+
+  [ "$status_code" -ne 0 ] || fail_test 'unreachable affinity unexpectedly succeeded'
+  assert_contains "$output" 'installed Shimmy profile team-one cannot run against the current Darwin Podman engine'
+  assert_contains "$output" 'Expected connection: shimmy'
+  assert_contains "$output" 'retry the same outer wrapper command with escalation'
+  assert_contains "$output" 'Approving `podman info` alone does not approve or verify Podman access through a Shimmy wrapper.'
+  pass "Podman affinity guidance reuses the outer-wrapper approval boundary for unreachable engine state"
 }
 
 test_lib_runtime_run() {
@@ -337,4 +354,5 @@ test_lib_runtime_run() {
   test_lib_runtime_posix_syntax
   test_lib_runtime_executable_contract
   test_lib_runtime_unreachable_guidance
+  test_lib_runtime_affinity_unreachable_guidance
 }

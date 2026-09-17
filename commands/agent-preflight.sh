@@ -346,7 +346,7 @@ if shimmy_podman_bin_resolve; then
     printf 'podman_info=ok\n'
   else
     printf 'podman_info=failed\n'
-    printf '%s\n' 'agent_hint=If `podman info` succeeds outside this script but shims fail in an AI Agent, approve the dry-run smoke command prefix such as ["rg","--version"] or ["./commands/run-tool.sh","rg","--version"].'
+    printf '%s\n' 'agent_hint=If this script is running in an AI Agent sandbox, podman_info=failed leaves the selected profile unverified from the sandbox. If the same wrapper prefix is already approved, retry that exact outer wrapper command with escalation. Otherwise, only replay a harmless command when it is safe, for example by pre-authorizing the listed smoke prefix.'
     PREFLIGHT_STATUS=1
   fi
 else
@@ -375,7 +375,9 @@ if [ "$REPO_SHIM_COUNT" -eq 0 ]; then
 fi
 
 printf '\nAI Agent guidance:\n'
-printf '%s\n' "Use the listed agent_prefix_rule values with your AI Agent's approval mechanism for harmless smoke commands."
+printf '%s\n' 'Use the listed agent_prefix_rule values with your AI Agent approval mechanism for harmless smoke commands.'
+printf '%s\n' 'Direct `podman info` success does not approve or verify nested Podman access through a Shimmy wrapper.'
+printf '%s\n' 'If a sandbox-only wrapper run reports a Podman denial or unreachable state, retry that same outer wrapper command with escalation only when the operation is safe to replay.'
 printf '%s\n' 'Approve dry-run smoke command prefixes such as ["rg","--version"] or ["./commands/run-tool.sh","rg","--version"]; approving ["podman", "info"] alone does not approve a Shimmy wrapper.'
 
 exit "$PREFLIGHT_STATUS"

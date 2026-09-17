@@ -298,16 +298,26 @@ deferral and must not be presented as a pass.
 
 ## Progress Checklist
 
-Active state: PLAN complete; awaiting initial review. No implementation chunk
-is active.
+Active state: Chunk 1 implemented on 2026-09-17; awaiting human review. Chunk 2
+is not started.
 
 - [x] Confirm objective and planning root; discover related plans.
 - [x] Trace runtime, status, installation, test, and guidance boundaries.
 - [x] Assess the execution-first model and record alternative designs.
 - [x] Define the minimum useful runtime association target and two timing
   baselines for later measurement.
-- [ ] Chunk 1 — Align runtime and agent diagnostic guidance.
-- [ ] Chunk 1 — Verify focused behavior and source/materialization boundaries.
+- [x] Chunk 1 — Align runtime and agent diagnostic guidance.
+- [~] Chunk 1 — Verify focused behavior and source/materialization boundaries.
+  `lib-profile-activation` and `commands-agent-preflight` passed in the focused
+  group run. `lib-runtime` stopped on the existing host prerequisite failure
+  `dash is required for parser checks`. `commands-shim` stalled during isolated
+  verification in this environment and was stopped after repeated no-output
+  waits. `./commands/run-tool.sh jq --preview-shim --version` succeeded as a
+  source preview. The active-profile installed wrapper at
+  `/home/beewa/.config/shimmy/profiles/default/bin/rg` succeeded with
+  `rg --version`, but that smoke does not prove the new source diagnostics until
+  the user explicitly syncs or rematerializes the installed profile control
+  assets. `./tests/context-tree.sh` and `git diff --check` passed.
 - [ ] Human acceptance of Chunk 1.
 - [ ] Chunk 2 — Measure activation and invocation costs; compare execution
   strategies and common session extrapolations.
@@ -609,19 +619,31 @@ acceptance, add the completion date below the title and move this plan to
   does not imply another activation, so usability estimates need both an
   already-active and a newly activated session.
 
+### Chunk 1
+
+- Shared runtime hints must describe sandbox evidence conditionally as
+  `unverified from the sandbox`; they cannot claim the engine is inactive
+  without an outer-wrapper retry or other stronger evidence.
+- `commands/agent-preflight.sh` is source-only approval discovery, not an
+  engine-free preview. The docs must keep it separate from `--preview-shim`
+  examples that avoid Podman entirely.
+- Updating `lib/runtime/podman.sh` changes future materialization through the
+  existing profile lib copy/archive paths, but existing installed profiles do
+  not adopt that helper until an explicit profile sync or other rematerializing
+  lifecycle action.
+
 ## Session bootstrap
 
 Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, this plan, and retained
 contexts on each changed path. Read the active chunk's files and canonical
 skills. Recheck worktree and source/installed provenance.
 
-The next executable unit is Chunk 1, only after explicit implementation
-approval. Move this plan from `notional` to `wip` before implementation. Preserve
-POSIX shell, authority checks, approval scope, installed profile ownership,
-stdin/stdout/stderr and `exec` behavior. Chunk 2 must time activation as a
-one-time operation, the current runtime check per invocation, and the minimum
-association candidate separately. Implement only the approved chunk, record
-verification and lessons, and stop at its human review gate.
+The next executable unit is human acceptance of Chunk 1. Preserve POSIX shell,
+authority checks, approval scope, installed profile ownership, stdin/stdout/
+stderr and `exec` behavior. Chunk 2 must time activation as a one-time
+operation, the current runtime check per invocation, and the minimum
+association candidate separately. Do not start Chunk 2 until Chunk 1 review
+accepts the partial verification state and any follow-up debugging disposition.
 
 This plan is complete for diagnostic improvements and evaluation, not a blanket
 authorization to implement any execution strategy in the alternatives table.

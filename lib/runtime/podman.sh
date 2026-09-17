@@ -55,6 +55,13 @@ shimmy_podman_failure_print_privileged_connection_not_rootful() {
   printf '%s\n' 'Do not change the default Podman connection just to run a privileged shim command.' >&2
 }
 
+shimmy_podman_agent_boundary_hint_print() {
+  printf '%s\n' 'AI Agent note: if this result came from a sandbox-only wrapper run, the selected profile is still unverified from the sandbox.' >&2
+  printf '%s\n' 'If this exact wrapper prefix is already approved, retry the same outer wrapper command with escalation.' >&2
+  printf '%s\n' 'Otherwise, retry only if the original operation is safe to replay; for pre-authorization use a dry-run smoke prefix such as ["rg","--version"] or ["./commands/run-tool.sh","rg","--version"].' >&2
+  printf '%s\n' 'Approving `podman info` alone does not approve or verify Podman access through a Shimmy wrapper.' >&2
+}
+
 shimmy_podman_failure_print_unreachable() {
   context_label=${1:-shimmy}
   podman_bin=${2:-podman}
@@ -68,8 +75,7 @@ shimmy_podman_failure_print_unreachable() {
   else
     printf '%s\n' 'If you use CONTAINER_HOST, confirm it points at a reachable Podman service.' >&2
   fi
-  printf '%s\n' 'AI Agent note: if `podman info` succeeds but this shim still fails, request approval for the dry-run smoke command prefix, for example ["rg","--version"] or ["./commands/run-tool.sh","rg","--version"].' >&2
-  printf '%s\n' 'Approving `podman info` alone does not approve Podman access through a Shimmy wrapper.' >&2
+  shimmy_podman_agent_boundary_hint_print
 }
 
 shimmy_podman_profile_affinity_fail() {
@@ -78,6 +84,13 @@ shimmy_podman_profile_affinity_fail() {
   affinity_reason=$3
 
   printf 'ERROR: installed Shimmy profile %s cannot run against the current Darwin Podman engine: %s.\n' "$affinity_profile" "$affinity_reason" >&2
+  case "${SHIMMY_PROFILE_EXPECTED_CONNECTION:-}" in
+    ''|unknown|not_applicable)
+      ;;
+    *)
+      printf 'Expected connection: %s\n' "$SHIMMY_PROFILE_EXPECTED_CONNECTION" >&2
+      ;;
+  esac
   case "${SHIMMY_PROFILE_RECOMMENDED_ACTION:-investigate}" in
     profile_activate)
       printf 'Activate it with: %s\n' "$SHIMMY_PROFILE_RECOMMENDED_ACTION_COMMAND" >&2
@@ -97,6 +110,11 @@ shimmy_podman_profile_affinity_fail() {
       ;;
   esac
   printf "Then select its PATH in this shell with: . '%s/shell-init.sh'\n" "$affinity_profile_root" >&2
+  case "${SHIMMY_PROFILE_ACTIVATION_STATE:-unknown}" in
+    unreachable)
+      shimmy_podman_agent_boundary_hint_print
+      ;;
+  esac
   return 1
 }
 
@@ -216,6 +234,10 @@ shimmy_podman_profile_affinity_require() {
   done
   shimmy_profile_paths_resolve_name "$runtime_profile" || {
     shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'profile engine paths are invalid'
+    return 1
+  }
+  shimmy_profile_activation_expected_resolve || {
+    shimmy_podman_profile_affinity_fail "$runtime_profile" "$runtime_profile_root" 'profile engine binding is invalid'
     return 1
   }
   if [ "${SHIMMY_PROFILE_ENGINE_TRANSITION_ACTIVE:-0}" -eq 1 ]; then
