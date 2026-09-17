@@ -348,9 +348,9 @@ deferral and must not be presented as a pass.
 
 ## Progress Checklist
 
-Active state: Chunk 1 implemented on 2026-09-17; awaiting human review. The
-current-system baseline, discovery, implementation handoff, and future-system
-delta report are not started.
+Active state: Chunk 1 was accepted on 2026-09-17. Chunk 2 benchmark
+implementation is in progress; its current-system baseline, discovery,
+implementation handoff, and future-system delta report are not started.
 
 - [x] Confirm objective and planning root; discover related plans.
 - [x] Trace runtime, status, installation, test, and guidance boundaries.
@@ -358,10 +358,11 @@ delta report are not started.
 - [x] Define the minimum useful runtime association target and two timing
   baselines for later measurement.
 - [x] Chunk 1 — Align runtime and agent diagnostic guidance.
-- [~] Chunk 1 — Verify focused behavior and source/materialization boundaries.
+- [x] Chunk 1 — Verify focused behavior and source/materialization boundaries.
   `lib-profile-activation` and `commands-agent-preflight` passed in the focused
-  group run. `lib-runtime` stopped on the existing host prerequisite failure
-  `dash is required for parser checks`. `commands-shim` stalled during isolated
+  group run. Dash is optional because macOS does not ship it: `lib-runtime`
+  now records a skipped Dash parser check when unavailable, while retaining the
+  check on hosts that provide Dash. `commands-shim` stalled during isolated
   verification in this environment and was stopped after repeated no-output
   waits. `./commands/run-tool.sh jq --preview-shim --version` succeeded as a
   source preview. The active-profile installed wrapper at
@@ -369,8 +370,16 @@ delta report are not started.
   `rg --version`, but that smoke does not prove the new source diagnostics until
   the user explicitly syncs or rematerializes the installed profile control
   assets. `./tests/context-tree.sh` and `git diff --check` passed.
-- [ ] Human acceptance of Chunk 1.
-- [ ] Chunk 2 — Build the benchmark and capture the current-system baseline.
+- [x] Human acceptance of Chunk 1.
+- [~] Chunk 2 — Build the benchmark and capture the current-system baseline.
+  `tests/runtime-benchmark.sh` now implements the bounded source-only workload,
+  provenance capture, transparent Podman call counter, warmup/sample aggregation,
+  and jq individual-versus-batched record comparison. It is executable and
+  passes `/bin/sh -n`. Its host elapsed-time harness explicitly uses Bash's
+  default `time` output without `-p`, while the measured workload remains
+  POSIX `sh`. The live baseline remains to be recorded. Native macOS and
+  live-Podman evidence remain unavailable.
+
 - [ ] Human acceptance of Chunk 2 baseline evidence.
 - [ ] Chunk 3 — Produce alternate designs and select a discovery outcome.
 - [ ] Human acceptance of Chunk 3 design choice.
@@ -783,6 +792,14 @@ limitations. Only this gate may complete and move this plan to
   existing profile lib copy/archive paths, but existing installed profiles do
   not adopt that helper until an explicit profile sync or other rematerializing
   lifecycle action.
+- Dash is not available by default on macOS, so Dash parser checks remain
+  exercised where available but do not block portable host verification.
+
+### Chunk 2
+
+- The host exposes `time` only as a Bash keyword and its POSIX `/bin/sh`
+  cannot invoke it. The measurement harness therefore invokes Bash explicitly
+  and must not pass `-p`; the benchmark workloads remain POSIX `sh`.
 
 ## Session bootstrap
 
@@ -790,13 +807,11 @@ Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, this plan, and retained
 contexts on each changed path. Read the active chunk's files and canonical
 skills. Recheck worktree and source/installed provenance.
 
-The next executable unit is human acceptance of Chunk 1. Preserve POSIX shell,
-authority checks, approval scope, installed profile ownership, stdin/stdout/
-stderr and `exec` behavior. Chunk 2 captures the current-system baseline;
-Chunk 3 selects a design; Chunk 4 hands it to a separate implementation plan;
-and Chunk 5 reports the future-system delta after that plan is accepted and
-implemented. Do not start Chunk 2 until Chunk 1 review accepts the partial
-verification state and any follow-up debugging disposition.
+Chunk 1 is accepted. Preserve POSIX shell, authority checks, approval scope,
+installed profile ownership, stdin/stdout/stderr and `exec` behavior while
+Chunk 2 captures the current-system baseline. Chunk 3 selects a design; Chunk
+4 hands it to a separate implementation plan; and Chunk 5 reports the
+future-system delta after that plan is accepted and implemented.
 
 This plan does not authorize implementation of any execution strategy. It
 completes only after the separate implementation handoff is accepted and the

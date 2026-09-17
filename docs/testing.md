@@ -65,7 +65,24 @@ Use preview whenever it proves runtime shape without Podman:
 ```
 
 Use live Podman only for non-mutating commands such as `--version`, `version`,
-or `--help`. Registry inspection is explicit and uses an installed profile:
+or `--help`. The source-only runtime baseline is opt-in and is not part of the
+test runner or installed assets:
+
+```sh
+./tests/runtime-benchmark.sh --samples 20 --warmups 3
+```
+
+It measures the active installed profile's PATH selection, activation dry run,
+and bounded `rg`/`jq` version and JSON workloads. It uses a temporary,
+transparent Podman forwarder that records only call timing and status, and
+writes raw output to a private temporary directory. Its host elapsed-time
+harness requires Bash and deliberately uses Bash's default `time` output
+without `-p`; configure a non-default Bash executable with
+`SHIMMY_RUNTIME_BENCHMARK_BASH_BIN`. The benchmark workload itself remains
+POSIX `sh`. It does not activate or switch profiles, change Podman connections,
+pull images, or build images.
+Run it only with the required outer-wrapper approval; it cannot bypass an
+agent approval denial. Registry inspection is explicit and uses an installed profile:
 
 ```sh
 shimmy catalog verify --public-only
