@@ -5,7 +5,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
 SAMPLE_COUNT=20
 WARMUP_COUNT=3
-OUTPUT_DIR=
+OUTPUT_DIR=${OUTPUT_DIR:-}
 
 runtime_benchmark_usage() {
   cat <<'EOF'
@@ -290,7 +290,8 @@ runtime_benchmark_main() {
 
   : > "$OUTPUT_DIR/summary.txt"
   runtime_benchmark_lane_measure shell-selection
-  runtime_benchmark_lane_measure activation-dry-run
+  : > "$RAW_DIR/activation-dry-run.samples"
+  runtime_benchmark_command_run activation-dry-run
   runtime_benchmark_lane_measure rg-version
   runtime_benchmark_lane_measure jq-version
   runtime_benchmark_lane_measure jq-individual

@@ -640,6 +640,82 @@ all unavailable lanes. Accept the baseline dataset only if its provenance,
 workload, and limitations are sufficient for a later comparison. Do not select
 or implement an optimization at this gate.
 
+## Chunk 2 investigation — activation dry-run and wrapper timing
+
+### Benchmark-only Podman forwarding proxy
+
+The source-only benchmark creates a private executable named `podman` in its
+private output directory and prepends that directory to `PATH` only for the
+measured wrapper process. The proxy invokes the resolved real Podman binary
+with the original argument vector and preserves its stdout, stderr, and exit
+status. It records only benchmark lane, ordinal, phase label `podman`, elapsed
+whole seconds, and status. It does not record arguments, environment values,
+connection URIs, image references, or credentials; it does not synthesize a
+result, alter routing, or bypass agent approval.
+
+Its purpose is call attribution. A one-warmup/one-sample smoke on this Linux
+host observed two Podman calls for each `rg --version` and `jq --version`, eight
+for four separate jq JSON inputs, and two for the equivalent one-command
+four-file jq input.
+
+### Activation dry-run finding
+
+On 2026-09-17, the apparent benchmark stall was traced to
+`profile activate default --dry-run`, not shell initialization, the timing
+harness, or a Podman engine request. The benchmark initially treated that
+one-time activation baseline as a normal lane with three warmups and 20
+samples. At roughly 26 seconds each, it could consume about ten minutes before
+repeated wrapper measurements began.
+
+The benchmark now invokes this same-profile dry run once. It is recorded as
+one-time activation baseline `A`, separately from repeated per-wrapper lanes.
+The dry run performs no mutation, starts no engine, and made zero proxied Podman
+calls in this measurement.
+
+A direct timing measurement found `profile --help` at 0.010 seconds and
+`profile activate default --dry-run` at 23.051 seconds wall time, with 10.341
+seconds user CPU and 6.588 seconds system CPU. This profile indicates local
+validation and child-process work rather than a remote engine wait.
+
+The same installed control source was loaded into a non-mutating timing driver
+and its activation path was measured sequentially:
+
+| Discrete step | Elapsed | Observed work |
+| --- | ---: | --- |
+| Installation context resolution | 9.653 s | Catalog-tree authority validation; installation/profile path validation; active-record and user skill-root validation; active profile candidate resolution. |
+| Prior-engine validation | 0.001 s | Same-profile fast path. |
+| Requested candidate resolution | 6.612 s | Catalog authority and selected-profile manifest, source/catalog, binding, registry, startup, and profile-state validation. |
+| AI-skill reconciliation preflight | 3.528 s | Control/tool bundle, declared-destination, and active user skill-root validation. |
+| Human AI-skill plan rendering | 1.253 s | Render current link actions. |
+| Engine context resolution | 0.012 s | Read selected binding and local engine context. |
+| Activation dry-run decision | 1.003 s | Evaluate the no-mutation activation path. |
+| Manifest AI-skill plan rendering | 1.345 s | Render machine-readable current link actions. |
+| Instrumented subtotal | 23.407 s | Sum of the staged timings. |
+
+Separate end-to-end samples ranged from 23.051 to 28.553 seconds. The staged
+subtotal and the end-to-end range differ because nested shell utilities and
+normal scheduling/process-start overhead are not separately attributed by this
+coarse driver. The two repeated catalog/profile-validation passes account for
+16.265 seconds of the 23.407-second staged subtotal. The later discovery chunk
+must classify their internal catalog fingerprinting, manifest validation,
+filesystem traversal, and subprocess costs before proposing a reduction; this
+finding does not authorize weakening activation authority validation.
+
+After the one-time baseline correction and timed-child environment preservation
+fix, a one-warmup/one-sample smoke completed with these aggregates:
+
+| Lane | Observed result |
+| --- | --- |
+| Shell selection | 0.007 s; zero Podman calls. |
+| Already-active activation dry run | 28.553 s; one sample; zero Podman calls. |
+| `rg --version` | 2.531 s median; two Podman calls per invocation. |
+| `jq --version` | 2.522 s median; two Podman calls per invocation. |
+| Four individual jq inputs | 10.960 s median; eight Podman calls per invocation. |
+| One batched four-file jq command | 2.402 s median; two Podman calls per invocation. |
+
+This smoke is implementation evidence, not the required 20-sample baseline or
+a replacement for native macOS evidence.
+
 ## Chunk 3 — Alternate-design discovery and selection
 
 ### Goal
