@@ -133,7 +133,7 @@ shimmy_shim_bundle_input_render() {
   shimmy_shim_bundle_fingerprint=$3
   shimmy_shim_bundle_records=${4:-}
   shimmy_name_component_validate "$shimmy_shim_bundle_profile" || return 1
-  shimmy_catalog_generation_validate "$shimmy_shim_bundle_generation" || return 1
+  shimmy_catalog_generation_name_validate "$shimmy_shim_bundle_generation" || return 1
   shimmy_sha256_fingerprint_validate "$shimmy_shim_bundle_fingerprint" || return 1
   [ "$(shimmy_catalog_generation_render "$shimmy_shim_bundle_fingerprint")" = "$shimmy_shim_bundle_generation" ] || return 1
   shimmy_line_list_lexical_unique_validate "$shimmy_shim_bundle_records" || return 1

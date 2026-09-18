@@ -3,7 +3,7 @@
 
 SHIMMY_CATALOG_REGISTRY_SCHEMA=1
 
-shimmy_catalog_generation_validate() {
+shimmy_catalog_generation_name_validate() {
   shimmy_catalog_generation_value=${1:-}
   case "$shimmy_catalog_generation_value" in sha256-*) ;;
     *) return 1 ;;
@@ -35,7 +35,7 @@ shimmy_catalog_pin_validate() {
   case "$shimmy_catalog_pin_fingerprint" in *'|'*) return 1 ;; esac
 
   [ "$shimmy_catalog_pin_name" = default ] || return 1
-  shimmy_catalog_generation_validate "$shimmy_catalog_pin_generation" || return 1
+  shimmy_catalog_generation_name_validate "$shimmy_catalog_pin_generation" || return 1
   shimmy_git_commit_validate "$shimmy_catalog_pin_commit" || return 1
   shimmy_sha256_fingerprint_validate "$shimmy_catalog_pin_fingerprint" || return 1
   [ "$(shimmy_catalog_generation_render "$shimmy_catalog_pin_fingerprint")" = "$shimmy_catalog_pin_generation" ]
@@ -47,9 +47,9 @@ shimmy_catalog_registry_render() {
   shimmy_catalog_registry_commit=$3
   shimmy_catalog_registry_fingerprint=$4
 
-  shimmy_catalog_generation_validate "$shimmy_catalog_registry_current" || return 1
+  shimmy_catalog_generation_name_validate "$shimmy_catalog_registry_current" || return 1
   if [ -n "$shimmy_catalog_registry_previous" ]; then
-    shimmy_catalog_generation_validate "$shimmy_catalog_registry_previous" || return 1
+    shimmy_catalog_generation_name_validate "$shimmy_catalog_registry_previous" || return 1
     [ "$shimmy_catalog_registry_previous" != "$shimmy_catalog_registry_current" ] || return 1
   fi
   shimmy_git_commit_validate "$shimmy_catalog_registry_commit" || return 1

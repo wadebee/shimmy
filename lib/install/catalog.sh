@@ -139,7 +139,7 @@ shimmy_catalog_publication_state_read() {
     [ -e "$shimmy_catalog_publication_generation_dir" ] || [ -L "$shimmy_catalog_publication_generation_dir" ] || continue
     shimmy_catalog_publication_generation_name=$(basename -- "$shimmy_catalog_publication_generation_dir")
     [ -d "$shimmy_catalog_publication_generation_dir" ] && [ ! -L "$shimmy_catalog_publication_generation_dir" ] &&
-      shimmy_catalog_generation_validate "$shimmy_catalog_publication_generation_name" || {
+      shimmy_catalog_generation_name_validate "$shimmy_catalog_publication_generation_name" || {
         shimmy_catalog_authority_error_set "unsafe retained catalog generation: $shimmy_catalog_publication_generation_dir"
         return 1
       }

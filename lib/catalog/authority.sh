@@ -57,7 +57,7 @@ shimmy_catalog_generation_root_validate() {
 shimmy_catalog_generation_record_validate() {
   shimmy_catalog_generation_root=$1
   shimmy_catalog_generation_name=$2
-  shimmy_catalog_generation_validate "$shimmy_catalog_generation_name" || {
+  shimmy_catalog_generation_name_validate "$shimmy_catalog_generation_name" || {
     shimmy_catalog_authority_error_set "unsafe catalog generation: $shimmy_catalog_generation_name"
     return 1
   }
@@ -156,7 +156,7 @@ shimmy_catalog_tree_validate() {
       return 1
     }
     shimmy_catalog_generation_name=$(basename -- "$shimmy_catalog_generation_dir")
-    shimmy_catalog_generation_validate "$shimmy_catalog_generation_name" || {
+    shimmy_catalog_generation_name_validate "$shimmy_catalog_generation_name" || {
       shimmy_catalog_authority_error_set "unsafe catalog generation directory: $shimmy_catalog_generation_name"
       return 1
     }

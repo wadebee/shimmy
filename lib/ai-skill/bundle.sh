@@ -13,7 +13,7 @@ shimmy_ai_skill_source_ref_validate() {
       shimmy_ai_skill_source_generation=${shimmy_ai_skill_source_ref%%/*}
       shimmy_ai_skill_source_fingerprint=${shimmy_ai_skill_source_ref#*/}
       case "$shimmy_ai_skill_source_fingerprint" in */*) return 1 ;; esac
-      shimmy_catalog_generation_validate "$shimmy_ai_skill_source_generation" || return 1
+      shimmy_catalog_generation_name_validate "$shimmy_ai_skill_source_generation" || return 1
       shimmy_sha256_fingerprint_validate "$shimmy_ai_skill_source_fingerprint" || return 1
       [ "$(shimmy_catalog_generation_render "$shimmy_ai_skill_source_fingerprint")" = "$shimmy_ai_skill_source_generation" ]
       ;;
