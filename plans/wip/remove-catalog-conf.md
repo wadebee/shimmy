@@ -1,5 +1,13 @@
 # Remove catalog.conf from catalog authority
 
+> Incorporated into [Simplify catalog authority and trust established profile
+> pins](../notional/trust-profile-catalog-pins.md), Phase 1 / Chunk 1, with the
+> final acceptance sweep in Chunk 6. The combined plan is authoritative. This
+> document is retained as historical design input; its progress checklist and
+> execution gates below are superseded. Its `wip` location does not authorize
+> implementation, and no chunk is recorded as completed here. Update this link
+> when the authoritative plan moves lifecycle directories.
+
 ## Objective
 
 Remove `catalog.conf` from both the repository root and retained catalog
