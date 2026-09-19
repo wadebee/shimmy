@@ -334,7 +334,7 @@ in Chunk 2; they do not leave the behavioral contract open.
 
 ## Progress Checklist
 
-Active stage: ACT / Chunk 1 human review gate. Chunk 2 is not authorized.
+Active stage: Phase 1 complete. Chunk 2 is not authorized.
 
 - [x] Original planning: record confirmed objective/root and plan discovery.
 - [x] Original planning: trace publication, profile, shim, AI-skill, sync, and verify boundaries.
@@ -349,8 +349,9 @@ Active stage: ACT / Chunk 1 human review gate. Chunk 2 is not authorized.
 - [ ] Chunk 6 — Complete acceptance, performance evidence, and guidance audit.
 - [ ] Final human acceptance; date and move the plan to `complete`.
 
-No partial verification items at planning time. Implementation tests and
-performance measurements have not been run.
+Phase 1 implementation and its recorded acceptance verification are complete.
+Phase 2 implementation, its performance measurements, and final combined-plan
+acceptance remain pending.
 
 ## Execution protocol
 
@@ -373,7 +374,7 @@ across workstations and sessions.
 ### Incorporation and dependency
 
 This phase incorporates both chunks of
-`plans/wip/remove-catalog-conf.md`: the atomic contract transition and its
+`plans/complete/remove-catalog-conf.md`: the atomic contract transition and its
 current-facing guidance updates. Its final broad acceptance and historical
 guidance sweep are shared with Chunk 6. Keep code, fixtures, and current contract
 documentation coherent at the Chunk 1 review gate; do not defer required
@@ -894,11 +895,10 @@ function hypotheses, verification results, and implications for future chunks.
    changed paths plus its target files.
 2. Inspect worktree state. Preserve unrelated changes. Discover this plan by
    its lifecycle location; do not create a duplicate copy.
-3. Current state is the Chunk 1 human review gate. The authoritative plan is in
-   `wip`; the atomic catalog contract cutover is implemented and verified.
-   Await explicit Chunk 1 acceptance and Chunk 2 authorization. Do not execute
-   the incorporated plan's old chunk sequence separately; this combined plan
-   owns the work.
+3. Phase 1 is complete: the authoritative plan remains in `wip` because the
+   trusted-pin work is pending. Do not execute the incorporated plan's old chunk
+   sequence separately; this combined plan owns the work. Await explicit Chunk 2
+   authorization before making Phase 2 changes.
 4. Phase 1 preserves full validation while changing the catalog contract.
    Phase 2 keeps full validation at publication/bootstrap, explicit sync, and
    verify, while switching ordinary profile work to lightweight references.

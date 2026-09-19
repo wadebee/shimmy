@@ -1,11 +1,11 @@
 # Remove catalog.conf from catalog authority
 
 > Incorporated into [Simplify catalog authority and trust established profile
-> pins](trust-profile-catalog-pins.md), Phase 1 / Chunk 1, with the
-> final acceptance sweep in Chunk 6. The combined plan is authoritative. This
-> document is retained as historical design input; its progress checklist and
-> execution gates below are superseded. Its `wip` location does not authorize
-> implementation, and no chunk is recorded as completed here. Update this link
+> pins](trust-profile-catalog-pins.md), Phase 1 / Chunk 1, with the final
+> acceptance sweep in Chunk 6. The combined plan is authoritative for remaining
+> work. This retained plan records the completed catalog-contract cutover and
+> its guidance alignment; its historical chunk detail remains useful evidence.
+> Phase 2 trusted-pin work remains outside this plan's scope. Update this link
 > when the authoritative plan moves lifecycle directories.
 
 ## Objective
@@ -41,8 +41,9 @@ Exclusions:
 - no change to Podman, profile activation, engine ownership, or tool runtime
   architecture.
 
-This plan authorizes no implementation. Acceptance of one chunk does not
-authorize later chunks.
+This plan's catalog-contract and guidance work is complete. Remaining
+combined-plan work requires the authorization recorded in the authoritative
+plan.
 
 ## Target layout and terminology
 
@@ -149,24 +150,13 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Atomic catalog contract cutover
-- [ ] Chunk 2 — Documentation, acceptance sweep, and historical guidance alignment
+- [x] Chunk 1 — Atomic catalog contract cutover
+- [x] Chunk 2 — Documentation, acceptance sweep, and historical guidance alignment
 
-## Execution protocol
-
-For every chunk:
-
-1. Read `AGENTS.md`, `CONTEXT.md`, every child context on the path to a changed
-   file, this plan, and the chunk's target files.
-2. Execute only that chunk's scope.
-3. Run its verification checklist and record `[x]`, `[ ]`, or `[~]` with notes.
-4. Update the cumulative **Lessons learned** block.
-5. Summarize changes, tests, failures, uncertainties, and remaining risks.
-6. Stop for human review and explicit acceptance before starting the next
-   chunk.
-
-Repository paths in this plan are relative to `<repo>` so it remains portable
-across workstations and sessions.
+The completed work and its verification record are incorporated in the
+combined plan's Phase 1 / Chunk 1 checklist and lessons learned. Repository
+paths in this plan are relative to `<repo>` so it remains portable across
+workstations and sessions.
 
 ## Chunk 1 — Atomic catalog contract cutover
 
@@ -234,18 +224,18 @@ required files discovered during implementation.
 
 ### Verification checklist
 
-- [ ] `tests/lib/catalog.sh` passes and proves the new retained layout,
+- [x] `tests/lib/catalog.sh` passes and proves the new retained layout,
       publication reuse, rollback, and corruption handling.
-- [ ] `tests/lib/profile-state.sh` passes and proves expanded `generation.conf`
+- [x] `tests/lib/profile-state.sh` passes and proves expanded `generation.conf`
       round-trip and profile-pin agreement.
-- [ ] `tests/lib/codec.sh` passes with an updated `tools/`-only fingerprint vector.
-- [ ] `tests/lib/ai-skill-state.sh` passes if touched by the metadata format change.
-- [ ] `tests/commands/catalog.sh`, `tests/commands/shim.sh`, and
+- [x] `tests/lib/codec.sh` passes with an updated `tools/`-only fingerprint vector.
+- [x] `tests/lib/ai-skill-state.sh` passes if touched by the metadata format change.
+- [x] `tests/commands/catalog.sh`, `tests/commands/shim.sh`, and
       `tests/commands/lifecycle.sh` pass for any assertions that read or compare
       `generation.conf`.
-- [ ] No remaining source path in `<repo>/lib` or `<repo>/tests` requires or
+- [x] No remaining source path in `<repo>/lib` or `<repo>/tests` requires or
       references root or generation-local `catalog.conf`.
-- [ ] The repository is coherent after deleting `<repo>/catalog.conf`:
+- [x] The repository is coherent after deleting `<repo>/catalog.conf`:
       publication, validation, and profile-pin readers all use the new contract.
 
 ### Human review gate
@@ -294,13 +284,13 @@ Primary change surface:
 
 ### Verification checklist
 
-- [ ] `README.md`, `CONTRIBUTING.md`, and current context files consistently
+- [x] `README.md`, `CONTRIBUTING.md`, and current context files consistently
       describe the new contract.
-- [ ] No current guidance instructs future work to stage, validate, or retain
+- [x] No current guidance instructs future work to stage, validate, or retain
       `catalog.conf` as a live contract artifact.
-- [ ] Relevant broader regression commands pass for catalog/profile lifecycle
+- [x] Relevant broader regression commands pass for catalog/profile lifecycle
       behavior after Chunk 1.
-- [ ] Historical plan edits, if any, are narrow cross-references rather than
+- [x] Historical plan edits, if any, are narrow cross-references rather than
       rewriting historical design records.
 
 ### Human review gate
@@ -339,21 +329,20 @@ not active instructions.
   layout validation, publication staging, fingerprint vectors, and helper
   fixtures, the low-level cutover should be implemented as one atomic chunk.
 
+### Completion reconciliation
+
+- The catalog-contract cutover and current-facing guidance alignment are
+  complete. The combined plan records the Phase 1 implementation evidence,
+  including its acceptance test sweep.
+- This plan no longer blocks implementation as an unstarted historical artifact.
+  Future work must use the authoritative combined plan and must not repeat these
+  completed chunks independently.
+
 ## Session bootstrap
 
-For the next implementation session:
-
-1. Stay in ACT only if the user explicitly approves Chunk 1 of this plan.
-2. Read `<repo>/AGENTS.md`, `<repo>/CONTEXT.md`, `<repo>/lib/CONTEXT.md`,
-   `<repo>/lib/catalog/CONTEXT.md`, `<repo>/lib/install/CONTEXT.md`, this plan,
-   and Chunk 1 target files before editing.
-3. Treat these boundaries as non-negotiable unless the user reopens them:
-   - fingerprint scope is `tools/` only;
-   - `generation.conf` remains outside fingerprint scope;
-   - no compatibility reader/migration by default;
-   - POSIX shell architecture remains.
-4. Execute only Chunk 1 first. Do not start Chunk 2 until Chunk 1 is verified
-   and explicitly accepted.
-5. After implementation, update the Progress Checklist and Lessons learned,
-   summarize verification results including any `[~]` items, and stop at the
-   Chunk 1 human review gate.
+For future work, read the authoritative combined plan. Treat this document as
+completed Phase 1 design and implementation evidence; do not restart either
+chunk. The original boundaries remain applicable to the completed result:
+fingerprint scope is `tools/` only, `generation.conf` is outside that scope,
+there is no compatibility reader or migration, and the implementation remains
+POSIX shell.

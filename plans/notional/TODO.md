@@ -112,3 +112,7 @@ default. This future work is intentionally excluded from
 | `x86-64-v2` | v1 plus CX16, LAHF/SAHF, POPCNT, SSE3, SSE4.1, SSE4.2, SSSE3 | `cx16 lahf_lm popcnt pni sse4_1 sse4_2 ssse3` |
 | `x86-64-v3` | v2 plus AVX, AVX2, BMI1, BMI2, F16C, FMA, LZCNT, MOVBE, OSXSAVE | Only `movbe` is present; the others are missing |
 | `x86-64-v4` | v3 plus AVX-512 F/BW/CD/DQ/VL | Missing |
+
+# Uninstall warning
+  Constrain this to darwin hosts -->
+  WARNING: uninstall permanently destroys containers, images, volumes, build caches, and all other VM-local data in every provably Shimmy-owned Podman machine.
