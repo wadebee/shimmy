@@ -93,7 +93,25 @@ records before aggregation and leaves all raw records in its temporary output:
 
 No production runtime sources the review helper module.
 Run it only with the required outer-wrapper approval; it cannot bypass an
-agent approval denial. Registry inspection is explicit and uses an installed profile:
+agent approval denial.
+
+For the Apple Silicon extended baseline, including installed preflight and
+affinity, individual probes, equivalent direct containers, a benchmark-only
+minimum-association review, actual 40+40 and 200+200 sequential sessions, and
+bounded container events, use:
+
+```sh
+./tests/runtime-benchmark.sh --extended-only --samples 20 --warmups 3
+```
+
+The extended mode requires already-present rg and jq images and never pulls,
+activates a profile, changes a connection, or changes event configuration.
+Session counts default to 40 and 200 invocations per tool. The
+`SHIMMY_RUNTIME_BENCHMARK_SESSION_COMMAND_COUNT` and
+`SHIMMY_RUNTIME_BENCHMARK_SENSITIVITY_COMMAND_COUNT` overrides exist only to
+reduce those counts for benchmark development smoke checks.
+
+Registry inspection is explicit and uses an installed profile:
 
 ```sh
 shimmy catalog verify --public-only

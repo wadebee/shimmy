@@ -382,8 +382,11 @@ implementation handoff, and future-system delta report are not started.
   full/context/affinity/reachability lanes. Warmups are now excluded from
   aggregates. A 20-sample Apple Silicon review baseline recorded the predicted
   5/4/4/1 calls per full/context/affinity/reachability lane with all statuses
-  zero; no production caller uses the review helpers. The broader wrapper,
-  activation, observer-cost, and native Linux evidence remains incomplete.
+  zero; no production caller uses the review helpers. The 2026-09-19 Apple
+  Silicon continuation added installed-helper, individual
+  probe, direct-container, observer-cost, minimum-association, session, and
+  event evidence. Same-profile activation was dry-run-cleared and explicitly
+  authorized. Native Linux evidence remains unavailable and is deferred.
 
 - [ ] Human acceptance of Chunk 2 baseline evidence.
 - [ ] Chunk 3 — Produce alternate designs and select a discovery outcome.
@@ -606,37 +609,47 @@ Suggested reasoning level: high for measurement validity and failure semantics.
 
 ### Verification checklist
 
-- [ ] The benchmark produces attributable records and equivalent jq results
+- [x] The benchmark produces attributable records and equivalent jq results
   for individual and batched input. Check timing aggregation with fixed sample
   records, then validate actual execution using live Podman.
-- [ ] Compare measured preflight call counts with the path-specific inventory;
+- [x] Compare measured preflight call counts with the path-specific inventory;
   explain discrepancies rather than forcing a predetermined count.
-- [ ] Report actual activation, dry-run, and shell-selection timings as distinct
+- [x] Report actual activation, dry-run, and shell-selection timings as distinct
   baselines with exact transition state. If a first/start or switch transition
   is unmeasured, state that limitation and its effect on session estimates.
-- [ ] Verify the minimum association candidate against active profile,
+- [x] Verify the minimum association candidate against active profile,
   binding, effective derived connection on every available host, overrides,
   rootless Linux service identity, and registry policy using existing authority
   fixtures when a benchmark-only probe is available; report which predicate
   fields and outcomes were actually verified. Do not create a Linux service or
   connection merely to satisfy this benchmark.
-- [ ] Report the candidate's measured cost only for verified probe executions.
+- [x] Report the candidate's measured cost only for verified probe executions.
   If the probe is unavailable or incomplete, report a separately labeled
   component-cost model for timing and removable-work estimates, and state that
   the model does not verify authority behavior.
-- [ ] Show the 1+1, 40+40, and longer-run session estimates with assumptions,
+- [~] Show the 1+1, 40+40, and longer-run session estimates with assumptions,
   activation charged zero or once as appropriate, check share, and modeled
   sandbox outcomes. Compare one real 80-command loop when available.
-- [ ] Record native Apple Silicon macOS and Linux amd64 evidence, or mark each
+- [~] Record native Apple Silicon macOS and Linux amd64 evidence, or mark each
   unavailable lane partial with impact and an explicit deferral request.
-- [ ] Record sandbox-versus-escalated evidence or its absence truthfully, with
+- [x] Record sandbox-versus-escalated evidence or its absence truthfully, with
   exact operation, approval outcome, status, and source provenance.
-- [ ] Baseline report distinguishes measured intervals from modeled session
+- [x] Baseline report distinguishes measured intervals from modeled session
   extrapolations and records every unavailable or unverified lane for Chunk 3.
-- [ ] Run affected focused groups, then the full `./tests/test.sh` at the final
+- [~] Run affected focused groups, then the full `./tests/test.sh` at the final
   integration gate with default bounded parallelism. Separately parse the new
   executable with `dash -n`, verify its mode, and run context/inventory and
   `git diff --check` validation. Benchmark sampling itself stays sequential.
+
+Apple Silicon is complete; no native Linux amd64 host was available. The full
+suite stopped during lifecycle-template setup because the source checkout
+contains pre-existing ignored `.agents/skills` and metadata content; no test
+group ran, and the benchmark did not remove user-owned ignored files. A focused
+four-group retry reproduced the known `commands-shim` no-output stall and was
+interrupted. The remaining `lib-runtime`, `lib-profile-activation`, and
+`commands-agent-preflight` focused run passed all 16 assertions. `/bin/sh -n`,
+`dash -n`, executable mode, context-tree validation, and `git diff --check`
+passed.
 
 ### Human review gate
 
@@ -771,6 +784,123 @@ fix, a one-warmup/one-sample smoke completed with these aggregates:
 
 This smoke is implementation evidence, not the required 20-sample baseline or
 a replacement for native macOS evidence.
+
+## Chunk 2 investigation — Apple Silicon completion baseline
+
+On 2026-09-19, the remaining feasible Darwin arm64 lanes ran against Podman
+5.8.1 and active profile `default`, bound to machine and named connection
+`shimmy-default`. The checkout commit was
+`9dee18c419d87efb38d7d36a0920de6b8a6e58c1`; the extended benchmark ran from a
+dirty checkout with benchmark blob
+`3d35f08190974bf32b14eba9caf0e521354ffdf9`. The installed control commit was
+the distinct older commit `e920810ff61d29625f0000ec5939e2f804059bf7`.
+Installed helper/runtime blobs and exact rg/jq image digests are retained in
+the private provenance record. This distinction matters: the benchmark driver
+and installed runtime were not inferred to be the same source revision.
+
+The complete workload run used three warmups and 20 measured warm samples.
+All measured statuses were zero, individual and batched jq outputs were
+equivalent after preserving and sorting record identifiers, and warmups were
+excluded from aggregate files.
+
+| Workload lane | Median | p95 | Podman calls/sample |
+| --- | ---: | ---: | ---: |
+| Shell selection | 0.007 s | 0.008 s | 0 |
+| Activation dry run (one sample) | 33.677 s | 33.677 s | 0 |
+| Installed `rg --version` | 1.409 s | 1.499 s | 6 |
+| Installed `jq --version` | 1.419 s | 1.510 s | 6 |
+| Four individual jq inputs | 5.222 s | 5.319 s | 24 |
+| One batched four-file jq command | 1.305 s | 1.363 s | 6 |
+
+The six wrapper calls are five successful-path pre-run calls plus the final
+container run. The direct equivalent used the same installed image digest,
+native platform, `$PWD:/work` mount, `/work` working directory, and `-i` stdin
+mode. Images were already present; the benchmark did not force a pull.
+
+| Extended lane, 20 samples | Median | p95 | Podman calls/sample |
+| --- | ---: | ---: | ---: |
+| Installed full preflight | 0.508 s | 0.521 s | 5 |
+| Installed Darwin affinity | 0.406 s | 0.414 s | 4 |
+| Machine list | 0.025 s | 0.026 s | 1 |
+| Connection list | 0.022 s | 0.023 s | 1 |
+| Explicit-connection workload `ps` | 0.077 s | 0.086 s | 1 |
+| Unqualified `info` | 0.094 s | 0.100 s | 1 |
+| Explicit `shimmy-default` `info` | 0.094 s | 0.097 s | 1 |
+| Direct equivalent rg container | 0.849 s | 0.898 s | 1 |
+| Direct equivalent jq container | 0.722 s | 0.747 s | 1 |
+| Uninstrumented installed rg wrapper | 1.352 s | 31.862 s | not observed |
+| Uninstrumented installed jq wrapper | 1.243 s | 1.426 s | not observed |
+| Benchmark-only minimum association | 0.352 s | 0.363 s | 3 |
+
+The unqualified and explicit `info --format` payloads were identical for every
+sample, so both selectors reached the same observed rootless remote host and
+graph root. Their medians were equal; no selector increment was measurable at
+the timer's 1 ms resolution. Separately measured medians are not additive, but
+the five individual probe medians total 0.312 s versus the 0.508 s full
+preflight, leaving about 0.196 s of local validation, parsing, hashing,
+subprocess, and scheduling residual. Affinity's four constituent probes total
+0.218 s versus 0.406 s, leaving about 0.188 s on the same non-additive basis.
+
+The benchmark-only minimum-association lane validated the installed manifest
+identity, active record, strict shared-engine binding, expected machine and
+derived named connection, absence of connection and registry overrides,
+current engine registry projection, running expected machine, rootless named
+connection, matching default connection, and explicit `true|true`
+rootless/remote target response. It deliberately omitted workload `ps` and the
+final unqualified `info`, but retained machine list, connection list, and live
+explicit `info`; therefore its 0.352 s result is a verified three-call Darwin
+probe, not a health-free authority proof or a production implementation.
+
+The activation dry run reported no service recycle, VM restart, workload stop,
+profile switch, or skill-link replacement. The reviewer then authorized the
+exact command
+`/Users/wade/.config/shimmy/profiles/default/bin/shimmy profile activate default`.
+It succeeded in approximately 31 seconds by the execution adapter's coarse
+wall clock. This is an already-active reassertion, not bootstrap, machine
+start, or profile-switch evidence.
+
+The actual 40-rg/40-jq uninstrumented session completed in 102.689 s. The
+median formula `shell + 40 × (rg + jq)` gives 103.807 s, 1.118 s (1.1%) above
+the actual sequence. Adding the approximately 31 s already-active activation
+gives about 133.696 s; activation is about 23.2% of that session and amortizes
+to about 0.388 s per invocation. One already-active shell plus one rg and one
+jq is 2.602 s by the same median model. Two full-preflight medians are about
+39% of that modeled 1+1 total and 40 full-preflight pairs are about 39.6% of
+the measured 80-command session; these are component-share models, not
+instrumented subtractions from the session wall time.
+
+A median-only 200-rg/200-jq sensitivity model is 519.007 s including shell
+selection and no activation. It is an extrapolation, not an actual longer run.
+No sandbox-denial cost was added: after the initial sandbox-only status result,
+the approved outer benchmark path was used directly and a deliberately denied
+wrapper sequence was not repeated. The later design comparison must keep that
+unknown separate rather than inventing `qR`.
+
+The instrumented 80-command sequence also completed, in 1,026.911 s with all
+480 expected Podman calls successful. Thirty calls took about 31 seconds each,
+recurring as the first call in six-call wrapper sequences. This temporal tail
+also appeared in the final four uninstrumented rg samples, despite ordinary
+1.3-second medians. The later uninstrumented 80-command sequence returned to
+102.689 s. Consequently the 1,026.911-second result is retained as real
+sensitivity/drift evidence, not attributed solely to proxy observer overhead.
+At the reviewer's direction, the subsequent 200-rg/200-jq lane was stopped
+before it produced a sample because the completed normal and degraded 80-call
+sequences adequately bound the current design questions.
+
+A stable-source one-sample event lane correlated one benchmark jq container
+and returned six events with zero command/query statuses: `create`, `init`,
+`attach`, `start`, `died`, and `remove`. All carried the same coarse engine
+timestamp, so the engine exposes lifecycle ordering but not useful sub-second
+phase attribution for this workload. No event configuration was changed.
+
+Sandbox-only profile status first reported the engine as unknown/unreachable.
+The exact outer benchmark and activation commands were then approved and
+succeeded outside the sandbox. This strengthens attribution to the execution
+boundary and does not establish an engine failure. No profile, connection,
+default, registry policy, image state, or event configuration was changed by
+the benchmark. Native Linux amd64 and genuine first/start or profile-switch
+activation remain unavailable; they are explicit deferred lanes rather than
+zero-cost results.
 
 ## Chunk 3 — Alternate-design discovery and selection
 
@@ -940,6 +1070,19 @@ limitations. Only this gate may complete and move this plan to
   serves management status, activation, and redirect inspection. Any later
   minimum runtime predicate needs its own contract instead of weakening the
   shared status collector.
+- On this Darwin host, unqualified and explicit `shimmy-default` information
+  probes reached the same target at the same 94 ms median. The selector itself
+  was not a measurable cost, but explicit routing still needs an authority
+  contract rather than a timing argument.
+- A three-call benchmark-only association predicate can validate the active
+  profile, binding, overrides, projection, named connection, machine state,
+  and live explicit target in about 0.352 s median. It still contains liveness
+  work and is not evidence that a health-free production check is sufficient.
+- Sequential measurements exposed a repeatable approximately 31-second first
+  Podman-call tail after sustained sampling. Median formulas matched the later
+  uninstrumented 80-command run within 1.1%, while the instrumented sequence
+  was almost ten times slower. Preserve both results: observer and temporal
+  engine state cannot be separated by subtracting those two session totals.
 
 ## Session bootstrap
 
