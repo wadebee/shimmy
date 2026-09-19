@@ -455,11 +455,12 @@ Primary change surface:
    retained previous generation. For a checkout, require the registry's source
    path to be absolute, canonical, available, and non-symlink without invoking
    Git.
-4. For either authority form, require a regular non-symlink `catalog.conf` with
-   the exact accepted format/schema plus a regular non-symlink direct `tools/`
-   directory under the expected authority. This helper resolves authority
-   only; Chunk 2 owns validation of direct tool/version entries before emitting
-   candidates.
+4. For either authority form, require a regular non-symlink direct `tools/`
+   directory under the expected authority. A retained generation gets parser
+   identity from its exact `generation.conf`; a source checkout uses the
+   implementation constants and has no separate payload-identity file. This
+   helper resolves authority only; Chunk 2 owns validation of direct
+   tool/version entries before emitting candidates.
 5. Reset completion-specific state before every request and fail closed with no
    usable completion authority on malformed, missing, unsafe, symlinked, or
    inconsistent state. Reuse catalog-owned registry/metadata validators instead

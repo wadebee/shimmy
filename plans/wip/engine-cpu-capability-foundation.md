@@ -99,7 +99,7 @@ identity is distinct from each persisted file identity:
 
 ```text
 admin engine status --format manifest shimmy_engine_schema_version=2
-catalog.conf                          catalog_schema=1 (layout unchanged)
+generation.conf                       catalog_schema=1 (layout unchanged by this plan)
 tools/<tool>/versions/<v>/image.conf  shimmy_image_config_version=2
 engines/<id>/engine.conf              shimmy_engine_version=2
 engines/<id>/projection.conf          shimmy_engine_projection_version=1 (unchanged)

@@ -50,12 +50,11 @@ redefine catalog status/tools/refresh/rollback behavior beyond adapting to the
 new payload/metadata contract, or global uninstall ownership rules. Their
 direct catalog-domain checks retain full validation.
 
-The current request authorizes review and modification of this plan, including
-incorporation of `plans/wip/remove-catalog-conf.md` as an initial phase. This
-file remains authoritative at `plans/notional/trust-profile-catalog-pins.md`.
-The incorporated plan is retained as a historical source with a supersession
-note; its `wip` location is not implementation authorization. Neither plan
-records a completed implementation chunk. No implementation is authorized.
+The combined plan is accepted and Chunk 1 implementation is explicitly
+authorized. This file remains authoritative at
+`plans/wip/trust-profile-catalog-pins.md`. The incorporated plan is retained as
+historical design input with a supersession note; its separate execution
+sequence remains inert.
 
 ## Target layout and terminology
 
@@ -335,14 +334,14 @@ in Chunk 2; they do not leave the behavioral contract open.
 
 ## Progress Checklist
 
-Active stage: PLAN / combined-plan review. No implementation chunk has started.
+Active stage: ACT / Chunk 1 human review gate. Chunk 2 is not authorized.
 
 - [x] Original planning: record confirmed objective/root and plan discovery.
 - [x] Original planning: trace publication, profile, shim, AI-skill, sync, and verify boundaries.
 - [x] Original planning: record corruption trade-off and function hypotheses.
 - [x] Review consistency and incorporate catalog.conf removal as Phase 1.
-- [ ] Combined plan accepted and Chunk 1 implementation explicitly authorized.
-- [ ] Phase 1 / Chunk 1 — Atomic tools-only catalog contract and guidance cutover.
+- [x] Combined plan accepted and Chunk 1 implementation explicitly authorized.
+- [x] Phase 1 / Chunk 1 — Atomic tools-only catalog contract and guidance cutover.
 - [ ] Chunk 2 — Stub function signatures and document concrete contracts.
 - [ ] Chunk 3 — Implement reference helpers and explicit full sync validation.
 - [ ] Chunk 4 — Switch ordinary profile/shim/AI-skill validation to trusted pins.
@@ -442,17 +441,20 @@ inventory.
 
 ### Verification checklist
 
-- [ ] New generation metadata round-trips exactly; publication and full
+- [x] New generation metadata round-trips exactly; publication and full
       validation agree on a tools-only fingerprint and generation name.
-- [ ] Equivalent tools content reuses original provenance; rollback, pins,
+- [x] Equivalent tools content reuses original provenance; rollback, pins,
       collision/integrity checks, and compensation retain their contracts.
-- [ ] Codec vectors and inexpensive profile/skill fixtures use the new layout;
+- [x] Codec vectors and inexpensive profile/skill fixtures use the new layout;
       source publication and bootstrap operate after the root-file removal.
-- [ ] `./tests/test.sh --group lib-catalog --group lib-profile-state --group lib-codec --group lib-ai-skill-state --group commands-catalog --group commands-shim --group commands-lifecycle-darwin-bootstrap --group commands-lifecycle-linux-bootstrap --group commands-lifecycle-isolated --group commands-lifecycle-linux-workflow --group commands-lifecycle-uninstall --group commands-lifecycle-control-sync --jobs 3` passes.
-- [ ] Search/classify catalog.conf references across producers, consumers,
+- [x] `./tests/test.sh --group lib-catalog --group lib-profile-state --group lib-codec --group lib-ai-skill-state --group commands-catalog --group commands-shim --group commands-lifecycle-darwin-bootstrap --group commands-lifecycle-linux-bootstrap --group commands-lifecycle-isolated --group commands-lifecycle-linux-workflow --group commands-lifecycle-uninstall --group commands-lifecycle-control-sync --jobs 3` passes.
+      The exact invocation passed all 36 selected tests in a disposable clean
+      worktree containing the Chunk 1 patch; the source worktree's unrelated
+      ignored content otherwise blocks lifecycle-template preparation.
+- [x] Search/classify catalog.conf references across producers, consumers,
       fixtures, docs, and canonical skills; current behavior has no dependency
       on the removed file. Historical references remain labeled historical.
-- [ ] Current contract guidance agrees with code. Shell syntax, executable
+- [x] Current contract guidance agrees with code. Shell syntax, executable
       modes, inventory, generated artifacts where affected, and
       `git diff --check` pass.
 
@@ -851,6 +853,37 @@ overwriting any existing file.
 - This was a document-only review. No implementation chunk or runtime
   acceptance check was executed; original planning claims remain historical.
 
+### Chunk 1 — Atomic catalog contract and guidance cutover
+
+- Parser identity now has one implementation source in `lib/catalog/catalog.sh`;
+  strict generation metadata renders and reads the exact four-line format,
+  schema, provenance, and tools-only fingerprint contract.
+- Publication archives tracked `tools/` only. Fingerprinting enumerates regular
+  files below `tools/` in lexical order and retains executable-mode identity.
+  Retained generations admit exactly `generation.conf` and `tools/` while full
+  payload, metadata/name, and recomputed-fingerprint validation remains strong.
+- Equivalent tools content still reuses retained metadata and original
+  provenance. Existing rollback, collision, corrupt-current recovery, profile
+  pin, bootstrap, sync, shim, and compensation scenarios passed unchanged in
+  purpose under the new layout.
+- Content-integrity fixtures now mutate a valid tool skill, the fixed codec
+  vector covers tools-only identity, and minimal profile metadata fixtures
+  round-trip the expanded generation metadata exactly. The copy-on-write probe
+  uses tracked `CONTEXT.md`.
+- Current README, bootstrap, command, context, contributor, reusable project
+  prompt, and canonical catalog-skill guidance describe the incompatible
+  tools-only contract and fresh-bootstrap boundary. Completed plans retain
+  historical references; the unrelated notional completion plan was aligned
+  so it will not recreate the removed file.
+- The exact 12-group Chunk 1 command passed all 36 selected tests. Additional
+  `lib-runtime` syntax/mode coverage passed all 12 tests, and
+  `tests/context-tree.sh` passed inventory/context validation. The first
+  source-worktree attempt exposed unrelated ignored content in lifecycle
+  fixture copying; rerunning from a disposable clean worktree preserved that
+  user-owned content and produced the required acceptance evidence.
+- No Phase 2 helper or trust-boundary behavior changed. Chunk 2 remains gated
+  on explicit acceptance of this cutover.
+
 Add a subsection for each executed chunk, including durable findings, changed
 function hypotheses, verification results, and implications for future chunks.
 
@@ -861,10 +894,11 @@ function hypotheses, verification results, and implications for future chunks.
    changed paths plus its target files.
 2. Inspect worktree state. Preserve unrelated changes. Discover this plan by
    its lifecycle location; do not create a duplicate copy.
-3. Current state is plan review after internal-consistency edits; implementation
-   has not begun. Await explicit Chunk 1 authorization. On authorization, move the plan to `wip`
-   before the catalog contract cutover. Do not execute the incorporated plan's
-   old chunk sequence separately; this combined plan owns the work.
+3. Current state is the Chunk 1 human review gate. The authoritative plan is in
+   `wip`; the atomic catalog contract cutover is implemented and verified.
+   Await explicit Chunk 1 acceptance and Chunk 2 authorization. Do not execute
+   the incorporated plan's old chunk sequence separately; this combined plan
+   owns the work.
 4. Phase 1 preserves full validation while changing the catalog contract.
    Phase 2 keeps full validation at publication/bootstrap, explicit sync, and
    verify, while switching ordinary profile work to lightweight references.
