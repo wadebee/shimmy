@@ -365,9 +365,48 @@ A profile is not fully active if only the active-profile pointer changed while i
 
 ---
 
-## 8. Future activation transaction
+## 8. Activation transaction
 
 Activation is the primary orchestration boundary.
+
+The current behavior for activating a profile is:
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'rectFill': '#263238', 'noteBkgColor': '#37474f', 'noteTextColor': '#eceff1', 'actorLineColor': '#90caf9', 'signalColor': '#90caf9', 'labelBoxBkgColor': '#1e272c', 'labelBoxFrameColor': '#546e7a', 'actorBkg': '#1e272c', 'actorBorder': '#90caf9', 'actorTextColor': '#ffffff'}}}%%
+sequenceDiagram
+    autonumber
+    actor User
+    participant CLI as bin/shimmy
+    participant Cmd as commands/profile.sh
+    participant Mgmt as lib/profile/management.sh
+    participant Act as lib/profile/activation.sh
+    participant Skill as lib/ai-skill/ai-skill.sh
+
+    User->>CLI: shimmy profile activate default --dry-run
+    CLI->>Cmd: dispatch("profile", "activate", "default", "--dry-run")
+    Cmd->>Mgmt: shimmy_profile_activate_run(config, "default", restart=0, stop=0, dry_run=1)
+    
+    rect rgb(30, 42, 56)
+        note right of Mgmt: 1. Context Resolution & Preflight
+        Mgmt->>Mgmt: shimmy_profile_installation_context_resolve()
+        Mgmt->>Mgmt: shimmy_profile_activate_prior_engine_validate()
+        Mgmt->>Mgmt: shimmy_profile_candidate_resolve()
+    end
+
+    rect rgb(27, 50, 40)
+        note right of Mgmt: 2. AI-Skill Planning
+        Mgmt->>Mgmt: shimmy_profile_ai_skill_prepare()
+        Mgmt->>Mgmt: shimmy_profile_engine_context_resolve()
+    end
+
+    rect rgb(45, 35, 55)
+        note right of Mgmt: 3. Engine & Skill Dry-Run Execution
+        Mgmt->>Act: shimmy_profile_activate(restart=0, stop=0, dry_run=1)
+        Act-->>Mgmt: OK (Engine preflight dry-run)
+        Mgmt->>Skill: shimmy_ai_skill_reconcile_plan_render("manifest")
+        Skill-->>User: Output dry_run summary & shimmy_ai_skill_plan lines
+    end
+```
 
 The notional future behavior for switching between two profiles on the same shared engine is:
 
