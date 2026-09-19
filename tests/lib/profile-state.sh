@@ -32,6 +32,13 @@ test_lib_profile_state_round_trip() {
   shimmy_catalog_registry_read "$test_root/catalogs/default/registry.conf" || fail_test 'valid catalog registry rejected'
   shimmy_catalog_registry_render "$SHIMMY_CATALOG_GENERATION_CURRENT" "$SHIMMY_CATALOG_GENERATION_PREVIOUS" "$SHIMMY_CATALOG_SOURCE_COMMIT" "$SHIMMY_CATALOG_CONTENT_FINGERPRINT" > "$test_root/catalogs/default/registry.round-trip"
   cmp -s "$test_root/catalogs/default/registry.conf" "$test_root/catalogs/default/registry.round-trip" || fail_test 'catalog registry round trip changed bytes'
+  test_generation=sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  test_generation_metadata=$test_root/catalogs/default/generations/$test_generation/generation.conf
+  shimmy_catalog_generation_metadata_read "$test_generation_metadata" || fail_test 'valid generation metadata rejected'
+  shimmy_catalog_generation_metadata_render "$SHIMMY_CATALOG_GENERATION_SOURCE_COMMIT" \
+    "$SHIMMY_CATALOG_GENERATION_CONTENT_FINGERPRINT" > "$test_root/catalogs/default/generation.round-trip"
+  cmp -s "$test_generation_metadata" "$test_root/catalogs/default/generation.round-trip" ||
+    fail_test 'catalog generation metadata round trip changed bytes'
   shimmy_profile_manifest_read "$test_root/profile/install-manifest.txt" ||
     fail_test 'valid profile manifest rejected'
   shimmy_profile_manifest_render "$SHIMMY_PROFILE_NAME" "$SHIMMY_PROFILE_SOURCE_URL" "$SHIMMY_PROFILE_SOURCE_REF" "$SHIMMY_PROFILE_CATALOG_RECORD" "$SHIMMY_PROFILE_SHIM_RECORDS" "$SHIMMY_PROFILE_SHIM_VERSION_RECORDS" "$SHIMMY_PROFILE_STARTUP_SHELL" "$SHIMMY_PROFILE_STARTUP_FILES" > "$test_root/profile/install-manifest.round-trip"

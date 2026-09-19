@@ -44,8 +44,8 @@ test_shim_fixture_setup() {
   shimmy_catalog_default_create "$TEST_SHIM_CONFIG" "$TEST_SHIM_CHECKOUT" || fail_test "$SHIMMY_CATALOG_AUTHORITY_ERROR"
   TEST_SHIM_PINNED_GENERATION=$(sed -n '3s/^catalog_generation_current=//p' "$TEST_SHIM_CONFIG/catalogs/default/registry.conf")
   TEST_SHIM_PINNED_ROOT=$TEST_SHIM_CONFIG/catalogs/default/generations/$TEST_SHIM_PINNED_GENERATION
-  TEST_SHIM_PINNED_COMMIT=$(sed -n '1s/^catalog_source_commit=//p' "$TEST_SHIM_PINNED_ROOT/generation.conf")
-  TEST_SHIM_PINNED_FINGERPRINT=$(sed -n '2s/^catalog_content_fingerprint=//p' "$TEST_SHIM_PINNED_ROOT/generation.conf")
+  TEST_SHIM_PINNED_COMMIT=$(sed -n '3s/^catalog_source_commit=//p' "$TEST_SHIM_PINNED_ROOT/generation.conf")
+  TEST_SHIM_PINNED_FINGERPRINT=$(sed -n '4s/^catalog_content_fingerprint=//p' "$TEST_SHIM_PINNED_ROOT/generation.conf")
   TEST_SHIM_PROFILE_ROOT=$TEST_SHIM_CONFIG/profiles/default
   mkdir -p "$TEST_SHIM_PROFILE_ROOT/bin" "$TEST_SHIM_PROFILE_ROOT/tools" "$TEST_SHIM_PROFILE_ROOT/config/shims" \
     "$TEST_SHIM_PROFILE_ROOT/ai-skills" "$SCENARIO_DIR/home/.agents/skills"

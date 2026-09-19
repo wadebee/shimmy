@@ -86,8 +86,8 @@ test_images_fixture_setup() {
   TEST_IMAGES_GENERATION=$(sed -n '3s/^catalog_generation_current=//p' \
     "$TEST_IMAGES_CONFIG/catalogs/default/registry.conf")
   TEST_IMAGES_GENERATION_ROOT=$TEST_IMAGES_CONFIG/catalogs/default/generations/$TEST_IMAGES_GENERATION
-  TEST_IMAGES_COMMIT=$(sed -n '1s/^catalog_source_commit=//p' "$TEST_IMAGES_GENERATION_ROOT/generation.conf")
-  TEST_IMAGES_FINGERPRINT=$(sed -n '2s/^catalog_content_fingerprint=//p' "$TEST_IMAGES_GENERATION_ROOT/generation.conf")
+  TEST_IMAGES_COMMIT=$(sed -n '3s/^catalog_source_commit=//p' "$TEST_IMAGES_GENERATION_ROOT/generation.conf")
+  TEST_IMAGES_FINGERPRINT=$(sed -n '4s/^catalog_content_fingerprint=//p' "$TEST_IMAGES_GENERATION_ROOT/generation.conf")
   TEST_IMAGES_PROFILE_ROOT=$TEST_IMAGES_CONFIG/profiles/default
   mkdir -p "$TEST_IMAGES_PROFILE_ROOT/tools" "$SCENARIO_DIR/home/.agents/skills"
   for test_images_tool_name in jq rg skopeo; do

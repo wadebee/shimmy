@@ -24,10 +24,9 @@ test_lib_codec_hash_vectors() {
   assert_equals "$(shimmy_catalog_generation_render "$vector_fingerprint")" \
     sha256-584a0bb2995f58fa4150c3662f3a8c5cfe89dc9f4b5da6790bd9641d2c7e3bc9
   mkdir -p "$SCENARIO_DIR/catalog/tools/alpha"
-  printf 'catalog_schema=1\n' > "$SCENARIO_DIR/catalog/catalog.conf"
   printf 'alpha\n' > "$SCENARIO_DIR/catalog/tools/alpha/tool.conf"
   assert_equals "$(shimmy_catalog_content_fingerprint_render "$SCENARIO_DIR/catalog")" \
-    sha256:349c959760d44555dcaabc9985f31c2e18ab989ac3ddd38811b457bd7d356b5a
+    sha256:675e67efb967316178a5df270809619afe5307759dcbd5c09046bf5919df8e88
   pass 'fixed file, path-sorted catalog content, and generation SHA-256 vectors'
 }
 

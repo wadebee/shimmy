@@ -75,7 +75,7 @@ shimmy_catalog_generation_stage() {
   mkdir "$shimmy_catalog_stage_payload" || return 1
   git -C "$SHIMMY_CATALOG_PUBLICATION_CHECKOUT" archive --format=tar \
     --output="$shimmy_catalog_stage_archive" "$SHIMMY_CATALOG_PUBLICATION_HEAD" \
-    catalog.conf tools 2>/dev/null || {
+    tools 2>/dev/null || {
       shimmy_catalog_authority_error_set 'unable to stage tracked catalog content from main'
       return 1
     }

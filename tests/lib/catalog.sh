@@ -41,7 +41,6 @@ test_lib_catalog_static_validation() {
   setup_scenario
   test_catalog_payload=$SCENARIO_DIR/payload
   mkdir "$test_catalog_payload"
-  cp "$ROOT_DIR/catalog.conf" "$test_catalog_payload/catalog.conf"
   test_fixture_tree_copy "$ROOT_DIR/tools" "$test_catalog_payload/tools"
   shimmy_catalog_authority_payload_validate "$test_catalog_payload" || fail_test "$SHIMMY_CATALOG_AUTHORITY_ERROR"
 
@@ -71,13 +70,12 @@ test_lib_catalog_lifecycle() {
   test_catalog_initial=$(sed -n '3s/^catalog_generation_current=//p' "$test_catalog_registry")
   test_catalog_generations_root=$test_catalog_config/catalogs/default/generations
   test_catalog_initial_root=$test_catalog_generations_root/$test_catalog_initial
-  test_catalog_initial_commit=$(sed -n '1s/^catalog_source_commit=//p' "$test_catalog_initial_root/generation.conf")
+  test_catalog_initial_commit=$(sed -n '3s/^catalog_source_commit=//p' "$test_catalog_initial_root/generation.conf")
   test_catalog_initial_metadata_checksum=$(cksum < "$test_catalog_initial_root/generation.conf")
   test_catalog_generation_layout=$(
     find "$test_catalog_initial_root" -mindepth 1 -maxdepth 1 -exec basename -- {} \; | LC_ALL=C sort
   )
-  assert_equals "$test_catalog_generation_layout" 'catalog.conf
-generation.conf
+  assert_equals "$test_catalog_generation_layout" 'generation.conf
 tools'
   test_catalog_registry_layout_checksum=$(cksum < "$test_catalog_registry")
   mkdir -p "$test_catalog_initial_root/plugins/shimmy/skills"
@@ -122,7 +120,7 @@ tools'
   shimmy_catalog_default_publish "$test_catalog_config" "$test_catalog_checkout" || fail_test "$SHIMMY_CATALOG_AUTHORITY_ERROR"
   test_catalog_second=$(sed -n '3s/^catalog_generation_current=//p' "$test_catalog_registry")
   test_catalog_second_root=$test_catalog_generations_root/$test_catalog_second
-  test_catalog_second_commit=$(sed -n '1s/^catalog_source_commit=//p' "$test_catalog_second_root/generation.conf")
+  test_catalog_second_commit=$(sed -n '3s/^catalog_source_commit=//p' "$test_catalog_second_root/generation.conf")
   test_catalog_second_metadata_checksum=$(cksum < "$test_catalog_second_root/generation.conf")
   [ "$test_catalog_second" != "$test_catalog_initial" ] || fail_test 'publication did not advance current'
   assert_equals "$(sed -n '4s/^catalog_generation_previous=//p' "$test_catalog_registry")" "$test_catalog_initial"
@@ -205,7 +203,8 @@ test_lib_catalog_invalid_current_recovery() {
   test_catalog_tool_source_advance "$test_catalog_checkout" 'Recovery generation two.'
   shimmy_catalog_default_publish "$test_catalog_config" "$test_catalog_checkout" || fail_test "$SHIMMY_CATALOG_AUTHORITY_ERROR"
   test_catalog_corrupt=$(sed -n '3s/^catalog_generation_current=//p' "$test_catalog_registry")
-  printf 'catalog_corruption=1\n' >> "$test_catalog_config/catalogs/default/generations/$test_catalog_corrupt/catalog.conf"
+  printf '\nCatalog corruption fixture.\n' >> \
+    "$test_catalog_config/catalogs/default/generations/$test_catalog_corrupt/tools/jq/SKILL.md"
 
   shimmy_catalog_default_rollback "$test_catalog_config" || fail_test "$SHIMMY_CATALOG_AUTHORITY_ERROR"
   assert_equals "$(sed -n '3s/^catalog_generation_current=//p' "$test_catalog_registry")" "$test_catalog_initial"
@@ -267,7 +266,8 @@ test_lib_catalog_publication_rejections() {
   assert_equals "$(cksum < "$test_catalog_registry")" "$test_catalog_registry_checksum"
 
   test_catalog_current=$(sed -n '3s/^catalog_generation_current=//p' "$test_catalog_registry")
-  printf 'catalog_collision=1\n' >> "$test_catalog_config/catalogs/default/generations/$test_catalog_current/catalog.conf"
+  printf '\nCatalog collision fixture.\n' >> \
+    "$test_catalog_config/catalogs/default/generations/$test_catalog_current/tools/jq/SKILL.md"
   git -C "$test_catalog_checkout" reset -q --hard HEAD^^
   if shimmy_catalog_default_publish "$test_catalog_config" "$test_catalog_checkout" >/dev/null 2>&1; then fail_test 'catalog fingerprint collision was accepted'; fi
   shimmy_catalog_lifecycle_cleanup || true

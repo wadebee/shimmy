@@ -42,7 +42,6 @@ shimmy_catalog_generation_root_validate() {
     [ -e "$shimmy_catalog_generation_layout_entry" ] ||
       [ -L "$shimmy_catalog_generation_layout_entry" ] || continue
     case "$shimmy_catalog_generation_layout_entry" in
-      "$shimmy_catalog_generation_layout_root/catalog.conf"|\
       "$shimmy_catalog_generation_layout_root/generation.conf"|\
       "$shimmy_catalog_generation_layout_root/tools") ;;
       *)

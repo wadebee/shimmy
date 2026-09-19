@@ -1,6 +1,7 @@
 #!/bin/sh
 # Named catalog resolution, schema-1 validation, and metadata discovery.
 
+SHIMMY_CATALOG_FORMAT=shimmy-catalog
 SHIMMY_CATALOG_ACCEPTED_SCHEMA=1
 SHIMMY_CATALOG_CONTENT_FINGERPRINT=
 SHIMMY_CATALOG_ERROR=
@@ -306,7 +307,7 @@ shimmy_catalog_fingerprint_render() {
 
   (
     cd -- "$catalog_fingerprint_root" || exit 1
-    find catalog.conf tools -type f -print | LC_ALL=C sort | while IFS= read -r catalog_fingerprint_file; do
+    find tools -type f -print | LC_ALL=C sort | while IFS= read -r catalog_fingerprint_file; do
       [ -n "$catalog_fingerprint_file" ] || continue
       if [ -x "$catalog_fingerprint_file" ]; then catalog_fingerprint_mode=x; else catalog_fingerprint_mode=f; fi
       catalog_fingerprint_file_hash=$(shimmy__catalog_hash_file "$catalog_fingerprint_file") || exit 1
@@ -328,9 +329,6 @@ shimmy_catalog_fingerprint_render() {
 shimmy_catalog_payload_validate() {
   catalog_payload_root=$1
   catalog_payload_name=${2:-unknown}
-  catalog_payload_file=$catalog_payload_root/catalog.conf
-  catalog_payload_allowed_keys='catalog_format
-catalog_schema'
 
   case "$catalog_payload_root" in /*) ;; *) shimmy_catalog_error_set "catalog $catalog_payload_name authority must be an absolute path: $catalog_payload_root"; return 1 ;; esac
   [ -d "$catalog_payload_root" ] && [ ! -L "$catalog_payload_root" ] || {
@@ -341,24 +339,6 @@ catalog_schema'
     shimmy_catalog_error_set "catalog $catalog_payload_name authority has a symbolic-link path component: $catalog_payload_root"
     return 1
   }
-  [ -f "$catalog_payload_file" ] && [ ! -L "$catalog_payload_file" ] || {
-    shimmy_catalog_error_set "catalog $catalog_payload_name is missing regular payload identity file $catalog_payload_file"
-    return 1
-  }
-  shimmy__catalog_config_keys_validate "$catalog_payload_file" "$catalog_payload_allowed_keys" || return 1
-  shimmy__catalog_config_scalar_require "$catalog_payload_file" catalog_format || return 1
-  shimmy__catalog_config_scalar_require "$catalog_payload_file" catalog_schema || return 1
-  catalog_payload_format=$(shimmy__catalog_config_value_read "$catalog_payload_file" catalog_format)
-  [ "$catalog_payload_format" = shimmy-catalog ] || {
-    shimmy_catalog_error_set "catalog $catalog_payload_name has unsupported format '$catalog_payload_format'; expected shimmy-catalog"
-    return 1
-  }
-  catalog_payload_schema=$(shimmy__catalog_config_value_read "$catalog_payload_file" catalog_schema)
-  [ "$catalog_payload_schema" = "$SHIMMY_CATALOG_ACCEPTED_SCHEMA" ] || {
-    shimmy_catalog_error_set "catalog $catalog_payload_name has schema '$catalog_payload_schema'; accepted schema: $SHIMMY_CATALOG_ACCEPTED_SCHEMA"
-    return 1
-  }
-
   shimmy__catalog_path_entries_validate "$catalog_payload_root" || return 1
 
   shimmy_catalog_image_validator_prepare || return 1
@@ -377,5 +357,5 @@ catalog_schema'
     shimmy_catalog_error_set "catalog $catalog_payload_name contains no valid tools"
     return 1
   }
-  SHIMMY_CATALOG_SCHEMA=$catalog_payload_schema
+  SHIMMY_CATALOG_SCHEMA=$SHIMMY_CATALOG_ACCEPTED_SCHEMA
 }

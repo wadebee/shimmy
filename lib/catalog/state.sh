@@ -85,6 +85,8 @@ shimmy_catalog_generation_metadata_render() {
   shimmy_catalog_generation_metadata_fingerprint=$2
   shimmy_git_commit_validate "$shimmy_catalog_generation_metadata_commit" || return 1
   shimmy_sha256_fingerprint_validate "$shimmy_catalog_generation_metadata_fingerprint" || return 1
+  printf 'catalog_format=%s\n' "$SHIMMY_CATALOG_FORMAT"
+  printf 'catalog_schema=%s\n' "$SHIMMY_CATALOG_ACCEPTED_SCHEMA"
   printf 'catalog_source_commit=%s\n' "$shimmy_catalog_generation_metadata_commit"
   printf 'catalog_content_fingerprint=%s\n' "$shimmy_catalog_generation_metadata_fingerprint"
 }
@@ -92,8 +94,8 @@ shimmy_catalog_generation_metadata_render() {
 shimmy_catalog_generation_metadata_read() {
   shimmy_catalog_generation_metadata_file=$1
   shimmy_text_file_validate "$shimmy_catalog_generation_metadata_file" || return 1
-  [ "$(wc -l < "$shimmy_catalog_generation_metadata_file" | tr -d ' ')" -eq 2 ] || return 1
-  SHIMMY_CATALOG_GENERATION_SOURCE_COMMIT=$(sed -n '1s/^catalog_source_commit=//p' "$shimmy_catalog_generation_metadata_file")
-  SHIMMY_CATALOG_GENERATION_CONTENT_FINGERPRINT=$(sed -n '2s/^catalog_content_fingerprint=//p' "$shimmy_catalog_generation_metadata_file")
+  [ "$(wc -l < "$shimmy_catalog_generation_metadata_file" | tr -d ' ')" -eq 4 ] || return 1
+  SHIMMY_CATALOG_GENERATION_SOURCE_COMMIT=$(sed -n '3s/^catalog_source_commit=//p' "$shimmy_catalog_generation_metadata_file")
+  SHIMMY_CATALOG_GENERATION_CONTENT_FINGERPRINT=$(sed -n '4s/^catalog_content_fingerprint=//p' "$shimmy_catalog_generation_metadata_file")
   [ "$(shimmy_catalog_generation_metadata_render "$SHIMMY_CATALOG_GENERATION_SOURCE_COMMIT" "$SHIMMY_CATALOG_GENERATION_CONTENT_FINGERPRINT")" = "$(cat "$shimmy_catalog_generation_metadata_file")" ]
 }

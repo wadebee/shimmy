@@ -157,7 +157,7 @@ test_fixture_copy_on_write_detect() {
 
   [ ! -e "$test_fixture_copy_probe" ] && [ ! -L "$test_fixture_copy_probe" ] ||
     fail_test "copy-on-write probe target already exists: $test_fixture_copy_probe"
-  if cp -c "$ROOT_DIR/catalog.conf" "$test_fixture_copy_probe" 2>/dev/null; then
+  if cp -c "$ROOT_DIR/CONTEXT.md" "$test_fixture_copy_probe" 2>/dev/null; then
     SHIMMY_TEST_COPY_ON_WRITE=1
   fi
   rm -f "$test_fixture_copy_probe"
