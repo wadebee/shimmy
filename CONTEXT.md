@@ -20,7 +20,7 @@ The repository is both the source catalog and the source control plane.
 State lives below `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy`:
 
 - `catalogs/default/` contains one registry and retained immutable generations,
-  each with exactly `catalog.conf`, `generation.conf`, and `tools/`;
+  each with exactly `generation.conf` and `tools/`;
 - `profiles/<name>/` contains independent control/runtime materializations;
 - `engines/<id>/` contains engine identity, ownership, projection, and lifecycle
   state;
@@ -34,7 +34,9 @@ retained default-catalog generation, shim tracking/pinning and concrete-version
 roles, startup ownership, and validated AI-skill bundles.
 
 Catalog publication accepts only a clean committed attached local `main`
-checkout and archives and fingerprints only `catalog.conf` plus `tools/`.
+checkout and archives and fingerprints only `tools/`. Each generation's
+`generation.conf` records parser identity, provenance, and the tools-only
+content fingerprint outside that fingerprint's scope.
 Content-equivalent publication reuses the retained generation and its original
 provenance; equivalent current content is a registry-preserving no-op. Profiles
 do not follow source or registry changes implicitly; `profile sync` or shim

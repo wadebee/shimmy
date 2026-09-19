@@ -236,11 +236,12 @@ The installation owns exactly one catalog named `default`. It contains retained
 immutable generations. Each profile pins one generation, so publication and
 rollback never silently change installed profile contents.
 
-The catalog payload is exactly `catalog.conf` plus `tools/`, including each
-tool's canonical `SKILL.md`. A retained generation contains only
-`catalog.conf`, `generation.conf`, and `tools/`. Its content fingerprint covers
-`catalog.conf` and every regular file below `tools/`, including executable-mode
-identity; it excludes generation metadata and control-plane sources.
+The catalog payload is exactly `tools/`, including each tool's canonical
+`SKILL.md`. A retained generation contains only `generation.conf` and `tools/`.
+Its content fingerprint covers every regular file below `tools/`, including
+executable-mode identity. `generation.conf` records the catalog format/schema,
+source commit, and content fingerprint outside that fingerprint's scope;
+control-plane sources are also excluded.
 
 ```sh
 shimmy catalog status
@@ -261,7 +262,7 @@ Review any reported guide or skill references and complete both native-host
 smokes before committing and running the separate catalog publication command.
 
 `shimmy catalog publish` must run at a clean committed checkout root on attached
-local `main`; it stages and validates only tracked `catalog.conf` and `tools/`.
+local `main`; it stages and validates only tracked `tools/`.
 If that content already has a valid retained generation, publication reuses the
 generation and its original provenance commit. Publishing equivalent current
 content is a no-op: it does not rewrite the registry, advance current/previous,

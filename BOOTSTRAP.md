@@ -78,6 +78,12 @@ The bootstrap creates `${XDG_CONFIG_HOME:-$HOME/.config}/shimmy`. A non-empty
 not already exist; bootstrap fails instead of merging, migrating, or adopting
 partial state.
 
+The current catalog contract publishes `tools/` as the complete payload and
+retains only `generation.conf` plus `tools/` in each generation. This replaces
+the earlier schema-1 layout in place without a compatibility reader. Remove an
+older installation with the Shimmy version that created it before running a
+fresh bootstrap.
+
 The initial profile contains jq, rg, and Skopeo. It also creates the immutable
 first `default` catalog generation, materializes the control and tool skill
 bundles, activates engine/registry authority, writes the active-profile record,

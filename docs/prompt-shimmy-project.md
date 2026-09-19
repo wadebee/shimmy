@@ -13,8 +13,10 @@ directories do not own context files.
 - Installed management uses only the `admin`, `profile`, `catalog`, `shim`, and
   `ai-skill` groups.
 - The installation owns one immutable catalog named `default`. Its schema-1
-  payload is exactly `catalog.conf` plus `tools/`; retained generations add only
-  `generation.conf`, and profiles pin a validated generation and fingerprint.
+  payload is exactly `tools/`; retained generations contain only
+  `generation.conf` and `tools/`, and profiles pin a validated generation and
+  fingerprint. Generation metadata records parser identity and provenance
+  outside the tools-only fingerprint.
 - Profiles live at `profiles/<name>`, use arbitrary safe names, and carry only
   schema-2 manifests.
 - `tools/<tool>/tool.conf` declares the default version and optional selector.

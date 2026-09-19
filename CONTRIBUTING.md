@@ -51,9 +51,10 @@ Publishing or rolling back changes registry authority but does not rewrite
 existing profile pins. Profile adoption requires explicit `profile sync` or
 shim lifecycle work.
 
-The schema-1 catalog payload is exactly `catalog.conf` plus `tools/`. Retained
-generations contain only that payload and `generation.conf`; their content
-fingerprints exclude generation metadata and every control-plane path. Reuse a
+The schema-1 catalog payload is exactly `tools/`. Retained generations contain
+only `generation.conf` and `tools/`; generation metadata records the parser
+identity, provenance, and content fingerprint outside the fingerprint scope.
+Fingerprints exclude generation metadata and every control-plane path. Reuse a
 valid content-equivalent retained generation with its original provenance
 commit. Equivalent current content is a publication no-op.
 

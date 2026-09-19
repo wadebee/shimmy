@@ -12,6 +12,10 @@ immutable generations of tool metadata, concrete versions, and canonical tool
 skills. Profiles pin a retained generation; publishing or rolling back the
 registry does not change an existing profile pin.
 
+The catalog payload is tracked `tools/` content only. Each retained generation
+contains exactly `generation.conf` and `tools/`; the metadata records parser
+identity and provenance outside the tools-only content fingerprint.
+
 ## Inspect
 
 - Use `shimmy catalog status` for the local current/previous registry state.
