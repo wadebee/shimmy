@@ -348,9 +348,12 @@ deferral and must not be presented as a pass.
 
 ## Progress Checklist
 
-Active state: Chunk 1 was accepted on 2026-09-17. Chunk 2 benchmark
-implementation is in progress; its current-system baseline, discovery,
-implementation handoff, and future-system delta report are not started.
+Active state: Chunks 1 and 2 were accepted by 2026-09-19. Chunk 3
+alternate-design discovery and selection are drafted in
+`docs/runtime-preflight.md` and await human acceptance. The Linux continuation
+now supplies current-path baseline evidence; explicit Linux named-connection
+routing remains an unresolved post-plan lifecycle question. The implementation
+handoff and future-system delta report are not started.
 
 - [x] Confirm objective and planning root; discover related plans.
 - [x] Trace runtime, status, installation, test, and guidance boundaries.
@@ -386,10 +389,24 @@ implementation handoff, and future-system delta report are not started.
   Silicon continuation added installed-helper, individual
   probe, direct-container, observer-cost, minimum-association, session, and
   event evidence. Same-profile activation was dry-run-cleared and explicitly
-  authorized. Native Linux evidence remains unavailable and is deferred.
+  authorized. The 2026-09-19 Linux amd64 continuation added local/current-path
+  support to the benchmark, recorded a 20-sample installed-wrapper and probe
+  baseline on a host-local rootless engine, captured exact dry-run and same-
+  profile activation evidence, and marked named-connection explicit-routing
+  lanes unavailable when no rootless API socket or compatible named connection
+  existed. A user-authorized early stop ended the overlong Linux 400-invocation
+  sensitivity completion after the 20-sample lane set and instrumented 80-
+  command session had been gathered.
 
-- [ ] Human acceptance of Chunk 2 baseline evidence.
-- [ ] Chunk 3 — Produce alternate designs and select a discovery outcome.
+- [x] Human acceptance of Chunk 2 baseline evidence.
+  The accepted dataset now includes native Linux amd64 current-path evidence;
+  explicit-connection-only Linux lanes remain unavailable where the host has no
+  rootless API socket or compatible named connection.
+- [x] Chunk 3 — Produce alternate designs and select a discovery outcome.
+  `docs/runtime-preflight.md` now records the accepted Darwin and Linux
+  baselines, execution-first decision table, design matrix, selected
+  Darwin-first minimum-association plus explicit-routing design, Linux/current-
+  path fallback, rejected alternatives, and handoff assumptions.
 - [ ] Human acceptance of Chunk 3 design choice.
 - [ ] Chunk 4 — Produce and accept the implementation handoff.
 - [ ] Complete the separately approved implementation handoff.
@@ -629,8 +646,11 @@ Suggested reasoning level: high for measurement validity and failure semantics.
   the model does not verify authority behavior.
 - [~] Show the 1+1, 40+40, and longer-run session estimates with assumptions,
   activation charged zero or once as appropriate, check share, and modeled
-  sandbox outcomes. Compare one real 80-command loop when available.
-- [~] Record native Apple Silicon macOS and Linux amd64 evidence, or mark each
+  sandbox outcomes. The Darwin 80-command loop is complete; Linux has a
+  completed instrumented 80-command loop, while the uninstrumented loop and
+  full 400-invocation sensitivity lane were explicitly stopped after severe
+  long-run drift was established.
+- [x] Record native Apple Silicon macOS and Linux amd64 evidence, or mark each
   unavailable lane partial with impact and an explicit deferral request.
 - [x] Record sandbox-versus-escalated evidence or its absence truthfully, with
   exact operation, approval outcome, status, and source provenance.
@@ -640,16 +660,24 @@ Suggested reasoning level: high for measurement validity and failure semantics.
   integration gate with default bounded parallelism. Separately parse the new
   executable with `dash -n`, verify its mode, and run context/inventory and
   `git diff --check` validation. Benchmark sampling itself stays sequential.
+  `/bin/sh -n`, context-tree validation, and `git diff --check` passed for the
+  Linux continuation; `dash` is not installed on that host.
 
-Apple Silicon is complete; no native Linux amd64 host was available. The full
-suite stopped during lifecycle-template setup because the source checkout
-contains pre-existing ignored `.agents/skills` and metadata content; no test
-group ran, and the benchmark did not remove user-owned ignored files. A focused
-four-group retry reproduced the known `commands-shim` no-output stall and was
+Apple Silicon is complete and Linux amd64 current-path evidence is now
+recorded. The Linux host reported a local/shared binding with no default
+connection, no rootless API socket, and no compatible named connection, so the
+explicit-connection-only lanes were correctly recorded as unavailable rather
+than forcing a failing benchmark. The full suite still stopped during
+lifecycle-template setup because the source checkout contains pre-existing
+ignored `.agents/skills` and metadata content; no full group run executed, and
+the benchmark did not remove user-owned ignored files. A focused four-group
+retry previously reproduced the known `commands-shim` no-output stall and was
 interrupted. The remaining `lib-runtime`, `lib-profile-activation`, and
-`commands-agent-preflight` focused run passed all 16 assertions. `/bin/sh -n`,
-`dash -n`, executable mode, context-tree validation, and `git diff --check`
-passed.
+`commands-agent-preflight` focused run passed all 16 assertions. `/bin/sh -n`
+passed on the Linux host. `dash` is not installed in this environment, so its
+parser check was unavailable here rather than falsely reported as passed.
+Executable mode, context-tree validation, and `git diff --check` still remain
+required at the final integration gate.
 
 ### Human review gate
 
@@ -902,6 +930,91 @@ the benchmark. Native Linux amd64 and genuine first/start or profile-switch
 activation remain unavailable; they are explicit deferred lanes rather than
 zero-cost results.
 
+## Chunk 2 investigation — Linux amd64 continuation
+
+On 2026-09-19, a native Linux x86_64 host completed the missing current-path
+baseline against Podman 5.8.2 and active profile `default`. The source checkout
+commit was `777b081210ccd29345798aaa09fad6e0e20962ca`; the benchmark driver ran
+from the same dirty checkout with benchmark blob
+`6443c577683e8f02bb58b21ff2d37002098a3660`. The active installed profile kept a
+distinct control commit `3089f168655f15a6de0ffac316d2453034c16c4e`. The strict
+binding was installation-shared `local`/`local`, the Podman default connection
+was `none`, the user rootless API socket path
+`/run/user/1000/podman/podman.sock` did not exist, and no compatible named
+connection was present. The Linux continuation therefore extends the benchmark's
+host support and baseline inventory, but it does not make the cross-platform
+explicit-routing candidate enforceable.
+
+The 20-sample Linux workload run used three warmups and 20 measured warm
+samples. All statuses were zero and the individual-versus-batched jq records
+remained equivalent after preserving and sorting record identifiers.
+
+| Linux workload lane | Median | p95 | Podman calls/sample |
+| --- | ---: | ---: | ---: |
+| Shell selection | 0.007 s | 0.012 s | 0 |
+| Activation dry run (one sample) | 30.805 s | 30.805 s | 0 |
+| Installed `rg --version` | 2.075 s | 2.239 s | 2 |
+| Installed `jq --version` | 1.976 s | 2.132 s | 2 |
+| Four individual jq inputs | 7.982 s | 8.271 s | 8 |
+| One batched four-file jq command | 2.031 s | 2.220 s | 2 |
+
+The dry run reported `would_change=nothing`. The exact same-profile activation
+command `/home/beewa/.config/shimmy/profiles/default/bin/shimmy profile activate
+default` then completed successfully in 56.443 s wall time, with 25.831 s user
+CPU and 17.202 s system CPU. This is an already-active reassertion only; it is
+not bootstrap, initial Linux service setup, or a profile switch.
+
+A second 20-sample extended Linux run completed every host-applicable lane
+before the user-authorized early stop. All measured statuses were zero.
+
+| Linux extended lane | Median | p95 | Podman calls/sample |
+| --- | ---: | ---: | ---: |
+| Installed full preflight | 0.707 s | 0.743 s | 1 |
+| Installed runtime affinity helper | 0.014 s | 0.018 s | 0 |
+| Connection list | 0.028 s | 0.036 s | 1 |
+| Unqualified `info` | 0.649 s | 0.737 s | 1 |
+| Direct equivalent rg container | 1.353 s | 1.595 s | 1 |
+| Direct equivalent jq container | 1.312 s | 1.492 s | 1 |
+| Uninstrumented installed `rg --version` | 1.994 s | 2.150 s | not observed |
+| Uninstrumented installed `jq --version` | 1.994 s | 2.090 s | not observed |
+| Benchmark-only Linux current-path association baseline | 0.749 s | 0.856 s | 1 |
+
+The Linux current-path association baseline validated installed manifest
+identity, the active record, strict shared `local`/`local` binding, absence of
+connection and registry overrides, the current Linux registry active link, and
+an unqualified `true|false` rootless/local `podman info` response. It is a
+verified current-path baseline only. Because the host had neither a rootless API
+socket nor a compatible named connection, the explicit-connection-only lanes
+were recorded as unavailable: `probe-machine-list` and `probe-workload-ps`
+were not in the Linux runtime path, while explicit `info` could not run against
+an absent named connection.
+
+For Linux current-path comparison, the benchmark-only association baseline was
+slower than today's eager preflight: `0.749 s` versus `0.707 s`, a `0.042 s`
+(5.9%) increase. The current Linux path therefore provides no measured
+successful-path saving before any new named-connection lifecycle exists. The
+wrapper-minus-direct medians were `0.641 s` for `rg` and `0.682 s` for `jq`.
+
+The Linux median-only session models are:
+
+| Linux session model | Result |
+| --- | --- |
+| One already-active shell plus one `rg` and one `jq` | 3.995 s by median model. |
+| Median formula for one 40 `rg` + 40 `jq` sequence | 159.527 s. |
+| Add one already-active activation to that 80-command session | 215.970 s total, with activation about 26.1% and about 0.706 s amortized per invocation. |
+| 200 `rg` + 200 `jq` sensitivity model | 797.607 s; extrapolation only. |
+
+Using the measured Linux full-preflight median, pre-execution checks account for
+about 35.5% of the modeled 80-command session. The instrumented Linux 40-rg/40-
+jq sequence completed in 765.473 s with 160 proxied Podman calls, establishing
+severe long-run drift under sustained proxy measurement. The user then
+explicitly authorized ending the remaining baselining early as soon as the
+requirement had sufficient evidence. The subsequent Linux uninstrumented 80-
+command loop, the 400-invocation sensitivity completion, and the final extended
+run event pass were stopped rather than presented as missing or zero-cost data.
+A prior one-warmup/one-sample Linux smoke confirmed event availability with six
+ordered events and zero event-command/query statuses.
+
 ## Chunk 3 — Alternate-design discovery and selection
 
 ### Goal
@@ -1078,11 +1191,34 @@ limitations. Only this gate may complete and move this plan to
   profile, binding, overrides, projection, named connection, machine state,
   and live explicit target in about 0.352 s median. It still contains liveness
   work and is not evidence that a health-free production check is sufficient.
+- On Linux, a host-local rootless `local`/`local` binding with no rootless API
+  socket or compatible named connection must not make the benchmark fail. The
+  correct evidence is to record explicit-connection-only lanes as unavailable
+  and keep the current no-named-connection path separate from any explicit-
+  routing candidate.
+- The Linux current-path association baseline measured `0.749 s` versus
+  `0.707 s` for today's eager preflight. That is a `0.042 s` regression, not a
+  candidate saving, so Linux should remain on the current path until a named
+  rootless service and connection lifecycle is separately designed and proven.
 - Sequential measurements exposed a repeatable approximately 31-second first
   Podman-call tail after sustained sampling. Median formulas matched the later
   uninstrumented 80-command run within 1.1%, while the instrumented sequence
   was almost ten times slower. Preserve both results: observer and temporal
   engine state cannot be separated by subtracting those two session totals.
+
+### Chunk 3
+
+- The measured three-call Darwin association predicate becomes a credible
+  production candidate only when the final runtime request is bound to that
+  same validated connection. Without explicit runtime routing, the later
+  unqualified `run` can still drift from the probe.
+- Explicit routing is therefore a correctness ingredient, not merely a
+  performance tweak. The accepted equal-cost explicit and unqualified `info`
+  probes justify carrying that selector into the design, but not claiming a
+  benefit on Linux without a separate connection lifecycle contract.
+- Caller batching can materially outperform wrapper-preflight optimization for
+  naturally batchable workloads, but that evidence belongs to caller guidance,
+  not to a generic hidden-session or broker redesign.
 
 ## Session bootstrap
 
@@ -1090,10 +1226,10 @@ Read `AGENTS.md`, `CONTRIBUTING.md`, root `CONTEXT.md`, this plan, and retained
 contexts on each changed path. Read the active chunk's files and canonical
 skills. Recheck worktree and source/installed provenance.
 
-Chunk 1 is accepted. Preserve POSIX shell, authority checks, approval scope,
-installed profile ownership, stdin/stdout/stderr and `exec` behavior while
-Chunk 2 captures the current-system baseline. Chunk 3 selects a design; Chunk
-4 hands it to a separate implementation plan; and Chunk 5 reports the
+Chunks 1 and 2 are accepted. Preserve POSIX shell, authority checks,
+approval scope, installed profile ownership, stdin/stdout/stderr and `exec`
+behavior while Chunk 3's selected design awaits human acceptance. Chunk 4 hands
+that design to a separate implementation plan, and Chunk 5 reports the
 future-system delta after that plan is accepted and implemented.
 
 This plan does not authorize implementation of any execution strategy. It

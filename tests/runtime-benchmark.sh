@@ -23,12 +23,14 @@ profile, change a Podman connection, pull images, or build images.
 --review-only measures the exact current preflight and dormant context,
 affinity, and reachability review seams. It does not invoke a tool container.
 
---extended-only measures the installed full preflight, Darwin affinity,
-individual Podman probes, direct equivalent containers, instrumented versus
-uninstrumented wrappers, a benchmark-only minimum-association predicate, an
-actual 40-rg/40-jq session, a 200-rg/200-jq sensitivity session, and bounded
-container events. It does not activate a profile, change Podman connections or
-registry policy, force image pulls, or change event configuration.
+--extended-only measures the installed full preflight, host-applicable
+runtime-affinity work, individual Podman probes, direct equivalent containers,
+instrumented versus uninstrumented wrappers, a benchmark-only
+minimum-association review, an actual 40-rg/40-jq session, a 200-rg/200-jq
+sensitivity session, and bounded container events. Host-inapplicable explicit-
+connection lanes are reported as unavailable instead of failing the run. It
+does not activate a profile, change Podman connections or registry policy,
+force image pulls, or change event configuration.
 EOF
 }
 
@@ -93,7 +95,75 @@ runtime_benchmark_value_read() {
   sed -n "s/^$2=//p" "$1" | sed -n '1p'
 }
 
+runtime_benchmark_host_os_resolve() {
+  case "$(uname -s)" in
+    Linux) BENCHMARK_HOST_OS=linux ;;
+    Darwin) BENCHMARK_HOST_OS=darwin ;;
+    *) printf '%s\n' 'ERROR: unsupported benchmark host OS.' >&2; exit 1 ;;
+  esac
+}
+
+runtime_benchmark_rootless_socket_resolve() {
+  ROOTLESS_SOCKET_PATH=
+  if [ "$BENCHMARK_HOST_OS" = linux ] && [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    ROOTLESS_SOCKET_PATH=$XDG_RUNTIME_DIR/podman/podman.sock
+  fi
+}
+
+runtime_benchmark_connection_inventory_read() {
+  PODMAN_DEFAULT_CONNECTION=none
+  PODMAN_COMPATIBLE_NAMED_CONNECTION=none
+  PODMAN_COMPATIBLE_NAMED_CONNECTION_COUNT=0
+  PODMAN_CONNECTION_LINES=$(
+    "$REAL_PODMAN" system connection list --format '{{.Name}}|{{.URI}}|{{.Identity}}|{{.Default}}' 2>/dev/null || true
+  )
+  while IFS='|' read -r podman_connection_name podman_connection_uri \
+    podman_connection_identity podman_connection_default podman_connection_extra; do
+    [ -n "$podman_connection_name" ] || continue
+    case "$podman_connection_name" in *[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-]*) printf '%s\n' 'ERROR: discovered Podman connection name is invalid.' >&2; exit 1 ;; esac
+    [ -z "$podman_connection_extra" ] || {
+      printf '%s\n' 'ERROR: discovered Podman connection data is invalid.' >&2
+      exit 1
+    }
+    case "$podman_connection_default" in true|false) ;; *) printf '%s\n' 'ERROR: discovered Podman connection default flag is invalid.' >&2; exit 1 ;; esac
+    if [ "$podman_connection_default" = true ]; then
+      PODMAN_DEFAULT_CONNECTION=$podman_connection_name
+    fi
+    if [ "$BENCHMARK_HOST_OS" = linux ] && [ -n "$ROOTLESS_SOCKET_PATH" ] &&
+      [ "$podman_connection_uri" = "unix://$ROOTLESS_SOCKET_PATH" ] &&
+      [ -z "$podman_connection_identity" ]; then
+      PODMAN_COMPATIBLE_NAMED_CONNECTION_COUNT=$((PODMAN_COMPATIBLE_NAMED_CONNECTION_COUNT + 1))
+      PODMAN_COMPATIBLE_NAMED_CONNECTION=$podman_connection_name
+    fi
+  done <<EOF
+$PODMAN_CONNECTION_LINES
+EOF
+  if [ "$PODMAN_COMPATIBLE_NAMED_CONNECTION_COUNT" -gt 1 ]; then
+    PODMAN_COMPATIBLE_NAMED_CONNECTION=ambiguous
+  fi
+}
+
+runtime_benchmark_explicit_connection_resolve() {
+  case "$BENCHMARK_HOST_OS" in
+    darwin)
+      RUNTIME_EXPLICIT_CONNECTION=$EXPECTED_CONNECTION
+      ;;
+    linux)
+      case "$PODMAN_COMPATIBLE_NAMED_CONNECTION" in
+        none|ambiguous) RUNTIME_EXPLICIT_CONNECTION= ;;
+        *) RUNTIME_EXPLICIT_CONNECTION=$PODMAN_COMPATIBLE_NAMED_CONNECTION ;;
+      esac
+      ;;
+  esac
+}
+
+runtime_benchmark_explicit_connection_usable() {
+  [ -n "${RUNTIME_EXPLICIT_CONNECTION:-}" ]
+}
+
 runtime_benchmark_active_profile_discover() {
+  runtime_benchmark_host_os_resolve
+  runtime_benchmark_rootless_socket_resolve
   config_home=${XDG_CONFIG_HOME:-${HOME:?HOME is required}/.config}
   active_record=$config_home/shimmy/active-profile.conf
   [ -f "$active_record" ] && [ ! -L "$active_record" ] || {
@@ -140,8 +210,18 @@ runtime_benchmark_active_profile_discover() {
   }
   EXPECTED_CONNECTION=$(runtime_benchmark_value_read "$ENGINE_RECORD" connection)
   EXPECTED_MACHINE=$(runtime_benchmark_value_read "$ENGINE_RECORD" name)
-  case "$EXPECTED_CONNECTION" in ''|*[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-]*) printf '%s\n' 'ERROR: expected Podman connection is invalid.' >&2; exit 1 ;; esac
-  case "$EXPECTED_MACHINE" in ''|*[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-]*) printf '%s\n' 'ERROR: expected Podman machine is invalid.' >&2; exit 1 ;; esac
+  case "$BENCHMARK_HOST_OS:$EXPECTED_CONNECTION:$EXPECTED_MACHINE" in
+    linux:local:local)
+      ;;
+    linux:*)
+      printf '%s\n' 'ERROR: Linux runtime benchmark requires a local/local engine binding.' >&2
+      exit 1
+      ;;
+    darwin:*)
+      case "$EXPECTED_CONNECTION" in ''|*[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-]*) printf '%s\n' 'ERROR: expected Podman connection is invalid.' >&2; exit 1 ;; esac
+      case "$EXPECTED_MACHINE" in ''|*[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-]*) printf '%s\n' 'ERROR: expected Podman machine is invalid.' >&2; exit 1 ;; esac
+      ;;
+  esac
 
   RG_IMAGE_CONFIG=$PROFILE_ROOT/tools/rg/versions/15.1/image.conf
   JQ_IMAGE_CONFIG=$PROFILE_ROOT/tools/jq/versions/1.8/image.conf
@@ -236,22 +316,27 @@ runtime_benchmark_provenance_write() {
     printf 'podman_bin=%s\n' "$REAL_PODMAN"
     printf 'podman_version=%s\n' "$("$REAL_PODMAN" version --format '{{.Client.Version}}' 2>/dev/null || printf unavailable)"
     printf 'profile_control_commit=%s\n' "$(runtime_benchmark_value_read "$PROFILE_ROOT/install-manifest.txt" shimmy_source_ref)"
-    printf 'default_connection=%s\n' "$("$REAL_PODMAN" system connection list --format '{{range .}}{{if .Default}}{{.Name}}{{end}}{{end}}' 2>/dev/null || printf unavailable)"
+    printf 'default_connection=%s\n' "$PODMAN_DEFAULT_CONNECTION"
     printf 'expected_connection=%s\n' "$EXPECTED_CONNECTION"
     printf 'expected_machine=%s\n' "$EXPECTED_MACHINE"
+    printf 'explicit_runtime_connection=%s\n' "${RUNTIME_EXPLICIT_CONNECTION:-none}"
     printf 'binding_engine_id=%s\n' "$BINDING_ENGINE_ID"
     printf 'installed_rg_image=%s\n' "$RG_IMAGE"
     printf 'installed_jq_image=%s\n' "$JQ_IMAGE"
-    if [ "$(uname -s)" = Linux ]; then
-      printf 'rootless_socket=%s\n' "${XDG_RUNTIME_DIR:-unavailable}/podman/podman.sock"
-      if [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/podman/podman.sock" ]; then
+    if [ "$BENCHMARK_HOST_OS" = linux ]; then
+      printf 'rootless_socket=%s\n' "${ROOTLESS_SOCKET_PATH:-unavailable}"
+      if [ -n "$ROOTLESS_SOCKET_PATH" ] && [ -S "$ROOTLESS_SOCKET_PATH" ]; then
         printf '%s\n' 'rootless_socket_present=true'
       else
         printf '%s\n' 'rootless_socket_present=false'
       fi
+      printf 'compatible_named_connection=%s\n' "$PODMAN_COMPATIBLE_NAMED_CONNECTION"
+      printf 'compatible_named_connection_count=%s\n' "$PODMAN_COMPATIBLE_NAMED_CONNECTION_COUNT"
     else
       printf '%s\n' 'rootless_socket=not_applicable'
       printf '%s\n' 'rootless_socket_present=not_applicable'
+      printf '%s\n' 'compatible_named_connection=not_applicable'
+      printf '%s\n' 'compatible_named_connection_count=not_applicable'
     fi
   } > "$OUTPUT_DIR/provenance.conf"
 }
@@ -324,6 +409,13 @@ runtime_benchmark_lane_summary_write() {
       printf "\n"
     }
   ' "$sample_file" >> "$OUTPUT_DIR/summary.txt"
+}
+
+runtime_benchmark_lane_unavailable_write() {
+  lane=$1
+  reason=$2
+  : > "$RAW_DIR/$lane.samples"
+  printf 'lane=%s samples=0 status=unavailable reason=%s\n' "$lane" "$reason" >> "$OUTPUT_DIR/summary.txt"
 }
 
 runtime_benchmark_wrapper_run() {
@@ -412,7 +504,7 @@ runtime_benchmark_probe_connection_list_run() {
 runtime_benchmark_probe_workload_ps_run() {
   PATH="$OUTPUT_DIR/bin:$PATH"
   export PATH
-  podman --connection "$EXPECTED_CONNECTION" ps --format '{{.ID}}|{{.Names}}' >/dev/null
+  podman --connection "$RUNTIME_EXPLICIT_CONNECTION" ps --format '{{.ID}}|{{.Names}}' >/dev/null
 }
 
 runtime_benchmark_probe_info_unqualified_run() {
@@ -424,7 +516,7 @@ runtime_benchmark_probe_info_unqualified_run() {
 runtime_benchmark_probe_info_explicit_run() {
   PATH="$OUTPUT_DIR/bin:$PATH"
   export PATH
-  podman --connection "$EXPECTED_CONNECTION" info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}|{{.Host.Hostname}}|{{.Store.GraphRoot}}'
+  podman --connection "$RUNTIME_EXPLICIT_CONNECTION" info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}|{{.Host.Hostname}}|{{.Store.GraphRoot}}'
 }
 
 runtime_benchmark_direct_rg_run() {
@@ -467,25 +559,46 @@ runtime_benchmark_minimum_association_run() {
   shimmy_engine_profile_binding_resolve "$SHIMMY_CONFIG_ROOT" "$ACTIVE_PROFILE"
   [ "$SHIMMY_PROFILE_EXPECTED_MACHINE" = "$EXPECTED_MACHINE" ]
   [ "$SHIMMY_PROFILE_EXPECTED_CONNECTION" = "$EXPECTED_CONNECTION" ]
-  [ "$SHIMMY_PROFILE_EXPECTED_MACHINE" = "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ]
   shimmy_profile_activation_override_read
   [ "$SHIMMY_PROFILE_CONNECTION_OVERRIDE" = none ]
   shimmy_registries_override_read
   [ "$SHIMMY_REGISTRIES_OVERRIDE" = none ]
   shimmy_registries_config_validate "$SHIMMY_PROFILE_REGISTRIES_PATH" "$ACTIVE_PROFILE"
-  shimmy_engine_registry_projection_state_read "$SHIMMY_CONFIG_ROOT" "$ACTIVE_PROFILE" "$SHIMMY_PROFILE_ENGINE_ID"
-  [ "$SHIMMY_ENGINE_REGISTRY_PROJECTION_STATE" = current ]
   shimmy_engine_podman_bin_require
-  shimmy_engine_podman_machine_state_read "$SHIMMY_PROFILE_EXPECTED_MACHINE"
-  [ "$SHIMMY_ENGINE_MACHINE_STATE" = running ]
-  shimmy_engine_podman_connection_state_read "$SHIMMY_PROFILE_EXPECTED_CONNECTION"
-  [ "$SHIMMY_ENGINE_CONNECTION_STATE" = rootless ]
-  [ "$SHIMMY_ENGINE_DEFAULT_CONNECTION" = "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ]
-  association_info=$(shimmy_engine_podman_connection_run "$SHIMMY_PROFILE_EXPECTED_CONNECTION" \
-    info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}')
-  [ "$association_info" = 'true|true' ]
-  printf 'active_profile=%s binding=%s connection=%s overrides=none registry_projection=current machine=running target=rootless-remote\n' \
-    "$ACTIVE_PROFILE" "$SHIMMY_PROFILE_ENGINE_ID" "$SHIMMY_PROFILE_EXPECTED_CONNECTION"
+
+  case "$BENCHMARK_HOST_OS" in
+    darwin)
+      [ "$SHIMMY_PROFILE_EXPECTED_MACHINE" = "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ]
+      shimmy_engine_registry_projection_state_read "$SHIMMY_CONFIG_ROOT" "$ACTIVE_PROFILE" "$SHIMMY_PROFILE_ENGINE_ID"
+      [ "$SHIMMY_ENGINE_REGISTRY_PROJECTION_STATE" = current ]
+      shimmy_engine_podman_machine_state_read "$SHIMMY_PROFILE_EXPECTED_MACHINE"
+      [ "$SHIMMY_ENGINE_MACHINE_STATE" = running ]
+      shimmy_engine_podman_connection_state_read "$SHIMMY_PROFILE_EXPECTED_CONNECTION"
+      [ "$SHIMMY_ENGINE_CONNECTION_STATE" = rootless ]
+      [ "$SHIMMY_ENGINE_DEFAULT_CONNECTION" = "$SHIMMY_PROFILE_EXPECTED_CONNECTION" ]
+      association_info=$(shimmy_engine_podman_connection_run "$SHIMMY_PROFILE_EXPECTED_CONNECTION" \
+        info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}')
+      [ "$association_info" = 'true|true' ]
+      printf 'active_profile=%s binding=%s connection=%s overrides=none registry_projection=current machine=running target=rootless-remote\n' \
+        "$ACTIVE_PROFILE" "$SHIMMY_PROFILE_ENGINE_ID" "$SHIMMY_PROFILE_EXPECTED_CONNECTION"
+      ;;
+    linux)
+      [ "$SHIMMY_PROFILE_EXPECTED_MACHINE" = local ]
+      [ "$SHIMMY_PROFILE_EXPECTED_CONNECTION" = local ]
+      shimmy_registries_active_link_state_read
+      [ "$SHIMMY_REGISTRIES_ACTIVE_LINK_STATE" = current ]
+      association_info=$(shimmy_engine_podman_run info --format '{{.Host.Security.Rootless}}|{{.Host.ServiceIsRemote}}')
+      [ "$association_info" = 'true|false' ]
+      if [ -n "$ROOTLESS_SOCKET_PATH" ] && [ -S "$ROOTLESS_SOCKET_PATH" ]; then
+        rootless_socket_present=true
+      else
+        rootless_socket_present=false
+      fi
+      printf 'active_profile=%s binding=%s connection=%s overrides=none registry_link=current target=rootless-local compatible_named_connection=%s rootless_socket_present=%s\n' \
+        "$ACTIVE_PROFILE" "$SHIMMY_PROFILE_ENGINE_ID" "$SHIMMY_PROFILE_EXPECTED_CONNECTION" \
+        "$PODMAN_COMPATIBLE_NAMED_CONNECTION" "$rootless_socket_present"
+      ;;
+  esac
 }
 
 runtime_benchmark_session_run() {
@@ -569,15 +682,27 @@ runtime_benchmark_events_collect() {
   event_name=shimmy-runtime-benchmark-events-$$
   event_start=$(date +%s)
   set +e
-  "$REAL_PODMAN" --connection "$EXPECTED_CONNECTION" run --rm --name "$event_name" -i \
-    --platform "$BENCHMARK_PLATFORM" -v "$PWD:/work" -w /work "$JQ_IMAGE" --version \
-    > "$RAW_DIR/events-smoke.stdout" 2> "$RAW_DIR/events-smoke.stderr"
-  event_smoke_status=$?
-  event_end=$(date +%s)
-  "$REAL_PODMAN" --connection "$EXPECTED_CONNECTION" events \
-    --since "$event_start" --until "$((event_end + 2))" \
-    --filter "container=$event_name" --format '{{.Time}}|{{.Status}}|{{.Name}}' \
-    > "$RAW_DIR/container-events.txt" 2> "$RAW_DIR/container-events.stderr"
+  if runtime_benchmark_explicit_connection_usable; then
+    "$REAL_PODMAN" --connection "$RUNTIME_EXPLICIT_CONNECTION" run --rm --name "$event_name" -i \
+      --platform "$BENCHMARK_PLATFORM" -v "$PWD:/work" -w /work "$JQ_IMAGE" --version \
+      > "$RAW_DIR/events-smoke.stdout" 2> "$RAW_DIR/events-smoke.stderr"
+    event_smoke_status=$?
+    event_end=$(date +%s)
+    "$REAL_PODMAN" --connection "$RUNTIME_EXPLICIT_CONNECTION" events \
+      --since "$event_start" --until "$((event_end + 2))" \
+      --filter "container=$event_name" --format '{{.Time}}|{{.Status}}|{{.Name}}' \
+      > "$RAW_DIR/container-events.txt" 2> "$RAW_DIR/container-events.stderr"
+  else
+    "$REAL_PODMAN" run --rm --name "$event_name" -i \
+      --platform "$BENCHMARK_PLATFORM" -v "$PWD:/work" -w /work "$JQ_IMAGE" --version \
+      > "$RAW_DIR/events-smoke.stdout" 2> "$RAW_DIR/events-smoke.stderr"
+    event_smoke_status=$?
+    event_end=$(date +%s)
+    "$REAL_PODMAN" events \
+      --since "$event_start" --until "$((event_end + 2))" \
+      --filter "container=$event_name" --format '{{.Time}}|{{.Status}}|{{.Name}}' \
+      > "$RAW_DIR/container-events.txt" 2> "$RAW_DIR/container-events.stderr"
+  fi
   event_query_status=$?
   set -e
   event_count=$(wc -l < "$RAW_DIR/container-events.txt" | tr -d ' ')
@@ -592,11 +717,8 @@ runtime_benchmark_extended_measure() {
   for lane in \
     preflight-installed \
     affinity-installed \
-    probe-machine-list \
     probe-connection-list \
-    probe-workload-ps \
     probe-info-unqualified \
-    probe-info-explicit \
     direct-rg \
     direct-jq \
     rg-version-uninstrumented \
@@ -607,11 +729,32 @@ runtime_benchmark_extended_measure() {
     runtime_benchmark_lane_summary_write "$lane"
   done
 
-  cmp -s "$RAW_DIR/probe-info-unqualified.stdout" "$RAW_DIR/probe-info-explicit.stdout" || {
-    printf '%s\n' 'ERROR: unqualified and explicit-connection Podman info identify different targets.' >&2
-    exit 1
-  }
-  printf '%s\n' 'connection_probe_targets_equivalent=true' >> "$OUTPUT_DIR/summary.txt"
+  if [ "$BENCHMARK_HOST_OS" = darwin ]; then
+    for lane in probe-machine-list probe-workload-ps probe-info-explicit; do
+      runtime_benchmark_lane_measure "$lane"
+      runtime_benchmark_lane_summary_write "$lane"
+    done
+    cmp -s "$RAW_DIR/probe-info-unqualified.stdout" "$RAW_DIR/probe-info-explicit.stdout" || {
+      printf '%s\n' 'ERROR: unqualified and explicit-connection Podman info identify different targets.' >&2
+      exit 1
+    }
+    printf '%s\n' 'connection_probe_targets_equivalent=true' >> "$OUTPUT_DIR/summary.txt"
+  else
+    runtime_benchmark_lane_unavailable_write probe-machine-list not_in_linux_runtime_path
+    runtime_benchmark_lane_unavailable_write probe-workload-ps not_in_linux_runtime_path
+    if runtime_benchmark_explicit_connection_usable; then
+      runtime_benchmark_lane_measure probe-info-explicit
+      runtime_benchmark_lane_summary_write probe-info-explicit
+      cmp -s "$RAW_DIR/probe-info-unqualified.stdout" "$RAW_DIR/probe-info-explicit.stdout" || {
+        printf '%s\n' 'ERROR: unqualified and explicit-connection Podman info identify different targets.' >&2
+        exit 1
+      }
+      printf '%s\n' 'connection_probe_targets_equivalent=true' >> "$OUTPUT_DIR/summary.txt"
+    else
+      runtime_benchmark_lane_unavailable_write probe-info-explicit no_compatible_named_connection
+      printf '%s\n' 'connection_probe_targets_equivalent=unavailable' >> "$OUTPUT_DIR/summary.txt"
+    fi
+  fi
 
   runtime_benchmark_single_sample_measure session-40x40
   runtime_benchmark_single_sample_measure session-40x40-uninstrumented
@@ -642,10 +785,14 @@ runtime_benchmark_main() {
   runtime_benchmark_active_profile_discover
   runtime_benchmark_output_prepare
   runtime_benchmark_podman_proxy_create
+  runtime_benchmark_connection_inventory_read
+  runtime_benchmark_explicit_connection_resolve
   runtime_benchmark_provenance_write
   export ACTIVE_PROFILE PROFILE_ROOT PROFILE_LAUNCHER PROFILE_SHELL_INIT OUTPUT_DIR
   export EXPECTED_CONNECTION EXPECTED_MACHINE RG_IMAGE JQ_IMAGE
-  export BENCHMARK_PLATFORM
+  export BENCHMARK_HOST_OS BENCHMARK_PLATFORM ROOTLESS_SOCKET_PATH
+  export PODMAN_DEFAULT_CONNECTION PODMAN_COMPATIBLE_NAMED_CONNECTION PODMAN_COMPATIBLE_NAMED_CONNECTION_COUNT
+  export RUNTIME_EXPLICIT_CONNECTION
   export SESSION_COMMAND_COUNT SENSITIVITY_COMMAND_COUNT
 
   : > "$OUTPUT_DIR/summary.txt"
