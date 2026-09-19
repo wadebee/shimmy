@@ -187,6 +187,37 @@ A profile owns:
 
 A profile does **not** inherently own an engine.
 
+### Profile to Catalog Binding
+
+A catalog is the controlled source of tool definitions and supported versions.
+
+Profiles consume catalog content; catalog generations are immutable and versioned.
+
+  +-------------------------------------+
+  |           Profile State             |
+  |  (Pins specific catalog generation) |
+  +-------------------------------------+
+                     |
+                     | catalog pin (name|gen|commit|fingerprint)
+                     v
+  +-------------------------------------+      selects current / previous
+  |         Catalog Registry            | ------------------------------------+
+  | (~/.../catalogs/default/registry.conf)|                                   |
+  +-------------------------------------+                                   |
+                     |                                                      |
+                     | tracks source provenance                             |
+                     v                                                      v
+  +-----------------------------------------------------------------------------------+
+  |                          Immutable Catalog Generation                             |
+  | (~/.../catalogs/default/generations/sha256-<fingerprint>/)                        |
+  |                                                                                   |
+  |   +-------------------+              +----------------------------------------+   |
+  |   |  generation.conf  |              |                 tools/                 |   |
+  |   | (Parser metadata  |              |  (Canonical tool definitions & skills) |   |
+  |   |  & Provenance)    |              +----------------------------------------+   |
+  |   +-------------------+                                                           |
+  +-----------------------------------------------------------------------------------+
+
 ### Engine
 
 An engine represents one execution environment.

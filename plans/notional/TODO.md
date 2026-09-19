@@ -22,38 +22,16 @@ There’s no host gofmt binary on PATH
 
 The bundled skill validator could not run because PyYAML is missing in this environment: ModuleNotFoundError: No module named 'yaml'
 
-# -----------
-note: the installer still reported an update to $HOME/.zshrc even with --no-startup, which is worth treating as a separate installer behavior issue if you want that flag to be strictly non-mutating for startup files. That looks like a separate installer behavior issue worth fixing if --no-startup should mean “do not touch startup files.”
+# -----------  the installer still reported an update to $HOME/.zshrc even with --no-startup
+ worth treating as a separate installer behavior issue if you want that flag to be strictly non-mutating for startup files. That looks like a separate installer behavior issue worth fixing if --no-startup should mean “do not touch startup files.”
 
-# -----------
-Do you want to allow the aws Shimmy wrapper to run Podman outside the sandbox for this non-mutating smoke check?  
-    aws --version 
-    shimmy test
+# ----------- the Shimmy rg wrapper only mounts the current repo at /work
+ so it can’t search the temp clone under /private/tmp
 
-# -----------
-One wrinkle: the Shimmy rg wrapper only mounts the current repo at /work, so it can’t search the temp clone under /private/tmp
-
-# -----------
-Always operate in PLAN → REVIEW → ACT mode:
-
-- Always produce a plan first
-    - The one exception is if the prompt is a question or a request for information that only requires you to perform a non-mutating action like search.
-- When planning:
-  - If uncertain, ask clarifying questions instead of guessing.
-  - Identify risks, assumptions and best practices you embrace.
-  - Revise plan if feedback is provided
-- When planning is complete, provide the user with a prompt button requesting approval to execute the plan.
-- NEVER ACT without user approval 
-- Do not deviate from approved plan without re-review
-- If I explicitly say to implement, fix, run, or proceed, that counts as plan approval so you may ACT however you may NEVER modify files immediately.
-- Before acting, read AGENTS.md and follow its execution model.
-- After approval, proceed through implementation, verification, and summary.
-- It is important that you use Shimmy tools when available. This requires Podman to be running. If anything prevents you from running a preferred tool with Shimmy backing, pause execution and prompt the user for a remediation plan.  
-# -----------
+# ----------- Update opnsense-mcp-read-only shim
 shimmy update --shim opnsense-mcp-read-only --build
 
-# -----------
-Correct this tmp mount to rg container issue
+# ----------- Correct this tmp mount to rg container issue
 Ran git clone https://github.com/lucamarien/opnsense-mcp-server.git /private/tmp/shimmy-opnsense-mcp-read-only-src
 Ran git clone https://github.com/floriangrousset/opnsense-mcp-server.git /private/tmp/shimmy-opnsense-mcp-admin-src
 
@@ -70,7 +48,7 @@ The upstream clone commands completed, but the follow-up search could not see th
 
 The temp clones are present; the earlier rg failed because the Shimmy rg wrapper only sees the mounted working directory. I’ll run rg from inside each clone so the wrapper can inspect the pinned source safely.
 
-# ---------
+# --------- Install command stale manifest issue
 The install commands exposed a stale manifest issue: the repo skills manifest still tracks the removed old skill, and skills install <new-skill> combines requested skills with existing manifest entries before validating sources. I’m going to make the installer tolerate stale manifest entries whose source skill no longer exists, then rerun the mandated commands.
 
 Read a fileRead .shimmy Skills Manifest.txt skill
@@ -116,3 +94,8 @@ default. This future work is intentionally excluded from
 # Uninstall warning
   Constrain this to darwin hosts -->
   WARNING: uninstall permanently destroys containers, images, volumes, build caches, and all other VM-local data in every provably Shimmy-owned Podman machine.
+
+#  ~/.../catalogs/default/registry.conf changes
+  Rename to catalog.conf
+  ?peg catalog_generation_current to catalog_source_commit=6edd8f?
+  how can catalog_content_fingerprint be consolidated to just source commit sha as well?
