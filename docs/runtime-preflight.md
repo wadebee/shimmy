@@ -138,19 +138,16 @@ cost results.
 | Add one already-active activation to that 80-command session | About 133.696 s total, with activation about 23.2%. | About 215.970 s total, with actual same-profile activation about 26.1%. |
 | 200 `rg` + 200 `jq` sensitivity model | 519.007 s; extrapolation only. | 797.607 s; extrapolation only. |
 
-Two component comparisons matter for design selection:
+Two runtime component comparisons matter for design selection:
 
 - Full preflight median `0.508 s` versus benchmark-only minimum association
   `0.352 s` leaves a modeled `0.156 s` successful-path Darwin saving per wrapper
   invocation before any future-system verification.
 - Linux current-path full preflight `0.707 s` versus Linux current-path
   association baseline `0.749 s` is a modeled `0.042 s` regression, so the
-  current Linux data supports no successful-path saving before a separately
-  designed named-connection lifecycle exists.
-- Four separate jq wrapper runs `5.222 s` versus one batched jq wrapper run
-  `1.305 s` on Darwin, and `7.982 s` versus `2.031 s` on Linux, show that
-  caller-controlled batching can dwarf wrapper preflight savings when a
-  workload is naturally batchable.
+  current Linux data demonstrates no saving from the tested association path.
+  A named-routing alternative remains unmeasured and requires a separate
+  lifecycle contract.
 
 ## Ownership boundaries
 
@@ -163,237 +160,258 @@ Two component comparisons matter for design selection:
 | `lib/runtime/image.sh` | External/local image configuration plus local build and stale-image cleanup. | Extra preflights owned by local-image flows remain visible and out of scope for a wrapper-only optimization claim. |
 | `tools/*/versions/*/run.sh` | Tool-specific arguments, mounts, environment, image selection, and the final runtime call. | Shared authority must stay in shared helpers, not per-tool copies. |
 
-## Design matrix
+## Design matrix — reevaluated with Linux amd64 evidence
 
-The matrix below uses only accepted baseline evidence.
+Reevaluated on 2026-09-19. Chunk 2 is accepted on both native platforms;
+Chunk 3's recommendation remains pending review. Candidate E is excluded by
+the user's instruction. Candidate F is outside this selection. Its findings
+are retained in the assessment plan's pending-transfer section until the
+skill-required confirmation permits creation of the proposed future plan
+`plans/notional/caller-batching-and-reuse.md`.
 
-| Candidate | Retained successful-path Podman requests | Authority outcome | Failure and approval behavior | Compatibility and implementation surface | Baseline cost view | Rollback |
-| --- | --- | --- | --- | --- | --- | --- |
-| A. Current eager path | Darwin: machine list, connection list, workload `ps`, explicit-connection `info`, unqualified `info`; Linux: unqualified `info` | Preserves current behavior. Darwin still has a default-connection race between explicit probe and unqualified `run`. Linux has reachability only, not the retained-authority proof from Decision 2. | Unchanged. Existing wrapper approval boundary and `exec` remain. | No change. | Accepted baseline: Darwin `0.508 s` preflight median and `1.409 s`/`1.419 s` wrapper medians for `rg`/`jq`; Linux `0.707 s` preflight median and `1.994 s`/`1.994 s` uninstrumented wrapper medians. | No-op. |
-| B. Minimum association without explicit routing | Verified Darwin review lane keeps machine list, connection list, explicit-connection `info`; omits workload `ps` and unqualified `info` | Incomplete. The explicit probe can prove facts about the expected connection, but the later unqualified `run` can still drift with the mutable default. | Approval boundary unchanged. Failure reporting would still remain wrapper-local only before `exec`. | Smaller helper surface than execution-first, but not sufficient without a routing change. | Darwin review lane median `0.352 s`; modeled successful-path saving `0.156 s` per wrapper versus current eager preflight. | Restore current eager preflight helper. |
-| C. Explicit derived-connection routing only | Same requests as current eager path, but runtime Podman operations use a binding-derived `--connection` where available | Improves authority by binding live operations to the validated connection. Alone it does not remove status-only work or reduce call count. | Approval boundary unchanged. Final runtime still uses direct wrapper approval. | Shared runtime command assembly changes; Linux cross-platform form needs a separate socket/connection lifecycle contract. | Explicit versus unqualified `info` had equal `0.094 s` median at 1 ms resolution on the accepted Darwin host. Linux had no compatible named connection, so there is no accepted selector-cost datum. | Revert runtime command assembly to unqualified Podman calls. |
-| D. Darwin minimum association plus explicit derived connection routing | Darwin keeps the verified three-call review predicate: machine list, connection list, explicit-connection `info`, and routes runtime Podman calls with the same binding-derived `--connection`. Linux stays on candidate A until a separate lifecycle decision exists. | Smallest accepted design with an explicit Darwin authority proof: active profile, binding, overrides, registry policy, expected named connection, and live explicit target all remain aligned, and the final `run` uses the same derived selector. | Approval boundary unchanged. No replay, no parent supervisor, and live execution can still end in `exec`. | Shared-runtime change on Darwin only for the first implementation. Linux explicit routing remains a separate post-plan issue. | Uses accepted `0.352 s` Darwin predicate as the closest verified current-state analogue. Modeled Darwin saving versus current eager preflight: `0.156 s` per wrapper, about `12.48 s` across an 80-command 40+40 session. Linux current-path association was slower than current eager preflight (`0.749 s` versus `0.707 s`) and still lacked an explicit-routing proof. | Gate by platform/verified binding; fall back to candidate A on Linux or on any host without the required validated named connection. |
-| E. Guarded execution-first supervision | None on the successful path before dispatch; any retained authority checks would move into a parent supervisor or post-failure diagnosis path | Unproven. A successful command cannot by itself prove it ran under the authorized profile and policy. | Must preserve original status, signals, partial output, stdin, and no-replay semantics. Approval reuse after a known sandbox denial stays external to Shimmy. | Highest complexity: replaces final `exec` with a supervising parent and needs new failure transport rules. | Accepted baseline does not measure supervisor overhead `S`, failure cost `fD`, or sandbox-denial replay term `qR`, so benefit is not established. | Restore direct `exec` path and current eager preflight. |
-| F. Caller batching or reuse | Depends on caller. For jq batch evidence, one wrapper/container run replaces four independent runs. | Preserves authority only per resulting wrapper invocation. It is a caller/workflow optimization, not a general wrapper contract. | Approval boundary unchanged for ordinary batching; a broker or reusable session would broaden it and needs a separate contract. | Outside generic wrapper policy unless a tool explicitly defines batched semantics. | Accepted jq evidence: `5.222 s` for four separate runs versus `1.305 s` batched. | Revert caller behavior; wrapper contract unchanged. |
+Counts below exclude the final container `run` and tool/image-specific extra
+work. Candidate letters are retained so earlier review references remain clear.
 
-## Retained-request inventory by candidate
+| Candidate | Darwin successful path | Linux successful path | Authority and compatibility | Cost finding | Disposition and rollback |
+| --- | --- | --- | --- | --- | --- |
+| A. Current eager path | Machine list, connection list, explicit workload `ps`, explicit `info`, generic `info`: 5 calls | Generic `info`: 1 call, after manifest identity validation | Preserves current behavior. Darwin's unqualified `run` still follows the mutable default. Linux runtime does not enforce Decision 2's active-record/binding/registry checks. | Preflight medians: Darwin 0.508 s; Linux 0.707 s. | Retain on Linux and as a reviewed code rollback; no optimization or stronger Linux authority claim. |
+| B. Minimum association without explicit routing | Machine list, connection list, explicit `info`: 3 calls | Local identity, active record, binding, override and registry-link validation plus generic `info`: 1 call | Darwin still probes one target then executes against a mutable default. Linux adds useful checks but its unqualified dispatch is not explicit routing. | Darwin analogue 0.352 s, modeled 0.156 s saving. Linux analogue 0.749 s, 0.042 s (5.9%) slower than A; no demonstrated saving. | Reject as the selected optimization. Revert the dedicated runtime predicate to A. |
+| C. Explicit derived-connection routing only | Keep A's 5 calls; route engine requests, including both `info` probes and final `run`, through the derived connection | A universal version requires a new service/connection contract; no applicable timing on the accepted host | Addresses default-selector drift on Darwin, retaining status work. Linux `local` is a binding sentinel, not a usable connection name. | Darwin explicit and generic `info` each measured 0.094 s; no measurable selector penalty in that lane, not an end-to-end C measurement. Linux selector cost unknown. | Retain routing as part of D, not as the primary cost reduction. Reviewed code rollback to A. |
+| D. Darwin minimum association plus derived routing | B's 3 calls, with final `run` and applicable engine requests routed through the same derived selector | Exactly A: 1 preflight call, direct local execution; no service or connection setup | Recommended scoped improvement. Retains Darwin active-profile/policy checks and removes dependence on the default selector at dispatch. Preserves Linux compatibility but does not close its authority gap. | Closest measured Darwin analogue is 0.352 s: modeled saving 0.156 s/call, 12.48 s/80 calls. Linux saving is zero by design. Production D has not been measured. | Recommend for review. Invalid Darwin authority stops execution; it never triggers a weaker runtime fallback. Linux uses A by design. Code rollback is a separate reviewed action. |
 
-### Candidate A — current eager path
+All four candidates preserve the outer-wrapper approval boundary, direct final
+`exec`, stream ownership, tool exit status, and no automatic replay. Failures
+before `exec` use wrapper guidance; failures after `exec` remain Podman's/tool's
+result. No candidate adds a parent supervisor or post-run classifier.
 
-- `podman machine list`
-  - proves: Darwin machine identity and running status;
-  - class: routing plus status.
-- `podman system connection list`
-  - proves: expected named connection exists and is recorded rootless/default;
-  - class: routing and authority.
-- `podman --connection <expected> ps`
-  - proves: workload status only;
-  - class: status.
-- `podman --connection <expected> info`
-  - proves: explicit target reachability and rootless/remote target shape;
-  - class: routing plus reachability.
-- `podman info`
-  - proves: current default-target reachability only;
-  - class: reachability.
+### What the Linux evidence changes
 
-The accepted baseline shows that `workload ps` is status-only for runtime
-authority, and the final generic `info` duplicates liveness work without proving
-that the later unqualified `run` cannot drift.
+- Linux has one expensive pre-run probe (0.649 s `info` median), not Darwin's
+  five-request status path. Removing Darwin `ps` or a second `info` offers
+  nothing on Linux because those requests are already absent.
+- The 0.749 s association lane validates more state than the 0.707 s current
+  preflight. Its 0.042 s difference is a comparison of lane medians, not an
+  isolated overhead estimate or a statistically established universal penalty.
+  It demonstrates no saving from the tested local-path alternative.
+- An absent API socket does not mean the Linux engine is unhealthy: the accepted
+  local wrapper runs succeeded. `--connection` enables remote/API mode, so
+  adding it is a transport and lifecycle change, not merely an argv adjustment.
+  [Podman global options](https://docs.podman.io/en/latest/markdown/podman.1.html#connection-c),
+  [Podman service](https://docs.podman.io/en/latest/markdown/podman-system-service.1.html).
+- This rules out a universal named-connection rollout from this evidence. It
+  does not prove that every possible future direct-local Linux optimization
+  requires a socket, or that stronger Linux authority checks have no value.
+- Linux's instrumented 80-command sequence (765.473 s) is drift evidence, not
+  an interchangeable baseline for its 159.527 s uninstrumented median model.
+  The stopped uninstrumented session cannot establish an observed speedup.
 
-### Candidate B — minimum association without explicit routing
+## Candidate implementation sketches
 
-- `podman machine list`
-  - proves: expected machine still exists and is running;
-  - class: routing plus status.
-- `podman system connection list`
-  - proves: expected named connection still exists with the expected rootless
-    characteristics;
-  - class: routing and authority.
-- `podman --connection <expected> info`
-  - proves: the expected explicit target is reachable and reports the required
-    rootless/remote identity;
-  - class: routing plus reachability.
+These are low-fidelity call flows, not executable patches. Existing names refer
+to inspected source; names marked **proposed** describe future shared seams.
+Every validation failure must return explicitly, including when called from a
+conditional under `set -e`. No sketch authorizes implementation.
 
-This candidate fails the authority goal because the final `podman run` would
-remain unqualified.
+### Candidate A — preserve the existing call flow
 
-### Candidate C — explicit derived-connection routing only
+```sh
+# Existing version-owned runtime, e.g. tools/jq/versions/1.8/run.sh
+shimmy_podman_preflight_or_preview_require "the jq shim" "$@"
+# Live branch calls, in order:
+#   shimmy_podman_bin_require
+#   shimmy_podman_platform_resolve
+#   shimmy_podman_profile_affinity_require
+#     Darwin: shimmy_profile_state_read -> machine/connection/ps/info
+#     Linux: validate installed manifest identity, then return
+#   "$SHIMMY_PODMAN_BIN" info
+shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run ... "$@"
+# Existing live helper: exec "$@"
+```
 
-- retains candidate A's request inventory;
-- changes meaning by routing live runtime Podman requests through the strict
-  binding's derived connection rather than the mutable default.
+No implementation changes. Preview keeps its engine-free binary/platform path.
+This is the baseline, not a proposed repair of Linux runtime authority.
 
-The connection selector must come only from the validated strict binding. It is
-not user input, not a wrapper argument, and not an environment-selected runtime
-override. A later implementation must reject override states exactly as the
-current affinity check does rather than silently accepting them.
+### Candidate B — dedicated association predicate, unqualified dispatch
 
-### Candidate D — selected primary design
+```sh
+# Proposed shared predicate, based on runtime_benchmark_minimum_association_run.
+shimmy_podman_runtime_association_require "$runtime_profile" || return 1
+# Then existing helper receives an unqualified command:
+shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run ... "$@"
+```
 
-Darwin keeps only the accepted review predicate's three requests:
+The proposed predicate would use these existing seams after loading validated
+installed helpers and resolving the invoking canonical profile:
 
-- `podman machine list`
-  - proves: the binding's expected machine exists and is running;
-  - class: routing plus status.
-- `podman system connection list`
-  - proves: the binding's expected connection exists, is rootless, and remains
-    consistent with the installed profile's binding metadata;
-  - class: routing and authority.
-- `podman --connection <expected> info`
-  - proves: the same explicit target used for live runtime requests is reachable
-    and reports the required rootless/remote identity;
-  - class: routing plus reachability.
+```text
+shimmy_profile_runtime_manifest_identity_validate(manifest, profile)
+shimmy_profile_manifest_read(manifest)
+shimmy_active_profile_read(active_record) -> require invoking profile
+shimmy_engine_profile_binding_resolve(config_root, profile)
+shimmy_profile_activation_override_read() -> require none
+shimmy_registries_override_read() -> require none
+shimmy_registries_config_validate(registry_path, profile)
+Darwin:
+  shimmy_engine_registry_projection_state_read(root, profile, engine_id)
+    -> require current
+  shimmy_engine_podman_machine_state_read(expected_machine) -> require running
+  proposed same-response validation -> require only the expected machine running
+  shimmy_engine_podman_connection_state_read(expected_connection)
+    -> require rootless and current default matches expected connection
+  shimmy_engine_podman_connection_run(expected_connection, info, format)
+    -> require true|true (rootless, remote)
+Linux:
+  require strict local/local binding
+  shimmy_registries_active_link_state_read() -> require current
+  shimmy_engine_podman_run(info, format) -> require true|false (rootless, local)
+```
 
-This first implementation deliberately retains the measured three-call Darwin
-predicate rather than inventing a smaller unverified proof. It removes only the
-accepted status-only `ps` request and the redundant generic default-target
-`info`, then binds the final runtime request to the same validated explicit
-connection.
+The Darwin metadata calls provide routing/state evidence; explicit `info`
+provides target shape and reachability, not unique machine identity. Linux's
+single `info` provides local/rootless shape and reachability. Local file checks
+provide active-profile and policy evidence. Neither branch lists workloads.
 
-Linux remains on candidate A because the accepted record now shows a
-host-local current path with no rootless API socket, no compatible named
-connection, and no measured successful-path saving from the current-path
-association baseline. A named local rootless connection and its lifecycle still
-lack accepted proof.
+Files: a dedicated runtime predicate in `lib/runtime/podman.sh`,
+`lib/engine/podman.sh` machine-response facts and existing registry primitives, `tests/lib/runtime.sh`, and runtime guidance. Keep
+`shimmy_profile_state_read` intact for management. B is not selected because
+its dispatch still depends on ambient routing and its Linux lane saves no time.
 
-### Candidate E — guarded execution-first supervision
+### Candidate C — keep eager checks and add shared derived routing
 
-No retained request inventory can be called authoritative without redesigning
-the wrapper contract. Any such design would need to spell out which, if any,
-local authority checks still run before dispatch and how post-failure diagnosis
-is distinguished from replay.
+```text
+shimmy_podman_preflight_or_preview_require(context, argv)
+  existing eager authority/status path
+  proposed shimmy_podman_runtime_connection_resolve()
+    -> copy validated Darwin binding's expected connection into internal state
+  generic reachability probe -> proposed shimmy_podman_runtime_request(info)
+version runtime assembles its existing mounts, environment, image and argv
+shimmy_podman_run_or_preview(podman_binary, run, ...)
+  preview -> existing renderer
+  live ordinary Darwin -> exec podman_binary --connection derived_name run ...
+  live Linux -> existing exec argv
+```
 
-### Candidate F — caller batching or reuse
+`shimmy_podman_runtime_request` is a **proposed**, non-`exec` shared helper for
+runtime-owned engine calls such as image inspection/build/cleanup and tool
+rootless probes. It prepends the validated connection on applicable Darwin
+calls and otherwise preserves existing argv. Machine and connection inventory
+are client discovery calls, not engine workloads; do not blindly prefix them.
+Keep positional arguments intact, with no `eval` or string-based command assembly.
 
-The accepted jq evidence replaces four full wrapper/container invocations with
-one. That reduces all per-wrapper checks together. It is materially beneficial
-when a caller already has a batchable workload, but it is not evidence that the
-generic runtime should grow a session broker or hidden batching layer.
+Files: `lib/runtime/podman.sh`, `lib/runtime/image.sh`, direct runtime-owned
+Podman callers in `tools/*/versions/*/run.sh`, relevant runtime/tool tests and
+guidance. `tools/nmap/versions/7.98/run.sh` has a direct rootless `info` probe;
+changing only the final `exec` would miss it. Installed adoption remains an
+explicit profile synchronization/materialization step.
 
-## Execution-first supervision decision table
+For a universal C, Linux needs a separately reviewed API-service/connection
+lifecycle and validators that understand local Unix socket connections. Current
+`shimmy_engine_podman_connection_state_read` recognizes Darwin SSH rootless
+connection shapes; it cannot simply be reused for that Linux contract.
 
-The accepted baseline does not justify selecting an execution-first design, but
-the rejection is only credible if the failure semantics are explicit.
+### Candidate D — combine B's Darwin predicate and C's routing
 
-| Situation | Required supervisor behavior | Result preserved? | Replay allowed? |
-| --- | --- | --- | --- |
-| Wrapped tool returns a normal nonzero status | Return the child's exact exit status without reclassifying it as infrastructure failure. | Yes. Exact child status. | No. |
-| Sandbox denial before dispatch | Preserve the denial result. Suggest the same exact outer wrapper command only where the agent policy already permits escalation reuse. | Yes. Original denial. | No automatic replay. Human or agent retries explicitly outside Shimmy. |
-| Connection failure before container start | Preserve the failing status and any already-emitted output. Optional post-failure diagnosis must stay read-only. | Yes. | No. |
-| Uncertain response after dispatch | Treat the command as semantically ambiguous. A lost response does not prove no work occurred. | Yes, with ambiguity recorded. | No. |
-| Image/setup failure | Return the original failure exactly. Do not convert setup failure into wrapped-tool semantics. | Yes. | No. |
-| Signal during execution | Forward the signal to the child, wait, and return signal-derived termination status. | Yes. | No. |
-| stdin already consumed or partially consumed | Forward stdin directly and do not attempt another run. | Yes. | No. |
-| TTY/interactive behavior | Preserve direct terminal attachment; do not insert buffered capture that changes interactivity. | Yes. | No. |
-| Partial stdout/stderr already emitted | Stream directly and preserve partial output ordering. | Yes. | No. |
-| Shell redirection already applied by the caller | Treat pre-dispatch filesystem side effects as already real. | Yes. | No. |
+```text
+shimmy_podman_preflight_or_preview_require(context, argv)
+  existing preview path -> return without engine access
+  existing binary/platform resolution
+  resolve invoking runtime context
+  installed Darwin, ordinary rootless path:
+    proposed shimmy_podman_runtime_association_require(profile)
+      -> B's Darwin checks, exactly 3 Podman calls
+    proposed shimmy_podman_runtime_connection_resolve()
+      -> retain validated expected connection in internal same-process state
+      -> publish existing profile:current Skopeo affinity marker after success
+  Linux / source runtime / existing privileged opt-in path:
+    existing eager path A
+version runtime assembles arguments
+applicable intermediate engine calls -> proposed shimmy_podman_runtime_request(...)
+shimmy_podman_run_or_preview(podman_binary, run, ...)
+  ordinary installed Darwin -> exec podman_binary --connection derived_name run ...
+  other paths -> existing exec argv, including separately verified rootful selector
+```
 
-A supervisor candidate would therefore need all of the following just to remain
-behaviorally acceptable:
+Implementation boundaries for the handoff:
 
-- keep child stdin/stdout/stderr unbuffered and directly forwarded;
-- preserve process-group and signal semantics for `INT`, `TERM`, `HUP`, and
-  `QUIT`;
-- avoid raw stderr classification or argv capture in the first implementation;
-- perform only read-only cleanup such as temporary diagnostic files; and
-- work under sourced callers using `set -e` without skipping cleanup or
-  rewriting child status.
+1. Derive the selector only after successful validation; reset internal route
+   state on entry so an inherited value cannot select a connection. Call the
+   predicate in the invoking shell, not in a command substitution that loses
+   assignments. It is not a new public environment override or persistent cache.
+2. Retain the benchmark predicate's matching-default check initially. Explicit
+   dispatch closes default-selector drift after that check; relaxing the check
+   is a separate compatibility decision, not needed to obtain the modeled gain.
+3. Invalid/missing Darwin binding, projection, connection, or live target evidence
+   fails before dispatch. Do not switch to A in response to validation failure.
+   Linux/source/privileged selection of the existing path is decided by runtime
+   context before attempting D, not by catching an authority error.
+4. Preserve the existing privileged opt-in and rootful verification path,
+   including `shimmy_podman_privileged_connection_require`. Do not prepend a
+   rootless selector over the explicitly verified rootful selector. Exclude
+   privileged calls from the three-call and savings claims.
+5. Keep Skopeo's existing registry mount capability and same-process affinity
+   handoff. The resolver may be called inside a subshell; do not rely on its
+   assignments becoming visible to the parent. Do not weaken its independent
+   active-record, path, config, or override checks.
+6. Preserve the current Darwin rejection of multiple/alternate running machines.
+   The benchmark's `shimmy_engine_podman_machine_state_read` checks the expected
+   machine but does not expose the current status reader's running-machine
+   count. Extend its same-response facts (or use a dedicated runtime parser)
+   to enforce that existing condition without another Podman request. Do not
+   copy the benchmark predicate verbatim and silently weaken this behavior.
+   Additional parsing cost remains unmeasured even with the same call count.
+7. Route applicable local-image operations consistently, while retaining their
+   existing extra preflights and build/pull policy. Do not claim a three-call
+   total for those flows. Management calls retain their existing ownership.
+8. A named selector does not lock its connection definition, active record, or
+   registry state. Concurrent external mutation remains a check/use limitation.
+   Current metadata helpers validate names, URI shape and state, not immutable
+   endpoint identity; `true|true` is not an ownership attestation. D improves
+   default selection while preserving the existing trust boundary; it is not
+   proof against arbitrary same-user configuration changes.
 
-That complexity is not justified by the accepted evidence because the baseline
-measures neither supervisor success-path cost nor failure-rate terms.
+Files: B and C's combined shared-runtime and direct-caller surfaces, installed
+materialization consumers, runtime/registry/tool tests and documentation. Chunk
+4 must enumerate concrete callers and acceptance cases before implementation.
+No benchmark-only helper may become a production dependency.
 
-## Selected design
+## Selection and review gate
 
-### Primary design
+Recommend **D for ordinary installed Darwin rootless execution, with A retained
+on Linux and on explicitly excluded source/privileged paths**. D is the smallest
+candidate that combines the measured Darwin predicate with explicit dispatch.
+Its prediction remains 0.156 s per invocation, or 12.48 s across 80 invocations;
+neither figure is an observed production D result. Linux keeps its current cost
+and its current weaker runtime authority checks.
 
-Select candidate D:
+Reject B as the optimization selection because its target probe does not bind
+later dispatch and Linux shows no measured saving. C supplies D's routing
+mechanism but retains the eager status workload. A remains a compatible baseline
+and a deliberate code rollback, not a recovery branch after D validation fails.
 
-**Darwin minimum association plus explicit derived connection routing, with the
-current eager path retained everywhere else.**
+Acceptance must cover platform scope, retained live `info`, privileged/source
+exceptions, residual configuration races, and the distinction between a measured
+predicate and an implemented end-to-end design. It authorizes Chunk 4's separate
+implementation handoff only when the user explicitly directs that work.
 
-The first implementation should:
-
-1. keep the current Linux runtime path unchanged;
-2. keep production approval boundaries unchanged;
-3. keep final live execution in `exec`;
-4. derive the Darwin runtime `--connection` selector only from the validated
-   strict binding;
-5. replace Darwin successful-path `workload ps` and generic unqualified `info`
-   with the accepted three-call review predicate; and
-6. fail closed to the current eager path when the required validated named
-   connection evidence is unavailable.
-
-### Why this design was selected
-
-- It is the smallest candidate backed by an accepted explicit authority proof on
-  the measured host.
-- It preserves Decision 2's retained-authority model instead of replacing it
-  with optimistic execution.
-- It removes only work the accepted baseline already classified as status-only
-  (`ps`) or redundant with the derived explicit route (generic default-target
-  `info`).
-- The accepted Darwin host showed no measurable selector overhead between
-  explicit and unqualified `info`, so the routing change does not spend the
-  recovered budget.
-- Its modeled Darwin saving is bounded and concrete: `0.156 s` per wrapper, or
-  about `12.48 s` across the measured 40-`rg`/40-`jq` session, without inventing
-  Linux or execution-first benefits.
-- It leaves the unresolved Linux socket/connection lifecycle outside the first
-  implementation rather than smuggling in a new ownership contract.
-
-### Fallback
-
-Fallback to candidate A:
-
-**Keep the current eager path on Linux and on any installation that cannot prove
-an expected named connection from the validated binding.**
-
-This is a true rollback path because it preserves today's implementation and
-approval contract exactly.
-
-## Rejected designs
-
-### Candidate B — minimum association without explicit routing
-
-Rejected because it does not prove that the later unqualified `run` uses the
-same validated target. The accepted benchmark predicate is only meaningful when
-live runtime requests use the same derived connection.
-
-### Candidate C — explicit derived-connection routing as the only change
-
-Rejected as the primary design because it improves authority but does not itself
-remove any status-only or redundant successful-path work. It is retained as a
-required ingredient of candidate D.
-
-### Candidate E — guarded execution-first supervision
-
-Rejected because the accepted baseline does not establish a benefit large enough
-to justify replacing the final `exec`, adding a supervising parent process, or
-introducing new ambiguity-handling logic. Authority would still need a separate
-proof.
-
-### Candidate F — generic batching, reusable sessions, or a broker
-
-Rejected as a wrapper-policy selection. Caller batching is clearly beneficial
-for batchable workloads, but the accepted jq result is a workload optimization,
-not a general wrapper-contract proof. Reusable sessions or a broker would also
-broaden approval, isolation, cleanup, and concurrency scope far beyond this
-plan.
+Verification for the later handoff must positively demonstrate selected-route
+execution and original argv/status/streams, engine-free preview, preserved
+rootful opt-in behavior, Skopeo policy ownership, and unchanged Linux operation
+without a socket or named connection. Reuse existing authority/override/isolation
+proofs; add negative coverage only for established durable invariants. Benchmark
+on native Darwin arm64 and Linux amd64 with matching provenance and report
+median/p95/call-count deltas, unavailable lanes and long-run drift separately.
 
 ## Assumptions carried into the handoff
 
-- The accepted measurement record is Darwin arm64 only. No claim in this
-  document proves native Linux runtime savings or Linux named-connection
-  readiness.
-- The first implementation must preserve current secret-redaction and override
-  handling. It must not print connection URIs or override values.
-- The first implementation must not add automatic replay, a persistent runtime
-  cache, a session broker, Podman service enablement, connection adoption, or a
-  default-connection mutation.
-- The current benchmark-only minimum-association proof still includes liveness
-  work through explicit `info`. It is not evidence that a health-free check is
-  already proved sufficient.
-- Local-image and refresh-owned extra preflights remain out of scope for the
-  first runtime-path change and must stay visible in any later verification.
-- Future-system benchmarking must reuse the accepted benchmark protocol and must
-  report deviations explicitly rather than normalizing them away.
+- Accepted baseline evidence covers Darwin arm64 and Linux amd64; neither the
+  complete D implementation nor Linux named routing has been benchmarked.
+- The Linux service/connection lifecycle is a future ownership decision. No
+  setup, activation, default mutation, deployment or installed-profile sync is
+  authorized by this assessment.
+- The benchmark's retained Darwin `info` includes liveness. D removes two calls;
+  it does not achieve a health-free preflight.
+- Preserve secret redaction and original errors; do not print connection URIs,
+  identity paths, overrides, raw arguments or stderr captures for diagnostics.
+- Historical accepted baseline limitations remain explicit in the assessment
+  plan. Future-system comparisons must use equivalent workloads and distinguish
+  source checkout revisions from installed control revisions.

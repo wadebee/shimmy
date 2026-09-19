@@ -2,10 +2,10 @@
 
 ## Objective
 
-Improve wrapper failure guidance, measure invocation overhead, and evaluate a
-broader execution strategy, including commands that run before reachability
-preflight or agent escalation. Produce an evidence-backed recommendation before
-changing the production execution policy.
+Improve wrapper failure guidance, measure invocation overhead, and compare
+eager preflight, minimum association checks, and derived runtime routing.
+Reevaluate Chunk 3 using the accepted Darwin arm64 and Linux amd64 baseline
+before changing the production execution policy.
 
 Make the minimum useful runtime check an explicit target: activation establishes
 which profile owns the intended engine; an invocation verifies that its shell's
@@ -19,7 +19,15 @@ on a real workflow.
 
 The user confirmed this objective and the existing `plans` root on 2026-09-17,
 then explicitly expanded the assessment beyond batching and sessions.
-Authoritative path: `plans/notional/wrapper-preflight-strategy.md`.
+Authoritative path: `plans/wip/wrapper-preflight-strategy.md`.
+
+On 2026-09-19 the user reaffirmed Chunk 2 acceptance including Linux amd64,
+requested reevaluation of Chunk 3, excluded Candidate E entirely, and requested
+a separate future plan for Candidate F. Proposed destination:
+`plans/notional/caller-batching-and-reuse.md`; creation awaits the required
+objective/root confirmation. Findings are retained below pending transfer. These instructions supersede
+older assessment requirements below; they authorize planning/report updates,
+not a production runtime change or execution of later chunks.
 
 Success means:
 
@@ -34,8 +42,8 @@ Success means:
 - The assessment reports one-time activation and shell-selection timings
   separately from per-command state-check timings, then extrapolates both to
   common sessions such as 40 `rg` and 40 `jq` calls in a sequential loop.
-- The assessment compares execution-first variants, narrower validation,
-  connection selection, reuse, batching, and shell overhead improvements.
+- The assessment compares candidates A–D with platform-specific authority,
+  call counts, costs, failure behavior, and low-fidelity function-call plans.
 - A current-system benchmark captures reproducible baseline timings before any
   selected runtime change.
 - Discovery produces one or more concrete alternate designs, including at
@@ -82,11 +90,10 @@ assessment document. Raw logs belong in a private temporary output directory.
 
 ## Recorded design decisions
 
-1. Treat the user's fully optimistic model as a first-class alternative:
-   attempt the command in the ordinary sandbox, with no preliminary engine
-   health request; diagnose and consider escalation only after failure.
-   Evaluate both complete removal of pre-execution authority checks and a
-   variant that retains them. Do not quietly equate these different models.
+1. Evaluate candidates A–D only. Candidate E is excluded by the current user
+   request. Candidate F findings are reserved for the separate future plan. Preserve
+   the accepted measurements as historical evidence; do not treat an old
+   assessment instruction as authorization to resume excluded designs.
 2. The recommendation entering measurement is to retain authority validation
    and investigate moving redundant health checks and status-only work off
    the successful invocation path. In particular, target a minimum useful
@@ -197,70 +204,24 @@ this objective. Related boundaries appear in
 registry lifecycle plans. Recheck these if a subsequent proposal changes their
 interfaces; do not edit unrelated plans as part of this assessment.
 
-## Execution-first theory and alternatives
+## Candidate scope and comparison rules
 
-The fully optimistic model is:
+The revised matrix and low-fidelity function calls are in
+`docs/runtime-preflight.md`. Assess A (current eager), B (minimum association
+without explicit routing), C (derived routing with eager checks), and D
+(Darwin minimum association plus derived routing, with Linux unchanged).
 
-```text
-ordinary sandbox -> execute requested command
-  success -> return unchanged
-  failure -> retain status and evidence
-          -> determine whether it is a tool result or infrastructure failure
-          -> perform narrowly scoped diagnosis when useful
-          -> request exact outer-command escalation if supported and justified
-          -> replay only when safe and authorized
-```
+Keep active-profile authority, effective routing, registry policy, reachability,
+and workload status distinct. The Darwin benchmark predicate retains live
+`info`; describe its three calls honestly, not as health-free execution.
+The Linux binding sentinel `local` is not a named connection. Its successful
+local engine path does not require an API socket.
 
-Its attraction is avoiding successful-path health queries and unnecessary
-elevated execution. Its central limitation is that a successful invocation
-does not establish that it used the authorized profile/policy. Its failure path
-also needs evidence that the current `exec`-based wrapper cannot retain.
-
-A more conservative variant keeps local authority and required engine-policy
-validation before execution, and defers health/status diagnosis. This can still
-require some pre-execution Podman calls: label each retained call by the
-property it proves rather than calling the variant “no preflight.”
-
-For this assessment, the minimum useful check answers: “Does this wrapper's
-selected profile still match the active profile and the Podman target this
-command would use?” It reads the installed profile identity, active record,
-strict engine binding, effective connection or local engine, override state,
-and applicable registry projection. It does not list running workloads.
-Candidate designs must show how they verify the effective target without a
-health-only request, or count any required remote probe honestly as part of the
-minimum check. Stopped and unreachable engines can then fail during execution
-and receive post-failure diagnosis. This is a target contract to prove, not a
-claim that the current code already implements the cheaper path.
-
-| Alternative | Potential saving | Questions and tradeoffs to assess |
-| --- | --- | --- |
-| Current eager checks with better diagnostics | Operational clarity; baseline for comparisons | Continues all current per-invocation cost. |
-| Omit the final generic `info` after successful Darwin affinity | One engine request | Earlier probe uses an explicit connection, while final execution normally uses the default. Prove equivalent routing and document the existing check/use race before calling the probe redundant. |
-| Separate runtime validation from status collection | Avoid workload `ps` and unused status parsing | Retain active-record, binding, override, default-connection, and projection decisions; decide whether a machine-state query proves authority or only liveness. Management status still needs full data. |
-| Minimum useful association check | Run only the checks needed to connect this shell's profile to the active effective engine and policy | Specify whether machine-running and remote rootless probes prove authority or only liveness. A stopped engine may be left for execution to report; a mismatched target must fail before execution. |
-| Execute first, retain authority checks, diagnose health failures | Avoid health-only queries on success | Requires careful failure transport and possibly a shell supervisor; measure its cost and preserve signal/TTY/stdin behavior. |
-| Fully optimistic execution with all checks deferred | Upper bound on removable preflight cost | Wrong-profile or stale-policy execution can succeed silently. Requires a redesigned authority boundary or explicit contract change before production use. |
-| Explicitly bind every runtime request to a validated profile connection on all hosts | Remove default-connection reversion as a check/use race and make the explicit probe describe execution | Darwin already records a named connection. Linux requires a named rootless local-service connection instead of today's direct local engine path. The connection must be derived from the strict binding, never accepted from the caller. Do not enable a user service, create/adopt a connection, or change its default without a separately reviewed lifecycle contract. Explicit routing still does not authorize an inactive profile; keep override and privileged-rootful behavior explicit. |
-| Consolidate POSIX parsing and reuse evidence within one invocation | Fewer subprocesses and duplicate same-process checks | Measure shell/file/hash overhead separately. Evidence inside command substitutions may not propagate to the parent. |
-| Activation-generation or time-limited evidence cache | Amortize checks across invocations | Local epochs alone miss external Podman changes. Define engine/service restart, binding, projection, overrides, expiry, and failure invalidation; a timeout bounds staleness, not correctness. |
-| Native CLI batching or parallel independent work | Amortize wrapper and container startup | Preserve per-input attribution, ordering requirements, and error semantics; parallelism may increase contention. |
-| Explicit sessions, reusable containers, or a broker | Amortize validation and/or container startup | Adds state ownership, image/credential/mount lifetime, isolation, concurrency, and cleanup contracts. A generic arbitrary-command broker also changes approval scope. |
-
-Evaluate agent policy independently for each runtime alternative:
-
-- Sandbox first while reachability/permission is unknown.
-- Reuse existing narrowly approved escalation where denial is already known.
-- After one proven denial, retain that evidence for the active agent session;
-  do not build a persistent permission cache into Shimmy or claim approvals
-  persist across sessions.
-
-Let `P` be removable health/status overhead, `S` added supervision/diagnostic
-plumbing on success, `fD` expected diagnostic cost after failures, and `qR` the
-extra cost of sandbox-denied attempts plus safe escalated replay. Execution
-first is faster when `P > S + fD + qR`, for comparable workloads and authority
-checks. Measure the terms and sensitivity to `f` and `q`; do not invent a
-speedup or failure probability. When sandbox denial is certain, `qR` recurs
-unless agent-session evidence changes the next attempt.
+Runtime preflight and agent approval remain independent. Reuse already approved
+outer-wrapper escalation where required by repository guidance, preserve the
+original operation result, and do not invent measured denial/retry costs.
+The current request does not authorize replay, a supervisor, runtime caching,
+service provisioning, or profile activation.
 
 Use measured terms for common session summaries. For a shell with an already
 active profile, a sequential 40-`rg`/40-`jq` loop has 80 wrapper invocations
@@ -327,6 +288,15 @@ External evidence checked against current primary documentation:
 
 ## Unresolved
 
+### Candidate F future-plan inputs
+
+The required objective/root confirmation is pending. Recommended: retain F's
+batching/reuse findings and plan caller-controlled jq batching guidance first,
+under `plans/notional/caller-batching-and-reuse.md`. Alternative: broaden the
+future effort to design reusable sessions. The latter materially expands
+lifecycle, isolation and approval scope. The prepared transfer section preserves
+all findings until confirmation; the new artifact has not been created.
+
 ### Post-plan Linux connection lifecycle
 
 A cross-platform explicit-routing implementation needs a separately approved
@@ -357,7 +327,8 @@ handoff and future-system delta report are not started.
 
 - [x] Confirm objective and planning root; discover related plans.
 - [x] Trace runtime, status, installation, test, and guidance boundaries.
-- [x] Assess the execution-first model and record alternative designs.
+- [x] Reevaluate candidates A–D with both accepted native baselines; remove
+  superseded candidate requirements and separate future caller optimization.
 - [x] Define the minimum useful runtime association target and two timing
   baselines for later measurement.
 - [x] Chunk 1 — Align runtime and agent diagnostic guidance.
@@ -374,7 +345,8 @@ handoff and future-system delta report are not started.
   the user explicitly syncs or rematerializes the installed profile control
   assets. `./tests/context-tree.sh` and `git diff --check` passed.
 - [x] Human acceptance of Chunk 1.
-- [~] Chunk 2 — Build the benchmark and capture the current-system baseline.
+- [x] Chunk 2 — Build the benchmark and capture the accepted current-system
+  baseline, with the recorded verification limitations accepted for discovery.
   `tests/runtime-benchmark.sh` now implements the bounded source-only workload,
   provenance capture, transparent Podman call counter, warmup/sample aggregation,
   and jq individual-versus-batched record comparison. It is executable and
@@ -401,12 +373,24 @@ handoff and future-system delta report are not started.
 - [x] Human acceptance of Chunk 2 baseline evidence.
   The accepted dataset now includes native Linux amd64 current-path evidence;
   explicit-connection-only Linux lanes remain unavailable where the host has no
-  rootless API socket or compatible named connection.
+  rootless API socket or compatible named connection. The user's current
+  acceptance closes this baseline gate with its recorded limitations; it does
+  not turn the historical partial test/session results below into passing runs
+  or authorize Chunk 4. No baseline rerun was requested in this reassessment.
 - [x] Chunk 3 — Produce alternate designs and select a discovery outcome.
-  `docs/runtime-preflight.md` now records the accepted Darwin and Linux
-  baselines, execution-first decision table, design matrix, selected
-  Darwin-first minimum-association plus explicit-routing design, Linux/current-
-  path fallback, rejected alternatives, and handoff assumptions.
+  `docs/runtime-preflight.md` was reevaluated on 2026-09-19 against both
+  accepted native baselines. It contains candidates A–D, illustrative existing
+  and proposed function calls, D's Darwin recommendation, unchanged Linux
+  behavior, authority limits, source/privileged exceptions, and handoff scope.
+  Missing Darwin authority now stops dispatch rather than falling back to A.
+  Candidate E is excluded; Candidate F findings are retained below pending
+  confirmation and creation of the separate future plan.
+- [~] Transfer Candidate F findings to the separate future plan. Findings and
+  call sketches are prepared below; no matching plan exists in any lifecycle
+  directory. Creation awaits the skill-required objective/root confirmation
+  requested in this session. This blocks completion of the requested split,
+  not the A–D reassessment. On confirmation, create the notional plan and move
+  this pending section into it.
 - [ ] Human acceptance of Chunk 3 design choice.
 - [ ] Chunk 4 — Produce and accept the implementation handoff.
 - [ ] Complete the separately approved implementation handoff.
@@ -649,7 +633,10 @@ Suggested reasoning level: high for measurement validity and failure semantics.
   sandbox outcomes. The Darwin 80-command loop is complete; Linux has a
   completed instrumented 80-command loop, while the uninstrumented loop and
   full 400-invocation sensitivity lane were explicitly stopped after severe
-  long-run drift was established.
+  long-run drift was established. The resulting limit is no observed
+  uninstrumented Linux session delta. Accepted with Chunk 2; preserve the model
+  labels and require a comparable measured session at the future-system gate
+  when available. This does not block Chunk 3 design review.
 - [x] Record native Apple Silicon macOS and Linux amd64 evidence, or mark each
   unavailable lane partial with impact and an explicit deferral request.
 - [x] Record sandbox-versus-escalated evidence or its absence truthfully, with
@@ -661,7 +648,11 @@ Suggested reasoning level: high for measurement validity and failure semantics.
   executable with `dash -n`, verify its mode, and run context/inventory and
   `git diff --check` validation. Benchmark sampling itself stays sequential.
   `/bin/sh -n`, context-tree validation, and `git diff --check` passed for the
-  Linux continuation; `dash` is not installed on that host.
+  Linux continuation; `dash` is not installed on that host. Full-suite and
+  `commands-shim` coverage remain unverified for the reasons below. Accepted
+  with Chunk 2 for discovery; address the fixture/setup issue without deleting
+  user-owned files and rerun applicable checks at the implementation integration
+  gate. This retains regression uncertainty but does not block Chunk 3 review.
 
 Apple Silicon is complete and Linux amd64 current-path evidence is now
 recorded. The Linux host reported a local/shared binding with no default
@@ -1019,40 +1010,175 @@ ordered events and zero event-command/query statuses.
 
 ### Goal
 
-Use the accepted baseline to produce comparable alternate runtime designs and
-select the smallest design with an explicit authority proof. At least one design
-must implement Decision 2: retain authority validation while moving status-only
-work and redundant health probes off the successful path.
+Reevaluate candidates A–D using the accepted Darwin arm64 and Linux amd64
+baseline and recommend the smallest scoped improvement with explicit authority
+and routing behavior. This is a design review, not runtime implementation.
 
-### Requirements
+### Files
 
-1. Produce a design matrix for the current eager path, Decision 2's minimum
-   association check, explicit derived-connection routing, guarded
-   execution-first supervision, and any batching/reuse proposal that remains
-   viable after baseline evidence. State authority preserved/lost, changed
-   failure behavior, approval boundary, compatibility, implementation surface,
-   rollback, and predicted cost using only accepted baseline data.
-2. For every candidate, name each retained Podman request and whether it proves
-   profile authority, routing, policy, reachability, or status. Do not call a
-   request redundant solely because another command succeeded.
-3. Produce the execution-first failure decision table, including tool nonzero,
-   denial before dispatch, connection failure, uncertain response, image/setup
-   failure, signals, stdin, TTY, partial output, and redirection. Preserve the
-   original result and prohibit automatic replay.
-4. For any supervisor candidate, specify process groups, signals, stream
-   forwarding, buffering, cleanup, and `set -e` behavior. For an explicit
-   connection candidate, show how the binding supplies the selector without
-   accepting user input or relying on a mutable default.
-5. Select one primary design and, if justified, one fallback. Record why the
-   rejected designs lack authority proof, benefit, or acceptable complexity.
-   The Linux service/connection lifecycle issue remains post-plan unless the
-   selected design requires it.
+- `docs/runtime-preflight.md`: authoritative matrix, candidate call sketches,
+  platform findings, proposed selection and handoff requirements.
+- This plan: scope, accepted evidence, progress, decisions and handoff.
+- Proposed `plans/notional/caller-batching-and-reuse.md`: future Candidate F
+  findings and proposed effort, pending required input confirmation; not a
+  dependency of runtime selection.
 
-### Deliverables and review gate
+### Implementation requirements and suggested reasoning level
 
-Update `docs/runtime-preflight.md` with the accepted baseline, design matrix,
-selected design, and explicit assumptions. Human review accepts the selection
-only; it does not authorize code changes.
+Suggested reasoning level: high for authority/routing boundaries.
+
+1. Compare A–D only. Candidate E is excluded; remove its decision table and
+   selection requirements. Move F's findings to its future plan while retaining
+   historical measured batching lanes in the accepted baseline.
+2. Show each platform's retained Podman requests and the property each proves.
+   Linux has one current preflight call and no measured saving from its tested
+   stronger association path (0.749 s versus 0.707 s). Do not interpret absent
+   API infrastructure as a failed local engine or as proof that all future
+   local-path optimizations require service setup.
+3. Include low-fidelity existing/proposed function calls for every candidate,
+   naming shared validation, route derivation, final dispatch, preview,
+   privileged and image-operation boundaries. No per-tool authority copies.
+4. Recommend D only for ordinary installed Darwin rootless execution. Retain
+   A on Linux, source runtimes and existing privileged opt-in paths. Darwin
+   authority failure stops before dispatch. Preserve the current running-machine
+   count/alternate-machine restriction by parsing the existing machine-list
+   response: the benchmark-only helper does not establish that condition.
+   No extra request is needed, but production parsing cost is unmeasured.
+   Code rollback to A is distinct
+   from a runtime error fallback. Preserve current default-match validation.
+5. Distinguish measured predicate costs from an unimplemented whole-system
+   result. D's modeled saving is 0.156 s/call and 12.48 s/80 calls on Darwin;
+   Linux saving is zero by design. Named routing removes default-selector
+   drift but not concurrent connection-definition, active-record or policy
+   mutation. Existing URI shape and rootless/remote checks are not unique
+   machine identity attestations.
+6. Preserve direct `exec`, existing outer approvals, status/streams, no replay,
+   management status/activation behavior, and explicit installed adoption.
+   Linux named service/connection ownership remains outside this selection.
+
+### Verification checklist
+
+- [x] Check both accepted native baselines and instrumented/uninstrumented
+  provenance; separate actual sessions from models and unavailable lanes.
+- [x] Trace current preflight, benchmark predicate, connection readers, final
+  exec, Skopeo affinity reuse, image operations and privileged routing.
+- [x] Give A–D comparable cost/authority findings and illustrative function calls.
+- [x] Remove E from active evaluation and prepare F findings for a future effort.
+- [ ] Create the separate F plan after required input confirmation.
+- [x] Correct stale Darwin-only evidence assumptions and the unsafe fallback
+  description; state remaining routing and Linux authority limits.
+- [ ] Human acceptance of the revised selection.
+
+No production code or benchmark was run or changed for this reassessment.
+Markdown fences, local links and `git diff --check` were verified on
+2026-09-19. The separate F artifact remains pending input confirmation.
+
+### Human review gate
+
+Review D's scoped recommendation, A's retained Linux behavior, explicit
+source/privileged exceptions, residual configuration races and modeled costs.
+Acceptance of this selection alone does not implement it. Wait for explicit
+instruction before Chunk 4's independent implementation handoff.
+
+## Candidate F — findings prepared for transfer
+
+Proposed objective: preserve caller batching/reuse findings and deliver
+caller-controlled jq batching guidance as the first future effort. Proposed
+planning root: the established `plans`; destination
+`plans/notional/caller-batching-and-reuse.md`. No same-objective plan or filename
+collision was found in `notional`, `wip`, or `complete`. The pending structured
+question asks for confirmation of that objective/root or a broader session-design
+scope. This section is a handoff record, not implementation authorization.
+
+### Confirmed evidence
+
+| Accepted four-input jq workload | Individual median | Batched median | Difference | Podman calls, individual → batch |
+| --- | ---: | ---: | ---: | --- |
+| Darwin arm64 | 5.222 s | 1.305 s | 3.917 s, 75.0% | 24 → 6 |
+| Linux amd64 | 7.982 s | 2.031 s | 5.951 s, 74.6% | 8 → 2 |
+
+Source: Chunk 2 native-host evidence above; 20 warm samples after three warmups.
+Record identifiers and sorted records matched. That proves the measured records,
+not general order, per-file exit-status, failure or stateful-filter equivalence.
+These are differences of lane medians; do not combine them with D's savings or
+interpret them as reusable-session measurements. Batching reduces the number of
+whole wrapper/container invocations; authority is validated per resulting call.
+
+### Proposed first effort and illustrative calls
+
+Publish a bounded caller recipe in `tools/jq/guide.md` and its canonical
+`tools/jq/SKILL.md`, linked from relevant workflow guidance only as needed.
+No new wrapper command, batching engine, public helper or runtime policy is
+needed. The helper names below are illustrative documentation functions only:
+
+```sh
+# Four valid, independent JSON input files already selected by the caller.
+shimmy_example_jq_individual() {
+  for input_file in "$@"; do
+    jq -c . "$input_file" || return "$?"
+  done
+}
+
+shimmy_example_jq_batch() {
+  jq -c . "$@"
+}
+
+shimmy_example_jq_batch ./record-1.json ./record-2.json \
+  ./record-3.json ./record-4.json
+```
+
+Existing benchmark call flow:
+
+```text
+runtime_benchmark_jq_individual_run()
+  -> runtime_benchmark_wrapper_run(jq, -c, ., one_file) four times
+runtime_benchmark_jq_batched_run()
+  -> runtime_benchmark_wrapper_run(jq, -c, ., four_files) once
+  -> unchanged jq runtime -> preflight -> podman run -> jq
+```
+
+Limit the recipe to a nonempty bounded list under the mounted working directory,
+with explicit quoted paths and a filter that independently processes each
+record. Larger or dependent workloads require deliberate caller chunking.
+Keep native jq semantics: a batch produces one process status and shares one
+input stream. Do not substitute `-s`, `inputs`, reduction, `-e`, interactive stdin,
+or per-file recovery workflows without checking their semantics. `-s` aggregates
+the whole stream; `-e` reflects the last output value.
+[jq 1.8 manual](https://jqlang.org/manual/v1.8/).
+
+Validation for the future effort: run both recipes through installed jq on
+native Darwin arm64 and Linux amd64 against small valid fixtures; compare exact
+ordered output as well as identifiers and statuses, including quoted paths with
+spaces. Preserve matching image/profile/control provenance. Reuse the existing
+bounded benchmark lanes (three warmups, 20 samples) if new timing is needed;
+report medians/p95/call counts without requiring long session reruns. No tests
+solely asserting the absence of a broker. Documentation-only adoption does not
+require profile synchronization; installed skill-bundle adoption remains an
+explicit lifecycle action. Rollback is removal of the caller guidance/change.
+
+### Reuse findings carried forward, without selecting an architecture
+
+Explicit reusable containers or a broker could amortize startup, but no accepted
+lane measures that benefit or its setup cost. Such designs introduce lifetime
+ownership for images, credentials, mounts, input streams, concurrent requests,
+profile changes and cleanup. A generic broker broadens approval scope. These
+findings do not authorize a public session interface or persistent authority
+cache. Same-process Skopeo affinity reuse is an existing, narrower contract.
+
+A later separately selected session design would need calls with responsibilities
+like the following; names are conceptual, not proposed public APIs:
+
+```text
+session_open(profile, image, mounts, credentials) -> owned session identity
+session_request(session, argv, input) -> validate current authority; exact result
+session_close(session) -> remove only exactly owned resources
+```
+
+Unlike ordinary batching, this needs decisions on invalidation, in-flight
+profile changes, stream framing, per-request status, signal delivery, concurrency,
+approval and abandoned-session cleanup before an implementation plan can be
+called decision-complete. Keep it deferred if the proposed jq-first objective
+is confirmed; broaden the new plan only if the user selects that scope.
 
 ## Chunk 4 — Implementation handoff
 
@@ -1063,7 +1189,7 @@ implementation plan without implementing it in this assessment plan.
 
 ### Requirements
 
-1. Create a follow-up plan under `plans/wip/` that names the selected behavior,
+1. Create a follow-up plan under `plans/notional/` that names the selected behavior,
    exact source/install/test/documentation files, positive acceptance outcomes,
    rollback, and installed-profile adoption boundary.
 2. Preserve the approved authority, approval, replay, secret-redaction,
@@ -1118,7 +1244,6 @@ limitations. Only this gate may complete and move this plan to
 | --- | --- | --- |
 | Success against wrong authority | Silent use of another profile or policy | Keep authority distinct from reachability; full optimism needs a changed enforcement design. |
 | Ambiguous failure and replay | Duplicate writes, API effects, consumed input, repeated output | Preserve the first result; no automatic replay in this plan. |
-| Changing `exec` to a supervisor | Signal, TTY, stdin, and exit-status regressions | Assess explicitly; implement only through a later reviewed contract. |
 | Blanket sandbox-first rule | Known-denied attempts add latency every time | Separate first discovery from reuse of active-session evidence. |
 | Stale cache or connection race | Validation no longer describes execution | Prefer minimal same-invocation work; model explicit routing and invalidation, with remaining races stated. |
 | Linux explicit-routing prerequisite is absent | A universal invariant either breaks current supported hosts or causes Shimmy to provision user Podman state implicitly | Treat named local-service connection availability as measured evidence. Do not enable `podman.socket`, create/adopt a connection, or change a default until a later lifecycle contract explicitly authorizes and owns those transitions. |
@@ -1198,8 +1323,9 @@ limitations. Only this gate may complete and move this plan to
   routing candidate.
 - The Linux current-path association baseline measured `0.749 s` versus
   `0.707 s` for today's eager preflight. That is a `0.042 s` regression, not a
-  candidate saving, so Linux should remain on the current path until a named
-  rootless service and connection lifecycle is separately designed and proven.
+  candidate saving. Retain Linux on the current path for this selection; any
+  named-routing extension requires a separate lifecycle contract. These
+  measurements do not rule out future direct-local designs.
 - Sequential measurements exposed a repeatable approximately 31-second first
   Podman-call tail after sustained sampling. Median formulas matched the later
   uninstrumented 80-command run within 1.1%, while the instrumented sequence
@@ -1208,17 +1334,25 @@ limitations. Only this gate may complete and move this plan to
 
 ### Chunk 3
 
-- The measured three-call Darwin association predicate becomes a credible
-  production candidate only when the final runtime request is bound to that
-  same validated connection. Without explicit runtime routing, the later
-  unqualified `run` can still drift from the probe.
-- Explicit routing is therefore a correctness ingredient, not merely a
-  performance tweak. The accepted equal-cost explicit and unqualified `info`
-  probes justify carrying that selector into the design, but not claiming a
-  benefit on Linux without a separate connection lifecycle contract.
-- Caller batching can materially outperform wrapper-preflight optimization for
-  naturally batchable workloads, but that evidence belongs to caller guidance,
-  not to a generic hidden-session or broker redesign.
+- Linux's single generic `info` dominates its measured preflight; Darwin's
+  removable `ps` and second `info` do not exist on that path. Platform-specific
+  call inventories determine which savings are possible.
+- The retained Darwin predicate is measured; a production implementation with
+  derived routing is not. Equal explicit/unqualified `info` medians do not
+  prove zero cost for every routed operation.
+- The benchmark machine helper validates expected-machine state but does not
+  establish the current runtime's multiple/alternate-running-machine rule.
+  Preserve that rule using the same response instead of copying the benchmark
+  predicate as a complete production authority implementation.
+- Derived named routing prevents a later default change from redirecting `run`,
+  but cannot lock connection definitions or registry/active-record state.
+- Missing authority is a pre-dispatch failure, not grounds for a weaker
+  fallback. Keep platform compatibility and code rollback separate from errors.
+- Shared final dispatch is only one routing seam: image operations and direct
+  tool probes also use Podman. Privileged rootful paths require explicit
+  preservation instead of blindly prepending a rootless selector.
+- Caller optimization findings are retained below pending their separate plan;
+  they do not determine the generic runtime contract.
 
 ## Session bootstrap
 
