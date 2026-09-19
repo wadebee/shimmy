@@ -81,6 +81,17 @@ without `-p`; configure a non-default Bash executable with
 `SHIMMY_RUNTIME_BENCHMARK_BASH_BIN`. The benchmark workload itself remains
 POSIX `sh`. It does not activate or switch profiles, change Podman connections,
 pull images, or build images.
+
+For call/ownership review without starting tool containers, use the dormant
+preflight split. This scope measures the unchanged full preflight, current
+affinity, and review-only context and reachability seams. It discards warmup
+records before aggregation and leaves all raw records in its temporary output:
+
+```sh
+./tests/runtime-benchmark.sh --review-only --samples 20 --warmups 3
+```
+
+No production runtime sources the review helper module.
 Run it only with the required outer-wrapper approval; it cannot bypass an
 agent approval denial. Registry inspection is explicit and uses an installed profile:
 

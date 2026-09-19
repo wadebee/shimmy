@@ -377,8 +377,13 @@ implementation handoff, and future-system delta report are not started.
   and jq individual-versus-batched record comparison. It is executable and
   passes `/bin/sh -n`. Its host elapsed-time harness explicitly uses Bash's
   default `time` output without `-p`, while the measured workload remains
-  POSIX `sh`. The live baseline remains to be recorded. Native macOS and
-  live-Podman evidence remain unavailable.
+  POSIX `sh`. A reviewer-authorized call/ownership scope adds only a dormant
+  preflight split, an explicit caller/ownership contract, and disposable
+  full/context/affinity/reachability lanes. Warmups are now excluded from
+  aggregates. A 20-sample Apple Silicon review baseline recorded the predicted
+  5/4/4/1 calls per full/context/affinity/reachability lane with all statuses
+  zero; no production caller uses the review helpers. The broader wrapper,
+  activation, observer-cost, and native Linux evidence remains incomplete.
 
 - [ ] Human acceptance of Chunk 2 baseline evidence.
 - [ ] Chunk 3 — Produce alternate designs and select a discovery outcome.
@@ -658,6 +663,57 @@ host observed two Podman calls for each `rg --version` and `jq --version`, eight
 for four separate jq JSON inputs, and two for the equivalent one-command
 four-file jq input.
 
+### Call and ownership review seam
+
+On 2026-09-18, the reviewer authorized a narrow continuation of Chunk 2: add
+dormant helper stubs, contract documentation, caller mapping, and disposable
+baseline measurements without changing live behavior or running unit tests.
+`lib/runtime/preflight-review.sh` mirrors the exact current split between
+binary/platform/profile-context work and the final generic reachability probe.
+No production module sources it. `tests/runtime-benchmark.sh --review-only`
+is its only intended caller during this review.
+
+The caller inventory found 23 preview-aware version runtimes and four
+conditional direct-preflight runtimes. All 27 version runtimes end through
+`shimmy_podman_run_or_preview`. Thirteen runtimes can add another preflight via
+local-image resolution. The Skopeo registry mount is the only runtime policy
+consumer that can reuse same-process Darwin affinity evidence. Management
+status and activation share the broader `shimmy_profile_state_read`, so that
+collector cannot be narrowed as a runtime-only optimization.
+
+The review lanes compare the unchanged full preflight, the dormant context
+split, current affinity alone, and the dormant final reachability probe. They
+do not implement or prove the minimum association predicate. The committed
+benchmark stores no measurements; raw output remains in a private disposable
+directory and aggregate observations belong below after execution.
+
+The authorized Apple Silicon run used three warmups and 20 measured samples per
+lane. Provenance was Darwin arm64, Podman 5.8.1, default connection
+`shimmy-default`, checkout `HEAD`
+`e405736924930dbf2fd71c8c2b90be953dd042c8`, dirty benchmark blob
+`c47880bc36c641ccac20cf46f486a5daf5f5c2f7`, dirty review-helper blob
+`315a066d550cbaad32d76f9d768d731dc805fa8a`, and active-profile installed
+control commit `e920810ff61d29625f0000ec5939e2f804059bf7`.
+
+| Review lane | Median | p95 | Podman calls/sample | Status |
+| --- | ---: | ---: | ---: | --- |
+| Unchanged full preflight | 0.576 s | 0.598 s | 5 | 20/20 zero |
+| Dormant context split | 0.476 s | 0.483 s | 4 | 20/20 zero |
+| Current affinity alone | 0.464 s | 0.479 s | 4 | 20/20 zero |
+| Dormant final reachability split | 0.095 s | 0.101 s | 1 | 20/20 zero |
+
+The transparent proxy recorded 322 successful Podman calls including warmups:
+115 full, 92 context, 92 affinity, and 23 reachability. Each aggregate sample
+file contains exactly 20 records, confirming that warmups were excluded.
+
+This is a partial, source/installed-hybrid baseline. The runtime and dormant
+review helpers came from the dirty checkout, while profile state helpers came
+from a different installed control commit. The proxy's observer cost was not
+compared with an uninstrumented review lane, and separately timed medians are
+not additive. No Linux amd64 lane, wrapper/container lane, activation lane, or
+minimum-association authority proof was added under this authorization. Per the
+reviewer's direction, no unit tests were run.
+
 ### Activation dry-run finding
 
 On 2026-09-17, the apparent benchmark stall was traced to
@@ -876,6 +932,14 @@ limitations. Only this gate may complete and move this plan to
 - The host exposes `time` only as a Bash keyword and its POSIX `/bin/sh`
   cannot invoke it. The measurement harness therefore invokes Bash explicitly
   and must not pass `-p`; the benchmark workloads remain POSIX `sh`.
+- Warmup invocations must not remain in the sample file used for median, p95,
+  and sample-count aggregation. The review work resets each lane's sample file
+  after warmup while retaining proxied call records for private diagnostics.
+- Runtime affinity is not owned solely by runtimes: Skopeo may request it again
+  for registry mount policy, while the underlying profile state reader also
+  serves management status, activation, and redirect inspection. Any later
+  minimum runtime predicate needs its own contract instead of weakening the
+  shared status collector.
 
 ## Session bootstrap
 

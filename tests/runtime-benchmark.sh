@@ -6,15 +6,19 @@ ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
 SAMPLE_COUNT=20
 WARMUP_COUNT=3
 OUTPUT_DIR=${OUTPUT_DIR:-}
+REVIEW_ONLY=0
 
 runtime_benchmark_usage() {
   cat <<'EOF'
-Usage: ./tests/runtime-benchmark.sh [--samples <count>] [--warmups <count>] [--output <directory>]
+Usage: ./tests/runtime-benchmark.sh [--samples <count>] [--warmups <count>] [--output <directory>] [--review-only]
 
 Measures the selected installed profile's shell selection, activation dry run,
 and rg/jq wrapper workloads. The benchmark creates only private JSON fixtures
 and a transparent temporary Podman forwarding script. It does not activate a
 profile, change a Podman connection, pull images, or build images.
+
+--review-only measures the exact current preflight and dormant context,
+affinity, and reachability review seams. It does not invoke a tool container.
 EOF
 }
 
@@ -48,6 +52,10 @@ runtime_benchmark_options_parse() {
         [ "$#" -ge 2 ] || { printf '%s\n' 'ERROR: --output requires a directory.' >&2; exit 2; }
         OUTPUT_DIR=$2
         shift 2
+        ;;
+      --review-only)
+        REVIEW_ONLY=1
+        shift
         ;;
       -h|--help)
         runtime_benchmark_usage
@@ -142,21 +150,42 @@ EOF
 }
 
 runtime_benchmark_provenance_write() {
+  if [ -n "$(git -C "$ROOT_DIR" status --porcelain)" ]; then
+    source_worktree_state=dirty
+  else
+    source_worktree_state=clean
+  fi
+  if [ "$REVIEW_ONLY" -eq 1 ]; then
+    measurement_scope=review-only
+  else
+    measurement_scope=workloads
+  fi
   {
     printf 'source_commit=%s\n' "$(git -C "$ROOT_DIR" rev-parse HEAD)"
+    printf 'source_worktree_state=%s\n' "$source_worktree_state"
+    printf 'source_benchmark_blob=%s\n' "$(git -C "$ROOT_DIR" hash-object tests/runtime-benchmark.sh)"
+    printf 'source_review_helper_blob=%s\n' "$(git -C "$ROOT_DIR" hash-object lib/runtime/preflight-review.sh)"
+    printf 'measurement_scope=%s\n' "$measurement_scope"
+    printf '%s\n' 'host_timer=bash-keyword-default'
+    printf '%s\n' 'host_timer_resolution_seconds=0.001'
     printf 'active_profile=%s\n' "$ACTIVE_PROFILE"
     printf 'profile_root=%s\n' "$PROFILE_ROOT"
     printf 'host_os=%s\n' "$(uname -s)"
     printf 'host_arch=%s\n' "$(uname -m)"
     printf 'podman_bin=%s\n' "$REAL_PODMAN"
     printf 'podman_version=%s\n' "$("$REAL_PODMAN" version --format '{{.Client.Version}}' 2>/dev/null || printf unavailable)"
-    printf 'profile_control_commit=%s\n' "$(runtime_benchmark_value_read "$PROFILE_ROOT/install-manifest.txt" shimmy_profile_control_commit)"
+    printf 'profile_control_commit=%s\n' "$(runtime_benchmark_value_read "$PROFILE_ROOT/install-manifest.txt" shimmy_source_ref)"
     printf 'default_connection=%s\n' "$("$REAL_PODMAN" system connection list --format '{{range .}}{{if .Default}}{{.Name}}{{end}}{{end}}' 2>/dev/null || printf unavailable)"
-    printf 'rootless_socket=%s\n' "${XDG_RUNTIME_DIR:-unavailable}/podman/podman.sock"
-    if [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/podman/podman.sock" ]; then
-      printf '%s\n' 'rootless_socket_present=true'
+    if [ "$(uname -s)" = Linux ]; then
+      printf 'rootless_socket=%s\n' "${XDG_RUNTIME_DIR:-unavailable}/podman/podman.sock"
+      if [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/podman/podman.sock" ]; then
+        printf '%s\n' 'rootless_socket_present=true'
+      else
+        printf '%s\n' 'rootless_socket_present=false'
+      fi
     else
-      printf '%s\n' 'rootless_socket_present=false'
+      printf '%s\n' 'rootless_socket=not_applicable'
+      printf '%s\n' 'rootless_socket_present=not_applicable'
     fi
   } > "$OUTPUT_DIR/provenance.conf"
 }
@@ -206,6 +235,7 @@ runtime_benchmark_lane_measure() {
     runtime_benchmark_command_run "$lane" >/dev/null 2>&1 || return $?
     sample_index=$((sample_index + 1))
   done
+  : > "$RAW_DIR/$lane.samples"
   sample_index=1
   while [ "$sample_index" -le "$SAMPLE_COUNT" ]; do
     runtime_benchmark_command_run "$lane" || return $?
@@ -245,6 +275,37 @@ runtime_benchmark_shell_selection_run() {
   . "$PROFILE_SHELL_INIT"
 }
 
+runtime_benchmark_review_helpers_source() {
+  PATH="$OUTPUT_DIR/bin:$PATH"
+  export PATH
+  SHIMMY_RUNTIME_DIR=$PROFILE_ROOT/lib/runtime
+  export SHIMMY_RUNTIME_DIR
+  . "$ROOT_DIR/lib/runtime/podman.sh"
+  . "$ROOT_DIR/lib/runtime/preflight-review.sh"
+}
+
+runtime_benchmark_preflight_current_run() {
+  runtime_benchmark_review_helpers_source
+  shimmy_podman_preflight_require "the runtime preflight review"
+}
+
+runtime_benchmark_preflight_context_review_run() {
+  runtime_benchmark_review_helpers_source
+  shimmy_podman_preflight_context_review_require "the runtime preflight review"
+}
+
+runtime_benchmark_profile_affinity_current_run() {
+  runtime_benchmark_review_helpers_source
+  shimmy_podman_profile_affinity_require
+}
+
+runtime_benchmark_preflight_reachability_review_run() {
+  runtime_benchmark_review_helpers_source
+  SHIMMY_PODMAN_BIN=$OUTPUT_DIR/bin/podman
+  export SHIMMY_PODMAN_BIN
+  shimmy_podman_preflight_reachability_review_require "the runtime preflight review"
+}
+
 runtime_benchmark_jq_individual_run() {
   (
     cd -- "$OUTPUT_DIR/fixtures"
@@ -269,8 +330,24 @@ runtime_benchmark_workload_run() {
     jq-version) runtime_benchmark_wrapper_run jq --version ;;
     jq-individual) runtime_benchmark_jq_individual_run ;;
     jq-batched) runtime_benchmark_jq_batched_run ;;
+    preflight-current) runtime_benchmark_preflight_current_run ;;
+    preflight-context-review) runtime_benchmark_preflight_context_review_run ;;
+    profile-affinity-current) runtime_benchmark_profile_affinity_current_run ;;
+    preflight-reachability-review) runtime_benchmark_preflight_reachability_review_run ;;
     *) printf 'ERROR: unknown benchmark workload: %s\n' "$1" >&2; return 2 ;;
   esac
+}
+
+runtime_benchmark_review_measure() {
+  for lane in \
+    preflight-current \
+    preflight-context-review \
+    profile-affinity-current \
+    preflight-reachability-review
+  do
+    runtime_benchmark_lane_measure "$lane"
+    runtime_benchmark_lane_summary_write "$lane"
+  done
 }
 
 runtime_benchmark_main() {
@@ -285,10 +362,17 @@ runtime_benchmark_main() {
   runtime_benchmark_output_prepare
   runtime_benchmark_podman_proxy_create
   runtime_benchmark_provenance_write
-  runtime_benchmark_fixture_create
-  export ACTIVE_PROFILE PROFILE_LAUNCHER PROFILE_SHELL_INIT OUTPUT_DIR
+  export ACTIVE_PROFILE PROFILE_ROOT PROFILE_LAUNCHER PROFILE_SHELL_INIT OUTPUT_DIR
 
   : > "$OUTPUT_DIR/summary.txt"
+  if [ "$REVIEW_ONLY" -eq 1 ]; then
+    runtime_benchmark_review_measure
+    printf 'output_dir=%s\n' "$OUTPUT_DIR"
+    cat "$OUTPUT_DIR/summary.txt"
+    return 0
+  fi
+
+  runtime_benchmark_fixture_create
   runtime_benchmark_lane_measure shell-selection
   : > "$RAW_DIR/activation-dry-run.samples"
   runtime_benchmark_command_run activation-dry-run

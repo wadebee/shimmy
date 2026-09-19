@@ -12,5 +12,10 @@ profile-scoped authority; connection/registry overrides fail closed.
 local-build defaults, hashes complete local build inputs, and removes stale
 tagged images after rebuild. `log.sh` provides runtime logging.
 
+`preflight-review.sh` contains dormant extraction seams for source-only timing
+and call-ownership review. No production runtime sources it. Its context and
+reachability split mirrors the current `podman.sh` preflight but does not alter
+the live call graph or select a future runtime policy.
+
 Installed copies are self-contained below each profile and do not depend on the
 source checkout. Source previews bypass installed-profile affinity.
