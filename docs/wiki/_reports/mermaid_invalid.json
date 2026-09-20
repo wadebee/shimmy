@@ -1,0 +1,287 @@
+{
+  "invalid_blocks": [
+    {
+      "file_path": "docs/wiki/01-overview.md",
+      "code": "graph TD\n    Catalog[\"Immutable Catalog\"] --> Profile[\"Materialized Profile\"]\n    Catalog --> Skill[\"Catalog Tool Skill\"]\n    Profile --> Shim[\"Host Tool Shim\"]\n    Profile --> Engine[\"Bound Podman Engine\"]\n    Skill --> Profile\n    Shim --> Version[\"Concrete Tool Version\"]\n    Version --> Process[\"OCI Tool Process\"]\n    Process --> Engine",
+      "start_line": 47,
+      "end_line": 57,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/02-getting-started.md",
+      "code": "sequenceDiagram\n    participant User\n    participant Entry as bootstrap.sh\n    participant Command as commands/bootstrap.sh\n    participant Profile as Default profile\n    participant Shell\n\n    User->>Entry: Source or execute bootstrap\n    Entry->>Command: Delegate arguments\n    activate Command\n    Command->>Profile: Install and activate default\n    deactivate Command\n    Command-->>Entry: Installation result\n    Entry->>Shell: Source generated shell-init.sh\n    Shell-->>User: Profile tools on child or current PATH",
+      "start_line": 60,
+      "end_line": 76,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/04-architecture-and-state.md",
+      "code": "graph TD\n    A[\"Source checkout\"] --> B[\"Checkout bootstrap\"]\n    B --> C[\"Installed profile\"]\n    C --> D[\"Installed launcher\"]\n    D --> E[\"Management commands\"]\n    E --> F[\"Shared libraries\"]\n    C --> G[\"Profile shims\"]\n    G --> H[\"Concrete tool versions\"]\n    H --> I[\"Podman execution\"]\n    J[\"Catalog tools\"] --> C\n    K[\"Control skills\"] --> C",
+      "start_line": 40,
+      "end_line": 52,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/04-architecture-and-state.md",
+      "code": "graph TD\n    A[\"Shimmy config root\"] --> B[\"Default catalog\"]\n    A --> C[\"Profiles\"]\n    A --> D[\"Engine records\"]\n    A --> E[\"Active profile record\"]\n    B --> F[\"Registry authority\"]\n    B --> G[\"Immutable generations\"]\n    G --> H[\"Generation metadata\"]\n    G --> I[\"Tools payload\"]\n    C --> J[\"Profile materialization\"]\n    J --> K[\"Launcher and libraries\"]\n    J --> L[\"Shims and policies\"]\n    J --> M[\"Bindings and skills\"]",
+      "start_line": 90,
+      "end_line": 104,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/04-architecture-and-state.md",
+      "code": "sequenceDiagram\n    participant C as Caller\n    participant T as Transaction\n    participant L as Lock manager\n    participant S as State stores\n    participant E as Engine and integrations\n\n    C->>T: Request mutation\n    T->>S: Read and validate authority\n    T->>T: Stage candidate state\n    T->>L: Acquire ordered locks\n    activate L\n    L-->>T: Ownership token\n    deactivate L\n    T->>S: Revalidate under locks\n    T->>E: Apply reversible projections\n    T->>S: Commit authority last\n    alt Success\n        T->>L: Release locks\n        T-->>C: Complete\n    else Failure\n        T->>E: Compensate projections\n        T->>S: Restore prior state\n        T->>L: Release locks\n        T-->>C: Report retained recovery evidence\n    end",
+      "start_line": 144,
+      "end_line": 171,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/04-architecture-and-state.md",
+      "code": "stateDiagram-v2\n    state \"Preflight\" as Preflight\n    state \"Candidate staged\" as Staged\n    state \"Candidate validated\" as Validated\n    state \"Locks held\" as Locked\n    state \"Projections applied\" as Applied\n    state \"Authority committed\" as Committed\n    state \"Compensating rollback\" as Rollback\n    state \"Recovery evidence retained\" as Recovery\n\n    [*] --> Preflight\n    Preflight --> Staged : safe state\n    Staged --> Validated : candidate complete\n    Validated --> Locked : ordered acquisition\n    Locked --> Applied : authority revalidated\n    Applied --> Committed : commit last\n    Committed --> [*]\n    Staged --> Rollback : failure\n    Validated --> Rollback : failure\n    Locked --> Rollback : failure\n    Applied --> Rollback : failure\n    Rollback --> [*] : compensation complete\n    Rollback --> Recovery : compensation incomplete\n    Recovery --> [*]",
+      "start_line": 175,
+      "end_line": 200,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/05-profile-lifecycle.md",
+      "code": "stateDiagram-v2\n    state \"Absent\" as Absent\n    state \"Installed inactive\" as Inactive\n    state \"Installation active\" as Active\n    state \"Synchronized active\" as Synced\n    state \"Deleted\" as Deleted\n\n    [*] --> Absent\n    Absent --> Active : create or clone\n    Inactive --> Active : activate\n    Active --> Inactive : activate sibling\n    Active --> Synced : sync\n    Synced --> Active : commit\n    Inactive --> Deleted : delete\n    Deleted --> [*]",
+      "start_line": 45,
+      "end_line": 61,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/05-profile-lifecycle.md",
+      "code": "sequenceDiagram\n    participant U as User\n    participant C as Profile command\n    participant S as Candidate staging\n    participant E as Engine lifecycle\n    participant A as Active authority\n\n    U->>C: create or clone\n    C->>C: Validate current installation\n    C->>S: Stage profile materialization\n    S-->>C: Validated candidate\n    C->>C: Acquire ordered locks\n    C->>S: Commit candidate root\n    C->>E: Prepare shared or isolated binding\n    C->>A: Activate profile\n    A-->>C: Authority committed\n    C-->>U: Print shell-init selection command",
+      "start_line": 79,
+      "end_line": 97,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/05-profile-lifecycle.md",
+      "code": "graph TD\n    A[\"Validate installation\"] --> B[\"Resolve target profile\"]\n    B --> C[\"Plan skill links\"]\n    C --> D{\"Dry run?\"}\n    D -->|\"Yes\"| E[\"Report exact effects\"]\n    D -->|\"No\"| F[\"Acquire ordered locks\"]\n    F --> G[\"Activate engine policy\"]\n    G --> H[\"Replace active record\"]\n    H --> I[\"Reconcile skill links\"]\n    I --> J[\"Commit engine authority\"]\n    J --> K[\"Print shell selection\"]",
+      "start_line": 113,
+      "end_line": 125,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/06-engines-and-registries.md",
+      "code": "graph TD\n    A[\"Profile\"] --> B{\"Host OS\"}\n    B -->|\"Linux\"| C[\"Shared binding\"]\n    C --> D[\"Local rootless engine\"]\n    B -->|\"macOS\"| E{\"Binding mode\"}\n    E -->|\"Shared\"| F[\"Shared engine record\"]\n    F --> G[\"shimmy-default machine\"]\n    E -->|\"Isolated\"| H[\"Profile engine record\"]\n    H --> I[\"shimmy-profile machine\"]",
+      "start_line": 37,
+      "end_line": 47,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/06-engines-and-registries.md",
+      "code": "stateDiagram-v2\n    [*] --> Planned\n    state \"Planned\" as Planned\n    state \"Initializing\" as Initializing\n    state \"Identity recorded\" as Initialized\n    state \"Engine record saved\" as Recorded\n    state \"Machine started\" as Started\n    state \"Guest marker saved\" as GuestMarked\n    state \"Committed\" as Committed\n    Planned --> Initializing\n    Initializing --> Initialized\n    Initialized --> Recorded\n    Recorded --> Started\n    Started --> GuestMarked\n    GuestMarked --> Committed\n    Committed --> [*]",
+      "start_line": 63,
+      "end_line": 80,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/06-engines-and-registries.md",
+      "code": "sequenceDiagram\n    participant U as User\n    participant A as Activation\n    participant P as Prior Engine\n    participant T as Target Engine\n    participant R as Registry Projection\n    participant S as Profile Authority\n\n    U->>A: Activate profile\n    A->>P: Validate rollback source\n    A->>T: Stage target policy\n    A->>P: Inspect interrupting workloads\n    A->>T: Start or validate target\n    A->>R: Apply and validate policy\n    A->>S: Commit connection, active record, and skills\n    S-->>U: Activation complete",
+      "start_line": 103,
+      "end_line": 120,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/07-catalog-lifecycle.md",
+      "code": "graph TD\n    A[\"Installation catalog default\"] --> B[\"Registry authority\"]\n    B --> C[\"Current generation\"]\n    B --> D[\"Previous generation\"]\n    C --> E[\"generation.conf\"]\n    C --> F[\"tools payload\"]\n    F --> G[\"Content fingerprint\"]\n    G --> C\n    H[\"Profile catalog pin\"] --> C\n    H --> I[\"Source commit and fingerprint\"]",
+      "start_line": 37,
+      "end_line": 48,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/07-catalog-lifecycle.md",
+      "code": "sequenceDiagram\n    participant M as Maintainer\n    participant C as Catalog command\n    participant S as Source checkout\n    participant R as Registry\n    participant F as image.conf\n\n    M->>C: Refresh tool at version\n    C->>S: Validate main and record HEAD\n    C->>R: Resolve tag to digest\n    R-->>C: Candidate digest\n    C->>R: Inspect immutable candidate\n    R-->>C: Index and platforms\n    C->>C: Rewrite and validate staged config\n    C->>R: Re-resolve tag\n    R-->>C: Confirm unchanged digest\n    C->>S: Revalidate source authority\n    C->>F: Atomically replace or dry-run\n    C-->>M: Report review and smoke steps",
+      "start_line": 82,
+      "end_line": 102,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/07-catalog-lifecycle.md",
+      "code": "stateDiagram-v2\n    [*] --> CheckoutValidated\n    state \"Checkout validated\" as CheckoutValidated\n    state \"Tools staged\" as ToolsStaged\n    state \"Generation validated\" as GenerationValidated\n    state \"Existing generation reused\" as ExistingReused\n    state \"New generation retained\" as NewRetained\n    state \"Registry unchanged\" as RegistryUnchanged\n    state \"Registry committed\" as RegistryCommitted\n\n    CheckoutValidated --> ToolsStaged\n    ToolsStaged --> GenerationValidated\n    GenerationValidated --> ExistingReused : fingerprint exists\n    GenerationValidated --> NewRetained : fingerprint is new\n    ExistingReused --> RegistryUnchanged : already current\n    ExistingReused --> RegistryCommitted : not current\n    NewRetained --> RegistryCommitted\n    RegistryUnchanged --> [*]\n    RegistryCommitted --> [*]",
+      "start_line": 118,
+      "end_line": 138,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/08-shims-and-tool-execution.md",
+      "code": "graph TD\n    A[\"Profile shim records\"] --> C[\"Validated candidate stage\"]\n    B[\"Pinned catalog generation\"] --> C\n    C --> D[\"Direct bin wrapper\"]\n    C --> E[\"Retained version assets\"]\n    C --> F[\"Typed shim configuration\"]\n    C --> G[\"Tool skill bundle\"]\n    D --> H[\"Selected version run.sh\"]\n    E --> H\n    G --> I[\"Active user skill links\"]",
+      "start_line": 56,
+      "end_line": 67,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/08-shims-and-tool-execution.md",
+      "code": "sequenceDiagram\n    participant U as User shell\n    participant W as Profile bin wrapper\n    participant R as Concrete run.sh\n    participant H as Shared runtime helper\n    participant P as Podman\n    participant T as Tool container\n\n    U->>W: Invoke tool with arguments\n    W->>R: exec selected run.sh\n    R->>H: Read image and require preflight\n    H->>H: Resolve binary and native platform\n    H->>H: Validate profile affinity\n    H->>P: podman info\n    P-->>H: Engine status\n    R->>H: Submit podman run arguments\n    H->>P: exec podman run\n    P->>T: Start image in mounted workspace\n    T-->>U: Output and final exit status",
+      "start_line": 81,
+      "end_line": 101,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/09-tool-authoring.md",
+      "code": "graph TD\n    A[\"Stable tool directory\"] --> B[\"tool.conf\"]\n    A --> C[\"guide.md\"]\n    A --> D[\"SKILL.md\"]\n    A --> E[\"Tool tests\"]\n    A --> F[\"Concrete version\"]\n    F --> G[\"run.sh\"]\n    F --> H[\"smoke.conf\"]\n    F --> I[\"image.conf\"]\n    F --> J[\"refresh.sh\"]\n    F --> K[\"Optional container context\"]",
+      "start_line": 35,
+      "end_line": 47,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/09-tool-authoring.md",
+      "code": "graph TD\n    A[\"Inspect upstream\"] --> B[\"Choose image strategy\"]\n    B --> C[\"Implement version files\"]\n    C --> D[\"Preview generated shim\"]\n    D --> E[\"Verify catalog metadata\"]\n    E --> F[\"Run focused tests\"]\n    F --> G[\"Run native amd64 smoke\"]\n    G --> H[\"Run native arm64 smoke\"]\n    H --> I[\"Commit clean main\"]\n    I --> J[\"Publish catalog\"]\n    J --> K[\"Explicitly adopt content\"]",
+      "start_line": 115,
+      "end_line": 127,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/10-runtime-security-and-configuration.md",
+      "code": "graph TD\n    A[\"Host trust file\"] --> B{\"Absolute readable file?\"}\n    B -->|\"No\"| C[\"Stop with error\"]\n    B -->|\"Yes\"| D[\"Mount read-only\"]\n    D --> E[\"Stable container path\"]\n    E --> F[\"Assign native CA variable\"]\n    F --> G[\"Start opted-in tool\"]",
+      "start_line": 70,
+      "end_line": 78,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/10-runtime-security-and-configuration.md",
+      "code": "graph TD\n    A[\"Outer wrapper approval\"] --> B[\"Resolve Podman binary\"]\n    B --> C[\"Resolve native platform\"]\n    C --> D[\"Validate profile affinity\"]\n    D --> E[\"Probe engine reachability\"]\n    E --> F[\"Acquire or prepare image\"]\n    F --> G[\"Start container\"]\n    G --> H[\"Run wrapped tool\"]",
+      "start_line": 125,
+      "end_line": 134,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/11-ai-agent-integration.md",
+      "code": "graph TD\n    A[\"Exact control-source commit\"] --> B[\"Management skill discovery\"]\n    B --> C[\"Control bundle\"]\n    D[\"Pinned catalog generation\"] --> E[\"Installed tool inventory\"]\n    E --> F[\"Tool skill materialization\"]\n    F --> G[\"Shims bundle\"]\n    C --> H[\"Profile AI-skill state\"]\n    G --> H\n    H --> I[\"Active user skill links\"]",
+      "start_line": 41,
+      "end_line": 51,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/11-ai-agent-integration.md",
+      "code": "sequenceDiagram\n    participant U as User\n    participant L as Installed launcher\n    participant A as AI-skill lifecycle\n    participant K as Lock manager\n    participant T as External transaction\n    participant R as User skill root\n\n    U->>L: shimmy ai-skill repair\n    L->>A: Resolve active profile context\n    A->>A: Validate bundles and render plan\n    A->>K: Acquire activation lock\n    A->>K: Acquire profile lock\n    A->>A: Revalidate context and plan\n    A->>T: Begin transaction\n    A->>R: Remove stale recognized links\n    A->>R: Keep or replace desired links\n    alt Reconciliation succeeds\n        A->>T: Commit transaction\n        A-->>U: Repair completed\n    else Reconciliation fails\n        A->>T: Roll back recognized mutations\n        A-->>U: Repair failed\n    end",
+      "start_line": 96,
+      "end_line": 121,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/12-administration-and-recovery.md",
+      "code": "graph TD\n    A[\"Run installed admin network\"] --> B[\"Read shell interfaces and routes\"]\n    B --> C[\"Detect shell environment\"]\n    C --> D{\"Physical host or nested shell?\"}\n    D -->|\"Physical host\"| E[\"Infer host from default interface\"]\n    D -->|\"Podman VM or container\"| F[\"Keep nested addresses separate\"]\n    D -->|\"Crostini\"| F\n    F --> G[\"Resolve supplied host name or IP\"]\n    E --> H[\"Derive host LAN\"]\n    G --> H\n    H --> I[\"Render human or manifest evidence\"]\n    F -->|\"Host still unknown\"| J[\"Request host name, IP, prefix, or LAN\"]\n    J --> I",
+      "start_line": 62,
+      "end_line": 76,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/12-administration-and-recovery.md",
+      "code": "graph TD\n    A[\"Wrapper command fails\"] --> B{\"Only blocked in agent sandbox?\"}\n    B -->|\"Yes\"| C[\"Replay same safe wrapper with approval\"]\n    B -->|\"No or unknown\"| D[\"Inspect exact profile status\"]\n    D --> E{\"Engine reachable and selected?\"}\n    E -->|\"No\"| F[\"Inspect engine status and activation dry run\"]\n    E -->|\"Yes\"| G{\"Registry or image acquisition failed?\"}\n    G -->|\"Yes\"| H[\"Verify catalog metadata and image reference\"]\n    G -->|\"No\"| I{\"Container setup failed?\"}\n    I -->|\"Yes\"| J[\"Inspect mounts, runtime arguments, and Podman\"]\n    I -->|\"No\"| K[\"Diagnose wrapped tool arguments and output\"]\n    F --> L[\"Recover through profile activation\"]\n    H --> M[\"Report exact failing layer\"]\n    J --> M\n    K --> M",
+      "start_line": 94,
+      "end_line": 110,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/12-administration-and-recovery.md",
+      "code": "stateDiagram-v2\n    [*] --> RetainedJournal\n    state \"Retained journal\" as RetainedJournal\n    state \"Inspect recorded phase and identity\" as InspectEvidence\n    state \"Exact evidence matches\" as ExactMatch\n    state \"Evidence ambiguous or changed\" as Ambiguous\n    state \"Retry owning lifecycle command\" as RetryCommand\n    state \"Transaction committed\" as Committed\n    state \"Journal cleared\" as Cleared\n    state \"State and evidence preserved\" as Preserved\n    state \"Name reuse collision\" as Collision\n\n    RetainedJournal --> InspectEvidence\n    InspectEvidence --> ExactMatch\n    InspectEvidence --> Ambiguous\n    ExactMatch --> RetryCommand\n    RetryCommand --> Committed\n    RetryCommand --> Preserved: failure\n    Committed --> Cleared\n    Ambiguous --> Preserved\n    RetainedJournal --> Collision: machine or connection reappears\n    Collision --> Preserved\n    Cleared --> [*]",
+      "start_line": 133,
+      "end_line": 157,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/14-testing.md",
+      "code": "graph TD\n    A[\"Repository validation\"] --> B[\"Source test suite\"]\n    A --> C[\"Runtime benchmark\"]\n    A --> D[\"Native host smokes\"]\n    B --> E[\"Runner and library groups\"]\n    B --> F[\"Command groups\"]\n    B --> G[\"Lifecycle scenarios\"]\n    B --> H[\"Tool-owned groups\"]\n    B --> I[\"Structure and inventory gates\"]\n    C --> J[\"Installed profile workloads\"]\n    D --> K[\"Linux amd64\"]\n    D --> L[\"macOS arm64\"]",
+      "start_line": 31,
+      "end_line": 44,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    },
+    {
+      "file_path": "docs/wiki/15-contributing-and-maintenance.md",
+      "code": "graph TD\n    A[\"Root CONTEXT.md\"] --> B{\"Change area\"}\n    B -->|\"commands, lib, or tests\"| C[\"Read retained child contexts\"]\n    B -->|\"tools\"| D[\"Read tool guide and skill\"]\n    B -->|\"management plugins\"| E[\"Read canonical plugin skill\"]\n    A --> F[\"Read relevant ADRs\"]\n    C --> G[\"Use canonical domain terms\"]\n    D --> G\n    E --> G\n    F --> H{\"ADR conflict\"}\n    H -->|\"Yes\"| I[\"Surface conflict explicitly\"]\n    H -->|\"No\"| G",
+      "start_line": 67,
+      "end_line": 80,
+      "error_message": "mmdc not found: mmdc",
+      "error_type": "cli_unavailable",
+      "error_line": null,
+      "fix_hint": "Install mermaid-cli: npm install -g @mermaid-js/mermaid-cli"
+    }
+  ],
+  "total_invalid": 28,
+  "total_scanned": 28,
+  "files_affected": 13
+}

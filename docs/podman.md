@@ -161,6 +161,12 @@ concrete version's non-mutating smoke on native Linux `amd64` and native Apple
 Silicon macOS `arm64`. Build local images natively before their smoke. Preview
 and cross-emulation do not replace either host result.
 
+### AMD64  Variants
+GOAMD64=v1 (default): The baseline. Exclusively generates instructions that all 64-bit x86 processors can execute.
+GOAMD64=v2: all v1 instructions, plus CMPXCHG16B, LAHF, SAHF, POPCNT, SSE3, SSE4.1, SSE4.2, SSSE3.
+GOAMD64=v3: all v2 instructions, plus AVX, AVX2, BMI1, BMI2, F16C, FMA, LZCNT, MOVBE, OSXSAVE.
+GOAMD64=v4: all v3 instructions, plus AVX512F, AVX512BW, AVX512CD, AVX512DQ, AVX512VL.
+
 ## Linux notes
 
 Normal Shimmy execution expects rootless Podman. Check rootless state and the

@@ -1,0 +1,730 @@
+project:
+  name: "Shimmy"
+  description: "A profile-aware POSIX shell harness that exposes OCI-packaged tools as ordinary host commands while managing versions, Podman isolation, registry policy, and AI-agent skills."
+  repo_base_url: "https://github.com/wadebee/shimmy/blob"
+  ref_commit_hash: "aaebadedc4bd1ac9f56f7e31bd394ae86cd97485"
+  updated_at: "2026-09-19"
+
+pages:
+  - id: shimmy-01-overview
+    title: "Overview"
+    filename: "01-overview.md"
+    description: "What Shimmy is, the problems it solves, and its core operating model."
+    source_files:
+      - "README.md"
+      - "CONTEXT.md"
+      - "docs/ARCHITECTURE.md"
+    sections:
+      - id: shimmy-01-overview-purpose
+        title: "Purpose and Scope"
+        description: "Explain the profile-aware OCI tool harness and its intended users."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-01-overview-core-concepts
+        title: "Core Concepts"
+        description: "Introduce profiles, shims, concrete versions, catalogs, engines, and tool skills."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-01-overview-design-principles
+        title: "Design Principles"
+        description: "Cover POSIX shell, explicit ownership, immutable catalog generations, and transactional mutation."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-01-overview-platform-model
+        title: "Platform Model"
+        description: "Summarize the shared Linux rootless engine and macOS Podman machine models."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-02-getting-started
+      - shimmy-04-architecture-and-state
+      - shimmy-13-bundled-tools
+
+  - id: shimmy-02-getting-started
+    title: "Getting Started"
+    filename: "02-getting-started.md"
+    description: "Prerequisites, clean-checkout bootstrap, verification, and first profile operations."
+    source_files:
+      - "BOOTSTRAP.md"
+      - "bootstrap.sh"
+      - "commands/bootstrap.sh"
+      - "README.md"
+    sections:
+      - id: shimmy-02-getting-started-prerequisites
+        title: "Prerequisites"
+        description: "Document shell, Git, Podman, checkout, branch, and clean-state requirements."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-02-getting-started-bootstrap
+        title: "Bootstrap the Default Profile"
+        description: "Explain sourced and executed bootstrap modes, startup policy, and initial tool selection."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["sequence"]
+      - id: shimmy-02-getting-started-verify
+        title: "Verify the Installation"
+        description: "Provide supported status, engine, profile, shim, and tool verification commands."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-02-getting-started-first-profile
+        title: "Create and Select a Profile"
+        description: "Walk through dry-run, creation, activation, and PATH selection."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-02-getting-started-initial-failures
+        title: "Bootstrap Failure Boundaries"
+        description: "Explain collisions, compensation, retained recovery evidence, and safe next steps."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-03-command-line-reference
+      - shimmy-05-profile-lifecycle
+      - shimmy-12-administration-and-recovery
+
+  - id: shimmy-03-command-line-reference
+    title: "Command-Line Reference"
+    filename: "03-command-line-reference.md"
+    description: "The installed launcher grammar, command groups, selectors, formats, and help behavior."
+    source_files:
+      - "commands/README.md"
+      - "commands/help.sh"
+      - "commands/admin.sh"
+      - "commands/profile.sh"
+      - "commands/catalog.sh"
+      - "commands/shim.sh"
+      - "commands/ai-skill.sh"
+    sections:
+      - id: shimmy-03-command-line-reference-launcher
+        title: "Launcher and Help Semantics"
+        description: "Document root, group, subgroup, action-help, and installed-state validation behavior."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-03-command-line-reference-admin-profile
+        title: "Admin and Profile Commands"
+        description: "Reference administrative, profile, activation, startup, and redirect operations."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-03-command-line-reference-catalog-shim
+        title: "Catalog and Shim Commands"
+        description: "Reference catalog inspection and lifecycle plus profile-local shim operations."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-03-command-line-reference-ai-skill
+        title: "AI-Skill Commands"
+        description: "Reference active-profile skill inspection and reconciliation."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-03-command-line-reference-output-contracts
+        title: "Selectors and Output Contracts"
+        description: "Explain tool selectors, dry-run conventions, human output, and stable manifest output."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-05-profile-lifecycle
+      - shimmy-07-catalog-lifecycle
+      - shimmy-08-shims-and-tool-execution
+
+  - id: shimmy-04-architecture-and-state
+    title: "Architecture and State Model"
+    filename: "04-architecture-and-state.md"
+    description: "Control-plane architecture, installation layout, authority boundaries, and transaction model."
+    source_files:
+      - "docs/ARCHITECTURE.md"
+      - "CONTEXT.md"
+      - "lib/CONTEXT.md"
+      - "lib/install/CONTEXT.md"
+      - "lib/profile/CONTEXT.md"
+      - "lib/common/common.sh"
+      - "lib/common/lock.sh"
+    sections:
+      - id: shimmy-04-architecture-and-state-components
+        title: "System Components"
+        description: "Map checkout bootstrap, installed launcher, commands, shared libraries, profiles, and tools."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-04-architecture-and-state-installation-layout
+        title: "Installation Layout"
+        description: "Describe catalogs, profiles, engines, the active record, and ownership of materialized assets."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-04-architecture-and-state-authority
+        title: "Authority and Identity"
+        description: "Explain invoking-profile identity, active-profile authority, catalog pins, and source commits."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-04-architecture-and-state-transactions
+        title: "Transactions, Locks, and Rollback"
+        description: "Explain staged validation, lock ordering, commit boundaries, and compensation."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["sequence", "state"]
+      - id: shimmy-04-architecture-and-state-schema
+        title: "Strict State Contracts"
+        description: "Summarize schema identity, validation, replacement-in-place policy, and unsupported legacy state."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-05-profile-lifecycle
+      - shimmy-06-engines-and-registries
+      - shimmy-07-catalog-lifecycle
+
+  - id: shimmy-05-profile-lifecycle
+    title: "Profile Lifecycle"
+    filename: "05-profile-lifecycle.md"
+    description: "Profile creation, cloning, activation, synchronization, startup ownership, and deletion."
+    source_files:
+      - "commands/profile.sh"
+      - "lib/profile/profile.sh"
+      - "lib/profile/management.sh"
+      - "lib/profile/activation.sh"
+      - "lib/profile/transaction.sh"
+      - "lib/profile/state.sh"
+      - "lib/startup/startup.sh"
+      - "lib/profile/CONTEXT.md"
+    sections:
+      - id: shimmy-05-profile-lifecycle-model
+        title: "Profile Model"
+        description: "Explain names, materialized state, source/catalog bindings, policies, and active authority."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["state"]
+      - id: shimmy-05-profile-lifecycle-create-clone
+        title: "Create and Clone"
+        description: "Cover shared and isolated modes, defaults, overrides, dry runs, and automatic activation."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["sequence"]
+      - id: shimmy-05-profile-lifecycle-activate
+        title: "Activate and Select"
+        description: "Explain activation effects, restart and stop-running acknowledgements, and shell PATH selection."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-05-profile-lifecycle-sync-startup
+        title: "Sync and Startup Repair"
+        description: "Describe explicit source/catalog adoption and exact startup-block ownership."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-05-profile-lifecycle-delete
+        title: "Delete a Profile"
+        description: "Distinguish shared state removal from proven isolated-engine destruction and preservation cases."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-06-engines-and-registries
+      - shimmy-08-shims-and-tool-execution
+      - shimmy-11-ai-agent-integration
+
+  - id: shimmy-06-engines-and-registries
+    title: "Engines, Activation, and Registries"
+    filename: "06-engines-and-registries.md"
+    description: "Podman engine bindings, ownership evidence, activation transitions, and registry projection."
+    source_files:
+      - "docs/podman.md"
+      - "docs/registries.md"
+      - "lib/engine/CONTEXT.md"
+      - "lib/engine/state.sh"
+      - "lib/engine/ownership.sh"
+      - "lib/engine/lifecycle.sh"
+      - "lib/engine/projection.sh"
+      - "lib/registries/registries.sh"
+    sections:
+      - id: shimmy-06-engines-and-registries-binding
+        title: "Engine Binding Model"
+        description: "Compare Linux host-local and macOS shared or isolated bindings."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-06-engines-and-registries-ownership
+        title: "Ownership Evidence and Lifecycle"
+        description: "Explain durable initialization/removal journals and the evidence required for destructive authority."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["state"]
+      - id: shimmy-06-engines-and-registries-transition
+        title: "Activation Transitions"
+        description: "Describe shared switches, cross-engine changes, service recycling, restarts, and workload checks."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["sequence"]
+      - id: shimmy-06-engines-and-registries-redirects
+        title: "Registry Redirects"
+        description: "Explain logical-to-physical mappings, profile locality, active projection, and detach recovery."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-06-engines-and-registries-consumers
+        title: "Registry Policy Consumers"
+        description: "Clarify Skopeo consumption, catalog verification inheritance, and other runtime boundaries."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-05-profile-lifecycle
+      - shimmy-07-catalog-lifecycle
+      - shimmy-12-administration-and-recovery
+
+  - id: shimmy-07-catalog-lifecycle
+    title: "Catalog Lifecycle"
+    filename: "07-catalog-lifecycle.md"
+    description: "Immutable tool catalogs, generation identity, verification, refresh, publication, and rollback."
+    source_files:
+      - "commands/catalog.sh"
+      - "lib/catalog/catalog.sh"
+      - "lib/catalog/state.sh"
+      - "lib/catalog/authority.sh"
+      - "lib/catalog/refresh.sh"
+      - "lib/images/catalog.sh"
+      - "lib/images/images.sh"
+      - "lib/catalog/CONTEXT.md"
+    sections:
+      - id: shimmy-07-catalog-lifecycle-model
+        title: "Catalog and Generation Model"
+        description: "Explain the default catalog, tools-only payload, generation metadata, and profile pins."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-07-catalog-lifecycle-inspection
+        title: "Inspect and Verify"
+        description: "Cover local status/tools inspection and remote multi-platform image verification."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-07-catalog-lifecycle-refresh
+        title: "Refresh a Concrete Version"
+        description: "Describe tag resolution, immutable index validation, drift checks, and atomic image.conf updates."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["sequence"]
+      - id: shimmy-07-catalog-lifecycle-publish
+        title: "Publish and Reuse Generations"
+        description: "Explain clean-main authority, content fingerprints, provenance retention, and no-op publication."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["state"]
+      - id: shimmy-07-catalog-lifecycle-rollback-adoption
+        title: "Rollback and Profile Adoption"
+        description: "Distinguish registry authority changes from explicit profile synchronization."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-08-shims-and-tool-execution
+      - shimmy-09-tool-authoring
+      - shimmy-13-bundled-tools
+
+  - id: shimmy-08-shims-and-tool-execution
+    title: "Shims and Tool Execution"
+    filename: "08-shims-and-tool-execution.md"
+    description: "How profile-local commands select, materialize, run, synchronize, and test concrete tool versions."
+    source_files:
+      - "commands/shim.sh"
+      - "commands/run-tool.sh"
+      - "lib/shim/shim.sh"
+      - "lib/shim/state.sh"
+      - "lib/runtime/podman.sh"
+      - "lib/runtime/image.sh"
+      - "lib/runtime/log.sh"
+      - "lib/shim/CONTEXT.md"
+      - "lib/runtime/CONTEXT.md"
+    sections:
+      - id: shimmy-08-shims-and-tool-execution-selection
+        title: "Selectors and Version Policy"
+        description: "Explain tool and tool@version selectors, tracking versus pinned policy, and retained versions."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-08-shims-and-tool-execution-materialization
+        title: "Shim Materialization"
+        description: "Describe direct bin wrappers, concrete version assets, tool-skill coupling, and active-profile requirements."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-08-shims-and-tool-execution-runtime
+        title: "Container Runtime Flow"
+        description: "Trace host invocation through version resolution, Podman arguments, workspace mount, platform, and exit status."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["sequence"]
+      - id: shimmy-08-shims-and-tool-execution-lifecycle
+        title: "Add, Remove, Select, and Sync"
+        description: "Document supported mutations and their transactional boundaries."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-08-shims-and-tool-execution-smokes
+        title: "Version-Owned Smoke Tests"
+        description: "Explain smoke.conf, safe environment, selector scope, and non-mutating runtime acceptance."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-07-catalog-lifecycle
+      - shimmy-09-tool-authoring
+      - shimmy-10-runtime-security-and-configuration
+
+  - id: shimmy-09-tool-authoring
+    title: "Tool Authoring and Image Supply Chain"
+    filename: "09-tool-authoring.md"
+    description: "How to add or extend a tool, choose an image strategy, and meet catalog contracts."
+    source_files:
+      - "docs/templates/generic-shim/AGENTS.md"
+      - "docs/templates/generic-shim/SKILL.md"
+      - "plugins/shimmy/skills/shimmy-create-tool/SKILL.md"
+      - "plugins/shimmy/skills/shimmy-tool-local-build/SKILL.md"
+      - "tools/jq/tool.conf"
+      - "tools/jq/versions/1.8/run.sh"
+      - "tools/jq/versions/1.8/image.conf"
+      - "tools/jv/versions/6.0/run.sh"
+      - "tools/jv/versions/6.0/image.conf"
+      - "tools/jv/versions/6.0/refresh.sh"
+    sections:
+      - id: shimmy-09-tool-authoring-layout
+        title: "Tool and Version Layout"
+        description: "Define stable tool metadata, guides, skills, tests, and concrete version-owned files."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-09-tool-authoring-discovery
+        title: "Discovery and Companion Audit"
+        description: "Cover upstream implementation selection, companion dependencies, credentials, privileges, and architecture checks."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-09-tool-authoring-image-strategy
+        title: "External and Local-Build Images"
+        description: "Compare publisher images with version-owned container contexts and immutable digest requirements."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-09-tool-authoring-runtime-contract
+        title: "Runtime and Metadata Contracts"
+        description: "Explain small POSIX run.sh wrappers, native-platform helpers, /work mounting, image.conf, tool.conf, and smoke.conf."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-09-tool-authoring-acceptance
+        title: "Refresh and Acceptance"
+        description: "Describe source preview, catalog verification, native-host smokes, docs, tests, and publication readiness."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+    related_pages:
+      - shimmy-07-catalog-lifecycle
+      - shimmy-08-shims-and-tool-execution
+      - shimmy-14-testing
+
+  - id: shimmy-10-runtime-security-and-configuration
+    title: "Runtime Security and Configuration"
+    filename: "10-runtime-security-and-configuration.md"
+    description: "Environment, filesystem, credentials, trust, network, and privilege boundaries for tool containers."
+    source_files:
+      - "README.md"
+      - "docs/runtime-preflight.md"
+      - "docs/network-tools.md"
+      - "lib/runtime/preflight-review.sh"
+      - "lib/runtime/podman.sh"
+      - "tools/aws/guide.md"
+      - "tools/nmap/guide.md"
+      - "tools/opnsense-mcp-read-only/guide.md"
+      - "tools/terraform/guide.md"
+    sections:
+      - id: shimmy-10-runtime-security-and-configuration-environment
+        title: "Environment and Filesystem Boundaries"
+        description: "Explain explicit forwarding, workspace mounts, user identity, and Shimmy variable naming."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-10-runtime-security-and-configuration-secrets
+        title: "Credentials and Podman Secrets"
+        description: "Describe supported credential sources, secret selectors, and non-disclosure rules."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-10-runtime-security-and-configuration-trust
+        title: "Host CA Bundle Integration"
+        description: "Document the opt-in host trust-file contract and implementation-native CA assignments."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-10-runtime-security-and-configuration-network
+        title: "Network and Privilege Opt-Ins"
+        description: "Explain host networking, LAN scans, elevated capabilities, and security-sensitive wrapper switches."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-10-runtime-security-and-configuration-preflight
+        title: "Runtime Preflight and Failure Layers"
+        description: "Separate sandbox approval, engine reachability, image acquisition, container setup, and tool failures."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+    related_pages:
+      - shimmy-08-shims-and-tool-execution
+      - shimmy-11-ai-agent-integration
+      - shimmy-12-administration-and-recovery
+
+  - id: shimmy-11-ai-agent-integration
+    title: "AI-Agent Integration"
+    filename: "11-ai-agent-integration.md"
+    description: "Management and tool skill bundles, active-profile links, reconciliation, and approval guidance."
+    source_files:
+      - "commands/ai-skill.sh"
+      - "commands/agent-preflight.sh"
+      - "lib/ai-skill/ai-skill.sh"
+      - "lib/ai-skill/bundle.sh"
+      - "lib/ai-skill/link.sh"
+      - "lib/ai-skill/CONTEXT.md"
+      - "plugins/shimmy/skills/shimmy-escalation/SKILL.md"
+      - "plugins/shimmy/skills/shimmy-init/SKILL.md"
+      - "docs/runtime-preflight.md"
+    sections:
+      - id: shimmy-11-ai-agent-integration-bundles
+        title: "Control and Tool Skill Bundles"
+        description: "Explain distinct control-source and catalog-owned skill origins and profile materialization."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-11-ai-agent-integration-links
+        title: "Active-Profile Skill Links"
+        description: "Describe direct-link ownership, exact declared collisions, stale links, and preserved unrelated names."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-11-ai-agent-integration-reconciliation
+        title: "Inspect and Repair"
+        description: "Document list and repair behavior plus synchronization with profile and shim transactions."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["sequence"]
+      - id: shimmy-11-ai-agent-integration-preflight
+        title: "Agent Preflight and Approvals"
+        description: "Explain generated smoke guidance, outer-wrapper approval, and sandbox-only uncertainty."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-11-ai-agent-integration-authority
+        title: "Canonical Source and Update Boundaries"
+        description: "Clarify why repository adapters are not authoritative and how profile sync adopts management-skill changes."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-05-profile-lifecycle
+      - shimmy-08-shims-and-tool-execution
+      - shimmy-10-runtime-security-and-configuration
+
+  - id: shimmy-12-administration-and-recovery
+    title: "Administration, Diagnostics, and Recovery"
+    filename: "12-administration-and-recovery.md"
+    description: "Status inspection, network diagnostics, common failure classification, and destructive lifecycle recovery."
+    source_files:
+      - "commands/admin.sh"
+      - "lib/install/uninstall.sh"
+      - "lib/install/lifecycle.sh"
+      - "lib/engine/lifecycle.sh"
+      - "lib/netinfo/netinfo.sh"
+      - "lib/netinfo/render.sh"
+      - "docs/netinfo.md"
+      - "docs/podman.md"
+      - "BOOTSTRAP.md"
+    sections:
+      - id: shimmy-12-administration-and-recovery-status
+        title: "Installation and Engine Status"
+        description: "Explain read-only inspection of active records, catalogs, profiles, bindings, and projections."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-12-administration-and-recovery-network
+        title: "Multi-Perspective Network Diagnostics"
+        description: "Describe shell, host, VM, and container observations and target selection."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-12-administration-and-recovery-triage
+        title: "Failure Triage"
+        description: "Classify sandbox, profile affinity, engine, registry, image, container, and wrapped-tool failures."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-12-administration-and-recovery-incomplete-transactions
+        title: "Incomplete Lifecycle Transactions"
+        description: "Explain retained journals, preserved evidence, retry guidance, and name-reuse collision handling."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["state"]
+      - id: shimmy-12-administration-and-recovery-uninstall
+        title: "Safe Uninstall"
+        description: "Cover dry-run, stop-running acknowledgement, proven ownership, permanent VM-local loss, and preserved state."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-02-getting-started
+      - shimmy-06-engines-and-registries
+      - shimmy-10-runtime-security-and-configuration
+
+  - id: shimmy-13-bundled-tools
+    title: "Bundled Tool Catalog"
+    filename: "13-bundled-tools.md"
+    description: "A task-oriented guide to the repository's packaged command-line tools and their special operating boundaries."
+    source_files:
+      - "README.md"
+      - "tools/*/guide.md"
+      - "tools/*/tool.conf"
+      - "tools/*/SKILL.md"
+    sections:
+      - id: shimmy-13-bundled-tools-inventory
+        title: "Tool Inventory"
+        description: "Summarize every packaged tool, default version, and primary purpose."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-13-bundled-tools-development
+        title: "Development and Automation Tools"
+        description: "Group language, task, package, validation, source-control, and infrastructure tools by workflow."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-13-bundled-tools-cloud-cluster
+        title: "Cloud and Cluster Tools"
+        description: "Group cloud, OpenShift, Flux, Ansible, and Terraform integrations and their credential boundaries."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-13-bundled-tools-network-operations
+        title: "Network and Operations Tools"
+        description: "Group network scanners, sockets, OPNsense integrations, log analysis, file access, and terminal applications."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-13-bundled-tools-usage-boundaries
+        title: "Choosing and Using a Tool Safely"
+        description: "Point readers to tool guides for opt-ins, secrets, mounts, host networking, and platform-specific behavior."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-08-shims-and-tool-execution
+      - shimmy-09-tool-authoring
+      - shimmy-10-runtime-security-and-configuration
+
+  - id: shimmy-14-testing
+    title: "Testing and Validation"
+    filename: "14-testing.md"
+    description: "Test organization, bounded parallel execution, runtime acceptance, and repository validation gates."
+    source_files:
+      - "docs/testing.md"
+      - "tests/CONTEXT.md"
+      - "tests/test.sh"
+      - "tests/runner.sh"
+      - "tests/support.sh"
+      - "tests/commands/CONTEXT.md"
+      - "tests/lib/CONTEXT.md"
+      - "tests/context-tree.sh"
+      - "tests/runtime-benchmark.sh"
+    sections:
+      - id: shimmy-14-testing-organization
+        title: "Test Organization"
+        description: "Map command, library, tool-owned, context, and benchmark coverage to system boundaries."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-14-testing-runner
+        title: "Running the Suite"
+        description: "Document group discovery, default bounded parallelism, jobs, serial diagnosis, and focused runs."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-14-testing-test-design
+        title: "Test Design and Fixtures"
+        description: "Explain positive observable proofs, durable negative invariants, test modes, and fixture boundaries."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-14-testing-container-acceptance
+        title: "Container and Native-Host Acceptance"
+        description: "Distinguish fake-engine transaction tests, live non-mutating Podman checks, and native architecture smokes."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-14-testing-final-validation
+        title: "Final Validation Gates"
+        description: "Cover focused groups, shell syntax, executable modes, inventory, and whitespace validation."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-09-tool-authoring
+      - shimmy-15-contributing-and-maintenance
+
+  - id: shimmy-15-contributing-and-maintenance
+    title: "Contributing and Maintenance"
+    filename: "15-contributing-and-maintenance.md"
+    description: "Repository conventions, domain documentation, issue workflow, review boundaries, and maintainer routines."
+    source_files:
+      - "CONTRIBUTING.md"
+      - "AGENTS.md"
+      - "CONTEXT.md"
+      - "docs/agents/domain.md"
+      - "docs/agents/issue-tracker.md"
+      - "docs/prompt-shimmy-project.md"
+      - "plugins/shimmy/skills/shimmy-commit/SKILL.md"
+    sections:
+      - id: shimmy-15-contributing-and-maintenance-workflow
+        title: "Contribution Workflow"
+        description: "Explain required context reading, scope coordination, dirty-worktree preservation, and review expectations."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-15-contributing-and-maintenance-code-conventions
+        title: "POSIX Shell and Naming Conventions"
+        description: "Document architecture guardrails and file, function, variable, and environment naming."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-15-contributing-and-maintenance-domain-docs
+        title: "Domain Context Documentation"
+        description: "Explain the single-context tree, retained context files, and behavioral terminology."
+        autogen: true
+        diagrams_needed: true
+        diagram_types: ["flowchart"]
+      - id: shimmy-15-contributing-and-maintenance-issues-commits
+        title: "Issues and Commits"
+        description: "Summarize GitHub issue tracking and focused conventional commit practices."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+      - id: shimmy-15-contributing-and-maintenance-change-checklist
+        title: "Change Checklist"
+        description: "Tie implementation, tests, docs, generated artifacts, executable modes, and retained-plan evidence together."
+        autogen: true
+        diagrams_needed: false
+        diagram_types: []
+    related_pages:
+      - shimmy-09-tool-authoring
+      - shimmy-14-testing
+
+notes:
+  - "The wiki is organized by user and maintainer workflows rather than by repository directory."
+  - "Repository-local .kilo/worktrees metadata is intentionally excluded from source coverage."
+  - "Source links should be pinned to ref_commit_hash so citations remain stable."
