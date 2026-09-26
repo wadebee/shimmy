@@ -29,10 +29,11 @@ For an installed selected profile, invoke `aba` normally. To inspect or activate
 
 ## Runtime contract
 
-- ABA 1.3 builds locally from upstream v1.3.4 commit `364c4c0faa743d57d04674d71eabd434b5ec17d5` using the version-owned UBI9 base pin in `image.conf`.
+- ABA 1.3 builds locally from upstream v1.3.4 commit `364c4c0faa743d57d04674d71eabd434b5ec17d5` using the version-owned Fedora base pin in `image.conf`; Fedora supplies ABA's `dialog` and `coreos-installer` dependencies, which public UBI9 repositories lack.
 - `aba --help` and `aba -h` are the only unprivileged paths. They mount `$PWD` at `/work`, use `HOME=/work`, and add no network, privilege, rootful connection, credential, or mirror-data access.
 - Every other invocation requires all three exact values: `SHIMMY_ABA_PRIVILEGED=1`, `SHIMMY_ABA_NETWORK=host`, and `SHIMMY_PODMAN_PRIVILEGED=1`. A live invocation additionally verifies a rootful connection through `SHIMMY_PODMAN_PRIVILEGED_CONNECTION` or Shimmy's resolver.
 - `SHIMMY_ABA_SSH_KEY` and `SHIMMY_ABA_PULL_SECRET` each name one absolute readable regular file mounted read-only at `/tmp/shimmy-aba-ssh-key` and `/work/.pull-secret.json`. `SHIMMY_ABA_MIRROR_DATA_DIR` names one absolute existing writable directory mounted at `/work/mirror/data`.
+- `SHIMMY_HOST_CA_BUNDLE` names one absolute readable PEM bundle. ABA supplies it as a local-build secret and hashes its content for cache identity before populating the image system trust store for Fedora package installation, then mounts that exact file read-only at `/tmp/shimmy-host-ca-bundle.pem` and assigns `SSL_CERT_FILE` at runtime. The host path and bundle content must not be logged.
 - Do not mount `$HOME`, `$HOME/.aba`, `$HOME/.ssh`, pull-secret directories, known-host files, or Podman sockets. Never forward Shimmy control variables or secret values into the container.
 - Operational support is Linux RHEL/CentOS Stream/Fedora bastions only. macOS validates local image build/help but not host operations. Upstream's UBI-container workflow is work in progress and has a known `nmstate` limitation.
 

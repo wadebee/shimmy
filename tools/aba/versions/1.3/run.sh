@@ -14,6 +14,8 @@ SHIMMY_ABA_CONNECTION_VALUE=
 SHIMMY_ABA_SSH_KEY_SOURCE=
 SHIMMY_ABA_PULL_SECRET_SOURCE=
 SHIMMY_ABA_MIRROR_DATA_SOURCE=
+SHIMMY_ABA_CA_BUILD_ARG=
+SHIMMY_ABA_CA_BUILD_SECRET=
 
 shimmy_aba_operational_invocation() {
   while [ "${1:-}" = --preview-shim ]; do
@@ -67,12 +69,29 @@ shimmy_aba_mirror_data_prepare() {
   SHIMMY_ABA_MIRROR_DATA_SOURCE=$mirror_data_source
 }
 
+shimmy_aba_ca_bundle_prepare() {
+  shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+  [ -n "$SHIMMY_PODMAN_CA_BUNDLE_SOURCE" ] || return 0
+  if command -v sha256sum >/dev/null 2>&1; then
+    ca_bundle_digest=$(sha256sum "$SHIMMY_PODMAN_CA_BUNDLE_SOURCE" | awk '{print $1}')
+  elif command -v shasum >/dev/null 2>&1; then
+    ca_bundle_digest=$(shasum -a 256 "$SHIMMY_PODMAN_CA_BUNDLE_SOURCE" | awk '{print $1}')
+  else
+    printf '%s\n' 'ERROR: unable to hash SHIMMY_HOST_CA_BUNDLE: sha256sum or shasum is required.' >&2
+    return 1
+  fi
+  SHIMMY_ABA_CA_BUILD_ARG=SHIMMY_ABA_HOST_CA_BUNDLE_SHA256=$ca_bundle_digest
+  SHIMMY_ABA_CA_BUILD_SECRET=id=shimmy-aba-host-ca,src=$SHIMMY_PODMAN_CA_BUNDLE_SOURCE
+}
+
 if [ ! -f "$SHIMMY_IMAGE_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_IMAGE_HELPER_FILE" >&2
   exit 1
 fi
 
 . "$SHIMMY_IMAGE_HELPER_FILE"
+
+shimmy_aba_ca_bundle_prepare
 
 if shimmy_aba_operational_invocation "$@"; then
   shimmy_aba_gate_require
@@ -93,7 +112,7 @@ shimmy_podman_preflight_or_preview_require "the aba shim" "$@"
 if [ -n "${SHIMMY_ABA_IMAGE:-}" ]; then
   SHIMMY_ABA_RUN_IMAGE=$SHIMMY_ABA_IMAGE
 else
-  SHIMMY_ABA_RUN_IMAGE=$(shimmy_local_image_ensure "$SHIMMY_IMAGE_CONFIG_FILE" "${SHIMMY_ABA_IMAGE_BUILD:-auto}")
+  SHIMMY_ABA_RUN_IMAGE=$(shimmy_local_image_ensure "$SHIMMY_IMAGE_CONFIG_FILE" "${SHIMMY_ABA_IMAGE_BUILD:-auto}" ${SHIMMY_ABA_CA_BUILD_ARG:+--build-arg} ${SHIMMY_ABA_CA_BUILD_ARG:+"$SHIMMY_ABA_CA_BUILD_ARG"} ${SHIMMY_ABA_CA_BUILD_SECRET:+--secret} ${SHIMMY_ABA_CA_BUILD_SECRET:+"$SHIMMY_ABA_CA_BUILD_SECRET"})
 fi
 
 if [ -n "${SHIMMY_ABA_IMAGE:-}" ] && [ "${SHIMMY_ABA_IMAGE_PULL:-}" = always ]; then
@@ -130,6 +149,10 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" \
   -v "$PWD:/work" \
   -w /work \
   -e HOME=/work \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   ${SHIMMY_ABA_SSH_KEY_SOURCE:+"-v"} \
   ${SHIMMY_ABA_SSH_KEY_SOURCE:+"$SHIMMY_ABA_SSH_KEY_SOURCE:/tmp/shimmy-aba-ssh-key:ro"} \
   ${SHIMMY_ABA_PULL_SECRET_SOURCE:+"-v"} \

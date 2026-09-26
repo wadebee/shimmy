@@ -2,6 +2,13 @@ ARG SHIMMY_ABA_BASE_IMAGE
 FROM ${SHIMMY_ABA_BASE_IMAGE}
 
 ARG SHIMMY_ABA_SOURCE_REF=364c4c0faa743d57d04674d71eabd434b5ec17d5
+ARG SHIMMY_ABA_HOST_CA_BUNDLE_SHA256=
+
+RUN --mount=type=secret,id=shimmy-aba-host-ca,required=false \
+  if [ -s /run/secrets/shimmy-aba-host-ca ]; then \
+    cp /run/secrets/shimmy-aba-host-ca /etc/pki/ca-trust/source/anchors/shimmy-aba-host-ca-bundle.pem; \
+    update-ca-trust; \
+  fi
 
 RUN dnf install -y \
   sudo make jq git \

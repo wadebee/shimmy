@@ -2,8 +2,10 @@
 
 test_tools_aba_safe_help_preview() {
   setup_scenario
+  ca_bundle="$SCENARIO_DIR/host CA bundle.pem"
+  printf '%s\n' fixture-ca > "$ca_bundle"
 
-  output=$(run_in_repo ./commands/run-tool.sh aba --preview-shim --help)
+  output=$(SHIMMY_HOST_CA_BUNDLE="$ca_bundle" run_in_repo ./commands/run-tool.sh aba --preview-shim --help)
   case "$(uname -m)" in
     amd64|x86_64) expected_platform=linux/amd64 ;;
     aarch64|arm64) expected_platform=linux/arm64 ;;
@@ -16,6 +18,9 @@ test_tools_aba_safe_help_preview() {
   assert_contains "$output" "'-e' 'HOME=/work'"
   assert_contains "$output" "'localhost/shimmy-aba-1_3:"
   assert_contains "$output" "'--help'"
+  assert_contains "$output" "'-v' '$ca_bundle:/tmp/shimmy-host-ca-bundle.pem:ro'"
+  assert_contains "$output" "'-e' 'SSL_CERT_FILE=/tmp/shimmy-host-ca-bundle.pem'"
+  assert_not_contains "$output" fixture-ca
   assert_not_contains "$output" "'--connection'"
   assert_not_contains "$output" "'--privileged'"
   assert_not_contains "$output" "'--network' 'host'"

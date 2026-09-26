@@ -56,14 +56,16 @@ Podman command unchanged.
 | Google Cloud CLI `573.0` | `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE` |
 | npx `24.18`, gdrive `0.2`, Tessl `0.1` | `NODE_EXTRA_CA_CERTS` |
 | Go `1.26`, Terraform `1.15`, GitHub CLI `2.94`, Task `3.45` | `SSL_CERT_FILE` |
-| OpenShift CLI `4.18`, `4.20`, `4.22`; Skopeo `1.22` | `SSL_CERT_FILE` |
+| OpenShift CLI `4.18`, `4.20`, `4.22`; ABA `1.3`; Skopeo `1.22` | `SSL_CERT_FILE` |
 | OPNsense MCP read-only `0.4` | `SSL_CERT_FILE` |
 
 Node's `NODE_EXTRA_CA_CERTS` augments built-in public roots. The AWS, Google
 Cloud CLI, Go, and HTTPX mechanisms can replace normal trust-file discovery or
 have implementation-specific precedence. Supply a combined public and
 corporate bundle when the selected runtime must trust both; Shimmy does not
-discover, merge, parse, or install certificates. Application-specific CA flags
+discover, merge, or parse certificates. ABA `1.3` additionally adds the supplied
+bundle to its local Fedora image's system trust store before package installation.
+Application-specific CA flags
 or configuration can still take precedence. For OPNsense MCP read-only, also
 set `OPNSENSE_VERIFY_SSL=true`; Shimmy then gives the same host bundle to the
 curl reachability preflight through `--cacert`.

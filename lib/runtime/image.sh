@@ -325,11 +325,11 @@ shimmy_image_external_default_read() {
   shimmy_image_config_scalar_read "$config_file" image_default_ref
 }
 
-shimmy_local_image_build_args_append() {
+shimmy_local_image_build_options_append() {
   config_file=$1
   shift
 
-  shimmy_local_image_build_args_validate "$@" || return 1
+  shimmy_local_image_build_options_validate "$@" || return 1
 
   image_base_count=$(shimmy_image_config_scalar_read "$config_file" image_base_count)
   image_base_index=1
@@ -353,22 +353,49 @@ shimmy_local_image_build_args_append() {
   done
 }
 
-shimmy_local_image_build_args_validate() {
+shimmy_local_image_build_options_validate() {
   while [ "$#" -gt 0 ]; do
-    [ "$1" = --build-arg ] || shimmy_image_config_fail '<runtime-build-arguments>' "unsupported local image build option: $1" || return 1
-    [ "$#" -ge 2 ] || shimmy_image_config_fail '<runtime-build-arguments>' 'missing value after --build-arg' || return 1
-    build_arg_entry=$2
-    case "$build_arg_entry" in
-      *=*)
+    [ "$#" -ge 2 ] || shimmy_image_config_fail '<runtime-build-options>' "missing value after $1" || return 1
+    case "$1" in
+      --build-arg)
+        build_arg_entry=$2
+        case "$build_arg_entry" in
+          *=*) ;;
+          *) shimmy_image_config_fail '<runtime-build-options>' "build argument must use SHIMMY_NAME=value syntax: $build_arg_entry"; return 1 ;;
+        esac
+        build_arg_name=${build_arg_entry%%=*}
+        case "$build_arg_name" in SHIMMY_?*) ;; *) shimmy_image_config_fail '<runtime-build-options>' "build argument name must use the SHIMMY_ prefix: $build_arg_name"; return 1 ;; esac
+        case "$build_arg_name" in *[!A-Z0-9_]*) shimmy_image_config_fail '<runtime-build-options>' "build argument name is not POSIX-safe: $build_arg_name"; return 1 ;; esac
+        ;;
+      --secret)
+        secret_entry=$2
+        secret_id=${secret_entry#id=}
+        secret_id=${secret_id%%,*}
+        secret_source=${secret_entry#*,src=}
+        [ "$secret_entry" = "id=$secret_id,src=$secret_source" ] || shimmy_image_config_fail '<runtime-build-options>' "secret must use id=NAME,src=/absolute/path syntax: $secret_entry" || return 1
+        case "$secret_id" in ''|*[!A-Za-z0-9_.-]*) shimmy_image_config_fail '<runtime-build-options>' "secret id contains unsafe characters: $secret_id"; return 1 ;; esac
+        case "$secret_source" in /*) ;; *) shimmy_image_config_fail '<runtime-build-options>' "secret source must be an absolute path: $secret_source"; return 1 ;; esac
+        [ -f "$secret_source" ] && [ -r "$secret_source" ] || shimmy_image_config_fail '<runtime-build-options>' "secret source must be a readable regular file: $secret_source" || return 1
         ;;
       *)
-        shimmy_image_config_fail '<runtime-build-arguments>' "build argument must use SHIMMY_NAME=value syntax: $build_arg_entry"
+        shimmy_image_config_fail '<runtime-build-options>' "unsupported local image build option: $1"
         return 1
         ;;
     esac
-    build_arg_name=${build_arg_entry%%=*}
-    case "$build_arg_name" in SHIMMY_?*) ;; *) shimmy_image_config_fail '<runtime-build-arguments>' "build argument name must use the SHIMMY_ prefix: $build_arg_name"; return 1 ;; esac
-    case "$build_arg_name" in *[!A-Z0-9_]*) shimmy_image_config_fail '<runtime-build-arguments>' "build argument name is not POSIX-safe: $build_arg_name"; return 1 ;; esac
+    shift 2
+  done
+}
+
+shimmy_local_image_identity_options_print() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --build-arg) printf 'ARG %s\n' "$2" ;;
+      --secret)
+        secret_id=${2#id=}
+        secret_id=${secret_id%%,*}
+        printf 'SECRET %s\n' "$secret_id"
+        ;;
+    esac
     shift 2
   done
 }
@@ -403,9 +430,7 @@ shimmy_local_image_identity_hash_render() {
       printf '\n%s\n' 'CONTEXT'
       shimmy_context_content_print "$context_dir"
       printf '%s\n' 'BUILD_ARGUMENT_VECTOR'
-      for build_arg_token do
-        printf 'ARG %s\n' "$build_arg_token"
-      done
+      shimmy_local_image_identity_options_print "$@"
     } | sha256sum | awk '{print substr($1, 1, 12)}'
     return 0
   fi
@@ -416,9 +441,7 @@ shimmy_local_image_identity_hash_render() {
       printf '\n%s\n' 'CONTEXT'
       shimmy_context_content_print "$context_dir"
       printf '%s\n' 'BUILD_ARGUMENT_VECTOR'
-      for build_arg_token do
-        printf 'ARG %s\n' "$build_arg_token"
-      done
+      shimmy_local_image_identity_options_print "$@"
     } | shasum -a 256 | awk '{print substr($1, 1, 12)}'
     return 0
   fi
@@ -434,7 +457,7 @@ shimmy_local_image_ref_render() {
   context_dir=$(shimmy_local_image_context_dir_resolve "$config_file")
   image_repo=$(shimmy_image_config_scalar_read "$config_file" image_local_repo)
   SHIMMY_LOCAL_IMAGE_ARGS_FILE=$(mktemp "${TMPDIR:-/tmp}/shimmy-image-args.XXXXXX") || shimmy_custom_image_fail 'unable to create local image argument file'
-  shimmy_local_image_build_args_append "$config_file" "$@"
+  shimmy_local_image_build_options_append "$config_file" "$@"
   set --
   while IFS= read -r build_arg_token; do
     set -- "$@" "$build_arg_token"
@@ -463,7 +486,7 @@ shimmy_local_image_ensure() {
   context_dir=$(shimmy_local_image_context_dir_resolve "$config_file")
   image_repo=$(shimmy_image_config_scalar_read "$config_file" image_local_repo)
   SHIMMY_LOCAL_IMAGE_ARGS_FILE=$(mktemp "${TMPDIR:-/tmp}/shimmy-image-args.XXXXXX") || shimmy_custom_image_fail 'unable to create local image argument file'
-  shimmy_local_image_build_args_append "$config_file" "$@"
+  shimmy_local_image_build_options_append "$config_file" "$@"
   set --
   while IFS= read -r build_arg_token; do
     set -- "$@" "$build_arg_token"
