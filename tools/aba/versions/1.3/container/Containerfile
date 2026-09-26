@@ -1,0 +1,27 @@
+ARG SHIMMY_ABA_BASE_IMAGE
+FROM ${SHIMMY_ABA_BASE_IMAGE}
+
+ARG SHIMMY_ABA_SOURCE_REF=364c4c0faa743d57d04674d71eabd434b5ec17d5
+
+RUN dnf install -y \
+  sudo make jq git \
+  python3 python3-jinja2 python3-pyyaml \
+  ncurses which dialog file hostname diffutils \
+  bind-utils nmstate net-tools \
+  skopeo openssl coreos-installer \
+  httpd acl polkit openssh-clients \
+  && dnf clean all \
+  && rm -rf /var/cache/dnf
+
+RUN git init /opt/aba \
+  && git -C /opt/aba remote add origin https://github.com/sjbylo/aba.git \
+  && git -C /opt/aba fetch --depth 1 origin "${SHIMMY_ABA_SOURCE_REF}" \
+  && git -C /opt/aba checkout --detach FETCH_HEAD \
+  && rm -rf /opt/aba/.git \
+  && rm -rf /opt/aba/mirror \
+  && ln -s /work/mirror /opt/aba/mirror \
+  && printf '%s\n' '#!/bin/sh' 'set -eu' 'if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then cat /opt/aba/others/help-aba.txt; exit 0; fi' 'cd /opt/aba' 'exec env ABA_DO_NOT_UPDATE=1 /opt/aba/scripts/aba.sh "$@"' > /usr/local/bin/shimmy-aba \
+  && chmod 0755 /usr/local/bin/shimmy-aba
+
+WORKDIR /work
+ENTRYPOINT ["/usr/local/bin/shimmy-aba"]

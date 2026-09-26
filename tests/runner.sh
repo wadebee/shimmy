@@ -32,6 +32,7 @@ commands-lifecycle-isolated|test_commands_lifecycle_owned_isolated
 commands-lifecycle-uninstall|test_commands_lifecycle_global_owned_uninstall
 commands-lifecycle-linux-workflow|test_commands_lifecycle_linux_workflow
 commands-lifecycle-control-sync|test_commands_lifecycle_control_sync
+tools-aba|test_tools_aba_run
 tools-aws|test_tools_aws_run
 tools-bats|test_tools_bats_run
 tools-community-ansible-dev-tools|test_tools_community_ansible_dev_tools_run
@@ -91,6 +92,7 @@ commands-lifecycle-isolated|two-a|three-b
 commands-lifecycle-uninstall|two-b|three-a
 commands-lifecycle-linux-workflow|two-a|three-a
 commands-lifecycle-control-sync|two-b|three-c
+tools-aba|two-a|three-c
 tools-aws|two-b|three-c
 tools-bats|two-a|three-c
 tools-community-ansible-dev-tools|two-b|three-c

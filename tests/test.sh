@@ -121,6 +121,8 @@ TEST_COUNT=0
 # shellcheck source=tests/commands/lifecycle.sh
 . "$SCRIPT_DIR/commands/lifecycle.sh"
 
+# shellcheck source=tools/aba/tests/aba.sh
+. "$ROOT_DIR/tools/aba/tests/aba.sh"
 # shellcheck source=tools/aws/tests/aws.sh
 . "$ROOT_DIR/tools/aws/tests/aws.sh"
 # shellcheck source=tools/bats/tests/bats.sh

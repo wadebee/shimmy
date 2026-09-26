@@ -349,6 +349,7 @@ data. Legacy, external, or ambiguously owned machines are preserved.
 
 | Tool | Guide |
 |---|---|
+| aba | [tools/aba/guide.md](tools/aba/guide.md) |
 | aws | [tools/aws/guide.md](tools/aws/guide.md) |
 | bats | [tools/bats/guide.md](tools/bats/guide.md) |
 | community-ansible-dev-tools | [tools/community-ansible-dev-tools/guide.md](tools/community-ansible-dev-tools/guide.md) |
