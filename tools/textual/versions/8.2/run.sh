@@ -20,6 +20,8 @@ fi
 # shellcheck source=lib/runtime/image.sh
 . "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
+shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+
 shimmy_podman_preflight_or_preview_require "the textual shim" "$@"
 
 if [ -n "${SHIMMY_TEXTUAL_IMAGE:-}" ]; then
@@ -46,5 +48,9 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   ${SHIMMY_TEXTUAL_PULL_ARG:+"$SHIMMY_TEXTUAL_PULL_ARG"} \
   -v "$PWD:/work:rw" \
   -w /work \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   "$SHIMMY_TEXTUAL_RUN_IMAGE" \
   "$@"
