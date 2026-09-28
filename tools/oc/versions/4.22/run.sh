@@ -20,21 +20,15 @@ fi
 # shellcheck source=lib/runtime/image.sh
 . "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
+SHIMMY_OC_4_22_IMAGE=${SHIMMY_OC_4_22_IMAGE:-$(shimmy_image_external_default_read "$SHIMMY_IMAGE_CONFIG_FILE")}
+
 shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
 
 shimmy_podman_preflight_or_preview_require "the oc 4.22 shim" "$@"
 
-if [ -n "${SHIMMY_OC_4_22_IMAGE:-}" ]; then
-  SHIMMY_OC_4_22_RUN_IMAGE=$SHIMMY_OC_4_22_IMAGE
-else
-  SHIMMY_OC_4_22_RUN_IMAGE=$(
-    shimmy_local_image_ensure \
-      "$SHIMMY_IMAGE_CONFIG_FILE" \
-      "${SHIMMY_OC_4_22_IMAGE_BUILD:-auto}"
-  )
-fi
+SHIMMY_OC_4_22_RUN_IMAGE=$SHIMMY_OC_4_22_IMAGE
 
-if [ -n "${SHIMMY_OC_4_22_IMAGE:-}" ] && [ "${SHIMMY_OC_4_22_IMAGE_PULL:-}" = "always" ]; then
+if [ "${SHIMMY_OC_4_22_IMAGE_PULL:-}" = "always" ]; then
   SHIMMY_OC_4_22_PULL_ARG=--pull=always
 fi
 

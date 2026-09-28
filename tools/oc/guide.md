@@ -28,8 +28,8 @@ Unsupported or uninstalled selector values fail before Podman.
 
 ## Runtime
 
-Each track uses a version-owned local image based on the authenticated Red Hat
-`ose-cli-rhel9` multi-platform digest in its `image.conf`. The runtime mounts
+Each track runs the authenticated Red Hat `ose-cli-rhel9` multi-platform digest
+configured directly in its `image.conf`. The runtime mounts
 `$PWD` at `/work`, selects the native `linux/amd64` or `linux/arm64` platform,
 adds a TTY only when stdin and stdout are terminals, and forwards `KUBECONFIG`
 when set. When `SHIMMY_HOST_CA_BUNDLE` names an absolute, readable file, every
@@ -44,10 +44,9 @@ arguments can still take precedence.
 
 Version-specific settings are:
 
-- `SHIMMY_OC_4_18_IMAGE`, `SHIMMY_OC_4_18_IMAGE_BUILD`,
-  `SHIMMY_OC_4_18_IMAGE_PULL`, and `SHIMMY_OC_4_18_BASE_IMAGE`.
-- Equivalent `SHIMMY_OC_4_20_*` and `SHIMMY_OC_4_22_*` variables for those
-  tracks.
+- `SHIMMY_OC_4_18_IMAGE` and `SHIMMY_OC_4_18_IMAGE_PULL`.
+- Equivalent `SHIMMY_OC_4_20_*` and `SHIMMY_OC_4_22_*` image variables for
+  those tracks.
 
 Image and build-argument changes affect cache identity. A strict profile
 redirect may replace `registry.redhat.io`, but it is not a fallback and does
@@ -66,12 +65,12 @@ shimmy shim test oc@4.20
 ```
 
 Catalog verification of these authenticated bases requires an explicitly
-selected Skopeo auth secret. Native acceptance requires the version-owned
-`--help` smoke after a local build on Linux `amd64` and Apple Silicon macOS
-`arm64`.
+selected Skopeo auth secret. Native acceptance requires the `--help` smoke using the configured external
+image on Linux `amd64` and Apple Silicon macOS `arm64`.
 
 ## Adding a track
 
 Add `versions/<major.minor>/` with `run.sh`, `refresh.sh`, `smoke.conf`,
-`image.conf`, and `container/Containerfile`. Extend catalog metadata only; do
-not add public implementation commands or shared implementation-name maps.
+and `image.conf`. External image tracks do not need a `container/Containerfile`.
+Extend catalog metadata only; do not add public implementation commands or
+shared implementation-name maps.

@@ -139,12 +139,14 @@ tools/<tool>/
   not declare an implementation name.
 - Add no central tool-name or implementation-name routing map.
 
-Every version owns one valid `image.conf`. Use `image_source=external` for a
-suitable publisher image or `image_source=local-build` for a version-owned
-container context. Repository defaults and every non-`scratch` base must be
-fully qualified immutable top-level OCI index or Docker manifest-list digests
-with both `linux/amd64` and `linux/arm64`. Mutable tags belong only in upstream
-discovery fields.
+Every version owns one valid `image.conf`. Use `image_source=external` when a
+suitable publisher image can be run directly. Use `image_source=local-build`
+only when a version-owned container context intentionally adds or changes image
+behavior, dependencies, hardening, or another required layer; do not introduce
+a no-op wrapper solely to normalize metadata. Repository defaults and every
+non-`scratch` base must be fully qualified immutable top-level OCI index or
+Docker manifest-list digests with both `linux/amd64` and `linux/arm64`.
+Mutable tags belong only in upstream discovery fields.
 
 Audit companion CLIs, plugins, credentials, privileges, packages, installers,
 and downloaded archives for both architectures before implementation. Security-

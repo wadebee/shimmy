@@ -32,13 +32,16 @@ test_tools_oc_authenticated_image_config() {
   base_image_4_20=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:61136a31003a378aae4039be61cfe10f3d2b60399f08a5325233826deb569383
   base_image_4_22=registry.redhat.io/openshift4/ose-cli-rhel9@sha256:83541f26b665963dea277a7f893725f4a1812b0550d07404f1429ed8da6b3bb2
 
-  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.18/image.conf" "image_base_1_default_ref=$base_image_4_18"
-  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.20/image.conf" "image_base_1_default_ref=$base_image_4_20"
-  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.22/image.conf" "image_base_1_default_ref=$base_image_4_22"
+  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.18/image.conf" 'image_source=external'
+  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.20/image.conf" 'image_source=external'
+  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.22/image.conf" 'image_source=external'
+  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.18/image.conf" "image_default_ref=$base_image_4_18"
+  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.20/image.conf" "image_default_ref=$base_image_4_20"
+  assert_file_contains "$ROOT_DIR/tools/oc/versions/4.22/image.conf" "image_default_ref=$base_image_4_22"
   for image_config_file in "$ROOT_DIR"/tools/oc/versions/*/image.conf; do
-    assert_file_contains "$image_config_file" 'image_base_1_registry_access=authenticated'
+    assert_file_contains "$image_config_file" 'image_registry_access=authenticated'
   done
-  pass "oc image metadata records the authenticated Red Hat manifest-list defaults"
+  pass "oc image metadata records authenticated external Red Hat manifest-list defaults"
 }
 
 test_tools_oc_smoke_help() {

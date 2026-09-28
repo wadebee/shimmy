@@ -1,23 +1,17 @@
 #!/bin/sh
-# Refresh the OpenShift CLI 4.20 local image during shim synchronization.
+# Refresh the OpenShift CLI 4.20 external image during shim synchronization.
 set -eu
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
-ROOT_DIR=$(cd -- "$SCRIPT_DIR/../../../.." && pwd)
-SHIMMY_RUNTIME_DIR=$ROOT_DIR/lib/runtime
 
 # shellcheck source=tools/oc/versions/4.20/smoke.conf
 . "$SCRIPT_DIR/smoke.conf"
 
 case "${1:-}" in
   pull)
+    SHIMMY_OC_4_20_IMAGE_PULL=always "$SCRIPT_DIR/run.sh" "$smoke_arg" >/dev/null </dev/null
     ;;
   build)
-    [ -z "${SHIMMY_OC_4_20_IMAGE:-}" ] || exit 0
-    SHIMMY_OC_4_20_IMAGE_BUILD=always "$SCRIPT_DIR/run.sh" "$smoke_arg" >/dev/null </dev/null
-    # shellcheck source=lib/runtime/image.sh
-    . "$SHIMMY_RUNTIME_DIR/image.sh"
-    shimmy_local_image_stale_cleanup "$SCRIPT_DIR/image.conf"
     ;;
   *)
     printf 'ERROR: unsupported refresh action: %s\n' "${1:-}" >&2

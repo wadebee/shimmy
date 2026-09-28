@@ -1,8 +1,0 @@
-# The Red Hat-supplied manifest-list digest selects the matching supported
-# architecture. Override only with another fully qualified compatible image.
-ARG SHIMMY_OC_4_18_BASE_IMAGE
-FROM ${SHIMMY_OC_4_18_BASE_IMAGE}
-
-WORKDIR /work
-
-ENTRYPOINT ["oc"]
