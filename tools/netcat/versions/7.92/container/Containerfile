@@ -1,7 +1,14 @@
 ARG SHIMMY_NETCAT_BASE_IMAGE
 FROM ${SHIMMY_NETCAT_BASE_IMAGE}
 
-RUN microdnf install -y --setopt=install_weak_deps=0 nmap-ncat \
+RUN --mount=type=secret,id=shimmy-host-ca-bundle \
+  microdnf install -y --setopt=install_weak_deps=0 ca-certificates nmap-ncat \
+    && if [ -s /run/secrets/shimmy-host-ca-bundle ]; then \
+      cp /run/secrets/shimmy-host-ca-bundle /etc/pki/ca-trust/source/anchors/shimmy-host-ca-bundle.pem; \
+      update-ca-trust; \
+      rm /etc/pki/ca-trust/source/anchors/shimmy-host-ca-bundle.pem; \
+    fi \
+    && microdnf clean all
     && microdnf clean all
 
 WORKDIR /work

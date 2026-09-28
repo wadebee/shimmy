@@ -3,7 +3,14 @@ FROM ${SHIMMY_GH_BASE_IMAGE}
 
 ARG SHIMMY_GH_VERSION=2.94.0
 
-RUN apk add --no-cache ca-certificates curl git tar \
+RUN --mount=type=secret,id=shimmy-host-ca-bundle \
+  apk add --no-cache ca-certificates curl git tar \
+    && if [ -s /run/secrets/shimmy-host-ca-bundle ]; then \
+      cp /run/secrets/shimmy-host-ca-bundle /usr/local/share/ca-certificates/shimmy-host-ca-bundle.crt; \
+      update-ca-certificates; \
+      rm /usr/local/share/ca-certificates/shimmy-host-ca-bundle.crt; \
+    fi \
+    &&
     && case "$(uname -m)" in \
          x86_64) gh_arch='amd64' ;; \
          aarch64) gh_arch='arm64' ;; \

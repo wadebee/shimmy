@@ -2,6 +2,12 @@
 ARG SHIMMY_TESSL_BASE_IMAGE
 FROM ${SHIMMY_TESSL_BASE_IMAGE}
 EXPOSE 8888
+RUN --mount=type=secret,id=shimmy-host-ca-bundle \
+  if [ -s /run/secrets/shimmy-host-ca-bundle ]; then \
+    cp /run/secrets/shimmy-host-ca-bundle /usr/local/share/ca-certificates/shimmy-host-ca-bundle.crt; \
+    update-ca-certificates; \
+    rm /usr/local/share/ca-certificates/shimmy-host-ca-bundle.crt; \
+  fi
 RUN mkdir -p .npm-global \
     && apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates gzip \

@@ -1,7 +1,14 @@
 ARG SHIMMY_JV_BASE_IMAGE
 FROM ${SHIMMY_JV_BASE_IMAGE}
 
-RUN apk add --no-cache ca-certificates curl tar \
+RUN --mount=type=secret,id=shimmy-host-ca-bundle \
+  apk add --no-cache ca-certificates curl tar \
+    && if [ -s /run/secrets/shimmy-host-ca-bundle ]; then \
+      cp /run/secrets/shimmy-host-ca-bundle /usr/local/share/ca-certificates/shimmy-host-ca-bundle.crt; \
+      update-ca-certificates; \
+      rm /usr/local/share/ca-certificates/shimmy-host-ca-bundle.crt; \
+    fi \
+    &&
     && case "$(uname -m)" in \
          x86_64) jv_arch='amd64' ;; \
          aarch64) jv_arch='arm64' ;; \

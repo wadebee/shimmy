@@ -3,6 +3,16 @@ FROM ${SHIMMY_OPNSENSE_MCP_READ_ONLY_BASE_IMAGE} AS build
 
 ARG SHIMMY_OPNSENSE_MCP_READ_ONLY_SOURCE_REF=8ddb99a2a99102abc084b5e605aaba1c05c2ff56
 
+RUN --mount=type=secret,id=shimmy-host-ca-bundle \
+  if [ -s /run/secrets/shimmy-host-ca-bundle ]; then \
+    command -v update-ca-certificates >/dev/null 2>&1 || { printf '%s\n' 'ERROR: the selected base image cannot register SHIMMY_HOST_CA_BUNDLE.' >&2; exit 1; }; \
+    cp /run/secrets/shimmy-host-ca-bundle /usr/local/share/ca-certificates/shimmy-host-ca-bundle.crt; \
+    update-ca-certificates; \
+    rm /usr/local/share/ca-certificates/shimmy-host-ca-bundle.crt; \
+  else \
+    printf '%s\n' 'WARNING: SHIMMY_HOST_CA_BUNDLE is unset; build-time custom CA trust is disabled.' >&2; \
+  fi
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates git \
     && rm -rf /var/lib/apt/lists/*
@@ -17,6 +27,16 @@ RUN git init \
     && python -m build --wheel
 
 FROM ${SHIMMY_OPNSENSE_MCP_READ_ONLY_BASE_IMAGE}
+
+RUN --mount=type=secret,id=shimmy-host-ca-bundle \
+  if [ -s /run/secrets/shimmy-host-ca-bundle ]; then \
+    command -v update-ca-certificates >/dev/null 2>&1 || { printf '%s\n' 'ERROR: the selected base image cannot register SHIMMY_HOST_CA_BUNDLE.' >&2; exit 1; }; \
+    cp /run/secrets/shimmy-host-ca-bundle /usr/local/share/ca-certificates/shimmy-host-ca-bundle.crt; \
+    update-ca-certificates; \
+    rm /usr/local/share/ca-certificates/shimmy-host-ca-bundle.crt; \
+  else \
+    printf '%s\n' 'WARNING: SHIMMY_HOST_CA_BUNDLE is unset; build-time custom CA trust is disabled.' >&2; \
+  fi
 
 COPY --from=build /src/dist/*.whl /tmp/
 RUN python -m pip install --no-cache-dir /tmp/*.whl \
