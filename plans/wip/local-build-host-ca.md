@@ -174,8 +174,8 @@ None.
 
 ## Progress Checklist
 
-- [ ] Chunk 1 — Audit and record reusable existing CA behavior.
-- [ ] Chunk 2 — Add only missing shared universal runtime and build preparation.
+- [x] Chunk 1 — Audit and record reusable existing CA behavior (awaiting human review gate).
+- [x] Chunk 2 — Add only missing shared universal runtime and build preparation (awaiting human review gate).
 - [ ] Chunk 3 — Wire all runtimes and local-build Containerfiles.
 - [ ] Chunk 4 — Document and verify behavior.
 
@@ -235,11 +235,12 @@ so later chunks extend it rather than duplicating it.
 
 ### Verification checklist
 
-- [ ] Existing shared-helper and ABA call paths are documented with exact
+- [x] Existing shared-helper and ABA call paths are documented with exact
   producer, consumer, and output-variable roles.
-- [ ] The plan's later requirements distinguish reuse from new code, including
+- [x] The plan's later requirements distinguish reuse from new code, including
   the cache-identity invariant.
-- [ ] `git diff --check` passes and no production source changes exist.
+- [x] `git diff --check` passes and no production source changes exist
+  (2026-09-28; only this retained plan is modified).
 
 ### Human review gate
 
@@ -280,12 +281,17 @@ changing local image cache identity, reusing the Chunk 1-confirmed helpers.
 
 ### Verification checklist
 
-- [ ] POSIX syntax checks pass for changed shell files.
-- [ ] Focused helper tests pass for disabled, zero-byte, valid path-with-spaces,
+- [x] POSIX syntax checks pass for changed shell files
+  (`lib/runtime/podman.sh`, `lib/runtime/image.sh`, and `tests/lib/runtime.sh`).
+- [x] Focused helper tests pass for disabled, zero-byte, valid path-with-spaces,
   runtime argument construction, and unchanged image reference across changed
-  bundle contents.
-- [ ] Focused tests prove no host path or contents occur in cache identity;
-  preview displays only the approved runtime mount and assignment.
+  bundle contents (`./tests/test.sh --group lib-runtime --group tools-skopeo`,
+  2026-09-28).
+- [x] Focused tests prove no host path or contents occur in cache identity;
+  preview displays only the approved runtime mount and assignment. The local
+  image test verifies the fixed secret is passed to a build but omitted from
+  identity output, while the existing Skopeo preview contract verifies the
+  conditional runtime mount and `SSL_CERT_FILE` assignment.
 
 ### Human review gate
 
@@ -413,6 +419,78 @@ acceptance.
   runtime command construction remains distributed among wrappers.
 - The prior plan incorrectly made CA bundle content a cache-identity input.
   The corrected design intentionally preserves cache/tag portability.
+
+### Chunk 1 — Reuse audit and implementation boundary
+
+- `shimmy_podman_ca_bundle_prepare` is the sole reusable host-CA producer. It
+  resets `SHIMMY_PODMAN_CA_BUNDLE_SOURCE`, `_TARGET`, and `_ENV_ASSIGNMENT`,
+  validates exactly one POSIX native variable name, treats an unset or empty
+  `SHIMMY_HOST_CA_BUNDLE` as disabled, requires an absolute readable regular
+  file, and renders the stable `/tmp/shimmy-host-ca-bundle.pem` target plus
+  the selected assignment. It preserves literal paths, including spaces and
+  symlinked parents. Chunk 2 must add its missing nonempty-file predicate here
+  without creating another parser, target renderer, or output state.
+- All 16 current callers invoke that producer before runtime argument assembly:
+  AWS (`AWS_CA_BUNDLE`), gcloud (`CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE`), npx,
+  gdrive, and Tessl (`NODE_EXTRA_CA_CERTS`), and ABA, Go, Terraform, gh, Task,
+  all three oc versions, Skopeo, Flux, and OPNsense MCP read-only
+  (`SSL_CERT_FILE`). Each current consumer conditionally emits exactly the
+  shared `-v source:target:ro` and `-e assignment` pair. The four wrappers
+  that wildcard-forward environment values (Tessl, Terraform, gh, and gdrive)
+  emit the explicit assignment after those wildcards. This conditional argument
+  pattern and `shimmy_podman_run_or_preview` preview rendering are reusable;
+  the remaining 12 distributed runtime command vectors are the demonstrated
+  universal-adoption gap. Do not create a parallel CA mount/assignment helper
+  state; add only a POSIX-safe insertion seam if coordinated wrapper edits are
+  not the lower-risk implementation.
+- `shimmy_local_image_build_options_append` validates and serializes both
+  caller options and configured base build arguments into one argument file.
+  Its existing `--secret id=NAME,src=/absolute/path` validator already requires
+  a readable regular source file. `shimmy_local_image_ref_render`,
+  `shimmy_local_image_ensure`, and `shimmy_local_image_stale_cleanup` all call
+  that same append/ref path. `shimmy_local_image_identity_options_print`
+  deliberately includes only `SECRET <id>`, never a secret source path or
+  contents, so one fixed shared secret id can cover every local build without
+  fragmenting the image ref, hash label, or stale-cleanup current reference.
+  Chunk 2 must append the fixed optional secret at this shared seam after the
+  common producer declares a present bundle; it must not add the source,
+  control-variable value, or contents to identity output or logs.
+- ABA is the only current local-build CA consumer. Its dedicated
+  `shimmy_aba_ca_bundle_prepare` makes the common bundle mandatory, creates
+  `id=shimmy-aba-host-ca`, and passes it to `shimmy_local_image_ensure`; its
+  Fedora Containerfile mounts that required secret and runs `update-ca-trust`
+  before `dnf` and `git` network work. The pre-network placement and Fedora
+  native refresh are reusable evidence. ABA's required input, ABA-specific
+  secret id, duplicate runtime wrapper, and standalone build-secret assembly
+  conflict with the universal optional contract and must be removed or
+  simplified in Chunk 3.
+- No production code changed during this chunk. Later work must retain the
+  raw host path solely in host-side process state: preview may show the runtime
+  mount and selected assignment but not a build secret source, and cache
+  metadata must remain independent of bundle presence and contents.
+
+### Chunk 2 — Shared universal CA preparation
+
+- `shimmy_podman_ca_bundle_prepare` now rejects zero-byte files while retaining
+  the existing disabled, absolute-path, readable-regular-file, output-reset,
+  and no-content-logging behavior. A present bundle therefore has one shared
+  definition for runtime and local-build consumers.
+- `shimmy_local_image_build_options_append` conditionally appends the fixed
+  `id=shimmy-host-ca-bundle` secret from the shared source scalar, so existing
+  validation and option serialization carry it consistently through reference
+  rendering, ensure, and stale cleanup. `shimmy_local_image_identity_options_print`
+  intentionally omits only that fixed secret from identity output. This keeps
+  its host source and contents out of image hashes, tags, and labels while
+  preserving identity behavior for any unrelated caller-provided secret.
+- No runtime-vector insertion helper was added: the audit showed an existing
+  POSIX-safe scalar expansion pattern in the 16 adopted wrappers, while the 12
+  remaining wrappers must be explicitly wired in Chunk 3. The shared source
+  scalar remains the only CA mount/assignment state.
+- Focused coverage proves zero-byte rejection with cleared outputs, path-space
+  preservation, optional build-secret serialization, and equal local image
+  references with enabled, changed-content, and disabled bundles. The existing
+  Skopeo preview contract remains the lowest-cost proof that runtime preview
+  renders the conditional mount and selected mapping without a build secret.
 
 ## Session bootstrap
 

@@ -160,12 +160,14 @@ test_lib_runtime_ca_bundle_prepare_path_failures() {
   missing_bundle=$SCENARIO_DIR/missing-ca-bundle.pem
   directory_bundle=$SCENARIO_DIR/ca-bundle-directory
   unreadable_bundle=$SCENARIO_DIR/unreadable-ca-bundle.pem
+  empty_bundle=$SCENARIO_DIR/empty-ca-bundle.pem
   printf '%s\n' "$bundle_contents" > "$SCENARIO_DIR/$relative_bundle"
   mkdir -p "$directory_bundle"
   printf '%s\n' "$bundle_contents" > "$directory_bundle/contents.pem"
   printf '%s\n' "$bundle_contents" > "$unreadable_bundle"
+  : > "$empty_bundle"
 
-  for invalid_bundle in "$relative_bundle" "$missing_bundle" "$directory_bundle"; do
+  for invalid_bundle in "$relative_bundle" "$missing_bundle" "$directory_bundle" "$empty_bundle"; do
     set +e
     output=$(cd "$SCENARIO_DIR" && SHIMMY_HOST_CA_BUNDLE=$invalid_bundle /bin/sh -c '
       . "$1"
@@ -184,7 +186,11 @@ test_lib_runtime_ca_bundle_prepare_path_failures() {
     set -e
 
     [ "$status_code" -ne 0 ] || fail_test "invalid CA bundle unexpectedly passed: $invalid_bundle"
-    assert_equals "$output" "ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable CA bundle file: $invalid_bundle
+    case "$invalid_bundle" in
+      /*) expected_error='ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable nonempty CA bundle file' ;;
+      *) expected_error='ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable CA bundle file' ;;
+    esac
+    assert_equals "$output" "$expected_error: $invalid_bundle
 source=
 target=
 assignment="
@@ -201,12 +207,70 @@ assignment="
     status_code=$?
     set -e
     [ "$status_code" -ne 0 ] || fail_test "unreadable CA bundle unexpectedly passed"
-    assert_equals "$output" "ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable CA bundle file: $unreadable_bundle"
+    assert_equals "$output" "ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable nonempty CA bundle file: $unreadable_bundle"
     assert_not_contains "$output" "$bundle_contents"
   fi
   chmod 0600 "$unreadable_bundle"
 
   pass "CA bundle preparation rejects invalid configured paths without printing file contents"
+}
+
+test_lib_runtime_local_image_ca_bundle_build_options() {
+  setup_scenario
+  image_helper_file=$ROOT_DIR/lib/runtime/image.sh
+  image_config=$SCENARIO_DIR/image.conf
+  image_context=$SCENARIO_DIR/container
+  bundle=$SCENARIO_DIR/'host CA bundle.pem'
+  build_options_file=$SCENARIO_DIR/build-options
+  mkdir "$image_context"
+  printf '%s\n' 'FROM scratch' > "$image_context/Containerfile"
+  printf '%s\n' \
+    'shimmy_image_config_version=1' \
+    'image_source=local-build' \
+    'image_platform=linux/amd64' \
+    'image_platform=linux/arm64' \
+    'image_context=container' \
+    'image_local_repo=localhost/test-host-ca' \
+    'image_base_count=1' \
+    'image_base_1_build_arg=SHIMMY_TEST_BASE_IMAGE' \
+    'image_base_1_default_ref=scratch' > "$image_config"
+  printf '%s\n' fixture-ca-one > "$bundle"
+
+  enabled_ref=$(SHIMMY_HOST_CA_BUNDLE="$bundle" SHIMMY_RUNTIME_DIR="$ROOT_DIR/lib/runtime" SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=amd64 /bin/sh -c '
+    . "$1"
+    shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+    shimmy_local_image_ref_render "$2"
+  ' sh "$image_helper_file" "$image_config")
+  enabled_options=$(SHIMMY_HOST_CA_BUNDLE="$bundle" SHIMMY_RUNTIME_DIR="$ROOT_DIR/lib/runtime" /bin/sh -c '
+    . "$1"
+    shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+    SHIMMY_LOCAL_IMAGE_ARGS_FILE=$3
+    shimmy_local_image_build_options_append "$2"
+    cat "$SHIMMY_LOCAL_IMAGE_ARGS_FILE"
+  ' sh "$image_helper_file" "$image_config" "$build_options_file")
+  assert_contains "$enabled_options" 'id=shimmy-host-ca-bundle,src='
+  assert_contains "$enabled_options" "$bundle"
+
+  printf '%s\n' fixture-ca-two > "$bundle"
+  changed_ref=$(SHIMMY_HOST_CA_BUNDLE="$bundle" SHIMMY_RUNTIME_DIR="$ROOT_DIR/lib/runtime" SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=amd64 /bin/sh -c '
+    . "$1"
+    shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+    shimmy_local_image_ref_render "$2"
+  ' sh "$image_helper_file" "$image_config")
+  disabled_ref=$(SHIMMY_RUNTIME_DIR="$ROOT_DIR/lib/runtime" SHIMMY_TEST_OS=Linux SHIMMY_TEST_ARCH=amd64 /bin/sh -c '
+    . "$1"
+    shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+    shimmy_local_image_ref_render "$2"
+  ' sh "$image_helper_file" "$image_config")
+  assert_equals "$enabled_ref" "$changed_ref"
+  assert_equals "$enabled_ref" "$disabled_ref"
+
+  identity_output=$(SHIMMY_RUNTIME_DIR="$ROOT_DIR/lib/runtime" /bin/sh -c '
+    . "$1"
+    shimmy_local_image_identity_options_print --secret "id=shimmy-host-ca-bundle,src=$2"
+  ' sh "$image_helper_file" "$bundle")
+  assert_equals "$identity_output" ''
+  pass "local image build options add the host CA secret without changing image identity"
 }
 
 test_lib_runtime_profile_affinity() {
@@ -353,6 +417,7 @@ test_lib_runtime_run() {
   test_lib_runtime_ca_bundle_prepare_paths
   test_lib_runtime_ca_bundle_prepare_name_failure
   test_lib_runtime_ca_bundle_prepare_path_failures
+  test_lib_runtime_local_image_ca_bundle_build_options
   test_lib_runtime_profile_affinity
   test_lib_runtime_posix_syntax
   test_lib_runtime_executable_contract

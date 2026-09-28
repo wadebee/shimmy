@@ -329,6 +329,10 @@ shimmy_local_image_build_options_append() {
   config_file=$1
   shift
 
+  if [ -n "${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:-}" ]; then
+    set -- "$@" --secret "id=shimmy-host-ca-bundle,src=$SHIMMY_PODMAN_CA_BUNDLE_SOURCE"
+  fi
+
   shimmy_local_image_build_options_validate "$@" || return 1
 
   image_base_count=$(shimmy_image_config_scalar_read "$config_file" image_base_count)
@@ -393,7 +397,7 @@ shimmy_local_image_identity_options_print() {
       --secret)
         secret_id=${2#id=}
         secret_id=${secret_id%%,*}
-        printf 'SECRET %s\n' "$secret_id"
+        [ "$secret_id" = shimmy-host-ca-bundle ] || printf 'SECRET %s\n' "$secret_id"
         ;;
     esac
     shift 2

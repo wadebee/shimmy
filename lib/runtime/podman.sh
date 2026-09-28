@@ -379,8 +379,8 @@ shimmy_podman_ca_bundle_prepare() {
       ;;
   esac
 
-  if [ ! -f "$ca_bundle_source" ] || [ ! -r "$ca_bundle_source" ]; then
-    printf 'ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable CA bundle file: %s\n' \
+  if [ ! -f "$ca_bundle_source" ] || [ ! -r "$ca_bundle_source" ] || [ ! -s "$ca_bundle_source" ]; then
+    printf 'ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable nonempty CA bundle file: %s\n' \
       "$ca_bundle_source" >&2
     return 1
   fi
