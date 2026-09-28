@@ -349,7 +349,7 @@ shimmy_podman_platform_tag_render() {
 
 shimmy_podman_ca_bundle_prepare() {
   SHIMMY_PODMAN_CA_BUNDLE_SOURCE=
-  SHIMMY_PODMAN_CA_BUNDLE_TARGET=
+  SHIMMY_PODMAN_CA_BUNDLE_TARGET=/tmp/shimmy-host-ca-bundle.pem
   SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT=
 
   if [ "$#" -ne 1 ]; then
@@ -386,7 +386,6 @@ shimmy_podman_ca_bundle_prepare() {
   fi
 
   SHIMMY_PODMAN_CA_BUNDLE_SOURCE=$ca_bundle_source
-  SHIMMY_PODMAN_CA_BUNDLE_TARGET=/tmp/shimmy-host-ca-bundle.pem
   SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT=$ca_bundle_native_environment_name=$SHIMMY_PODMAN_CA_BUNDLE_TARGET
 }
 

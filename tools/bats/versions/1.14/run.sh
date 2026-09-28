@@ -23,6 +23,8 @@ fi
 
 SHIMMY_BATS_IMAGE=${SHIMMY_BATS_IMAGE:-$(shimmy_image_external_default_read "$SHIMMY_IMAGE_CONFIG_FILE")}
 
+shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+
 shimmy_podman_preflight_or_preview_require "the bats shim" "$@"
 
 if [ "$SHIMMY_BATS_IMAGE_PULL" = always ]; then
@@ -40,6 +42,10 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm \
   ${SHIMMY_BATS_TTY_ARG:+"$SHIMMY_BATS_TTY_ARG"} \
   -v "$PWD:/work:rw" \
   -w /work \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   --entrypoint bats \
   "$SHIMMY_BATS_IMAGE" \
   "$@"

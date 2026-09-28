@@ -20,6 +20,8 @@ fi
 
 SHIMMY_KEEPASSXC_IMAGE=${SHIMMY_KEEPASSXC_IMAGE:-$(shimmy_image_external_default_read "$SHIMMY_IMAGE_CONFIG_FILE")}
 
+shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+
 shimmy_podman_preflight_or_preview_require "the keepassxc shim" "$@"
 
 if [ "$SHIMMY_KEEPASSXC_IMAGE_PULL" = always ]; then
@@ -32,5 +34,9 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm -i \
   -v "$PWD:/work:rw" \
   -w /work \
   --entrypoint keepassxc-cli \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   "$SHIMMY_KEEPASSXC_IMAGE" \
   "$@"

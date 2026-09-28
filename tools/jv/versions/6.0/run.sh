@@ -19,6 +19,8 @@ fi
 # shellcheck source=lib/runtime/image.sh
 . "$SHIMMY_CUSTOM_IMAGE_HELPER_FILE"
 
+shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
+
 shimmy_podman_preflight_or_preview_require "the jv shim" "$@"
 
 if [ -n "${SHIMMY_JV_IMAGE:-}" ]; then
@@ -40,5 +42,9 @@ shimmy_podman_run_or_preview "$SHIMMY_PODMAN_BIN" run --rm -i \
   ${SHIMMY_JV_PULL_ARG:+"$SHIMMY_JV_PULL_ARG"} \
   -v "$PWD:/work" \
   -w /work \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"-v"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_SOURCE:+"$SHIMMY_PODMAN_CA_BUNDLE_SOURCE:$SHIMMY_PODMAN_CA_BUNDLE_TARGET:ro"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"-e"} \
+  ${SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT:+"$SHIMMY_PODMAN_CA_BUNDLE_ENV_ASSIGNMENT"} \
   "$SHIMMY_JV_RUN_IMAGE" \
   "$@"
