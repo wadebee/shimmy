@@ -14,7 +14,6 @@ SHIMMY_ABA_CONNECTION_VALUE=
 SHIMMY_ABA_SSH_KEY_SOURCE=
 SHIMMY_ABA_PULL_SECRET_SOURCE=
 SHIMMY_ABA_MIRROR_DATA_SOURCE=
-SHIMMY_ABA_CA_BUILD_SECRET=
 
 shimmy_aba_operational_invocation() {
   while [ "${1:-}" = --preview-shim ]; do
@@ -68,15 +67,6 @@ shimmy_aba_mirror_data_prepare() {
   SHIMMY_ABA_MIRROR_DATA_SOURCE=$mirror_data_source
 }
 
-shimmy_aba_ca_bundle_prepare() {
-  shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
-  if [ -z "$SHIMMY_PODMAN_CA_BUNDLE_SOURCE" ]; then
-    printf '%s\n' 'ERROR: aba requires SHIMMY_HOST_CA_BUNDLE to name an absolute readable CA bundle file.' >&2
-    return 1
-  fi
-  SHIMMY_ABA_CA_BUILD_SECRET=id=shimmy-aba-host-ca,src=$SHIMMY_PODMAN_CA_BUNDLE_SOURCE
-}
-
 if [ ! -f "$SHIMMY_IMAGE_HELPER_FILE" ]; then
   printf 'ERROR: missing shim helper: %s\n' "$SHIMMY_IMAGE_HELPER_FILE" >&2
   exit 1
@@ -84,7 +74,7 @@ fi
 
 . "$SHIMMY_IMAGE_HELPER_FILE"
 
-shimmy_aba_ca_bundle_prepare
+shimmy_podman_ca_bundle_prepare SSL_CERT_FILE
 
 if shimmy_aba_operational_invocation "$@"; then
   shimmy_aba_gate_require
@@ -105,7 +95,7 @@ shimmy_podman_preflight_or_preview_require "the aba shim" "$@"
 if [ -n "${SHIMMY_ABA_IMAGE:-}" ]; then
   SHIMMY_ABA_RUN_IMAGE=$SHIMMY_ABA_IMAGE
 else
-  SHIMMY_ABA_RUN_IMAGE=$(shimmy_local_image_ensure "$SHIMMY_IMAGE_CONFIG_FILE" "${SHIMMY_ABA_IMAGE_BUILD:-auto}" --secret "$SHIMMY_ABA_CA_BUILD_SECRET")
+  SHIMMY_ABA_RUN_IMAGE=$(shimmy_local_image_ensure "$SHIMMY_IMAGE_CONFIG_FILE" "${SHIMMY_ABA_IMAGE_BUILD:-auto}")
 fi
 
 if [ -n "${SHIMMY_ABA_IMAGE:-}" ] && [ "${SHIMMY_ABA_IMAGE_PULL:-}" = always ]; then

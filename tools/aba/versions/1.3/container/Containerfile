@@ -3,10 +3,11 @@ FROM ${SHIMMY_ABA_BASE_IMAGE}
 
 ARG SHIMMY_ABA_SOURCE_REF=364c4c0faa743d57d04674d71eabd434b5ec17d5
 
-RUN --mount=type=secret,id=shimmy-aba-host-ca,required=true \
-  if [ -s /run/secrets/shimmy-aba-host-ca ]; then \
-    cp /run/secrets/shimmy-aba-host-ca /etc/pki/ca-trust/source/anchors/shimmy-aba-host-ca-bundle.pem; \
+RUN --mount=type=secret,id=shimmy-host-ca-bundle \
+  if [ -s /run/secrets/shimmy-host-ca-bundle ]; then \
+    cp /run/secrets/shimmy-host-ca-bundle /etc/pki/ca-trust/source/anchors/shimmy-host-ca-bundle.pem; \
     update-ca-trust; \
+    rm /etc/pki/ca-trust/source/anchors/shimmy-host-ca-bundle.pem; \
   fi
 
 RUN dnf install -y \
