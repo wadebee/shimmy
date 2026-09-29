@@ -104,7 +104,7 @@ test_commands_shim_selector_lifecycle() {
     "$ROOT_DIR/commands/shim.sh" add oc
   test_shim_list=$(test_shim_run list --format manifest)
   assert_contains "$test_shim_list" 'shimmy_shim=oc|4.18|tracking|4.18'
-  assert_contains "$(cat "$TEST_SHIM_IMAGE_LOG")" 'image|oc|4.18|build'
+  assert_contains "$(cat "$TEST_SHIM_IMAGE_LOG")" 'image|oc|4.18|pull'
 
   test_shim_run add oc@4.20
   test_shim_list=$(test_shim_run list --format manifest)
@@ -133,7 +133,7 @@ test_commands_shim_selector_lifecycle() {
   assert_contains "$test_shim_list" 'shimmy_shim=oc|4.22|pinned|4.20,4.22'
   : > "$TEST_SHIM_IMAGE_LOG"
   test_shim_run sync oc@4.22
-  assert_equals "$(cat "$TEST_SHIM_IMAGE_LOG")" 'image|oc|4.22|build'
+  assert_equals "$(cat "$TEST_SHIM_IMAGE_LOG")" 'image|oc|4.22|pull'
 
   test_shim_run remove oc@4.20
   set +e

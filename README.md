@@ -42,13 +42,23 @@ surface and preserves any existing default connection itself.
 
 ## Host CA bundles
 
-CA-aware tool implementations can opt in to one host trust file with
-`SHIMMY_HOST_CA_BUNDLE=/absolute/path/to/bundle.pem`. Shimmy validates that the
-configured path is an absolute, readable regular file, mounts that exact file
-read-only at `/tmp/shimmy-host-ca-bundle.pem`, and explicitly assigns the
-implementation's native CA variable to the container path. The host-only
-`SHIMMY_HOST_CA_BUNDLE` variable is not forwarded. Unset or empty leaves the
-Podman command unchanged.
+Every tool implementation accepts one optional host trust file through
+`SHIMMY_HOST_CA_BUNDLE=/absolute/path/to/bundle.pem`. When present, every runtime mounts
+that exact file read-only at `/tmp/shimmy-host-ca-bundle.pem` and explicitly
+assigns either the implementation's documented native CA variable or the
+`SSL_CERT_FILE` compatibility fallback to that container path. The host-only
+`SHIMMY_HOST_CA_BUNDLE` variable and its host path are not forwarded as
+container environment variables. Unset, empty, invalid, and zero-byte inputs
+add no runtime mount or assignment.
+
+For local-build tools, a present bundle is supplied only as the temporary
+`shimmy-host-ca-bundle` build secret before build-time network work. The secret
+source and certificate contents are not embedded in an image layer, logged, or
+included in the local image identity, tag, or label. Consequently, normal cache
+reuse does not rebuild a local image when the bundle changes. Set the tool's
+`SHIMMY_<TOOL>_IMAGE_BUILD=always` setting when refreshed build-time trust is
+required. Shimmy does not validate PEM syntax, merge certificate bundles, or
+guarantee that every application honors `SSL_CERT_FILE`.
 
 | Opted-in implementation | Native container assignment |
 |---|---|

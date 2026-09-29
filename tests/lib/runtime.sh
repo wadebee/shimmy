@@ -187,13 +187,14 @@ test_lib_runtime_ca_bundle_prepare_path_failures() {
 
     [ "$status_code" -ne 0 ] || fail_test "invalid CA bundle unexpectedly passed: $invalid_bundle"
     case "$invalid_bundle" in
-      /*) expected_error='ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable nonempty CA bundle file' ;;
-      *) expected_error='ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable CA bundle file' ;;
+      /*) expected_error='ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable nonempty CA bundle file.' ;;
+      *) expected_error='ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable CA bundle file.' ;;
     esac
-    assert_equals "$output" "$expected_error: $invalid_bundle
+    assert_equals "$output" "$expected_error
 source=
 target=
 assignment="
+    assert_not_contains "$output" "$invalid_bundle"
     assert_not_contains "$output" "$bundle_contents"
   done
 
@@ -207,7 +208,8 @@ assignment="
     status_code=$?
     set -e
     [ "$status_code" -ne 0 ] || fail_test "unreadable CA bundle unexpectedly passed"
-    assert_equals "$output" "ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable nonempty CA bundle file: $unreadable_bundle"
+    assert_equals "$output" 'ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable nonempty CA bundle file.'
+    assert_not_contains "$output" "$unreadable_bundle"
     assert_not_contains "$output" "$bundle_contents"
   fi
   chmod 0600 "$unreadable_bundle"
