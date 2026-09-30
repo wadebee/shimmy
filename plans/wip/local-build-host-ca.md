@@ -106,7 +106,7 @@ None.
 
 - [x] Shared universal CA validation and optional build-secret preparation.
 - [x] Runtime wrapper adoption and local-build Containerfile adoption.
-- [ ] Chunk 3 — Close redaction and OpenShift migration regression gaps.
+- [x] Chunk 3 — Close redaction and OpenShift migration regression gaps (verified 2026-09-30; awaiting human review gate).
 - [ ] Chunk 4 — Document all runtime mappings and local-build behavior.
 - [ ] Chunk 5 — Execute final source and authorized native acceptance.
 
@@ -267,6 +267,19 @@ Accept the completed capability and the stated disposition of native acceptance.
   assumptions; neither failure indicates a CA runtime regression.
 - Existing canonical documentation represents only the pre-universal opt-in
   capability and cannot be treated as a complete mapping inventory.
+
+### Chunk 3 — Redaction and OpenShift regression repair
+
+- Fixed CA validation diagnostics to disclose only the violated input contract,
+  not the user-supplied host path. The shared output target is now empty while
+  CA support is disabled and is assigned only after a valid nonempty file is
+  accepted.
+- Updated OpenShift preflight and shim lifecycle assertions to the current
+  external-image metadata and pull behavior.
+- Focused verification passed on 2026-09-30: `./tests/test.sh --group
+  lib-runtime --group commands-agent-preflight --group commands-shim --group
+  tools-oc`; all 20 tests passed. Shell syntax and `git diff --check` also
+  passed.
 
 ## Session bootstrap
 
