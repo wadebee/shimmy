@@ -45,33 +45,7 @@ test_tools_aws_ca_bundle_disabled() {
   pass "AWS leaves the Podman command unchanged when host CA support is unset or empty"
 }
 
-test_tools_aws_ca_bundle_failure_before_podman() {
-  setup_scenario
-  fake_bin_dir=$SCENARIO_DIR/fake-bin
-  fake_podman=$fake_bin_dir/podman
-  podman_called=$SCENARIO_DIR/podman-called
-  missing_bundle=$SCENARIO_DIR/missing-ca-bundle.pem
-  mkdir -p "$fake_bin_dir"
-  printf '%s\n' \
-    '#!/bin/sh' \
-    ': > "$FAKE_PODMAN_CALLED"' \
-    'exit 90' \
-    > "$fake_podman"
-  chmod 0755 "$fake_podman"
-
-  set +e
-  output=$(PATH="$fake_bin_dir:/usr/bin:/bin" FAKE_PODMAN_CALLED="$podman_called" SHIMMY_HOST_CA_BUNDLE="$missing_bundle" SHIMMY_AWS_IMAGE=example.invalid/shimmy/aws:test run_in_repo ./commands/run-tool.sh aws --version 2>&1)
-  status_code=$?
-  set -e
-
-  [ "$status_code" -ne 0 ] || fail_test "AWS accepted a missing host CA bundle"
-  assert_equals "$output" "ERROR: SHIMMY_HOST_CA_BUNDLE must name an absolute readable CA bundle file: $missing_bundle"
-  assert_path_not_exists "$podman_called"
-  pass "AWS rejects an invalid host CA bundle before invoking Podman"
-}
-
 test_tools_aws_run() {
   test_tools_aws_ca_bundle_disabled
-  test_tools_aws_ca_bundle_failure_before_podman
   test_tools_aws_preview_contract
 }

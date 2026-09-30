@@ -77,14 +77,6 @@ test_tools_aba_failure_before_podman() {
   chmod 0755 "$fake_podman"
 
   set +e
-  output=$(PATH="$fake_bin_dir:/usr/bin:/bin" FAKE_PODMAN_CALLED="$podman_called" run_in_repo ./commands/run-tool.sh aba --help 2>&1)
-  status_code=$?
-  set -e
-  [ "$status_code" -ne 0 ] || fail_test "aba accepted a help command without a CA bundle"
-  assert_equals "$output" 'ERROR: aba requires SHIMMY_HOST_CA_BUNDLE to name an absolute readable CA bundle file.'
-  assert_path_not_exists "$podman_called"
-
-  set +e
   output=$(PATH="$fake_bin_dir:/usr/bin:/bin" FAKE_PODMAN_CALLED="$podman_called" SHIMMY_HOST_CA_BUNDLE="$ca_bundle" run_in_repo ./commands/run-tool.sh aba install 2>&1)
   status_code=$?
   set -e

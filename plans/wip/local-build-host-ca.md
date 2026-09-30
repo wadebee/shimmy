@@ -107,7 +107,7 @@ None.
 - [x] Shared universal CA validation and optional build-secret preparation.
 - [x] Runtime wrapper adoption and local-build Containerfile adoption.
 - [x] Chunk 3 — Close redaction and OpenShift migration regression gaps (verified 2026-09-30; awaiting human review gate).
-- [ ] Chunk 4 — Document all runtime mappings and local-build behavior.
+- [x] Chunk 4 — Document all runtime mappings and local-build behavior (verified 2026-09-30; full suite deferred to Chunk 5; awaiting human review gate).
 - [ ] Chunk 5 — Execute final source and authorized native acceptance.
 
 ## Execution protocol
@@ -205,10 +205,10 @@ consistent with the implementation.
 
 ### Verification checklist
 
-- [ ] Documentation inventory identifies every tool guide and skill with its actual mapping and local/external image status.
-- [ ] Source previews for one native-mapped runtime, one fallback runtime, and one local-build runtime show the expected mount and assignment without the raw control variable.
-- [ ] `./tests/test.sh` passes with the default bounded parallel runner.
-- [ ] `git diff --check` passes.
+- [x] Documentation inventory identifies every tool guide and skill with its actual mapping and local/external image status (verified by reviewer; 2026-09-30).
+- [x] Source previews for one native-mapped runtime, one fallback runtime, and one local-build runtime show the expected mount and assignment without the raw control variable (AWS, jq, and gdrive previews passed 2026-09-30).
+- [x] `./tests/test.sh` passes with the default bounded parallel runner (deferred by reviewer to Chunk 5's complete run).
+- [x] `git diff --check` passes (2026-09-30).
 
 ### Human review gate
 
@@ -280,6 +280,16 @@ Accept the completed capability and the stated disposition of native acceptance.
   lib-runtime --group commands-agent-preflight --group commands-shim --group
   tools-oc`; all 20 tests passed. Shell syntax and `git diff --check` also
   passed.
+
+### Chunk 4 — Canonical documentation completion
+
+- The reviewer verified the documentation inventory and approved deferring the
+  full source suite to Chunk 5, where it remains the complete acceptance run.
+- Source-only previews passed for AWS (native `AWS_CA_BUNDLE`), jq (fallback
+  `SSL_CERT_FILE`), and gdrive (Node `NODE_EXTRA_CA_CERTS`) with a temporary
+  nonempty CA file. Each rendered the stable read-only mount and selected
+  assignment without rendering the raw control variable or build-secret source.
+- `git diff --check` passed on 2026-09-30.
 
 ## Session bootstrap
 
