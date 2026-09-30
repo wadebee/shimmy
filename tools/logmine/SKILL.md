@@ -23,6 +23,8 @@ description: Use and maintain the Logmine Shimmy tool.
    persist a broad prefix because the wrapper mounts the current project
    read-write and its minimal skill does not establish a read-only CLI contract.
 
+`SHIMMY_HOST_CA_BUNDLE` optionally selects one absolute, readable, nonempty host file. A present file is mounted at `/tmp/shimmy-host-ca-bundle.pem` and mapped through `SSL_CERT_FILE`; it is also a temporary `shimmy-host-ca-bundle` build secret, excluded from image layers and identity. Use `SHIMMY_LOGMINE_IMAGE_BUILD=always` to refresh build-time trust.
+
 Read `CONTEXT.md`, `CONTRIBUTING.md`, and
 `tools/logmine/guide.md`.
 Preserve local-image behavior and minimal host-integration mounts. The default

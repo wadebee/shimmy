@@ -39,6 +39,10 @@ Mounts:
 
 - `$PWD` -> `/work` read-write.
 
+Host CA bundle:
+
+- `SHIMMY_HOST_CA_BUNDLE` optionally names an absolute, readable, nonempty host file. Shimmy mounts a present bundle read-only at `/tmp/shimmy-host-ca-bundle.pem` and sets `SSL_CERT_FILE` to that path; it does not forward the host control variable. `SSL_CERT_FILE` can replace public roots, so provide a combined bundle when needed.
+
 Runtime platform:
 
 - Linux or macOS on `amd64` -> `linux/amd64`

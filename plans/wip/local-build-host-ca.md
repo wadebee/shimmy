@@ -159,10 +159,10 @@ to the current OpenShift external-image implementation.
 
 ### Verification checklist
 
-- [ ] `./tests/test.sh --group lib-runtime --group commands-agent-preflight --group commands-shim --group tools-oc` passes using the default bounded schedule.
-- [ ] `/bin/sh -n lib/runtime/podman.sh` passes.
-- [ ] The focused helper test proves an invalid sentinel path is absent from its diagnostic.
-- [ ] `git diff --check` passes.
+- [x] `./tests/test.sh --group lib-runtime --group commands-agent-preflight --group commands-shim --group tools-oc` passes using the default bounded schedule (2026-09-30; all 20 tests passed).
+- [x] `/bin/sh -n lib/runtime/podman.sh` passes (2026-09-30).
+- [x] The focused helper test proves an invalid sentinel path is absent from its diagnostic (2026-09-30).
+- [x] `git diff --check` passes (2026-09-30).
 
 ### Human review gate
 

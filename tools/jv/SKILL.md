@@ -31,6 +31,10 @@ image, tests, docs, or Shimmy usage.
 - Runtime mode: stdin-friendly via `podman run --rm -i`
 - Mount: `$PWD` to `/work`
 
+## Host CA bundle
+
+`SHIMMY_HOST_CA_BUNDLE` optionally selects one absolute, readable, nonempty host file. A present file is mounted at `/tmp/shimmy-host-ca-bundle.pem` and mapped through `SSL_CERT_FILE`; it is also a temporary `shimmy-host-ca-bundle` build secret, excluded from image layers and identity. Use `SHIMMY_JV_IMAGE_BUILD=always` to refresh build-time trust.
+
 ## Change Rules
 
 1. Keep the image build pinned to an explicit upstream jv release.

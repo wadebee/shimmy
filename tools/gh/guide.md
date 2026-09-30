@@ -39,7 +39,7 @@ Mounts and runtime:
 
 GitHub CLI's Go HTTP client uses `SSL_CERT_FILE` for system-root file
 discovery. This can replace the normal public root file, so provide a combined
-public and corporate bundle when both are required.
+public and corporate bundle when both are required. A present bundle is also a temporary `shimmy-host-ca-bundle` secret before local-build network work; it is not an image layer or identity input, so use `SHIMMY_GH_IMAGE_BUILD=always` to refresh build-time trust.
 
 Local image behavior:
 

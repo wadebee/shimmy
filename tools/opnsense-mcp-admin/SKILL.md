@@ -83,6 +83,10 @@ removed repository `shims/` paths.
 - Mount: `$PWD` to `/work`
 - Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
+## Host CA bundle
+
+`SHIMMY_HOST_CA_BUNDLE` optionally selects one absolute, readable, nonempty host file. A present file is mounted at `/tmp/shimmy-host-ca-bundle.pem` and mapped through `SSL_CERT_FILE`; it is also a temporary build secret, excluded from image layers and identity. Use `SHIMMY_OPNSENSE_MCP_ADMIN_IMAGE_BUILD=always` to refresh build-time trust.
+
 ## Routing Rules
 
 1. Prefer `opnsense-mcp-read-only` for inventory, status, diagnostics, inspection, and policy review when a matching read-only tool exists.

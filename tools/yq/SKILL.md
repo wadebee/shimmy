@@ -63,6 +63,10 @@ of profile health.
   resolve SELinux labeling; do not recursively chown or relabel user files.
 - The wrapper mounts no host home or credentials and forwards no host env.
 
+## Host CA bundle
+
+`SHIMMY_HOST_CA_BUNDLE` optionally selects one absolute, readable, nonempty host file. A present file is mounted at `/tmp/shimmy-host-ca-bundle.pem` and mapped through `SSL_CERT_FILE`; the raw control variable is host-only.
+
 ## Maintenance
 
 Canonical files live under `tools/yq/`: `tool.conf`, `guide.md`, this skill,

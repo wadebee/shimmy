@@ -42,6 +42,10 @@ description: Use and maintain the community-ansible-dev-tools Shimmy tool, inclu
 - Nested Podman: publisher-documented capabilities, `/dev/fuse`, host user namespace, root user, and unconfined security options are one explicit opt-in.
 - Platform: the shared Podman helper selects native `linux/amd64` or `linux/arm64`.
 
+## Host CA bundle
+
+`SHIMMY_HOST_CA_BUNDLE` optionally selects one absolute, readable, nonempty host file. A present file is mounted at `/tmp/shimmy-host-ca-bundle.pem` and mapped through `SSL_CERT_FILE`; the raw control variable is host-only. Treat `SSL_CERT_FILE` as replacement-capable and advise a combined bundle when public roots are also required.
+
 ## Change Rules
 
 1. Preserve arbitrary bundled-command execution; this image is a development environment rather than a single executable image.

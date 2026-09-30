@@ -63,7 +63,7 @@ Host CA trust:
 - Node adds certificates from `NODE_EXTRA_CA_CERTS` to its built-in trusted
   roots and reads the file at process startup. Application code that
   explicitly supplies a TLS `ca` option can override that default behavior.
-  Shimmy mounts the supplied PEM file as-is and does not parse or merge it.
+  Shimmy mounts the supplied PEM file as-is and does not parse or merge it. A present bundle is also a temporary `shimmy-host-ca-bundle` secret before local-build network work; it is not an image layer or identity input, so use `SHIMMY_GDRIVE_IMAGE_BUILD=always` to refresh build-time trust.
 
 Ports:
 

@@ -68,6 +68,10 @@ concrete `tools/bats/versions/1.14/run.sh` runtime.
 - State: no host home, credentials, or extra configuration directories are mounted.
 - Platform: the shared Podman helper selects native `linux/amd64` or `linux/arm64`.
 
+## Host CA bundle
+
+`SHIMMY_HOST_CA_BUNDLE` optionally selects one absolute, readable, nonempty host file. A present file is mounted at `/tmp/shimmy-host-ca-bundle.pem` and mapped through `SSL_CERT_FILE`; the raw control variable is host-only. Treat `SSL_CERT_FILE` as replacement-capable and advise a combined bundle when public roots are also required.
+
 ## Safety Rules
 
 1. Treat any Bats run as execution of project shell code with read-write access to the mounted working tree.

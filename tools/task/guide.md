@@ -61,7 +61,7 @@ Task 3.45 uses Go's standard trust-pool file discovery. `SSL_CERT_FILE` can
 replace the normal public roots, so provide a combined public and corporate
 bundle when both are required. Shimmy does not inject the version-specific
 `--cacert` option added by later Task releases; an explicit application CA
-setting can take precedence.
+setting can take precedence. A present bundle is also a temporary `shimmy-host-ca-bundle` secret before local-build network work; it is not an image layer or identity input, so use `SHIMMY_TASK_IMAGE_BUILD=always` to refresh build-time trust.
 
 `CONTAINER_HOST` and `CONTAINER_CONNECTION` also override Podman's selected
 connection, so any non-empty value blocks deterministic `shimmy profile

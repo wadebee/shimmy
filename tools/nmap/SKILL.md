@@ -76,6 +76,10 @@ removed repository `shims/` paths.
 - Mount: `$PWD` to `/work`
 - Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
+## Host CA bundle
+
+`SHIMMY_HOST_CA_BUNDLE` optionally selects one absolute, readable, nonempty host file. A present file is mounted at `/tmp/shimmy-host-ca-bundle.pem` and mapped through `SSL_CERT_FILE`; the raw control variable is host-only.
+
 ## Change Rules
 
 1. Never make LAN scan, raw socket, rootful connection, or Podman privileged behavior the default.

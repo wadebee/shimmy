@@ -75,6 +75,10 @@ removed repository `shims/` paths.
 - Mount: `$PWD` to `/work:rw`
 - Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64` from host OS and CPU
 
+## Host CA bundle
+
+`SHIMMY_HOST_CA_BUNDLE` optionally selects one absolute, readable, nonempty host file. A present file is mounted at `/tmp/shimmy-host-ca-bundle.pem` and mapped through `SSL_CERT_FILE`; it is also a temporary build secret, excluded from image layers and identity. Use `SHIMMY_TEXTUAL_IMAGE_BUILD=always` to refresh build-time trust.
+
 ## Change Rules
 
 1. Keep package installation inside `tools/textual/versions/8.2/container/Containerfile`, not the tool dispatcher.

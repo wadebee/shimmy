@@ -33,6 +33,9 @@ download the release asset.
 Mounts:
 
 - `$PWD` -> `/work` read-write.
+- A present `SHIMMY_HOST_CA_BUNDLE` -> `/tmp/shimmy-host-ca-bundle.pem` read-only, with `SSL_CERT_FILE` set to that container path. The host control variable is not forwarded.
+
+A bundle must be an absolute, readable, nonempty file. During a local build it is a temporary `shimmy-host-ca-bundle` secret before network work, not an image layer or identity input. Cached images are not rebuilt when it changes; use `SHIMMY_JV_IMAGE_BUILD=always` to refresh build-time trust. `SSL_CERT_FILE` can replace public roots, so provide a combined bundle when needed.
 
 Container I/O is stdin-friendly via `podman run --rm -i`. The runtime selects
 native `linux/amd64` or `linux/arm64` through Shimmy's shared platform helper.

@@ -60,14 +60,12 @@ reuse does not rebuild a local image when the bundle changes. Set the tool's
 required. Shimmy does not validate PEM syntax, merge certificate bundles, or
 guarantee that every application honors `SSL_CERT_FILE`.
 
-| Opted-in implementation | Native container assignment |
+| Runtime mapping | Concrete implementations |
 |---|---|
-| AWS CLI `2.31` | `AWS_CA_BUNDLE` |
-| Google Cloud CLI `573.0` | `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE` |
-| npx `24.18`, gdrive `0.2`, Tessl `0.1` | `NODE_EXTRA_CA_CERTS` |
-| Go `1.26`, Terraform `1.15`, GitHub CLI `2.94`, Task `3.45` | `SSL_CERT_FILE` |
-| OpenShift CLI `4.18`, `4.20`, `4.22`; ABA `1.3`; Skopeo `1.22` | `SSL_CERT_FILE` |
-| OPNsense MCP read-only `0.4` | `SSL_CERT_FILE` |
+| `AWS_CA_BUNDLE` | AWS CLI `2.31` |
+| `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE` | Google Cloud CLI `573.0` |
+| `NODE_EXTRA_CA_CERTS` | npx `24.18`, gdrive `0.2`, Tessl `0.1` |
+| `SSL_CERT_FILE` fallback | ABA `1.3`, Bats `1.14`, community-ansible-dev-tools `26.7`, Flux `2.9`, GitHub CLI `2.94`, Go `1.26`, jq `1.8`, jv `6.0`, KeePassXC `2.7`, Logmine `0.1`, Netcat `7.92`, Nmap `7.98`, OpenShift CLI `4.18`/`4.20`/`4.22`, both OPNsense MCP tools, ripgrep `15.1`, Skopeo `1.22`, Task `3.45`, Terraform `1.15`, Textual `8.2`, and yq `4.53` |
 
 Node's `NODE_EXTRA_CA_CERTS` augments built-in public roots. The AWS, Google
 Cloud CLI, Go, and HTTPX mechanisms can replace normal trust-file discovery or

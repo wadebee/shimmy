@@ -19,6 +19,10 @@ Use this skill when working with the KeePassXC CLI tool, its tests, docs, or usa
 - Mount: `$PWD` to `/work`
 - Platform: shared Podman helper selects native `linux/amd64` or `linux/arm64`
 
+## Host CA bundle
+
+`SHIMMY_HOST_CA_BUNDLE` optionally selects one absolute, readable, nonempty host file. A present file is mounted at `/tmp/shimmy-host-ca-bundle.pem` and mapped through `SSL_CERT_FILE`; the raw control variable is host-only. Treat `SSL_CERT_FILE` as replacement-capable and advise a combined bundle when public roots are also required.
+
 ## Safety
 
 KeePassXC CLI can read and modify password databases. Prefer non-mutating commands
